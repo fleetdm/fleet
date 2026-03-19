@@ -186,31 +186,18 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         
-        # Wait for Fleet server to be reachable first
-        echo "Waiting for Fleet server to be ready..."
-        
-        ATTEMPT=0
+        # Wait for Fleet server to be reachable
+        echo "Waiting for Fleet server to pass health check..."
         until curl -s -o /dev/null -w "%{http_code}" ${{ needs.gen.outputs.address }}/healthz | grep -q "200"; do
-          ATTEMPT=$((ATTEMPT + 1))
-          if [ $ATTEMPT -ge 60 ]; then
-            echo "ERROR: Fleet server not reachable after 5 minutes"
-            exit 1
-          fi
-          echo "Waiting for server... attempt $ATTEMPT/60"
+          echo "Health check failed..."
           sudo resolvectl flush-caches 2>/dev/null || sudo systemd-resolve --flush-caches 2>/dev/null || true
-          sleep 5
+          sleep 1
         done
         echo "Fleet server is responding, attempting login..."
         
-        ATTEMPT=0
         until fleetctl login --email admin@example.com --password preview1337#; do
-          ATTEMPT=$((ATTEMPT + 1))
-          if [ $ATTEMPT -ge 30 ]; then
-            echo "ERROR: Failed to login after $ATTEMPT attempts"
-            exit 1
-          fi
-          echo "Login attempt $ATTEMPT failed, retrying in 5s..."
-          sleep 5
+          echo "Login attempt failed..."
+          sleep 1
         done
         TOKEN=$(fleetctl config get token | awk '{print $3}')
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
