@@ -3557,14 +3557,16 @@ func filterSoftwareInstallersByLabel(
 				FROM
 					software_installers
 				INNER JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id AND software_installer_labels.exclude = 0
+					ON software_installer_labels.software_installer_id = software_installers.id
+						AND software_installer_labels.exclude = 0
+						AND software_installer_labels.require_all = 0
 				LEFT JOIN label_membership
 					ON label_membership.label_id = software_installer_labels.label_id
 					AND label_membership.host_id = :host_id
 				GROUP BY
 					software_installers.id
 				HAVING
-					COUNT(*) > 0 AND COUNT(label_membership.label_id) > 0
+					count_installer_labels > 0 AND count_host_labels > 0
 			),
 			exclude_any AS (
 				SELECT
@@ -3583,7 +3585,9 @@ func filterSoftwareInstallersByLabel(
 				FROM
 					software_installers
 				INNER JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id AND software_installer_labels.exclude = 1
+					ON software_installer_labels.software_installer_id = software_installers.id
+						AND software_installer_labels.exclude = 1
+						AND software_installer_labels.require_all = 0
 				INNER JOIN labels
 					ON labels.id = software_installer_labels.label_id
 				LEFT JOIN label_membership
@@ -3592,17 +3596,30 @@ func filterSoftwareInstallersByLabel(
 				GROUP BY
 					software_installers.id
 				HAVING
-					COUNT(*) > 0
-					AND COUNT(*) = SUM(
-						CASE
-							WHEN labels.created_at IS NOT NULL AND (
-								labels.label_membership_type = 1 OR
-								(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
-							) THEN 1
-							ELSE 0
-						END
-					)
-					AND COUNT(label_membership.label_id) = 0
+					count_installer_labels > 0
+					AND count_installer_labels = count_host_updated_after_labels
+					AND count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					software_installers.id AS installer_id,
+					COUNT(*) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 AS count_host_updated_after_labels
+				FROM
+					software_installers
+				INNER JOIN software_installer_labels
+					ON software_installer_labels.software_installer_id = software_installers.id
+						AND software_installer_labels.exclude = 0
+						AND software_installer_labels.require_all = 1
+				LEFT JOIN label_membership
+					ON label_membership.label_id = software_installer_labels.label_id
+					AND label_membership.host_id = :host_id
+				GROUP BY
+					software_installers.id
+				HAVING
+					count_installer_labels > 0
+					AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				software_installers.id AS id,
@@ -3615,6 +3632,8 @@ func filterSoftwareInstallersByLabel(
 				ON include_any.installer_id = software_installers.id
 			LEFT JOIN exclude_any
 				ON exclude_any.installer_id = software_installers.id
+			LEFT JOIN include_all
+				ON include_all.installer_id = software_installers.id
 			WHERE
 				software_installers.global_or_team_id = :global_or_team_id
 				AND software_installers.id IN (:software_installer_ids)
@@ -3622,6 +3641,7 @@ func filterSoftwareInstallersByLabel(
 					no_labels.installer_id IS NOT NULL
 					OR include_any.installer_id IS NOT NULL
 					OR exclude_any.installer_id IS NOT NULL
+					OR include_all.installer_id IS NOT NULL
 				)
 		`
 		labelSqlFilter, args, err := sqlx.Named(labelSqlFilter, map[string]any{
@@ -3711,7 +3731,9 @@ func filterVPPAppsByLabel(
 				FROM
 					vpp_apps_teams
 				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 0
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 0
+						AND vpp_app_team_labels.require_all = 0
 				LEFT JOIN label_membership
 					ON label_membership.label_id = vpp_app_team_labels.label_id
 					AND label_membership.host_id = :host_id
@@ -3735,7 +3757,9 @@ func filterVPPAppsByLabel(
 				FROM
 					vpp_apps_teams
 				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 1
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 1
+						AND vpp_app_team_labels.require_all = 0
 				INNER JOIN labels
 					ON labels.id = vpp_app_team_labels.label_id
 				LEFT OUTER JOIN label_membership
@@ -3746,6 +3770,26 @@ func filterVPPAppsByLabel(
 					count_installer_labels > 0
 					AND count_installer_labels = count_host_updated_after_labels
 					AND count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					vpp_apps_teams.id AS team_id,
+					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					vpp_apps_teams
+				INNER JOIN vpp_app_team_labels
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 0
+						AND vpp_app_team_labels.require_all = 1
+				LEFT JOIN label_membership
+					ON label_membership.label_id = vpp_app_team_labels.label_id
+					AND label_membership.host_id = :host_id
+				GROUP BY
+					vpp_apps_teams.id
+				HAVING
+					count_installer_labels > 0 AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				vpp_apps.adam_id AS adam_id,
@@ -3753,19 +3797,24 @@ func filterVPPAppsByLabel(
 			FROM
 				vpp_apps
 			INNER JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id
+					AND vpp_apps.platform = vpp_apps_teams.platform
+					AND vpp_apps_teams.global_or_team_id = :global_or_team_id
 			LEFT JOIN no_labels
 				ON no_labels.team_id = vpp_apps_teams.id
 			LEFT JOIN include_any
 				ON include_any.team_id = vpp_apps_teams.id
 			LEFT JOIN exclude_any
 				ON exclude_any.team_id = vpp_apps_teams.id
+			LEFT JOIN include_all
+				ON include_all.team_id = vpp_apps_teams.id
 			WHERE
 				vpp_apps.adam_id IN (:vpp_app_adam_ids)
 				AND (
 					no_labels.team_id IS NOT NULL
 					OR include_any.team_id IS NOT NULL
 					OR exclude_any.team_id IS NOT NULL
+					OR include_all.team_id IS NOT NULL
 				)
 		`
 
@@ -3864,8 +3913,10 @@ func filterInHouseAppsByLabel(
 					0 as count_host_updated_after_labels
 				FROM
 					in_house_apps iha
-				INNER JOIN in_house_app_labels ihl ON
-					ihl.in_house_app_id = iha.id AND ihl.exclude = 0
+				INNER JOIN in_house_app_labels ihl
+					ON ihl.in_house_app_id = iha.id
+						AND ihl.exclude = 0
+						AND ihl.require_all = 0
 				LEFT JOIN label_membership lm ON
 					lm.label_id = ihl.label_id AND lm.host_id = :host_id
 				GROUP BY
@@ -3887,8 +3938,10 @@ func filterInHouseAppsByLabel(
 					) AS count_host_updated_after_labels
 				FROM
 					in_house_apps iha
-				INNER JOIN in_house_app_labels ihl ON
-					ihl.in_house_app_id = iha.id AND ihl.exclude = 1
+				INNER JOIN in_house_app_labels ihl
+					ON ihl.in_house_app_id = iha.id
+						AND ihl.exclude = 1
+						AND ihl.require_all = 0
 				INNER JOIN labels lbl ON
 					lbl.id = ihl.label_id
 				LEFT OUTER JOIN label_membership lm ON
@@ -3899,6 +3952,25 @@ func filterInHouseAppsByLabel(
 					count_installer_labels > 0 AND
 					count_installer_labels = count_host_updated_after_labels AND
 					count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					iha.id AS in_house_app_id,
+					COUNT(ihl.label_id) AS count_installer_labels,
+					COUNT(lm.label_id) AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					in_house_apps iha
+				INNER JOIN in_house_app_labels ihl
+					ON ihl.in_house_app_id = iha.id
+						AND ihl.exclude = 0
+						AND ihl.require_all = 1
+				LEFT JOIN label_membership lm ON
+					lm.label_id = ihl.label_id AND lm.host_id = :host_id
+				GROUP BY
+					iha.id
+				HAVING
+					count_installer_labels > 0 AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				iha.id AS in_house_id,
@@ -3911,12 +3983,15 @@ func filterInHouseAppsByLabel(
 				ON include_any.in_house_app_id = iha.id
 			LEFT JOIN exclude_any
 				ON exclude_any.in_house_app_id = iha.id
+			LEFT JOIN include_all
+				ON include_all.in_house_app_id = iha.id
 			WHERE
 				iha.global_or_team_id = :global_or_team_id AND
 				iha.id IN (:in_house_ids) AND (
 					no_labels.in_house_app_id IS NOT NULL OR
 					include_any.in_house_app_id IS NOT NULL OR
-					exclude_any.in_house_app_id IS NOT NULL
+					exclude_any.in_house_app_id IS NOT NULL OR
+					include_all.in_house_app_id IS NOT NULL
 				)
 		`
 
@@ -4567,7 +4642,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 						SELECT 1 FROM (
 
-							-- no labels
+							-- no labels for any type of installer
 							SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 							WHERE
 								NOT EXISTS (SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id) AND
@@ -4588,6 +4663,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								sil.software_installer_id = si.id
 								AND sil.exclude = 0
+								AND sil.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_host_labels > 0
 
@@ -4613,8 +4689,27 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								sil.software_installer_id = si.id
 								AND sil.exclude = 1
+								AND sil.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+							UNION
+
+							-- include all for software installers
+							SELECT
+								COUNT(*) AS count_installer_labels,
+								COUNT(lm.label_id) AS count_host_labels,
+								0 as count_host_updated_after_labels
+							FROM
+								software_installer_labels sil
+								LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+								AND lm.host_id = :host_id
+							WHERE
+								sil.software_installer_id = si.id
+								AND sil.exclude = 0
+								AND sil.require_all = 1
+							HAVING
+								count_installer_labels > 0 AND count_host_labels = count_installer_labels
 
 							UNION
 
@@ -4630,6 +4725,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								vatl.vpp_app_team_id = vat.id
 								AND vatl.exclude = 0
+								AND vatl.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_host_labels > 0
 
@@ -4652,8 +4748,27 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								vatl.vpp_app_team_id = vat.id
 								AND vatl.exclude = 1
+								AND vatl.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+							UNION
+
+							-- include all for VPP apps
+							SELECT
+								COUNT(*) AS count_installer_labels,
+								COUNT(lm.label_id) AS count_host_labels,
+								0 as count_host_updated_after_labels
+							FROM
+								vpp_app_team_labels vatl
+								LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+								AND lm.host_id = :host_id
+							WHERE
+								vatl.vpp_app_team_id = vat.id
+								AND vatl.exclude = 0
+								AND vatl.require_all = 1
+							HAVING
+								count_installer_labels > 0 AND count_host_labels = count_installer_labels
 
 							UNION
 
@@ -4668,6 +4783,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								ihl.in_house_app_id = iha.id
 								AND ihl.exclude = 0
+								AND ihl.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_host_labels > 0
 
@@ -4686,10 +4802,28 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								LEFT OUTER JOIN labels lbl ON lbl.id = ihl.label_id
 								LEFT OUTER JOIN label_membership lm ON lm.label_id = ihl.label_id AND lm.host_id = :host_id
 							WHERE
-								ihl.in_house_app_id = iha.id AND
-								ihl.exclude = 1
+								ihl.in_house_app_id = iha.id
+								AND ihl.exclude = 1
+								AND ihl.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+							UNION
+
+							-- include all for in-house apps
+							SELECT
+								COUNT(*) AS count_installer_labels,
+								COUNT(lm.label_id) AS count_host_labels,
+								0 as count_host_updated_after_labels
+							FROM
+								in_house_app_labels ihl
+								LEFT OUTER JOIN label_membership lm ON lm.label_id = ihl.label_id AND lm.host_id = :host_id
+							WHERE
+								ihl.in_house_app_id = iha.id
+								AND ihl.exclude = 0
+								AND ihl.require_all = 1
+							HAVING
+								count_installer_labels > 0 AND count_host_labels = count_installer_labels
 							) t
 						)
 				)

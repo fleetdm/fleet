@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/str"
@@ -887,7 +888,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
-	scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
+	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
 	ctx = ctxerr.NewContext(ctx, eh)
 
@@ -1191,8 +1192,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller, androidSvc)
+		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc)
 	}); err != nil {
 		initFatal(err, "failed to register worker integrations schedule")
 	}
