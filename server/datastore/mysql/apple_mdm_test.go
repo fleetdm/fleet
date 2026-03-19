@@ -11400,6 +11400,12 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 
 		// Second rotation time should be after first
 		assert.True(t, secondRotateAt.After(firstRotateAt), "second view should update auto_rotate_at")
+
+		// Verify the value was persisted in the database
+		pw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, pw.AutoRotateAt, "auto_rotate_at should be persisted")
+		assert.True(t, pw.AutoRotateAt.After(firstRotateAt), "persisted auto_rotate_at should be after first rotation time")
 	})
 
 	t.Run("MarkRecoveryLockPasswordViewed fails for non-existent host", func(t *testing.T) {
