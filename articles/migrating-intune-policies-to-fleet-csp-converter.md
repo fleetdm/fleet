@@ -1,6 +1,6 @@
 # Migrating Intune policies to Fleet with the CSP converter
 
-Migrating Windows configuration policies from Microsoft Intune to Fleet doesn't have to be a manual, policy-by-policy rebuild. The Intune-to-Fleet CSP converter is a community PowerShell tool that automates most of the translation work — converting your Intune JSON exports into SyncML XML files ready to upload to Fleet.
+Migrating Windows configuration policies from Microsoft Intune to Fleet doesn't have to be a manual, policy-by-policy rebuild. The Intune-to-Fleet CSP converter is a community PowerShell tool that automates most of the translation work — converting your Intune JSON exports into [SyncML](https://en.wikipedia.org/wiki/SyncML) XML files ready to upload to Fleet.
 
 > **Important:** This is a community tool, not an official Fleet product. It covers approximately 70–75% of standard Intune policy scenarios out of the box. Edge cases, custom or complex policies, and certain ADMX-backed configurations may require manual review or adjustment. Your mileage will vary — treat the output as a strong starting point, not a finished migration.
 
