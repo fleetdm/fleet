@@ -1752,7 +1752,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.txt"), []byte(""), 0o644))
 
-		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1770,7 +1770,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.yml"), []byte(""), 0o644))
 
-		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1786,8 +1786,8 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.yaml"), []byte(""), 0o644))
 
 		items := []fleet.BaseItem{
-			{Path: ptr.String("single.yml")},
-			{Paths: ptr.String("*.yaml")},
+			{Path: ptr.String("single.yml")}, //nolint:modernize
+			{Paths: ptr.String("*.yaml")},    //nolint:modernize
 		}
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
@@ -1799,21 +1799,21 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("paths_without_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []fleet.BaseItem{{Paths: ptr.String("foo.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("foo.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `does not contain glob characters`)
 	})
 
 	t.Run("path_with_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
-		items := []fleet.BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
 	})
@@ -1844,7 +1844,7 @@ func TestExpandBaseItems(t *testing.T) {
 		logFn := func(format string, args ...any) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
-		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
 		require.Empty(t, errs)
 		assert.Empty(t, result)
@@ -1862,7 +1862,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.yml"), []byte(""), 0o644))
 
-		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			RequireUniqueBasenames: true,
 		})
@@ -1878,8 +1878,8 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(sub, "item.yml"), []byte(""), 0o644))
 
 		items := []fleet.BaseItem{
-			{Path: ptr.String("item.yml")},
-			{Paths: ptr.String("sub/*.yml")},
+			{Path: ptr.String("item.yml")},   //nolint:modernize
+			{Paths: ptr.String("sub/*.yml")}, //nolint:modernize
 		}
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			RequireUniqueBasenames: true,
@@ -1900,7 +1900,7 @@ func TestExpandBaseItems(t *testing.T) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
 
-		items := []fleet.BaseItem{{Paths: ptr.String("*")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			AllowedExtensions: map[string]bool{".sh": true},
 			LogFn:             logFn,
@@ -1918,7 +1918,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.yml"), []byte(""), 0o644))
 
-		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
@@ -1929,7 +1929,7 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("multiple_errors_collected", func(t *testing.T) {
 		t.Parallel()
-		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "", "test", GlobExpandOptions{})
 		require.Len(t, errs, 2)
 		assert.Contains(t, errs[0].Error(), `contains glob characters`)
@@ -1945,7 +1945,7 @@ func TestResolveScriptPaths(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []fleet.BaseItem{{Path: ptr.String("script.sh")}}
+		items := []fleet.BaseItem{{Path: ptr.String("script.sh")}} //nolint:modernize
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
@@ -1958,7 +1958,7 @@ func TestResolveScriptPaths(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []fleet.BaseItem{{Paths: ptr.String("*.sh")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.sh")}} //nolint:modernize
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
