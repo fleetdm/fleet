@@ -1,5 +1,7 @@
 # Old IT is dead — GitOps & AI are burying it
 
+![old-IT-is-dead](../website/assets/images/articles/old-IT-is-dead-736x414@2x.png)
+
 I was a skeptic.
 
 For years, "AI in IT" meant chatbots that confidently gave you wrong answers, autocomplete that finished your sentences badly, and a lot of vendor hype that amounted to a fancy search bar. If you tried AI tooling before late 2025 and walked away unimpressed, I completely understand. So did I.
@@ -139,4 +141,5 @@ If you dismissed AI tooling before late 2025, I'd genuinely encourage you to try
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-03-18">
-<meta name="description" value="AI and open-source solutions are enabling the future of device managment, right now.">
+<meta name="description" value="AI and open-source solutions are enabling the future of device management, right now.">
+<meta name="articleImageUrl" value="../website/assets/images/articles/old-IT-is-dead-736x414@2x.png">
