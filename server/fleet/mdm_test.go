@@ -558,6 +558,34 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 	}
 }
 
+func TestHasCAVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		vars     []string
+		expected bool
+	}{
+		{"empty", nil, false},
+		{"no CA vars", []string{"HOST_UUID", "HOST_HARDWARE_SERIAL"}, false},
+		{"NDES challenge", []string{"HOST_UUID", "NDES_SCEP_CHALLENGE"}, true},
+		{"NDES proxy URL", []string{"NDES_SCEP_PROXY_URL"}, true},
+		{"SCEP renewal", []string{"SCEP_RENEWAL_ID"}, true},
+		{"DigiCert data", []string{"DIGICERT_DATA_my_ca"}, true},
+		{"DigiCert password", []string{"DIGICERT_PASSWORD_my_ca"}, true},
+		{"Custom SCEP challenge", []string{"CUSTOM_SCEP_CHALLENGE_my_ca"}, true},
+		{"Custom SCEP proxy URL", []string{"CUSTOM_SCEP_PROXY_URL_my_ca"}, true},
+		{"Smallstep challenge", []string{"SMALLSTEP_SCEP_CHALLENGE_my_ca"}, true},
+		{"Smallstep proxy URL", []string{"SMALLSTEP_SCEP_PROXY_URL_my_ca"}, true},
+		{"mixed with CA", []string{"HOST_UUID", "HOST_HARDWARE_SERIAL", "NDES_SCEP_CHALLENGE"}, true},
+		{"unknown var", []string{"UNKNOWN_VAR"}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := fleet.HasCAVariables(tc.vars)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
 func TestFilterMacOSOnlyProfilesFromIOSIPadOS(t *testing.T) {
 	for _, tc := range []struct {
 		profiles         []*fleet.MDMAppleProfilePayload

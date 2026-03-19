@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -82,6 +83,22 @@ const (
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
 )
+
+// HasCAVariables returns true if any of the given Fleet variable names
+// (as returned by variables.Find, without the FLEET_VAR_ prefix) correspond
+// to a certificate authority variable.
+func HasCAVariables(fleetVars []string) bool {
+	for _, v := range fleetVars {
+		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
+			v == string(FleetVarSCEPRenewalID) ||
+			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
+			return true
+		}
+	}
+	return false
+}
 
 var (
 	// Fleet variable regexp patterns

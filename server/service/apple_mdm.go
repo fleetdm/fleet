@@ -4896,6 +4896,7 @@ func ReconcileAppleProfiles(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
+	certProfilesLimit int,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -5000,6 +5001,32 @@ func ReconcileAppleProfiles(
 	// Index host profiles to install by host and profile UUID, for easier bulk error processing
 	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
 
+	// When a certificate profiles limit is configured, classify profiles as CA/non-CA
+	// so we can throttle CA profile installations.
+	var caProfileUUIDs map[string]bool
+	if certProfilesLimit > 0 {
+		uniqueUUIDs := make(map[string]struct{}, len(toInstall))
+		for _, p := range toInstall {
+			uniqueUUIDs[p.ProfileUUID] = struct{}{}
+		}
+		uuids := make([]string, 0, len(uniqueUUIDs))
+		for u := range uniqueUUIDs {
+			uuids = append(uuids, u)
+		}
+		contents, err := ds.GetMDMAppleProfilesContents(ctx, uuids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting profile contents for CA classification")
+		}
+		caProfileUUIDs = make(map[string]bool, len(contents))
+		for pUUID, content := range contents {
+			fleetVars := variables.Find(string(content))
+			if fleet.HasCAVariables(fleetVars) {
+				caProfileUUIDs[pUUID] = true
+			}
+		}
+	}
+
+	var caInstallCount int
 	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
@@ -5049,6 +5076,15 @@ func ReconcileAppleProfiles(
 			hostProfiles = append(hostProfiles, hostProfile)
 			hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
 			continue
+		}
+
+		// Throttle CA profile installations when a limit is configured.
+		// Skipped profiles remain in NULL status and will be picked up on the next reconciler tick.
+		if certProfilesLimit > 0 && caProfileUUIDs[p.ProfileUUID] {
+			if caInstallCount >= certProfilesLimit {
+				continue
+			}
+			caInstallCount++
 		}
 
 		toGetContents[p.ProfileUUID] = true

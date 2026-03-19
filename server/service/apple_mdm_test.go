@@ -3161,7 +3161,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			failedCount++
 			require.Len(t, payload, 0)
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 0)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3208,7 +3208,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeRemove
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 0)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3281,7 +3281,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeInstall
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 0)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3455,7 +3455,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			contents1 = originalContents1
 			expectedContents1 = originalExpectedContents1
 		})
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 0)
 		require.NoError(t, err)
 		assert.Equal(t, 2, upsertCount)
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
@@ -3483,7 +3483,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
 			return nil, errors.New("GetHostEmailsFuncError")
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.Default().Handler()))
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.Default().Handler()), 0)
 		assert.ErrorContains(t, err, "GetHostEmailsFuncError")
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3545,7 +3545,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
 		}
 
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 0)
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
 		require.Equal(t, 5, failedCount, "number of profiles with bad content")
@@ -3556,6 +3556,186 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 		// Check that individual updates were not done (bulk update should be done)
 		checkAndReset(t, false, &ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
+	})
+}
+
+func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	ds := new(mock.Store)
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(slog.New(slog.DiscardHandler)),
+	)
+	mdmConfig := config.MDMConfig{
+		AppleSCEPCert: "./testdata/server.pem",
+		AppleSCEPKey:  "./testdata/server.key",
+	}
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_, pemCert, pemKey, err := mdmConfig.AppleSCEP()
+		require.NoError(t, err)
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {Value: pemCert},
+			fleet.MDMAssetCAKey:  {Value: pemKey},
+		}, nil
+	}
+
+	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+	hostUUIDs := []string{"host-1", "host-2", "host-3", "host-4", "host-5"}
+
+	caProfileUUID := "a" + uuid.NewString()
+	nonCAProfileUUID := "a" + uuid.NewString()
+	caContent := []byte("profile with $FLEET_VAR_NDES_SCEP_CHALLENGE variable")
+	nonCAContent := []byte("regular profile content")
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+
+	// Build toInstall: CA profile for 5 hosts + non-CA profile for 5 hosts
+	var profilesToInstall []*fleet.MDMAppleProfilePayload
+	for _, h := range hostUUIDs {
+		profilesToInstall = append(profilesToInstall,
+			&fleet.MDMAppleProfilePayload{ProfileUUID: caProfileUUID, ProfileIdentifier: "com.ca.profile", ProfileName: "CA Profile", HostUUID: h, Scope: fleet.PayloadScopeSystem},
+			&fleet.MDMAppleProfilePayload{ProfileUUID: nonCAProfileUUID, ProfileIdentifier: "com.regular.profile", ProfileName: "Regular Profile", HostUUID: h, Scope: fleet.PayloadScopeSystem},
+		)
+	}
+
+	ds.ListMDMAppleProfilesToInstallAndRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+		return profilesToInstall, nil, nil
+	}
+
+	// Track how many times GetMDMAppleProfilesContents is called — it should be called twice:
+	// once for CA classification and once inside ProcessAndEnqueueProfiles.
+	var getContentsCallCount int
+	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
+		getContentsCallCount++
+		return map[string]mobileconfig.Mobileconfig{
+			caProfileUUID:    caContent,
+			nonCAProfileUUID: nonCAContent,
+		}, nil
+	}
+
+	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+		return nil
+	}
+
+	ds.GetNanoMDMUserEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+		return nil, nil
+	}
+
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, allCAs bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+
+	mdmStorage.BulkDeleteHostUserCommandsWithoutResultsFunc = func(ctx context.Context, commandToIDs map[string][]string) error {
+		return nil
+	}
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+		res := make(map[string]*mdm.Push, len(tokens))
+		for _, t := range tokens {
+			res[t] = &mdm.Push{
+				PushMagic: "",
+				Token:     []byte(t),
+				Topic:     "",
+			}
+		}
+		return res, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		certPEM, err := os.ReadFile("./testdata/server.pem")
+		require.NoError(t, err)
+		keyPEM, err := os.ReadFile("./testdata/server.key")
+		require.NoError(t, err)
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {Value: certPEM},
+			fleet.MDMAssetCAKey:  {Value: keyPEM},
+		}, nil
+	}
+
+	ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{}, nil
+	}
+
+	ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+
+	// Track upserted host profiles to verify throttling.
+	// The first BulkUpsert call contains the profiles that will be sent;
+	// subsequent calls are for reverting failures (empty).
+	var upsertedProfiles []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	var bulkUpsertCallCount int
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		bulkUpsertCallCount++
+		if bulkUpsertCallCount == 1 {
+			upsertedProfiles = payload
+		}
+		return nil
+	}
+
+	t.Run("limit=0 sends all profiles", func(t *testing.T) {
+		upsertedProfiles = nil
+		bulkUpsertCallCount = 0
+		getContentsCallCount = 0
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 0)
+		require.NoError(t, err)
+
+		// All 10 host-profile pairs should be upserted (5 CA + 5 non-CA)
+		var caCount, nonCACount int
+		for _, p := range upsertedProfiles {
+			if p.ProfileUUID == caProfileUUID {
+				caCount++
+			} else if p.ProfileUUID == nonCAProfileUUID {
+				nonCACount++
+			}
+		}
+		assert.Equal(t, 5, caCount, "all CA host-profile pairs should be sent when limit=0")
+		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should be sent")
+		// GetMDMAppleProfilesContents should only be called once (inside ProcessAndEnqueueProfiles),
+		// not for CA classification since limit=0
+		assert.Equal(t, 1, getContentsCallCount, "should not fetch contents for classification when limit=0")
+	})
+
+	t.Run("limit=2 throttles CA profiles only", func(t *testing.T) {
+		upsertedProfiles = nil
+		bulkUpsertCallCount = 0
+		getContentsCallCount = 0
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 2)
+		require.NoError(t, err)
+
+		// Should have 2 CA + 5 non-CA = 7 host-profile pairs upserted
+		var caCount, nonCACount int
+		for _, p := range upsertedProfiles {
+			if p.ProfileUUID == caProfileUUID {
+				caCount++
+			} else if p.ProfileUUID == nonCAProfileUUID {
+				nonCACount++
+			}
+		}
+		assert.Equal(t, 2, caCount, "only 2 CA host-profile pairs should be sent when limit=2")
+		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should still be sent")
+		// GetMDMAppleProfilesContents should be called twice: once for classification, once for enqueue
+		assert.Equal(t, 2, getContentsCallCount, "should fetch contents for classification when limit>0")
 	})
 }
 
