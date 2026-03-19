@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260318120000, Down_20260318120000)
+	MigrationClient.AddMigration(Up_20260319120000, Down_20260319120000)
 }
 
-func Up_20260318120000(tx *sql.Tx) error {
+func Up_20260319120000(tx *sql.Tx) error {
 	// Add installation_type column to differentiate Windows Server Core from
 	// full desktop installations for MSRC vulnerability matching.
 	// Values: "" (unknown), "Client", "Server", "Server Core".
@@ -37,6 +37,6 @@ func Up_20260318120000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260318120000(tx *sql.Tx) error {
+func Down_20260319120000(tx *sql.Tx) error {
 	return nil
 }
