@@ -195,6 +195,10 @@ github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	str
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	UIGitOpsMode	fleet.UIGitOpsModeConfig
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	RepositoryURL	string
+github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	Exceptions	fleet.GitOpsExceptions
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Labels	bool
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Software	bool
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Secrets	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	YaraRules	[]fleet.YaraRule
 github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Name	string
