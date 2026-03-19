@@ -197,7 +197,7 @@ The Fleet setup experience for macOS will exit if any of the following occurs:
 * All setup steps complete, including failed installs or script runs, with the "Cancel setup if software install fails" option _not_ enabled (see ["Blocking setup on failed software installs"](https://fleetdm.com/guides/macos-setup-experience#install-software)).
 * The user presses Command (⌘) + Shift + X at any time during the setup process.
 
-> If the end user is stuck, you can send the [DeviceConfigured](https://developer.apple.com/documentation/devicemanagement/device-configured-command) using [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API, to exit the setup experience and let the user through.
+> If the end user is stuck, you can send the [DeviceConfigured](https://developer.apple.com/documentation/devicemanagement/device-configured-command) using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the user through.
 
 ## Setup Assistant
 
