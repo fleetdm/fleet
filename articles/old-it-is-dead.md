@@ -134,7 +134,7 @@ If you dismissed AI tooling before late 2025, I'd genuinely encourage you to try
 
 ---
 
-*Tested and confirmed working with Kilo Code and Claude. Architecturally compatible with any AI investment your organization has already made. The open source future is already here — you can see it and experience is yourself, right now.*
+*Tested and confirmed working with Kilo Code and Claude. Architecturally compatible with any AI investment your organization has already made. The open source future is already here — you can see it and experience it yourself, right now.*
 
 <meta name="articleTitle" value="Old IT is dead — GitOps & AI are burying it">
 <meta name="authorFullName" value="Allen Houchins">
