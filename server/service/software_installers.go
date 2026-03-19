@@ -312,7 +312,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		}
 	}
 
-	if r.MultipartForm.File["software"] == nil || len(r.MultipartForm.File["software"]) == 0 {
+	if len(r.MultipartForm.File["software"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "software multipart field is required",
 			InternalErr: err,

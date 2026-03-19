@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260306120000, Down_20260306120000)
+	MigrationClient.AddMigration(Up_20260316120008, Down_20260316120008)
 }
 
-func Up_20260306120000(tx *sql.Tx) error {
+func Up_20260316120008(tx *sql.Tx) error {
 	_, err := tx.Exec(`RENAME TABLE activities TO activity_past, host_activities TO activity_host_past`)
 	if err != nil {
 		return fmt.Errorf("rename activities tables: %w", err)
@@ -17,6 +17,6 @@ func Up_20260306120000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260306120000(tx *sql.Tx) error {
+func Down_20260316120008(tx *sql.Tx) error {
 	return nil
 }

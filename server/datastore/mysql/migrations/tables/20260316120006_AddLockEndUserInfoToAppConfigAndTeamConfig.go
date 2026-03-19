@@ -10,10 +10,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260228115022, Down_20260228115022)
+	MigrationClient.AddMigration(Up_20260316120006, Down_20260316120006)
 }
 
-func Up_20260228115022(tx *sql.Tx) error {
+func Up_20260316120006(tx *sql.Tx) error {
 	// Update app config to set this new value to true if End User Auth is enabled
 	err := updateAppConfigJSON(tx, func(config *fleet.AppConfig) error {
 		if config != nil {
@@ -72,6 +72,6 @@ func Up_20260228115022(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260228115022(tx *sql.Tx) error {
+func Down_20260316120006(tx *sql.Tx) error {
 	return nil
 }
