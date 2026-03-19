@@ -135,27 +135,6 @@ jobs:
         fleetctl get hosts
         fleetctl get hosts --json | jq
 
-    - name: Slack Notification
-      if: failure() && github.event_name == 'schedule'
-      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
-      with:
-        payload: |
-          {
-            "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
-            "blocks": [
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "Integration test result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
-                }
-              }
-            ]
-          }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
-        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-
     - name: Cleanup tunnel
       if: always()
       run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }} || true
@@ -190,10 +169,10 @@ jobs:
         echo "Waiting for Fleet server to pass health check..."
         HEALTH_CHECK_START=$(date +%s)
         until curl -s -o /dev/null -w "%{http_code}" ${{ needs.gen.outputs.address }}/healthz | grep -q "200"; do
+          nslookup ${{ needs.gen.outputs.address }} || true
           ELAPSED=$(( $(date +%s) - HEALTH_CHECK_START ))
           echo "Health check failed... (${ELAPSED}s)"
           sudo resolvectl flush-caches
-          nslookup ${{ needs.gen.outputs.address }} || true
           sleep 1
         done
         echo "Fleet server is responding, attempting login..."
@@ -541,9 +520,19 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-    - name: Summary
-      run: |
-        echo "All tests completed!"
+    - name: Slack Notification
+      # if: failure() && github.event_name == 'schedule'
+      uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+      with:
+        webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+        webhook-type: incoming-webhook
+        payload: |
+          text: "*[TESTING - PLEASE IGNORE - @zwass] GitHub Action build result*: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+          blocks:
+            - type: "section"
+              text:
+                type: "mrkdwn"
+                text: "GitHub Action build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
     - name: Cancel workflow if any job failed
       if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
       run: gh run cancel ${{ github.run_id }}
