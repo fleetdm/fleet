@@ -86,7 +86,7 @@ jobs:
         done
 
     - name: Run Fleet server
-      timeout-minutes: 120
+      timeout-minutes: 240
       run: |
         npm install -g fleetctl
         fleetctl preview --no-hosts --disable-open-browser
@@ -172,6 +172,7 @@ jobs:
    needs: gen
    outputs:
      token: ${{ steps.login.outputs.token }}
+   timeout-minutes: 5
    steps:
     - name: Harden Runner
       uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -181,7 +182,6 @@ jobs:
     # Login only here and share the token because otherwise we could hit rate limits.
     - id: login
       name: Attempt login
-      timeout-minutes: 5
       run: |
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }}
@@ -216,7 +216,7 @@ jobs:
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
   fleetd-macos:
-    timeout-minutes: 5
+    timeout-minutes: 10
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -297,7 +297,7 @@ jobs:
         sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
   fleetd-ubuntu:
-    timeout-minutes: 5
+    timeout-minutes: 10
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -372,7 +372,7 @@ jobs:
         sudo apt remove fleet-osquery -y
 
   fleetd-windows-build:
-    timeout-minutes: 5
+    timeout-minutes: 10
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -417,7 +417,7 @@ jobs:
         path: fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
 
   fleetd-windows:
-    timeout-minutes: 5
+    timeout-minutes: 10
     strategy:
       matrix:
         # To run multiple VMs that have the same UUID we need to implement
