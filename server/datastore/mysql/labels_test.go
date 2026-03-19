@@ -3526,8 +3526,8 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 
 	// Create hosts.
 	h1, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:  ptr.String("nilhosts-1"),
-		NodeKey:        ptr.String("nilhosts-1"),
+		OsqueryHostID:  ptr.String("nilhosts-1"), //nolint:modernize
+		NodeKey:        ptr.String("nilhosts-1"), //nolint:modernize
 		UUID:           "nilhosts-1",
 		Hostname:       "nilhosts1.local",
 		HardwareSerial: "nilhosts-serial-1",
@@ -3535,8 +3535,8 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	h2, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:  ptr.String("nilhosts-2"),
-		NodeKey:        ptr.String("nilhosts-2"),
+		OsqueryHostID:  ptr.String("nilhosts-2"), //nolint:modernize
+		NodeKey:        ptr.String("nilhosts-2"), //nolint:modernize
 		UUID:           "nilhosts-2",
 		Hostname:       "nilhosts2.local",
 		HardwareSerial: "nilhosts-serial-2",
