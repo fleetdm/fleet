@@ -604,6 +604,7 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 type callbackSSOResponse struct {
 	content string
 	token   string
+	expires time.Duration
 	Err     error `json:"error,omitempty"`
 }
 
@@ -616,10 +617,11 @@ func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter
 	deleteSSOCookie(w)
 	if r.token != "" {
 		http.SetCookie(w, &http.Cookie{
-			Name:   "__Host-token",
-			Value:  r.token,
-			Path:   "/",
-			Secure: cookieSecure,
+			Name:    "__Host-token",
+			Value:   r.token,
+			Path:    "/",
+			Secure:  cookieSecure,
+			Expires: time.Now().Add(r.expires).UTC(),
 		})
 	}
 }
@@ -674,6 +676,7 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		}
 		resp.content = writer.String()
 		resp.token = session.Token
+		resp.expires = svc.GetSessionDuration(ctx)
 		return resp, nil
 	}
 }
