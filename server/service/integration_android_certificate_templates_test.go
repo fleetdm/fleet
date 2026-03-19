@@ -1435,6 +1435,18 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),
 		nil, http.StatusOK, &struct{}{})
 
+	// Verify activity was created for the resend
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeResentCertificate{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "certificate_template_id": %d, "certificate_name": %q}`,
+			host.ID,
+			host.DisplayName(),
+			certTemplateID,
+			certTemplateName,
+		),
+		0)
+
 	// Verify status is reset to 'pending' and UUID changed
 	updatedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
 	require.NoError(t, err)
@@ -1456,7 +1468,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", 99999, certTemplateID),
 		nil, http.StatusNotFound, &struct{}{})
 
-	// Resend for a non-existent template returns an error (no rows affected)
+	// Resend for a non-existent template returns 404
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, 99999),
-		nil, http.StatusInternalServerError, &struct{}{})
+		nil, http.StatusNotFound, &struct{}{})
 }
