@@ -150,7 +150,7 @@ module "main" {
   rds_config = {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
     name                         = "${local.customer}-1"
-    engine_version               = "8.0.mysql_aurora.3.08.2"
+    engine_version               = "8.0.mysql_aurora.3.10.3"
     restore_to_point_in_time = {
       source_cluster_identifier = local.customer
       restore_to_time           = "2026-03-09T22:40:59Z"
