@@ -22,8 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -111,7 +111,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		SCEPStorage:            scepStorage,
 		Pool:                   redisPool,
 		APNSTopic:              "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		SCEPConfigService:      eeservice.NewSCEPConfigService(slog.New(slog.NewTextHandler(os.Stdout, nil)), nil),
+		SCEPConfigService:      scep.NewSCEPConfigService(slog.New(slog.NewTextHandler(os.Stdout, nil)), nil),
 		DigiCertService:        digicert.NewService(),
 		SoftwareTitleIconStore: softwareTitleIconStore,
 	}

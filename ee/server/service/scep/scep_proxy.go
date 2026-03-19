@@ -1,4 +1,4 @@
-package service
+package scep
 
 import (
 	"bytes"
@@ -635,4 +635,59 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 	}
 
 	return string(b), nil
+}
+
+type NDESInvalidError struct {
+	msg string
+}
+
+func (e NDESInvalidError) Error() string {
+	return e.msg
+}
+
+func NewNDESInvalidError(msg string) NDESInvalidError {
+	return NDESInvalidError{msg: msg}
+}
+
+type NDESPasswordCacheFullError struct {
+	msg string
+}
+
+func (e NDESPasswordCacheFullError) Error() string {
+	return e.msg
+}
+
+func NewNDESPasswordCacheFullError(msg string) NDESPasswordCacheFullError {
+	return NDESPasswordCacheFullError{msg: msg}
+}
+
+type NDESInsufficientPermissionsError struct {
+	msg string
+}
+
+func (e NDESInsufficientPermissionsError) Error() string {
+	return e.msg
+}
+
+func NewNDESInsufficientPermissionsError(msg string) NDESInsufficientPermissionsError {
+	return NDESInsufficientPermissionsError{msg: msg}
+}
+
+// NDESChallengeErrorToDetail translates NDES-specific error types into user-friendly messages
+// for profile failure details. Used by both Apple and Windows NDES profile processing.
+func NDESChallengeErrorToDetail(err error) string {
+	varName := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
+	switch {
+	case errors.As(err, &NDESInvalidError{}):
+		return fmt.Sprintf("Invalid NDES admin credentials. Fleet couldn't populate %s. "+
+			"Please update credentials in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol.", varName)
+	case errors.As(err, &NDESPasswordCacheFullError{}):
+		return fmt.Sprintf("The NDES password cache is full. Fleet couldn't populate %s. "+
+			"Please increase the number of cached passwords in NDES and try again.", varName)
+	case errors.As(err, &NDESInsufficientPermissionsError{}):
+		return fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate %s. "+
+			"Please update the account with NDES SCEP enroll permissions and try again.", varName)
+	default:
+		return fmt.Sprintf("Fleet couldn't populate %s. %s", varName, err.Error())
+	}
 }
