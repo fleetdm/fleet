@@ -9,10 +9,10 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
-	"time"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/manifoldco/promptui"
 	"github.com/urfave/cli/v2"
