@@ -3,7 +3,7 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
-import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
+import TooltipWrapper from "components/TooltipWrapper";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -187,18 +187,17 @@ const generateTableHeaders = (
         }
         return (
           <div className="policy-has-not-run">
-            <span data-tooltip-id={`passing_${id.toString()}`}>---</span>
-            <ReactTooltip5
-              className="policy-has-not-run-tooltip"
-              disableStyleInjection
-              place="top"
-              opacity={1}
-              id={`passing_${id.toString()}`}
-              offset={8}
-              positionStrategy="fixed"
+            <TooltipWrapper
+              showArrow
+              tipContent={getTooltip(next_update_ms)}
+              tooltipClass="policy-has-not-run-tooltip"
+              position="top"
+              tipOffset={8}
+              fixedPositionStrategy
+              underline={false}
             >
-              {getTooltip(next_update_ms)}
-            </ReactTooltip5>
+              ---
+            </TooltipWrapper>
           </div>
         );
       },
@@ -231,18 +230,17 @@ const generateTableHeaders = (
         }
         return (
           <div className="policy-has-not-run">
-            <span data-tooltip-id={`passing_${id.toString()}`}>---</span>
-            <ReactTooltip5
-              className="policy-has-not-run-tooltip"
-              disableStyleInjection
-              place="top"
-              opacity={1}
-              id={`passing_${id.toString()}`}
-              offset={8}
-              positionStrategy="fixed"
+            <TooltipWrapper
+              showArrow
+              tipContent={getTooltip(next_update_ms)}
+              tooltipClass="policy-has-not-run-tooltip"
+              position="top"
+              tipOffset={8}
+              fixedPositionStrategy
+              underline={false}
             >
-              {getTooltip(next_update_ms)}
-            </ReactTooltip5>
+              ---
+            </TooltipWrapper>
           </div>
         );
       },

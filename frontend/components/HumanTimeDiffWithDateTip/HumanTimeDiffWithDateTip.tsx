@@ -1,14 +1,14 @@
 import React from "react";
 
-import { uniqueId } from "lodash";
 import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
-import ReactTooltip, { Place } from "react-tooltip";
+import TooltipWrapper from "components/TooltipWrapper";
+import { PlacesType } from "react-tooltip-5";
 
 interface IHumanTimeDiffWithDateTip {
   timeString: string;
   cutoffBeforeFleetLaunch?: boolean;
-  tooltipPosition?: Place;
+  tooltipPosition?: PlacesType;
 }
 
 /** Returns "Unavailable" if date is empty string or "Unavailable"
@@ -20,8 +20,6 @@ export const HumanTimeDiffWithDateTip = ({
   cutoffBeforeFleetLaunch = false,
   tooltipPosition = "top",
 }: IHumanTimeDiffWithDateTip): JSX.Element => {
-  const id = uniqueId();
-
   if (timeString === "Unavailable" || timeString === "") {
     return <span>Unavailable</span>;
   }
@@ -34,21 +32,15 @@ export const HumanTimeDiffWithDateTip = ({
 
   try {
     return (
-      <>
-        <span className="date-tooltip" data-tip data-for={`tooltip-${id}`}>
-          {humanLastSeen(timeString)}
-        </span>
-        <ReactTooltip
-          className="date-tooltip-text"
-          place={tooltipPosition}
-          type="dark"
-          effect="solid"
-          id={`tooltip-${id}`}
-          backgroundColor="#3e4771"
-        >
-          {internationalTimeFormat(new Date(timeString))}
-        </ReactTooltip>
-      </>
+      <TooltipWrapper
+        className="date-tooltip"
+        tooltipClass="date-tooltip-text"
+        tipContent={internationalTimeFormat(new Date(timeString))}
+        position={tooltipPosition}
+        underline={false}
+      >
+        {humanLastSeen(timeString)}
+      </TooltipWrapper>
     );
   } catch (e) {
     if (e instanceof RangeError) {
