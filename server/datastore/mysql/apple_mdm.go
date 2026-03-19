@@ -7845,15 +7845,17 @@ func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUI
 func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
 	// Set auto_rotate_at to 1 hour from now when password is viewed.
 	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
+	rotateAt := time.Now().Add(1 * time.Hour)
+
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET auto_rotate_at = DATE_ADD(NOW(6), INTERVAL 1 HOUR)
+		SET auto_rotate_at = ?
 		WHERE host_uuid = ?
 		  AND deleted = 0
 		  AND operation_type = '%s'
 	`, fleet.MDMOperationTypeInstall)
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, rotateAt, hostUUID)
 	if err != nil {
 		return time.Time{}, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
 	}
@@ -7864,15 +7866,7 @@ func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUI
 			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
 	}
 
-	// Retrieve the actual timestamp that was set
-	var autoRotateAt time.Time
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &autoRotateAt,
-		`SELECT auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`,
-		hostUUID); err != nil {
-		return time.Time{}, ctxerr.Wrap(ctx, err, "get auto_rotate_at after update")
-	}
-
-	return autoRotateAt, nil
+	return rotateAt, nil
 }
 
 func (ds *Datastore) GetHostsForAutoRotation(ctx context.Context) ([]string, error) {
