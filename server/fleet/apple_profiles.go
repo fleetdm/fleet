@@ -34,7 +34,8 @@ func FindProfilesWithSecrets(
 	for profUUID := range installTargets {
 		p, ok := profileContents[profUUID]
 		if !ok { // Should never happen
-			return nil, fmt.Errorf("profile content for profile UUID %q not found for FindProfilesWithSecrets", profUUID)
+			logger.ErrorContext(ctx, "profile content not found in FindProfilesWithSecrets", "profile_uuid", profUUID)
+			continue
 		}
 		profileStr := string(p)
 		vars := ContainsPrefixVars(profileStr, ServerSecretPrefix)
@@ -48,6 +49,7 @@ func FindProfilesWithSecrets(
 func MarkProfilesFailed(
 	ctx context.Context,
 	ds Datastore,
+	logger *slog.Logger,
 	target *CmdTarget,
 	hostProfilesToInstallMap map[HostProfileUUID]*MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
@@ -59,6 +61,7 @@ func MarkProfilesFailed(
 	for _, enrollmentID := range target.EnrollmentIDs {
 		profile, ok := GetHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, enrollmentID, profUUID)
 		if !ok || profile == nil {
+			logger.ErrorContext(ctx, "failed to find profile to install by enrollment id, when marking as failed", "enrollment_id", enrollmentID, "profile_uuid", profUUID)
 			// Should never happen
 			continue
 		}
