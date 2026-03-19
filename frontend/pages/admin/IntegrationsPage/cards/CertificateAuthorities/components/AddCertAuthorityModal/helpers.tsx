@@ -15,27 +15,31 @@ import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+import CA_LABEL_BY_TYPE from "../helpers";
 
 // keep these alphabetized
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
   {
-    label: "Custom EST (Enrollment Over Secure Transport)",
+    label: CA_LABEL_BY_TYPE.custom_est_proxy,
     value: "custom_est_proxy",
   },
   {
-    label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
+    label: CA_LABEL_BY_TYPE.custom_scep_proxy,
     value: "custom_scep_proxy",
   },
-  { label: "DigiCert", value: "digicert" },
+  { label: CA_LABEL_BY_TYPE.digicert, value: "digicert" },
   {
-    label: "Hydrant EST (Enrollment Over Secure Transport)",
+    label: CA_LABEL_BY_TYPE.hydrant,
     value: "hydrant",
   },
   {
-    label: "Microsoft NDES (Network Device Enrollment Service)",
+    label: CA_LABEL_BY_TYPE.ndes_scep_proxy,
     value: "ndes_scep_proxy",
   },
-  { label: "Smallstep", value: "smallstep" },
+  {
+    label: CA_LABEL_BY_TYPE.smallstep,
+    value: "smallstep",
+  },
 ];
 
 /**
@@ -43,21 +47,16 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
  * if one already exists
  */
 export const generateDropdownOptions = (hasNDESCert: boolean) => {
-  if (!hasNDESCert) {
-    return DEFAULT_CERT_AUTHORITY_OPTIONS;
-  }
-
-  // We only allow one NDES configuration, if ones exists disable the option and
-  // add a tooltip.
-  const ndesOption = DEFAULT_CERT_AUTHORITY_OPTIONS.find((option) => {
-    return option.value === "ndes_scep_proxy";
+  return DEFAULT_CERT_AUTHORITY_OPTIONS.map((option) => {
+    if (option.value === "ndes_scep_proxy" && hasNDESCert) {
+      return {
+        ...option,
+        disabled: true,
+        tooltipContent: "Only one NDES can be added.",
+      };
+    }
+    return option;
   });
-  if (ndesOption) {
-    ndesOption.disabled = true;
-    ndesOption.tooltipContent = "Only one NDES can be added.";
-  }
-
-  return DEFAULT_CERT_AUTHORITY_OPTIONS;
 };
 
 /**

@@ -14,7 +14,11 @@ import softwareAPI from "services/entities/software";
 
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getSelfServiceTooltip,
+  getAutoUpdatesTooltip,
+  mergePolicies,
+} from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -50,6 +54,7 @@ interface IActionsDropdownProps {
   repoURL?: string;
   isFMA?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  isTechnician?: boolean;
 }
 
 export const SoftwareActionButtons = ({
@@ -60,6 +65,7 @@ export const SoftwareActionButtons = ({
   repoURL,
   isFMA,
   isAndroidPlayStoreApp,
+  isTechnician,
 }: IActionsDropdownProps) => {
   let options = [...SOFTWARE_PACKAGE_ACTION_OPTIONS];
 
@@ -103,6 +109,10 @@ export const SoftwareActionButtons = ({
     });
   }
 
+  if (isTechnician) {
+    options = options.filter((option) => option.value !== "delete");
+  }
+
   // Map action values to handlers
   const actionHandlers = {
     download: onDownloadClick,
@@ -110,12 +120,12 @@ export const SoftwareActionButtons = ({
   };
 
   return (
-    <div className={`${baseClass}__actions`}>
+    <div className={`${baseClass}__actions-wrapper`}>
       {options.map((option) => {
         const ButtonContent = (
           <Button
             key={option.value}
-            className={`btn btn-link ${baseClass}__action-btn`}
+            className={`${baseClass}__action-btn`}
             disabled={option.disabled}
             onClick={() =>
               actionHandlers[option.value as keyof typeof actionHandlers]?.()
@@ -190,16 +200,21 @@ const SoftwareInstallerCard = ({
     displayName,
     isSelfService,
     isScriptPackage,
+    autoUpdateEnabled,
+    autoUpdateStartTime,
+    autoUpdateEndTime,
   } = cardInfo;
 
   const {
     installerType,
     isAndroidPlayStoreApp,
     isFleetMaintainedApp,
+    isLatestFmaVersion,
     isCustomPackage,
     isIosOrIpadosApp,
     sha256,
     androidPlayStoreId,
+    patchPolicy,
     automaticInstallPolicies,
     gitOpsModeEnabled,
     repoURL,
@@ -210,6 +225,8 @@ const SoftwareInstallerCard = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isGlobalTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
 
   const { renderFlash } = useContext(NotificationContext);
@@ -247,7 +264,17 @@ const SoftwareInstallerCard = ({
   }, [renderFlash, softwareId, name, teamId]);
 
   const showActions =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isGlobalTechnician ||
+    isTeamTechnician;
+
+  const mergedPolicies = mergePolicies({
+    automaticInstallPolicies,
+    patchPolicy,
+  });
 
   return (
     <Card borderRadiusSize="xxlarge" className={baseClass}>
@@ -261,25 +288,11 @@ const SoftwareInstallerCard = ({
               addedTimestamp={addedTimestamp}
               sha256={sha256}
               isFma={isFleetMaintainedApp}
+              isLatestFmaVersion={isLatestFmaVersion}
               isScriptPackage={isScriptPackage}
               androidPlayStoreId={androidPlayStoreId}
             />
             <div className={`${baseClass}__tags-wrapper`}>
-              {Array.isArray(automaticInstallPolicies) &&
-                automaticInstallPolicies.length > 0 && (
-                  <TooltipWrapper
-                    showArrow
-                    position="top"
-                    tipContent={
-                      automaticInstallPolicies.length === 1
-                        ? "A policy triggers install."
-                        : `${automaticInstallPolicies.length} policies trigger install.`
-                    }
-                    underline={false}
-                  >
-                    <Tag icon="refresh" text="Automatic install" />
-                  </TooltipWrapper>
-                )}
               {isSelfService && (
                 <TooltipWrapper
                   showArrow
@@ -293,21 +306,34 @@ const SoftwareInstallerCard = ({
                   <Tag icon="user" text="Self-service" />
                 </TooltipWrapper>
               )}
+              {autoUpdateEnabled && (
+                <TooltipWrapper
+                  className={`${baseClass}__auto-updates-tooltip`}
+                  showArrow
+                  position="top"
+                  tipContent={getAutoUpdatesTooltip(
+                    autoUpdateStartTime || "",
+                    autoUpdateEndTime || ""
+                  )}
+                  underline={false}
+                >
+                  <Tag icon="clock" text="Auto updates" />
+                </TooltipWrapper>
+              )}
             </div>
           </div>
-          <div className={`${baseClass}__actions-wrapper`}>
-            {showActions && (
-              <SoftwareActionButtons
-                installerType={installerType}
-                onDownloadClick={onDownloadClick}
-                onDeleteClick={onDeleteClick}
-                gitOpsModeEnabled={gitOpsModeEnabled}
-                repoURL={repoURL}
-                isFMA={isFleetMaintainedApp}
-                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-              />
-            )}
-          </div>
+          {showActions && (
+            <SoftwareActionButtons
+              installerType={installerType}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              gitOpsModeEnabled={gitOpsModeEnabled}
+              repoURL={repoURL}
+              isFMA={isFleetMaintainedApp}
+              isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+              isTechnician={isGlobalTechnician || isTeamTechnician}
+            />
+          )}
         </div>
         {gitOpsModeEnabled && isCustomPackage && (
           <div className={`${baseClass}__row-2`}>
@@ -327,12 +353,12 @@ const SoftwareInstallerCard = ({
           isLoading={isLoading}
         />
       </div>
-      {automaticInstallPolicies && (
+      {mergedPolicies.length > 0 && (
         <div className={`${baseClass}__installer-policies-table`}>
           <InstallerPoliciesTable
             teamId={teamId}
             isLoading={isLoading}
-            policies={automaticInstallPolicies}
+            policies={mergedPolicies}
           />
         </div>
       )}
@@ -340,11 +366,13 @@ const SoftwareInstallerCard = ({
         <DeleteSoftwareModal
           gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
-          softwareDisplayName={softwareDisplayName}
-          softwareTitleName={softwareTitleName}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
+          isAppStoreApp={
+            installerType === "app-store" && !isAndroidPlayStoreApp
+          }
+          isAndroidApp={isAndroidPlayStoreApp}
         />
       )}
       {showViewYamlModal && isCustomPackage && (

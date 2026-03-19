@@ -8,9 +8,17 @@ This guide covers macOS, iOS, iPadOS, and Android. Learn more about Windows and 
 
 macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
+> If a host is marked with a [migration deadline](https://support.apple.com/en-bh/guide/apple-business-manager/axm3a49a769d/web#axmf524b36d9) in Apple Business Manager, Fleet treats it as already set up. This means Fleet won’t install setup experience software, run scripts, or install bootstrap packages on that host.
+
+Below is the end user experience for macOS. Check out the separate videos for [iOS](https://www.youtube.com/watch?v=bPtr3Qgp1JY), [iPadOS](https://www.youtube.com/watch?v=sK3ZR2iItJY), and [Android](https://www.youtube.com/watch?v=-zB1zgtGAMs).
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/BU0Q_8cQXuw?si=2N6abC9y1mEpFlzI" frameborder="0" allowfullscreen></iframe>
+</div>
+
 ## End user authentication
 
-You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience).
+You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience). End users can use passkeys, such as YubiKeys, with macOS hosts during the authentication process.
 
 1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL. If this URL is set incorrectly, end users won't be able to enroll. On iOS hosts, they'll see a "This screen size is not supported yet" error message.
 
@@ -18,11 +26,11 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
    to populate and lock the macOS local account **Account Name**. For example, a
    "johndoe@example.com" email will turn into a "johndoe" account name.
 
-> **NOTE**  If the host is restarted during the mdm enrollment process, there may be an issue with populating the macOS local account creation screen. The fields are not guaranteed to be populated with the user's IDP email and username.
+> If the host is restarted during automatic enrollment (DEP), the macOS local account fields won't be populated with the user's IDP email and username.
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
-4. In Fleet, configure your IdP by heading to **Settings > Integrations > Mobile device management (MDM) > End user authentication**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Single sign-on (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
@@ -30,7 +38,7 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 
 ## End user license agreement (EULA)
 
-To require a EULA, in Fleet, head to **Settings > Integrations > Automatic enrollment > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
+To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
 Currently, a custom EULA is only supported for macOS hosts.
 
@@ -40,7 +48,7 @@ Fleet supports installing a bootstrap package on macOS hosts that automatically 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
-The bootstrap package and Fleet's agent (fleetd) are also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [manually install fleetd](#advanced), fleetd won't be installed.
+Fleet's agent (fleetd) is also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [manually install fleetd](#manually-install-fleetd), fleetd won't be installed.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
@@ -117,13 +125,13 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 1. Head to the **Controls > Setup experience > Bootstrap package** page.
 
-2. Choose which team you want to add the bootstrap package to by selecting the desired team in the teams dropdown in the upper left corner.
+2. Choose which fleet you want to add the bootstrap package to by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
 3. Select **Upload** and choose your bootstrap package.
 
 ## Install software
 
-You can install software during first time macOS, iOS, iPadOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience). Android support is coming soon.
+You can install software during first time macOS, iOS, iPadOS, Android, and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
 
 Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business Manager (ABM). For iOS and iPadOS hosts, software is only installed on hosts that enroll via ABM and hosts that manually enroll via the `/enroll` link (profile-based device enrollment).
 
@@ -132,9 +140,12 @@ Add setup experience software:
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
 
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
+
 3. Press **Save** to save your selection.
 
-To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
+To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM)
+
+> Currently, if Android software is deleted from **Setup experience > Install software**, it still gets installed when Android hosts enroll. We'll improve this in [#36859](https://github.com/fleetdm/fleet/issues/36859).
 
 ### Retries
 
@@ -147,12 +158,16 @@ Retries only happen for custom packages and Fleet-maintained apps. For App Store
 For macOS hosts, you can configure the setup experience to stop if any software item fails to install:
 
 1. In **Controls > Setup experience > Install software > macOS**, select **Show advanced options**.
+
 2. Check the **Cancel setup if software install fails** checkbox.
+
 3. Select **Save**. 
 
-When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
+When this feature is enabled, any failed software will immediately end the setup experience and instruct the end user to restart their Mac:
 
 ![screen shot of Fleet setup experience failed view](../website/assets/images/articles/setup-experience-failed-470x245@2x.png)
+
+End users won't continue through setup experience unless they press Command (⌘) + Shift + X.
 
 ## Run script
 
@@ -164,9 +179,11 @@ To configure a script to run during setup experience:
 
 To replace the Fleet logo with your organization's logo:
 
-1. Go to **Settings** > **Organization settings** > **Organization info**
-2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields
-3. Press **Save**
+1. Go to **Settings** > **Organization settings** > **Organization info**.
+
+2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields.
+
+3. Press **Save**.
  
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
@@ -180,6 +197,8 @@ The Fleet setup experience for macOS will exit if any of the following occurs:
 * All setup steps complete, including failed installs or script runs, with the "Cancel setup if software install fails" option _not_ enabled (see ["Blocking setup on failed software installs"](https://fleetdm.com/guides/macos-setup-experience#install-software)).
 * The user presses Command (⌘) + Shift + X at any time during the setup process.
 
+> If the end user is stuck, you can send the [DeviceConfigured](https://developer.apple.com/documentation/devicemanagement/device-configured-command) using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the user through.
+
 ## Setup Assistant
 
 When an end user unboxes their new Apple device, or starts up a freshly wiped device, they're presented with the Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
@@ -188,9 +207,11 @@ In Fleet, you can customize the Setup Assistant by using an automatic enrollment
 
 To customize the Setup Assistant, we will do the following steps:
 
-1. Create an automatic enrollment profile
-2. Upload the profile to Fleet
-3. Test the custom Setup Assistant
+1. Create an automatic enrollment profile.
+
+2. Upload the profile to Fleet.
+
+3. Test the custom Setup Assistant.
 
 > [Automatic enrollment profile delivery can take up to ten minutes](https://github.com/fleetdm/fleet/issues/27854#issuecomment-2811275551).
 
@@ -212,7 +233,7 @@ To customize the Setup Assistant, we will do the following steps:
 
 1. Head to the **Controls > Setup experience > Setup Assistant** page.
 
-2. Choose which team you want to add the profile to by selecting the desired team in the teams dropdown in the upper left corner.
+2. Choose which fleet you want to add the profile to by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
 3. Select **Add profile** and choose your profile package.
 
@@ -226,7 +247,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
   > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." See our [automatic enrollment guide](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager) for more information.
 
-3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
+3. Transfer this host to a test fleet by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the test fleet and select **Transfer**.
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
 
@@ -239,6 +260,8 @@ Fleet also provides a REST API for managing setup experience software and script
 To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
 
 ## Advanced
+
+### Manually install fleetd
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -256,6 +279,10 @@ How to deploy a custom fleetd:
 4. Once the option to manually install Fleet's agent is checked, instead of using **Install software** and **Run script** options, include your software in the bootstrap package.
 
 If you deploy a custom fleetd, also add the software and scripts you want to install/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software and run the script [configured in setup experience](#software-and-script).
+
+### swiftDialog
+
+Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to show end users [software install](#install-software) and [script run](#run-script) status. swiftDialog is only installed on macOS hosts if there is setup experience software or a script. After setup experinece, swiftDialog stays installed.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

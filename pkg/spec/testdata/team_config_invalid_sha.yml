@@ -56,6 +56,7 @@ controls:
   windows_enabled_and_configured: true
   windows_migration_enabled: false
   enable_turn_on_windows_mdm_manually: false
+  windows_entra_tenant_ids: []
 software:
   app_store_apps:
     - app_store_id: "123456"

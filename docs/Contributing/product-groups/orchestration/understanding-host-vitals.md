@@ -84,13 +84,16 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 
 - Query:
 ```sql
-SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
-	UNION ALL
-	SELECT device_id, user_principal_name, 2 AS priority FROM (
-		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
-		CROSS JOIN
-		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
-	ORDER BY priority ASC;
+SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
+```
+
+## conditional_access_microsoft_device_id_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;
 ```
 
 ## disk_encryption_darwin
@@ -127,9 +130,44 @@ WITH encrypted(enabled) AS (
 	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL
 ```
 
+## disk_space_darwin
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'disk_space'
+```
+
+- Query:
+```sql
+SELECT
+    ROUND(bytes_available * 100.0 / bytes_total, 2) AS percent_disk_space_available,
+    ROUND(bytes_available * 10e-10, 2) AS gigs_disk_space_available,
+    ROUND(bytes_total * 10e-10, 2) AS gigs_total_disk_space
+FROM disk_space LIMIT 1;
+```
+
+## disk_space_darwin_legacy
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'disk_space');
+```
+
+- Query:
+```sql
+SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;
+```
+
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
 
 - Query:
 ```sql
@@ -143,9 +181,9 @@ AND blocks_size > 0
 
 -- exclude external storage
 AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
-  
+
 -- exclude device drivers
-AND path NOT LIKE '/dev%' 
+AND path NOT LIKE '/dev%'
 
 -- exclude kernel-related mounts
 AND path NOT LIKE '/proc%'
@@ -156,7 +194,7 @@ AND path NOT LIKE '/run%'
 AND path NOT LIKE '/var/run%'
 
 -- exclude boot files
-AND path NOT LIKE '/boot%' 
+AND path NOT LIKE '/boot%'
 
 -- exclude snap packages
 AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
@@ -166,21 +204,21 @@ AND path NOT LIKE '/var/lib/docker%'
 AND path NOT LIKE '/var/lib/containers%'
 
 AND type IN (
-'ext4', 
-'ext3', 
-'ext2', 
-'xfs', 
-'btrfs', 
-'ntfs', 
+'ext4',
+'ext3',
+'ext2',
+'xfs',
+'btrfs',
+'ntfs',
 'vfat',
 'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
 'zfs' --also valid storage
 )
 AND (
-device LIKE '/dev/sd%' 
-OR device LIKE '/dev/hd%' 
-OR device LIKE '/dev/vd%' 
-OR device LIKE '/dev/nvme%' 
+device LIKE '/dev/sd%'
+OR device LIKE '/dev/hd%'
+OR device LIKE '/dev/vd%'
+OR device LIKE '/dev/nvme%'
 OR device LIKE '/dev/mapper%'
 OR device LIKE '/dev/md%'
 OR device LIKE '/dev/dm-%'
@@ -263,20 +301,6 @@ SELECT display_name, identifier, install_date FROM macos_profiles WHERE type = "
 - Discovery query:
 ```sql
 SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles') AND EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_user_profiles')
-```
-
-- Query:
-```
-<dynamically generated>
-```
-
-## mdm_config_profiles_windows
-
-- Platforms: windows
-
-- Discovery query:
-```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm_bridge'
 ```
 
 - Query:
@@ -664,6 +688,30 @@ SELECT package, MAX(atime) AS last_opened_at
 		GROUP BY package
 ```
 
+## software_go_binaries
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'go_binaries'
+```
+
+- Query:
+```sql
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'go_binaries' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  installed_path AS installed_path
+FROM go_binaries
+```
+
 ## software_jetbrains_plugins
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
@@ -811,7 +859,9 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'),
+    CASE WHEN name IS NOT NULL AND lower(name) LIKE '%.app' THEN substr(name, 1, length(name) - 4) ELSE name END
+  ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -914,6 +964,24 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
+```
+
+## software_macos_executable_sha256
+
+- Description: A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'executable_hashes'
+```
+
+- Query:
+```sql
+SELECT eh.*
+		FROM apps a
+		JOIN executable_hashes eh ON a.path = eh.path
 ```
 
 ## software_macos_firefox
@@ -1130,6 +1198,17 @@ SELECT
   path AS installed_path,
   '' as upgrade_code
 FROM chocolatey_packages
+```
+
+## software_windows_acrobat_dc
+
+- Description: Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acrobat\DC'
 ```
 
 ## software_windows_last_opened_at

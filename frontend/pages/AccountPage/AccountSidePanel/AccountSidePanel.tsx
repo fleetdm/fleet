@@ -10,6 +10,7 @@ import versionAPI from "services/entities/version";
 import Avatar from "components/Avatar";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
@@ -67,17 +68,15 @@ const AccountSidePanel = ({
     <div className={baseClass}>
       <div className={`${baseClass}__change-avatar`}>
         <Avatar user={currentUser} className={`${baseClass}__avatar`} />
-        <a
-          href="https://en.gravatar.com/emails/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Change photo at Gravatar
-        </a>
+        <CustomLink
+          url="https://en.gravatar.com/emails/"
+          text="Change photo at Gravatar"
+          newTab
+        />
       </div>
       {isPremiumTier && (
         <DataSet
-          title="Teams"
+          title="Fleets"
           value={
             <span
               className={`${
@@ -120,13 +119,11 @@ const AccountSidePanel = ({
         className={`${baseClass}__version`}
       >{`Fleet ${versionData?.version} • Go ${versionData?.go_version}`}</span>
       <span className={`${baseClass}__privacy-policy`}>
-        <a
-          href="https://fleetdm.com/legal/privacy"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Privacy policy
-        </a>
+        <CustomLink
+          url="https://fleetdm.com/legal/privacy"
+          text="Privacy policy"
+          newTab
+        />
       </span>
     </div>
   );

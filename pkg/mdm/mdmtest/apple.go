@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	mrand "math/rand"
 	"net/http"
@@ -24,15 +25,15 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
@@ -114,6 +115,12 @@ type TestAppleMDMClient struct {
 	// scepKey contains the SCEP client private key generated during the
 	// SCEP enrollment process.
 	scepKey *rsa.PrivateKey
+
+	// legacyIDeviceEnrollRef is an optional enroll reference that will be added to the MDMURL after the
+	// client fetches the enrollment profile but prior to attempting SCEP enrollment. Note that this
+	// is not a full simulation of legacy enrollments (especially, as it related to IdP). Rather it
+	// is enough to test certain SCEP renewal scenarios for iOS/IPadOS devices
+	legacyIDeviceEnrollRef string
 }
 
 // TestMDMAppleClientOption allows configuring a TestMDMClient.
@@ -137,6 +144,16 @@ func WithEnrollmentProfileFromDEPUsingPost() TestMDMAppleClientOption {
 func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
 		c.otaIdpUUID = idpUUID
+	}
+}
+
+// Will add the specified reference as a query parameter to the MDMURL after the
+// client fetches the enrollment profile but prior to attempting SCEP enrollment. Note that this
+// is not a full simulation of legacy enrollments (especially, as it relates to IdP). Rather it
+// is enough to test certain SCEP renewal scenarios for iOS/IPadOS devices
+func WithLegacyIDeviceEnrollRef(enrollRef string) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.legacyIDeviceEnrollRef = enrollRef
 	}
 }
 
@@ -285,6 +302,10 @@ func (c *TestAppleMDMClient) SetDEPToken(tok string) {
 // profile from the Fleet server and then runs the SCEP enrollment, Authenticate and TokenUpdate
 // steps.
 func (c *TestAppleMDMClient) Enroll() error {
+	return c.enrollDevice(true)
+}
+
+func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 	switch {
 	case c.fetchEnrollmentProfileFromDesktop:
 		if err := c.fetchEnrollmentProfileFromDesktopURL(); err != nil {
@@ -311,16 +332,33 @@ func (c *TestAppleMDMClient) Enroll() error {
 			return fmt.Errorf("missing info needed to perform enrollment: %+v", c.EnrollInfo)
 		}
 	}
+
+	if c.legacyIDeviceEnrollRef != "" {
+		parsedMDMURL, err := url.Parse(c.EnrollInfo.MDMURL)
+		if err != nil {
+			return fmt.Errorf("parsing MDM URL: %w", err)
+		}
+		q := parsedMDMURL.Query()
+		q.Set("enroll_reference", c.legacyIDeviceEnrollRef)
+		parsedMDMURL.RawQuery = q.Encode()
+		c.EnrollInfo.MDMURL = parsedMDMURL.String()
+	}
+
 	if err := c.SCEPEnroll(); err != nil {
 		return fmt.Errorf("scep enroll: %w", err)
 	}
 	if err := c.Authenticate(); err != nil {
 		return fmt.Errorf("authenticate: %w", err)
 	}
-	if err := c.TokenUpdate(true); err != nil {
+	if err := c.TokenUpdate(awaitingConfiguration); err != nil {
 		return fmt.Errorf("token update: %w", err)
 	}
 	return nil
+}
+
+// Re-enroll runs the MDM enroll protocol on the simulated device, but TokenUpdate is not set as AwaitingConfiguration
+func (c *TestAppleMDMClient) Reenroll() error {
+	return c.enrollDevice(false)
 }
 
 func (c *TestAppleMDMClient) UserEnroll() error {
@@ -538,16 +576,17 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	// believe this could be done with a little bit of reverse
 	// engineering/cleverness but for now, we're signing the request with
 	// our mock certs and setting this env var to skip the verification.
-	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+
 	mockedCert, mockedKey, err := apple_mdm.NewSCEPCACertKey()
 	if err != nil {
 		return fmt.Errorf("creating mock certificates: %w", err)
 	}
+	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 	body, err = do(mockedCert, mockedKey)
+	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}
-	os.Unsetenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
 
 	var scepInfo struct {
 		PayloadContent []struct {
@@ -652,11 +691,11 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
 	ctx := context.Background()
 
-	var logger log.Logger
+	var logger *slog.Logger
 	if c.debug {
-		logger = kitlog.NewJSONLogger(os.Stdout)
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	} else {
-		logger = kitlog.NewNopLogger()
+		logger = slog.New(slog.DiscardHandler)
 	}
 	client, err := newSCEPClient(url, logger)
 	if err != nil {
@@ -752,7 +791,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 			ChallengePassword: c.EnrollInfo.SCEPChallenge,
 		},
 	}
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(logger)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create CSR request: %w", err)
 	}
@@ -760,7 +799,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 	if err != nil {
 		return nil, nil, fmt.Errorf("do CSR request: %w", err)
 	}
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(logger)), scep.WithCACerts(msg.Recipients))
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse PKIMessage response: %w", err)
 	}
@@ -804,7 +843,7 @@ func (c *TestAppleMDMClient) Authenticate() error {
 		payload["SerialNumber"] = c.SerialNumber
 		payload["DeviceName"] = "testdevice" + c.SerialNumber
 	}
-	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
+	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPod") || strings.HasPrefix(c.Model, "iPad") {
 		payload["ProductName"] = c.Model
 	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
@@ -983,7 +1022,7 @@ func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
-func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName string) (*mdm.Command, error) {
+func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName, timeZone string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":      "Acknowledged",
 		"UDID":        udid,
@@ -996,8 +1035,21 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 			"ProductName":             productName,
 			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
 			"IsMDMLostModeEnabled":    false,
+			"TimeZone":                timeZone,
 		},
 	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeDeviceLocation(udid, cmdUUID string, lat, long float64) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        udid,
+		"CommandUUID": cmdUUID,
+		"Latitude":    lat,
+		"Longitude":   long,
+	}
+
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
@@ -1254,7 +1306,7 @@ type scepClient interface {
 
 func newSCEPClient(
 	serverURL string,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (scepClient, error) {
 	endpoints, err := makeClientSCEPEndpoints(serverURL)
 	if err != nil {

@@ -269,6 +269,12 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 				return false, nil
 			}
+			ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+				return &fleet.HostDEPAssignment{}, nil
+			}
+			ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+				return nil, nil
+			}
 
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				return map[string]error{}, nil
@@ -560,6 +566,11 @@ func TestMDMLockCommand(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
+
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -836,6 +847,11 @@ func TestMDMUnlockCommand(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
+
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -1209,6 +1225,10 @@ func TestMDMWipeCommand(t *testing.T) {
 		return host.MDM.ConnectedToFleet != nil && *host.MDM.ConnectedToFleet, nil
 	}
 
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
 
@@ -1391,11 +1411,6 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 		}
 
 		return h.mdmInfo, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil

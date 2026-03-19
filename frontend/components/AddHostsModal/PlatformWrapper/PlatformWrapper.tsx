@@ -4,6 +4,7 @@ import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -239,16 +240,13 @@ const PlatformWrapper = ({
       <>
         {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
-            Run this command with the{" "}
-            <a
+            Generate your installer with the{" "}
+            <CustomLink
               className={`${baseClass}__command-line-tool`}
-              href="https://fleetdm.com/learn-more-about/installing-fleetctl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Fleet command-line tool
-            </a>
-            :
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/installing-fleetctl`}
+              text="Fleet command-line tool"
+              newTab
+            />
           </span>
         )}
       </>
@@ -273,19 +271,23 @@ const PlatformWrapper = ({
     if (packageType === "deb") {
       packageTypeHelpText = (
         <>
-          For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>.
-          For Arch Linux, use <code>--type=pkg.tar.zst</code>.<br />
+          Run this on your admin computer, then deploy the generated package to
+          your hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
+          <code>--type=rpm</code>. For Arch Linux, use{" "}
+          <code>--type=pkg.tar.zst</code>.<br />
           For ARM, use <code>--arch=arm64</code>
         </>
       );
     } else if (packageType === "msi") {
       packageTypeHelpText = (
         <>
-          For ARM, use <code>--arch=arm64</code>
+          Run this on your admin computer, then deploy the generated package to
+          your hosts. For ARM, use <code>--arch=arm64</code>
         </>
       );
     } else if (packageType === "pkg") {
-      packageTypeHelpText = "Install this package to add hosts to Fleet.";
+      packageTypeHelpText =
+        "Run this on your admin computer, then install the generated package on your hosts.";
     } else {
       packageTypeHelpText = "";
     }
@@ -431,13 +433,11 @@ const PlatformWrapper = ({
               <div className={`${baseClass}__advanced--osqueryd`}>
                 <p className={`${baseClass}__advanced--heading`}>
                   With{" "}
-                  <a
-                    href="https://www.osquery.io/downloads"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    osquery
-                  </a>{" "}
+                  <CustomLink
+                    url="https://www.osquery.io/downloads"
+                    text="osquery"
+                    newTab
+                  />{" "}
                   installed:
                 </p>
                 <p className={`${baseClass}__advanced--text`}>

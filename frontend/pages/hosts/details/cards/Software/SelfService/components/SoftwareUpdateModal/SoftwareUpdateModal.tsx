@@ -9,6 +9,7 @@ import Modal from "components/Modal";
 import IconStatusMessage from "components/IconStatusMessage";
 import ModalFooter from "components/ModalFooter";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "software-update-modal";
 
@@ -96,6 +97,7 @@ const SoftwareUpdateModal = ({
   } = software;
   const installerName = software_package?.name || "";
   const installerVersion = software_package?.version || app_store_app?.version;
+  const softwareDisplayName = getDisplayedSoftwareName(name, display_name);
 
   const onClickUpdate = () => {
     onUpdate(id);
@@ -109,37 +111,35 @@ const SoftwareUpdateModal = ({
 
   return (
     <Modal title="Update details" className={baseClass} onExit={onExit}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <StatusMessage
-            hostDisplayName={hostDisplayName}
-            isDeviceUser={isDeviceUser}
-            softwareStatus={status}
-            softwareName={display_name || name}
-            installerName={installerName}
-            installerVersion={installerVersion}
-          />
-          {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
-        </div>
-        <ModalFooter
-          primaryButtons={
-            status === "pending_install" ? (
-              <Button type="submit" onClick={onExit}>
-                Done
-              </Button>
-            ) : (
-              <>
-                <Button variant="inverse" onClick={onExit}>
-                  Cancel
-                </Button>
-                <Button type="submit" onClick={onClickUpdate}>
-                  Update
-                </Button>
-              </>
-            )
-          }
+      <div className={`${baseClass}__modal-content`}>
+        <StatusMessage
+          hostDisplayName={hostDisplayName}
+          isDeviceUser={isDeviceUser}
+          softwareStatus={status}
+          softwareName={softwareDisplayName}
+          installerName={installerName}
+          installerVersion={installerVersion}
         />
-      </>
+        {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
+      </div>
+      <ModalFooter
+        primaryButtons={
+          status === "pending_install" ? (
+            <Button type="submit" onClick={onExit}>
+              Done
+            </Button>
+          ) : (
+            <>
+              <Button variant="inverse" onClick={onExit}>
+                Cancel
+              </Button>
+              <Button type="submit" onClick={onClickUpdate}>
+                Update
+              </Button>
+            </>
+          )
+        }
+      />
     </Modal>
   );
 };

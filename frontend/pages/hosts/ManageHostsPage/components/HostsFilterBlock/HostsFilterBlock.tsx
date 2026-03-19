@@ -38,6 +38,7 @@ import {
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
@@ -75,7 +76,11 @@ interface IHostsFilterBlockProps {
     vulnerability?: string;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
-    softwareDetails: { name: string; version?: string } | null;
+    softwareDetails: {
+      name: string;
+      display_name?: string;
+      version?: string;
+    } | null;
     mdmSolutionDetails: IMdmSolution | null;
     osSettingsStatus?: MdmProfileStatus;
     diskEncryptionStatus?: DiskEncryptionStatus;
@@ -88,6 +93,7 @@ interface IHostsFilterBlockProps {
     scriptBatchExecutionId?: string;
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
+    depProfileError: string; // string "true" as we don't handle booleans
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -149,6 +155,7 @@ const HostsFilterBlock = ({
     scriptBatchExecutionId,
     scriptBatchRanAt,
     scriptBatchScriptName,
+    depProfileError,
   },
   selectedLabel,
   isOnlyObserver,
@@ -331,8 +338,8 @@ const HostsFilterBlock = ({
   const renderSoftwareFilterBlock = (additionalClearParams?: string[]) => {
     if (!softwareDetails) return null;
 
-    const { name, version } = softwareDetails;
-    let label = name;
+    const { name, display_name, version } = softwareDetails;
+    let label = display_name || name;
     if (version) {
       label += ` ${version}`;
     }
@@ -600,7 +607,21 @@ const HostsFilterBlock = ({
     );
   };
 
-  const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
+  const renderDepProfileError = () => {
+    return (
+      <FilterPill
+        className={`${baseClass}__abm-issue-filter-pill`}
+        label="Apple Business Manager (ABM) issues"
+        tooltipDescription={abmIssueTooltip()}
+        onClear={() => handleClearFilter(["dep_profile_error"])}
+      />
+    );
+  };
+
+  const showSelectedLabel =
+    selectedLabel &&
+    selectedLabel.type !== "all" &&
+    selectedLabel.type !== "platform";
 
   if (
     showSelectedLabel ||
@@ -621,7 +642,8 @@ const HostsFilterBlock = ({
     bootstrapPackageStatus ||
     vulnerability ||
     (configProfileStatus && configProfileUUID && configProfile) ||
-    (scriptBatchExecutionStatus && scriptBatchExecutionId)
+    (scriptBatchExecutionStatus && scriptBatchExecutionId) ||
+    depProfileError
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -695,6 +717,8 @@ const HostsFilterBlock = ({
           return renderConfigProfileStatusBlock();
         case !!scriptBatchExecutionStatus && !!scriptBatchExecutionId:
           return renderScriptBatchExecutionBlock();
+        case !!depProfileError:
+          return renderDepProfileError();
         default:
           return null;
       }

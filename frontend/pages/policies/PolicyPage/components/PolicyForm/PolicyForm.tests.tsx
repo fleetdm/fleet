@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 import createMockPolicy from "__mocks__/policyMock";
 import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
 
 import { ILabelSummary } from "interfaces/label";
 import PolicyForm from "./PolicyForm";
@@ -59,6 +60,7 @@ describe("PolicyForm - component", () => {
     isFetchingAutofillDescription: false,
     isFetchingAutofillResolution: false,
     resetAiAutofillData: jest.fn(),
+    currentAutomatedPolicies: [],
   };
 
   it("should not show the target selector in the free tier", async () => {
@@ -143,6 +145,7 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
         />
       );
 
@@ -205,6 +208,7 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
         />
       );
 
@@ -283,6 +287,7 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
         />
       );
 
@@ -294,7 +299,7 @@ describe("PolicyForm - component", () => {
         });
 
         expect(
-          screen.getByText(/live queries are disabled/i)
+          screen.getByText(/live reports are disabled/i)
         ).toBeInTheDocument();
       });
     });
@@ -305,6 +310,7 @@ describe("PolicyForm - component", () => {
         context: {
           app: {
             currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
             isGlobalObserver: false,
             isGlobalAdmin: true,
             isGlobalMaintainer: false,
@@ -440,6 +446,121 @@ describe("PolicyForm - component", () => {
 
         expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
+      });
+    });
+
+    describe("patch policy behavior", () => {
+      const patchPolicy = createMockPolicy({
+        type: "patch",
+        platform: "darwin",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+        install_software: undefined,
+      });
+
+      const patchPolicyProps = {
+        ...defaultProps,
+        storedPolicy: patchPolicy,
+      };
+
+      const renderPatchPolicy = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: patchPolicy.id,
+            lastEditedQueryName: patchPolicy.name,
+            lastEditedQueryDescription: patchPolicy.description,
+            lastEditedQueryBody: patchPolicy.query,
+            lastEditedQueryResolution: patchPolicy.resolution,
+            lastEditedQueryCritical: patchPolicy.critical,
+            lastEditedQueryPlatform: patchPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      it("hides platform selector", () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+        expect(screen.queryByLabelText("macOS")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Windows")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Linux")).not.toBeInTheDocument();
+      });
+
+      it("hides target label selector", () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+        expect(screen.queryByLabelText("All hosts")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      });
+
+      it("submits only editable fields on save", async () => {
+        const onUpdate = jest.fn();
+        renderPatchPolicy(
+          <PolicyForm {...patchPolicyProps} onUpdate={onUpdate} />
+        );
+
+        const saveButton = await screen.findByRole("button", { name: "Save" });
+        await userEvent.click(saveButton);
+
+        expect(onUpdate).toHaveBeenCalledTimes(1);
+        const payload = onUpdate.mock.calls[0][0];
+        expect(payload).toHaveProperty("name");
+        expect(payload).toHaveProperty("description");
+        expect(payload).toHaveProperty("resolution");
+        expect(payload).toHaveProperty("critical");
+        expect(payload).not.toHaveProperty("query");
+        expect(payload).not.toHaveProperty("platform");
+        expect(payload).not.toHaveProperty("labels_include_any");
+      });
+
+      it("shows 'Add automation' CTA when patch policy has no install_software", async () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+        await waitFor(() => {
+          expect(
+            screen.getByText(/Automatically patch Firefox/)
+          ).toBeInTheDocument();
+          expect(screen.getByText(/Add automation/)).toBeInTheDocument();
+        });
+      });
+
+      it("hides 'Add automation' CTA when automation already exists", async () => {
+        const automatedPatchPolicy = createMockPolicy({
+          type: "patch",
+          platform: "darwin",
+          patch_software: { name: "Firefox", software_title_id: 42 },
+          install_software: { name: "Firefox", software_title_id: 42 },
+        });
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={automatedPatchPolicy}
+          />
+        );
+
+        // Wait for the component to fully render, then assert CTA is absent
+        await waitFor(() => {
+          expect(
+            screen.getByRole("button", { name: "Save" })
+          ).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/Add automation/)).not.toBeInTheDocument();
       });
     });
   });

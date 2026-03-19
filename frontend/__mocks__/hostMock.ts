@@ -1,4 +1,4 @@
-import { IHost, IHostEndUser } from "interfaces/host";
+import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
 import { pick } from "lodash";
 
@@ -39,6 +39,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   label_updated_at: "2022-01-02T12:00:00Z",
   policy_updated_at: "2022-01-02T12:00:00Z",
   last_enrolled_at: "2022-01-02T12:00:00Z",
+  last_mdm_enrolled_at: "2022-01-02T12:00:00Z",
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
   refetch_critical_queries_until: null,
@@ -115,10 +116,25 @@ const DEFAULT_HOST_MOCK: IHost = {
   policies: [],
   device_mapping: [],
   end_users: [],
+  conditional_access_bypassed: false,
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
   return { ...DEFAULT_HOST_MOCK, ...overrides };
+};
+
+export const createMockHostGeolocation = (
+  overrides: Partial<IGeoLocation> = {}
+): IGeoLocation => {
+  return {
+    country_iso: "US",
+    city_name: "Minneapolis",
+    geometry: {
+      type: "Point",
+      coordinates: [-93.2602, 44.9844], // [lng, lat]
+    },
+    ...overrides,
+  };
 };
 
 export const createMockHostResponse = { host: createMockHost() };

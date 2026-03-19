@@ -17,10 +17,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MicahParks/jwkset"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/smallstep/pkcs7"
 )
 
@@ -64,6 +68,7 @@ type STSClaims struct {
 
 type AzureData struct {
 	UPN        string
+	Audience   []string
 	TenantID   string
 	UniqueName string
 	SCP        string
@@ -215,7 +220,7 @@ func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
 	}
 
 	// Since we used the private key to sign the tokens, we use the public counterpart to verify the signature
-	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (any, error) {
 		return m.identityCert.PublicKey, nil
 	})
 	if err != nil {
@@ -235,27 +240,71 @@ func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
 
 // GetAzureAuthTokenClaims validates the given Azure AD token and returns
 // UPN, TenantID, UniqueName, DeviceID
-func GetAzureAuthTokenClaims(tokenStr string) (AzureData, error) {
+func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, error) {
 	if len(tokenStr) == 0 {
-		return AzureData{}, errors.New("invalid STS token")
+		return AzureData{}, ctxerr.New(ctx, "invalid STS token")
 	}
 
 	// Decode base64 token
 	tokenBytes, err := base64.StdEncoding.DecodeString(tokenStr)
 	if err != nil {
-		return AzureData{}, errors.New("invalid Azure JWT token")
+		return AzureData{}, ctxerr.Wrap(ctx, err, "invalid Azure JWT token")
 	}
 
 	// Validate token format (header.payload.signature)
 	parts := bytes.Split(tokenBytes, []byte("."))
 	if len(parts) != 3 {
-		return AzureData{}, errors.New("invalid Azure JWT format")
+		return AzureData{}, ctxerr.New(ctx, "invalid Azure JWT format")
 	}
 
 	// Parse JWT token
-	token, _, err := new(jwt.Parser).ParseUnverified(string(tokenBytes), jwt.MapClaims{})
+	jwksURI := "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+	var token *jwt.Token
+	FLEET_DEV_AZURE_JWT_JWKS_URI := dev_mode.Env("FLEET_DEV_AZURE_JWT_JWKS_URI")
+	if FLEET_DEV_AZURE_JWT_JWKS_URI != "" {
+		jwksURI = FLEET_DEV_AZURE_JWT_JWKS_URI
+	}
+
+	keys, err := jwkset.NewDefaultHTTPClient([]string{jwksURI})
 	if err != nil {
-		return AzureData{}, errors.New("parse error Azure JWT content")
+		return AzureData{}, ctxerr.Wrap(ctx, err, "failed to retrieve Azure JWT signing keys")
+	}
+	token, err = jwt.Parse(string(tokenBytes), func(token *jwt.Token) (any, error) {
+		tokenAlg, ok := token.Header["alg"]
+		if !ok {
+			return nil, errors.New("Azure JWT missing alg header")
+		}
+		tokenAlgStr, ok := tokenAlg.(string)
+		if !ok {
+			return nil, errors.New("invalid alg header in Azure JWT")
+		}
+
+		kid, ok := token.Header["kid"]
+		if !ok {
+			return nil, errors.New("Azure JWT missing kid header")
+		}
+		kidStr, ok := kid.(string)
+		if !ok {
+			return nil, errors.New("invalid kid header in Azure JWT")
+		}
+
+		key, err := keys.KeyRead(ctx, kidStr)
+		if err != nil {
+			if errors.Is(err, jwkset.ErrKeyNotFound) {
+				return nil, fmt.Errorf("Azure JWT signed by unknown key: %w", err)
+			}
+			return nil, fmt.Errorf("failed to retrieve Azure JWT signing key: %w", err)
+		}
+
+		// Alg is optional in the JWK but if present must match the token
+		keyAlg := key.Marshal().ALG.String()
+		if keyAlg != "" && keyAlg != tokenAlgStr {
+			return nil, fmt.Errorf("Azure JWT signing key algorithm mismatch: expected %s from key, got %s", keyAlg, tokenAlgStr)
+		}
+		return key.Key(), nil
+	})
+	if err != nil {
+		return AzureData{}, ctxerr.Wrap(ctx, err, "parse error Azure JWT content")
 	}
 
 	// Parse JWT token
@@ -264,25 +313,59 @@ func GetAzureAuthTokenClaims(tokenStr string) (AzureData, error) {
 	// Get UPN claim
 	upnClaim, ok := claims["upn"].(string)
 	if !ok || len(upnClaim) == 0 {
-		return AzureData{}, errors.New("invalid UPN claim")
+		return AzureData{}, ctxerr.New(ctx, "invalid UPN claim")
 	}
 
 	// Get TenantID claim
 	tenantIDClaim, ok := claims["tid"].(string)
 	if !ok || len(tenantIDClaim) == 0 {
-		return AzureData{}, errors.New("invalid TenantID claim")
+		return AzureData{}, ctxerr.New(ctx, "invalid TenantID claim")
+	}
+
+	// Validate that tenant ID is a UUID and matches the issuer
+	_, err = uuid.Parse(tenantIDClaim)
+	if err != nil {
+		return AzureData{}, ctxerr.Wrap(ctx, err, "invalid TenantID claim format")
+	}
+	issuer, ok := claims["iss"].(string)
+	if !ok || len(issuer) == 0 {
+		return AzureData{}, ctxerr.New(ctx, "invalid Issuer claim")
+	}
+
+	// Depending on exactly how the Azure AD app is configured, the issuer claim
+	// may vary. Validate that the issuer contains the tenant ID.
+	issuerMatchesTenant := false
+	for _, expectedIssuer := range []string{fmt.Sprintf("https://sts.windows.net/%s/", tenantIDClaim), fmt.Sprintf("https://login.microsoftonline.com/%s/", tenantIDClaim)} {
+		if strings.HasPrefix(issuer, expectedIssuer) {
+			issuerMatchesTenant = true
+			break
+		}
+	}
+	if !issuerMatchesTenant {
+		return AzureData{}, ctxerr.New(ctx, "issuer claim does not match tenant ID")
+	}
+
+	audience := []string{}
+	singleAudience, ok := claims["aud"].(string)
+	if !ok {
+		multiAudience, ok := claims["aud"].([]string)
+		if ok {
+			audience = multiAudience
+		}
+	} else {
+		audience = append(audience, singleAudience)
 	}
 
 	// Get UniqueName claim
 	uniqueNameClaim, ok := claims["unique_name"].(string)
 	if !ok {
-		return AzureData{}, errors.New("invalid UniqueName claim")
+		return AzureData{}, ctxerr.New(ctx, "invalid UniqueName claim")
 	}
 
 	// Get SCP claim
 	azureSCPClaim, ok := claims["scp"].(string)
 	if !ok || azureSCPClaim != "mdm_delegation" {
-		return AzureData{}, errors.New("invalid SCP claim")
+		return AzureData{}, ctxerr.New(ctx, "invalid SCP claim")
 	}
 
 	return AzureData{
@@ -290,6 +373,7 @@ func GetAzureAuthTokenClaims(tokenStr string) (AzureData, error) {
 		TenantID:   tenantIDClaim,
 		UniqueName: uniqueNameClaim,
 		SCP:        azureSCPClaim,
+		Audience:   audience,
 	}, nil
 }
 

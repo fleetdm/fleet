@@ -15,12 +15,12 @@ const baseClass = "policies-filter";
 const POLICY_RESPONSE_OPTIONS = [
   {
     disabled: false,
-    label: "Yes",
+    label: "Pass",
     value: PolicyResponse.PASSING,
   },
   {
     disabled: false,
-    label: "No",
+    label: "Fail",
     value: PolicyResponse.FAILING,
   },
 ];

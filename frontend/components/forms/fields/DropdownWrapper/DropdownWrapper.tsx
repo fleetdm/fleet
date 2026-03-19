@@ -42,7 +42,7 @@ const CustomOption = (props: CustomOptionProps) => {
   const { data, ...rest } = props;
 
   const optionContent = (
-    <div className={`${baseClass}__option`}>
+    <div className={`${baseClass}__option`} data-testid="dropdown-option">
       {data.label}
       {data.helpText && (
         <span className={`${baseClass}__help-text`}>{data.helpText}</span>
@@ -103,7 +103,7 @@ type DropdownWrapperVariant = "table-filter" | "button";
 
 export interface IDropdownWrapper {
   options: CustomOptionType[];
-  value?: PropsValue<CustomOptionType> | string;
+  value?: PropsValue<CustomOptionType> | string; // Future: Handle number types, cascade of type checking will be needed
   onChange: (newValue: SingleValue<CustomOptionType>) => void;
   name: string;
   className?: string;
@@ -322,6 +322,7 @@ export const generateCustomDropdownStyles = (
 
       return {
         ...provided,
+        fontSize: "13px",
         ...(variant === "button" && buttonVariantPlaceholder),
       };
     },

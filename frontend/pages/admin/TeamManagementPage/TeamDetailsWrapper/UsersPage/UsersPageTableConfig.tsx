@@ -11,6 +11,7 @@ import ActionsDropdown from "components/ActionsDropdown";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PillBadge from "components/PillBadge";
 
 interface IHeaderProps {
   column: {
@@ -60,8 +61,8 @@ export interface ITeamUsersTableData {
 
 export const renderApiUserIndicator = () => {
   return (
-    <TooltipWrapper
-      className="api-only-tooltip"
+    <PillBadge
+      text="API"
       tipContent={
         <>
           This user was created using fleetctl and
@@ -74,13 +75,7 @@ export const renderApiUserIndicator = () => {
           />
         </>
       }
-      tipOffset={14}
-      position="top"
-      showArrow
-      underline={false}
-    >
-      <span className="team-users__api-only-user">API</span>
-    </TooltipWrapper>
+    />
   );
 };
 
@@ -142,7 +137,7 @@ const generateColumnConfigs = (
                   <br />
                   the same functions as an Observer, with the added
                   <br />
-                  ability to run any live query against all hosts.
+                  ability to run any live report against all hosts.
                 </>
               }
             >

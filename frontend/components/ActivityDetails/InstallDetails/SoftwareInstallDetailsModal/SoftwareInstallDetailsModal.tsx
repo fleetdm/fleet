@@ -1,4 +1,4 @@
-/** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
+/** For script-only packages (e.g. software source is sh_packages or ps1_packages)
  * we use SoftwareScriptDetailsModal
  * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
  * we use SoftwareIpaInstallDetailsModal with the command_uuid
@@ -22,6 +22,7 @@ import softwareAPI from "services/entities/software";
 import deviceUserAPI from "services/entities/device_user";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -63,6 +64,11 @@ interface IInstallStatusMessage {
   installResult?: ISoftwareInstallResult;
   isMyDevicePage: boolean;
   contactUrl?: string;
+  /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
+   - From Host -> Software: override based on inventory.
+   - From Activity feed: never override (always show the failure).
+   Parity with VPPInstallDetailsModal/SoftwareIpaInstallDetailsModal */
+  canOverrideFailureWithInstalled?: boolean;
 }
 
 // TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
@@ -72,6 +78,7 @@ export const StatusMessage = ({
   installResult,
   isMyDevicePage,
   contactUrl,
+  canOverrideFailureWithInstalled = false,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
@@ -96,6 +103,26 @@ export const StatusMessage = ({
     updated_at,
     created_at,
   } = installResult;
+
+  // Treat failed_install/failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663)
+  const overrideFailureWithInstalled =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(status || "");
+
+  if (overrideFailureWithInstalled) {
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName="success"
+        message={
+          <span>
+            <b>{softwareName}</b> is installed.
+          </span>
+        }
+      />
+    );
+  }
 
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -308,10 +335,6 @@ export const SoftwareInstallDetailsModal = ({
     );
   };
 
-  const excludeVersions = ["pending_install", "failed_install"].includes(
-    swInstallResult?.status || ""
-  );
-
   const hostDisplayname =
     swInstallResult?.host_display_name || detailsFromProps.host_display_name;
 
@@ -321,6 +344,40 @@ export const SoftwareInstallDetailsModal = ({
         host_display_name: hostDisplayname,
       }
     : undefined;
+
+  // True when host inventory reports at least one installed version for this app.
+  const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
+
+  // This modal is opened in two contexts:
+  // - From Host -> Software: hostSoftware is defined (we trust inventory to override failures).
+  // - From the Activity feed: hostSoftware is undefined (we trust install result status).
+  const openedFromHostSoftwarePage = !!hostSoftware;
+
+  // Used only for overriding failed_install/failed_uninstall -> "is installed."
+  // - From Host -> Software: override based on inventory.
+  // - From Activity feed: never override (always show the failure).
+  const canOverrideFailureWithInstalled = openedFromHostSoftwarePage
+    ? inventoryReportsInstalled
+    : false;
+
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  const overrideFailedMessageWithInstalledMessage =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(
+      swInstallResult?.status || "" || ""
+    );
+
+  // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
+  const shouldShowInventoryVersions =
+    (!!hostSoftware &&
+      deviceAuthToken &&
+      ![
+        "pending_install",
+        "failed_install",
+        "failed_uninstall",
+        "pending",
+      ].includes(swInstallResult?.status || "")) ||
+    overrideFailedMessageWithInstalledMessage;
 
   const renderContent = () => {
     if (isInstalledByFleet) {
@@ -374,15 +431,19 @@ export const SoftwareInstallDetailsModal = ({
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
           installResult={installResultWithHostDisplayName}
-          softwareName={
-            hostSoftware?.display_name || hostSoftware?.name || "Software"
-          } // will always be defined at this point
+          softwareName={getDisplayedSoftwareName(
+            hostSoftware?.name,
+            hostSoftware?.display_name
+          )}
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
+          canOverrideFailureWithInstalled={canOverrideFailureWithInstalled}
         />
 
-        {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-        {isInstalledByFleet && renderInstallDetailsSection()}
+        {shouldShowInventoryVersions && renderInventoryVersionsSection()}
+        {isInstalledByFleet &&
+          !overrideFailedMessageWithInstalledMessage &&
+          renderInstallDetailsSection()}
       </div>
     );
   };
@@ -394,16 +455,14 @@ export const SoftwareInstallDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          deviceAuthToken={deviceAuthToken}
-          status={swInstallResult?.status}
-          hostSoftwareId={hostSoftware?.id}
-          onRetry={onRetry}
-          onCancel={onCancel}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        deviceAuthToken={deviceAuthToken}
+        status={swInstallResult?.status}
+        hostSoftwareId={hostSoftware?.id}
+        onRetry={onRetry}
+        onCancel={onCancel}
+      />
     </Modal>
   );
 };

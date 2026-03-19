@@ -20,8 +20,8 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                   uint     `url:"team_id"`
-	QueryID                  *uint    `json:"query_id"`
+	TeamID                   uint     `url:"fleet_id"`
+	QueryID                  *uint    `json:"query_id" renameto:"report_id"`
 	Query                    string   `json:"query"`
 	Name                     string   `json:"name"`
 	Description              string   `json:"description"`
@@ -34,6 +34,8 @@ type teamPolicyRequest struct {
 	LabelsIncludeAny         []string `json:"labels_include_any"`
 	LabelsExcludeAny         []string `json:"labels_exclude_any"`
 	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
+	Type                     *string  `json:"type"`
+	PatchSoftwareTitleID     *uint    `json:"patch_software_title_id"`
 }
 
 type teamPolicyResponse struct {
@@ -59,6 +61,8 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		LabelsIncludeAny:         req.LabelsIncludeAny,
 		LabelsExcludeAny:         req.LabelsExcludeAny,
 		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
+		Type:                     req.Type,
+		PatchSoftwareTitleID:     req.PatchSoftwareTitleID,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -91,7 +95,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, append(tp.LabelsIncludeAny, tp.LabelsExcludeAny...)); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, append(tp.LabelsIncludeAny, tp.LabelsExcludeAny...), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -105,6 +109,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	}
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
 
 	if teamID == 0 {
@@ -189,7 +196,29 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 	return nil
 }
 
+func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Policy) error {
+	if p.PatchSoftwareTitleID != nil {
+		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, p.TeamID, *p.PatchSoftwareTitleID, false)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
+		}
+		p.PatchSoftware = &fleet.PolicySoftwareTitle{
+			SoftwareTitleID: *installerMetadata.TitleID,
+			Name:            installerMetadata.SoftwareTitle,
+			DisplayName:     installerMetadata.DisplayName,
+		}
+		return nil
+	}
+	return nil
+}
+
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
+	policyType := fleet.PolicyTypeDynamic
+
+	if p.Type != nil && *p.Type == fleet.PolicyTypePatch {
+		policyType = fleet.PolicyTypePatch
+	}
+
 	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
 	if err != nil {
 		return fleet.PolicyPayload{}, err
@@ -209,6 +238,8 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsIncludeAny:         p.LabelsIncludeAny,
 		LabelsExcludeAny:         p.LabelsExcludeAny,
 		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
+		Type:                     policyType,
+		PatchSoftwareTitleID:     p.PatchSoftwareTitleID,
 	}, nil
 }
 
@@ -217,13 +248,14 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 /////////////////////////////////////////////////////////////////////////////////
 
 type listTeamPoliciesRequest struct {
-	TeamID                  uint                 `url:"team_id"`
+	TeamID                  uint                 `url:"fleet_id"`
 	Opts                    fleet.ListOptions    `url:"list_options"`
 	InheritedPage           uint                 `query:"inherited_page,optional"`
 	InheritedPerPage        uint                 `query:"inherited_per_page,optional"`
 	InheritedOrderDirection fleet.OrderDirection `query:"inherited_order_direction,optional"`
 	InheritedOrderKey       string               `query:"inherited_order_key,optional"`
 	MergeInherited          bool                 `query:"merge_inherited,optional"`
+	AutomationType          string               `query:"automation_type,optional"`
 }
 
 type listTeamPoliciesResponse struct {
@@ -244,14 +276,14 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 		OrderKey:       req.InheritedOrderKey,
 	}
 
-	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited)
+	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType)
 	if err != nil {
 		return listTeamPoliciesResponse{Err: err}, nil
 	}
 	return listTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -267,7 +299,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if mergeInherited {
-		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts)
+		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter)
 		for i := range policies {
 			if err := svc.populatePolicyInstallSoftware(ctx, policies[i]); err != nil {
 				return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", policies[i].ID)
@@ -279,7 +311,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return policies, nil, err
 	}
 
-	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts)
+	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -290,6 +322,9 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		}
 		if err := svc.populatePolicyRunScript(ctx, teamPolicies[i]); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "populate run_script for policy_id: %d", teamPolicies[i].ID)
+		}
+		if err := svc.populatePolicyPatchSoftware(ctx, teamPolicies[i]); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "populate patch_software for policy_id: %d", teamPolicies[i].ID)
 		}
 	}
 
@@ -302,46 +337,60 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 
 type countTeamPoliciesRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
-	TeamID         uint              `url:"team_id"`
+	TeamID         uint              `url:"fleet_id"`
 	MergeInherited bool              `query:"merge_inherited,optional"`
+	AutomationType string            `query:"automation_type,optional"`
 }
 
 type countTeamPoliciesResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
+	Count                int   `json:"count"`
+	InheritedPolicyCount int   `json:"inherited_policy_count"`
+	Err                  error `json:"error,omitempty"`
 }
 
 func (r countTeamPoliciesResponse) Error() error { return r.Err }
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countTeamPoliciesRequest)
-	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited)
+	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType)
 	if err != nil {
 		return countTeamPoliciesResponse{Err: err}, nil
 	}
-	return countTeamPoliciesResponse{Count: resp}, nil
+	return countTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
 }
 
-func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, error) {
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
 		},
 	}, fleet.ActionRead); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	if teamID > 0 {
 		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
-			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+			return 0, 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
 
 	if mergeInherited {
-		return svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery)
+		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery, automationType)
+		if err != nil {
+			return 0, 0, err
+		}
+		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType)
+		if err != nil {
+			return 0, 0, err
+		}
+		return count, inheritedCount, nil
 	}
 
-	return svc.ds.CountPolicies(ctx, &teamID, matchQuery)
+	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery, automationType)
+	if err != nil {
+		return 0, 0, err
+	}
+	return count, 0, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -349,7 +398,7 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 /////////////////////////////////////////////////////////////////////////////////
 
 type getTeamPolicyByIDRequest struct {
-	TeamID   uint `url:"team_id"`
+	TeamID   uint `url:"fleet_id"`
 	PolicyID uint `url:"policy_id"`
 }
 
@@ -389,6 +438,9 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 	if err := svc.populatePolicyRunScript(ctx, teamPolicy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
+	if err := svc.populatePolicyPatchSoftware(ctx, teamPolicy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
+	}
 
 	return teamPolicy, nil
 }
@@ -398,7 +450,7 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 /////////////////////////////////////////////////////////////////////////////////
 
 type deleteTeamPoliciesRequest struct {
-	TeamID uint   `url:"team_id"`
+	TeamID uint   `url:"fleet_id"`
 	IDs    []uint `json:"ids"`
 }
 
@@ -514,7 +566,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 /////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamPolicyRequest struct {
-	TeamID   uint `url:"team_id"`
+	TeamID   uint `url:"fleet_id"`
 	PolicyID uint `url:"policy_id"`
 	fleet.ModifyPolicyPayload
 }
@@ -564,13 +616,14 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	p.Type = policy.Type
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, append(p.LabelsIncludeAny, p.LabelsExcludeAny...)); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, append(p.LabelsIncludeAny, p.LabelsExcludeAny...), authz.UserFromContext(ctx)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -667,6 +720,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
 
 	if teamID == nil {

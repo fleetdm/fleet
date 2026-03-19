@@ -33,16 +33,21 @@ func fileHashes(meta *data.TargetFileMeta, localPath string) (metaHash []byte, l
 		return nil, nil, err
 	}
 
-	f, err := os.Open(localPath)
-	if err != nil {
-		// If tar.gz doesn't exist but a hash file does, use the cached hash file
-		if os.IsNotExist(err) && strings.HasSuffix(localPath, ".tar.gz") {
-			cachedHash, err := readCachedHash(localPath, meta)
-			if err == nil {
-				return metaHash, cachedHash, nil
-			}
+	// For .tar.gz components, try cached hash file first.
+	if strings.HasSuffix(localPath, ".tar.gz") {
+		cachedHash, err := readCachedHash(localPath, meta)
+		switch {
+		case err == nil:
+			return metaHash, cachedHash, nil
+		case os.IsNotExist(err):
+			// OK
+		default:
 			log.Info().Err(err).Msg("failed to read cached hash file")
 		}
+	}
+
+	f, err := os.Open(localPath)
+	if err != nil {
 		return nil, nil, fmt.Errorf("open file for hash: %w", err)
 	}
 	defer f.Close()

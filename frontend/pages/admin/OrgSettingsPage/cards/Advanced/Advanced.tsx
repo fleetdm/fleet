@@ -55,19 +55,19 @@ const validateFormData = ({
   if (!ssoUserURL) {
     delete errors.ssoUserURL;
   } else if (!validUrl({ url: ssoUserURL })) {
-    errors.ssoUserURL = `${ssoUserURL} is not a valid URL`;
+    errors.ssoUserURL = "SSO user URL is not a valid URL";
   }
 
   if (!mdmAppleServerURL) {
     delete errors.mdmAppleServerURL;
   } else if (!validUrl({ url: mdmAppleServerURL })) {
-    errors.mdmAppleServerURL = `${mdmAppleServerURL} is not a valid URL`;
+    errors.mdmAppleServerURL = "Apple MDM server URL is not a valid URL";
   }
 
   if (!domain) {
     delete errors.domain;
   } else if (!validUrl({ url: domain })) {
-    errors.domain = `${domain} is not a valid URL`;
+    errors.domain = "Domain is not a valid URL";
   }
 
   if (
@@ -169,8 +169,8 @@ const Advanced = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       server_settings: {
-        live_query_disabled: disableLiveQuery,
-        query_reports_disabled: disableQueryReports,
+        live_reporting_disabled: disableLiveQuery,
+        discard_reports_data: disableQueryReports,
         scripts_disabled: disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: disableAIFeatures,
@@ -409,9 +409,9 @@ const Advanced = ({
                 labelTooltipContent={
                   !disableChildren && (
                     <>
-                      When enabled, disables the ability to run live queries{" "}
+                      When enabled, disables the ability to run live reports{" "}
                       <br />
-                      (ad hoc queries executed via the UI or fleetctl).{" "}
+                      (ad hoc reports executed via the UI or fleetctl).{" "}
                       <em>
                         (Default: <strong>Off</strong>)
                       </em>
@@ -419,7 +419,42 @@ const Advanced = ({
                   )
                 }
               >
-                Disable live queries
+                Disable live reports
+              </Checkbox>
+            )}
+          />
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                onChange={onInputChange}
+                name="disableQueryReports"
+                value={disableQueryReports}
+                parseTarget
+                labelTooltipContent={
+                  !disableChildren && (
+                    <>
+                      <>
+                        Disabling stored results will decrease database usage,{" "}
+                        <br />
+                        but will prevent you from accessing report results in
+                        <br />
+                        Fleet and will delete existing results. This can also be{" "}
+                        <br />
+                        disabled on a per-report basis by enabling &quot;Discard{" "}
+                        <br />
+                        data&quot;.{" "}
+                        <em>
+                          (Default: <b>Off</b>)
+                        </em>
+                      </>
+                    </>
+                  )
+                }
+                helpText="Enabling this setting will delete all existing report results in Fleet."
+              >
+                Disable stored results
               </Checkbox>
             )}
           />
@@ -446,7 +481,7 @@ const Advanced = ({
                     </>
                   )
                 }
-                helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
+                helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe, script-only packages) will still be available."
               >
                 Disable script execution features
               </Checkbox>
@@ -479,41 +514,6 @@ const Advanced = ({
                 helpText="If enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
               >
                 Disable generative AI features
-              </Checkbox>
-            )}
-          />
-          <GitOpsModeTooltipWrapper
-            position="left"
-            renderChildren={(disableChildren) => (
-              <Checkbox
-                disabled={disableChildren}
-                onChange={onInputChange}
-                name="disableQueryReports"
-                value={disableQueryReports}
-                parseTarget
-                labelTooltipContent={
-                  !disableChildren && (
-                    <>
-                      <>
-                        Disabling query reports will decrease database usage,{" "}
-                        <br />
-                        but will prevent you from accessing query results in
-                        <br />
-                        Fleet and will delete existing reports. This can also be{" "}
-                        <br />
-                        disabled on a per-query basis by enabling &quot;Discard{" "}
-                        <br />
-                        data&quot;.{" "}
-                        <em>
-                          (Default: <b>Off</b>)
-                        </em>
-                      </>
-                    </>
-                  )
-                }
-                helpText="Enabling this setting will delete all existing query reports in Fleet."
-              >
-                Disable query reports
               </Checkbox>
             )}
           />

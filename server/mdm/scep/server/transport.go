@@ -7,20 +7,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/go-kit/kit/transport"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/groob/finalizer/logutil"
 )
 
-func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handler {
+func MakeHTTPHandler(e *Endpoints, svc Service, logger *slog.Logger) http.Handler {
+	kitLogger := kitlogadapter.NewLogger(logger)
 	opts := []kithttp.ServerOption{
-		kithttp.ServerErrorLogger(logger),
-		kithttp.ServerFinalizer(logutil.NewHTTPLogger(logger).LoggingFinalizer),
+		kithttp.ServerErrorLogger(kitLogger),
+		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
 	r := mux.NewRouter()
@@ -40,10 +42,11 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handl
 	return r
 }
 
-func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger kitlog.Logger) http.Handler {
+func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.Logger) http.Handler {
+	kitLogger := kitlogadapter.NewLogger(logger)
 	opts := []kithttp.ServerOption{
-		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
-		kithttp.ServerFinalizer(logutil.NewHTTPLogger(logger).LoggingFinalizer),
+		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(kitLogger)),
+		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
 	r := mux.NewRouter()
@@ -87,7 +90,9 @@ func EncodeSCEPRequest(ctx context.Context, r *http.Request, request interface{}
 		if len(req.Message) > 0 {
 			var msg string
 			if req.Operation == "PKIOperation" {
-				msg = base64.URLEncoding.EncodeToString(req.Message)
+				// Use standard base64 encoding (with + and /) as expected by SCEP servers.
+				// The subsequent params.Encode() call will URL-encode the + and / characters.
+				msg = base64.StdEncoding.EncodeToString(req.Message)
 			} else {
 				msg = string(req.Message)
 			}

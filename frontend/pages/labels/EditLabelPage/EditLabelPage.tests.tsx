@@ -55,9 +55,8 @@ describe("EditLabelPage", () => {
 
     expect(queryLabel).toBeInTheDocument();
     expect(platformLabel).toBeInTheDocument();
-    expect(screen.getByText(/Label queries are immutable/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Label platforms are immutable/)
+      screen.getByText(/Label queries and platforms are immutable/)
     ).toBeInTheDocument();
   });
 
@@ -66,6 +65,7 @@ describe("EditLabelPage", () => {
     mockServer.use(
       getLabelHostsHandler([
         {
+          id: 1,
           hostname: "hosty numero uno",
           display_name: "Test host #1",
           team_id: 2,
@@ -75,6 +75,7 @@ describe("EditLabelPage", () => {
           hardware_serial: "test-serial-1",
         },
         {
+          id: 2,
           hostname: "hosty numero dos",
           display_name: "Test host #2",
           team_id: 2,
@@ -98,9 +99,7 @@ describe("EditLabelPage", () => {
     expect(selectHostsLabel).toBeInTheDocument();
 
     // expect host info to be on the page
-    const host1 = await screen.findByText("Test host #1");
-    const host2 = await screen.findByText("Test host #2");
-    expect(host1).toBeInTheDocument();
-    expect(host2).toBeInTheDocument();
+    await screen.findByText("Test host #1");
+    await screen.findByText("Test host #2");
   });
 });

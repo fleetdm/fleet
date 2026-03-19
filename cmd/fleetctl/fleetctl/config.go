@@ -300,8 +300,7 @@ func configSetCommand() *cli.Command {
 				if err := setConfigValue(configPath, context, "token", flToken); err != nil {
 					return fmt.Errorf("error setting token: %w", err)
 				}
-				// Redact the token from the output as this may be run in contexts where it is logged.
-				fmt.Printf("[+] Set the token config key to \"<redacted>\" in the %q context\n", c.String("context"))
+				fmt.Printf("[+] Set the token in the %q context\n", c.String("context"))
 			}
 
 			if flTLSSkipVerify {
@@ -337,7 +336,7 @@ func configSetCommand() *cli.Command {
 			}
 
 			if !set {
-				return cli.ShowCommandHelp(c, "set")
+				return cli.ShowSubcommandHelp(c)
 			}
 
 			return nil
@@ -356,7 +355,7 @@ func configGetCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			if c.Args().Len() != 1 {
-				return cli.ShowCommandHelp(c, "get")
+				return cli.ShowSubcommandHelp(c)
 			}
 
 			key := c.Args().Get(0)
@@ -365,7 +364,7 @@ func configGetCommand() *cli.Command {
 			switch key {
 			case "address", "email", "token", "tls-skip-verify", "rootca", "url-prefix", "custom-headers":
 			default:
-				return cli.ShowCommandHelp(c, "get")
+				return cli.ShowSubcommandHelp(c)
 			}
 
 			configPath, context := c.String("config"), c.String("context")

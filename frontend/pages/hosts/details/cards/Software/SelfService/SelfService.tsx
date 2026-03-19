@@ -34,6 +34,11 @@ import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetai
 import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 
 import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
 import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
@@ -84,6 +89,7 @@ export interface ISoftwareSelfServiceProps {
   hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
   isMobileView?: boolean;
+  mdmEnrollmentStatus: MdmEnrollmentStatus;
 }
 
 export const parseSelfServiceQueryParams = (queryParams: {
@@ -140,6 +146,7 @@ const SoftwareSelfService = ({
   hostSoftwareUpdatedAt,
   hostDisplayName,
   isMobileView = false,
+  mdmEnrollmentStatus,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
@@ -344,9 +351,13 @@ const SoftwareSelfService = ({
             return next;
           });
 
-          // Some pending installs finished during the last refresh
+          // Some pending installs/uninstalls finished during the last refresh
           // Trigger an additional refetch to ensure UI status is up-to-date
           // If already refetching, queue another refetch
+
+          // Refetch host details to:
+          // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
+          // - Update the software inventory of any changes to software detected by software inventory
           refetchHostDetails();
         }
 
@@ -660,6 +671,18 @@ const SoftwareSelfService = ({
     onClickOpenInstructionsAction,
   ]);
 
+  if (isMobileView && isBYODAccountDrivenUserEnrollment(mdmEnrollmentStatus)) {
+    return (
+      <div className="unsupported-self-service">
+        <p className="header">Self-service isn&apos;t supported</p>
+        <p>
+          Self-service is currently not supported on personal iOS and iPadOS
+          devices (enrolled with Managed Apple Account).
+        </p>
+      </div>
+    );
+  }
+
   if (isMobileView)
     return (
       <SelfServiceCard
@@ -743,9 +766,10 @@ const SoftwareSelfService = ({
           details={{
             hostDisplayName,
             fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
-            appName:
-              selectedHostSWIpaInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedHostSWIpaInstallDetails.name,
+              selectedHostSWIpaInstallDetails.display_name
+            ),
             commandUuid:
               selectedHostSWIpaInstallDetails.software_package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
@@ -776,9 +800,10 @@ const SoftwareSelfService = ({
           details={{
             fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
-            appName:
-              selectedVPPInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedVPPInstallDetails.name,
+              selectedVPPInstallDetails.display_name
+            ),
             commandUuid: selectedVPPInstallDetails.commandUuid,
           }}
           hostSoftware={selectedVPPInstallDetails}

@@ -30,6 +30,7 @@ import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPack
 
 import {
   generateLinuxDiskEncryptionSetting,
+  generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
 } from "../../helpers";
 
@@ -86,12 +87,12 @@ const HostSummary = ({
 
   const renderHostTeam = () => (
     <DataSet
-      title="Team"
+      title="Fleet"
       value={
         summaryData.team_name !== "---" ? (
           `${summaryData.team_name}`
         ) : (
-          <span className="no-team">No team</span>
+          <span className="no-team">Unassigned</span>
         )
       }
     />
@@ -164,6 +165,16 @@ const HostSummary = ({
     hostSettings = hostSettings
       ? [...hostSettings, linuxDiskEncryptionSetting]
       : [linuxDiskEncryptionSetting];
+  }
+
+  if (platform === "darwin" && osSettings?.recovery_lock_password?.status) {
+    const recoveryLockSetting = generateRecoveryLockPasswordSetting(
+      osSettings.recovery_lock_password.status,
+      osSettings.recovery_lock_password.detail
+    );
+    hostSettings = hostSettings
+      ? [...hostSettings, recoveryLockSetting]
+      : [recoveryLockSetting];
   }
 
   return (

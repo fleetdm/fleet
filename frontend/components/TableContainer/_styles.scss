@@ -110,6 +110,10 @@
     .input-with-icon {
       height: 36px;
     }
+
+    .children-wrapper {
+      white-space: nowrap;
+    }
   }
 
   &__header-left {
@@ -167,6 +171,10 @@
     .input-with-icon {
       width: 100%;
       min-width: 250px;
+    }
+
+    .input-with-icon:placeholder-shown {
+      text-overflow: ellipsis;
     }
 
     &.stack-table-controls {

@@ -13,8 +13,11 @@ import {
   isGlobalMaintainer,
   isGlobalObserver,
   isTeamObserver,
+  isGlobalTechnician,
+  isTeamTechnician,
 } from "utilities/permissions/permissions";
 import Button from "components/buttons/Button";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
@@ -60,7 +63,9 @@ export const generateActionDropdownOptions = (
       // TODO - refactor all permissions to be clear and granular
       // each of these (confusingly) cover both observer and observer+
       isGlobalObserver(currentUser) ||
-      isTeamObserver(currentUser, teamId));
+      isTeamObserver(currentUser, teamId) ||
+      isGlobalTechnician(currentUser) ||
+      isTeamTechnician(currentUser, teamId));
   const options: IDropdownOption[] = [
     {
       label: "Show run details",
@@ -94,7 +99,7 @@ export const generateTableColumnConfigs = (
       accessor: "name",
       Cell: (cellProps: ICellProps) => {
         const onClickScriptName = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
+          // Allows for a button to be clickable in a clickable row
           e.stopPropagation();
           onClickViewScript(cellProps.row.original);
         };
@@ -104,10 +109,12 @@ export const generateTableColumnConfigs = (
             className="script-info"
             onClick={onClickScriptName}
             variant="inverse"
+            size="small"
           >
-            <span className={`script-info-text`}>
-              {cellProps.row.original.name}
-            </span>
+            <TooltipTruncatedTextCell
+              value={cellProps.row.original.name}
+              className="w400" // Funky workaround for a truncation text cell WITHIN a button
+            />
           </Button>
         );
       },
@@ -135,7 +142,7 @@ export const generateTableColumnConfigs = (
               <TooltipWrapper
                 tipContent={
                   <div>
-                    Running scripts is disabled in organization settings
+                    Running scripts is disabled in organization settings.
                   </div>
                 }
               >

@@ -1052,9 +1052,9 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 	// delete label 3, 4 and 8 so that profiles D, E and G are broken
-	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[8].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[8].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 	profLabels := map[string][]fleet.ConfigurationProfileLabel{
 		"C": {
 			{LabelName: labels[0].Name, LabelID: labels[0].ID, RequireAll: true},
@@ -2461,13 +2461,13 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// it got deleted and re-inserted from the team's profiles, so this is reflected in
 	// the host's profiles list.
 	newTm1DarwinProfiles = []*fleet.MDMAppleConfigProfile{
-		tm1DarwinProfiles[0],
+		tm1DarwinProfiles[0], //nolint:gosec // dismiss G602
 		configProfileForTest(t, "T1.2a", "T1.2a", "e"),
 		configProfileForTest(t, "T1.3a", "T1.3a", "f"),
 	}
 	newTm1WindowsProfiles = []*fleet.MDMWindowsConfigProfile{
 		windowsConfigProfileForTest(t, "T1.1w", "T1.1"),
-		tm1WindowsProfiles[1],
+		tm1WindowsProfiles[1], //nolint:gosec // dismiss G602
 		windowsConfigProfileForTest(t, "T1.3w", "T1.3"),
 	}
 
@@ -3809,8 +3809,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// "break" the two G6 label-based profile by deleting labels[0] and [3]
-	require.NoError(t, ds.DeleteLabel(ctx, labels[0].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[0].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	// sync the affected profiles
 	updates, err = ds.BulkSetPendingMDMHostProfiles(
@@ -4868,8 +4868,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// "break" the team 2 label-based profile by deleting a label
-	require.NoError(t, ds.DeleteLabel(ctx, labels[1].Name))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[1].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
 
 	// sync team 2, the label-based profile of team2 is left untouched (broken
 	// profiles are ignored)
@@ -5982,7 +5982,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.Len(t, profs, 3)
 
 		// Now delete label, we shouldn't see the related profile
-		err = ds.DeleteLabel(ctx, testLabel4.Name)
+		err = ds.DeleteLabel(ctx, testLabel4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.NoError(t, err)
 
 		return team.ID, host
@@ -6483,7 +6483,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.Len(t, profs, 3)
 
 		// Now delete label, we shouldn't see the related profile
-		err = ds.DeleteLabel(ctx, label.Name)
+		err = ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.NoError(t, err)
 
 		return team.ID, host
@@ -8083,7 +8083,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	i++
 	androidHostObj := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
-	androidHostObj, err = ds.NewAndroidHost(ctx, androidHostObj)
+	androidHostObj, err = ds.NewAndroidHost(ctx, androidHostObj, false)
 	androidHost := androidHostObj.Host
 	require.NoError(t, err)
 
@@ -8275,13 +8275,13 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	})
 
 	// delete labels 0, 2, 3, and 6, breaking all profiles
-	err = ds.DeleteLabel(ctx, labels[0].Name)
+	err = ds.DeleteLabel(ctx, labels[0].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[2].Name)
+	err = ds.DeleteLabel(ctx, labels[2].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[3].Name)
+	err = ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[6].Name)
+	err = ds.DeleteLabel(ctx, labels[6].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
@@ -8350,7 +8350,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	i++
 	androidHostObj2 := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
-	androidHostObj2, err = ds.NewAndroidHost(ctx, androidHostObj2)
+	androidHostObj2, err = ds.NewAndroidHost(ctx, androidHostObj2, false)
 	require.NoError(t, err)
 	androidHost2 := androidHostObj2.Host
 
@@ -8675,19 +8675,19 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host8)
 
 	androidHost9 := createAndroidHost("enterprise-id-9")
-	newHost, err := ds.NewAndroidHost(context.Background(), androidHost9)
+	newHost, err := ds.NewAndroidHost(context.Background(), androidHost9, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host9 := newHost.Host
 
 	androidHost10 := createAndroidHost("enterprise-id-10")
-	newHost, err = ds.NewAndroidHost(context.Background(), androidHost10)
+	newHost, err = ds.NewAndroidHost(context.Background(), androidHost10, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host10 := newHost.Host
 
 	androidHost11 := createAndroidHost("enterprise-id-11")
-	newHost, err = ds.NewAndroidHost(context.Background(), androidHost11)
+	newHost, err = ds.NewAndroidHost(context.Background(), androidHost11, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host11 := newHost.Host

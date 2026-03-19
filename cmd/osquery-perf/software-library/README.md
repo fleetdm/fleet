@@ -137,10 +137,10 @@ SELECT
     IFNULL(application_id, ''),
     IFNULL(upgrade_code, '')
 FROM software
-" 2>&1 | sed 's/\t/","/g' | sed 's/^/"/' | sed 's/$/"/' | tail -n +3 > source-data/server_export.csv
+" 2>&1 | sed 's/\t/","/g' | sed 's/^/"/' | sed 's/$/"/' | tail -n +2 > source-data/server_export.csv
 ```
 
-**Note:** This command properly quotes CSV fields to handle commas in values (e.g., "Red Hat, Inc."). The `tail -n +3` removes the MySQL password warning message from the output.
+**Note:** This command properly quotes CSV fields to handle commas in values (e.g., "Red Hat, Inc."). The `tail -n +2` removes the MySQL password warning message while preserving the header row.
 
 This creates a CSV with the following columns:
 - `name`, `version`, `source` - Required fields
@@ -154,7 +154,7 @@ This creates a CSV with the following columns:
 - `upgrade_code` - Windows upgrade GUID
 
 **Optional filtering:**
-- Add `WHERE` clause to filter by date, team, or other criteria
+- Add `WHERE` clause to filter by date, fleet, or other criteria
 - Example: `WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
 
 ### Step 3: Import server data

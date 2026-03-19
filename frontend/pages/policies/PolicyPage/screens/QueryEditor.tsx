@@ -32,6 +32,7 @@ interface IQueryEditorProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   teamIdForApi?: number;
+  currentAutomatedPolicies?: number[];
 }
 
 const QueryEditor = ({
@@ -49,6 +50,7 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   teamIdForApi,
+  currentAutomatedPolicies,
 }: IQueryEditorProps): JSX.Element | null => {
   const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
     AppContext
@@ -168,10 +170,10 @@ const QueryEditor = ({
       setIsUpdatingPolicy(false);
       router.push(
         getPathWithQueryParams(PATHS.EDIT_POLICY(policy.id), {
-          team_id: policy.team_id,
+          fleet_id: policy.team_id,
         })
       );
-      renderFlash("success", "Policy created!");
+      renderFlash("success", "Policy created.");
     } catch (createError: any) {
       console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {
@@ -205,6 +207,12 @@ const QueryEditor = ({
       lastEditedQueryPlatform,
     });
 
+    // Patch policies: never send query or platform (BE rejects them)
+    if (storedPolicy?.type === "patch") {
+      delete updatedPolicy.query;
+      delete updatedPolicy.platform;
+    }
+
     const updateAPIRequest = () => {
       // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
       const team_id = storedPolicy?.team_id ?? undefined;
@@ -219,7 +227,7 @@ const QueryEditor = ({
 
     try {
       await updateAPIRequest();
-      renderFlash("success", "Policy updated!");
+      renderFlash("success", "Policy updated.");
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
@@ -243,7 +251,7 @@ const QueryEditor = ({
 
   // Function instead of constant eliminates race condition with filteredPoliciesPath
   const backToPoliciesPath = () => {
-    const queryParams = { team_id: teamIdForApi };
+    const queryParams = { fleet_id: teamIdForApi };
 
     return (
       filteredPoliciesPath ||
@@ -275,6 +283,7 @@ const QueryEditor = ({
         onClickAutofillDescription={onClickAutofillDescription}
         onClickAutofillResolution={onClickAutofillResolution}
         resetAiAutofillData={() => setPolicyAutofillData(null)}
+        currentAutomatedPolicies={currentAutomatedPolicies || []}
       />
     </div>
   );

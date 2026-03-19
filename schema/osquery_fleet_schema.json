@@ -592,6 +592,18 @@
         "type": "text",
         "required": false,
         "description": "User principal name of the user that logged in via Platform SSO."
+      },
+      {
+        "name": "registration_completed",
+        "type": "integer",
+        "required": false,
+        "description": "Whether Platform SSO registration is completed (0 = false, 1 = true)."
+      },
+      {
+        "name": "login_type",
+        "type": "text",
+        "required": false,
+        "description": "Login type extracted from device configuration (e.g. \"POLoginTypeUserSecureEnclaveKey (2)\")."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
@@ -3279,8 +3291,8 @@
       },
       {
         "name": "size",
-        "description": "Size of the carved archive",
-        "type": "integer",
+        "description": "Size in bytes of the carved archive",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -3334,6 +3346,94 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/carves.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fcarves.yml&value=name%3A%20carves%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "certificate_trust_settings",
+    "description": "Certificate Authorities trust settings installed in Keychains/ca-bundles.",
+    "url": "https://fleetdm.com/tables/certificate_trust_settings",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from certificate_trust_settings where trust_domain = 'admin'\n```",
+    "columns": [
+      {
+        "name": "common_name",
+        "description": "Certificate common name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "serial",
+        "description": "Certificate serial number",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_domain",
+        "description": "Certificate trust settings domain",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "trust_policy_name",
+        "description": "Certificate trust policy name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_policy_data",
+        "description": "Certificate trust policy data",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_allowed_error",
+        "description": "Certificate trust allowed error",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_key_usage",
+        "description": "Certificate trust key usage",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "trust_result",
+        "description": "Certificate trust result",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/certificate_trust_settings.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fcertificate_trust_settings.yml&value=name%3A%20certificate_trust_settings%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "certificates",
@@ -4607,6 +4707,56 @@
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd` table is available on Linux systems with containerd installed. It provides\ninformation about the containers managed by containerd, including their state, image, and runtime.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_containers` table for information about containers managed by Docker.",
     "url": "https://fleetdm.com/tables/containerd_containers",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_containers.yml"
+  },
+  {
+    "name": "containerd_mounts",
+    "platforms": [
+      "linux"
+    ],
+    "description": "Information about containerd container mounts.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "namespace",
+        "type": "text",
+        "required": false,
+        "description": "Namespace of the container."
+      },
+      {
+        "name": "container_id",
+        "type": "text",
+        "required": false,
+        "description": "Container ID."
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "required": false,
+        "description": "Mount type (e.g. bind, tmpfs, proc)."
+      },
+      {
+        "name": "source",
+        "type": "text",
+        "required": false,
+        "description": "Source path on the host."
+      },
+      {
+        "name": "destination",
+        "type": "text",
+        "required": false,
+        "description": "Destination path in the container."
+      },
+      {
+        "name": "options",
+        "type": "text",
+        "required": false,
+        "description": "Mount options (comma-separated)."
+      }
+    ],
+    "examples": "Get all mounts for all containers:\n\n```\nSELECT * FROM containerd_mounts;\n```\n\nGet mounts for a specific container:\n\n```\nSELECT * FROM containerd_mounts WHERE container_id='abc123';\n```\n\nGet all bind mounts:\n\n```\nSELECT * FROM containerd_mounts WHERE type='bind';\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd_mounts` table is available on Linux systems with containerd installed. It provides\ninformation about the mounts configured for containers managed by containerd.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_container_mounts` table for information about mounts in Docker containers.",
+    "url": "https://fleetdm.com/tables/containerd_mounts",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_mounts.yml"
   },
   {
     "name": "corestorage_logical_volume_families",
@@ -7324,6 +7474,32 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/disk_info.yml"
+  },
+  {
+    "name": "disk_space",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey, which includes purgeable space and matches what macOS reports in Finder's \"Get Info\" dialog. For Windows disk space, use the [`logical_drives`](https://fleetdm.com/tables/logical_drives) table. For Linux, use the [`mounts`](https://fleetdm.com/tables/mounts) table.",
+    "examples": "```\nSELECT * FROM disk_space;\n```",
+    "columns": [
+      {
+        "name": "bytes_available",
+        "type": "bigint",
+        "required": false,
+        "description": "Available disk capacity in bytes, including purgeable space (matches macOS \"Get Info\" available space)."
+      },
+      {
+        "name": "bytes_total",
+        "type": "bigint",
+        "required": false,
+        "description": "Total disk capacity in bytes."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/disk_space",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/disk_space.yml"
   },
   {
     "name": "dns_cache",
@@ -10546,6 +10722,37 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/event_taps.yml"
   },
   {
+    "name": "executable_hashes",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Calculates the sha256 hash of a macOS application executable.",
+    "columns": [
+      {
+        "name": "path",
+        "type": "text",
+        "required": true,
+        "description": "Path is the absolute path to the app folder."
+      },
+      {
+        "name": "executable_path",
+        "type": "text",
+        "required": false,
+        "description": "Path of the executable for this app."
+      },
+      {
+        "name": "executable_sha256",
+        "type": "text",
+        "required": false,
+        "description": "Calculated hex-encoded SHA256 of the executable of this app."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/executable_hashes",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/executable_hashes.yml"
+  },
+  {
     "name": "extended_attributes",
     "description": "Returns the extended attributes for files (similar to Windows ADS).",
     "url": "https://fleetdm.com/tables/extended_attributes",
@@ -12004,6 +12211,58 @@
     "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "url": "https://fleetdm.com/tables/geolocation",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
+  },
+  {
+    "name": "go_binaries",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "description": "Go binaries installed via `go install` in `$HOME/go/bin`.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "The filename of the Go binary."
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "The module version of the binary (e.g. v1.2.3). Shows \"(devel)\" for binaries built with `go build`."
+      },
+      {
+        "name": "module_path",
+        "type": "text",
+        "required": false,
+        "description": "The Go module path that produced this binary (e.g. github.com/user/repo)."
+      },
+      {
+        "name": "import_path",
+        "type": "text",
+        "required": false,
+        "description": "The import path of the main package (e.g. github.com/user/repo/cmd/tool)."
+      },
+      {
+        "name": "go_version",
+        "type": "text",
+        "required": false,
+        "description": "The version of the Go toolchain used to build this binary (e.g. go1.22.3)."
+      },
+      {
+        "name": "installed_path",
+        "type": "text",
+        "required": false,
+        "description": "The absolute filesystem path to the binary."
+      }
+    ],
+    "examples": "List all Go binaries:\n\n```\nSELECT * FROM go_binaries;\n```\n\nList Go binaries with real versions (installed via `go install`):\n\n```\nSELECT * FROM go_binaries WHERE version <> '(devel)';\n```\n\nFind all Go binaries for a specific module:\n\n```\nSELECT * FROM go_binaries WHERE module_path LIKE 'github.com/hashicorp/%';\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nGo binaries compiled with Go 1.18+ embed build information that this table extracts\nusing Go's debug/buildinfo package. Binaries built with `go build` will show \"(devel)\"\nas the version, while those installed via `go install module@version` will show the\nactual version.\n\nThe table scans each user's ~/go/bin directory for Go binaries.",
+    "url": "https://fleetdm.com/tables/go_binaries",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/go_binaries.yml"
   },
   {
     "name": "google_chrome_profiles",
@@ -14819,6 +15078,55 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/load_average.yml"
   },
   {
+    "name": "local_network_permissions",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about local network permissions granted to applications on macOS.",
+    "columns": [
+      {
+        "name": "bundle_id",
+        "type": "text",
+        "required": false,
+        "description": "The application bundle identifier (e.g., com.example.app)."
+      },
+      {
+        "name": "executable_path",
+        "type": "text",
+        "required": false,
+        "description": "The full path to the application executable."
+      },
+      {
+        "name": "display_name",
+        "type": "text",
+        "required": false,
+        "description": "The user-friendly display name of the application."
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "required": false,
+        "description": "The type of permission entry (typically \"applications\")."
+      },
+      {
+        "name": "state",
+        "type": "integer",
+        "required": false,
+        "description": "The permission state (0 = denied, 1 = allowed)."
+      },
+      {
+        "name": "provider_added",
+        "type": "text",
+        "required": false,
+        "description": "Indicates if the permission was added by a provider (may be empty)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/local_network_permissions",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/local_network_permissions.yml"
+  },
+  {
     "name": "location_services",
     "description": "Reports the status of the Location Services feature of the OS.",
     "url": "https://fleetdm.com/tables/location_services",
@@ -16444,7 +16752,7 @@
   },
   {
     "name": "mcp_listening_servers",
-    "notes": "This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).",
+    "notes": "This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).\n\nBecause this table probes ports, EDR tools will sometimes report unusual network activity from the `orbit` process.",
     "description": "Lists processes with listening ports that are responding as [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers via HTTP (Many MCP servers use stdio and will not be detected by this table).  This table queries the `listening_ports` and `processes` tables to find listening ports, then probes each port to identify active MCP servers.",
     "platforms": [
       "darwin",
@@ -17099,7 +17407,8 @@
     "platforms": [
       "windows"
     ],
-    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
+    "description": "Allows querying MDM enrolled devices using \"get\" commands. Currently, only supports commands that target the device scope. Head to the [Windows configuration profiles (CSPs) documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) to verify that the setting support the device scope.",
+    "examples": "Identify Macs that are DEP capable but have not been enrolled to MDM.\n\n```\nSELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/System/AllowTelemetry</LocURI></Target></Item></Get></SyncBody>';\n```",
     "columns": [
       {
         "name": "enrollment_status",
@@ -20145,7 +20454,7 @@
   },
   {
     "name": "password_policy",
-    "description": "Password Policies for macOS.",
+    "description": "OpenDirectory account policies for macOS including password content, authentication, and password change policies.",
     "url": "https://fleetdm.com/tables/password_policy",
     "platforms": [
       "darwin"
@@ -20185,6 +20494,24 @@
       {
         "name": "policy_description",
         "description": "Policy description, such as `Contain at least 10 characters.`",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_category",
+        "description": "Policy category: passwordPolicyAuthentication, passwordPolicyPasswordChange, or passwordPolicyPasswordContent",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_parameters",
+        "description": "Policy parameters serialized as JSON",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26923,7 +27250,7 @@
   },
   {
     "name": "startup_items",
-    "description": "Applications and binaries set as user/login startup items.",
+    "description": "Applications and binaries set as startup items.",
     "url": "https://fleetdm.com/tables/startup_items",
     "platforms": [
       "darwin",
@@ -26964,7 +27291,7 @@
       },
       {
         "name": "type",
-        "description": "Startup Item or Login Item",
+        "description": "Type of startup item. On macOS this can be app, agent (LaunchAgent), daemon (LaunchDaemon), login item, or user item.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26973,7 +27300,7 @@
       },
       {
         "name": "source",
-        "description": "Directory or plist containing startup item",
+        "description": "Directory containing startup item (on macOS, the subsystem providing it)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26982,7 +27309,7 @@
       },
       {
         "name": "status",
-        "description": "Startup status; either enabled or disabled",
+        "description": "Startup status. On Linux: enabled or disabled. On macOS: Combination of enabled, allowed, notified, and hidden. Apple does not seem to document these status values, but allowed seems to indicate whether it is enabled in System Settings.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -29042,7 +29369,7 @@
   },
   {
     "name": "users",
-    "description": "Local user accounts (including domain accounts that have logged on locally (Windows)).",
+    "description": "Local user accounts (including domain accounts that have logged on locally on Windows).",
     "url": "https://fleetdm.com/tables/users",
     "platforms": [
       "darwin",
@@ -29634,6 +29961,79 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/vscode_extensions.yml"
   },
   {
+    "name": "wifi_network",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about the currently connected Wi-Fi network.",
+    "columns": [
+      {
+        "name": "ssid",
+        "type": "text",
+        "required": false,
+        "description": "The SSID (network name) of the current Wi-Fi network."
+      },
+      {
+        "name": "interface",
+        "type": "text",
+        "required": false,
+        "description": "The network interface name (e.g., en0)."
+      },
+      {
+        "name": "rssi",
+        "type": "text",
+        "required": false,
+        "description": "Received Signal Strength Indicator (signal strength, e.g., -50)."
+      },
+      {
+        "name": "noise",
+        "type": "text",
+        "required": false,
+        "description": "Noise level in dBm."
+      },
+      {
+        "name": "channel",
+        "type": "text",
+        "required": false,
+        "description": "Wi-Fi channel number."
+      },
+      {
+        "name": "channel_width",
+        "type": "text",
+        "required": false,
+        "description": "Channel width (e.g., 20, 40, 80 MHz)."
+      },
+      {
+        "name": "channel_band",
+        "type": "text",
+        "required": false,
+        "description": "Channel band (e.g., 2.4 GHz, 5 GHz, 6 GHz)."
+      },
+      {
+        "name": "transmit_rate",
+        "type": "text",
+        "required": false,
+        "description": "Transmit rate (e.g., 300 Mbps)."
+      },
+      {
+        "name": "security_type",
+        "type": "text",
+        "required": false,
+        "description": "Security type (e.g., WPA2 Personal, WPA3 Personal)."
+      },
+      {
+        "name": "mode",
+        "type": "text",
+        "required": false,
+        "description": "Wi-Fi mode (e.g., Station)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/wifi_network",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/wifi_network.yml"
+  },
+  {
     "name": "wifi_networks",
     "description": "Wi-Fi networks previously connected to by this Mac, or that are otherwise in this computer's known/remembered Wi-Fi networks list.",
     "url": "https://fleetdm.com/tables/wifi_networks",
@@ -29643,7 +30043,7 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": "Find WiFi networks configured on Macs that are unencrypted and require a\ncaptive portal. This can be useful to understand how much people use laptops\nin hotels, airports and other environments, and is a good indicator that tools\nsuch as DNS-over-HTTPS would improve privacy of connectivity.\n\n```\nSELECT network_name FROM wifi_networks WHERE security_type='Open' AND captive_portal='1';\n```",
+    "examples": "Find WiFi networks configured on Macs that are unencrypted and require a\ncaptive portal. This can be useful to understand how much people use laptops\nin hotels, airports and other environments, and is a good indicator that tools\nsuch as DNS-over-HTTPS would improve privacy of connectivity.\n\n```\nSELECT network_name FROM wifi_networks WHERE security_type='Open' AND captive_portal='1';\n```\n\nDiscover last connected times for WiFi networks:\n\n```\nSELECT network_name,last_connected,last_connected_automatic,last_connected_manual\nFROM wifi_networks\nORDER BY \nCOALESCE(last_connected, 0) \nDESC\nLIMIT 10;\n```",
     "columns": [
       {
         "name": "ssid",
@@ -29674,10 +30074,28 @@
       },
       {
         "name": "last_connected",
-        "description": "Last time this network was connected to as a unix_time",
+        "description": "Last time this network was connected to as a unix_time (max of last_connected_automatic and last_connected_manual, if available)",
         "type": "integer",
         "notes": "",
         "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "last_connected_automatic",
+        "description": "Last time this network was automatically connected to by the system as a unix_time",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "last_connected_manual",
+        "description": "Last time this network was manually connected to by the user as a unix_time",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
         "required": false,
         "index": false
       },
@@ -31704,6 +32122,7 @@
     ],
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "evented": false,
+    "examples": "Parse Kubernetes YAML configuartion files.\n\n```\nSELECT json FROM yaml_to_json WHERE yaml = (SELECT contents FROM file_contents WHERE path = 'deployment.yaml');\n```",
     "url": "https://fleetdm.com/tables/yaml_to_json",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yaml_to_json.yml"
   },

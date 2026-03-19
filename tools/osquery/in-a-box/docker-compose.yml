@@ -9,7 +9,7 @@ networks:
 
 services:
   mysql01:
-    image: mysql:8.0.36
+    image: mysql:8.0.44
     platform: linux/x86_64
     volumes:
       - .:/data
@@ -136,12 +136,11 @@ services:
       - fleet-preview
 
   s3:
-    image: rustfs/rustfs:1.0.0-alpha.73
+    image: rustfs/rustfs:1.0.0-alpha.85
     entrypoint: sh
     command: -c 'mkdir -p /data/software-installers-preview && /usr/bin/rustfs /data'
     environment:
       - RUSTFS_ADDRESS=0.0.0.0:9000
-      - RUSTFS_EXTERNAL_ADDRESS=:9000
       - RUSTFS_ACCESS_KEY=locals3
       - RUSTFS_SECRET_KEY=locals3
     volumes:

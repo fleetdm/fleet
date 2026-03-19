@@ -10,6 +10,7 @@ import {
   trimEnd,
   union,
   uniqueId,
+  upperFirst,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -25,6 +26,11 @@ import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import type { PerformanceImpactIndicator } from "interfaces/schedulable_query";
+import {
+  PerformanceImpactIndicatorValue,
+  ISchedulableQueryStats,
+} from "interfaces/schedulable_query";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -49,8 +55,8 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
-import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import CustomLink from "components/CustomLink";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
@@ -217,7 +223,7 @@ export const formatScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -237,7 +243,7 @@ export const formatScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -275,7 +281,7 @@ export const formatScheduledQueryForClient = (
 
 export const formatGlobalScheduledQueryForServer = (
   scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -283,7 +289,7 @@ export const formatGlobalScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -299,7 +305,7 @@ export const formatGlobalScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -346,7 +352,7 @@ export const formatTeamScheduledQueryForServer = (
     shard,
     team_id: teamID,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id", "team_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -362,7 +368,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -370,7 +376,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (teamID) {
-    result.query_id = Number(teamID);
+    (result as any).fleet_id = Number(teamID);
   }
 
   return result;
@@ -467,6 +473,9 @@ export const generateRole = (
     } else if (listOfRoles.every((role): boolean => role === "observer_plus")) {
       // only team observers plus
       return "Observer+";
+    } else if (listOfRoles.every((role): boolean => role === "technician")) {
+      // only team technicians
+      return "Technician";
     }
 
     return "Various"; // no global role and multiple teams
@@ -486,30 +495,30 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return "No team";
+      return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
     }
-    return `${teams.length} teams`; // no global role and multiple teams
+    return `${teams.length} fleets`; // no global role and multiple teams
   }
 
   if (teams.length === 0) {
     // global role and no teams
     return "Global";
   }
-  return `${teams.length + 1} teams`; // global role and one or more teams
+  return `${teams.length + 1} fleets`; // global role and one or more teams
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
   const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
 
   return (
-    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" teams")
+    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" fleets")
   );
 };
 
-const setupData = (formData: any) => {
+const setupData = (formData: IRegistrationFormData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
 
@@ -517,6 +526,7 @@ const setupData = (formData: any) => {
     server_url: formData.server_url,
     org_info: {
       ...orgInfo,
+      org_logo_url_light_background: orgInfo.org_logo_url || "",
     },
     admin: {
       admin: true,
@@ -603,7 +613,7 @@ export const internationalNumberFormat = (number: number): string => {
 
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
-    return "No team";
+    return "Unassigned";
   }
 
   return teamName;
@@ -658,13 +668,13 @@ export const readableDate = (date: string) => {
 
 export const getPerformanceImpactDescription = (
   scheduledQueryStats: ISchedulableQueryStats
-) => {
+): PerformanceImpactIndicator => {
   if (
     !scheduledQueryStats.total_executions ||
     scheduledQueryStats.total_executions === 0 ||
     scheduledQueryStats.total_executions === null
   ) {
-    return "Undetermined";
+    return PerformanceImpactIndicatorValue.UNDETERMINED;
   }
 
   if (
@@ -675,13 +685,59 @@ export const getPerformanceImpactDescription = (
       scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
 
     if (indicator < 2000) {
-      return "Minimal";
+      return PerformanceImpactIndicatorValue.MINIMAL;
     }
     if (indicator < 4000) {
-      return "Considerable";
+      return PerformanceImpactIndicatorValue.CONSIDERABLE;
     }
   }
-  return "Excessive";
+  return PerformanceImpactIndicatorValue.EXCESSIVE;
+};
+
+export const getPerformanceImpactIndicatorTooltip = (
+  indicator: PerformanceImpactIndicator,
+  isHostSpecific = false
+) => {
+  switch (indicator) {
+    case PerformanceImpactIndicatorValue.MINIMAL:
+      return (
+        <>
+          Running this report very frequently has little to no <br /> impact on
+          your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.CONSIDERABLE:
+      return (
+        <>
+          Running this report frequently can have a noticeable <br />
+          impact on your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.EXCESSIVE:
+      return (
+        <>
+          Running this report, even infrequently, can have a <br />
+          significant impact on your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.DENYLISTED:
+      return (
+        <>
+          This report has been <br /> stopped from running <br /> because of
+          excessive <br /> resource consumption.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.UNDETERMINED:
+      return (
+        <>
+          Performance impact will be available when{" "}
+          {isHostSpecific ? "the" : "this"} <br />
+          report runs{isHostSpecific && " on this host"}.
+        </>
+      );
+    default:
+      return null;
+  }
 };
 
 export const secondsToDhms = (s: number): string => {

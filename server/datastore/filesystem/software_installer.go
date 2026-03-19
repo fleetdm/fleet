@@ -133,7 +133,7 @@ func (i *SoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs [
 	return count, ctxerr.Wrap(ctx, errors.Join(errs...), "delete unused software installers")
 }
 
-func (i *SoftwareInstallerStore) Sign(ctx context.Context, _ string) (string, error) {
+func (i *SoftwareInstallerStore) Sign(ctx context.Context, _ string, _ time.Duration) (string, error) {
 	return "", ctxerr.New(ctx, "signing not supported for software installers in filesystem store")
 }
 

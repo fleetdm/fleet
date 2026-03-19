@@ -2,48 +2,71 @@
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
-
 ## Team
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
+| Chief  Marketing Officer           | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
-| Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
+| Head of Demand Generation          | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
+| Product Education Manager          | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
+| Marketing Campaign Manager         | [Michael D Buck](https://www.linkedin.com/in/michael-buck-chi312/ ) _([@mb-chigoose312](https://github.com/mb-chigoose312))_
+
 
 ## Contact us
 
-- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.)
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
-
-> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/ceo#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 
 ## Responsibilities
 
-The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+The Marketing department is directly responsible for achieving revenue pipeline targets, increasing market awareness about Fleet, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+
+
+### Marketing assets
+
+The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
+
+
+### Press boilerplate text
+
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
+
+By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
+
+Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 
 ### Organize work in GitHub issues with marketing labels
 
-In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets.
+In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets. 
 
-| Label | Definition (When to use it) |
-| :---- | :---- |
-| **:mktg-campaign** | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
-| **:mktg-content** | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
-| **:mktg-event** | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
-| **:mktg-social** | For tasks related to managing organic social media channels or creating social posts. |
-| **:mktg-ops** | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
-| **:mktg-ar** | For tasks related to analyst relations - briefing, responding to reports, inquiries, etc. |
-| **:mktg-pr** | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
-| **:mktg-enablement** | All work associated with designing, developing, delivering enablement content for sales, partners, etc. |
+| Label | Color | Hex Code | Definition (When to use it) |
+| :---- | :---- | :---- | :---- |
+| **:mktg-campaign** | Purple | \#6B4FBB | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
+| **:mktg-content** | Blue | \#0052CC | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
+| **:mktg-social** | Pink | \#E11D48 | For tasks related to managing organic social media channels or creating social posts. |
+| **:mktg-ops** | Green | \#10B981 | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
+| **:mktg-ar** | Teal | \#0F766E | For tasks related to analyst relations \- briefing, responding to reports, inquiries, etc. |
+| **:mktg-pr** | Gray | \#6B7280 | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
+| **:mktg-enablement** | Gold | \#D97706 | All work associated with designing, developing, and delivering enablement content for sales, partners, etc. |
+| **:mktg-event** | Orange | \#F97316 | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
+
+Note: for event execution, additional labels are used to manage the process and track specific events.
 
 
 ### Prepare "Let's get you set up!" meeting notes
 
 Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
+On Thursdays, marketing reviews the names and accounts for upcoming meetings and checks how many hosts each account has. If an account has more than 500 hosts, post a message in the #help-gtm-ops Slack channel.
+Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
+
+
+### Create UTM link
+
+Use the [Fleet UTM builder](https://docs.google.com/spreadsheets/d/1SO7-WIJSMPjEg89tskBIJmNj59xNySt0D-EjLg61IW8/edit?gid=0#gid=0) to create and record a UTM link needed for marketing campaigns
 
 
 ### Refresh event calendar
@@ -76,7 +99,7 @@ To propose an ad, or a change to an ad:
 
 ### Settle content strategy
 
-The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
+The CMO is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
 
 1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
   - Release date: The date by which the content will be complete and finalized.
@@ -85,28 +108,9 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
 
 
-### Settle event strategy
-
- Fleet's [Head of Marketing](https://fleetdm.com/handbook/marketing#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy within Fleet's event budget. Events are settled significantly in advance to provide ample time for strategy and planning.  
-
-1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
-  - Target buying situation of the audience.
-  - Who from Fleet will attend.
-  - The training plan for Fleet attendees.
-  - Which talk proposal Fleet will submit.
-  - All event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties.
-  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
-2. Set up and attend a 30m meeting with the Head of Marketing, Head of Finance and Manager of Training and Enablement.
-  - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
-  - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
-  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
+[Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
 
 
-### Book an event
-
-Fleet's Head of Marketing is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Head of Marketing](https://fleetdm.com/handbook/marketing#team) as needed with any questions or blockers to booking an event.
-
-> Note: The Marketing department [settles all event strategy](https://fleetdm.com/handbook/marketing#settle-event-strategy) prior to booking an event. 
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
 
@@ -125,8 +129,8 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
 
 **To order T-shirts:**
 
-  - Login to [Rush Order tees](https://www.rushordertees.com/my-account/login/) (saved in 1Password).
-  - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
+  - Login to [Printful](https://www.printful.com/dashboard/default) (saved in 1Password).
+  - Choose Fleet logo design t-shirt under [product templates](https://www.printful.com/dashboard/product-templates).
   - Order shirts based on the pre-determined number (~5% of total event attendees).
   - Submit the order. Ensure the address matches the expected receiving address.
 
@@ -192,6 +196,21 @@ Here are some links that filter relevant conversations on each platform:
 2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
+
+
+### Publish sprint demo video
+
+After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
+
+1. Download the sprint demo recording.
+2. Fix audio levels - because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels:
+  - Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor. (need to revisit this. No longer a free option)
+  - Apply "Auto Level Volume" (under the "Audio" section) to even out the volume levels across all presenters.
+  - Export and download the processed video.
+3. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
+4. Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+5. Add a brief description highlighting the new features.
+6. Add the new video to the "Releases" playlist.
 
 
 ### Upload to YouTube
@@ -276,8 +295,6 @@ This view displays the website's efficiency by tracking the rate at which users 
 
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
-
-
 #### Stubs
 The following stubs are included only to make links backward compatible
 
@@ -295,10 +312,6 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
-
-
-
-
 
 <meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing">

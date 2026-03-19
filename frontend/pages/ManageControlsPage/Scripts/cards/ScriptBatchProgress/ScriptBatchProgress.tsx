@@ -44,7 +44,7 @@ export const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, string> = {
 const getEmptyState = (status: ScriptBatchStatus) => {
   return (
     <div className={`${baseClass}__empty`}>
-      <b>No batch scripts {status} for this team</b>
+      <b>No batch scripts {status} for this fleet</b>
       <p>{EMPTY_STATE_DETAILS[status]}</p>
     </div>
   );
@@ -70,7 +70,7 @@ const ScriptBatchProgress = ({
   const DEFAULT_PAGE_SIZE = 10;
 
   const queryKey = {
-    team_id: teamId,
+    fleet_id: teamId,
     status: selectedStatus,
     page: pageNumber,
     per_page: DEFAULT_PAGE_SIZE,

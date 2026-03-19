@@ -22,6 +22,12 @@ parasails.registerPage('fleet-premium-trial', {
   methods: {
     closeModalAndRedirect: function() {
       if(window.navigation && window.navigation.canGoBack){
+        if(window.navigation.entries()){
+          let recentNavigationEntries = window.navigation.entries();
+          if(recentNavigationEntries && ['http://localhost:2024/login', 'https://fleetdm.com/login'].includes(recentNavigationEntries[0].url)) {
+            this.goto('/');
+          }
+        }
         window.navigation.back();
       } else {
         this.goto('/');
@@ -32,7 +38,7 @@ parasails.registerPage('fleet-premium-trial', {
       await setTimeout(()=>{
         $('[purpose="command-copy-button"]').removeClass('copied');
       }, 2000);
-      navigator.clipboard.writeText(this.me.fleetPremiumTrialLicenseKey);
+      navigator.clipboard.writeText(this.trialLicenseKey);
     }
   }
 });

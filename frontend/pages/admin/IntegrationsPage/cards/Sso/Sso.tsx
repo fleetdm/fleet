@@ -58,7 +58,7 @@ const validate = (formData: ISsoFormData) => {
 
   if (enableSso) {
     if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
-      errors.idp_image_url = `${idpImageUrl} is not a valid URL`;
+      errors.idp_image_url = "IdP image URL is not a valid URL";
     }
 
     if (!metadata) {
@@ -70,7 +70,7 @@ const validate = (formData: ISsoFormData) => {
       } else if (
         !validUrl({ url: metadataUrl, protocols: ["http", "https"] })
       ) {
-        errors.metadata_url = `${metadataUrl} is not a valid URL`;
+        errors.metadata_url = "Metadata URL is not a valid URL";
       }
     }
 

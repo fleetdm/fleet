@@ -18,7 +18,7 @@ const generateMessageSuffix = (isPremiumTier?: boolean, teamId?: number) => {
   if (!isPremiumTier) {
     return "";
   }
-  return teamId ? " assigned to this team" : " with no team";
+  return teamId ? " assigned to this fleet" : " that are unassigned";
 };
 
 const RerunScriptModal = ({

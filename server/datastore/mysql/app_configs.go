@@ -215,6 +215,7 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 			if ts := secretsCreatedAt[s.Secret]; ts != nil {
 				secretCreatedAt = *ts
 			}
+			s.CreatedAt = secretCreatedAt.UTC()
 			args = append(args, s.Secret, teamID, secretCreatedAt)
 		}
 		if _, err := q.ExecContext(ctx, sql, args...); err != nil {

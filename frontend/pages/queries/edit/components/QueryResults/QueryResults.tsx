@@ -42,7 +42,7 @@ interface IQueryResultsProps {
 }
 
 const baseClass = "query-results";
-const CSV_TITLE = "New Query";
+const CSV_TITLE = "New Report";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
@@ -157,7 +157,7 @@ const QueryResults = ({
   const renderNoResults = () => {
     return (
       <p className="no-results-message">
-        Your live query returned no results.
+        Your live report returned no results.
         <span>
           Expecting to see results? Check to see if the host
           {`${targetsTotalCount > 1 ? "s" : ""}`} you targeted reported
@@ -284,7 +284,7 @@ const QueryResults = ({
           cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
         >
           <div>
-            <b>Results clipped.</b> A sample of this query&apos;s results and
+            <b>Results clipped.</b> A sample of this report&apos;s results and
             errors is included below. Please target fewer hosts at once to build
             a full set of results.
           </div>

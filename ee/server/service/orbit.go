@@ -8,7 +8,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -160,12 +159,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			}
 			// If so, call the enqueue function with a flag to retain successful steps.
 			if requireAllSoftware {
-				level.Info(svc.logger).Log("msg", "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
-				platform := host.PlatformLike
-				if platform == "" {
-					platform = host.Platform
-				}
-				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, platform, host.UUID, teamID)
+				svc.logger.InfoContext(ctx, "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
+				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, host.Platform, host.PlatformLike, host.UUID, teamID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "re-enqueueing cancelled setup experience steps after a previous software install failure")
 				}
@@ -219,9 +214,9 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		// otherwise the device is not released manually, proceed with automatic
 		// release
 		if forceRelease {
-			level.Warn(svc.logger).Log("msg", "force-releasing device, DEP enrollment commands, profiles, software installs and script execution may not have all completed", "host_uuid", host.UUID)
+			svc.logger.WarnContext(ctx, "force-releasing device, DEP enrollment commands, profiles, software installs and script execution may not have all completed", "host_uuid", host.UUID)
 		} else {
-			level.Info(svc.logger).Log("msg", "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
+			svc.logger.InfoContext(ctx, "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
 		}
 
 		// Host will be marked as no longer "awaiting configuration" in the command handler
@@ -250,7 +245,7 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 			continue
 		}
 		r.Status = fleet.SetupExperienceStatusFailure
-		level.Info(svc.logger).Log("msg", "marking setup experience software as failed due to cancellation", "host_uuid", hostUUID, "software_name", r.Name)
+		svc.logger.InfoContext(ctx, "marking setup experience software as failed due to cancellation", "host_uuid", hostUUID, "software_name", r.Name)
 		err := svc.ds.UpdateSetupExperienceStatusResult(ctx, r)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
@@ -303,13 +298,13 @@ func isDeviceReleasedManually(ctx context.Context, ds fleet.Datastore, host *fle
 	if host.TeamID == nil {
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+			return false, ctxerr.Wrap(ctx, err, "get AppConfig to read apple_enable_release_device_manually")
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
 		tm, err := ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+			return false, ctxerr.Wrap(ctx, err, "get Team to read apple_enable_release_device_manually")
 		}
 		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	}
@@ -391,7 +386,7 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 		return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 	}
 
-	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.PlatformLike, hostUUID, teamID)
+	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.PlatformLike, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check for software titles for setup experience")
 	}

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +43,7 @@ func DoHTTPReq(
 
 	if resp.StatusCode != expectedStatusCode {
 		defer resp.Body.Close()
-		var je endpoint_utils.JsonError
+		var je endpointer.JsonError
 		err := jsonDecoder(resp.Body, &je)
 		if err != nil {
 			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)

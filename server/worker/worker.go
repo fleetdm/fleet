@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -62,15 +61,19 @@ type vulnArgs struct {
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.
 type Worker struct {
 	ds  fleet.Datastore
-	log kitlog.Logger
+	log *slog.Logger
 
 	// For tests only, allows ignoring unknown jobs instead of failing them.
 	TestIgnoreUnknownJobs bool
 
+	// delayPerRetry defines the delays between retries. If nil, the default
+	// delays are used.
+	delayPerRetry []time.Duration
+
 	registry map[string]Job
 }
 
-func NewWorker(ds fleet.Datastore, log kitlog.Logger) *Worker {
+func NewWorker(ds fleet.Datastore, log *slog.Logger) *Worker {
 	return &Worker{
 		ds:       ds,
 		log:      log,
@@ -117,12 +120,12 @@ func QueueJobWithDelay(ctx context.Context, ds fleet.Datastore, name string, arg
 	return ds.NewJob(ctx, job)
 }
 
-// this defines the delays to add between retries (i.e. how the "not_before"
-// timestamp of a job will be set for the next run). Keep in mind that at a
-// minimum, the job will not be retried before the next cron run of the worker,
-// but we want to ensure a minimum delay before retries to give a chance to
-// e.g. transient network issues to resolve themselves.
-var delayPerRetry = []time.Duration{
+// defaultDelayPerRetry defines the delays to add between retries (i.e. how
+// the "not_before" timestamp of a job will be set for the next run). Keep in
+// mind that at a minimum, the job will not be retried before the next cron run
+// of the worker, but we want to ensure a minimum delay before retries to give
+// a chance to e.g. transient network issues to resolve themselves.
+var defaultDelayPerRetry = []time.Duration{
 	1: 0, // i.e. for the first retry, do it ASAP (on the next worker run)
 	2: 5 * time.Minute,
 	3: 10 * time.Minute,
@@ -145,7 +148,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 
 	jobNames := w.jobNames()
 	if len(jobNames) == 0 {
-		level.Info(w.log).Log("msg", "no jobs registered, nothing to process")
+		w.log.InfoContext(ctx, "no jobs registered, nothing to process")
 		return nil
 	}
 
@@ -168,24 +171,28 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			default:
 			}
 
-			log := kitlog.With(w.log, "job_id", job.ID)
+			log := w.log.With("job_id", job.ID)
 
 			if _, ok := seen[job.ID]; ok {
-				level.Debug(log).Log("msg", "some jobs failed, retrying on next cron execution")
+				log.DebugContext(ctx, "some jobs failed, retrying on next cron execution")
 				return nil
 			}
 			seen[job.ID] = struct{}{}
 
-			level.Debug(log).Log("msg", "processing job")
+			log.DebugContext(ctx, "processing job")
 
 			if err := w.processJob(ctx, job); err != nil {
-				level.Error(log).Log("msg", "process job", "err", err)
+				log.ErrorContext(ctx, "process job", "err", err)
 				job.Error = err.Error()
 				if job.Retries < maxRetries {
-					level.Debug(log).Log("msg", "will retry job")
+					log.DebugContext(ctx, "will retry job")
 					job.Retries += 1
-					if job.Retries < len(delayPerRetry) {
-						job.NotBefore = time.Now().Add(delayPerRetry[job.Retries])
+					delays := w.delayPerRetry
+					if delays == nil {
+						delays = defaultDelayPerRetry
+					}
+					if job.Retries < len(delays) {
+						job.NotBefore = time.Now().UTC().Add(delays[job.Retries])
 					}
 				} else {
 					job.State = fleet.JobStateFailure
@@ -199,7 +206,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			// of queue. GetQueuedJobs fetches jobs by updated_at, so it will not return the same job until the queue
 			// has been processed once.
 			if _, err := w.ds.UpdateJob(ctx, job.ID, job); err != nil {
-				level.Error(log).Log("update job", "err", err)
+				log.ErrorContext(ctx, "update job", "err", err)
 			}
 		}
 	}

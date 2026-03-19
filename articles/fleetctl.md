@@ -10,6 +10,28 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Installing fleetctl
 
+The easiest way to install fleetctl is with this macOS and Linux script:
+
+```bash
+curl -sSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+```
+
+For Windows, use this script:
+
+```powershell
+for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetdm/fleet/releases/latest ^| findstr "browser_download_url" ^| findstr "_windows_amd64.zip"') do (curl -kOL %b) && if not exist "%USERPROFILE%\.fleetctl" mkdir "%USERPROFILE%\.fleetctl" && for /f "delims=" %a in ('dir /b fleetctl_*_windows_amd64.zip') do tar -xf "%a" --strip-components=1 -C "%USERPROFILE%\.fleetctl" && del "%a"
+```
+
+Run this script again to update fleetctl if you've installed it this way.
+
+> Be sure to match the version of fleetctl with the version of your Fleet server.
+
+You can also manually download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases).
+
+Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
+
+Alternatively, you can install and manage [fleetctl using npm](https://www.npmjs.com/package/fleetctl).
+
 Download and install [Node.js](https://nodejs.org/en).
 
 Install fleetctl with npm (included in Node.js).
@@ -24,9 +46,6 @@ If you see an error such as `Please try running this command again as root/Admin
 sudo npm install -g fleetctl
 ```
 
-Alternatively, and for Windows and Linux, you can download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases). 
-
-Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
 
 ### Upgrading fleetctl
 
@@ -56,7 +75,7 @@ This section walks you through authentication, assuming you already have a runni
 
 To log in to your Fleet instance, run the following commands:
 
-1. Set the Fleet instance address
+1. Set the Fleet instance address (your Fleet server’s URL)
 
 ```sh
 > fleetctl config set --address 'https://fleet.example.com'
@@ -127,7 +146,7 @@ An API-only user can be given the same permissions as a regular user. The defaul
 fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --global-role 'admin'
 ```
 
-On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a team:
+On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a fleet:
 
 ```sh
 fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --team 4:gitops
@@ -181,6 +200,25 @@ This will generate a `tar.gz` file with:
 - `prof` archives that can be inspected via `go tools pprof <archive_name_here>`.
 - A file containing a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](https://fleetdm.com/docs/deploying/configuration#logging-error-retention-period) configuration.
 - Files containing database-specific information.
+
+### Deprecation warnings
+
+In the v4.82.0 version of `fleetctl`, several commands and options (like `fleetctl get queries`) were deprecated in favor of newer names (like `fleetctl get reports`). Starting in v4.83.0, you will begin to see warnings whenever deprecated command or option names are used. You can enable these warnings in v4.82.0 to get a head start on updating your files. To do so, either set the `FLEET_ENABLE_LOG_TOPICS` environment variable to `deprecated-field-names`, or use the `--enable_log_topics=deprecated-field-names` option in your commands.  For example:
+
+```
+> FLEET_ENABLE_LOG_TOPICS=deprecated-field-names fleetctl get queries
+```
+
+```
+> export FLEET_ENABLE_LOG_TOPICS=deprecated-field-names 
+> fleetctl get queries
+```
+
+```
+> fleetctl get queries --enable_log_topics=deprecated-field-names
+```
+
+Once the warnings become enabled by default (in v4.83.0), you can use the `FLEET_DISABLE_LOG_TOPICS` environment variable or `--enable_log_topics` command-line option to disable them.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

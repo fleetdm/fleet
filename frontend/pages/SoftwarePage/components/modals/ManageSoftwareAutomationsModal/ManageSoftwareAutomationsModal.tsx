@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
-import { Link } from "react-router";
+import { InjectedRouter } from "react-router";
 import { isEmpty, omit } from "lodash";
 
 import useDeepEffect from "hooks/useDeepEffect";
@@ -58,6 +58,7 @@ interface ISoftwareAutomations {
 }
 
 interface IManageSoftwareAutomationsModalProps {
+  router: InjectedRouter;
   onCancel: () => void;
   onCreateWebhookSubmit: (formData: ISoftwareAutomations) => void;
   togglePreviewPayloadModal: () => void;
@@ -73,7 +74,7 @@ const validateWebhookURL = (url: string) => {
   if (!url) {
     errors.url = "Please add a destination URL";
   } else if (!validUrl({ url })) {
-    errors.url = `${url} is not a valid URL`;
+    errors.url = "Destination URL is not a valid URL";
   } else {
     delete errors.url;
   }
@@ -84,6 +85,7 @@ const validateWebhookURL = (url: string) => {
 const baseClass = "manage-software-automations-modal";
 
 const ManageAutomationsModal = ({
+  router,
   onCancel: onReturnToApp,
   onCreateWebhookSubmit,
   togglePreviewPayloadModal,
@@ -131,7 +133,9 @@ const ManageAutomationsModal = ({
     setSelectedIntegration,
   ] = useState<IIntegration>();
 
-  const { config: globalConfigFromContext } = useContext(AppContext);
+  const { config: globalConfigFromContext, isFreeTier } = useContext(
+    AppContext
+  );
   const gitOpsModeEnabled = globalConfigFromContext?.gitops.gitops_mode_enabled;
 
   const maxAgeInNanoseconds = isGlobalSWConfig(softwareConfig)
@@ -214,6 +218,10 @@ const ManageAutomationsModal = ({
       setSelectedIntegration(currentSelectedIntegration);
     }
   }, [allIntegrationsIndexed]);
+
+  const onAddIntegration = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS);
+  };
 
   const onURLChange = (value: string) => {
     setDestinationUrl(value);
@@ -370,11 +378,20 @@ const ManageAutomationsModal = ({
     return (
       <>
         <div className={`${baseClass}__software-automation-description`}>
-          A ticket will be created in your <b>Integration</b> if a detected
-          vulnerability (CVE) was published in the last{" "}
-          {recentVulnerabilityMaxAge ||
-            CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
-          days.
+          {isFreeTier ? (
+            <>
+              A ticket will be created in your <b>Integration</b> for each
+              detected vulnerability (CVE).
+            </>
+          ) : (
+            <>
+              A ticket will be created in your <b>Integration</b> if a detected
+              vulnerability (CVE) was published in the last{" "}
+              {recentVulnerabilityMaxAge ||
+                CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
+              days.
+            </>
+          )}
         </div>
         {(jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0) ||
         (zendeskIntegrationsIndexed &&
@@ -393,13 +410,14 @@ const ManageAutomationsModal = ({
         ) : (
           <div className={`form-field ${baseClass}__no-integrations`}>
             <div className="form-field__label">You have no integrations.</div>
-            <Link
-              to={PATHS.ADMIN_INTEGRATIONS}
-              className={`${baseClass}__add-integration-link`}
-              tabIndex={softwareAutomationsEnabled ? 0 : -1}
-            >
-              Add integration
-            </Link>
+            <div>
+              <Button
+                onClick={onAddIntegration}
+                disabled={gitOpsModeEnabled || !softwareAutomationsEnabled} // Not keyboard accessible if modal is disabled
+              >
+                Add integration
+              </Button>
+            </div>
           </div>
         )}
         {!!selectedIntegration && (
@@ -420,9 +438,18 @@ const ManageAutomationsModal = ({
       <>
         <div className={`${baseClass}__software-automation-description`}>
           <p>
-            A request will be sent to your configured <b>Destination URL</b> if
-            a detected vulnerability (CVE) was published in the last{" "}
-            {recentVulnerabilityMaxAge || "30"} days.
+            {isFreeTier ? (
+              <>
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                for each detected vulnerability (CVE).
+              </>
+            ) : (
+              <>
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                if a detected vulnerability (CVE) was published in the last{" "}
+                {recentVulnerabilityMaxAge || "30"} days.
+              </>
+            )}
           </p>
         </div>
         <InputField

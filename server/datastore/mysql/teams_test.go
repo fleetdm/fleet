@@ -328,7 +328,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 
 			// Check team label is gone.
-			labels, err := ds.LabelsByName(context.Background(), []string{teamLabel.Name})
+			labels, err := ds.LabelsByName(context.Background(), []string{teamLabel.Name}, fleet.TeamFilter{})
 			require.NoError(t, err)
 			require.Empty(t, labels)
 
@@ -871,6 +871,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				Script:                      optjson.String{Set: true},
 				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 				ManualAgentInstall:          optjson.SetBool(true),
+				LockEndUserInfo:             optjson.SetBool(false),
 			},
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),

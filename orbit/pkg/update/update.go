@@ -494,6 +494,9 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 						return nil, fmt.Errorf("download %q: %w", repoPath, err)
 					}
 					removeCachedHashes(localTarget.Path)
+					if err := os.RemoveAll(localTarget.DirPath); err != nil {
+						return nil, fmt.Errorf("failed to remove old extracted dir: %q: %w", localTarget.DirPath, err)
+					}
 				} else {
 					// Hash matches! We can proceed without the tar.gz
 					log.Debug().Str("path", localTarget.Path).Msg("using cached hash, tar.gz not needed")

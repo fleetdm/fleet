@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS = [
     premiumOnly: true,
   },
   {
-    label: "Query",
+    label: "Live report",
     value: "query",
     disabled: false,
   },
@@ -42,6 +42,11 @@ const DEFAULT_OPTIONS = [
   {
     label: "Show disk encryption key",
     value: "diskEncryption",
+    disabled: false,
+  },
+  {
+    label: "Show Recovery Lock password",
+    value: "recoveryLockPassword",
     disabled: false,
   },
   {
@@ -73,12 +78,15 @@ const DEFAULT_OPTIONS = [
 
 interface IHostActionConfigOptions {
   hostPlatform: string;
+  hostCpuType: string;
   isPremiumTier: boolean;
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
   isGlobalObserver: boolean;
+  isGlobalTechnician: boolean;
   isTeamAdmin: boolean;
   isTeamMaintainer: boolean;
+  isTeamTechnician: boolean;
   isTeamObserver: boolean;
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
@@ -89,8 +97,12 @@ interface IHostActionConfigOptions {
   doesStoreEncryptionKey: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
+  scriptsGloballyDisabled: boolean | undefined;
   isPrimoMode: boolean;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
+  isRecoveryLockPasswordEnabled: boolean;
+  diskEncryptionProfileStatus: string | undefined;
+  recoveryLockPasswordAvailable: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -276,15 +288,48 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   return doesStoreEncryptionKey;
 };
 
+const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    hostPlatform,
+    hostCpuType,
+    isRecoveryLockPasswordEnabled,
+  } = config;
+  if (!isPremiumTier) {
+    return false;
+  }
+  if (hostPlatform !== "darwin") {
+    return false;
+  }
+  // permissive by default - only remove option if we know the host's cpu type and it is not arm64
+  if (hostCpuType !== "" && !hostCpuType.includes("arm64")) {
+    return false;
+  }
+  if (!isConnectedToFleetMdm) {
+    return false;
+  }
+  return isRecoveryLockPasswordEnabled;
+};
+
 const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
   isGlobalMaintainer,
+  isGlobalTechnician,
   isTeamAdmin,
   isTeamMaintainer,
+  isTeamTechnician,
 }: IHostActionConfigOptions) => {
+  // Scripts globally disabled, shown as disabled by modifyOptions
+
   return (
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalTechnician ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamTechnician) &&
     isScriptSupportedPlatform(hostPlatform)
   );
 };
@@ -303,6 +348,12 @@ const removeUnavailableOptions = (
 
   if (!canShowDiskEncryption(config)) {
     options = options.filter((option) => option.value !== "diskEncryption");
+  }
+
+  if (!canShowRecoveryLockPassword(config)) {
+    options = options.filter(
+      (option) => option.value !== "recoveryLockPassword"
+    );
   }
 
   if (!canTurnOffMdm(config)) {
@@ -339,8 +390,13 @@ const removeUnavailableOptions = (
 // Available tooltips for disabled options
 export const getDropdownOptionTooltipContent = (
   value: string | number,
-  isHostOnline?: boolean
+  isHostOnline?: boolean,
+  scriptsGloballyDisabled?: boolean
 ) => {
+  if (value === "runScript" && scriptsGloballyDisabled) {
+    return <>Running scripts is disabled in organization settings.</>;
+  }
+
   const tooltipAction: Record<string, string> = {
     runScript: "run scripts on",
     wipe: "wipe",
@@ -359,7 +415,7 @@ export const getDropdownOptionTooltipContent = (
     );
   }
   if (!isHostOnline && value === "query") {
-    return <>You can&apos;t query an offline host.</>;
+    return <>You can&apos;t run a live report on an offline host.</>;
   }
   return undefined;
 };
@@ -384,6 +440,9 @@ const modifyOptions = (
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     hostPlatform,
+    scriptsGloballyDisabled,
+    diskEncryptionProfileStatus,
+    recoveryLockPasswordAvailable,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -391,7 +450,8 @@ const modifyOptions = (
       option.disabled = true;
       option.tooltipContent = getDropdownOptionTooltipContent(
         option.value,
-        isHostOnline
+        isHostOnline,
+        scriptsGloballyDisabled
       );
     });
   };
@@ -424,6 +484,13 @@ const modifyOptions = (
     );
   }
 
+  // Disable run script feature if scripts are globally disabled
+  if (scriptsGloballyDisabled) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "runScript")
+    );
+  }
+
   // null intentionally excluded from this condition:
   // scripts_enabled === null means this agent is not an orbit agent, or this agent is version
   // <=1.23.0 which is not collecting the scripts enabled info
@@ -450,6 +517,35 @@ const modifyOptions = (
       );
     }
   }
+  if (
+    diskEncryptionProfileStatus === "pending" ||
+    diskEncryptionProfileStatus === "failed"
+  ) {
+    const diskEncOption = options.find(
+      (option) => option.value === "diskEncryption"
+    );
+    if (diskEncOption) {
+      diskEncOption.disabled = true;
+      diskEncOption.tooltipContent = (
+        <>
+          Disk encryption key is unavailable
+          <br />
+          while pending or has failed.
+        </>
+      );
+    }
+  }
+
+  if (!recoveryLockPasswordAvailable) {
+    const rlpOption = options.find(
+      (option) => option.value === "recoveryLockPassword"
+    );
+    if (rlpOption) {
+      rlpOption.disabled = true;
+      rlpOption.tooltipContent = <>Recovery Lock password is not available.</>;
+    }
+  }
+
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);
   return options;

@@ -1,24 +1,44 @@
-# Software self-service
-
-![Software self-service](../website/assets/images/articles/software-self-service-1335x757@2x.png)
+# Self-service 
 
 _Available in Fleet Premium_
 
-Fleet’s self-service software lets end users update and install approved apps from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive. This guide covers how to add, install, and update self-service software in Fleet.
+Fleet’s self-service lets end users update and install approved apps and run scripts from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive.
+
+## Platforms
+
+Fleet supports self-service software installs on the following platforms:
+
+macOS:
+
+- Custom packages (.pkg, .sh)
+- Fleet-maintained apps
+- App Store apps
+
+Windows: 
+
+- Custom packages (.msi, .exe, .ps1)
+
+Linux: 
+
+- Custom packages (.deb, .rpm, .sh, .tar.gz)
+
+iOS/iPadOS: 
+
+- App Store apps and custom .ipa packages
 
 ## Add software
 
-1. Select the team to which you want to add the software from the dropdown in the upper left corner of the page.
+1. Select the fleet to which you want to add the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. Select the **Add software** button in the upper right corner of the page.
 4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [app store app](https://fleetdm.com/guides/install-app-store-apps#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 5. Check **Self-service** to make it available for self-service as soon as it's added.
 
-> Script packages (`.sh` and `.ps1` files) are useful for self-service configuration tasks like connecting to a VPN or configuring printers. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-packages).
+> Use script-only packages (`.sh` and `.ps1` files) for self-service scripts like connecting to a VPN or configuring printers. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-only-packages).
 
 You can also add the software and later make it available in self-service:
 
-1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
+1. Select the fleet to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. Select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
 4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon. Icons appear on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [app store apps](https://fleetdm.com/guides/install-app-store-apps).
@@ -48,11 +68,13 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Icon:** Upload a square icon that will be displayed as the app icon on the home screen.
 - **Full Screen:** Check this field.
 - **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in the search box, and select **Safari - com.apple.mobilesafari**.
+
 #### Download configuration profile
 
 You can also download the configuration profile (`.mobileconfig`) and change values in code editor. If you want to change the icon, use iMazing Profile Editor and follow the steps above.
 
-Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/Fleet-self-service.mobileconfig).
+Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/configuration-profiles/fleet-self-service.mobileconfig).
+
 ## IT admin experience
 
 How to view, update, install, or uninstall self-service software:
@@ -63,6 +85,10 @@ How to view, update, install, or uninstall self-service software:
 4. To update, install, or uninstall, select **Update**, **Install**, or **Uninstall**.
 
 **Update** appears for [eligible updates](#how-updates-work), regardless of whether the app is set to self-service.
+
+Currently, for Apple App Store (VPP) apps, if Apple host is running an app version that can’t be updated because the latest App Store version requires a newer OS version, Fleet always shows “Update available.” The update then always fails, since the latest app version is incompatible with the host’s OS.
+
+To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
 Tips:
 
@@ -118,10 +144,10 @@ When an install, uninstall, or update is triggered by an IT admin or end user in
 - If the host is online, Fleet will poll automatically every 5 seconds to check for completion. When the install, uninstall, or update completes or fails, the status will update without the IT admin or end user having to reload the page.
 - If the host is offline, IT admins see a pending status. When pending, the action has not started on the host. IT admins can cancel pending actions on **Host details > Activity > Upcoming** tab.
 
-<meta name="articleTitle" value="Software self-service">
+<meta name="articleTitle" value="Self-service">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-06-20">
 <meta name="articleImageUrl" value="../website/assets/images/articles/software-self-service-1600x900@2x.png">
-<meta name="description" value="This guide will walk you through adding apps to Fleet for user self-service.">
+<meta name="description" value="Adding apps and scripts to Fleet for end user self-service.">

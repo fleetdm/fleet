@@ -76,9 +76,19 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 		expectedPayload *MDMWindowsProfilePayload
 	}{
 		{
+			name: "no commands found",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "foo",
+			},
+			statuses:      map[string]SyncMLCmd{},
+			hostUUID:      "host-uuid",
+			expectedError: "no commands found in profile",
+		},
+		{
 			name: "missing status for command",
 			cmd: MDMWindowsCommand{
 				CommandUUID: "foo",
+				RawCommand:  []byte(`<Atomic><Replace></Replace></Atomic>`),
 			},
 			statuses:      map[string]SyncMLCmd{},
 			hostUUID:      "host-uuid",
@@ -127,7 +137,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{
 				HostUUID:    "host-uuid",
-				Status:      &MDMDeliveryVerifying,
+				Status:      &MDMDeliveryVerified,
 				Detail:      "",
 				CommandUUID: "foo",
 			},
@@ -227,8 +237,38 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{
 				HostUUID:    "host-uuid",
-				Status:      &MDMDeliveryVerifying,
+				Status:      &MDMDeliveryVerified,
 				Detail:      "",
+				CommandUUID: "foo",
+			},
+		},
+		{
+			name: "multiple non-atomic commands with a failure",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "foo",
+				RawCommand: []byte(`
+				<Add>
+					<CmdID>foo</CmdID>
+					<Item>
+						<Target><LocURI>./Device/First</LocURI></Target>
+					</Item>
+				</Add>
+				<Replace>
+					<CmdID>bar</CmdID>
+					<Item>
+						<Target><LocURI>./Device/Second</LocURI></Target>
+					</Item>
+				</Replace>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"foo": {CmdID: CmdID{Value: "foo"}, Data: ptr.String("200")},
+				"bar": {CmdID: CmdID{Value: "bar"}, Data: ptr.String("400")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:    "host-uuid",
+				Status:      &MDMDeliveryFailed,
+				Detail:      "./Device/First: status 200, ./Device/Second: status 400",
 				CommandUUID: "foo",
 			},
 		},
@@ -258,7 +298,7 @@ func TestWindowsResponseToDeliveryStatus(t *testing.T) {
 		{
 			name:     "response starts with 2",
 			resp:     "202",
-			expected: MDMDeliveryVerifying,
+			expected: MDMDeliveryVerified,
 		},
 		{
 			name:     "bad requests",

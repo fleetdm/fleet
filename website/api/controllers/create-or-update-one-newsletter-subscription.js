@@ -50,13 +50,16 @@ module.exports = {
         psychologicalStageChangeReason = this.req.session.adAttributionString;
       }
     }
+    let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
+
     sails.helpers.flow.build(async()=>{
       let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         contactSource: 'Website - Newsletter',
         description: `Subscribed to the Fleet newsletter`,
-        psychologicalStage: '3 - Intrigued',
+        psychologicalStage: '2 - Aware',
         psychologicalStageChangeReason,
+        marketingAttributionCookie: attributionCookieOrUndefined,
       });
 
       await sails.helpers.salesforce.createHistoricalEvent.with({

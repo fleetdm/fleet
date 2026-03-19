@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-22184](https://nvd.nist.gov/vuln/detail/CVE-2026-22184)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerability is in zlib's contrib/untgz standalone demo utility, not in the core zlib library.
+- **Products:**: `fleet`,`pkg:apk/alpine/zlib@1.3.1-r2`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 12:01:11
+
 ### [CVE-2025-9230](https://nvd.nist.gov/vuln/detail/CVE-2025-9230)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -12,6 +20,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleet`,`pkg:apk/alpine/openssl@3.3.3-r0?os_name=alpine&os_version=3.21`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-10-01 10:09:03
+
+### [CVE-2025-69419](https://nvd.nist.gov/vuln/detail/CVE-2025-69419)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleet uses Go's crypto and TLS implementation.
+- **Products:**: `fleet`,`pkg:apk/alpine/libcrypto3`,`pkg:apk/alpine/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-01-03 15:15:53
+
+### [CVE-2025-68121](https://nvd.nist.gov/vuln/detail/CVE-2025-68121)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet does not mutate CA pool store between TLS sessions.
+- **Products:**: `fleet`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 13:23:41
 
 ### [CVE-2025-61729](https://nvd.nist.gov/vuln/detail/CVE-2025-61729)
 #### Statement:
@@ -90,6 +114,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10 15:42:55
 
+### [CVE-2025-15467](https://nvd.nist.gov/vuln/detail/CVE-2025-15467)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleet uses Go's crypto and TLS implementation.
+- **Products:**: `fleet`,`pkg:apk/alpine/libcrypto3`,`pkg:apk/alpine/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-01-03 15:15:53
+
 ### [CVE-2024-8260](https://nvd.nist.gov/vuln/detail/CVE-2024-8260)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -115,6 +147,46 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Timestamp:** 2025-04-10 15:28:30
 
 ## `fleetdm/fleetctl` docker image
+
+### [GHSA-72hv-8253-57qq](https://nvd.nist.gov/vuln/detail/GHSA-72hv-8253-57qq)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Vulnerability only affects Java/JVM web applications that use Jackson's asynchronous (non-blocking) JSON parser.
+- **Products:**: `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 12:30:33
+
+### [CVE-2026-27465](https://nvd.nist.gov/vuln/detail/CVE-2026-27465)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This is a vulnerability in Fleet, not fleetctl.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 12:33:34
+
+### [CVE-2026-24515](https://nvd.nist.gov/vuln/detail/CVE-2026-24515)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process XML using libexpat1, and when genrating packages the XMLs are defined.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-01-03 15:15:53
+
+### [CVE-2026-23517](https://nvd.nist.gov/vuln/detail/CVE-2026-23517)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This vulnerability affected fleet, not fleetctl, adding it here to avoid false positives.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `component_not_present`
+- **Timestamp:** 2026-01-30 09:25:41
+
+### [CVE-2025-69419](https://nvd.nist.gov/vuln/detail/CVE-2025-69419)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleet uses Go's crypto and TLS implementation.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libssl3`,`pkg:deb/debian/openssl`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-01-03 15:15:53
 
 ### [CVE-2025-66516](https://nvd.nist.gov/vuln/detail/CVE-2025-66516)
 - **Author:** @lucasmrod
@@ -226,6 +298,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
 - **Justification:** `component_not_present`
 - **Timestamp:** 2025-09-12 09:25:41
+
+### [CVE-2025-15467](https://nvd.nist.gov/vuln/detail/CVE-2025-15467)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl uses Go's crypto and TLS implementation.
+- **Products:**: `fleetctl`,`pkg:deb/debian/openssl`,`pkg:deb/debian/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-01-03 15:15:53
 
 ### [CVE-2024-7254](https://nvd.nist.gov/vuln/detail/CVE-2024-7254)
 - **Author:** @lucasmrod

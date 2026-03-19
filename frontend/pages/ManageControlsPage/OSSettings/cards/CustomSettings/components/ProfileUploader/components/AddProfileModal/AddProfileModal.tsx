@@ -39,6 +39,7 @@ interface IFileChooserProps {
   onFileOpen: (files: FileList | null) => void;
 }
 
+/** TODO: Legacy component, should be replaced with newer FileUploader */
 const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
   <div className={`${baseClass}__file-chooser`}>
     <ProfileGraphic
@@ -61,8 +62,7 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     >
       <label htmlFor="upload-profile">
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          <Icon name="upload" />
-          Choose file
+          Choose file <Icon name="upload" color="core-fleet-green" />
         </span>
       </label>
     </Button>
@@ -130,7 +130,10 @@ const AddProfileModal = ({
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () =>
+      labelsAPI
+        .summary(currentTeamId)
+        .then((res) => getCustomLabels(res.labels)),
     {
       enabled: isPremiumTier,
       refetchOnWindowFocus: false,
@@ -165,7 +168,7 @@ const AddProfileModal = ({
         teamId: currentTeamId,
         ...labelKey,
       });
-      renderFlash("success", "Successfully uploaded!");
+      renderFlash("success", "Successfully uploaded.");
       onUpload();
     } catch (e) {
       renderFlash("error", getErrorMessage(e as AxiosResponse<IApiError>));
@@ -209,50 +212,48 @@ const AddProfileModal = ({
 
   return (
     <Modal title="Add profile" onExit={onDone}>
-      <>
-        {isPremiumTier && isLoadingLabels && <Spinner />}
-        {isPremiumTier && !isLoadingLabels && isErrorLabels && <DataError />}
-        {(!isPremiumTier || (!isLoadingLabels && !isErrorLabels)) && (
-          <div className={`${baseClass}__modal-content-wrap`}>
-            <Card color="grey" className={`${baseClass}__file`}>
-              {!fileDetails ? (
-                <FileChooser isLoading={isLoading} onFileOpen={onFileOpen} />
-              ) : (
-                <FileDetails details={fileDetails} />
-              )}
-            </Card>
-            {isPremiumTier && (
-              <TargetLabelSelector
-                selectedTargetType={selectedTargetType}
-                selectedCustomTarget={selectedCustomTarget}
-                selectedLabels={selectedLabels}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${baseClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTargetOption}
-                onSelectLabel={onSelectLabel}
-                isErrorLabels={isErrorLabels}
-                isLoadingLabels={isFetchingLabels || isLoadingLabels}
-                labels={labels || []}
-              />
+      {isPremiumTier && isLoadingLabels && <Spinner />}
+      {isPremiumTier && !isLoadingLabels && isErrorLabels && <DataError />}
+      {(!isPremiumTier || (!isLoadingLabels && !isErrorLabels)) && (
+        <div className={`${baseClass}__modal-content-wrap`}>
+          <Card color="grey" className={`${baseClass}__file`}>
+            {!fileDetails ? (
+              <FileChooser isLoading={isLoading} onFileOpen={onFileOpen} />
+            ) : (
+              <FileDetails details={fileDetails} />
             )}
-            <div className={`${baseClass}__button-wrap`}>
-              <Button
-                className={`${baseClass}__add-profile-button`}
-                onClick={onFileUpload}
-                isLoading={isLoading}
-                disabled={
-                  (selectedTargetType === "Custom" &&
-                    !listNamesFromSelectedLabels(selectedLabels).length) ||
-                  !fileDetails
-                }
-              >
-                Add profile
-              </Button>
-            </div>
+          </Card>
+          {isPremiumTier && (
+            <TargetLabelSelector
+              selectedTargetType={selectedTargetType}
+              selectedCustomTarget={selectedCustomTarget}
+              selectedLabels={selectedLabels}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              className={`${baseClass}__target`}
+              onSelectTargetType={onSelectTargetType}
+              onSelectCustomTarget={onSelectCustomTargetOption}
+              onSelectLabel={onSelectLabel}
+              isErrorLabels={isErrorLabels}
+              isLoadingLabels={isFetchingLabels || isLoadingLabels}
+              labels={labels || []}
+            />
+          )}
+          <div className={`${baseClass}__button-wrap`}>
+            <Button
+              className={`${baseClass}__add-profile-button`}
+              onClick={onFileUpload}
+              isLoading={isLoading}
+              disabled={
+                (selectedTargetType === "Custom" &&
+                  !listNamesFromSelectedLabels(selectedLabels).length) ||
+                !fileDetails
+              }
+            >
+              Add profile
+            </Button>
           </div>
-        )}
-      </>
+        </div>
+      )}
     </Modal>
   );
 };

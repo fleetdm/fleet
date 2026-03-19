@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 	"google.golang.org/api/androidmanagement/v1"
@@ -17,7 +18,7 @@ import (
 
 // Required env vars:
 var (
-	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
+	androidServiceCredentials string
 	androidProjectID          string
 )
 
@@ -46,6 +47,8 @@ var commands = []string{
 }
 
 func main() {
+	dev_mode.IsEnabled = true
+	androidServiceCredentials = dev_mode.Env("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		log.Fatal("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS must be set")
 	}
@@ -125,17 +128,25 @@ func enterprisesDelete(mgmt *androidmanagement.Service, enterpriseID string) {
 }
 
 func enterprisesList(mgmt *androidmanagement.Service) {
-	enterprises, err := mgmt.Enterprises.List().ProjectId(androidProjectID).Do()
+	ctx := context.Background()
+	var enterprises []*androidmanagement.Enterprise
+	var callCount int
+	err := mgmt.Enterprises.List().ProjectId(androidProjectID).Pages(ctx, func(page *androidmanagement.ListEnterprisesResponse) error {
+		callCount++
+		enterprises = append(enterprises, page.Enterprises...)
+		return nil
+	})
 	if err != nil {
 		log.Fatalf("Error listing enterprises: %v", err)
 	}
-	if len(enterprises.Enterprises) == 0 {
+	if len(enterprises) == 0 {
 		log.Printf("No enterprises found")
 		return
 	}
-	for _, enterprise := range enterprises.Enterprises {
+	for _, enterprise := range enterprises {
 		log.Printf("Enterprise: %+v", *enterprise)
 	}
+	log.Printf("%d enterprises found in %d pages", len(enterprises), callCount)
 }
 
 func policiesList(mgmt *androidmanagement.Service, enterpriseID string) {

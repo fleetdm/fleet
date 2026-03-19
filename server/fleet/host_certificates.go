@@ -3,7 +3,9 @@ package fleet
 import (
 	"crypto/sha1" // nolint:gosec // used for compatibility with existing osquery certificates table schema
 	"crypto/x509"
+	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -300,6 +302,95 @@ func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
 		Organization:       "",
 		OrganizationalUnit: "",
 	}, nil
+}
+
+// DecodeHexEscapes replaces literal \xHH escape sequences with the actual byte values.
+// For example, the string `\xD0\x90` (8 ASCII characters) becomes the 2-byte UTF-8 sequence for the Cyrillic letter "А".
+// Returns the original string unchanged if no escape sequences are found.
+// Incomplete or invalid sequences (e.g. `\xZZ`, `\x` at end of string) are left as-is.
+func DecodeHexEscapes(s string) string {
+	if !strings.Contains(s, `\x`) {
+		return s
+	}
+
+	var buf strings.Builder
+	buf.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if i+3 < len(s) && s[i] == '\\' && s[i+1] == 'x' {
+			b, err := hex.DecodeString(s[i+2 : i+4])
+			if err == nil {
+				buf.Write(b)
+				i += 4
+				continue
+			}
+		}
+		buf.WriteByte(s[i])
+		i++
+	}
+	return buf.String()
+}
+
+// DecodeUnicodeEscapes replaces literal \uXXXX escape sequences (including UTF-16 surrogate pairs) with actual Unicode
+// characters. For example, the string `\ud83d\udda8` (12 ASCII characters) becomes the 4-byte UTF-8 sequence for 🖨.
+// Returns the original string unchanged if no escape sequences are found.
+// Incomplete or invalid sequences (e.g. `\u00`, `\u` at end of string) are left as-is.
+// Unpaired UTF-16 surrogates are also left as-is.
+func DecodeUnicodeEscapes(s string) string {
+	if !strings.Contains(s, `\u`) {
+		return s
+	}
+
+	var buf strings.Builder
+	buf.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		r, size := parseUnicodeEscape(s, i)
+		if size > 0 {
+			buf.WriteRune(r)
+			i += size
+		} else {
+			buf.WriteByte(s[i])
+			i++
+		}
+	}
+	return buf.String()
+}
+
+// parseUnicodeEscape attempts to parse a \uXXXX sequence at position i in s. If the parsed value is a UTF-16 high
+// surrogate, it looks for an adjacent low surrogate to form a complete code point. Returns the decoded rune and the
+// number of bytes consumed, or (0, 0) if no valid \uXXXX escape was found at position i.
+func parseUnicodeEscape(s string, i int) (rune, int) {
+	hi, ok := parseHex4(s, i)
+	if !ok {
+		return 0, 0
+	}
+	// If it's a UTF-16 surrogate, handle pairing or leave as-is.
+	if hi >= 0xD800 && hi <= 0xDBFF {
+		lo, ok := parseHex4(s, i+6)
+		if ok && lo >= 0xDC00 && lo <= 0xDFFF {
+			return 0x10000 + (hi-0xD800)*0x400 + (lo - 0xDC00), 12
+		}
+		// Unpaired high surrogate — leave as-is.
+		return 0, 0
+	}
+	if hi >= 0xDC00 && hi <= 0xDFFF {
+		// Standalone low surrogate — leave as-is.
+		return 0, 0
+	}
+	return hi, 6
+}
+
+// parseHex4 tries to parse a \uXXXX sequence at position i and returns the 16-bit code unit.
+func parseHex4(s string, i int) (rune, bool) {
+	if i+6 > len(s) || s[i] != '\\' || s[i+1] != 'u' {
+		return 0, false
+	}
+	val, err := strconv.ParseUint(s[i+2:i+6], 16, 16)
+	if err != nil {
+		return 0, false
+	}
+	return rune(val), true
 }
 
 func firstOrEmpty(s []string) string {

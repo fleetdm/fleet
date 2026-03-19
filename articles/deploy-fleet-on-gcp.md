@@ -32,7 +32,7 @@ This Terraform project automates the deployment of Fleet on the Google Cloud Pla
 
 ## Configuration
 
-1.  [Clone the repository](https://github.com/fleetdm/fleet-terraform/tree/e8d559ecba80ab35cb8014212f5bd0a22b545618/gcp) or consume the entire project as a Terraform module. Below is a minimal example of how to declare the module in your Terraform configuration:
+1.  [Clone the repository](https://github.com/fleetdm/fleet-terraform/tree/e8d559ecba80ab35cb8014212f5bd0a22b545618/gcp) or consume the entire project as a Terraform module. All files related to GCP deployment can be found in the 'GCP' folder within the repository. Below is a minimal example of how to declare the module in your Terraform configuration:
 
 ```hcl
 module "fleet" {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"slices"
@@ -16,8 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 func main() {
@@ -25,15 +24,13 @@ func main() {
 	debugPtr := flag.Bool("debug", false, "enable debug logging")
 	flag.Parse()
 	ctx := context.Background()
-	logger := kitlog.NewJSONLogger(os.Stderr)
-	lvl := level.AllowInfo()
+	logLevel := slog.LevelInfo
 	if *debugPtr {
-		lvl = level.AllowDebug()
+		logLevel = slog.LevelDebug
 	}
-	logger = level.NewFilter(logger, lvl)
-	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 
-	level.Info(logger).Log("msg", "starting maintained app ingestion")
+	logger.InfoContext(ctx, "starting maintained app ingestion")
 
 	ingesters := map[string]maintained_apps.Ingester{
 		"ee/maintained-apps/inputs/homebrew": homebrew.IngestApps,
@@ -49,18 +46,31 @@ func main() {
 		for _, app := range apps {
 
 			if app.IsEmpty() {
-				level.Info(logger).Log("msg", "skipping manifest update due to empty output", "slug", app.Slug)
+				logger.InfoContext(ctx, "skipping manifest update due to empty output", "slug", app.Slug)
 				continue
 			}
 
 			if err := processOutput(ctx, app); err != nil {
-				level.Error(logger).Log("msg", "failed to process maintained app output", "err", err)
+				logger.ErrorContext(ctx, "failed to process maintained app output", "err", err)
 			}
 		}
 	}
 }
 
 func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
+	// validate categories before writing any files
+	if err := validateCategories(ctx, app); err != nil {
+		// Make the validation failure very obvious on stderr.
+		fmt.Fprintf(
+			os.Stderr,
+			"maintained-apps: fatal error processing %s: %v\n",
+			app.Slug,
+			err,
+		)
+		// Wrap so callers still see a proper error.
+		return ctxerr.Wrap(ctx, err, "validating categories")
+	}
+
 	if err := updateAppsListFile(ctx, app); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating apps list file")
 	}
@@ -99,6 +109,38 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		}
 	}
 
+	return nil
+}
+
+// Match types in frontend/interfaces/software.ts
+var allowedCategories = map[string]struct{}{
+	"Browsers":        {},
+	"Communication":   {},
+	"Developer tools": {},
+	"Productivity":    {},
+	"Security":        {},
+	"Utilities":       {},
+}
+
+func allowedCategoriesString() string {
+	cats := make([]string, 0, len(allowedCategories))
+	for c := range allowedCategories {
+		cats = append(cats, c)
+	}
+	slices.Sort(cats)
+	return strings.Join(cats, ", ")
+}
+
+// validateCategories ensures every category on the app is one of the supported values.
+func validateCategories(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
+	for _, c := range app.DefaultCategories {
+		if _, ok := allowedCategories[c]; !ok {
+			return ctxerr.New(ctx, fmt.Sprintf(
+				"invalid category %q for slug %s (allowed: %s)",
+				c, app.Slug, allowedCategoriesString(),
+			))
+		}
+	}
 	return nil
 }
 

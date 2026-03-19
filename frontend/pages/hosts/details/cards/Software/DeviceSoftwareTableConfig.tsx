@@ -11,6 +11,7 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/Vulnerabil
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -72,7 +73,7 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       Cell: (cellProps: ITableStringCellProps) => {
         const { source, extension_for } = cellProps.row.original;
         const value = formatSoftwareType({ source, extension_for });
-        return <TextCell value={value} />;
+        return <TooltipTruncatedTextCell value={value} />;
       },
     },
     {

@@ -1,10 +1,6 @@
 .team-users {
   @include vertical-page-tab-panel-layout;
 
-  &__api-only-user {
-    @include grey-badge;
-  }
-
   .data-table-block {
     .data-table__table {
       thead {

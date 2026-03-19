@@ -1,6 +1,6 @@
 import React from "react";
 
-import Icon from "components/Icon/Icon";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "learn-fleet";
 
@@ -9,17 +9,14 @@ const LearnFleet = (): JSX.Element => {
     <div className={baseClass}>
       <p>
         Want to explore Fleet&apos;s features? Learn how to ask questions about
-        your device using queries.
+        your device using reports.
       </p>
-      <a
-        className="dashboard-info-card__action-button"
-        href="https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Learn how to use Fleet
-        <Icon name="arrow-internal-link" color="ui-fleet-black-75" />
-      </a>
+      <CustomLink
+        className={`${baseClass}__action-button`}
+        url="https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet"
+        text="Learn how to use Fleet"
+        newTab
+      />
     </div>
   );
 };

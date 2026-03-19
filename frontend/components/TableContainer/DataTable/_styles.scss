@@ -102,6 +102,7 @@ $shadow-transition-width: 10px;
         white-space: nowrap;
         border-left: 1px solid $ui-fleet-black-10;
         font-weight: $bold;
+        font-size: $xx-small;
         height: 40px; // Match body row height
 
         &:first-child {
@@ -137,6 +138,7 @@ $shadow-transition-width: 10px;
           display: flex;
           flex-direction: column; // Filters under header name
           min-width: max-content;
+          font-weight: $bold;
 
           span {
             display: flex;
@@ -153,7 +155,7 @@ $shadow-transition-width: 10px;
         .sortable-header {
           .column-header {
             .header-cell {
-              min-height: 36px;
+              min-height: 32px; // Leave room for outline on keyboard focus
             }
           }
 
@@ -319,6 +321,8 @@ $shadow-transition-width: 10px;
           }
 
           &.link-cell--tooltip-truncate {
+            min-width: 100%; // Take up as much of cell as possible
+
             .data-table__tooltip-truncated-text-container {
               position: relative;
               @include bottom-border;

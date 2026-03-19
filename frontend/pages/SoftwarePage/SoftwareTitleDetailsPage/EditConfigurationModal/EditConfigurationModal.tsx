@@ -46,7 +46,7 @@ const EditConfigurationModal = ({
   refetchSoftwareTitle,
   onExit,
 }: EditConfigurationModal) => {
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
   const [canSaveForm, setCanSaveForm] = useState(true);
@@ -144,29 +144,27 @@ const EditConfigurationModal = ({
 
   return (
     <Modal className={baseClass} title="Edit configuration" onExit={onExit}>
-      <>
-        <InstallerDetailsWidget
-          softwareName={softwareInstaller.name}
-          androidPlayStoreId={softwareInstaller.app_store_id}
-          customDetails="Android"
-          installerType="app-store"
-          isFma={false}
-          isScriptPackage={false}
-        />
-        {renderForm()}
-        <ModalFooter
-          primaryButtons={
-            <Button
-              type="submit"
-              onClick={onEditConfiguration}
-              isLoading={isUpdatingConfiguration}
-              disabled={!canSaveForm || isUpdatingConfiguration}
-            >
-              Save
-            </Button>
-          }
-        />
-      </>
+      <InstallerDetailsWidget
+        softwareName={softwareInstaller.name}
+        androidPlayStoreId={softwareInstaller.app_store_id}
+        customDetails="Android"
+        installerType="app-store"
+        isFma={false}
+        isScriptPackage={false}
+      />
+      {renderForm()}
+      <ModalFooter
+        primaryButtons={
+          <Button
+            type="submit"
+            onClick={onEditConfiguration}
+            isLoading={isUpdatingConfiguration}
+            disabled={!canSaveForm || isUpdatingConfiguration}
+          >
+            Save
+          </Button>
+        }
+      />
     </Modal>
   );
 };

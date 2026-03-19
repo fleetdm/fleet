@@ -94,6 +94,7 @@ const NewPackForm = ({
           error={errors.name}
           inputWrapperClass={`${baseClass}__pack-title`}
           autofocus
+          ignore1password
         />
         <InputField
           onChange={onChangePackDescription}

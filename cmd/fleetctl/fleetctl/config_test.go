@@ -167,3 +167,32 @@ func TestCustomHeadersConfig(t *testing.T) {
 	RunAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
 	require.True(t, called)
 }
+
+func TestConfigGetShowsHelp(t *testing.T) {
+	t.Run("config get without args shows help", func(t *testing.T) {
+		w, err := RunAppNoChecks([]string{"config", "get"})
+		require.NoError(t, err)
+		output := w.String()
+		require.Contains(t, output, "NAME:")
+		require.Contains(t, output, "fleetctl config get")
+		require.Contains(t, output, "Get a config option")
+	})
+
+	t.Run("config get with invalid key shows help", func(t *testing.T) {
+		w, err := RunAppNoChecks([]string{"config", "get", "invalidkey"})
+		require.NoError(t, err)
+		output := w.String()
+		require.Contains(t, output, "NAME:")
+		require.Contains(t, output, "fleetctl config get")
+		require.Contains(t, output, "Get a config option")
+	})
+
+	t.Run("config set without flags shows help", func(t *testing.T) {
+		w, err := RunAppNoChecks([]string{"config", "set"})
+		require.NoError(t, err)
+		output := w.String()
+		require.Contains(t, output, "NAME:")
+		require.Contains(t, output, "fleetctl config set")
+		require.Contains(t, output, "Set config options")
+	})
+}

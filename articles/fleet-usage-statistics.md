@@ -19,7 +19,6 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numTeams": 999,
   "numQueries": 999,
   "numPolicies": 999,
-  "numQueries": 999,
   "numLabels": 999,
   "softwareInventoryEnabled": true,
   "vulnDetectionEnabled": true,
@@ -42,11 +41,43 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "aiFeaturesDisabled": true,
   "maintenanceWindowsEnabled": true,
   "maintenanceWindowsConfigured": true,
+  "oktaConditionalAccessConfigured": true,
+  "conditionalAccessBypassDisabled": false,
   "numHostsFleetDesktopEnabled": 999,
+  "fleetMaintainedAppsMacOS": [
+    "1password/darwin",
+    "slack/darwin",
+    "zoom/darwin"
+  ],
+  "fleetMaintainedAppsWindows": [
+    "google-chrome/windows",
+    "microsoft-edge/windows"
+  ],
   "hostsEnrolledByOperatingSystem": {
+    "android": [
+      {
+        "version": "Android 15",
+        "numEnrolled": 999
+      },
+      ...
+    ],
     "darwin": [
       {
         "version": "macOS 12.3.1",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "ios": [
+      {
+        "version": "iOS 26.0.1",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "ipados": [
+      {
+        "version": "iPadOS 26.1",
         "numEnrolled": 999
       },
       ...

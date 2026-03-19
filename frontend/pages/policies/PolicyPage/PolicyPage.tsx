@@ -21,6 +21,7 @@ import {
 } from "interfaces/team";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
 import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
@@ -43,7 +44,7 @@ interface IPolicyPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { host_ids: string; team_id: string };
+    query: { host_ids: string; fleet_id: string };
     hash?: string;
   };
 }
@@ -98,6 +99,7 @@ const PolicyPage = ({
       maintainer: true,
       observer: true,
       observer_plus: true,
+      technician: true,
     },
   });
 
@@ -154,15 +156,20 @@ const PolicyPage = ({
     false
   );
 
+  // TODO: Remove team endpoint workaround once global policy endpoint populates patch_software.
+  // The global endpoint does not return patch_software for patch policies, but the team endpoint does.
   const {
     isLoading: isStoredPolicyLoading,
     data: storedPolicy,
     error: storedPolicyError,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
-    ["policy", policyId],
-    () => globalPoliciesAPI.load(policyId as number), // Note: Team users have access to policies through global API
+    ["policy", policyId, teamIdForApi],
+    () =>
+      teamIdForApi && teamIdForApi > 0
+        ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
+        : globalPoliciesAPI.load(policyId as number),
     {
-      enabled: isRouteOk && !!policyId, // Note: this justifies the number type assertions above
+      enabled: isRouteOk && !!policyId,
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
@@ -223,13 +230,42 @@ const PolicyPage = ({
     !isStoredPolicyLoading &&
     storedPolicy?.team_id !== undefined &&
     storedPolicy?.team_id !== null &&
-    !(storedPolicy?.team_id?.toString() === location.query.team_id)
+    !(storedPolicy?.team_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        team_id: storedPolicy?.team_id?.toString(),
+        fleet_id: storedPolicy?.team_id?.toString(),
       })
     );
+  }
+
+  // Fetch team config to determine "Other" automations (webhooks/integrations)
+  const { data: teamData } = useQuery<ILoadTeamResponse, Error>(
+    ["teams", teamIdForApi],
+    () => teamsAPI.load(teamIdForApi),
+    {
+      enabled:
+        isRouteOk &&
+        teamIdForApi !== undefined &&
+        teamIdForApi > 0 &&
+        storedPolicy?.type === "patch",
+      staleTime: 5000,
+    }
+  );
+
+  let currentAutomatedPolicies: number[] = [];
+  if (teamData?.team) {
+    const {
+      webhook_settings: { failing_policies_webhook: webhook },
+      integrations,
+    } = teamData.team;
+    const isIntegrationEnabled =
+      (integrations?.jira?.some((j: any) => j.enable_failing_policies) ||
+        integrations?.zendesk?.some((z: any) => z.enable_failing_policies)) ??
+      false;
+    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
+      currentAutomatedPolicies = webhook?.policy_ids || [];
+    }
   }
 
   // this function is passed way down, wrapped and ultimately called by SaveNewPolicyModal
@@ -286,7 +322,7 @@ const PolicyPage = ({
       <div className={`${baseClass}__warning`}>
         <div className={`${baseClass}__message`}>
           <p>
-            Fleet is unable to run a live query. Refresh the page or log in
+            Fleet is unable to run a live report. Refresh the page or log in
             again. If this keeps happening please{" "}
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new/choose"
@@ -318,6 +354,7 @@ const PolicyPage = ({
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
       teamIdForApi,
+      currentAutomatedPolicies,
     };
 
     const step2Opts = {

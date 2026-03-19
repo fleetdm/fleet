@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +22,7 @@ func TestSecretVariables(t *testing.T) {
 		{"UpsertSecretVariables", testUpsertSecretVariables},
 		{"ValidateEmbeddedSecrets", testValidateEmbeddedSecrets},
 		{"ExpandEmbeddedSecrets", testExpandEmbeddedSecrets},
+		{"ExpandHostSecrets", testExpandHostSecrets},
 		{"CreateSecretVariable", testCreateSecretVariable},
 		{"ListSecretVariables", testListSecretVariables},
 		{"DeleteSecretVariable", testDeleteSecretVariable},
@@ -204,6 +207,121 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	require.NoError(t, err)
 	expectedXMLExpansion := `<?xml>&lt;tag&gt;value &amp; more&lt;/tag&gt;</xml>`
 	require.Equal(t, expectedXMLExpansion, expanded)
+}
+
+func testExpandHostSecrets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host-secrets-test"),
+		NodeKey:         ptr.String("host-secrets-test-key"),
+		UUID:            "host-secrets-test-uuid",
+		Hostname:        "host-secrets-test-hostname",
+	})
+	require.NoError(t, err)
+
+	// Set a recovery lock password for this host
+	password := "TEST-PASS-1234"
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+		{HostUUID: host.UUID, Password: password},
+	})
+	require.NoError(t, err)
+
+	t.Run("no host secrets in document", func(t *testing.T) {
+		doc := "This document has no host secrets. $FLEET_SECRET_SOMETHING ${OTHER_VAR}"
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, doc, expanded) // unchanged
+	})
+
+	t.Run("expand recovery lock password", func(t *testing.T) {
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		expected := `<dict><key>NewPassword</key><string>TEST-PASS-1234</string></dict>`
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, expected, expanded)
+	})
+
+	t.Run("expand with braces syntax", func(t *testing.T) {
+		doc := `Password: ${FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD}`
+		expected := `Password: TEST-PASS-1234`
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, expected, expanded)
+	})
+
+	t.Run("unknown host secret type", func(t *testing.T) {
+		doc := `<key>Value</key><string>$FLEET_HOST_SECRET_UNKNOWN_TYPE</string>`
+		_, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown host secret type")
+	})
+
+	t.Run("non-existent host", func(t *testing.T) {
+		doc := `<string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string>`
+		_, err := ds.ExpandHostSecrets(ctx, doc, "non-existent-uuid")
+		require.Error(t, err)
+	})
+
+	t.Run("host without recovery lock password", func(t *testing.T) {
+		// Create another host without a recovery lock password
+		host2, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("host-no-password"),
+			NodeKey:         ptr.String("host-no-password-key"),
+			UUID:            "host-no-password-uuid",
+			Hostname:        "host-no-password-hostname",
+		})
+		require.NoError(t, err)
+
+		doc := `<string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string>`
+		_, err = ds.ExpandHostSecrets(ctx, doc, host2.UUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "getting recovery lock password")
+	})
+
+	t.Run("expand recovery lock password with XML special characters", func(t *testing.T) {
+		// Create a host with a password containing XML special characters
+		hostXML, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("host-xml-escape-test"),
+			NodeKey:         ptr.String("host-xml-escape-test-key"),
+			UUID:            "host-xml-escape-test-uuid",
+			Hostname:        "host-xml-escape-test-hostname",
+		})
+		require.NoError(t, err)
+
+		// Set a password with XML special characters: & < > " '
+		passwordWithSpecialChars := `Pass&word<with>special"chars'`
+		err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+			{HostUUID: hostXML.UUID, Password: passwordWithSpecialChars},
+		})
+		require.NoError(t, err)
+
+		// When expanded in an XML document, special characters should be escaped
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		expected := `<dict><key>NewPassword</key><string>Pass&amp;word&lt;with&gt;special&#34;chars&#39;</string></dict>`
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostXML.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, expected, expanded)
+
+		// Non-XML documents should not escape the characters
+		docNonXML := `Password: $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD`
+		expandedNonXML, err := ds.ExpandHostSecrets(ctx, docNonXML, hostXML.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, `Password: Pass&word<with>special"chars'`, expandedNonXML)
+	})
 }
 
 func testCreateSecretVariable(t *testing.T, ds *Datastore) {

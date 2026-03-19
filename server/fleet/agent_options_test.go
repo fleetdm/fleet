@@ -30,7 +30,7 @@ func TestValidateAgentOptions(t *testing.T) {
 
 		{"valid script timeout", `{"script_execution_timeout": 600}`, true, ""},
 
-		{"invalid script timeout", `{"script_execution_timeout": 3601}`, true, `script_execution_timeout' value exceeds limit. Maximum value is 3600`},
+		{"invalid script timeout", `{"script_execution_timeout": 18001}`, true, `script_execution_timeout' value exceeds limit. Maximum value is 18000`},
 
 		{"overrides.platform is null", `{"overrides": {
 			"platforms": {
@@ -202,7 +202,7 @@ func TestValidateAgentOptions(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			err := ValidateJSONAgentOptions(context.Background(), nil, []byte(c.in), c.isPremium)
+			err := ValidateJSONAgentOptions(context.Background(), nil, []byte(c.in), c.isPremium, 0)
 			t.Logf("%T", errors.Unwrap(err))
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)

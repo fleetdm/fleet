@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -66,7 +67,39 @@ func TestDebugHandlerAuthenticationSessionInvalid(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, res.Code)
 }
 
-func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
+func TestDebugHandlerAuthenticationFailsDueToRole(t *testing.T) {
+	for test, user := range map[string]fleet.User{
+		"no role":                {},
+		"global observer role":   {GlobalRole: ptr.String(fleet.RoleObserver)},
+		"global maintainer role": {GlobalRole: ptr.String(fleet.RoleMaintainer)},
+		"non-global role":        {Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1, Name: "foo"}, Role: fleet.RoleAdmin}}},
+	} {
+		t.Run(test, func(t *testing.T) {
+			svc := &mockService{}
+			svc.On(
+				"GetSessionByKey",
+				mock.Anything,
+				"fake_session_key",
+			).Return(&fleet.Session{UserID: 42, ID: 1}, nil)
+			svc.On(
+				"UserUnauthorized",
+				mock.Anything,
+				uint(42),
+			).Return(&user, nil)
+
+			handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
+
+			req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/cmdline", nil)
+			req.Header.Add("Authorization", "BEARER fake_session_key")
+			res := httptest.NewRecorder()
+
+			handler.ServeHTTP(res, req)
+			assert.Equal(t, http.StatusForbidden, res.Code)
+		})
+	}
+}
+
+func TestDebugHandlerAuthenticationSucceeds(t *testing.T) {
 	svc := &mockService{}
 	svc.On(
 		"GetSessionByKey",
@@ -77,7 +110,7 @@ func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
 		"UserUnauthorized",
 		mock.Anything,
 		uint(42),
-	).Return(&fleet.User{}, nil)
+	).Return(&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil)
 
 	handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
 

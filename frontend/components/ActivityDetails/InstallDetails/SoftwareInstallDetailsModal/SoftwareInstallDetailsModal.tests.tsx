@@ -95,6 +95,25 @@ describe("SoftwareInstallDetailsModal", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("treats failed_install as installed when host still reports installed versions", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+          })}
+          isMyDevicePage={false}
+          canOverrideFailureWithInstalled
+        />
+      );
+
+      expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
+      expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+      expect(screen.queryByText(/failed to install/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId("failed-icon")).not.toBeInTheDocument();
+    });
+
     it("on host details page, renders failed install without retry", () => {
       render(
         <StatusMessage

@@ -72,6 +72,9 @@ object MainDestination
 @Serializable
 object DebugDestination
 
+@Serializable
+object LogsDestination
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,7 +110,12 @@ fun AppNavigation() {
         composable<DebugDestination> {
             DebugScreen(
                 onNavigateBack = { navController.navigateUp() },
+                onNavigateToLogs = { navController.navigate(LogsDestination) },
             )
+        }
+
+        composable<LogsDestination> {
+            LogsScreen(onNavigateBack = { navController.navigateUp() })
         }
     }
 }
@@ -115,9 +123,10 @@ fun AppNavigation() {
 @Composable
 fun MainScreen(onNavigateToDebug: () -> Unit) {
     val context = LocalContext.current
+    val orchestrator = remember { AgentApplication.getCertificateOrchestrator(context) }
 
     var versionClicks by remember { mutableStateOf(0) }
-    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
+    val installedCerts by orchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -142,7 +151,8 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
                     if (++versionClicks >= CLICKS_TO_DEBUG) {
                         onNavigateToDebug()
                     } else if (versionClicks == 1) {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            ?: error("ClipboardManager not available")
                         clipboard.setPrimaryClip(ClipData.newPlainText("", "Fleet Android Agent: ${BuildConfig.VERSION_NAME}"))
                         Toast.makeText(context, "Fleet Agent version copied", Toast.LENGTH_SHORT).show()
                     }
@@ -150,123 +160,6 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
             }
         },
     )
-}
-
-@Composable
-fun DebugScreen(onNavigateBack: () -> Unit) {
-    val context = LocalContext.current
-
-    val restrictionsManager = context.getSystemService(RESTRICTIONS_SERVICE) as RestrictionsManager
-    val appRestrictions = restrictionsManager.applicationRestrictions
-    val dpm = context.getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
-
-    val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
-    val enrollmentSpecificID = remember { appRestrictions.getString("host_uuid")?.let { "****" + it.takeLast(4) } }
-    val certIds = remember { CertificateOrchestrator.getCertificateIDs(context) }
-    val permissionsList = remember {
-        val grantedPermissions = mutableListOf<String>()
-        val packageInfo: PackageInfo = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
-        packageInfo.requestedPermissions?.let {
-            for (i in it.indices) {
-                if ((
-                        packageInfo.requestedPermissionsFlags?.get(i)
-                            ?.and(PackageInfo.REQUESTED_PERMISSION_GRANTED)
-                        ) != 0
-                ) {
-                    grantedPermissions.add(it[i])
-                }
-            }
-        }
-        grantedPermissions.toList()
-    }
-    val fleetBaseUrl = remember { appRestrictions.getString("server_url") }
-    val baseUrl by ApiClient.baseUrlFlow.collectAsStateWithLifecycle(initialValue = null)
-    val installedCerts by CertificateOrchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = { Text("Debug Information") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-            )
-        },
-        content = { paddingValues ->
-            Column(
-                Modifier
-                    .padding(paddingValues = paddingValues)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                KeyValue("packageName", context.packageName)
-                KeyValue("versionName", BuildConfig.VERSION_NAME)
-                KeyValue("longVersionCode", BuildConfig.VERSION_CODE.toString())
-                KeyValue("delegatedScopes", delegatedScopes.toString())
-                KeyValue("host_uuid (MC)", enrollmentSpecificID)
-                KeyValue("server_url (MC)", fleetBaseUrl)
-                KeyValue("server_url (DS)", baseUrl)
-                KeyValue("certificate_templates->id", certIds.toString())
-                DebugCertificateList(certificates = installedCerts)
-                PermissionList(
-                    permissionsList = permissionsList,
-                )
-            }
-        },
-    )
-}
-
-@Composable
-fun DebugCertificateList(certificates: CertStatusMap) {
-    Column {
-        Text("certificate status:", fontWeight = FontWeight.Bold)
-        certificates.forEach { (key, value) ->
-            Row(modifier = Modifier.padding(bottom = 5.dp, start = 10.dp)) {
-                Text(
-                    text = key.toString(),
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(end = 5.dp),
-                )
-                Column {
-                    Text(text = "alias: ${value.alias}")
-                    Text(text = "status: ${value.status}")
-                    Text(text = "retries: ${value.retries}")
-                }
-            }
-        }
-        HorizontalDivider()
-    }
-}
-
-@Composable
-fun PermissionList(modifier: Modifier = Modifier, permissionsList: List<String>) {
-    Column(modifier = modifier) {
-        Text(text = "permission list:", fontWeight = FontWeight.Bold)
-        permissionsList.forEach {
-            Row {
-                Text(text = "- ", modifier = Modifier.padding(end = 8.dp))
-                Text(text = it)
-            }
-        }
-    }
-}
-
-@Composable
-fun KeyValue(key: String, value: String?) {
-    Text(
-        buildAnnotatedString {
-            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                append(key)
-            }
-            append(": $value")
-        },
-    )
-    HorizontalDivider()
 }
 
 @Composable
@@ -302,7 +195,7 @@ fun LogoHeader(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) {
+fun CertificateList(modifier: Modifier = Modifier, certificates: CertificateStateMap) {
     Column(modifier = modifier.padding(all = 20.dp)) {
         Text(
             text = stringResource(R.string.certificate_list_title),
@@ -313,7 +206,7 @@ fun CertificateList(modifier: Modifier = Modifier, certificates: CertStatusMap) 
             Text(text = stringResource(R.string.certificate_list_no_certificates))
         }
         certificates.forEach { (_, value) ->
-            if (value.status == CertificateInstallStatus.INSTALLED) {
+            if (value.status == CertificateStatus.INSTALLED || value.status == CertificateStatus.INSTALLED_UNREPORTED) {
                 Text(text = value.alias)
             }
         }
@@ -352,25 +245,12 @@ fun FleetScreenPreview() {
             HorizontalDivider()
             CertificateList(
                 certificates = mapOf(
-                    1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
-                    2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
+                    1 to CertificateState(alias = "WIFI-1", status = CertificateStatus.INSTALLED),
+                    2 to CertificateState(alias = "VPN-3", status = CertificateStatus.FAILED),
                 ),
             )
             AppVersion(onClick = {})
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DebugCertificateListPreview() {
-    MyApplicationTheme {
-        DebugCertificateList(
-            certificates = mapOf(
-                1 to CertificateInstallInfo(alias = "WIFI-1", status = CertificateInstallStatus.INSTALLED),
-                2 to CertificateInstallInfo(alias = "VPN-3", status = CertificateInstallStatus.FAILED),
-            ),
-        )
     }
 }
 

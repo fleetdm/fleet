@@ -37,7 +37,7 @@ export interface ISchedulableQuery {
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {
-  performance: string;
+  performance: PerformanceImpactIndicator;
   targetedPlatforms: QueryablePlatform[];
 }
 export interface ISchedulableQueryStats {
@@ -47,6 +47,24 @@ export interface ISchedulableQueryStats {
   system_time_p95?: number | null;
   total_executions?: number;
 }
+
+export const PerformanceImpactIndicatorValue = {
+  MINIMAL: "Minimal",
+  CONSIDERABLE: "Considerable",
+  EXCESSIVE: "Excessive",
+  UNDETERMINED: "Undetermined",
+  DENYLISTED: "Denylisted",
+} as const;
+
+export type PerformanceImpactIndicator = typeof PerformanceImpactIndicatorValue[keyof typeof PerformanceImpactIndicatorValue];
+
+export const isPerformanceImpactIndicator = (
+  value: unknown
+): value is PerformanceImpactIndicator => {
+  return Object.values(PerformanceImpactIndicatorValue).includes(
+    value as PerformanceImpactIndicator
+  );
+};
 
 // legacy
 export default PropTypes.shape({
@@ -90,7 +108,7 @@ export interface ICreateQueryRequestBody {
   description?: string;
   observer_can_run?: boolean;
   discard_data?: boolean;
-  team_id?: number; // global query if undefined
+  fleet_id?: number; // global query if undefined
   interval?: number; // default 0 means never run
   platform?: CommaSeparatedPlatformString; // Might more accurately be called `platforms_to_query` – comma-separated string of platforms to query, default all platforms if omitted
   min_osquery_version?: string; // default all versions if ommitted
@@ -104,7 +122,7 @@ export interface ICreateQueryRequestBody {
 // Modify a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
 export interface IModifyQueryRequestBody
-  extends Omit<ICreateQueryRequestBody, "name" | "query" | "team_id"> {
+  extends Omit<ICreateQueryRequestBody, "name" | "query" | "fleet_id"> {
   id?: number;
   name?: string;
   query?: string;
@@ -122,7 +140,7 @@ export interface IModifyQueryRequestBody
 // Delete a query by name
 /** DELETE /api/v1/fleet/queries/{name} */
 export interface IDeleteQueryRequestBody {
-  team_id?: number; // searches for a global query if omitted
+  fleet_id?: number; // searches for a global query if omitted
 }
 
 // Delete a query by id

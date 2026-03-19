@@ -103,7 +103,7 @@ const UnenrollMdmModal = ({
     if (isIPadOrIPhone(hostPlatform)) {
       return (
         <>
-          <p>Settings configured by Fleet will be removed.</p>
+          <p>Settings and apps added by Fleet will be removed.</p>
           {generateIosOrIpadosDescription()}
         </>
       );

@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
+import createMockTeam from "__mocks__/teamMock";
 import createMockConfig from "__mocks__/configMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -75,7 +76,7 @@ describe("SaveNewQueryModal", () => {
     expect(screen.getByText("Interval")).toBeInTheDocument();
     expect(screen.getByText("Observers can run")).toBeInTheDocument();
     expect(screen.getByText("Automations off")).toBeInTheDocument();
-    expect(screen.getByText("Show advanced options")).toBeInTheDocument();
+    expect(screen.getByText("Advanced options")).toBeInTheDocument();
 
     const nameInput = screen.getByLabelText("Name");
     await user.type(nameInput, "Test Query");
@@ -96,7 +97,7 @@ describe("SaveNewQueryModal", () => {
 
     const { user } = render(<SaveNewQueryModal {...defaultProps} />);
 
-    const advancedOptionsButton = screen.getByText("Show advanced options");
+    const advancedOptionsButton = screen.getByText("Advanced options");
     await user.click(advancedOptionsButton);
 
     expect(screen.getByText("Minimum osquery version")).toBeInTheDocument();
@@ -121,7 +122,7 @@ describe("SaveNewQueryModal", () => {
 
     await user.click(screen.getByText("Save"));
 
-    expect(screen.getByText("Query name must be present")).toBeInTheDocument();
+    expect(screen.getByText("Report name must be present")).toBeInTheDocument();
   });
 
   it("should not show the target selector in the free tier", async () => {
@@ -221,6 +222,7 @@ describe("SaveNewQueryModal", () => {
       context: {
         app: {
           currentUser: createMockUser(),
+          currentTeam: createMockTeam(),
           isGlobalObserver: false,
           isGlobalAdmin: true,
           isGlobalMaintainer: false,

@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
@@ -48,8 +49,8 @@ const AdminWrapper = ({
       exclude: isSandboxMode,
     },
     {
-      name: "Teams",
-      pathname: PATHS.ADMIN_TEAMS,
+      name: "Fleets",
+      pathname: PATHS.ADMIN_FLEETS,
       exclude: !isPremiumTier,
     },
   ];

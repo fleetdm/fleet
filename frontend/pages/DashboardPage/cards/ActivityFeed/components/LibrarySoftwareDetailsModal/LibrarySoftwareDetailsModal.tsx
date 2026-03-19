@@ -2,6 +2,7 @@ import React from "react";
 
 import { IActivityDetails } from "interfaces/activity";
 import { ILabelSoftwareTitle } from "interfaces/label";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -86,36 +87,37 @@ const LibrarySoftwareDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <DataSet
-            title="Name"
-            value={details.software_display_name || details.software_title}
-          />
-          <DataSet title="Package name" value={details.software_package} />
-          <DataSet
-            title="Self-Service"
-            value={details.self_service ? "Yes" : "No"}
-          />
-          <DataSet
-            title={
-              <TargetTitle
-                labelIncludeAny={labels_include_any}
-                labelExcludeAny={labels_exclude_any}
-              />
-            }
-            value={
-              <TargetValue
-                labelIncludeAny={labels_include_any}
-                labelExcludeAny={labels_exclude_any}
-              />
-            }
-          />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
-      </>
+      <div className={`${baseClass}__modal-content`}>
+        <DataSet
+          title="Name"
+          value={getDisplayedSoftwareName(
+            details.software_title,
+            details.software_display_name
+          )}
+        />
+        <DataSet title="Package name" value={details.software_package} />
+        <DataSet
+          title="Self-Service"
+          value={details.self_service ? "Yes" : "No"}
+        />
+        <DataSet
+          title={
+            <TargetTitle
+              labelIncludeAny={labels_include_any}
+              labelExcludeAny={labels_exclude_any}
+            />
+          }
+          value={
+            <TargetValue
+              labelIncludeAny={labels_include_any}
+              labelExcludeAny={labels_exclude_any}
+            />
+          }
+        />
+      </div>
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Done</Button>
+      </div>
     </Modal>
   );
 };

@@ -208,7 +208,7 @@ hello world
 			name:         "script-path and team disallowed",
 			scriptPath:   generateValidPath,
 			teamID:       ptr.Uint(1),
-			expectErrMsg: `Only one of '--script-path' or '--team' is allowed.`,
+			expectErrMsg: `Only one of '--script-path' or '--fleet' is allowed.`,
 		},
 		{
 			name:         "script empty",
@@ -367,6 +367,9 @@ Fleet records the last 10,000 characters to prevent downtime.
 		ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 			return false, nil
 		}
+		ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+			return nil, nil
+		}
 		if c.name == "disabled scripts globally" {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}, nil
@@ -417,7 +420,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 
 			if c.teamID != nil {
-				args = append(args, "--team", fmt.Sprintf("%d", *c.teamID))
+				args = append(args, "--fleet", fmt.Sprintf("%d", *c.teamID))
 			}
 
 			b, err := RunAppNoChecks(args)

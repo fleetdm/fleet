@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +19,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
@@ -23,6 +27,10 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -30,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -38,22 +47,26 @@ import (
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,11 +81,12 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, kitlog.NewNopLogger(), fleetConfig.Filesystem.EnableLogRotation, fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
+	logger := slog.New(slog.DiscardHandler)
+	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
+		fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
 
 	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
-	logger := kitlog.NewNopLogger()
 
 	var (
 		failingPolicySet                fleet.FailingPolicySet        = NewMemFailingPolicySet()
@@ -275,6 +289,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 
 	}
+
+	// Set up mock activity service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
+	activityMock := &fleet_mock.MockActivityService{
+		NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		},
+	}
+	svc.SetActivityService(activityMock)
+	if len(opts) > 0 {
+		opts[0].ActivityMock = activityMock
+	}
+
 	return svc, ctx
 }
 
@@ -376,7 +403,7 @@ type ConditionalAccess struct {
 }
 
 type TestServerOpts struct {
-	Logger                          kitlog.Logger
+	Logger                          *slog.Logger
 	License                         *fleet.LicenseInfo
 	SkipCreateTestUsers             bool
 	Rs                              fleet.QueryResultStore
@@ -405,7 +432,7 @@ type TestServerOpts struct {
 	KeyValueStore                   fleet.KeyValueStore
 	EnableSCEPProxy                 bool
 	WithDEPWebview                  bool
-	FeatureRoutes                   []endpoint_utils.HandlerRoutesFunc
+	FeatureRoutes                   []endpointer.HandlerRoutesFunc
 	SCEPConfigService               fleet.SCEPConfigService
 	DigiCertService                 fleet.DigiCertService
 	EnableSCIM                      bool
@@ -414,6 +441,11 @@ type TestServerOpts struct {
 	androidMockClient               *android_mock.Client
 	androidModule                   android.Service
 	ConditionalAccess               *ConditionalAccess
+	DBConns                         *common_mysql.DBConnections
+
+	// ActivityMock is populated automatically by newTestServiceWithConfig.
+	// After setup, tests can use it to intercept or assert on activity creation.
+	ActivityMock *fleet_mock.MockActivityService
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -441,13 +473,32 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
 	}
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
 
 	if len(opts) > 0 {
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+	}
+
+	// Add activity routes if DBConns is provided
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		legacyAuthorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
+		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+		activitySvc, activityRoutesFn := activity_bootstrap.New(
+			opts[0].DBConns,
+			activityAuthorizer,
+			activityACLAdapter,
+			logger,
+		)
+		svc.SetActivityService(activitySvc)
+		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, next)
+		}
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
 	}
 
 	var mdmPusher nanomdm_push.Pusher
@@ -474,8 +525,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		scepStorage := opts[0].SCEPStorage
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
-			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
+			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
+			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
+			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
+			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
@@ -521,7 +575,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		rootMux.Handle("/", frontendHandler)
 	}
 
-	var featureRoutes []endpoint_utils.HandlerRoutesFunc
+	var featureRoutes []endpointer.HandlerRoutesFunc
 	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
 		featureRoutes = opts[0].FeatureRoutes
 	}
@@ -531,16 +585,18 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
 		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
 		var httpSigVerifier func(http.Handler) http.Handler
-		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature,
+			logger.With("component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
 
 	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
 		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
-		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg))
+		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg, limitStore))
 	}
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
+	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
@@ -549,7 +605,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
-	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
+	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
@@ -894,12 +950,19 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
+		{"POST", "/api/latest/fleet/software/web_apps", false, true},
 	}
 }
 
 func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",
+	}
+}
+
+func androidMDMConfigurationRequiredEndpoints() []string {
+	return []string{
+		"/api/latest/fleet/software/web_apps",
 	}
 }
 
@@ -1285,20 +1348,38 @@ func createAndroidDeviceID(name string) string {
 }
 
 func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
-	return messageWithEnterpriseSpecificID(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID)
+	return messageWithAndroidIdentifiers(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID, "")
 }
 
 func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
-	return messageWithEnterpriseSpecificID(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID)
+	return messageWithAndroidIdentifiers(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID, "")
 }
 
-func messageWithEnterpriseSpecificID(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+func statusReportMessageWithSerialNumber(t *testing.T, deviceInfo androidmanagement.Device, serialNumber string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubStatusReport, deviceInfo, "", serialNumber)
+}
+
+func enrollmentMessageWithSerialNumber(t *testing.T, deviceInfo androidmanagement.Device, serialNumber string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubEnrollment, deviceInfo, "", serialNumber)
+}
+
+func messageWithAndroidIdentifiers(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID, serialNumber string) *android.PubSubMessage {
+	if serialNumber == "" && enterpriseSpecificID == "" || serialNumber != "" && enterpriseSpecificID != "" {
+		t.Fatalf("exactly one of serialNumber or enterpriseSpecificID must be provided")
+	}
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
-		EnterpriseSpecificId: enterpriseSpecificID,
-		Brand:                "TestBrand",
-		Model:                "TestModel",
-		SerialNumber:         "test-serial",
-		Hardware:             "test-hardware",
+		Brand:    "TestBrand",
+		Model:    "TestModel",
+		Hardware: "test-hardware",
+	}
+	if enterpriseSpecificID != "" {
+		deviceInfo.Ownership = android_service.DeviceOwnershipPersonallyOwned
+		deviceInfo.HardwareInfo.EnterpriseSpecificId = enterpriseSpecificID
+		deviceInfo.HardwareInfo.SerialNumber = enterpriseSpecificID
+	}
+	if serialNumber != "" {
+		deviceInfo.Ownership = android_service.DeviceOwnershipCompanyOwned
+		deviceInfo.HardwareInfo.SerialNumber = serialNumber
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
 		AndroidBuildNumber: "test-build",
@@ -1338,4 +1419,84 @@ func messageWithEnterpriseSpecificID(t *testing.T, notificationType android.Noti
 		},
 		Data: encodedData,
 	}
+}
+
+type fmaTestState struct {
+	version        string
+	installerBytes []byte
+	sha256         string
+	installerPath  string
+}
+
+func (s *fmaTestState) ComputeSHA(b []byte) {
+	h := sha256.New()
+	h.Write(b)
+	s.sha256 = hex.EncodeToString(h.Sum(nil))
+}
+
+func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) {
+	if len(states) == 0 {
+		states = make(map[string]*fmaTestState, 1)
+		states["/zoom/windows.json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/zoom.msi",
+		}
+	}
+
+	statesByInstallerPath := make(map[string]*fmaTestState, len(states))
+	for _, state := range states {
+		state.ComputeSHA(state.installerBytes)
+		statesByInstallerPath[state.installerPath] = state
+	}
+	var downloadMu sync.Mutex
+
+	// Mock installer server — routes by path to serve per-FMA bytes.
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloadMu.Lock()
+		defer downloadMu.Unlock()
+
+		state, found := statesByInstallerPath[r.URL.Path]
+		if !found {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write(state.installerBytes)
+	}))
+
+	// call Refresh directly (instead of SyncApps) since we're using the server above and not the file server
+	// created in SyncApps
+	err := maintained_apps.Refresh(t.Context(), ds, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var state *fmaTestState
+		state, found := states[r.URL.Path]
+		if !found {
+			http.NotFound(w, r)
+			return
+		}
+
+		versions := []*ma.FMAManifestApp{
+			{
+				Version:            state.version,
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerServer.URL + state.installerPath,
+				InstallScriptRef:   "foobaz",
+				UninstallScriptRef: "foobaz",
+				SHA256:             state.sha256,
+				DefaultCategories:  []string{"Productivity"},
+			},
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs:     map[string]string{"foobaz": "Hello World!"},
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	t.Cleanup(func() {
+		manifestServer.Close()
+		installerServer.Close()
+	})
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 }

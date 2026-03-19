@@ -49,6 +49,7 @@ export interface ITeam extends ITeamSummary {
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
     enable_disk_encryption: boolean;
+    enable_recovery_lock_password: boolean;
     windows_require_bitlocker_pin: boolean;
     macos_updates: IAppleDeviceUpdates;
     ios_updates: IAppleDeviceUpdates;
@@ -64,6 +65,7 @@ export interface ITeam extends ITeamSummary {
       enable_release_device_manually: boolean | null;
       manual_agent_install: boolean | null;
       require_all_software_macos: boolean | null;
+      lock_end_user_info: boolean | null;
     };
     windows_updates: {
       deadline_days: number | null;
@@ -130,14 +132,14 @@ export const API_ALL_TEAMS_ID = undefined;
 export const APP_CONTEXT_ALL_TEAMS_ID = -1;
 export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_ALL_TEAMS_ID,
-  name: "All teams",
+  name: "All fleets",
 } as const;
 
 export const API_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_NO_TEAM_ID,
-  name: "No team",
+  name: "Unassigned",
 } as const;
 
 export const isAnyTeamSelected = (currentTeamId?: number) =>

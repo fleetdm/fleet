@@ -20,6 +20,8 @@ class SelectTargetsInput extends Component {
     onTargetSelectInputChange: PropTypes.func,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targets: PropTypes.arrayOf(targetInterface),
+    arrowRenderer: PropTypes.func,
+    clearRenderer: PropTypes.func,
   };
 
   constructor(props) {
@@ -83,6 +85,8 @@ class SelectTargetsInput extends Component {
       onOpen,
       onFocus,
       onTargetSelect,
+      arrowRenderer,
+      clearRenderer,
     } = this.props;
     const { uuidTargets, uuidSelectedTargets } = this.state;
     const { handleInputChange } = this;
@@ -109,6 +113,9 @@ class SelectTargetsInput extends Component {
         tabSelectsValue={false}
         value={uuidSelectedTargets}
         valueKey="uuid" // must be unique, target ids are not unique
+        arrowRenderer={arrowRenderer}
+        clearRenderer={clearRenderer}
+        clearable
       />
     );
   }

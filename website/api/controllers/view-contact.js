@@ -18,12 +18,20 @@ module.exports = {
 
     success: {
       viewTemplatePath: 'pages/contact'
-    }
+    },
+
+    badConfig: {
+      responseType: 'badConfig'
+    },
 
   },
 
 
   fn: async function ({sendMessage}) {
+
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.openPositions)) {
+      throw {badConfig: 'builtStaticContent.openPositions'};
+    }
 
     let formToShow = 'talk-to-us';
 
@@ -40,11 +48,16 @@ module.exports = {
     if(sendMessage) {
       formToShow = 'contact';
     }
+
+    let currentOpenPositionsForApplicationDropdown = _.pluck(sails.config.builtStaticContent.openPositions, 'jobTitle');
+
+
     // Respond with view.
     return {
       formToShow,
       userIsLoggedIn,
-      userHasPremiumSubscription
+      userHasPremiumSubscription,
+      currentOpenPositionsForApplicationDropdown
     };
 
   }

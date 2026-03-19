@@ -223,7 +223,7 @@ describe("getStatusMessage helper function", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows macOS update tip when app is already installed", () => {
+  it("treats failed_install as installed when app is already installed on macOS", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -233,24 +233,19 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "darwin",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
+
+    expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
+    expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/The host acknowledged the MDM command to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/but the app failed to install/i)
-    ).toBeInTheDocument();
-    // Text is split by TooltipWrapper, so check for the parts separately
-    expect(
-      screen.getByText(/If you're updating the app and the app is open,/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/close it/i)).toBeInTheDocument();
-    expect(screen.getByText(/and try again\./i)).toBeInTheDocument();
+      screen.queryByText(/If you're updating the app and the app is open/i)
+    ).not.toBeInTheDocument();
   });
 
-  it("doesn't show update tip when app is already installed on iOS", () => {
+  it("treats failed_install as installed when app is already installed on iOS", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -260,21 +255,19 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's iPhone",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "ios",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
+
+    expect(screen.getByText(/Slack/i)).toBeInTheDocument();
+    expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/The host acknowledged the MDM command to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/but the app failed to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/If you're updating the app and the app is open/i)
+      screen.queryByText(/The host acknowledged the MDM command to install/i)
     ).not.toBeInTheDocument();
   });
 
-  it("doesn't show update tip when app is already installed on iPadOS", () => {
+  it("treats failed_install as installed when app is already installed on iPadOS", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -284,15 +277,39 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's iPad",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "ipados",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
+
+    expect(screen.getByText(/Slack/i)).toBeInTheDocument();
+    expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/The host acknowledged the MDM command to install/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/The host acknowledged the MDM command to install/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides macOS update tip when failed_install and app is already installed", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "darwin",
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
+      })
+    );
+
     expect(
-      screen.getByText(/but the app failed to install/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/The host acknowledged the MDM command to install/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/but the app failed to install/i)
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/If you're updating the app and the app is open/i)
     ).not.toBeInTheDocument();

@@ -5,6 +5,10 @@
     resize: vertical;
   }
 
+  &__help-text {
+    @include help-text;
+  }
+
   &__label-platform {
     font-size: $x-small;
     font-weight: $regular;

@@ -1,12 +1,13 @@
 import React, { useCallback, useState } from "react";
-import { Link } from "react-router";
+
 import PATHS from "router/paths";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { ITeam, ITeamSummary } from "interfaces/team";
+import CustomLink from "components/CustomLink";
+import { ITeam } from "interfaces/team";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;
@@ -28,7 +29,7 @@ const baseClass = "transfer-host-modal";
 
 const NO_TEAM_OPTION = {
   value: "no-team",
-  label: "No team",
+  label: "Unassigned",
 };
 
 const TransferHostModal = ({
@@ -75,50 +76,43 @@ const TransferHostModal = ({
   };
 
   return (
-    <Modal
-      onExit={onCancel}
-      title={`Transfer host${multipleHosts ? "s" : ""}`}
-      className={baseClass}
-    >
-      <>
-        <form className={`${baseClass}__form`}>
-          <Dropdown
-            wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
-            label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
-            value={selectedTeam && selectedTeam.id}
-            options={createTeamDropdownOptions()}
-            onChange={onChangeSelectTeam}
-            placeholder="Select a team"
-            searchable
-            autoFocus
-          />
-          {isGlobalAdmin ? (
-            <p>
-              Team not here?{" "}
-              <Link
-                to={PATHS.ADMIN_TEAMS}
-                className={`${baseClass}__team-link`}
-              >
-                Create a team
-              </Link>
-            </p>
-          ) : null}
-          <div className="modal-cta-wrap">
-            <Button
-              disabled={selectedTeam === undefined}
-              type="button"
-              onClick={onSubmitTransferHost}
-              className="transfer-loading"
-              isLoading={isUpdating}
-            >
-              Transfer
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </>
+    <Modal onExit={onCancel} title="Transfer" className={baseClass}>
+      <form className={`${baseClass}__form`}>
+        <Dropdown
+          wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
+          label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
+          value={selectedTeam && selectedTeam.id}
+          options={createTeamDropdownOptions()}
+          onChange={onChangeSelectTeam}
+          placeholder="Select a fleet"
+          searchable
+          autoFocus
+        />
+        {isGlobalAdmin ? (
+          <p>
+            Fleet not here?{" "}
+            <CustomLink
+              url={PATHS.ADMIN_FLEETS}
+              className={`${baseClass}__team-link`}
+              text="Create a fleet"
+            />
+          </p>
+        ) : null}
+        <div className="modal-cta-wrap">
+          <Button
+            disabled={selectedTeam === undefined}
+            type="button"
+            onClick={onSubmitTransferHost}
+            className="transfer-loading"
+            isLoading={isUpdating}
+          >
+            Transfer
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

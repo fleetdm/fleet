@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
@@ -65,7 +64,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	}
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
-		return endpoint_utils.MailError{Message: err.Error()}
+		return MailError{Message: err.Error()}
 	}
 	return nil
 }
@@ -83,12 +82,14 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 		}
 	}
 
-	lic, _ := license.FromContext(ctx)
+	licChecker, _ := license.FromContext(ctx)
+	// Type assert to get the concrete type for modification and return
+	lic, _ := licChecker.(*fleet.LicenseInfo)
 
 	// Currently we use the presence of Microsoft Compliance Partner settings
 	// (only configured in cloud instances) to determine if a Fleet instance
 	// is a cloud managed instance.
-	if svc.config.MicrosoftCompliancePartner.IsSet() {
+	if lic != nil && svc.config.MicrosoftCompliancePartner.IsSet() {
 		lic.ManagedCloud = true
 	}
 
@@ -218,6 +219,16 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					ResultTopic: conf.KafkaREST.ResultTopic,
 					AuditTopic:  conf.KafkaREST.AuditTopic,
 					ProxyHost:   conf.KafkaREST.ProxyHost,
+				},
+			}
+		case "nats":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "nats",
+				Config: fleet.NatsConfig{
+					StatusSubject: conf.Nats.StatusSubject,
+					ResultSubject: conf.Nats.ResultSubject,
+					AuditSubject:  conf.Nats.AuditSubject,
+					Server:        conf.Nats.Server,
 				},
 			}
 		default:

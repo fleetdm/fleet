@@ -21,12 +21,3 @@ type DBReader interface {
 	Close() error
 	Rebind(string) string
 }
-
-// DBReadTx provides a minimal interface for a read-only transaction that exposes
-// only the methods required for reads
-type DBReadTx interface {
-	sqlx.QueryerContext
-	sqlx.PreparerContext
-
-	Rebind(string) string
-}

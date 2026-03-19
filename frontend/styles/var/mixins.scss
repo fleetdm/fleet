@@ -45,17 +45,6 @@ $max-width: 2560px;
   padding: $pad-xxlarge 0 54px 0;
 }
 
-@mixin grey-badge {
-  background-color: $ui-fleet-black-25;
-  color: $core-fleet-white;
-  font-size: $xx-small;
-  font-weight: $bold;
-  padding: 0 $pad-xsmall;
-  border-radius: $border-radius;
-  position: relative;
-  margin-left: $pad-xsmall;
-}
-
 // Used to create a list item with the item data (name, created at, etc...) on
 // the left and the item actions (download, delete, etc...) on the right.
 @mixin list-item {
@@ -118,11 +107,16 @@ $max-width: 2560px;
   }
 }
 
-@mixin disabled {
+@mixin disabled($allow-pointer-events: false) {
   opacity: 0.5;
   filter: grayscale(0.5);
-  pointer-events: none;
   cursor: default;
+
+  @if $allow-pointer-events {
+    pointer-events: auto; // Allows text selection/scroll in disabled state
+  } @else {
+    pointer-events: none;
+  }
 
   // Must override
   &:hover,
@@ -207,6 +201,7 @@ $max-width: 2560px;
   border: solid 1px #e2e4ea;
   border-radius: 10px;
   padding: 2px 6px;
+  margin: -4px 0;
 }
 
 @mixin color-contrasted-sections {
@@ -244,6 +239,12 @@ $max-width: 2560px;
   p {
     margin: 0;
   }
+}
+
+@mixin flex-column-32px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: px-to-rem(32);
 }
 
 @mixin flex-column-24px-gap {
@@ -543,19 +544,4 @@ $max-width: 2560px;
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
   background-color: #fff; // area below gradient will just be white
-}
-
-@mixin content-wrapper {
-  .outer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-large;
-  }
-  .inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-small;
-  }
 }

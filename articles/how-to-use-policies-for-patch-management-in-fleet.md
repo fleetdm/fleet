@@ -2,7 +2,7 @@
 
 ![How to use policies for patch management in Fleet](../website/assets/images/articles/sysadmin-diaries-1600x900@2x.png)
 
-Policies in Fleet enable IT admins to query devices and get quick yes or no answers about the status of their endpoints. Powered by the flexibility of osquery, the policies engine has become an invaluable part of the IT toolkit, simplifying the management of devices at scale.
+Policies in Fleet enable IT admins to report on devices and get quick yes or no answers about the status of their endpoints. Powered by the flexibility of osquery, the policies engine has become an invaluable part of the IT toolkit, simplifying the management of devices at scale.
 
 Initially, Fleet’s policies allowed for automated responses, like firing a webhook on a policy failure or creating a ticket in your ITSM system. While effective, these actions were limited by the capabilities of your existing tools to process and act on these notifications.
 
@@ -14,7 +14,7 @@ In this article, we’ll explore how to leverage this new feature to automate pa
 
 ## Why it matters
 
-Around 60% of data breaches in 2023 involved vulnerabilities for which patches were available but not applied, underscoring the impact of delayed patch management.1
+Around [60% of data breaches in 2023](https://www.automox.com/blog/bad-cyber-hygiene-breaches-tied-to-unpatched-vulnerabilities) involved vulnerabilities for which patches were available but not applied, underscoring the impact of delayed patch management.
 
 Regular updates often include bug fixes that improve stability and enhance user experience, allowing employees to work without disruptions. These updates also make sure compatibility with other applications, preventing integration issues that could impact workflows. 
 
@@ -24,11 +24,11 @@ Additionally, updated software often includes new features that can ultimately h
 
 In this article, we will be using Google Chrome to demonstrate the functionality, and I already have the latest version’s .pkg downloaded locally.
 
-Select the team you want the policy to run on. Navigate to **Software > Add Software**. Here you can use one of Fleet’s maintained apps, add from VPP or Custom Package. We will use Custom Package in this example and upload the Google Chrome.pkg mentioned previously. After upload, there are a couple of options for pre/post-install queries and scripts - you can read more about those options in our [guide on deploying software](https://fleetdm.com/guides/deploy-software-packages).
+Select the fleet you want the policy to run on. Navigate to **Software > Add Software**. Here you can use one of Fleet’s maintained apps, add from VPP or Custom Package. We will use Custom Package in this example and upload the Google Chrome.pkg mentioned previously. After upload, there are a couple of options for pre/post-install queries and scripts - you can read more about those options in our [guide on deploying software](https://fleetdm.com/guides/deploy-software-packages).
 
-Navigate to **Policies**, select the team you want the policy to run in.
+Navigate to **Policies**, select the fleet you want the policy to run in.
 
-Assume we want to bring all devices in this team to the latest version of Chrome we uploaded to Fleet, which as of writing this, is 130.0.6723.70.
+Assume we want to bring all devices in this fleet to the latest version of Chrome we uploaded to Fleet, which as of writing this, is 130.0.6723.70.
 
 Your policy query would look something like this:
 
@@ -44,7 +44,7 @@ _macOS - Update Google Chrome to Latest_
 
 With the policy set, we can tie in the automation. Back on the main policy page, select **Manage automations > Install software**.
 
-The module will show the policies available for that team. Check the box to turn on automation, and from the dropdown, select the software that will be installed on the failure. The dropdown will show all available software in that team - plus its supported OS and version.
+The module will show the policies available for that fleet. Check the box to turn on automation, and from the dropdown, select the software that will be installed on the failure. The dropdown will show all available software in that fleet - plus its supported OS and version.
 
 And that’s it! Policies are evaluated across all online hosts every hour, or when a device is refetched manually. Any machine that fails this policy will install the Chrome version that was set in the policy.
 
@@ -70,15 +70,12 @@ Info about the [Upload software](https://fleetdm.com/docs/rest-api/rest-api#add-
 
 Fleet's flexible API and support for a GitOps life cycle means this entire process can be stored and managed in code, further unlocking audibility, collaboration, and security. Know who made changes, when, and why—without being tied to vendor-specific methods. 
 
-Nest an **install_software** block in the policy you want to automate and ensure the path to the software matches the same path referenced in the team configuration file under the software block. Check out the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for more details.
+Nest an **install_software** block in the policy you want to automate and ensure the path to the software matches the same path referenced in the fleet configuration file under the software block. Check out the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for more details.
 
 ## Want to know more?
 
 Reach out for more information and a demo, or explore Fleet's detailed [documentation](https://fleetdm.com/docs/get-started/why-fleet). 
 
-Sources
-
-1. https://www.automox.com/blog/bad-cyber-hygiene-breaches-tied-to-unpatched-vulnerabilities
 
 <meta name="articleTitle" value="How to use policies for patch management in Fleet">
 <meta name="authorFullName" value="Harrison Ravazzolo">

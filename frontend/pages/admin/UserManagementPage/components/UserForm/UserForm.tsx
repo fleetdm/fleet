@@ -1,11 +1,4 @@
-import React, {
-  FormEvent,
-  useState,
-  useEffect,
-  useContext,
-  useRef,
-} from "react";
-import { Link } from "react-router";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
@@ -106,7 +99,7 @@ const validate = (
   if (!validatePresence(email)) {
     newErrors.email = "Email field must be completed";
   } else if (!validEmail(email)) {
-    newErrors.email = `${email} is not a valid email`;
+    newErrors.email = "Email is not a valid email";
   }
 
   const isNewAdminCreatedUserWithoutSSO =
@@ -158,17 +151,6 @@ const UserForm = ({
   ancestorErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
-  // For scrollable modal
-  const [isTopScrolling, setIsTopScrolling] = useState(false);
-  const topDivRef = useRef<HTMLDivElement>(null);
-  const checkScroll = () => {
-    if (topDivRef.current) {
-      const isScrolling =
-        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
-      setIsTopScrolling(isScrolling);
-    }
-  };
-
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
   const priMode = config?.partnerships?.enable_primo;
@@ -213,13 +195,6 @@ const UserForm = ({
     }
   }, []);
 
-  // For scrollable modal (re-rerun when formData changes)
-  useEffect(() => {
-    checkScroll();
-    window.addEventListener("resize", checkScroll);
-    return () => window.removeEventListener("resize", checkScroll);
-  }, [formData]);
-
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
@@ -253,19 +228,6 @@ const UserForm = ({
         initiallyPasswordAuth
       )
     );
-  };
-
-  // Used to show entire dropdown when a dropdown menu is open in scrollable component of a modal
-  // menuPortalTarget solution not used as scrolling is weird
-  const scrollToFitDropdownMenu = () => {
-    if (topDivRef?.current) {
-      setTimeout(() => {
-        if (topDivRef.current) {
-          topDivRef.current.scrollTop =
-            topDivRef.current.scrollHeight - topDivRef.current.clientHeight;
-        }
-      }, 50); // Delay needed for scrollHeight to update first
-    }
   };
 
   const onRadioChange = (formField: string): ((evt: string) => void) => {
@@ -361,7 +323,7 @@ const UserForm = ({
     // separate from `validate` function as it uses `renderFlash` hook, incompatible with pure
     // `validate` function
     if (!formData.global_role && !formData.teams.length) {
-      renderFlash("error", `Please select at least one team for this user.`);
+      renderFlash("error", `Please select at least one fleet for this user.`);
       return;
     }
     const errs = validate(
@@ -382,7 +344,10 @@ const UserForm = ({
     return (
       <>
         {isPremiumTier && (
-          <InfoBanner className={`${baseClass}__user-permissions-info`}>
+          <InfoBanner
+            color="grey"
+            className={`${baseClass}__user-permissions-info`}
+          >
             <p>
               Global users can manage or observe all users, entities, and
               settings in Fleet.
@@ -407,7 +372,6 @@ const UserForm = ({
             }
           }}
           isSearchable={false}
-          onMenuOpen={scrollToFitDropdownMenu}
         />
       </>
     );
@@ -417,17 +381,16 @@ const UserForm = ({
     return (
       <div>
         <p>
-          <strong>You have no teams.</strong>
+          <strong>You have no fleets.</strong>
         </p>
         <p>
-          Expecting to see teams? Try again in a few seconds as the system
+          Expecting to see fleets? Try again in a few seconds as the system
           catches up or&nbsp;
-          <Link
+          <CustomLink
             className={`${baseClass}__create-team-link`}
-            to={PATHS.ADMIN_TEAMS}
-          >
-            create a team
-          </Link>
+            url={PATHS.ADMIN_FLEETS}
+            text="create a fleet"
+          />
           .
         </p>
       </div>
@@ -440,10 +403,13 @@ const UserForm = ({
         {!!availableTeams.length &&
           (isModifiedByGlobalAdmin ? (
             <>
-              <InfoBanner className={`${baseClass}__user-permissions-info`}>
+              <InfoBanner
+                color="grey"
+                className={`${baseClass}__user-permissions-info`}
+              >
                 <p>
-                  Users can manage or observe team-specific users, entities, and
-                  settings in Fleet.
+                  Users can manage or observe fleet-specific users, entities,
+                  and settings in Fleet.
                 </p>
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
@@ -457,7 +423,6 @@ const UserForm = ({
                 usersCurrentTeams={formData.teams}
                 onFormChange={onSelectedTeamChange}
                 isApiOnly={isApiOnly}
-                onMenuOpen={scrollToFitDropdownMenu}
               />
             </>
           ) : (
@@ -467,7 +432,6 @@ const UserForm = ({
               defaultTeamRole={defaultTeamRole || "Observer"}
               onFormChange={onTeamRoleChange}
               isApiOnly={isApiOnly}
-              onMenuOpen={scrollToFitDropdownMenu}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}
@@ -477,8 +441,8 @@ const UserForm = ({
 
   if (!isPremiumTier && !isGlobalUser) {
     console.log(
-      `Note: Fleet Free UI does not have teams options.\n
-        User ${formData.name} is already assigned to a team and cannot be reassigned without access to Fleet Premium UI.`
+      `Note: Fleet Free UI does not have fleets options.\n
+        User ${formData.name} is already assigned to a fleet and cannot be reassigned without access to Fleet Premium UI.`
     );
   }
 
@@ -706,7 +670,7 @@ const UserForm = ({
           />
           <Radio
             className={`${baseClass}__radio-input`}
-            label="Assign team(s)"
+            label="Assign to fleet(s)"
             id="assign-teams"
             checked={!isGlobalUser}
             value={UserTeamType.AssignTeams}
@@ -730,7 +694,7 @@ const UserForm = ({
         />
         <Radio
           className={`${baseClass}__radio-input`}
-          label="Assign team(s)"
+          label={`Assign to fleet(s)`}
           id="assign-teams"
           checked={!isGlobalUser}
           value={UserTeamType.AssignTeams}
@@ -745,7 +709,7 @@ const UserForm = ({
   const renderPremiumRoleOptions = () => (
     <>
       <div className="form-field team-field">
-        <div className="form-field__label">Team</div>
+        <div className="form-field__label">Permissions</div>
         {isModifiedByGlobalAdmin ? (
           renderGlobalAdminOptions()
         ) : (
@@ -756,9 +720,9 @@ const UserForm = ({
     </>
   );
 
-  const renderScrollableContent = () => {
+  const renderFormContent = () => {
     return (
-      <div className={baseClass} ref={topDivRef}>
+      <div className={baseClass}>
         <form autoComplete="off">
           {isNewUser && renderAccountSection()}
           {renderNameAndEmailSection()}
@@ -778,7 +742,6 @@ const UserForm = ({
 
   const renderFooter = () => (
     <ModalFooter
-      isTopScrolling={isTopScrolling}
       primaryButtons={
         <>
           <Button onClick={onCancel} variant="inverse">
@@ -801,7 +764,7 @@ const UserForm = ({
 
   return (
     <>
-      {renderScrollableContent()}
+      {renderFormContent()}
       {renderFooter()}
     </>
   );

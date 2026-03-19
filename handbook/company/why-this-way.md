@@ -178,6 +178,14 @@ Here are a few of the drawbacks that we have experienced when generating docs vi
 - Autogenerating docs from code comments is not always the best way to make sure reference docs accurately reflect the API.
 - As the Fleet REST API, documentation, and tools mature, a more declarative format such as OpenAPI might become the source of truth, but only after investing in a format and processes to make it continually accurate as well as visible, accessible, and modifiable for all contributors.
 
+## Why no YAML schema for GitOps? 
+
+Fleet intentionally doesn’t use a formal YAML schema (ex. [JSON Schema](https://json-schema.org/)) for GitOps. While a schema might appear cleaner, it adds tooling, automation, and maintenance overhead that slows development. For the problem we’re solving, catching extraneous or misplaced keys, it’s simpler and faster to [validate directly in code](https://github.com/fleetdm/fleet/blob/49a6598acdb0c296bd85307614c3cce7be510017/pkg/spec/gitops_validate_test.go) with explicit checks at each level of the YAML.
+
+This approach also produces better error messages. Most of our users encounter validation failures in CI logs or GitHub Actions, not in an editor with autocomplete. Generic schema errors can be confusing, especially for people new to GitOps or YAML. Procedural validation lets Fleet return clear, specific messages: a key is misspelled, it’s in the wrong section, or these are the valid keys allowed here.
+
+Keeping validation in code also makes the behavior easier to understand and change. Engineers can see exactly when validation runs and what conditions are checked, and each validation can return a tailored message that teaches the user how to fix the configuration.
+
 
 ## Why group Slack channels?
 
@@ -319,6 +327,13 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
+## Why work with customer X?
+
+At Fleet, we inspire ourselves to be helpers to everyone, even if some might disagree with their personal beliefs or particular OKRs of their organization.  Fleet is open source so everyone can use it and contribute.  And the company is built by different contributors from many walks of life and with unique perspectives.
+
+That said, for example, if a Fleetie struggled with a gambling issue in their past, it might be hard for them to provide customer support to the IT team of a large chain of casinos. So when business allows, Fleet accommodates by pairing team members with the customers where they can provide the most value.
+
+
 ## Why does Fleet support query packs?
 
 As originally envisioned by Zach Wasserman and the team when creating osquery, packs are a way to import and export queries into (and out of!) any platform that speaks osquery, whether that's Fleet, [Security Onion](https://securityonionsolutions.com/), an EDR, or even Rapid7. Queries [should be portable](https://github.com/fleetdm/fleet/blob/f711e60de47c69ab8be5bc13cf73fedf88adc338/README.md#lighter-than-air) to minimize lock-in to particular tools.
@@ -363,6 +378,11 @@ Avoid using too many unnecessary words or superlatives, so your writing is short
  There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
 </blockquote>
 
+## Why roles instead of fully custom RBAC for UI permissions?
+
+Fleet won’t offer fully custom, per-action role-based access control (RBAC) in the UI. Instead, we ship a small set of roles that match real job functions (IT Admin, Security Analyst, Help Desk, etc.). Most teams don’t want to design and maintain a permission matrix. They want clear responsibilities, fast onboarding, simpler audits, and fewer ways to misconfigure access. Opinionated roles keep the product easier to use, document, support, and evolve without breaking bespoke setups.
+
+For strict least-privilege needs, Fleet will provide granular API-only permissions (coming soon). This way, Security teams can issue tightly scoped API tokens for automation and integrations while the UI stays simple and human-friendly.
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
 
@@ -388,7 +408,9 @@ By saying "configuration profile," Fleet has one, cross-platform name for a feat
 
 ## Why not mention the CEO in Slack threads?
 
-Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+> UPDATE: Thanks to the addition of some recent executive hires, the CEO is currently able to keep up with threads again.
+
+<!-- Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
 Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
 
@@ -410,7 +432,14 @@ Keep in mind I am often in meetings all day, and may not be able to reply prompt
 When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
 Thank you so much!" 🙇
 </blockquote> 
+-->
 
+## Why "multi-platform" instead of "cross-platform"?
+
+The device management industry has long suffered under the "cross platform" myth: that everything can be normalized and work exactly the same, whether you're running macOS, Windows, Linux, iOS, or Android.
+
+While Fleet aims to normalize across platforms where possible, there are inevitably times you need to go deeper.  In Fleet, rather than pretend that the world is truly "cross-platform", by using the phrase "multi-platform", we can communicate how Fleet supports the best in breed functionality for each platform, all the way down to the bare metal.
+  
 
 #### Stubs
 

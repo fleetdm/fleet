@@ -12,10 +12,7 @@ import {
 } from "interfaces/software";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
-import softwareAPI, {
-  MAX_FILE_SIZE_BYTES,
-  MAX_FILE_SIZE_MB,
-} from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -54,10 +51,13 @@ interface IEditSoftwareModalProps {
   installerType: InstallerType;
   router: InjectedRouter;
   openViewYamlModal: () => void;
+  isFleetMaintainedApp?: boolean;
   isIosOrIpadosApp?: boolean;
+  gitOpsModeEnabled?: boolean;
   name: string;
   displayName: string;
   source?: string;
+  iconUrl?: string | null;
 }
 
 const EditSoftwareModal = ({
@@ -69,15 +69,23 @@ const EditSoftwareModal = ({
   installerType,
   router,
   openViewYamlModal,
+  isFleetMaintainedApp = false,
   isIosOrIpadosApp = false,
   name,
   displayName,
   source,
+  iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  // Viewing an FMA in GitOps mode only allows viewing options, not editing
+  const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
+
+  const formClassNames = classnames(`${baseClass}__package-form`, {
+    [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,
+  });
 
   const [editSoftwareModalClasses, setEditSoftwareModalClasses] = useState(
     baseClass
@@ -121,7 +129,7 @@ const EditSoftwareModal = ({
 
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
@@ -200,15 +208,6 @@ const EditSoftwareModal = ({
   // Edit package API call
   const onEditPackage = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
-
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      setIsUpdatingSoftware(false);
-      return;
-    }
 
     try {
       await softwareAPI.editSoftwarePackage({
@@ -352,8 +351,9 @@ const EditSoftwareModal = ({
       return (
         <PackageForm
           labels={labels || []}
-          className={`${baseClass}__package-form`}
+          className={formClassNames}
           isEditingSoftware
+          isFleetMaintainedApp={isFleetMaintainedApp}
           onCancel={onExit}
           onSubmit={onClickSavePackage}
           onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
@@ -364,6 +364,7 @@ const EditSoftwareModal = ({
           defaultUninstallScript={softwarePackage.uninstall_script}
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
+          gitopsCompatible={isGitOpsCompatible}
         />
       );
     }
@@ -384,9 +385,7 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title={
-          isSoftwarePackage(softwareInstaller) ? "Edit package" : "Edit app"
-        }
+        title="Edit software"
         onExit={onExit}
         width="large"
       >
@@ -406,14 +405,19 @@ const EditSoftwareModal = ({
           name={name}
           displayName={displayName}
           source={source}
-          iconUrl={softwareInstaller.icon_url || undefined}
+          iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
           isIosOrIpadosApp={isIosOrIpadosApp}
+          mobileVersion={
+            ("latest_version" in softwareInstaller &&
+              softwareInstaller.latest_version) ||
+            softwareInstaller.version
+          }
         />
       )}
       {!!pendingPackageUpdates.software && showFileProgressModal && (
         <FileProgressModal
-          fileDetails={getFileDetails(pendingPackageUpdates.software, true)}
+          fileDetails={getFileDetails(pendingPackageUpdates.software)}
           fileProgress={uploadProgress}
         />
       )}

@@ -1,0 +1,27 @@
+{
+  "env": {
+    "MYSQL_TEST": "1",
+    "REDIS_TEST": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Read(~/.fleet/claude-projects/**)",
+      "Write(~/.fleet/claude-projects/**)",
+      "Edit(~/.fleet/claude-projects/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/goimports.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

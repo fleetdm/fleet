@@ -82,4 +82,10 @@ module.exports.policies = {
   'microsoft-proxy/view-turn-on-mdm': true,
   'view-okta-conditional-access-error': true,
   'view-fast-track': true,
+  'vpp-proxy/*': true,
+  'deliver-application-submission': true,
+  'landing-pages/*': true,
+  'deliver-gitops-workshop-request': true,
+  'view-infrastructure-as-code': true,
+  'deliver-whitepaper-download-request': true,
 };

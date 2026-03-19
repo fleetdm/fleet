@@ -19,6 +19,10 @@
     }
   }
 
+  &__filter-automation-dropdown {
+    min-width: 277px;
+  }
+
   &__manage-automations-wrapper {
     @include button-dropdown;
     .Select-multi-value-wrapper {

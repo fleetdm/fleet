@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
@@ -55,8 +55,8 @@ interface IAddTeamToVppMessage {
 
 const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
   <EmptyTable
-    header="This team isn't added to Volume Purchasing Program (VPP)"
-    info="To add App Store apps, first add this team to VPP."
+    header="This fleet isn't added to Volume Purchasing Program (VPP)"
+    info="To add App Store apps, first add this fleet to VPP."
     primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}
   />
 );
@@ -74,7 +74,7 @@ const NoVppAppsMessage = () => (
         newTab
       />
       .<br />
-      App Store apps that are already added to this team are not listed.
+      App Store apps that are already added to this fleet are not listed.
     </p>
   </div>
 );
@@ -90,6 +90,7 @@ const SoftwareAppStoreVpp = ({
 }: ISoftwareAppStoreProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
   const [
@@ -118,7 +119,10 @@ const SoftwareAppStoreVpp = ({
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () =>
+      labelsAPI
+        .summary(currentTeamId)
+        .then((res) => getCustomLabels(res.labels)),
 
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -147,7 +151,7 @@ const SoftwareAppStoreVpp = ({
 
   const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
     const queryParams = {
-      team_id: currentTeamId,
+      fleet_id: currentTeamId,
       ...(showAvailableForInstallOnly && { available_for_install: true }),
     };
 
@@ -179,10 +183,17 @@ const SoftwareAppStoreVpp = ({
         { persistOnPageChange: true }
       );
 
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["vppSoftware", currentTeamId],
+      });
+
       router.push(
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwareVppTitleId.toString()),
-          { team_id: currentTeamId }
+          { fleet_id: currentTeamId }
         )
       );
     } catch (e) {

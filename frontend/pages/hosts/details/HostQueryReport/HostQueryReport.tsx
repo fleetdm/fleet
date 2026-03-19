@@ -39,7 +39,7 @@ const HostQueryReport = ({
   const queryId = Number(query_id);
 
   if (globalReportsDisabled) {
-    router.push(PATHS.HOST_QUERIES(hostId));
+    router.push(PATHS.HOST_REPORTS(hostId));
   }
 
   const [showQuery, setShowQuery] = useState(false);
@@ -92,11 +92,12 @@ const HostQueryReport = ({
     description: queryDescription,
     query: querySQL,
     discard_data: queryDiscardData,
+    stats,
   } = queryResponse || {};
 
   // previous reroute can be done before API call, not this one, hence 2
   if (queryDiscardData) {
-    router.push(PATHS.HOST_QUERIES(hostId));
+    router.push(PATHS.HOST_REPORTS(hostId));
   }
 
   // Updates title that shows up on browser tabs
@@ -110,15 +111,15 @@ const HostQueryReport = ({
 
   const HQRHeader = useCallback(() => {
     const fullReportPath = getPathWithQueryParams(
-      PATHS.QUERY_DETAILS(queryId),
-      { team_id: currentTeam?.id }
+      PATHS.REPORT_DETAILS(queryId),
+      { fleet_id: currentTeam?.id }
     );
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header__row1`}>
           <BackButton
             text="Back to host details"
-            path={PATHS.HOST_QUERIES(hostId)}
+            path={PATHS.HOST_DETAILS(hostId)}
           />
         </div>
         <div className={`${baseClass}__header__row2`}>
@@ -131,7 +132,7 @@ const HostQueryReport = ({
             iconStroke
           >
             <>
-              View full query report
+              View data for all hosts
               <Icon name="chevron-right" color="core-fleet-green" />
             </>
           </Button>
@@ -148,8 +149,10 @@ const HostQueryReport = ({
         <>
           <HQRHeader />
           <HQRTable
+            queryId={queryId}
             queryName={queryName}
             queryDescription={queryDescription}
+            queryStats={stats}
             hostName={hostName}
             rows={rows}
             reportClipped={reportClipped}

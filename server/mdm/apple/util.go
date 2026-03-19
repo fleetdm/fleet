@@ -5,14 +5,12 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
-	"encoding/binary"
 	"encoding/pem"
 	"fmt"
 	"math"
 	"net/url"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -36,14 +34,16 @@ func EncodeCertRequestPEM(cert *x509.CertificateRequest) []byte {
 	return pem.EncodeToMemory(pemBlock)
 }
 
-// GenerateRandomPin generates a `lenght`-digit PIN number that takes into
-// account the current time as described in rfc4226 (for one time passwords)
+// GenerateRandomPin generates a `length`-digit random PIN number
 //
-// The implementation details have been mostly taken from https://github.com/pquerna/otp
-func GenerateRandomPin(length int) string {
-	counter := uint64(time.Now().Unix()) //nolint:gosec // dismiss G115
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, counter)
+// The implementation details for converting the randomness to a PIN
+// have been mostly taken from https://github.com/pquerna/otp
+func GenerateRandomPin(length int) (string, error) {
+	buf := make([]byte, 16)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return "", err
+	}
 	m := sha256.New()
 	m.Write(buf)
 	sum := m.Sum(nil)
@@ -54,7 +54,7 @@ func GenerateRandomPin(length int) string {
 		(int(sum[offset+3]) & 0xff))
 	v := int32(value % int64(math.Pow10(length))) //nolint:gosec // dismiss G115
 	f := fmt.Sprintf("%%0%dd", length)
-	return fmt.Sprintf(f, v)
+	return fmt.Sprintf(f, v), nil
 }
 
 // FmtErrorChain formats Command error message for macOS MDM v1
@@ -68,6 +68,27 @@ func FmtErrorChain(chain []mdm.ErrorChain) string {
 		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
 	}
 	return sb.String()
+}
+
+// IsRecoveryLockPasswordMismatchError checks if the error chain indicates that the
+// recovery lock password provided does not match the one on the device. This is a
+// terminal error that should not be retried automatically.
+//
+// Known error signatures:
+// - MDMClientError (70): "Existing recovery lock password not provided"
+// - ROSLockoutServiceDaemonErrorDomain (8): "The provided recovery password failed to validate."
+func IsRecoveryLockPasswordMismatchError(chain []mdm.ErrorChain) bool {
+	for _, e := range chain {
+		// MDMClientError 70: "Existing recovery lock password not provided"
+		if e.ErrorDomain == "MDMClientError" && e.ErrorCode == 70 {
+			return true
+		}
+		// ROSLockoutServiceDaemonErrorDomain 8: "The provided recovery password failed to validate"
+		if e.ErrorDomain == "ROSLockoutServiceDaemonErrorDomain" && e.ErrorCode == 8 {
+			return true
+		}
+	}
+	return false
 }
 
 // FmtDDMError formats a DDM error message

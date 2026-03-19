@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,andreykizimenko'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20'
 
 ---
 
@@ -15,6 +15,11 @@ assignees: 'xpkoala,andreykizimenko'
 2. [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) 
 3. premium tests require license key (needs renewal) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
 4. premium tests require license key (active - Expires Sunday, January 1, 2023 12:00:00 AM) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjcyNTMxMjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6InByZW1pdW0iLCJpYXQiOjE2NDI1MjIxODF9.EGHQjIzM73YyMbnCruswzg360DEYCsDi9uz48YcDwQHq90BabGT5PIXRiculw79emGj5sk2aKgccTd2hU5J7Jw`
+
+# Database migration tests
+
+1. Create a [custom issue](https://github.com/fleetdm/confidential/issues/new?template=1-custom-request.md) tagged `:help-customers` in the confidential repo to run [cloud migration tests](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml) targeted off of the RC branch. Tests will be run off of [these environments](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud-tests).
+2. Once tests are complete, if migration duration for any environment takes more than 5 seconds, check logs to determine whether any single migration took more than 5 seconds, or if the entire process took more than 15 seconds. If either is the case and there is not already a progress indicator for the migration that updates at least every ten seconds, file an unreleased bug triaged to the team that created the migration to audit the migration and evaluate if progress updates or performance improvements are needed.
 
 # Smoke Tests
 Smoke tests are limited to core functionality and serve as a pre-release final review. If smoke tests are failing, a release cannot proceed.
@@ -40,9 +45,10 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 1. remove all fleet processes/agents/etc using `fleetctl preview reset` for a clean slate
 2. run `fleetctl preview` with no tag for latest stable
-3. create a host/query to later confirm upgrade with
+3. create a host/report to later confirm upgrade with
 4. STOP fleet-preview-server instances in containers/apps on Docker
-5. run `fleetctl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
+5. run `fleetctl preview` with appropriate testing tag
+6. Navigate through all new UI flows and confirm dashboard, hosts, controls, queries, policies, and settings pages are working as expected. </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
@@ -63,18 +69,55 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
  
 </td><td>pass/fail</td></tr>
 
-<tr><td>Log destination flow</td><td>Verify log destination for software, query, policy, and packs.</td><td>
+<tr><td>Log destination flow</td><td>Verify log destination for software, reports, policies, and packs.</td><td>
 
-1. Software, query, policy, and packs logs are successfully sent to external log destinations
-2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
+1. Software, report, policy, and packs logs are successfully sent to external log destinations
+2. Software, report, policy, and packs logs are successfully sent to Filesystem log destinations
  
 </td><td>pass/fail</td></tr>
 
-<tr><td>GitOps and generate-gitops</td><td>
+<tr><td>IdP Provisioning (SCIM)</td><td>Verify host vitals sync</td><td>
 
-1. `fleetctl generate-gitops` from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated teams etc.).
-2. Running GitOps succeeds on the files created in the previous step, either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient).
+1. Configure and verify provisioning with the following IdPs:
+    1. Okta
+    3. Entra
+    4. Hydrant/Google
+2. Enroll hosts with EUA & IdP Provisioning enabled
+    1. MacOS
+    2. Windows
+    3. Ubuntu
+    4. iOS/iPadOS
+    5. Android
  
+</td><td>pass/fail</td></tr>
+
+<tr><td>GitOps and generate-gitops</td><td> Verify `fleetctl generate-gitops` and `GitOps` functionality</td><td>
+
+1. Generate-gitops from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated fleets etc.).
+2. Running GitOps either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient) succeeds.
+
+</td><td>pass/fail</td></tr>
+
+<tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+ 
+- Features documented as Free work normally
+- Premium features are correctly restricted or hidden
+- No UI, API, or workflow errors occur when using Free-only functionality
+
+Reference: https://fleetdm.com/pricing
+</td><td>pass/fail</td></tr>
+
+<tr><td>UI / UX</td><td>Verify visual consistency and layout integrity across product group areas</td><td>
+ 
+Perform a quick visual scan of the UI and confirm: 
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements)
+- Fonts, colors, and icons render correctly and match the design system
+- UI components render correctly (buttons, inputs, tables)
+- No obvious visual regressions or broken UI states
+
 </td><td>pass/fail</td></tr>
 
 </table>
@@ -96,8 +139,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 1. Turn off MDM on an ADE-eligible macOS host and verify that the native, "Device Enrollment" macOS notification appears.
 2. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
 3. Turn off MDM on a non ADE-eligible macOS host.
-4. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
-5. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
+4. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
 </td><td>pass/fail</td></tr>
 
 <tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
@@ -134,25 +176,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 1. Verify BYOD enrollment.
 2. Verify Profiles are delivered to host and applied.
 3. Verify apps install.
-4. Verify `Unenroll`.
- 
-</td><td>pass/fail</td></tr>
-
-<tr><td>Certificate Authorities</td><td>Verify setup and certificate delivery</td><td>
-
-1. Configure and verify that certificates deploy to hosts with the following CAs:
-    1. DigiCert
-    3. NDES
-    4. SmallStep
- 
-</td><td>pass/fail</td></tr>
-
-<tr><td>IdP Provisioning (SCIM)</td><td>Verify host vitals sync</td><td>
-
-1. Configure and verify provisioning with the following IdPs:
-    1. Okta
-    3. Entra
-    4. Hydrant/Google
+4. Verify certificate delivery
+5. Verify `Unenroll`.
  
 </td><td>pass/fail</td></tr>
 
@@ -163,15 +188,37 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 3. Ensure ADE hosts can enroll.
 </td><td>pass/fail</td></tr>
 
+<tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+ 
+- Features documented as Free work normally
+- Premium features are correctly restricted or hidden
+- No UI, API, or workflow errors occur when using Free-only functionality
+
+Reference: https://fleetdm.com/pricing
+</td><td>pass/fail</td></tr>
+
+<tr><td>UI / UX</td><td>Verify visual consistency and layout integrity across product group areas</td><td>
+ 
+Perform a quick visual scan of the UI and confirm: 
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements)
+- Fonts, colors, and icons render correctly and match the design system
+- UI components render correctly (buttons, inputs, tables)
+- No obvious visual regressions or broken UI states
+
+</td><td>pass/fail</td></tr>
+
 </table>
 
 ### Software
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
-<tr><td>Query flow</td><td>Create, edit, run, and delete queries. </td><td>
+<tr><td>Report flow</td><td>Create, edit, run, and delete reports. </td><td>
 
-1. permissions regarding creating/editing/deleting queries are up to date with documentation
+1. permissions regarding creating/editing/deleting reports are up to date with documentation
 2. syntax errors result in error messaging
 3. queries can be run manually 
 </td><td>pass/fail</td></tr>
@@ -219,6 +266,29 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 4. Click `Run workflow`.
 5. Action should complete successfully.
 </td><td>pass/fail</td></tr>
+
+<tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+ 
+- Features documented as Free work normally
+- Premium features are correctly restricted or hidden
+- No UI, API, or workflow errors occur when using Free-only functionality
+
+Reference: https://fleetdm.com/pricing
+</td><td>pass/fail</td></tr>
+
+<tr><td>UI / UX</td><td>Verify visual consistency and layout integrity across product group areas</td><td>
+ 
+Perform a quick visual scan of the UI and confirm: 
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements)
+- Fonts, colors, and icons render correctly and match the design system
+- UI components render correctly (buttons, inputs, tables)
+- No obvious visual regressions or broken UI states
+
+</td><td>pass/fail</td></tr>
+
 </table>
 
 ### Security & Compliance
@@ -240,6 +310,15 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 3. Verify that vulnerable software appears under "My device > Software" for affected hosts with expected CVEs
 </td><td>pass/fail</td></tr>
 
+<tr><td>Certificate Authorities</td><td>Verify setup and certificate delivery</td><td>
+
+1. Configure and verify that certificates deploy to hosts with the following CAs:
+    1. DigiCert
+    2. NDES
+    3. SmallStep
+ 
+</td><td>pass/fail</td></tr>
+
 <tr><td>OS updates</td><td>Verify OS updates flow</td><td>
 
 1. Configure OS updates (macOS & Windows).
@@ -254,6 +333,29 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 4. Verify wiping and locking hosts using `fleetctl` (macOS, Windows, & Linux)
  
 </td><td>pass/fail</td></tr>
+
+<tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+ 
+- Features documented as Free work normally
+- Premium features are correctly restricted or hidden
+- No UI, API, or workflow errors occur when using Free-only functionality
+
+Reference: https://fleetdm.com/pricing
+</td><td>pass/fail</td></tr>
+
+<tr><td>UI / UX</td><td>Verify visual consistency and layout integrity across product group areas</td><td>
+ 
+Perform a quick visual scan of the UI and confirm: 
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements)
+- Fonts, colors, and icons render correctly and match the design system
+- UI components render correctly (buttons, inputs, tables)
+- No obvious visual regressions or broken UI states
+
+</td><td>pass/fail</td></tr>
+
 </table>
 
 
@@ -306,14 +408,15 @@ List versions changes for any component updates below:
 
 ### Goal: Ensure new `fleetd` is tested and promoted from local > edge > stable channels
 
-1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension.
+1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension (e.g. `rc-minor-fleet-v4.80.0`).
+IMPORTANT: Do not build fleetd from `main` as it is a moving target and new fleetd changes from future releases might be already merged.
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 <tr><td>`fleetd` local testing</td>
 <td>
-1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.<br>
+1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts. IMPORTANT: Reminder to use an RC branch and not `main`<br>
 </td>
 <td>
 1. Confirm the hosts install with the updated version and are working correctly.<br>
@@ -357,7 +460,7 @@ List versions changes for any component updates below:
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
- <tr><td>Query flow</td><td>Run queries. </td><td>
+ <tr><td>Report flow</td><td>Run reports. </td><td>
 1. Queries can be run manually 
 </td><td>pass/fail</td></tr>
 
@@ -403,6 +506,15 @@ After repointing a Fleet Desktop install at a server running Fleet Free:
 1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.<br>
 2. The "My device" page is populated correctly and as expected. <br>
 3. Styling and padding appears correct. 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Auto-updates disabled</td><td>Verify 
+that fleetd works on when the installer package is built with `--disable-updates`.</td><td>
+
+1. Generate package with `fleetctl package [...] --updates-disabled`<br>
+2. Install packages on macOS, Windows, and Linux <br>
+3. Smoke test orbit and Fleet Desktop functionality, and osquery tables.
+
 </td><td>pass/fail</td></tr>
 
 </table>

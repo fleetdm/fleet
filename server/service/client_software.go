@@ -40,7 +40,7 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 func (c *Client) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/software"
 	var responseBody getSetupExperienceSoftwareResponse
-	query := fmt.Sprintf("platform=%s&team_id=%d", platform, teamID)
+	query := fmt.Sprintf("platform=%s&fleet_id=%d", platform, teamID)
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (c *Client) GetSetupExperienceSoftware(platform string, teamID uint) ([]fle
 func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	var query string
 	if teamID != nil {
-		query = fmt.Sprintf("team_id=%d", *teamID)
+		query = fmt.Sprintf("fleet_id=%d", *teamID)
 	}
 	verb, path := "GET", "/api/latest/fleet/software/titles/"+fmt.Sprint(ID)
 	var responseBody getSoftwareTitleResponse
@@ -67,7 +67,7 @@ func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTit
 
 func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID)
-	response, err := c.AuthenticatedDo(verb, path, fmt.Sprintf("team_id=%d", teamID), nil)
+	response, err := c.AuthenticatedDo(verb, path, fmt.Sprintf("fleet_id=%d", teamID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
@@ -129,6 +129,7 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 	// On the client side, software installer entries can have a URL or a hash or both ...
 	byURL := make(map[string]*fleet.SoftwareInstallerPayload)
 	byHash := make(map[string]*fleet.SoftwareInstallerPayload)
+	bySlug := make(map[string]*fleet.SoftwareInstallerPayload)
 
 	for i := range request {
 		clientSide := &request[i]
@@ -138,6 +139,9 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 		}
 		if clientSide.SHA256 != "" {
 			byHash[clientSide.SHA256] = clientSide
+		}
+		if clientSide.Slug != nil {
+			bySlug[*clientSide.Slug] = clientSide
 		}
 	}
 
@@ -153,6 +157,12 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 
 		// ... Then by URL
 		if clientSide, ok := byURL[serverSide.URL]; ok {
+			serverSide.LocalIconHash = clientSide.IconHash
+			serverSide.LocalIconPath = clientSide.IconPath
+			continue
+		}
+
+		if clientSide, ok := bySlug[serverSide.Slug]; ok {
 			serverSide.LocalIconHash = clientSide.IconHash
 			serverSide.LocalIconPath = clientSide.IconPath
 		}
@@ -201,7 +211,7 @@ func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, bu
 		context.Background(),
 		"PUT",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID),
-		fmt.Sprintf("team_id=%d", teamID),
+		fmt.Sprintf("fleet_id=%d", teamID),
 		buf.Bytes(),
 		map[string]string{
 			"Content-Type":  writer.FormDataContentType(),
@@ -225,7 +235,7 @@ func (c *Client) DeleteIcon(teamID uint, titleID uint) error {
 	response, err := c.AuthenticatedDo(
 		"DELETE",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID),
-		fmt.Sprintf("team_id=%d", teamID),
+		fmt.Sprintf("fleet_id=%d", teamID),
 		nil,
 	)
 	if err != nil {
@@ -257,4 +267,14 @@ func (c *Client) ListFleetMaintainedApps(teamID *uint, query string) ([]fleet.Ma
 		return nil, err
 	}
 	return responseBody.FleetMaintainedApps, nil
+}
+
+func (c *Client) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", id)
+	var responseBody getFleetMaintainedAppResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.FleetMaintainedApp, nil
 }

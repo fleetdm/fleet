@@ -25,8 +25,13 @@ module.exports = {
     projects_v2_item: { type: {} }, //eslint-disable-line camelcase
   },
 
+  exits: {
+    success: {description: 'A GitHub event was successfully received.'},
+    unexpectedBotSignature: {description: 'The provided botSignature was incorrect', responseType: 'unauthorized' },
+  },
 
-  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release, projects_v2_item: projectsV2Item}) {
+
+  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, projects_v2_item: projectsV2Item}) {
 
     // Grab the set of GitHub pull request numbers the bot considers "unfrozen" from the platform record.
     // If there is more than one platform record, or it is missing, we'll throw an error.
@@ -57,6 +62,9 @@ module.exports = {
       'fleet-release',
 
       // Humans
+      // > NOTE: On Jan 10, 2026, we removed the editing of this list from Fleet's onboarding process for simplicity.
+      // > This list is used for the seldom-used '*' functionality in DRIs/auto-approvers, as well as some automation
+      // > around monitoring for comment abuse and auto-label management.  -mikermcneil
       'noahtalerman',
       'lppepper2',
       'mike-j-thomas',
@@ -81,7 +89,6 @@ module.exports = {
       'AnthonySnyder8',
       'jahzielv',
       'getvictor',
-      'phtardif1',
       'pintomi1989',
       'nonpunctual',
       'dantecatalfamo',
@@ -98,7 +105,6 @@ module.exports = {
       'kc9wwh',
       'JordanMontgomery',
       'ds0x',
-      'bettapizza',
       'irenareedy',
       'jakestenger',
       'AndreyKizimenko',
@@ -109,7 +115,6 @@ module.exports = {
       'cdcme',
       'kevinmalkin12',
       'karmine05',
-      'ericswenson0',
       'kitzy',
       'Seedity',
       'NickBlee',
@@ -120,6 +125,7 @@ module.exports = {
       'melpike',
       'headmin',
       'nulmete',
+      'chrstphr84',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -138,7 +144,7 @@ module.exports = {
       throw new Error('No GitHub bot webhook secret configured!  (Please set `sails.config.custom.githubBotWebhookSecret`.)');
     }//•
     if (sails.config.custom.githubBotWebhookSecret !== botSignature) {
-      throw new Error('Received unexpected GitHub webhook request with botSignature set to: '+botSignature);
+      throw 'unexpectedBotSignature';
     }//•
 
     if (!sails.config.custom.githubAccessToken) {
@@ -522,7 +528,7 @@ module.exports = {
         // if(!isMainBranchFrozen && pocketOfPrNumbersUnfrozen.length > 0) {
         //   await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: []});
         // }
-        if (isAutoApprovalExpected) {
+        if (isAutoApprovalExpected && issueOrPr.user.login !== 'fleet-release') {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
@@ -701,7 +707,8 @@ module.exports = {
       )
       .timeout(5000)
       .retry([{name: 'TimeoutError'}, 'non200Response', 'requestFailed']);
-    } else if(ghNoun === 'release' && ['published'].includes(action) ) {
+      // 2026-03-17: @eashaw: this section is commented out because the zapier automation used by this webhook has been turned off.
+      // } else if(ghNoun === 'release' && ['published'].includes(action) ) {
       //  ██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗███████╗███████╗
       //  ██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝
       //  ██████╔╝█████╗  ██║     █████╗  ███████║███████╗█████╗  ███████╗
@@ -711,31 +718,30 @@ module.exports = {
       //
       // Handle new Fleet releases by sending a POST request to Zapier to
       // trigger an automation that updates Slack channel topics with the latest version of Fleet.
-      let owner = repository.owner.login;
-      let repo = repository.name;
-
-      // Only continue if this release came from the fleetdm/fleet repo,
-      if(owner === 'fleetdm' && repo === 'fleet') {
-        if(release
-          && _.startsWith(release.tag_name, 'fleet-v')// Only send requests for releases with tag names that start with 'fleet'
-          && _.endsWith(release.tag_name, '.0')// Only send requests if the release is a major or minor version. This works because all Fleet semvers have 2 periods.
-        ) {
-          // Send a POST request to Zapier with the release object.
-          await sails.helpers.http.post.with({
-            url: 'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',
-            data: {
-              'release': release,
-              'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
-            }
-          })
-          .timeout(5000)
-          .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
-            // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-            sails.log.warn(`When trying to send information about a new Fleet release to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
-            return;
-          });
-        }
-      }//ﬁ
+      // let owner = repository.owner.login;
+      // let repo = repository.name;
+      // // Only continue if this release came from the fleetdm/fleet repo,
+      // if(owner === 'fleetdm' && repo === 'fleet') {
+      //   if(release
+      //     && _.startsWith(release.tag_name, 'fleet-v')// Only send requests for releases with tag names that start with 'fleet'
+      //     && _.endsWith(release.tag_name, '.0')// Only send requests if the release is a major or minor version. This works because all Fleet semvers have 2 periods.
+      //   ) {
+      //     // Send a POST request to Zapier with the release object.
+      //     await sails.helpers.http.post.with({
+      //       url: 'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',
+      //       data: {
+      //         'release': release,
+      //         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
+      //       }
+      //     })
+      //     .timeout(5000)
+      //     .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+      //       // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+      //       sails.log.warn(`When trying to send information about a new Fleet release to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
+      //       return;
+      //     });
+      //   }
+      // }//ﬁ
     } else if(ghNoun === 'projects_v2_item') {
       //
       //  ██████╗ ██████╗  ██████╗      ██╗███████╗ ██████╗████████╗███████╗    ██╗   ██╗██████╗

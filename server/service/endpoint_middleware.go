@@ -4,18 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	middleware_log "github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -39,13 +38,13 @@ func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.C
 	return certserial.NewContext(ctx, serial)
 }
 
-func logJSON(logger log.Logger, v interface{}, key string) {
+func logJSON(ctx context.Context, logger *slog.Logger, v any, key string) {
 	jsonV, err := json.Marshal(v)
 	if err != nil {
-		level.Debug(logger).Log("err", fmt.Errorf("marshaling %s for debug: %w", key, err))
+		logger.DebugContext(ctx, "error marshaling for debug", "key", key, "err", err)
 		return
 	}
-	level.Debug(logger).Log(key, string(jsonV))
+	logger.DebugContext(ctx, "debug JSON", key, string(jsonV))
 }
 
 // instrumentHostLogger adds host ID, IP information, and extras to the context logger.
@@ -65,7 +64,7 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 // authenticatedDevice checks the validity of the device auth token
 // provided in the request, and attaches the corresponding host to the
 // context for the request.
-func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.Endpoint) endpoint.Endpoint {
 	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		identifier, err := getDeviceAuthToken(request)
 		if err != nil {
@@ -98,12 +97,16 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host_id", host.ID)
+		hlogger := logger.With("host_id", host.ID)
 		if debug {
-			logJSON(hlogger, request, "request")
+			logJSON(ctx, hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authnMethod)
@@ -115,7 +118,7 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		}
 
 		if debug {
-			logJSON(hlogger, request, "response")
+			logJSON(ctx, hlogger, resp, "response")
 		}
 		return resp, nil
 	}
@@ -132,7 +135,7 @@ func getDeviceAuthToken(r interface{}) (string, error) {
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
 // provided in the request, and attaches the corresponding osquery host to the
 // context for the request
-func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+func authenticatedHost(svc fleet.Service, logger *slog.Logger, next endpoint.Endpoint) endpoint.Endpoint {
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
@@ -145,12 +148,16 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host_id", host.ID)
+		hlogger := logger.With("host_id", host.ID)
 		if debug {
-			logJSON(hlogger, request, "request")
+			logJSON(ctx, hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
@@ -162,7 +169,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 		}
 
 		if debug {
-			logJSON(hlogger, resp, "response")
+			logJSON(ctx, hlogger, resp, "response")
 		}
 		return resp, nil
 	}
@@ -171,7 +178,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 
 func authenticatedOrbitHost(
 	svc fleet.Service,
-	logger log.Logger,
+	logger *slog.Logger,
 	next endpoint.Endpoint,
 	orbitNodeKeyGetter func(context.Context, interface{}) (string, error),
 ) endpoint.Endpoint {
@@ -187,12 +194,16 @@ func authenticatedOrbitHost(
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host_id", host.ID)
+		hlogger := logger.With("host_id", host.ID)
 		if debug {
-			logJSON(hlogger, request, "request")
+			logJSON(ctx, hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnOrbitToken)
@@ -204,7 +215,7 @@ func authenticatedOrbitHost(
 		}
 
 		if debug {
-			logJSON(hlogger, resp, "response")
+			logJSON(ctx, hlogger, resp, "response")
 		}
 		return resp, nil
 	}
@@ -212,7 +223,7 @@ func authenticatedOrbitHost(
 }
 
 func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
-	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
+	if onk, ok := r.(interface{ orbitHostNodeKey() string }); ok {
 		return onk.orbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")

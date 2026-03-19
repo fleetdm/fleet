@@ -3,6 +3,14 @@
   justify-content: space-between;
   align-items: center;
 
+  .table-container__results-count {
+    height: auto;
+
+    > span {
+      line-height: normal;
+    }
+  }
+
   &__actions {
     display: flex;
     align-items: center;
@@ -28,6 +36,10 @@
     display: flex;
     flex-grow: 1;
     justify-content: space-between;
+  }
+
+  &__auto-updates-tooltip {
+    text-align: center;
   }
 
   // Lots of data (10 items) on one line responsive fix (#29397)
@@ -72,7 +84,7 @@
 
   &__actions-wrapper {
     display: flex;
-    gap: $pad-medium;
+    gap: $pad-xsmall;
   }
 
   &__download-icon {

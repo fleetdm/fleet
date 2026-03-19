@@ -91,7 +91,7 @@ interface IDashboardProps {
     search: string;
     hash?: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
     };
   };
 }
@@ -141,6 +141,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [androidCount, setAndroidCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
+  const [abmIssueCount, setAbmIssueCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
   const [softwareTitleDetail, setSoftwareTitleDetail] = useState<
     JSX.Element | string | null
@@ -223,6 +224,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         if (isPremiumTier) {
           setMissingCount(data.missing_30_days_count || 0);
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
+          setAbmIssueCount(data.dep_assign_error_count || 0);
         }
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
@@ -590,6 +592,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isPremiumTier={isPremiumTier}
         missingCount={missingCount}
         lowDiskSpaceCount={lowDiskSpaceCount}
+        abmIssueCount={abmIssueCount}
         selectedPlatformLabelId={selectedPlatformLabelId}
       />
     </>

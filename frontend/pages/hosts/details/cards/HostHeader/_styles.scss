@@ -1,9 +1,18 @@
 .host-header {
+  &__device-status-tag-wrapper {
+    // We are aligning self on the tag wrapper to center it vertically with the Host title.
+    // This tag will not always display and the default of the parent container is
+    // align: baseline, so we need to overrride this explicitly for the tag when we display it.
+    align-self: center;
+  }
+
   &__device-status-tag {
+    display: block;
     margin-left: $pad-small;
     background-color: $ui-warning;
     padding: $pad-xsmall;
-    font-size: 10px;
+    font-size: $xx-small;
+    color: $core-fleet-black;
     font-weight: $bold;
     border-radius: $border-radius;
 
@@ -19,7 +28,7 @@
 
   &__last-fetched {
     font-size: $xx-small;
-    color: $core-fleet-black;
+    color: $ui-fleet-black-75;
     margin: 0;
     margin-left: $pad-medium;
   }

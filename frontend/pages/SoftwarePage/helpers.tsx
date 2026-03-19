@@ -15,6 +15,9 @@ import {
   ISoftwarePackage,
   IAppStoreApp,
   ISoftwareTitle,
+  ISoftwareInstallPolicyUI,
+  ISoftwareInstallPolicy,
+  SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -210,6 +213,18 @@ export const getSelfServiceTooltip = (
   );
 };
 
+export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
+  return (
+    <>
+      When a new version is available,
+      <br />
+      targeted hosts will begin updating between
+      <br />
+      {startTime} and {endTime} (host&rsquo;s local time).
+    </>
+  );
+};
+
 export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware
 ): number => {
@@ -245,4 +260,86 @@ export const isSafeImagePreviewUrl = (url?: string | null) => {
   } catch {
     return false;
   }
+};
+
+// TODO: When software directories are restructured, move this to /software/helpers.tsx
+// TODO: Naming conversion should be server-side in future iteration to be compatible with server-side sort
+/** Map of known awkward software titles to more human-readable names */
+const WELL_KNOWN_SOFTWARE_TITLES: Record<string, string> = {
+  "microsoft.companyportal": "Company Portal",
+};
+
+/** Prioritizes display_name over name and converts awkward software titles
+ * listed in WELL_KNOWN_SOFTWARE_TITLES to more human readable names */
+export const getDisplayedSoftwareName = (
+  name?: string | null,
+  display_name?: string | null
+): string => {
+  // 1. End-user custom name always wins.
+  if (display_name) {
+    return display_name;
+  }
+
+  if (name) {
+    // 2. Normalize known titles only from the raw name.
+    const key = name.toLowerCase();
+    if (WELL_KNOWN_SOFTWARE_TITLES[key]) {
+      return WELL_KNOWN_SOFTWARE_TITLES[key];
+    }
+    return name;
+  }
+
+  // This should not happen
+  return "Software";
+};
+
+export const isAndroidWebApp = (androidPlayStoreId?: string) =>
+  !!androidPlayStoreId &&
+  androidPlayStoreId.startsWith("com.google.enterprise.webapp");
+export interface MergePoliciesParams {
+  automaticInstallPolicies:
+    | ISoftwarePackage["automatic_install_policies"]
+    | null
+    | undefined;
+  patchPolicy: ISoftwarePackage["patch_policy"] | null | undefined;
+}
+
+// const mergePolicies(params: MergePoliciesParams): ISoftwareInstallerPolicyUI[] = function (...) { ... }
+export const mergePolicies = ({
+  automaticInstallPolicies,
+  patchPolicy,
+}: MergePoliciesParams): ISoftwareInstallPolicyUI[] => {
+  // Map keyed by policy id so we can merge dynamic and patch info for the same id.
+  const byId = new Map<number, ISoftwareInstallPolicyUI>();
+
+  // 1. Seed the map with automatic install ("dynamic") policies.
+  (automaticInstallPolicies ?? []).forEach((installPolicy) => {
+    // Type Set with "dynamic" for automatic install policies
+    const type: SoftwareInstallPolicyTypeSet = new Set(["dynamic"]);
+    byId.set(installPolicy.id, {
+      ...installPolicy,
+      type,
+    });
+  });
+
+  // 2. Merge in the patch policy by its id, updating type if there's a match.
+  if (patchPolicy) {
+    const existing = byId.get(patchPolicy.id);
+
+    if (existing) {
+      // If there is already a dynamic policy with this id, just add "patch"
+      // to the existing Set so type becomes Set(["dynamic", "patch"]).
+      existing.type.add("patch");
+    } else {
+      // If there is no dynamic policy with this id, create a new entry that
+      // has only "patch" in the Set.
+      const type: SoftwareInstallPolicyTypeSet = new Set(["patch"]);
+      byId.set(patchPolicy.id, {
+        ...((patchPolicy as unknown) as ISoftwareInstallPolicy),
+        type,
+      });
+    }
+  }
+
+  return Array.from(byId.values());
 };

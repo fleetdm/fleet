@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.8.0.821",
+      "version": "6.8.1.865",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud';"
       },
-      "installer_url": "https://ccmdls.adobe.com/AdobeProducts/StandaloneBuilds/ACCC/ESD/6.8.0/821/macarm64/ACCCx6_8_0_821.dmg",
+      "installer_url": "https://ccmdls.adobe.com/AdobeProducts/StandaloneBuilds/ACCC/ESD/6.8.1/865/macarm64/ACCCx6_8_1_865.dmg",
       "install_script_ref": "1ad8f626",
       "uninstall_script_ref": "0f729ae8",
-      "sha256": "beadfa4bdf2ab0b3b0c9c7aa9dbe5d699d8351afdbccd2eb18f8be1cf4960543",
+      "sha256": "bedbaf48288b5d09cd86450f13d91b311411b4e535eee414c9f50c161f3765ec",
       "default_categories": [
         "Productivity"
       ]

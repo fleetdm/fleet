@@ -14,6 +14,8 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+const AndroidWebAppPrefix = "com.google.enterprise.webapp"
+
 // MDMAndroidConfigProfile represents an Android MDM profile in Fleet. This does not map
 // directly to a specific policy in the Android API, rather the policy applied is the
 // result of combining all applicable profiles.
@@ -21,7 +23,7 @@ type MDMAndroidConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Android profiles, it is the letter "g" followed by a uuid.
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID           *uint                       `db:"team_id" json:"team_id"`
+	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
 	AutoIncrement    int64                       `db:"auto_increment" json:"auto_increment"`
@@ -90,7 +92,27 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		}
 	}
 
+	if err := json.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
+		return parseAndroidProfileValidationError(err)
+	}
+
 	return nil
+}
+
+func parseAndroidProfileValidationError(err error) error {
+	var typeErr *json.UnmarshalTypeError
+
+	// Check for type mismatches (e.g., array where object expected)
+	if errors.As(err, &typeErr) {
+		fieldPath := typeErr.Field
+		if fieldPath == "" {
+			fieldPath = "<root>"
+		}
+		return fmt.Errorf("Invalid JSON payload. %q format is wrong.", fieldPath)
+	}
+
+	// Fallback for any other unexpected errors
+	return errors.New("Invalid JSON payload.")
 }
 
 type MDMAndroidProfilePayload struct {
@@ -104,6 +126,8 @@ type MDMAndroidProfilePayload struct {
 	DeviceRequestUUID       *string            `db:"device_request_uuid"`
 	RequestFailCount        int                `db:"request_fail_count"`
 	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
+	LastErrorDetails        string             `db:"last_error_details"`
+	CanReverify             bool               `db:"can_reverify"`
 }
 
 // HostMDMAndroidProfile represents the status of an MDM profile for a Android host.
@@ -136,18 +160,6 @@ type AndroidPolicyRequestPayload struct {
 
 type AndroidPolicyRequestPayloadMetadata struct {
 	SettingsOrigin map[string]string `json:"settings_origin"` // Map of policy setting name, to profile uuid.
-}
-
-// AndroidAppConfiguration represents an Android app configuration stored in Fleet.
-// It contains the managedConfiguration and workProfileWidgets settings for an Android app.
-type AndroidAppConfiguration struct {
-	ID             uint            `db:"id" json:"id"`
-	ApplicationID  string          `db:"application_id" json:"application_id"`
-	TeamID         *uint           `db:"team_id" json:"team_id,omitempty"`
-	GlobalOrTeamID uint            `db:"global_or_team_id" json:"global_or_team_id"`
-	Configuration  json.RawMessage `db:"configuration" json:"configuration"`
-	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time       `db:"updated_at" json:"updated_at"`
 }
 
 var (
@@ -209,6 +221,7 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 				Message: `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
 			}
 		}
+
 		return &BadRequestError{
 			Message: "Couldn't update configuration. Invalid JSON.",
 		}

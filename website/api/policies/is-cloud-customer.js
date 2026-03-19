@@ -12,7 +12,7 @@ module.exports = async function (req, res, proceed) {
 
   // If an MS API KEY header was provided, check to see if it matches the entraSharedSecret.
   if (req.get('MS-API-KEY')) {
-    if(req.get('MS-API-KEY') === sails.config.custom.cloudCustomerCompliancePartnerSharedSecret){
+    if([sails.config.custom.cloudCustomerCompliancePartnerSharedSecret, sails.config.custom.alternateCompliancePartnerSharedSecret].includes(req.get('MS-API-KEY'))){
       return proceed();
     }
   }

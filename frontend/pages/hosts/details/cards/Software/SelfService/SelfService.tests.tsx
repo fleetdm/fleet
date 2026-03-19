@@ -46,6 +46,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   refetchHostDetails: noop,
   isHostDetailsPolling: false,
   hostDisplayName: DEFAULT_HOST_HOSTNAME,
+  mdmEnrollmentStatus: "Off",
 };
 
 describe("SelfService", () => {
@@ -53,9 +54,9 @@ describe("SelfService", () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
-          createMockDeviceSoftware({ name: "test1" }),
-          createMockDeviceSoftware({ name: "test2" }),
-          createMockDeviceSoftware({ name: "test3" }),
+          createMockDeviceSoftware({ id: 1, name: "test1" }),
+          createMockDeviceSoftware({ id: 2, name: "test2" }),
+          createMockDeviceSoftware({ id: 3, name: "test3" }),
         ],
         count: 3,
       })
@@ -159,7 +160,7 @@ describe("SelfService", () => {
     expect(moreText).not.toBeInTheDocument();
   });
 
-  it("renders failed status and 'Install' action button and 'Retry uninstall' dropdown with 'failed_uninstall' status and installed_versions detected", async () => {
+  it("renders installed status and 'Install' action button and 'Retry uninstall' dropdown with 'failed_uninstall' API status and installed_versions detected", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -180,9 +181,8 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("install-status-cell__status--test")
-    ).toHaveTextContent("Failed");
+    ).toHaveTextContent("Installed");
 
-    expect(screen.getByRole("button", { name: "Reinstall" })).toBeEnabled();
     const moreDropdown = getMoreDropdown();
     await user.click(moreDropdown);
     const dropdown = document.getElementById("react-select-9-listbox");
@@ -274,5 +274,26 @@ describe("SelfService", () => {
     expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled(); // TODO: Should this say "Reinstall"?
     const moreDropdown = getMoreDropdown();
     expect(moreDropdown).toBeDisabled();
+  });
+
+  it("renders self service unsupported message for BYOD Account-Driven User Enrollment on mobile view", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <SelfService
+        {...TEST_PROPS}
+        isMobileView
+        mdmEnrollmentStatus="On (personal)"
+      />
+    );
+
+    expect(
+      screen.getByText(/Self-service isn't supported/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Self-service is currently not supported on personal iOS and iPadOS devices/i
+      )
+    ).toBeInTheDocument();
   });
 });

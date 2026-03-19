@@ -6,10 +6,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/rdsauth"
@@ -32,20 +31,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
-// Compile-time interface check
-var _ activities.ActivityStore = (*Datastore)(nil)
-
 const (
-	defaultSelectLimit   = 1000000
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
 
 	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
@@ -59,23 +52,20 @@ const (
 	fleet4731GoodMigrationID = 20250815130115
 )
 
-// Matches all non-word and '-' characters for replacement
-var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
-
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
-	logger log.Logger
+	logger *slog.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
 	pusher nano_push.Pusher
 	android.Datastore
 
 	// nil if no read replica
-	readReplicaConfig *config.MysqlConfig
+	readReplicaConfig *common_mysql.MysqlConfig
 
 	// minimum interval between software last_opened_at timestamp to update the
 	// database (see file software.go).
@@ -150,8 +140,7 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		var err error
 		stmt, err = sqlx.PreparexContext(ctx, ds.replica, query)
 		if err != nil {
-			level.Error(ds.logger).Log(
-				"msg", "failed to prepare statement",
+			ds.logger.ErrorContext(ctx, "failed to prepare statement",
 				"query", query,
 				"err", err,
 			)
@@ -162,14 +151,13 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-func (ds *Datastore) deleteCachedStmt(query string) {
+func (ds *Datastore) deleteCachedStmt(ctx context.Context, query string) {
 	ds.stmtCacheMu.Lock()
 	defer ds.stmtCacheMu.Unlock()
 	stmt, ok := ds.stmtCache[query]
 	if ok {
 		if err := stmt.Close(); err != nil {
-			level.Error(ds.logger).Log(
-				"msg", "failed to close prepared statement before deleting it",
+			ds.logger.ErrorContext(ctx, "failed to close prepared statement before deleting it",
 				"query", query,
 				"err", err,
 			)
@@ -186,13 +174,13 @@ func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 
 // NewHostIdentitySCEPDepot returns a scep_depot.Depot for host identity certs that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+func (ds *Datastore) NewHostIdentitySCEPDepot(logger *slog.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
 	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
 }
 
 // NewConditionalAccessSCEPDepot returns a new conditional access SCEP depot that uses the
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewConditionalAccessSCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+func (ds *Datastore) NewConditionalAccessSCEPDepot(logger *slog.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
 	return condaccessdepot.NewConditionalAccessSCEPDepot(ds.primary, ds, logger, cfg)
 }
 
@@ -231,12 +219,14 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
 }
 
-// New creates an MySQL datastore.
-func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+// NewDBConnections creates database connections from config.
+// The returned connections can be used to create multiple datastores
+// that share the same underlying database connections.
+func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.DBConnections, error) {
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
-		Logger:              log.NewNopLogger(),
+		Logger:              slog.New(slog.DiscardHandler),
 	}
 
 	for _, setOpt := range opts {
@@ -247,56 +237,74 @@ func New(conf config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, 
 		}
 	}
 
-	if err := checkConfig(&conf); err != nil {
+	if err := checkAndModifyConfig(&cfg); err != nil {
 		return nil, err
 	}
+	// Convert replica config once so that checkAndModifyConfig mutations are preserved for the later NewDB call.
+	var replicaConf *config.MysqlConfig
 	if options.ReplicaConfig != nil {
-		if err := checkConfig(options.ReplicaConfig); err != nil {
+		replicaConf = fromCommonMysqlConfig(options.ReplicaConfig)
+		if err := checkAndModifyConfig(replicaConf); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
 
 	// Set up IAM authentication connector factory if needed
-	if err := setupIAMAuthIfNeeded(&conf, options); err != nil {
+	if err := setupIAMAuthIfNeeded(&cfg, options); err != nil {
 		return nil, err
 	}
 
-	dbWriter, err := NewDB(&conf, options)
+	dbWriter, err := NewDB(&cfg, options)
 	if err != nil {
 		return nil, err
 	}
 	dbReader := dbWriter
-	if options.ReplicaConfig != nil {
+	if replicaConf != nil {
 		// Set up IAM auth for replica if needed (may have different region/credentials)
 		replicaOptions := *options
 		// Reset ConnectorFactory - replica may have different auth requirements than primary
 		replicaOptions.ConnectorFactory = nil
-		if err := setupIAMAuthIfNeeded(options.ReplicaConfig, &replicaOptions); err != nil {
+		if err := setupIAMAuthIfNeeded(replicaConf, &replicaOptions); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
-		dbReader, err = NewDB(options.ReplicaConfig, &replicaOptions)
+		dbReader, err = NewDB(replicaConf, &replicaOptions)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	return &common_mysql.DBConnections{Primary: dbWriter, Replica: dbReader, Options: options}, nil
+}
+
+// NewDatastore creates a Datastore using existing database connections.
+// Use this when you need to share database connections with other bounded context datastores.
+func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c clock.Clock) (*Datastore, error) {
 	ds := &Datastore{
-		primary:             dbWriter,
-		replica:             dbReader,
-		logger:              options.Logger,
+		primary:             conns.Primary,
+		replica:             conns.Replica,
+		logger:              conns.Options.Logger,
 		clock:               c,
-		config:              conf,
-		readReplicaConfig:   options.ReplicaConfig,
+		config:              cfg,
+		readReplicaConfig:   conns.Options.ReplicaConfig,
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
-		serverPrivateKey:    options.PrivateKey,
-		Datastore:           NewAndroidDatastore(options.Logger, dbWriter, dbReader),
+		minLastOpenedAtDiff: conns.Options.MinLastOpenedAtDiff,
+		serverPrivateKey:    conns.Options.PrivateKey,
+		Datastore:           NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()
 
 	return ds, nil
+}
+
+// New creates a MySQL datastore.
+func New(cfg config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
+	conns, err := NewDBConnections(cfg, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return NewDatastore(conns, cfg, c)
 }
 
 type itemToWrite struct {
@@ -334,7 +342,7 @@ var otelTracedDriverName string
 func init() {
 	var err error
 	otelTracedDriverName, err = otelsql.Register("mysql",
-		otelsql.WithAttributes(semconv.DBSystemMySQL),
+		otelsql.WithAttributes(semconv.DBSystemNameMySQL),
 		otelsql.WithSpanOptions(otelsql.SpanOptions{
 			// DisableErrSkip ignores driver.ErrSkip errors which are frequently returned by the MySQL driver
 			// when certain optional methods or paths are not implemented/taken.
@@ -366,10 +374,68 @@ func init() {
 }
 
 func NewDB(conf *config.MysqlConfig, opts *common_mysql.DBOptions) (*sqlx.DB, error) {
-	return common_mysql.NewDB(conf, opts, otelTracedDriverName)
+	return common_mysql.NewDB(toCommonMysqlConfig(conf), opts, otelTracedDriverName)
 }
 
-func checkConfig(conf *config.MysqlConfig) error {
+// toCommonMysqlConfig converts a config.MysqlConfig to common_mysql.MysqlConfig.
+func toCommonMysqlConfig(conf *config.MysqlConfig) *common_mysql.MysqlConfig {
+	return &common_mysql.MysqlConfig{
+		Protocol:        conf.Protocol,
+		Address:         conf.Address,
+		Username:        conf.Username,
+		Password:        conf.Password,
+		PasswordPath:    conf.PasswordPath,
+		Database:        conf.Database,
+		TLSCert:         conf.TLSCert,
+		TLSKey:          conf.TLSKey,
+		TLSCA:           conf.TLSCA,
+		TLSServerName:   conf.TLSServerName,
+		TLSConfig:       conf.TLSConfig,
+		MaxOpenConns:    conf.MaxOpenConns,
+		MaxIdleConns:    conf.MaxIdleConns,
+		ConnMaxLifetime: conf.ConnMaxLifetime,
+		SQLMode:         conf.SQLMode,
+		Region:          conf.Region,
+	}
+}
+
+// toCommonLoggingConfig converts a config.LoggingConfig to common_mysql.LoggingConfig.
+func toCommonLoggingConfig(conf *config.LoggingConfig) *common_mysql.LoggingConfig {
+	if conf == nil {
+		return nil
+	}
+	return &common_mysql.LoggingConfig{
+		TracingEnabled: conf.TracingEnabled,
+		TracingType:    conf.TracingType,
+	}
+}
+
+// fromCommonMysqlConfig converts a common_mysql.MysqlConfig to config.MysqlConfig.
+func fromCommonMysqlConfig(conf *common_mysql.MysqlConfig) *config.MysqlConfig {
+	if conf == nil {
+		return nil
+	}
+	return &config.MysqlConfig{
+		Protocol:        conf.Protocol,
+		Address:         conf.Address,
+		Username:        conf.Username,
+		Password:        conf.Password,
+		PasswordPath:    conf.PasswordPath,
+		Database:        conf.Database,
+		TLSCert:         conf.TLSCert,
+		TLSKey:          conf.TLSKey,
+		TLSCA:           conf.TLSCA,
+		TLSServerName:   conf.TLSServerName,
+		TLSConfig:       conf.TLSConfig,
+		MaxOpenConns:    conf.MaxOpenConns,
+		MaxIdleConns:    conf.MaxIdleConns,
+		ConnMaxLifetime: conf.ConnMaxLifetime,
+		SQLMode:         conf.SQLMode,
+		Region:          conf.Region,
+	}
+}
+
+func checkAndModifyConfig(conf *config.MysqlConfig) error {
 	if conf.PasswordPath != "" && conf.Password != "" {
 		return errors.New("A MySQL password and a MySQL password file were provided - please specify only one")
 	}
@@ -658,9 +724,20 @@ func (ds *Datastore) HealthCheck() error {
 	// NOTE: does not receive a context as argument here, because the HealthCheck
 	// interface potentially affects more than the datastore layer, and I'm not
 	// sure we can safely identify and change them all at this moment.
-	if _, err := ds.primary.ExecContext(context.Background(), "select 1"); err != nil {
+
+	// Check that the primary is reachable and not in read-only mode.
+	// After an AWS Aurora failover the old writer is demoted to a reader;
+	// detecting this lets the health check fail so the orchestrator can restart Fleet.
+	var readOnly int
+	if err := ds.primary.QueryRowContext(context.Background(), "SELECT @@read_only").Scan(&readOnly); err != nil {
 		return err
 	}
+	if readOnly == 1 {
+		// Intentionally return an error so that the health check endpoint returns a 500,
+		// signaling the orchestrator (ECS, Kubernetes) to restart Fleet with fresh DB connections.
+		return errors.New("primary database is read-only, possible failover detected")
+	}
+
 	if ds.readReplicaConfig != nil {
 		var dst int
 		if err := sqlx.GetContext(context.Background(), ds.replica, &dst, "select 1"); err != nil {
@@ -701,23 +778,6 @@ func (ds *Datastore) Close() error {
 	return err
 }
 
-// sanitizeColumn is used to sanitize column names which can't be passed as placeholders when executing sql queries
-func sanitizeColumn(col string) string {
-	col = columnCharsRegexp.ReplaceAllString(col, "")
-	oldParts := strings.Split(col, ".")
-	parts := oldParts[:0]
-	for _, p := range oldParts {
-		if len(p) != 0 {
-			parts = append(parts, p)
-		}
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	col = "`" + strings.Join(parts, "`.`") + "`"
-	return col
-}
-
 // appendListOptionsToSelect will apply the given list options to ds and
 // return the new select dataset.
 //
@@ -732,13 +792,16 @@ func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu
 	if opts.OrderKey != "" {
 		ordersKeys := strings.Split(opts.OrderKey, ",")
 		for _, key := range ordersKeys {
-			ident := goqu.I(key)
+			sanitized := common_mysql.SanitizeColumn(key)
+			if sanitized == "" {
+				continue
+			}
 
 			var orderedExpr exp.OrderedExpression
 			if opts.OrderDirection == fleet.OrderDescending {
-				orderedExpr = ident.Desc()
+				orderedExpr = goqu.L(sanitized).Desc()
 			} else {
-				orderedExpr = ident.Asc()
+				orderedExpr = goqu.L(sanitized).Asc()
 			}
 
 			ds = ds.OrderAppend(orderedExpr)
@@ -754,7 +817,7 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	// to insure that an unbounded query with many results doesn't consume too
 	// much memory or hang
 	if perPage == 0 {
-		perPage = defaultSelectLimit
+		perPage = fleet.DefaultPerPage
 	}
 
 	offset := perPage * opts.Page
@@ -771,79 +834,48 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	return ds
 }
 
-// Appends the list options SQL to the passed in SQL string. This appended
-// SQL is determined by the passed in options.
+// sanitizeColumn is a facade that calls common_mysql.SanitizeColumn.
+func sanitizeColumn(col string) string {
+	return common_mysql.SanitizeColumn(col)
+}
+
+// appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
 //
-// NOTE: this method will mutate the options argument if no explicit PerPage
-// option is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []interface{}) {
+// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQL
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
 	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
-// Appends the list options SQL to the passed in SQL string. This appended
-// SQL is determined by the passed in options. This supports cursor options
+// appendListOptionsToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
+// The allowlist parameter maps user-facing order key names to actual SQL column expressions.
+// This prevents SQL injection and information disclosure via arbitrary column sorting.
+// See common_mysql.OrderKeyAllowlist for details.
+func appendListOptionsToSQLSecure(sql string, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+	return appendListOptionsWithCursorToSQLSecure(sql, nil, opts, allowlist)
+}
+
+// appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
+// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
 //
-// NOTE: this method will mutate the options argument if no explicit PerPage option
-// is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fleet.ListOptions) (string, []interface{}) {
-	orderKey := sanitizeColumn(opts.OrderKey)
-
-	if opts.After != "" && orderKey != "" {
-		afterSql := " WHERE "
-		if strings.Contains(strings.ToLower(sql), "where") {
-			afterSql = " AND "
-		}
-		if strings.HasSuffix(orderKey, "id") {
-			i, _ := strconv.Atoi(opts.After)
-			params = append(params, i)
-		} else {
-			params = append(params, opts.After)
-		}
-		direction := ">" // ASC
-		if opts.OrderDirection == fleet.OrderDescending {
-			direction = "<" // DESC
-		}
-		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, orderKey, direction)
-
-		// After existing supersedes Page, so we disable it
-		opts.Page = 0
-	}
-
-	if orderKey != "" {
-		direction := "ASC"
-		if opts.OrderDirection == fleet.OrderDescending {
-			direction = "DESC"
-		}
-
-		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
-		if opts.TestSecondaryOrderKey != "" {
-			direction := "ASC"
-			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
-				direction = "DESC"
-			}
-			sql += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.TestSecondaryOrderKey), direction)
-		}
-	}
-	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
-	// that an unbounded query with many results doesn't consume too much memory
-	// or hang
+// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQLSecure
+func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
 	if opts.PerPage == 0 {
-		opts.PerPage = defaultSelectLimit
+		opts.PerPage = fleet.DefaultPerPage
 	}
+	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
+}
 
-	perPage := opts.PerPage
-	if opts.IncludeMetadata {
-		perPage++
+// appendListOptionsWithCursorToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
+// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
+//
+// The allowlist parameter maps user-facing order key names to actual SQL column expressions.
+// This prevents SQL injection and information disclosure via arbitrary column sorting.
+// See common_mysql.OrderKeyAllowlist for details.
+func appendListOptionsWithCursorToSQLSecure(sql string, params []any, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.DefaultPerPage
 	}
-	sql = fmt.Sprintf("%s LIMIT %d", sql, perPage)
-
-	offset := opts.PerPage * opts.Page
-
-	if offset > 0 {
-		sql = fmt.Sprintf("%s OFFSET %d", sql, offset)
-	}
-
-	return sql, params
+	return common_mysql.AppendListOptionsWithParamsSecure(sql, params, opts, allowlist)
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
@@ -856,7 +888,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "team filter missing user")
 		return "FALSE"
 	}
 
@@ -867,10 +899,14 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleObserverPlus:
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
+				if filter.ObserverTeamID != nil {
+					// Restrict global observer to only the specified team (e.g. the live query's own team).
+					return fmt.Sprintf("%s.team_id = %d", hostKey, *filter.ObserverTeamID)
+				}
 				return defaultAllowClause
 			}
 			return "FALSE"
@@ -885,11 +921,20 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
-			team.Role == fleet.RoleObserverPlus ||
-			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			team.Role == fleet.RoleTechnician ||
+			team.Role == fleet.RoleObserverPlus {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
+			}
+		} else if team.Role == fleet.RoleObserver && filter.IncludeObserver {
+			// When ObserverTeamID is set, restrict observer access to only that team.
+			// This scopes observer_can_run to the query's own team, not all observed teams.
+			if filter.ObserverTeamID == nil || *filter.ObserverTeamID == team.ID {
+				idStrs = append(idStrs, fmt.Sprint(team.ID))
+				if filter.TeamID != nil && *filter.TeamID == team.ID {
+					teamIDSeen = true
+				}
 			}
 		}
 	}
@@ -910,7 +955,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
 }
 
-// whereFilterGlobalOrTeamIDByTeams is the same as whereFilterHostsByTeams, it
+// whereFilterTeamWithGlobalStats is the same as whereFilterHostsByTeams, it
 // returns the appropriate condition to use in the WHERE clause to render only
 // the appropriate teams, but is to be used when the team_id column uses "0" to
 // mean "all teams including no team". This is the case e.g. for
@@ -919,7 +964,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filter provides the filtering parameters that should be used.
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
-func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+func (ds *Datastore) whereFilterTeamWithGlobalStats(filter fleet.TeamFilter, filterTableAlias string) string {
 	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
@@ -932,7 +977,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "team filter missing user")
 		return "FALSE"
 	}
 
@@ -943,7 +988,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleObserverPlus:
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -961,6 +1006,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleTechnician ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
@@ -996,13 +1042,13 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "team filter missing user")
 		return "FALSE"
 	}
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -1019,6 +1065,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleTechnician ||
 			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
@@ -1143,19 +1190,17 @@ var (
 
 // hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
 // the host from the `hosts` table must be aliased to `h` in `sql`.
-func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
-	var matchesEmail bool
+func hostSearchLike(sql string, params []any, match string, columns ...string) (string, []any) {
 	base, args := searchLike(sql, params, match, columns...)
 
-	// special-case for hosts: if match looks like an email address, add searching
-	// in host_emails table as an option, in addition to the provided columns.
-	if fleet.IsLooseEmail(match) {
-		matchesEmail = true
+	// Always search in host_emails table in addition to the provided columns,
+	// so that any search query can surface results from human-host mapping information.
+	if len(match) > 0 && len(columns) > 0 {
 		// remove the closing paren and add the email condition to the list
 		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
 		args = append(args, likePattern(match))
 	}
-	return base, args, matchesEmail
+	return base, args
 }
 
 func hostSearchLikeAny(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {

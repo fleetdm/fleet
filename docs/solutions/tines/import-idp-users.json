@@ -1,0 +1,468 @@
+{
+  "schema_version": 27,
+  "standard_lib_version": 86,
+  "action_runtime_version": 66,
+  "name": "Sync host IdP user with Oomnitza",
+  "description": null,
+  "guid": "cb1b5323377e8962631f3729483dd932",
+  "slug": "sync_host_idp_user_with_oomnitza",
+  "agents": [
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Update host IdP email",
+      "disabled": false,
+      "description": null,
+      "guid": "f851f840038ca4e65d6583f5f9629fb3",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "url": "<<RESOURCE.fleet_url.>>/api/v1/fleet/hosts/<<for_each_host.host.id>>/device_mapping",
+        "content_type": "application_json",
+        "method": "put",
+        "payload": {
+          "email": "<<get_asset_from_oomnitza.body[0].assigned_to>>",
+          "source": "idp"
+        },
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_token>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get hosts from Fleet",
+      "disabled": false,
+      "description": null,
+      "guid": "ed5bd71f979ceaeb0b20c6345eda5d13",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/api/v1/fleet/hosts",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_token>>"
+        },
+        "query_params": {
+          "per_page": "<<setup.hosts_per_page>>",
+          "device_mapping": "true",
+          "page": "0"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "For each host",
+      "disabled": false,
+      "description": null,
+      "guid": "3f3bc9168310bcfad9ffeed3cbfc75f9",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "mode": "explode",
+        "path": "=get_hosts_from_fleet.body.hosts",
+        "to": "host",
+        "limit": "500"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::TriggerAgent",
+      "name": "More hosts",
+      "disabled": false,
+      "description": null,
+      "guid": "b339479cc57be42da952eb132c904979",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "rules": [
+          {
+            "type": "field==value",
+            "value": "<<setup.hosts_per_page>>",
+            "path": "<<SIZE(get_hosts_from_fleet.body.hosts)>>"
+          }
+        ]
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "Setup",
+      "disabled": false,
+      "description": null,
+      "guid": "26cb3dccaec7829dae692dece819992f",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "mode": "message_only",
+        "loop": false,
+        "payload": {
+          "hosts_per_page": 100
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "Wait 10 seconds",
+      "disabled": false,
+      "description": null,
+      "guid": "9fde107a60152c9a0ba62a30ea36cdea",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "mode": "delay",
+        "seconds": "10"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get hosts from Fleet",
+      "disabled": false,
+      "description": null,
+      "guid": "b3f26eaa5653c8fabfb7f9bad65f4c99",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "url": "<<RESOURCE.fleet_url>>/api/v1/fleet/hosts",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.fleet_api_token>>"
+        },
+        "query_params": {
+          "per_page": "=setup.hosts_per_page",
+          "page": "=set_page.page"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "Set page",
+      "disabled": false,
+      "description": null,
+      "guid": "8647a93ed102c10183c8427b497547ce",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "mode": "message_only",
+        "loop": false,
+        "payload": {
+          "page": "=set_page.page +1"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::EventTransformationAgent",
+      "name": "Get asset from Oomnitza",
+      "disabled": true,
+      "description": null,
+      "guid": "eca39162eec85f32eac3852755979b77",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "mode": "message_only",
+        "loop": false,
+        "payload": {
+          "body": [
+            {
+              "assigned_to": "example@fleetdm.com"
+            }
+          ]
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::TriggerAgent",
+      "name": "Email not assigned to host",
+      "disabled": false,
+      "description": null,
+      "guid": "3c722b6b0816c9259d7bd8ffcde4b53a",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "rules": [
+          {
+            "path": "=IS_EMPTY(FILTER(for_each_host.host.device_mapping, LAMBDA(email, email.source = \"idp\" || email.source = \"mdm_idp_accounts\" &&  email.email = get_asset_from_oomnitza.body[0].assigned_to)))",
+            "type": "formula"
+          }
+        ]
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Get asset from Oomnitza",
+      "disabled": false,
+      "description": null,
+      "guid": "ca984fc89eb0fb214ed8b754d958883d",
+      "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+      "options": {
+        "url": "<<RESOURCE.oomnitza_url>>",
+        "content_type": "application_json",
+        "method": "get",
+        "headers": {
+          "Authorization2": "<<CREDENTIAL.oomnitza>>"
+        },
+        "query_params": {
+          "filter": "=URL_ENCODE(APPEND (\"serial_number eq \", for_each_host.host.hardware_serial))"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    }
+  ],
+  "diagram_notes": [
+    {
+      "content": "CREDENTIALS:\n\n- Fleet API Token\n- Oomnita API TOKEN\n\nRESOURCES:\n\n- Fleet URL: fleet_url\n- Oomnitza URL: oomnitza_url\n\n\nUSAGE:\n\n- Run manually, or on a schedule. \n- In the Setup block, you can specify the number of Fleet hosts to pull per page\n- No inputs required at runtime\n\nWorkflow:\n\n- Fetch a page of hosts from Fleet\n- For each host, use the serial number to fetch the corresponding asset from Oomnitza\n- If the user associated with the asset is not the email assosciated with the host in Fleet, update Fleet IdP User to match\n- Repeat until all hosts have been fetched from Fleet\n\n\nNOTE:\n\nThe Oomnitza API documentation is fairly well locked down. I was able to gather enough information from various sources to have a reasonable expectation that the call I've set up will respond with data in the format mapped out in the currently disabled block. If that isn't the case, this can be adjusted in the \"Update host email\" HTTP Request. I'm happy to take care of that as well. \n\n",
+      "position": [
+        30,
+        0
+      ],
+      "guid": "f6550ff1e1cd0979d80e9dce15f09044",
+      "width": 270
+    }
+  ],
+  "links": [
+    {
+      "source": 1,
+      "receiver": 2
+    },
+    {
+      "source": 1,
+      "receiver": 3
+    },
+    {
+      "source": 2,
+      "receiver": 8
+    },
+    {
+      "source": 2,
+      "receiver": 10
+    },
+    {
+      "source": 3,
+      "receiver": 7
+    },
+    {
+      "source": 4,
+      "receiver": 1
+    },
+    {
+      "source": 5,
+      "receiver": 6
+    },
+    {
+      "source": 6,
+      "receiver": 2
+    },
+    {
+      "source": 6,
+      "receiver": 3
+    },
+    {
+      "source": 7,
+      "receiver": 5
+    },
+    {
+      "source": 8,
+      "receiver": 9
+    },
+    {
+      "source": 9,
+      "receiver": 0
+    },
+    {
+      "source": 10,
+      "receiver": 9
+    }
+  ],
+  "diagram_layout": "{\"26cb3dccaec7829dae692dece819992f\":[450,105],\"3c722b6b0816c9259d7bd8ffcde4b53a\":[450,705],\"3f3bc9168310bcfad9ffeed3cbfc75f9\":[450,555],\"8647a93ed102c10183c8427b497547ce\":[555,330],\"9fde107a60152c9a0ba62a30ea36cdea\":[555,405],\"b339479cc57be42da952eb132c904979\":[555,270],\"b3f26eaa5653c8fabfb7f9bad65f4c99\":[555,480],\"ca984fc89eb0fb214ed8b754d958883d\":[225,630],\"eca39162eec85f32eac3852755979b77\":[450,630],\"ed5bd71f979ceaeb0b20c6345eda5d13\":[450,195],\"f851f840038ca4e65d6583f5f9629fb3\":[450,780]}",
+  "story_library_metadata": {},
+  "monitor_failures": false,
+  "synchronous_webhooks_enabled": false,
+  "integrations": [],
+  "parent_only_send_to_story": false,
+  "send_to_story_timeout_enabled": false,
+  "send_to_story_timeout_duration_seconds": null,
+  "keep_events_for": 604800,
+  "reporting_status": true,
+  "send_to_story_enabled": false,
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": 0,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "pages": [],
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0,
+  "origin_story_identifier": "cloud:7eae93edade9e4517a5fea97a8619402:cb1b5323377e8962631f3729483dd932",
+  "recipients": [
+  ],
+  "integration_product": null,
+  "integration_vendor": null,
+  "llm_product_instructions": "",
+  "send_to_stories": [],
+  "exported_at": "2026-01-23T16:16:34Z",
+  "icon": ":art:"
+}

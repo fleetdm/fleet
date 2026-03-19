@@ -2,7 +2,7 @@
   "name": "Slack",
   "slug": "slack/windows",
   "package_identifier": "SlackTechnologies.Slack",
-  "unique_identifier": "Slack",
+  "unique_identifier": "Slack (Machine - MSI)",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",

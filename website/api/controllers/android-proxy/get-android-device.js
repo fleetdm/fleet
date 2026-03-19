@@ -90,7 +90,7 @@ module.exports = {
       if (errorString.includes('Device is no longer being managed')) {
         return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
       }
-      return new Error(`When attempting to get a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      return new Error(`When attempting to get a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 

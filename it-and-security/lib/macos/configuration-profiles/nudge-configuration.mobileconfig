@@ -140,11 +140,11 @@ This window will appear periodically to remind you until your computer is fully 
 
 If you fail to update by the deadline, access and functionality may be limited. Please update at your earliest convenience to avoid any downtime or work disruption.
 
-If you have any questions or need any assistance, please reach out via #help-it-and-enablement in Slack.</string>
+If you have any questions or need any assistance, please reach out via #help-it in Slack.</string>
 						<key>mainHeader</key>
 						<string>Required software update now available</string>
 						<key>subHeader</key>
-						<string>A friendly reminder from the IT &amp; Enablement team</string>
+						<string>A friendly reminder from the IT team</string>
 						<key>customDeferralButtonText</key>
 						<string>Custom</string>
 						<key>customDeferralDropdownText</key>

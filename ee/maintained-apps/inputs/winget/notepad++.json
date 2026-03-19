@@ -1,0 +1,14 @@
+{
+  "name": "Notepad++",
+  "slug": "notepad++/windows",
+  "package_identifier": "Notepad++.Notepad++",
+  "unique_identifier": "Notepad++",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/notepad++_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/notepad++_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -202,6 +202,9 @@ interface IPackageAdvancedOptionsProps {
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
   onChangeUninstallScript: (value?: string) => void;
+  /** Currently for editing FMA only, users cannot edit */
+  gitopsCompatible?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 const PackageAdvancedOptions = ({
@@ -217,6 +220,8 @@ const PackageAdvancedOptions = ({
   onChangeInstallScript,
   onChangePostInstallScript,
   onChangeUninstallScript,
+  gitopsCompatible = false,
+  gitOpsModeEnabled = false,
 }: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const name = selectedPackage?.name || "";
@@ -247,6 +252,8 @@ const PackageAdvancedOptions = ({
         onChangeInstallScript={onChangeInstallScript}
         onChangePostInstallScript={onChangePostInstallScript}
         onChangeUninstallScript={onChangeUninstallScript}
+        gitopsCompatible={gitopsCompatible}
+        gitOpsModeEnabled={gitOpsModeEnabled}
       />
     );
   };

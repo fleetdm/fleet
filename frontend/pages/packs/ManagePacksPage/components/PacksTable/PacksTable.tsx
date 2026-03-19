@@ -5,6 +5,7 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 import Button from "components/buttons/Button";
 
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
@@ -99,6 +100,11 @@ const PacksTable = ({
       iconSvg: "disable",
     },
   ];
+
+  const renderPackCount = useCallback(() => {
+    return <TableCount name="packs" count={filteredPacks?.length || 0} />;
+  }, [filteredPacks]);
+
   return (
     <div className={`${baseClass}`}>
       <TableContainer
@@ -121,6 +127,7 @@ const PacksTable = ({
           variant: "inverse",
           onClick: onDeletePackClick,
         }}
+        renderCount={renderPackCount}
         secondarySelectActions={secondarySelectActions}
         emptyComponent={() =>
           EmptyTable({

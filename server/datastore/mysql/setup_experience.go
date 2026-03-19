@@ -7,21 +7,81 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
-	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, false)
+func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatform, hostPlatformLike, hostUUID, teamID, false)
 }
 
-func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
-	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, true)
+func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatform, hostPlatformLike, hostUUID, teamID, true)
 }
 
-func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
+func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
+	// NOTE: there are 3 different "platform" values in play here: host platform,
+	// host platform-like and fleet-platform-like.
+	//
+	// The host platform is the most specific, e.g. "darwin", "windows", "ios",
+	// "ubuntu", "arch", "fedora", etc.
+	//
+	// Platform-like is the "generic platform" to which the specific platform belongs,
+	// e.g. "debian" for "ubuntu", "rhel" for "fedora", etc. For Apple or Windows, it
+	// is typically the same as platform. It may be empty in some cases (e.g. for "arch"
+	// as it doesn't have a "ID_LIKE" set in /etc/os-release by default, but also "ios").
+	//
+	// Fleet-platform-like is the even-more-generic platform, and is implemented in
+	// fleet.PlatformFromHost: "windows", "darwin", "linux", "ios", etc.
+	//
+	// So for many platforms, all three are the same, but for linux distros, those can be
+	// 3 different values. There is no harm - at least in this function - in filling
+	// hostPlatformLike to hostPlatform if it is empty (e.g. for "ios" or "arch").
+	//
+	// From my tests enrolling such hosts, results are:
+	// - host platform - host platform like - fleet platform like -
+	//   ios             <empty>              ios
+	//   darwin          darwin               darwin
+	//   arch            <empty>              linux
+	//   ubuntu          debian               linux
+	//   windows         windows              windows
+	if hostPlatformLike == "" {
+		hostPlatformLike = hostPlatform
+	}
+
+	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
+		// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
+		// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
+		// Orbit version that didn't support setup experience to one that does.
+		// See https://github.com/fleetdm/fleet/issues/35717
+		stmtHost := `
+		SELECT
+			last_enrolled_at
+		FROM
+			hosts
+		WHERE uuid = ? AND platform = ?
+		`
+		var lastEnrolledAt sql.NullTime
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatform); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// This shouldn't happen but we don't check for it elsewhere,
+				// so we'll log a warning and continue.
+				ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "platform", hostPlatform)
+			} else {
+				return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
+			}
+		}
+		// If the host was enrolled more than 24 hours ago, don't enqueue any items.
+		// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
+		if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
+			ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+			return false, nil
+		}
+	}
+
 	// NOTE: currently, the Android platform does not use the "enqueue setup experience items" flow as it
 	// doesn't support any on-device UI (such as the screen showing setup progress) nor any
 	// ordering of installs - all software to install is provided as part of the Android policy
@@ -54,6 +114,7 @@ INNER JOIN software_titles st
 	ON si.title_id = st.id
 WHERE install_during_setup = true
 AND global_or_team_id = ?
+AND si.is_active = TRUE
 AND (
 	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
@@ -504,7 +565,7 @@ SELECT
     END AS error
 FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
-LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
+LEFT JOIN software_installers si ON si.id = sesr.software_installer_id AND si.is_active = TRUE
 LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_installs_execution_id
 LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
@@ -515,6 +576,57 @@ WHERE host_uuid = ?
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select setup experience status results by host uuid")
 	}
+
+	titleIDs := make([]uint, 0, len(results))
+	byTitleID := make(map[uint]*fleet.SetupExperienceStatusResult, len(results))
+	for _, res := range results {
+		if res.SoftwareTitleID != nil {
+			titleIDs = append(titleIDs, *res.SoftwareTitleID)
+			byTitleID[*res.SoftwareTitleID] = res
+		}
+	}
+
+	// load custom display name and custom icon for the software installers, if any
+	if len(titleIDs) > 0 {
+		// NOTE: as documented in fleet.HostUUIDForSetupExperience, the setup experience "host_uuid"
+		// is NOT always the host.uuid (on Windows and Linux, specifically). So if the host's team is
+		// not found, we simply don't load the icons and display names, anyway we only need those
+		// on macOS currently as it's the only place where the setup experience UI is shown.
+
+		// we need the host's team to load the custom icons and display names
+		const hostTeam = `SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`
+		var hostTeamID sql.Null[uint]
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostTeamID, hostTeam, hostUUID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// host not found, skip loading icons and display names
+				return results, nil
+			}
+			return nil, ctxerr.Wrap(ctx, err, "get host team ID for setup experience results")
+		}
+
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
+		for titleID, icon := range icons {
+			if res := byTitleID[titleID]; res != nil {
+				res.IconURL = icon.IconUrl()
+			}
+		}
+
+		for titleID, name := range displayNames {
+			if res := byTitleID[titleID]; res != nil {
+				res.DisplayName = name
+			}
+		}
+	}
+
 	return results, nil
 }
 

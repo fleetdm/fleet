@@ -12,12 +12,12 @@ import com.google.android.managementapi.notification.NotificationReceiverService
  */
 class RoleNotificationReceiverService : NotificationReceiverService() {
     companion object {
-        private const val TAG = "fleet-notification"
+        private const val TAG = "fleet-RoleNotificationReceiverService"
     }
 
     override fun getAppRolesListener(): AppRolesListener = object : AppRolesListener {
         override fun onAppRolesSet(request: AppRolesSetRequest): AppRolesSetResponse {
-            Log.i(TAG, "App roles set by Android Device Policy")
+            Log.i(TAG, "App started via MDM role assignment")
             return AppRolesSetResponse.getDefaultInstance()
         }
     }

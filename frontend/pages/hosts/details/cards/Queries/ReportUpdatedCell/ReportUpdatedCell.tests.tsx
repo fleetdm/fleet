@@ -20,7 +20,7 @@ describe("ReportUpdatedCell component", () => {
     );
 
     expect(screen.getByText(/No report/)).toBeInTheDocument();
-    expect(screen.getByText(/Results from this query/)).toBeInTheDocument();
+    expect(screen.getByText(/Results from this report/)).toBeInTheDocument();
     expect(screen.queryByText(/View report/)).toBeNull();
   });
 
@@ -38,7 +38,7 @@ describe("ReportUpdatedCell component", () => {
 
     expect(screen.getByText(/---/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Fleet is collecting query results\./)
+      screen.getByText(/Fleet is collecting report results\./)
     ).toBeInTheDocument();
     expect(screen.getByText(/Check back later./)).toBeInTheDocument();
   });
@@ -60,7 +60,7 @@ describe("ReportUpdatedCell component", () => {
 
     expect(screen.getByText(HUMAN_READABLE_DATETIME_REGEX)).toBeInTheDocument();
     expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
-    expect(screen.getByText(/View report/)).toBeInTheDocument();
+    expect(screen.getByText(/View data/)).toBeInTheDocument();
   });
   it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present but not currently running an interval", () => {
     const tenDaysAgo = new Date();
@@ -79,6 +79,6 @@ describe("ReportUpdatedCell component", () => {
 
     expect(screen.getByText(HUMAN_READABLE_DATETIME_REGEX)).toBeInTheDocument();
     expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
-    expect(screen.getByText(/View report/)).toBeInTheDocument();
+    expect(screen.getByText(/View data/)).toBeInTheDocument();
   });
 });
