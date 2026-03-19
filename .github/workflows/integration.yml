@@ -188,15 +188,19 @@ jobs:
         
         # Wait for Fleet server to be reachable
         echo "Waiting for Fleet server to pass health check..."
+        HEALTH_CHECK_START=$(date +%s)
         until curl -s -o /dev/null -w "%{http_code}" ${{ needs.gen.outputs.address }}/healthz | grep -q "200"; do
-          echo "Health check failed..."
+          ELAPSED=$(( $(date +%s) - HEALTH_CHECK_START ))
+          echo "Health check failed... (${ELAPSED}s)"
           sudo resolvectl flush-caches 2>/dev/null || sudo systemd-resolve --flush-caches 2>/dev/null || true
           sleep 1
         done
         echo "Fleet server is responding, attempting login..."
         
+        LOGIN_START=$(date +%s)
         until fleetctl login --email admin@example.com --password preview1337#; do
-          echo "Login attempt failed..."
+          ELAPSED=$(( $(date +%s) - LOGIN_START ))
+          echo "Login attempt failed... (${ELAPSED}s)"
           sleep 1
         done
         TOKEN=$(fleetctl config get token | awk '{print $3}')
@@ -278,6 +282,10 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        fetch-depth: 1
+        sparse-checkout: |
+          it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
     - name: Uninstall Orbit
       run: |
@@ -516,6 +524,10 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        fetch-depth: 1
+        sparse-checkout: |
+          it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
 
     - name: Uninstall Orbit
       shell: powershell
