@@ -5234,6 +5234,9 @@ func ReconcileAppleProfiles(
 				hp.Status = nil
 				hp.CommandUUID = ""
 			}
+			// TODO: Are we double checking here? It's all pointers so I think we do get the updates in nested methods
+			// but we should verify that and if so, we can simplify the code by not having to check the map again. But it's not a big operation so it's better to do for now
+
 			// also check hostProfilesToInstallMap to cover cases where MarkProfilesFailed was called
 			if hpi, ok := hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}]; ok {
 				if hpi.Status != nil && *hpi.Status != fleet.MDMDeliveryFailed {
