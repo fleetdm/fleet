@@ -210,7 +210,7 @@ This reporting is performed to update the status of open or upcoming customer ac
 3. Copy the template below and paste it into the [#help-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from accounting system before sending.
 
 ```
-Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
+Weekly revenue report - [@`todo: SVP Global Sales` and @`todo: CEO`]
 - Key summary on accounts receivables
 	- 90+ days past due: `todo`
 	- 31 - 60 days past due: `todo`
@@ -290,7 +290,7 @@ A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF 
 ### Run US commission payroll
 
 1. Update individual teammates commission calculators (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with new revenue from any deals that are closed-won (have a subscription agreement signed by both parties) and have a **close date** within the previous month.
-    - Verify closed-won deal numbers with CRO to ensure any agreed upon exceptions are captured (eg: CRO approves an AE to receive commission on a renewal deal due to cross-sell).
+    - Verify closed-won deal numbers with SVP Global Sales to ensure any agreed upon exceptions are captured (eg: SVP Global Sales approves an AE to receive commission on a renewal deal due to cross-sell).
 2. In the "Monthly commission payroll party" meeting, present the commission calculations for Fleeties receiving commission for approval.
     - If there are any quarterly accelerators due for the teammate receiving commission, ensure the individual total includes both the monthly and the quarterly amount.
 3. After the amounts are approved in the meeting, process the commission payroll.
@@ -299,7 +299,7 @@ A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF 
 
 ### Run international commission payroll
 
-1. Follow the steps in [run US commission payroll](https://fleetdm.com/handbook/finance#run-us-commission-payroll) to have the commission amounts approved by the CRO.
+1. Follow the steps in [run US commission payroll](https://fleetdm.com/handbook/finance#run-us-commission-payroll) to have the commission amounts approved by the SVP Global Sales.
 2. After the amounts are approved in the "Monthly commission payroll party", navigate to Help > Ask a question in Plane to request a commission payment for the teammate.
 3. Send a message using the following template
 

@@ -91,11 +91,11 @@ If no opportunities meet these criteria, the meeting is used to discuss the olde
 
 ### Communicate Gross new ARR added
 
-Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, the CEO and CRO will measure the amount of "Gross new ARR" added towards the goal set forth by the CEO. To do this:
+Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, the CEO and SVP Global Sales will measure the amount of "Gross new ARR" added towards the goal set forth by the CEO. To do this:
 1. Before the meeting, the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
 2. Before the meeting, the Executive Assistant will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based on "Close date" and add it to the doc. 
 3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed), the Executive Assistant will calculate the progress toward the goal and "Amount left to close" and add it to the doc. 
-4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
+4. The SVP Global Sales will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
 ### Send a reseller subscription quote
@@ -110,7 +110,7 @@ Reseller partners occasionally reach out and ask Fleet for a quote on behalf of 
 
 ### Send an order form
 
-In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 💸 [Deal Desk](https://fleetdm.com/handbook/finance#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
+In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the SVP Global Sales and 💸 [Deal Desk](https://fleetdm.com/handbook/finance#team) before being sent to the prospect or customer. Often, the SVP Global Sales will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
 
 > Check out this example of an [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A)!
 
@@ -120,7 +120,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 
 > **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
 
-4. In the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) `@`-mention the VP of Customer Success (for post-sale), or the CRO (pre-sale), and [Deal Desk](https://fleetdm.com/handbook/finance#team) with a link to the docx version of the order and ask them to approve the order form.
+4. In the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) `@`-mention the VP of Customer Success (for post-sale), or the SVP Global Sales (pre-sale), and [Deal Desk](https://fleetdm.com/handbook/finance#team) with a link to the docx version of the order and ask them to approve the order form.
 5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
 
 > Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.
