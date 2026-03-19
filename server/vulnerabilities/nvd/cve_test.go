@@ -678,6 +678,17 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
 			continuesToUpdate: true,
 		},
+		// #41586 - Admin By Request false positives on macOS/Linux
+		// These CVEs are Windows-only but NVD data uses target_sw=* so they would match any platform without our fix.
+		"cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{"CVE-2019-17201", "CVE-2019-17202"},
+		},
+		"cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2019-17201", resolvedInVersion: "6.2.0.0"},
+				{ID: "CVE-2019-17202", resolvedInVersion: "6.2.0.0"},
+			},
+		},
 	}
 
 	cveOSTests := []struct {
