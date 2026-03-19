@@ -19663,12 +19663,19 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
-	slices.SortFunc(listMAResp.FleetMaintainedApps, func(a, b fleet.MaintainedApp) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-	slices.SortFunc(expectedApps, func(a, b fleet.MaintainedApp) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
+	sortMaintainedApps := func(apps []fleet.MaintainedApp) {
+		slices.SortFunc(apps, func(a, b fleet.MaintainedApp) int {
+			return cmp.Or(
+				cmp.Compare(a.Name, b.Name),
+				cmp.Compare(a.Platform, b.Platform),
+				cmp.Compare(a.Slug, b.Slug),
+				cmp.Compare(a.Version, b.Version),
+				cmp.Compare(a.ID, b.ID),
+			)
+		})
+	}
+	sortMaintainedApps(listMAResp.FleetMaintainedApps)
+	sortMaintainedApps(expectedApps)
 	require.Equal(t, expectedApps, listMAResp.FleetMaintainedApps)
 
 	var listMAResp2 listFleetMaintainedAppsResponse
