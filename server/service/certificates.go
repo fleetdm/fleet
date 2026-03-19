@@ -734,8 +734,22 @@ func (svc *Service) ResendHostCertificateTemplate(ctx context.Context, hostID ui
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, templateID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting certificate details")
+	}
+
 	if err := svc.ds.ResendHostCertificateTemplate(ctx, hostID, templateID); err != nil {
 		return ctxerr.Wrap(ctx, err, "resending certificate template")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResentCertificate{
+		HostID:                host.ID,
+		HostDisplayName:       host.DisplayName(),
+		CertificateTemplateID: certificate.ID,
+		CertificateName:       certificate.Name,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity")
 	}
 
 	return nil
