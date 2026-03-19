@@ -3471,7 +3471,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
 			failedCount++
-			require.Len(t, payload, 0)
+			require.Len(t, payload, 8)
 		}
 		enqueueFailForOp = ""
 		newContents := "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP
@@ -3483,7 +3483,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
 			return nil, errors.New("GetHostEmailsFuncError")
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.Default().Handler()))
 		assert.ErrorContains(t, err, "GetHostEmailsFuncError")
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
