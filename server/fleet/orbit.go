@@ -55,6 +55,11 @@ type OrbitConfigNotifications struct {
 	// see EnforceBitLockerEncryption for Windows and RotateDiskEncryptionKey
 	// for macOS.
 	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
+
+	// RunConditionalAccessEnrollment tells orbit to ensure a conditional access
+	// SCEP certificate is enrolled. Only set for Linux hosts when Okta conditional
+	// access is configured globally.
+	RunConditionalAccessEnrollment bool `json:"run_conditional_access_enrollment,omitempty"`
 }
 
 type OrbitConfig struct {
