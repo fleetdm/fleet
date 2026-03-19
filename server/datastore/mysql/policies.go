@@ -37,7 +37,7 @@ const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type, 
+	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
 	p.patch_software_title_id
 `
 
@@ -860,7 +860,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 
 // CountPolicies returns the total number of team policies.
 // If teamID is nil, it returns the total number of global policies.
-func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error) {
+func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error) {
 	var (
 		query string
 		args  []interface{}
@@ -872,6 +872,18 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	} else {
 		query = `SELECT count(*) FROM policies p WHERE team_id = ?`
 		args = append(args, *teamID)
+	}
+
+	if teamID != nil {
+		automationFilter, filterArgs, err := ds.createAutomationClause(ctx, automationType, *teamID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "build automation filter clause")
+		}
+
+		query += automationFilter
+		if len(filterArgs) > 0 {
+			args = append(args, filterArgs...)
+		}
 	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
@@ -886,18 +898,28 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	return count, nil
 }
 
-func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
+func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error) {
 	var args []interface{}
 
 	query := `SELECT count(*) FROM policies p WHERE (p.team_id = ? OR p.team_id IS NULL)`
 	args = append(args, teamID)
+
+	automationFilter, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build automation filter clause")
+	}
+
+	query += automationFilter
+	if len(filterArgs) > 0 {
+		args = append(args, filterArgs...)
+	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(matchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
 
 	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "counting merged team policies")
 	}
@@ -1157,8 +1179,8 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	return policyDB(ctx, db, policyID, &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
-	filterClause, filterArgs, err := ds.createAutomationClause(ctx, automationFilter, teamID)
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+	filterClause, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
 	}
@@ -1175,10 +1197,10 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 	return teamPolicies, inheritedPolicies, err
 }
 
-func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, error) {
+func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType string) ([]*fleet.Policy, error) {
 	var args []interface{}
 
-	automationClause, filterArgs, err := ds.createAutomationClause(ctx, automationFilter, teamID)
+	automationFilter, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
 	}
@@ -1197,7 +1219,7 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 		AND (p.team_id IS NOT NULL OR ps.inherited_team_id = ?)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
 		%s
-    `, automationClause)
+    `, automationFilter)
 
 	args = append(args, teamID, teamID)
 	if len(filterArgs) > 0 {
@@ -2663,9 +2685,9 @@ func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID u
 	return &policy, nil
 }
 
-func (ds *Datastore) createAutomationClause(ctx context.Context, automationFilter string, teamID uint) (string, []any, error) {
+func (ds *Datastore) createAutomationClause(ctx context.Context, automationType string, teamID uint) (string, []any, error) {
 	// TODO: improve filtering by "other"
-	if automationFilter == "other" {
+	if automationType == "other" {
 		team, err := ds.TeamLite(ctx, teamID)
 		if err != nil {
 			return "", nil, ctxerr.Wrap(ctx, err, "getting team config")
@@ -2683,7 +2705,7 @@ func (ds *Datastore) createAutomationClause(ctx context.Context, automationFilte
 		return clause, args, nil
 	}
 
-	switch automationFilter {
+	switch automationType {
 	case "software":
 		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL OR p.type = 'patch')", nil, nil
 	case "scripts":
