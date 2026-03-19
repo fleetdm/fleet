@@ -156,7 +156,9 @@ module.exports = {
       valuesToSet.Website_questionnaire_answers__c = getStartedResponses;// eslint-disable-line camelcase
     }
     if(description) {
-      valuesToSet.Description = description;
+      // Create a ISO date timestamp to add to the description.
+      let isoTimeStringForThisDescriptionUpdate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      valuesToSet.Description = isoTimeStringForThisDescriptionUpdate+': '+description;
     }
     if(intentSignal) {
       valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
@@ -174,7 +176,6 @@ module.exports = {
       valuesToSet.Trial_user_count__c = trialInstanceUsageDetails.numUsers;// eslint-disable-line camelcase
       valuesToSet.Trial_hosts_enrolled__c = trialInstanceUsageDetails.numHostsEnrolled;// eslint-disable-line camelcase
     }
-
     //  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔╦╗╔═╗╦═╗╦╔═╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╔╦╗╔╦╗╦═╗╦╔╗ ╦ ╦╔╦╗╦╔═╗╔╗╔
     //  ╠═╝╠╦╝║ ║║  ║╣ ║╣ ╚═╗╚═╗  ║║║╠═╣╠╦╝╠╩╗║╣  ║ ║║║║║ ╦  ╠═╣ ║  ║ ╠╦╝║╠╩╗║ ║ ║ ║║ ║║║║
     //  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝╚═╝  ╩ ╩╩ ╩╩╚═╩ ╩╚═╝ ╩ ╩╝╚╝╚═╝  ╩ ╩ ╩  ╩ ╩╚═╩╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
@@ -491,9 +492,9 @@ module.exports = {
     //  ║ ║╠═╝ ║║╠═╣ ║ ║╣   ║╣ ╔╩╦╝║╚═╗ ║ ║║║║║ ╦  ║  ║ ║║║║ ║ ╠═╣║   ║
     //  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╚═╝╩ ╚═╩╚═╝ ╩ ╩╝╚╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩ ╩╚═╝ ╩
     if(existingContactRecord) {
-      // If a description was provided and the contact has a description, append the new description to it.
+      // If a description was provided and the contact has a description, prepend the new description to it.
       if(description && existingContactRecord.Description) {
-        valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+        valuesToSet.Description += '\n' + existingContactRecord.Description;
       }
       // If we're updating a contact, add psychologicalStage and psychologicalStageChangeReason to the dictionary of valuesToSet.
       if(psychologicalStage) {
