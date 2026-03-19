@@ -591,6 +591,22 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid parameters. The combination of %s is not allowed.", strings.Join(softwareErrorLabel, " and "))))
 	}
 
+	depProfileError := r.URL.Query().Get("dep_profile_error")
+	if depProfileError != "" {
+		boolVal, err := strconv.ParseBool(depProfileError)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid dep_profile_error: %s",
+						depProfileError,
+					),
+				),
+			)
+		}
+		hopt.DEPProfileErrorFilter = &boolVal
+	}
+
 	return hopt, nil
 }
 

@@ -235,6 +235,12 @@ type HostListOptions struct {
 	BatchScriptExecutionStatusFilter BatchScriptExecutionStatus
 	// BatchScriptExecutionIDFilter filters hosts by the ID of a batch script execution.
 	BatchScriptExecutionIDFilter *string
+
+	DEPProfileErrorFilter *bool
+
+	// DEPAssignProfileResponseFilter filters hosts by their exact DEP profile
+	// assignment response value (SUCCESS, FAILED, THROTTLED, NOT_ACCESSIBLE).
+	DEPAssignProfileResponseFilter *DEPAssignProfileResponseStatus
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -265,7 +271,9 @@ func (h HostListOptions) Empty() bool {
 		h.OSSettingsFilter == "" &&
 		h.OSSettingsDiskEncryptionFilter == "" &&
 		h.ProfileUUIDFilter == nil &&
-		h.ProfileStatusFilter == nil
+		h.ProfileStatusFilter == nil &&
+		h.DEPProfileErrorFilter == nil &&
+		h.DEPAssignProfileResponseFilter == nil
 }
 
 type HostUser struct {
