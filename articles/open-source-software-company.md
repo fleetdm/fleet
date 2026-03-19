@@ -65,7 +65,7 @@ By bringing infrastructure-as-code (IaC) practices to device management, Fleet e
 
 Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
-<meta name="articleTitle" value="Open-source software company brings Linux into a unified management strategy with Fleet">
+<meta name="articleTitle" value="Open-source software company closes the Linux gap in device management with Fleet">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="case study">
