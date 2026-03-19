@@ -712,6 +712,7 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 		return nil, ctxerr.Wrap(ctx, err, "reading app config")
 	}
 
+	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(profilesToInstall))
 	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(profilesToInstall))
 	installTargets := make(map[string]*fleet.CmdTarget, len(profilesToInstall))
 	for _, profile := range profilesToInstall {
@@ -728,12 +729,17 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 			HostUUID:          hostUUID,
 			CommandUUID:       target.CmdUUID,
 			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryPending,
+			Status:            nil, // intentionally nil here, to avoid stuck pending, but we need to upsert before processing so inner code can match rows for failures
 			Checksum:          profile.Checksum,
 			SecretsUpdatedAt:  profile.SecretsUpdatedAt,
 			Scope:             profile.Scope,
 		}
 		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profile.ProfileUUID}] = hostProfile
+		hostProfiles = append(hostProfiles, hostProfile)
+	}
+
+	if err := a.Datastore.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk upsert host profiles before installation")
 	}
 
 	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(ctx, a.Datastore, a.Log, appConfig, a.Commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{})
@@ -761,6 +767,7 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 	var bulkPayloads []*fleet.MDMAppleBulkUpsertHostProfilePayload
 	for _, cmdUUID := range enqueueResult.SucceededCmdUUIDs {
 		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
+			profile.Status = &fleet.MDMDeliveryPending
 			cmdUUIDs = append(cmdUUIDs, cmdUUID)
 			bulkPayloads = append(bulkPayloads, profile)
 		}
@@ -780,7 +787,9 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 	// We can come back to this if we want to include DDM declarations here in the future.
 	declarativeManagementCmdUUID := uuid.NewString()
 	if err := a.Commander.DeclarativeManagement(ctx, []string{hostUUID}, declarativeManagementCmdUUID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sending DeclarativeManagement command")
+		a.Log.ErrorContext(ctx, "failed to send DeclarativeManagement command after installing profiles for enrolling host", "host_uuid", hostUUID, "error", err)
+		// Make sure we return the profile commands even if DDM fails
+		return cmdUUIDs, nil
 	}
 	cmdUUIDs = append(cmdUUIDs, declarativeManagementCmdUUID)
 
