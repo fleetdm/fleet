@@ -771,6 +771,7 @@ In this meeting, we'll [use this agenda](https://docs.google.com/document/d/1_gA
 - Gmail: like any mailbox, full of junk mail, plus some important things, so it is important to check carefully.
 - Salesforce: the Rolodex.
 - Google Docs: the archives.
+- Claude: Anthropic's AI assistant.
 - Slack:
   - The "office" (#g-, #general).
   - The walkie talkies (DMs).
