@@ -924,18 +924,14 @@ const ManagePolicyPage = ({
       await Promise.all(responses);
       renderFlash(
         "success",
-        `Successfully deleted ${
-          selectedPolicyIds?.length === 1 ? "policy" : "policies"
-        }.`
+        "Successfully deleted policies."
       );
       setResetSelectedRows(true);
       refetchPolicies(teamIdForApi);
     } catch {
       renderFlash(
         "error",
-        `Unable to delete ${
-          selectedPolicyIds?.length === 1 ? "policy" : "policies"
-        }. Please try again.`
+        "Unable to delete policies. Please try again."
       );
     } finally {
       toggleDeletePoliciesModal();

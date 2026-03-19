@@ -1401,9 +1401,7 @@ const ManageHostsPage = ({
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
-      const successMessage = `${
-        selectedHostIds.length === 1 ? "Host" : "Hosts"
-      } successfully deleted.`;
+      const successMessage = "Hosts successfully deleted.";
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
@@ -1415,9 +1413,7 @@ const ManageHostsPage = ({
     } catch (error) {
       renderFlash(
         "error",
-        `Could not delete ${
-          selectedHostIds.length === 1 ? "host" : "hosts"
-        }. Please try again.`
+        "Could not delete hosts. Please try again."
       );
     } finally {
       setIsUpdating(false);

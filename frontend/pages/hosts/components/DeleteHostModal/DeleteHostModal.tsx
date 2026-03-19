@@ -1,7 +1,5 @@
 import React from "react";
 
-import strUtils from "utilities/strings";
-
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -32,18 +30,11 @@ const DeleteHostModal = ({
   hostName,
   isUpdating,
 }: IDeleteHostModalProps): JSX.Element => {
-  const pluralizeHost = () => {
-    if (!selectedHostIds) {
-      return "host";
-    }
-    return strUtils.pluralize(selectedHostIds.length, "host");
-  };
-
   const hostText = () => {
     if (selectedHostIds) {
       return `${selectedHostIds.length}${
         isAllMatchingHostsSelected ? "+" : ""
-      } ${pluralizeHost()}`;
+      } hosts`;
     }
     return hostName;
   };
