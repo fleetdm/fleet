@@ -236,7 +236,7 @@ jobs:
 
     - name: Install Orbit
       run: |
-        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
@@ -533,3 +533,11 @@ jobs:
       shell: powershell
       run: |
         .\it-and-security\lib\windows\scripts\uninstall-fleetd-windows.ps1
+
+  summary:
+    needs: [fleetd-macos, fleetd-ubuntu, fleetd-windows]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Summary
+      run: |
+        echo "All tests completed!"
