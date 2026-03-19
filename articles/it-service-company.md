@@ -18,7 +18,7 @@ Fleet helps the company build zero-touch deployment workflows and manage device 
 
 Before Fleet, the company relied on legacy tools that were not built for zero-touch, secure laptop deployment.
 
-The team needed better visibility into device state and a more automated way to manage credentials, policies, and user transitions. Existing tools created friction and did not support the secure-by-default model the team wanted.
+The team needed better visibility into device state and a more automated way to manage credentials, policies, and user transitions. Existing tools relied on manual workflows, created friction, and could not support a secure-by-default model at scale.
 
 ## The evaluation criteria
 
@@ -37,7 +37,7 @@ The team focused on three capabilities:
 
 Fleet gave the team a platform for automated deployment, identity-aware workflows, and real-time visibility.
 
-The company used the Fleet API to rotate Recovery Lock passwords, manage hidden admin accounts, and respond to identity changes without manual intervention. Integrations with Okta also helped remove deactivated users automatically, which reduced the chance of leftover access on managed devices.
+The company used the Fleet API to rotate Recovery Lock passwords, manage hidden admin accounts, and respond to identity changes without manual intervention. Integrations with Okta also helped automatically remove deactivated users, reducing the risk of leftover access on managed devices.
 
 The open-source model was important because it allowed the team to inspect the code and verify behavior directly.
 
