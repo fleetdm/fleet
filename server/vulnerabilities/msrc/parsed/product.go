@@ -20,8 +20,13 @@ type Products map[string]Product
 var ErrNoMatch = errors.New("no product matches")
 
 func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (string, error) {
-	var dvMatch, noDvMatch string
 	isServerCoreHost := strings.EqualFold(os.InstallationType, "Server Core")
+	installationTypeKnown := os.InstallationType != ""
+
+	// dvMatch tracks display-version matches; we may find both a Server Core and a
+	// non-Server-Core candidate when InstallationType is unknown.
+	var dvMatchDesktop, dvMatchCore string
+	var noDvMatchDesktop, noDvMatchCore string
 
 	for pID, product := range p {
 		normalizedOS := NewProductFromOS(os)
@@ -36,13 +41,22 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 
 		// When the host's installation type is known, only match products
 		// that correspond to the correct installation type (Server Core vs full desktop).
-		if os.InstallationType != "" && product.IsServerCore() != isServerCoreHost {
+		if installationTypeKnown && product.IsServerCore() != isServerCoreHost {
 			continue
 		}
 
+		isCore := product.IsServerCore()
+
 		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Contains(string(product), os.DisplayVersion) {
-			dvMatch = pID
-			break
+			if isCore {
+				dvMatchCore = pID
+			} else {
+				dvMatchDesktop = pID
+			}
+			if installationTypeKnown {
+				break
+			}
+			continue
 		}
 
 		// If os.DisplayVersion is empty, we need to confirm that the product
@@ -56,9 +70,26 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 				build = parts[2]
 			}
 			if build == "22000" || build == "10240" {
-				noDvMatch = pID
+				if isCore {
+					noDvMatchCore = pID
+				} else {
+					noDvMatchDesktop = pID
+				}
 			}
 		}
+	}
+
+	// Select the match deterministically:
+	// - When InstallationType is known, only the matching type was collected.
+	// - When unknown, prefer full desktop (superset of Server Core CVEs)
+	//   to avoid false negatives; fall back to Server Core if no desktop match exists.
+	dvMatch := dvMatchDesktop
+	if dvMatch == "" {
+		dvMatch = dvMatchCore
+	}
+	noDvMatch := noDvMatchDesktop
+	if noDvMatch == "" {
+		noDvMatch = noDvMatchCore
 	}
 
 	if dvMatch == "" && noDvMatch == "" {
@@ -221,7 +252,7 @@ func (p Product) IsServerCore() bool {
 	return strings.Contains(strings.ToLower(string(p)), "server core")
 }
 
-// Matches checks whehter product A matches product B by checking to see if both are for the same
+// Matches checks whether product A matches product B by checking to see if both are for the same
 // product and if the architecture they target are compatible. This function is commutative.
 func (p Product) Matches(o Product) bool {
 	if p.Name() != o.Name() {

@@ -712,26 +712,30 @@ func TestMatchesOperatingSystem(t *testing.T) {
 			err:  nil,
 		},
 		{
-			name: "Windows Server 2022 without installation type falls back to either match",
+			name: "Windows Server 2022 without installation type deterministically picks full desktop",
 			os: fleet.OperatingSystem{
 				Name:           "Microsoft Windows Server 2022 Datacenter 21H2",
 				Arch:           "64-bit",
 				DisplayVersion: "21H2",
 			},
-			// When InstallationType is empty, either product ID may match (non-deterministic).
-			// We just verify it doesn't error.
-			want: "", // checked separately below
+			// When InstallationType is empty, the full desktop product is preferred
+			// as a deterministic fallback (desktop CVEs are a superset of Server Core).
+			want: "11923",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2025 without installation type deterministically picks full desktop",
+			os: fleet.OperatingSystem{
+				Name:           "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:           "64-bit",
+				DisplayVersion: "24H2",
+			},
+			want: "12436",
 			err:  nil,
 		},
 	}
 
 	for _, tt := range tc {
-		if tt.name == "Windows Server 2022 without installation type falls back to either match" {
-			match, err := msrcWinProducts.GetMatchForOS(ctx, tt.os)
-			require.NoError(t, err, tt.name)
-			require.Contains(t, []string{"11923", "11924"}, match, tt.name)
-			continue
-		}
 		match, err := msrcWinProducts.GetMatchForOS(ctx, tt.os)
 		require.ErrorIs(t, err, tt.err, tt.name)
 		require.Equal(t, tt.want, match, tt.name)
