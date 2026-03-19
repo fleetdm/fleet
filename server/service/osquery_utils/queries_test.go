@@ -143,6 +143,16 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), jetbrainsGoLand, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2025.3.3", jetbrainsGoLand.Version)
 
+	// Test JetBrains with 2-part year.minor version (like "WebStorm 2025.1")
+	jetbrainsWebStorm := &fleet.Software{
+		Name:    "WebStorm 2025.1",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "251.23774.424",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsWebStorm, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2025.1", jetbrainsWebStorm.Version)
+
 	// Test JetBrains with 4-part version number
 	jetbrainsIntelliJ := &fleet.Software{
 		Name:    "IntelliJ IDEA 2025.3.1.1",
@@ -460,6 +470,8 @@ func TestGetDetailQueries(t *testing.T) {
 		"system_info",
 		"uptime",
 		"disk_space_unix",
+		"disk_space_darwin",
+		"disk_space_darwin_legacy",
 		"disk_space_windows",
 		"mdm",
 		"mdm_windows",
@@ -484,7 +496,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(t.Context(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 27)
+	require.Len(t, queriesWithoutWinOSVuln, 29)
 
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
@@ -574,6 +586,22 @@ func TestGetDetailQueries(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDiskSpaceDarwinLegacyQueryExcludesGigsAll(t *testing.T) {
+	queries := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)
+
+	// disk_space_darwin_legacy targets darwin where the `disk_space`` table is
+	// unavailable. gigs_all_disk_space is only ingested for Linux hosts, so the
+	// legacy darwin query should not include it.
+	legacy, ok := queries["disk_space_darwin_legacy"]
+	require.True(t, ok)
+	assert.NotContains(t, legacy.Query, "gigs_all_disk_space")
+
+	// disk_space_unix targets Linux and should include gigs_all_disk_space.
+	unix, ok := queries["disk_space_unix"]
+	require.True(t, ok)
+	assert.Contains(t, unix.Query, "gigs_all_disk_space")
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {

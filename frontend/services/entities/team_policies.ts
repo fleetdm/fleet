@@ -11,6 +11,14 @@ import {
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { GlobalPoliciesAutomationType } from "./global_policies";
+
+export type AutomationType =
+  | "software"
+  | "scripts"
+  | "calendar"
+  | "conditional_access"
+  | "other";
 
 interface IPoliciesApiQueryParams {
   page?: number;
@@ -18,7 +26,7 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
-  automationType?: string;
+  automationType?: AutomationType | GlobalPoliciesAutomationType;
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
@@ -31,7 +39,10 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId" | "mergeInherited"> {
+  extends Pick<
+    IPoliciesApiParams,
+    "query" | "teamId" | "mergeInherited" | "automationType"
+  > {
   scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
 }
 
@@ -39,6 +50,7 @@ export interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
   mergeInherited?: boolean;
+  automationType?: AutomationType;
 }
 
 const ORDER_KEY = "name";
@@ -179,15 +191,17 @@ export default {
     query,
     teamId,
     mergeInherited = true,
+    automationType,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId" | "mergeInherited"
+    "query" | "teamId" | "mergeInherited" | "automationType"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
     const queryParams = {
       query,
       mergeInherited,
+      automationType,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

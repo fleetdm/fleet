@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -17,6 +18,35 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var testMailpitSMTPPort = getTestMailpitSMTPPort()
+var testMailpitWebURL = getTestMailpitWebURL()
+var testSMTP4DevSMTPPort = getTestSMTP4DevSMTPPort()
+
+func getTestMailpitSMTPPort() uint {
+	if port := os.Getenv("FLEET_MAILPIT_SMTP_PORT"); port != "" {
+		if p, err := strconv.ParseUint(port, 10, 32); err == nil && p > 0 {
+			return uint(p)
+		}
+	}
+	return 1026
+}
+
+func getTestMailpitWebURL() string {
+	if port := os.Getenv("FLEET_MAILPIT_WEB_PORT"); port != "" {
+		return "http://127.0.0.1:" + port
+	}
+	return "http://127.0.0.1:8026"
+}
+
+func getTestSMTP4DevSMTPPort() uint {
+	if port := os.Getenv("FLEET_SMTP4DEV_SMTP_PORT"); port != "" {
+		if p, err := strconv.ParseUint(port, 10, 32); err == nil && p > 0 {
+			return uint(p)
+		}
+	}
+	return 1027
+}
 
 var testFunctions = [...]func(*testing.T, fleet.MailService){
 	testSMTPPlainAuth,
@@ -37,7 +67,7 @@ func TestCanSendMail(t *testing.T) {
 		SMTPEnableTLS:            false,
 		SMTPVerifySSLCerts:       false,
 		SMTPEnableStartTLS:       false,
-		SMTPPort:                 1026,
+		SMTPPort:                 testMailpitSMTPPort,
 		SMTPServer:               "localhost",
 		SMTPSenderAddress:        "test@example.com",
 	}
@@ -49,8 +79,8 @@ func TestCanSendMail(t *testing.T) {
 }
 
 func TestMail(t *testing.T) {
-	// This mail test requires mailhog unauthenticated running on localhost:1025
-	// and mailpit running on localhost:1026.
+	// This mail test requires mailhog and mailpit (ports read from env vars
+	// FLEET_MAILPIT_SMTP_PORT, FLEET_SMTP4DEV_SMTP_PORT, FLEET_MAILPIT_WEB_PORT).
 	if _, ok := os.LookupEnv("MAIL_TEST"); !ok {
 		t.Skip("Mail tests are disabled")
 	}
@@ -78,7 +108,7 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableTLS:            false,
 			SMTPVerifySSLCerts:       false,
 			SMTPEnableStartTLS:       false,
-			SMTPPort:                 1026,
+			SMTPPort:                 testMailpitSMTPPort,
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "test@example.com",
 		},
@@ -104,7 +134,7 @@ func testSMTPPlainAuthInvalidCreds(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableTLS:            false,
 			SMTPVerifySSLCerts:       false,
 			SMTPEnableStartTLS:       false,
-			SMTPPort:                 1026,
+			SMTPPort:                 testMailpitSMTPPort,
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "test@example.com",
 		},
@@ -130,7 +160,7 @@ func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableTLS:            true,
 			SMTPVerifySSLCerts:       false,
 			SMTPEnableStartTLS:       true,
-			SMTPPort:                 1027,
+			SMTPPort:                 testSMTP4DevSMTPPort,
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "test@example.com",
 		},
@@ -153,7 +183,7 @@ func testSMTPNoAuthWithTLS(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableTLS:          true,
 			SMTPVerifySSLCerts:     true,
 			SMTPEnableStartTLS:     true,
-			SMTPPort:               1027,
+			SMTPPort:               testSMTP4DevSMTPPort,
 			SMTPServer:             "localhost",
 			SMTPSenderAddress:      "test@example.com",
 		},
@@ -181,7 +211,7 @@ func testSMTPDomain(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableTLS:            false,
 			SMTPVerifySSLCerts:       false,
 			SMTPEnableStartTLS:       false,
-			SMTPPort:                 1026,
+			SMTPPort:                 testMailpitSMTPPort,
 			SMTPServer:               "localhost",
 			SMTPDomain:               "custom.domain.example.com",
 			SMTPSenderAddress:        randomAddress,
@@ -221,7 +251,7 @@ type MailpitMessages struct {
 }
 
 func getLastRawMailpitMessageFrom(t *testing.T, address string) string {
-	res, err := http.Get("http://127.0.0.1:8026/api/v1/messages")
+	res, err := http.Get(testMailpitWebURL + "/api/v1/messages")
 	require.NoError(t, err)
 
 	var messages MailpitMessages
@@ -236,7 +266,7 @@ func getLastRawMailpitMessageFrom(t *testing.T, address string) string {
 	}
 	require.NotNilf(t, messageID, "could not find message from %s in mailpit", address)
 
-	res, err = http.Get(fmt.Sprintf("http://127.0.0.1:8026/api/v1/message/%s/raw", messageID))
+	res, err = http.Get(fmt.Sprintf("%s/api/v1/message/%s/raw", testMailpitWebURL, messageID))
 	require.NoError(t, err)
 
 	rawMail, err := io.ReadAll(res.Body)
@@ -258,7 +288,7 @@ func testMailTest(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableTLS:            true,
 			SMTPVerifySSLCerts:       true,
 			SMTPEnableStartTLS:       true,
-			SMTPPort:                 1027,
+			SMTPPort:                 testSMTP4DevSMTPPort,
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "test@example.com",
 		},

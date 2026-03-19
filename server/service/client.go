@@ -578,7 +578,9 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.CertificateAuthorities != nil {
-		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
+		// In GitOps, skip deletes here. CA deletions are deferred to a post-op so that team configs
+		// can clean up certificate templates (which have FK references to CAs) first.
+		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions, fleet.BatchApplyCertificateAuthoritiesOpts{SkipDeletes: viaGitOps}); err != nil {
 			// only do this custom message for gitops as we reference the applying filename which only makes sense in gitops
 			if err.Error() == "missing or invalid license" && viaGitOps && filename != nil {
 				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.", *filename)
@@ -898,6 +900,7 @@ func (c *Client) ApplyGroup(
 					InstallDuringSetup:  installDuringSetup,
 					LabelsExcludeAny:    app.LabelsExcludeAny,
 					LabelsIncludeAny:    app.LabelsIncludeAny,
+					LabelsIncludeAll:    app.LabelsIncludeAll,
 					Categories:          app.Categories,
 					DisplayName:         app.DisplayName,
 					IconPath:            app.Icon.Path,
@@ -1279,6 +1282,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			InstallDuringSetup: installDuringSetup,
 			LabelsIncludeAny:   si.LabelsIncludeAny,
 			LabelsExcludeAny:   si.LabelsExcludeAny,
+			LabelsIncludeAll:   si.LabelsIncludeAll,
 			SHA256:             sha256Value,
 			Categories:         si.Categories,
 			DisplayName:        si.DisplayName,

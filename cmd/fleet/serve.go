@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/str"
@@ -172,14 +173,17 @@ the way that the Fleet server works.
 			var tracerProvider *sdktrace.TracerProvider
 			var meterProvider *sdkmetric.MeterProvider
 			if config.OTELEnabled() {
-				// Create shared resource with service identification attributes
-				res, err := resource.Merge(
-					resource.Default(),
-					resource.NewWithAttributes(
-						semconv.SchemaURL,
+				// Create shared resource with service identification attributes.
+				// OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES env vars can override
+				// the defaults below.
+				res, err := resource.New(context.Background(),
+					resource.WithSchemaURL(semconv.SchemaURL),
+					resource.WithAttributes(
 						semconv.ServiceName("fleet"),
 						semconv.ServiceVersion(version.Version().Version),
 					),
+					resource.WithFromEnv(),
+					resource.WithTelemetrySDK(),
 				)
 				if err != nil {
 					initFatal(err, "Failed to create OTEL resource")
@@ -869,7 +873,7 @@ the way that the Fleet server works.
 			}
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
-			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
+			scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 
@@ -1173,10 +1177,17 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore, vppInstaller, androidSvc)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+				return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller)
+			}); err != nil {
+				initFatal(err, "failed to register apple_mdm_worker schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -1485,7 +1496,7 @@ the way that the Fleet server works.
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
-				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger))
+				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
