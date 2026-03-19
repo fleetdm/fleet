@@ -11,17 +11,12 @@ import (
 func TestUp_20260318210346(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// Verify app config exists before migration
-	var previousAppConfigJSON []byte
-	err := db.Get(&previousAppConfigJSON, `SELECT json_value FROM app_config_json`)
-	require.NoError(t, err)
-
 	// Apply the migration
 	applyNext(t, db)
 
 	// Verify exceptions were set correctly for existing instance
 	var rawAppConfig []byte
-	err = db.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1`).Scan(&rawAppConfig)
+	err := db.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1`).Scan(&rawAppConfig)
 	require.NoError(t, err)
 
 	var config fleet.AppConfig

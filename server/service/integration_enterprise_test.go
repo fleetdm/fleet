@@ -3377,8 +3377,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	assert.True(t, getResp.UIGitOpsMode.Exceptions.Labels)
 	assert.False(t, getResp.UIGitOpsMode.Exceptions.Software)
 	assert.False(t, getResp.UIGitOpsMode.Exceptions.Secrets)
-	assert.True(t, config.UIGitOpsMode.GitopsModeEnabled)
-	assert.Equal(t, "https://example.com/repo", config.UIGitOpsMode.RepositoryURL)
+	assert.True(t, getResp.UIGitOpsMode.GitopsModeEnabled)
+	assert.Equal(t, "https://example.com/repo", getResp.UIGitOpsMode.RepositoryURL)
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
