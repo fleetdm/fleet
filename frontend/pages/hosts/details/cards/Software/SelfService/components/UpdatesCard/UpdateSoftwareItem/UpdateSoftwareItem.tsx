@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from "react";
-import ReactTooltip from "react-tooltip";
 
 import {
   IAppLastInstall,
@@ -109,43 +108,40 @@ const InstallerStatus = ({
 
   return (
     <div className={`${baseClass}__status-content`}>
-      <div
+      <TooltipWrapper
         className={`${baseClass}__status-with-tooltip`}
-        data-tip
-        data-for={`install-tooltip__${id}`}
-      >
-        {displayConfig.iconName === "pending-outline" ? (
-          <Spinner size="x-small" includeContainer={false} centered={false} />
-        ) : (
-          <Icon name={displayConfig.iconName || "install"} />
-        )}
-        {last_install && displayConfig.displayText === "Failed" && (
-          <span data-testid={`${baseClass}__status--test`}>
-            <Button
-              className={`${baseClass}__item-status-button`}
-              variant="inverse"
-              onClick={() => {
-                onShowInstallerDetails();
-              }}
-            >
-              {displayConfig.displayText}
-            </Button>
+        tooltipClass={`${baseClass}__status-tooltip`}
+        tipContent={
+          <span className={`${baseClass}__status-tooltip-text`}>
+            {displayConfig.tooltip({
+              lastInstalledAt: last_install?.installed_at,
+            })}
           </span>
-        )}
-      </div>
-      <ReactTooltip
-        className={`${baseClass}__status-tooltip`}
-        effect="solid"
-        backgroundColor="#3e4771"
-        id={`install-tooltip__${id}`}
-        data-html
+        }
+        position="top"
+        underline={false}
       >
-        <span className={`${baseClass}__status-tooltip-text`}>
-          {displayConfig.tooltip({
-            lastInstalledAt: last_install?.installed_at,
-          })}
-        </span>
-      </ReactTooltip>
+        <>
+          {displayConfig.iconName === "pending-outline" ? (
+            <Spinner size="x-small" includeContainer={false} centered={false} />
+          ) : (
+            <Icon name={displayConfig.iconName || "install"} />
+          )}
+          {last_install && displayConfig.displayText === "Failed" && (
+            <span data-testid={`${baseClass}__status--test`}>
+              <Button
+                className={`${baseClass}__item-status-button`}
+                variant="inverse"
+                onClick={() => {
+                  onShowInstallerDetails();
+                }}
+              >
+                {displayConfig.displayText}
+              </Button>
+            </span>
+          )}
+        </>
+      </TooltipWrapper>
     </div>
   );
 };

@@ -48,7 +48,13 @@ const TextCell = ({
   const renderEmptyCell = () => {
     if (emptyCellTooltipText) {
       return (
-        <TooltipWrapper tipContent={emptyCellTooltipText} position="top">
+        <TooltipWrapper
+          className={`${baseClass}__empty-cell-tooltip`}
+          showArrow
+          tipContent={emptyCellTooltipText}
+          position="top"
+          underline={false}
+        >
           {DEFAULT_EMPTY_CELL_VALUE}
         </TooltipWrapper>
       );
