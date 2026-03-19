@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260303180102(t *testing.T) {
+func TestUp_20260316120007(t *testing.T) {
 	// setOktaConfig sets or clears Okta conditional access config in app_config_json.
 	setOktaConfig := func(t *testing.T, db *sqlx.DB, configured bool) {
 		t.Helper()
