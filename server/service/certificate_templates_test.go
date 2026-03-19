@@ -379,3 +379,52 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 		require.Contains(t, err.Error(), "Template 2")
 	})
 }
+
+func TestResendHostCertificateTemplate(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	const (
+		hostID     = uint(1)
+		templateID = uint(42)
+		teamID     = uint(10)
+	)
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id == hostID {
+			tid := teamID
+			return &fleet.Host{ID: id, TeamID: &tid}, nil
+		}
+		return nil, errors.New("host not found")
+	}
+
+	t.Run("succeeds with valid host and template", func(t *testing.T) {
+		ds.ResendHostCertificateTemplateFunc = func(ctx context.Context, hID uint, tID uint) error {
+			require.Equal(t, hostID, hID)
+			require.Equal(t, templateID, tID)
+			return nil
+		}
+
+		err := svc.ResendHostCertificateTemplate(ctx, hostID, templateID)
+		require.NoError(t, err)
+		require.True(t, ds.ResendHostCertificateTemplateFuncInvoked)
+		ds.ResendHostCertificateTemplateFuncInvoked = false
+	})
+
+	t.Run("returns error when host not found", func(t *testing.T) {
+		err := svc.ResendHostCertificateTemplate(ctx, 99999, templateID)
+		require.Error(t, err)
+	})
+
+	t.Run("returns error when datastore fails", func(t *testing.T) {
+		ds.ResendHostCertificateTemplateFunc = func(ctx context.Context, hID uint, tID uint) error {
+			return errors.New("db error")
+		}
+
+		err := svc.ResendHostCertificateTemplate(ctx, hostID, templateID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "db error")
+	})
+}
