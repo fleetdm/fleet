@@ -120,7 +120,7 @@ const QueriesTable = ({
 
   const targetedPlatformParam = queryParams?.platform;
   const curTargetedPlatformFilter: SelectedPlatform = isQueryablePlatform(
-    targetedPlatformParam
+    targetedPlatformParam,
   )
     ? targetedPlatformParam
     : DEFAULT_PLATFORM;
@@ -168,7 +168,7 @@ const QueriesTable = ({
       searchQuery,
       queryParams,
       router,
-    ]
+    ],
   );
 
   const emptyParams: IEmptyTableProps = {
@@ -220,10 +220,10 @@ const QueriesTable = ({
                 ? undefined
                 : selectedTargetedPlatform?.value,
           },
-        })
+        }),
       );
     },
-    [queryParams, router]
+    [queryParams, router],
   );
 
   const handleRowSelect = (row: IRowProps) => {
@@ -231,7 +231,7 @@ const QueriesTable = ({
       router?.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(row.original.id), {
           fleet_id: currentTeamId,
-        })
+        }),
       );
     }
   };
@@ -257,7 +257,7 @@ const QueriesTable = ({
         currentTeamId,
         omitSelectionColumn: !curTeamScopeQueriesPresent,
       }),
-    [currentUser, currentTeamId, curTeamScopeQueriesPresent]
+    [currentUser, currentTeamId, curTeamScopeQueriesPresent],
   );
 
   const searchable =
@@ -282,7 +282,7 @@ const QueriesTable = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
-            name: "delete report",
+            name: "delete reports",
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "inverse",
