@@ -212,7 +212,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 	t.Run("validate no update", func(t *testing.T) {
 		t.Run("no auth context", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -220,7 +220,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		ctx = authz_ctx.NewContext(ctx, &authCtx)
 
 		t.Run("no auth checked", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -267,6 +267,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			name              string
 			payloadIncludeAny []string
 			payloadExcludeAny []string
+			payloadIncludeAll []string
 			expectLabels      map[string]fleet.LabelIdent
 			expectScope       fleet.LabelScope
 			expectError       string
@@ -276,12 +277,14 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 				"",
 				"",
 			},
 			{
 				"include labels",
 				[]string{"foo", "bar"},
+				nil,
 				nil,
 				map[string]fleet.LabelIdent{
 					"foo": {LabelID: 1, LabelName: "foo"},
@@ -294,6 +297,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				"exclude labels",
 				nil,
 				[]string{"bar", "baz"},
+				nil,
 				map[string]fleet.LabelIdent{
 					"bar": {LabelID: 2, LabelName: "bar"},
 					"baz": {LabelID: 3, LabelName: "baz"},
@@ -306,12 +310,14 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				[]string{"foo"},
 				[]string{"bar"},
 				nil,
+				nil,
 				"",
-				`Only one of "labels_include_any" or "labels_exclude_any" can be included.`,
+				`Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`,
 			},
 			{
 				"non-existent label",
 				[]string{"foo", "qux"},
+				nil,
 				nil,
 				nil,
 				"",
@@ -320,6 +326,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			{
 				"duplicate label",
 				[]string{"foo", "foo"},
+				nil,
 				nil,
 				map[string]fleet.LabelIdent{
 					"foo": {LabelID: 1, LabelName: "foo"},
@@ -332,6 +339,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				[]string{},
 				nil,
+				nil,
 				"",
 				"",
 			},
@@ -340,13 +348,14 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				[]string{""},
 				nil,
+				nil,
 				"",
 				`Couldn't update. Label "" doesn't exist. Please remove the label from the software`,
 			},
 		}
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, tt.payloadIncludeAny, tt.payloadExcludeAny)
+				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, tt.payloadIncludeAny, tt.payloadExcludeAny, tt.payloadIncludeAll)
 				if tt.expectError != "" {
 					require.Error(t, err)
 					require.Contains(t, err.Error(), tt.expectError)
@@ -362,7 +371,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 	t.Run("validate update", func(t *testing.T) {
 		t.Run("no auth context", func(t *testing.T) {
-			_, _, err := eeservice.ValidateSoftwareLabelsForUpdate(context.Background(), svc, nil, nil, nil)
+			_, _, err := eeservice.ValidateSoftwareLabelsForUpdate(context.Background(), svc, nil, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -370,7 +379,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		ctx = authz_ctx.NewContext(ctx, &authCtx)
 
 		t.Run("no auth checked", func(t *testing.T) {
-			_, _, err := eeservice.ValidateSoftwareLabelsForUpdate(ctx, svc, nil, nil, nil)
+			_, _, err := eeservice.ValidateSoftwareLabelsForUpdate(ctx, svc, nil, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -402,6 +411,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			existingInstaller *fleet.SoftwareInstaller
 			payloadIncludeAny []string
 			payloadExcludeAny []string
+			payloadIncludeAll []string
 			shouldUpdate      bool
 			expectLabels      map[string]fleet.LabelIdent
 			expectScope       fleet.LabelScope
@@ -412,6 +422,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				nil,
 				[]string{"foo"},
+				nil,
 				false,
 				nil,
 				"",
@@ -420,6 +431,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			{
 				"no labels",
 				&fleet.SoftwareInstaller{},
+				nil,
 				nil,
 				nil,
 				false,
@@ -434,6 +446,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 					LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
 				},
 				[]string{"foo", "bar"},
+				nil,
 				nil,
 				true,
 				map[string]fleet.LabelIdent{
@@ -451,6 +464,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				},
 				nil,
 				[]string{"foo"},
+				nil,
 				true,
 				map[string]fleet.LabelIdent{
 					"foo": {LabelID: 1, LabelName: "foo"},
@@ -466,6 +480,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				},
 				[]string{},
 				nil,
+				nil,
 				true,
 				nil,
 				"",
@@ -479,6 +494,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				},
 				[]string{"foo"},
 				nil,
+				nil,
 				false,
 				nil,
 				"",
@@ -488,7 +504,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				shouldUpate, got, err := eeservice.ValidateSoftwareLabelsForUpdate(ctx, svc, tt.existingInstaller, tt.payloadIncludeAny, tt.payloadExcludeAny)
+				shouldUpate, got, err := eeservice.ValidateSoftwareLabelsForUpdate(ctx, svc, tt.existingInstaller, tt.payloadIncludeAny, tt.payloadExcludeAny, tt.payloadIncludeAll)
 				if tt.expectError != "" {
 					require.Error(t, err)
 					require.Contains(t, err.Error(), tt.expectError)

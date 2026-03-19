@@ -1,1 +1,0 @@
-* Updated github.com/shirou/gopsutil from v3 to v4 to fix a crash in Apple M5 hardware.
