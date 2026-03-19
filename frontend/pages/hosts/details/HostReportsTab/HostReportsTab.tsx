@@ -8,10 +8,12 @@ import hostReportsAPI, {
   IListHostReportsResponse,
 } from "services/entities/host_reports";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
 
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import SearchField from "components/forms/fields/SearchField";
+import Slider from "components/forms/fields/Slider";
 import ActionsDropdown from "components/ActionsDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import Pagination from "components/Pagination";
@@ -55,6 +57,14 @@ interface IHostReportsTabProps {
   hostId: number;
   hostName: string;
   router: InjectedRouter;
+  location: {
+    pathname: string;
+    query: {
+      query?: string;
+      sort?: string;
+      show_dont_store?: string;
+    };
+  };
   saveReportsDisabledInConfig?: boolean;
 }
 
@@ -62,12 +72,19 @@ const HostReportsTab = ({
   hostId,
   hostName,
   router,
+  location,
   saveReportsDisabledInConfig,
 }: IHostReportsTabProps): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortOption, setSortOption] = useState<SortOption>("newest_results");
+  const searchQuery = location.query.query ?? "";
+  const sortOption: SortOption =
+    location.query.sort &&
+    ["newest_results", "oldest_results", "name_asc", "name_desc"].includes(
+      location.query.sort
+    )
+      ? (location.query.sort as SortOption)
+      : "newest_results";
+  const showDontStoreResults = location.query.show_dont_store === "true";
   const [page, setPage] = useState(0);
-  const [showDontStoreResults, setShowDontStoreResults] = useState(false);
 
   const sortParams = getSortParams(sortOption);
 
@@ -110,24 +127,45 @@ const HostReportsTab = ({
 
   const onSearchChange = useCallback(
     (value: string) => {
-      setSearchQuery(value);
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: location.pathname,
+          queryParams: { ...location.query, query: value || undefined },
+        })
+      );
       setPage(0);
     },
-    [setSearchQuery, setPage]
+    [router, location.pathname, location.query]
   );
 
   const onSortChange = useCallback(
     (value: string) => {
-      setSortOption(value as SortOption);
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: location.pathname,
+          queryParams: {
+            ...location.query,
+            sort: value === "newest_results" ? undefined : value,
+          },
+        })
+      );
       setPage(0);
     },
-    [setSortOption, setPage]
+    [router, location.pathname, location.query]
   );
 
   const onToggleDontStoreResults = useCallback(() => {
-    setShowDontStoreResults((prev) => !prev);
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: location.pathname,
+        queryParams: {
+          ...location.query,
+          show_dont_store: showDontStoreResults ? undefined : "true",
+        },
+      })
+    );
     setPage(0);
-  }, []);
+  }, [router, location.pathname, location.query, showDontStoreResults]);
 
   const onShowDetails = useCallback(
     (report: IHostReport) => {
@@ -171,18 +209,13 @@ const HostReportsTab = ({
             {totalCount} report{totalCount !== 1 ? "s" : ""}
           </span>
           {!saveReportsDisabledInConfig && (
-            <label
+            <Slider
+              value={showDontStoreResults}
+              onChange={onToggleDontStoreResults}
+              activeText="Show reports that don't store results"
+              inactiveText="Show reports that don't store results"
               className={`${baseClass}__toggle`}
-              htmlFor="show-dont-store-results"
-            >
-              <input
-                id="show-dont-store-results"
-                type="checkbox"
-                checked={showDontStoreResults}
-                onChange={onToggleDontStoreResults}
-              />
-              Show reports that don&apos;t store results
-            </label>
+            />
           )}
         </div>
         <div className={`${baseClass}__controls-right`}>
@@ -196,7 +229,11 @@ const HostReportsTab = ({
             variant="button"
             menuAlign="right"
           />
-          <SearchField placeholder="Search by name" onChange={onSearchChange} />
+          <SearchField
+            placeholder="Search by name"
+            defaultValue={searchQuery}
+            onChange={onSearchChange}
+          />
         </div>
       </div>
 

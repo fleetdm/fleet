@@ -65,11 +65,9 @@ const EmptyReports = ({ isSearching }: IEmptyReportsProps): JSX.Element => {
           ? "No reports match the current search criteria"
           : "No reports for this host"}
       </h2>
-      {!isSearching && (
-        <p className={`${baseClass}__subheading`}>
-          Expecting to see reports? Check back later.
-        </p>
-      )}
+      <p className={`${baseClass}__subheading`}>
+        Expecting to see reports? Check back later.
+      </p>
     </div>
   );
 };

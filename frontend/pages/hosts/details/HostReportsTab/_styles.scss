@@ -29,16 +29,8 @@
   }
 
   &__toggle {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
-    font-size: $xx-small;
-    color: $core-fleet-black;
-    cursor: pointer;
-
-    input[type="checkbox"] {
-      cursor: pointer;
-    }
+    margin: 0;
+    width: auto;
   }
 
   &__sort-dropdown {

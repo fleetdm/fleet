@@ -1473,6 +1473,7 @@ const HostDetailsPage = ({
                   hostId={host.id}
                   hostName={host.display_name}
                   router={router}
+                  location={location}
                   saveReportsDisabledInConfig={
                     config?.server_settings?.query_reports_disabled
                   }
