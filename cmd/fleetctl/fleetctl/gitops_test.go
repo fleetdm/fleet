@@ -378,6 +378,11 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 			UIGitOpsMode: fleet.UIGitOpsModeConfig{
 				GitopsModeEnabled: true,
 				RepositoryURL:     "https://didsomeonesaygitops.biz",
+				Exceptions: fleet.GitOpsExceptions{
+					Software: false,
+					Secrets:  true,
+					Labels:   true,
+				},
 			},
 		}, nil
 	}
@@ -579,6 +584,9 @@ software:
 	// GitOps should not overwrite GitOps UI Mode.
 	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
 	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.Exceptions.Labels, true)
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.Exceptions.Secrets, true)
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.Exceptions.Software, false)
 
 	// Check MDM settings
 	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
