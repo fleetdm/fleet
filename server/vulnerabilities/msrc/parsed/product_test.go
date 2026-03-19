@@ -552,22 +552,24 @@ func TestProductHasDisplayVersion(t *testing.T) {
 	}
 }
 
+// msrcWinProducts mirrors what production code produces: raw MSRC product names
+// are always processed through NewProductFromFullName before reaching GetMatchForOS
 var msrcWinProducts = Products{
-	"10729": "Windows 10 for 32-bit Systems",
-	"10735": "Windows 10 for x64-based Systems",
-	"10852": "Windows 10 Version 1607 for 32-bit Systems",
-	"10853": "Windows 10 Version 1607 for x64-based Systems",
-	"11926": "Windows 11 for x64-based Systems",
-	"11927": "Windows 11 for ARM64-based Systems",
-	"12085": "Windows 11 Version 22H2 for ARM64-based Systems",
-	"12086": "Windows 11 Version 22H2 for x64-based Systems",
-	"12242": "Windows 11 Version 23H2 for ARM64-based Systems",
-	"12243": "Windows 11 Version 23H2 for x64-based Systems",
-	"11923": "Windows Server 2022 Version 21H2",
-	"11924": "Windows Server 2022 (Server Core installation) Version 21H2",
-	"12244": "Windows Server 2022, 23H2 Edition (Server Core installation)",
-	"12436": "Windows Server 2025 Version 24H2",
-	"12437": "Windows Server 2025 (Server Core installation) Version 24H2",
+	"10729": NewProductFromFullName("Windows 10 for 32-bit Systems"),
+	"10735": NewProductFromFullName("Windows 10 for x64-based Systems"),
+	"10852": NewProductFromFullName("Windows 10 Version 1607 for 32-bit Systems"),
+	"10853": NewProductFromFullName("Windows 10 Version 1607 for x64-based Systems"),
+	"11926": NewProductFromFullName("Windows 11 for x64-based Systems"),
+	"11927": NewProductFromFullName("Windows 11 for ARM64-based Systems"),
+	"12085": NewProductFromFullName("Windows 11 Version 22H2 for ARM64-based Systems"),
+	"12086": NewProductFromFullName("Windows 11 Version 22H2 for x64-based Systems"),
+	"12242": NewProductFromFullName("Windows 11 Version 23H2 for ARM64-based Systems"),
+	"12243": NewProductFromFullName("Windows 11 Version 23H2 for x64-based Systems"),
+	"11923": NewProductFromFullName("Windows Server 2022"),
+	"11924": NewProductFromFullName("Windows Server 2022 (Server Core installation)"),
+	"12244": NewProductFromFullName("Windows Server 2022, 23H2 Edition (Server Core installation)"),
+	"12436": NewProductFromFullName("Windows Server 2025 Version 24H2"),
+	"12437": NewProductFromFullName("Windows Server 2025 (Server Core installation)"),
 }
 
 func TestMatchesOperatingSystem(t *testing.T) {
