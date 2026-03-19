@@ -6523,7 +6523,7 @@ _Available in Fleet Premium_
 
 | Name                   | Type    | In    | Description                                                                                 |
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| fleet_id                | integer | body  | The fleet ID to apply the settings to. Settings applied to "Unassigned" hosts if absent.       |
+| fleet_id                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
 | enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the fleet (or "Unassigned"). |
 | windows_require_bitlocker_pin  | boolean | body | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
@@ -6873,7 +6873,7 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 | Name    | Type   | In   | Description                                                                                                                                                                                                            |
 | ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | package | file   | body | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
-| fleet_id | string | body | The fleet ID for the package. If specified, the package will be installed to hosts that are assigned to the specified fleet. If not specified, the package will be installed to "Unassigned" hosts. |
+| fleet_id | string | body | The fleet ID for the package. If specified, the package will be installed to hosts that are assigned to the specified fleet. If not specified, the package will be installed on "Unassigned" hosts. |
 | manual_agent_install | boolean | body | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
@@ -7033,7 +7033,7 @@ _Available in Fleet Premium_
 
 | Name                           | Type    | In    | Description                                                                                 |
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings applied to "Unassigned" hosts if absent.       |
+| fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
 | require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
@@ -7187,7 +7187,7 @@ List software that can be automatically installed during setup. If `install_duri
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | platform | string  | query | Filters software titles available for install by platforms. Options are `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, and `"android"`. Defaults to `"macos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=macos,ios,android`). |
-| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter software by. If not specified, it will filter only software that's available to "Unassigned" hosts. |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter software by. If not specified, it will filter only software that's available for "Unassigned" hosts. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
 
@@ -9724,7 +9724,7 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | body | **Required**. The file containing the script.    |
-| fleet_id         | integer | body | _Available in Fleet Premium_. The fleet ID. If specified, the script will only be available to hosts assigned to this fleet. If not specified, the script will only be available to "Unassigned" hosts.  |
+| fleet_id         | integer | body | _Available in Fleet Premium_. The fleet ID. If specified, the script will only be available to hosts assigned to this fleet. If not specified, the script will only be available for "Unassigned" hosts.  |
 
 Script line endings are automatically converted from [CRLF to LF](https://en.wikipedia.org/wiki/Newline) for compatibility with both non-Windows shells and PowerShell.
 
@@ -9817,7 +9817,7 @@ Deletes an existing script.
 
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter scripts by. If not specified, it will filter only scripts that are available to "Unassigned" hosts. |
+| fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter scripts by. If not specified, it will filter only scripts that are available for "Unassigned" hosts. |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 
