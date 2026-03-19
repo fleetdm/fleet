@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // This code largely adapted from fleet/website/api/controllers/get-est-device-certificate.js
@@ -138,7 +137,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	// Wrap the certificate in a PEM block for easier consumption by the client. TODO: If we ever
 	// support CAs other than Hydrant/EST in this API, this may need to be modified to be aware of
 	// their formats.
-	return ptr.String("-----BEGIN PKCS7-----\n" + string(certificate.Certificate) + "\n-----END PKCS7-----\n"), nil
+	return new("-----BEGIN PKCS7-----\n" + string(certificate.Certificate) + "\n-----END PKCS7-----\n"), nil
 }
 
 func (svc *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken, idpOauthURL string) (*oauthIntrospectionResponse, error) {
