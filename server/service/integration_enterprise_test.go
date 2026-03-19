@@ -18734,7 +18734,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Nil(t, host1LastInstall)
 
 	// Now add lbl3 to the host and re-run the policy failure. vim should now be in scope.
-	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl3.ID: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl3.ID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	distributedResp = submitDistributedQueryResultsResponse{}
