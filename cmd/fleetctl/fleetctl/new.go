@@ -33,12 +33,6 @@ func renderTemplate(content []byte, vars map[string]string) []byte {
 	})
 }
 
-// fleetVersionPattern matches "fleet-vX.Y.Z" and captures "X.Y.Z".
-var fleetVersionPattern = regexp.MustCompile(`^fleet-v(\d+\.\d+\.\d+)$`)
-
-// semverPattern matches a plain "X.Y.Z" (possibly with pre-release suffix).
-var semverPattern = regexp.MustCompile(`^(\d+\.\d+\.\d+)`)
-
 func printNextSteps(w io.Writer) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Next steps:")
