@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
@@ -71,9 +72,36 @@ func TestNewBasicFileStructure(t *testing.T) {
 	t.Run("replaces and escapes org_name template var", func(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join(outDir, "default.yml"))
 		require.NoError(t, err)
-		assert.Contains(t, string(content), `Acme \"Corp\" \\ Inc`)
-		assert.NotContains(t, string(content), "<%= org_name %>")
+		assert.Contains(t, string(content), `Acme "Corp" \ Inc`)
+		assert.NotContains(t, string(content), "<%=")
+
+		// Verify the output is valid YAML that round-trips correctly.
+		var parsed map[string]interface{}
+		require.NoError(t, yaml.Unmarshal(content, &parsed))
+		orgSettings, _ := parsed["org_settings"].(map[string]interface{})
+		orgInfo, _ := orgSettings["org_info"].(map[string]interface{})
+		assert.Equal(t, `Acme "Corp" \ Inc`, orgInfo["org_name"])
 	})
+}
+
+func TestNewOrgNameYAMLQuoting(t *testing.T) {
+	dir := t.TempDir()
+	outDir := filepath.Join(dir, "out")
+
+	// A colon followed by a space is special in YAML, so yaml.Marshal
+	// wraps the value in quotes to produce valid output.
+	_, err := runNewCommand(t, "--org-name", "Ops: IT & Security", "--dir", outDir)
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(filepath.Join(outDir, "default.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(content), `'Ops: IT & Security'`)
+
+	var parsed map[string]interface{}
+	require.NoError(t, yaml.Unmarshal(content, &parsed))
+	orgSettings, _ := parsed["org_settings"].(map[string]interface{})
+	orgInfo, _ := orgSettings["org_info"].(map[string]interface{})
+	assert.Equal(t, "Ops: IT & Security", orgInfo["org_name"])
 }
 
 func TestNewTemplateStripping(t *testing.T) {
@@ -194,17 +222,20 @@ func TestRenderTemplate(t *testing.T) {
 	}
 
 	t.Run("replaces known vars", func(t *testing.T) {
-		result := renderTemplate([]byte(`app: <%= name %> v<%= version %>`), vars)
+		result, err := renderTemplate([]byte(`app: <%= .name %> v<%= .version %>`), vars)
+		require.NoError(t, err)
 		assert.Equal(t, "app: Fleet v4.83.0", string(result))
 	})
 
-	t.Run("leaves unknown vars", func(t *testing.T) {
-		result := renderTemplate([]byte(`<%= unknown %>`), vars)
-		assert.Equal(t, "<%= unknown %>", string(result))
+	t.Run("unknown vars produce no value", func(t *testing.T) {
+		result, err := renderTemplate([]byte(`<%= .unknown %>`), vars)
+		require.NoError(t, err)
+		assert.Equal(t, "<no value>", string(result))
 	})
 
 	t.Run("handles no vars", func(t *testing.T) {
-		result := renderTemplate([]byte("no vars here"), vars)
+		result, err := renderTemplate([]byte("no vars here"), vars)
+		require.NoError(t, err)
 		assert.Equal(t, "no vars here", string(result))
 	})
 }

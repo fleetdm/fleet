@@ -8,8 +8,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+	"text/template"
+
+	"github.com/ghodss/yaml"
 
 	"github.com/manifoldco/promptui"
 	"github.com/urfave/cli/v2"
@@ -18,19 +20,16 @@ import (
 //go:embed all:templates/new
 var newTemplateFS embed.FS
 
-var ejsTagPattern = regexp.MustCompile(`<%=\s*(\w+)\s*%>`)
-
-func renderTemplate(content []byte, vars map[string]string) []byte {
-	return ejsTagPattern.ReplaceAllFunc(content, func(match []byte) []byte {
-		submatch := ejsTagPattern.FindSubmatch(match)
-		if len(submatch) < 2 {
-			return match
-		}
-		if val, ok := vars[string(submatch[1])]; ok {
-			return []byte(val)
-		}
-		return match
-	})
+func renderTemplate(content []byte, vars map[string]string) ([]byte, error) {
+	tmpl, err := template.New("").Delims("<%=", "%>").Parse(string(content))
+	if err != nil {
+		return nil, err
+	}
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, vars); err != nil {
+		return nil, err
+	}
+	return []byte(buf.String()), nil
 }
 
 func printNextSteps(w io.Writer) {
@@ -119,17 +118,19 @@ func newCommand() *cli.Command {
 				}
 			}
 
-			// Escape for safe inclusion in double-quoted YAML strings.
-			yamlOrgName := strings.ReplaceAll(orgName, `\`, `\\`)
-			yamlOrgName = strings.ReplaceAll(yamlOrgName, `"`, `\"`)
+			// Marshal through YAML to get a properly escaped scalar value.
+			yamlOrgName, err := yaml.Marshal(orgName)
+			if err != nil {
+				return fmt.Errorf("marshaling org name: %w", err)
+			}
 
 			vars := map[string]string{
-				"org_name": yamlOrgName,
+				"org_name": strings.TrimSpace(string(yamlOrgName)),
 			}
 
 			templateRoot := "templates/new"
 
-			err := fs.WalkDir(newTemplateFS, templateRoot, func(path string, d fs.DirEntry, err error) error {
+			err = fs.WalkDir(newTemplateFS, templateRoot, func(path string, d fs.DirEntry, err error) error {
 				if err != nil {
 					return err
 				}
@@ -155,7 +156,10 @@ func newCommand() *cli.Command {
 					return fmt.Errorf("reading template %s: %w", path, err)
 				}
 
-				content = renderTemplate(content, vars)
+				content, err = renderTemplate(content, vars)
+			if err != nil {
+				return fmt.Errorf("rendering template %s: %w", path, err)
+			}
 
 				if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 					return err
