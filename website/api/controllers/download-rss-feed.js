@@ -118,7 +118,7 @@ module.exports = {
         }
       });//∞
     }
-
+    articlesToAddToFeed = _.sortByOrder(articlesToAddToFeed, 'meta.publishedOn', 'ASC');
     // Iterate through the filtered array of articles, adding <item> elements for each article.
     for (let pageInfo of articlesToAddToFeed) {
       let articleUrl = 'https://fleetdm.com'+pageInfo.url;
