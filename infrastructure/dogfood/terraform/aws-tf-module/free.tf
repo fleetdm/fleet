@@ -11,13 +11,14 @@ locals {
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
     # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"
-    FLEET_SERVER_GZIP_RESPONSES                = "true"
+    FLEET_SERVER_GZIP_RESPONSES = "true"
 
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
+    FLEET_ENABLE_LOG_TOPICS             = "deprecated-field-names"
   }
 
   /* 
@@ -71,7 +72,7 @@ module "free" {
   rds_config = {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
     name                         = local.customer_free
-    engine_version               = "8.0.mysql_aurora.3.08.2"
+    engine_version               = "8.0.mysql_aurora.3.10.3"
     snapshot_identifier          = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
     db_parameters = {
       # 8mb up from 262144 (256k) default

@@ -3,16 +3,16 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 	"github.com/micromdm/plist"
 )
 
@@ -63,8 +63,9 @@ func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uu
 func NewInstalledApplicationListResultsHandler(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	verifyTimeout, verifyRequestDelay time.Duration,
+	newActivityFn mdmlifecycle.NewActivityFunc,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
@@ -90,7 +91,7 @@ func NewInstalledApplicationListResultsHandler(
 		}
 
 		if len(expectedVPPInstalls) == 0 && len(expectedInHouseInstalls) == 0 {
-			level.Warn(logger).Log("msg", "no apple MDM installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
+			logger.WarnContext(ctx, "no apple MDM installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
 			return nil
 		}
 
@@ -135,31 +136,15 @@ func NewInstalledApplicationListResultsHandler(
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			appFromResult, appWasReported := installsByBundleID[expectedInstall.BundleIdentifier]
 
-			// If ExpectedVersion is empty (legacy installs), we only check if the app is installed.
-			// Otherwise, we require both installed status and version match.
-			versionMatches := expectedInstall.ExpectedVersion == "" || appFromResult.Version == expectedInstall.ExpectedVersion
-
 			var terminalStatus string
 			switch {
-			case appFromResult.Installed && versionMatches:
+			case appFromResult.Installed:
 				if err := setter.verifyFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
-			case appFromResult.Installed && !versionMatches:
-				// App is installed but version doesn't match, log and continue polling
-				level.Debug(logger).Log(
-					"msg", "app installed but version mismatch",
-					"host_uuid", installedAppResult.HostUUID(),
-					"bundle_identifier", expectedInstall.BundleIdentifier,
-					"expected_version", expectedInstall.ExpectedVersion,
-					"installed_version", appFromResult.Version,
-				)
-				// Fall through to poll, the app exists but wrong version, keep waiting for update
-				poll = true
-				return nil
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
 				if err := setter.failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
@@ -190,7 +175,7 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				fromSetupExperience = true
-				level.Debug(logger).Log("msg", "setup experience VPP install result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
+				logger.DebugContext(ctx, "setup experience VPP install result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
 			}
 
 			// create an activity for installing only if we're in a terminal state
@@ -204,7 +189,7 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "fetching data for installed app store app activity")
 			}
 
-			if err := newActivity(ctx, user, act, ds, logger); err != nil {
+			if err := newActivityFn(ctx, user, act); err != nil {
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
 
@@ -250,7 +235,7 @@ func NewInstalledApplicationListResultsHandler(
 			// Queue a job to verify the VPP install.
 			return ctxerr.Wrap(
 				ctx,
-				worker.QueueVPPInstallVerificationJob(ctx, ds, logger.SlogLogger(), verifyRequestDelay,
+				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, verifyRequestDelay,
 					installedAppResult.HostUUID(), installedAppResult.UUID(), requireXcodeSpecialCase),
 				"InstalledApplicationList handler: queueing vpp install verification job",
 			)
@@ -332,7 +317,7 @@ func NewDeviceLocationResult(result *mdm.CommandResults, hostID uint) (DeviceLoc
 func NewDeviceLocationResultsHandler(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 		deviceLocResult, ok := commandResults.(DeviceLocationResult)

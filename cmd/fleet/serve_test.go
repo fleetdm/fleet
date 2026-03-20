@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,7 +25,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -121,6 +121,8 @@ func TestMaybeSendStatistics(t *testing.T) {
 			MaintenanceWindowsEnabled:     true,
 			MaintenanceWindowsConfigured:  true,
 			NumHostsFleetDesktopEnabled:   1984,
+			FleetMaintainedAppsMacOS:      []string{"1password/darwin"},
+			FleetMaintainedAppsWindows:    []string{"google-chrome/windows"},
 		}, true, nil
 	}
 	recorded := false
@@ -135,11 +137,11 @@ func TestMaybeSendStatistics(t *testing.T) {
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetMaintainedAppsMacOS":["1password/darwin"],"fleetMaintainedAppsWindows":["google-chrome/windows"],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":false}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -173,7 +175,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, cleanedup)
@@ -197,7 +199,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
-	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.False(t, called)
 }
@@ -227,7 +229,7 @@ func TestMaybeSendStatisticsSendsIfNotConfiguredForPremium(t *testing.T) {
 	ds.RecordStatisticsSentFunc = func(ctx context.Context) error { return nil }
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.True(t, called)
 }
@@ -295,7 +297,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 5*time.Minute, failingPoliciesSet)
 	require.NoError(t, err)
 	s.Start()
 
@@ -355,7 +357,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx, cancel := context.WithCancel(ctx)
-	lg := logging.NewNopLogger()
+	lg := slog.New(slog.DiscardHandler)
 
 	go func() {
 		defer func() {
@@ -416,7 +418,7 @@ func (f *softwareIterator) Close() error { return nil }
 func TestScanVulnerabilities(t *testing.T) {
 	nettest.Run(t)
 
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	ctx := context.Background()
 
@@ -557,7 +559,12 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, t time.Time) error {
 		return nil
 	}
-
+	ds.DeleteOrphanedSoftwareVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.DeleteOrphanedOSVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
 	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 		published := time.Date(2022, time.October, 26, 14, 15, 0, 0, time.UTC)
 
@@ -607,7 +614,7 @@ func TestScanVulnerabilities(t *testing.T) {
 func TestScanVulnerabilitiesFreeTier(t *testing.T) {
 	nettest.Run(t)
 
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	ctx := context.Background()
 
@@ -739,6 +746,12 @@ func TestScanVulnerabilitiesFreeTier(t *testing.T) {
 	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, t time.Time) error {
 		return nil
 	}
+	ds.DeleteOrphanedSoftwareVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.DeleteOrphanedOSVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
 	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 		t.Error("ListCVEs should not be called on free tier")
 		return nil, nil
@@ -775,7 +788,7 @@ func TestScanVulnerabilitiesFreeTier(t *testing.T) {
 }
 
 func TestUpdateVulnHostCounts(t *testing.T) {
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	ctx := context.Background()
 
@@ -819,7 +832,7 @@ func TestUpdateVulnHostCounts(t *testing.T) {
 }
 
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -896,7 +909,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx, cancel := context.WithCancel(ctx)
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), &config)
+	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), &config)
 	require.NoError(t, err)
 	s.Start()
 	t.Cleanup(func() {
@@ -981,7 +994,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 1*time.Second, service.NewMemFailingPolicySet())
 	require.NoError(t, err)
 	s.Start()
 
@@ -1048,7 +1061,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 200*time.Millisecond, service.NewMemFailingPolicySet())
 	require.NoError(t, err)
 	s.Start()
 
@@ -1195,7 +1208,7 @@ func TestDebugMux(t *testing.T) {
 func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)

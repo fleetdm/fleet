@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import paths from "router/paths";
 import local from "utilities/local";
+import authToken from "utilities/auth_token";
 import configAPI from "services/entities/config";
 import sessionsAPI from "services/entities/sessions";
 
@@ -42,9 +43,12 @@ const MfaPage = ({ router, params }: IMfaPage) => {
 
     try {
       const response = await sessionsAPI.finishMFA({ token: mfaToken });
-      const { user, available_teams, token } = response;
+      const { user, available_teams, token, token_expires_at } = response;
 
-      local.setItem("auth_token", token);
+      const expiresAt = token_expires_at
+        ? new Date(token_expires_at)
+        : undefined;
+      authToken.save(token, expiresAt);
 
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);

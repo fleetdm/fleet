@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
 )
@@ -48,20 +50,30 @@ type Metadata struct {
 // rewriteNewToOldKeys uses RewriteDeprecatedKeys to rewrite new (renameto)
 // key names back to old (json tag) names so that structs can be unmarshaled
 // correctly when input uses the new key names.
-func rewriteNewToOldKeys(raw json.RawMessage, target any) json.RawMessage {
+func rewriteNewToOldKeys(raw json.RawMessage, target any) (json.RawMessage, map[string]string, error) {
 	rules := endpointer.ExtractAliasRules(target)
 	if len(rules) == 0 {
-		return raw
+		return raw, nil, nil
 	}
-	result, err := endpointer.RewriteDeprecatedKeys(raw, rules)
+	result, deprecatedKeysMap, err := endpointer.RewriteDeprecatedKeys(raw, rules)
 	if err != nil {
-		return raw // fall back to original on error
+		return nil, nil, err // fall back to original on error
 	}
-	return result
+	return result, deprecatedKeysMap, nil
+}
+
+type GroupFromBytesOpts struct {
+	LogFn func(format string, args ...any)
 }
 
 // GroupFromBytes parses a Group from concatenated YAML specs.
-func GroupFromBytes(b []byte) (*Group, error) {
+func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
+	// Get optional logger.
+	var logFn func(format string, args ...any)
+	if len(options) > 0 {
+		logFn = options[0].LogFn
+	}
+
 	specs := &Group{}
 	for _, specItem := range SplitYaml(string(b)) {
 		var s Metadata
@@ -78,9 +90,17 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			return nil, fmt.Errorf(`Missing required fields ("spec") on provided %q configuration.`, s.Kind)
 		}
 
+		var deprecatedKeysMap map[string]string
 		switch kind {
-		case fleet.QueryKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
+		case fleet.QueryKind, fleet.ReportKind:
+			if logFn != nil && kind == fleet.QueryKind {
+				logFn("[!] `kind: query` is deprecated, please use `kind: report` instead.\n")
+			}
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var querySpec *fleet.QuerySpec
 			if err := yaml.Unmarshal(s.Spec, &querySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -88,7 +108,11 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Queries = append(specs.Queries, querySpec)
 
 		case fleet.PackKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var packSpec *fleet.PackSpec
 			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -96,7 +120,11 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Packs = append(specs.Packs, packSpec)
 
 		case fleet.LabelKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.LabelSpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.LabelSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var labelSpec *fleet.LabelSpec
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -104,7 +132,11 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Labels = append(specs.Labels, labelSpec)
 
 		case fleet.PolicyKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.PolicySpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PolicySpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var policySpec *fleet.PolicySpec
 			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -112,6 +144,11 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Policies = append(specs.Policies, policySpec)
 
 		case fleet.AppConfigKind:
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.AppConfig{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			if specs.AppConfig != nil {
 				return nil, errors.New("config defined twice in the same file")
 			}
@@ -134,14 +171,21 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var userRoleSpec *fleet.UsersRoleSpec
 			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.UsersRoles = userRoleSpec
 
-		case fleet.TeamKind:
+		case fleet.TeamKind, fleet.FleetKind:
+			if logFn != nil && kind == fleet.TeamKind {
+				logFn("[!] `kind: team` is deprecated, please use `kind: fleet` instead.\n")
+			}
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
 			// fields at this point - that validation is done in the apply spec/teams
 			// endpoint so that it is enforced for both the API and the CLI.
@@ -153,6 +197,17 @@ func GroupFromBytes(b []byte) (*Group, error) {
 
 		default:
 			return nil, fmt.Errorf("unknown kind %q", s.Kind)
+		}
+
+		if logFn != nil && len(deprecatedKeysMap) > 0 && logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+			oldKeys := make([]string, 0, len(deprecatedKeysMap))
+			for oldKey := range deprecatedKeysMap {
+				oldKeys = append(oldKeys, oldKey)
+			}
+			sort.Strings(oldKeys)
+			for _, oldKey := range oldKeys {
+				logFn(fmt.Sprintf("[!] In %s: `%s` is deprecated, please use `%s` instead.\n", kind, oldKey, deprecatedKeysMap[oldKey]))
+			}
 		}
 	}
 	return specs, nil
@@ -321,15 +376,15 @@ func ExpandEnvBytesIncludingSecrets(b []byte) ([]byte, error) {
 	return []byte(s), nil
 }
 
-// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is limited to XML files.
-// This is used for finding secrets in scripts only. The original string is not modified.
-// A map of secret names to values is updated.
+// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables.
+// This is used for finding secrets in profiles and scripts. The original string is not modified.
+// A map of secret names to raw (unescaped) values is updated.
+// XML escaping is intentionally NOT done here — it is handled server-side during
+// secret expansion (see expandEmbeddedSecrets in secret_variables.go).
 func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 	if secretsMap == nil {
 		return errors.New("secretsMap cannot be nil")
 	}
-
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
 
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
@@ -339,17 +394,6 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 			if !ok {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false
-			}
-
-			if documentIsXML {
-				// Escape XML special characters
-				var b strings.Builder
-				xmlErr := xml.EscapeText(&b, []byte(v))
-				if xmlErr != nil {
-					err = multierror.Append(xmlErr, fmt.Errorf("failed to XML escape fleet secret %s", env))
-					return "", false
-				}
-				v = b.String()
 			}
 
 			secretsMap[env] = v

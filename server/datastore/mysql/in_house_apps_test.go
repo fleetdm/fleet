@@ -464,7 +464,8 @@ func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, ap
 
 func createInHouseAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string, status string) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+
+	activitySvc := NewTestActivityService(t, ds)
 
 	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	require.NoError(t, err)
@@ -480,10 +481,10 @@ func createInHouseAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host
 
 	// inserting the activity is what marks the upcoming activity as completed
 	// (and activates the next one).
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      host.ID,
 		CommandUUID: cmdUUID,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 }
 
@@ -1735,7 +1736,7 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 }
 
 func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	ctx := t.Context()
 	test.CreateInsertGlobalVPPToken(t, ds)
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
@@ -1803,7 +1804,11 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	for i, act := range activitiesToCreate {
 		// caller's responsibility to create new activities
-		require.NoError(t, ds.NewActivity(ctx, users[i], act, nil, time.Now()))
+		var apiUser *activity_api.User
+		if users[i] != nil {
+			apiUser = &activity_api.User{ID: users[i].ID, Name: users[i].Name, Email: users[i].Email}
+		}
+		require.NoError(t, activitySvc.NewActivity(ctx, apiUser, act))
 	}
 
 	// fleet needs to receive some command result at some

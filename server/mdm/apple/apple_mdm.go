@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -28,7 +30,6 @@ import (
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 const (
@@ -443,7 +444,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
-	syncerLogger := logging.NewNanoDEPLogger(platformlogging.NewLogger(d.logger.With("component", "nanodep-syncer")))
+	syncerLogger := logging.NewNanoDEPLogger(ctx, d.logger.With("component", "nanodep-syncer"))
 	teams, err := d.ds.ListTeams(
 		ctx, fleet.TeamFilter{
 			User: &fleet.User{
@@ -1393,11 +1394,12 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 	pb.currentState[currentProfile] = wantedProfile
 }
 
-// NewActivityFunc is the function signature for creating a new activity.
-type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+// NewActivityFunc is an alias for fleet.NewActivityFunc.
+type NewActivityFunc = fleet.NewActivityFunc
 
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
-	newActivityFn NewActivityFunc) error {
+	newActivityFn NewActivityFunc,
+) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1511,7 +1513,8 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
-	error) {
+	error,
+) {
 	var e *APNSDeliveryError
 	if !errors.As(err, &e) {
 		return false, nil
@@ -1604,4 +1607,277 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 		return ctxerr.Wrap(ctx, err, "sending push notifications")
 	}
 	return nil
+}
+
+func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) (map[string]string, error) {
+	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
+	if m, ok := any(settings).(fleet.MDM); ok {
+		macOSUpdates = m.MacOSUpdates
+		iOSUpdates = m.IOSUpdates
+		iPadOSUpdates = m.IPadOSUpdates
+	} else if t, ok := any(settings).(fleet.TeamMDM); ok {
+		macOSUpdates = t.MacOSUpdates
+		iOSUpdates = t.IOSUpdates
+		iPadOSUpdates = t.IPadOSUpdates
+	} else {
+		return nil, errors.New("invalid settings type")
+	}
+
+	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
+		return nil, nil
+	}
+
+	am, err := gdmf.GetAssetMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("fetching Apple asset metadata: %w", err)
+	} else if am == nil {
+		// this should never happen, but just in case, return an error indicating that the metadata is not available instead of panicking with a nil pointer dereference
+		return nil, errors.New("Apple asset metadata is not available")
+	}
+
+	invalid := make(map[string]string, 3)
+	if macOSUpdates.MinimumVersion.Value != "" {
+		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
+			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
+		}
+	}
+	if iOSUpdates.MinimumVersion.Value != "" {
+		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
+		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
+		// and we want to avoid breaking workflows for users in that event
+		if ok := am.IsSupportedIOSVersion(iOSUpdates.MinimumVersion.Value, "iphone", excludeNonPublicAssetSets); !ok {
+			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
+		}
+	}
+	if iPadOSUpdates.MinimumVersion.Value != "" {
+		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
+			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
+		}
+	}
+
+	return invalid, nil
+}
+
+// RecoveryLockCommander defines the interface for sending recovery lock commands.
+// This interface is implemented by MDMAppleCommander and allows for testing.
+type RecoveryLockCommander interface {
+	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+}
+
+// SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
+// to hosts that need a recovery lock password.
+//
+// Note: SetRecoveryLock command results are handled in the MDM results handler
+// (server/service/apple_mdm.go), which sends VerifyRecoveryLock immediately upon acknowledgment.
+func SendRecoveryLockCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *MDMAppleCommander,
+	logger *slog.Logger,
+) error {
+	return sendRecoveryLockCommandsWithCommander(ctx, ds, commander, logger)
+}
+
+func sendRecoveryLockCommandsWithCommander(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	var result *multierror.Error
+
+	// Restore hosts that were in "pending remove" state but feature was re-enabled.
+	// This transitions them back to "verified install" to preserve the existing password.
+	restored, err := ds.RestoreRecoveryLockForReenabledHosts(ctx)
+	if err != nil {
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "restore recovery lock for re-enabled hosts"))
+	} else if restored > 0 {
+		logger.InfoContext(ctx, "restored recovery lock for re-enabled hosts", "count", restored)
+	}
+
+	// Handle SET password operations (hosts that need a recovery lock password)
+	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	// Handle CLEAR password operations (hosts that need their recovery lock cleared)
+	if err := sendClearRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	return result.ErrorOrNil()
+}
+
+func sendSetRecoveryLockCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock action")
+	}
+
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no hosts need SetRecoveryLock")
+		return nil
+	}
+
+	logger.InfoContext(ctx, "sending SetRecoveryLock commands", "count", len(hosts))
+
+	// Generate passwords for all hosts upfront.
+	// Passwords must be stored BEFORE enqueuing commands because they are injected
+	// at delivery time by ExpandHostSecrets (which looks up by host UUID).
+	passwords := make([]fleet.HostRecoveryLockPasswordPayload, 0, len(hosts))
+	for _, hostUUID := range hosts {
+		passwords = append(passwords, fleet.HostRecoveryLockPasswordPayload{
+			HostUUID: hostUUID,
+			Password: GenerateRecoveryLockPassword(),
+		})
+	}
+
+	// Store passwords with status='pending' atomically. This prevents the host from
+	// being picked up again by the next cron run while we're enqueuing the command.
+	// If enqueue fails, we reset the status to NULL so the host can be retried.
+	if err := ds.SetHostsRecoveryLockPasswords(ctx, passwords); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
+	}
+
+	// Collect host UUIDs for enqueue.
+	// The password is not in the command - a placeholder is used that will be
+	// expanded at delivery time by ExpandHostSecrets.
+	hostUUIDs := make([]string, 0, len(passwords))
+	for _, p := range passwords {
+		hostUUIDs = append(hostUUIDs, p.HostUUID)
+	}
+
+	// Enqueue a single command for all hosts. Each host gets their own queue entry
+	// pointing to the same command, and ExpandHostSecrets injects the per-host
+	// password at delivery time.
+	cmdUUID := uuid.NewString()
+	if err := commander.SetRecoveryLock(ctx, hostUUIDs, cmdUUID); err != nil {
+		// Check if this is an APNs delivery error (command was persisted but push failed).
+		// In this case, the command is already queued and will be delivered when the device
+		// checks in, so we should NOT clear the pending status (which would cause duplicates).
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			// Command was persisted but push notification failed - log warning but don't fail.
+			// The command will be delivered when the device next checks in.
+			logger.WarnContext(ctx, "SetRecoveryLock commands enqueued but APNs push failed",
+				"host_count", len(hostUUIDs),
+				"command_uuid", cmdUUID,
+				"error", err,
+			)
+			// Don't clear pending status - command is queued and will be processed
+			return nil
+		}
+
+		// Persistence failed - reset status to NULL so hosts will be picked up again on next cron run.
+		// The password is already stored, but a new one will be generated on retry (overwrites old).
+		logger.ErrorContext(ctx, "failed to enqueue SetRecoveryLock commands",
+			"host_count", len(hostUUIDs),
+			"error", err,
+		)
+		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hostUUIDs); clearErr != nil {
+			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+				"host_count", len(hostUUIDs),
+				"error", clearErr,
+			)
+			err = multierror.Append(err, clearErr)
+		}
+		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
+	}
+
+	logger.InfoContext(ctx, "sent SetRecoveryLock commands",
+		"host_count", len(hostUUIDs),
+		"command_uuid", cmdUUID,
+	)
+
+	return nil
+}
+
+func sendClearRecoveryLockCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock clear action")
+	}
+
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no hosts need ClearRecoveryLock")
+		return nil
+	}
+
+	logger.InfoContext(ctx, "sending ClearRecoveryLock commands", "count", len(hosts))
+
+	// Enqueue clear command. The CurrentPassword placeholder will be expanded at
+	// delivery time by ExpandHostSecrets (which looks up by host UUID).
+	cmdUUID := uuid.NewString()
+	if err := commander.ClearRecoveryLock(ctx, hosts, cmdUUID); err != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			// Command was persisted but push notification failed - log warning but don't fail.
+			logger.WarnContext(ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
+				"host_count", len(hosts),
+				"command_uuid", cmdUUID,
+				"error", err,
+			)
+			return nil
+		}
+
+		// Persistence failed - reset status to NULL so hosts will be picked up again.
+		logger.ErrorContext(ctx, "failed to enqueue ClearRecoveryLock commands",
+			"host_count", len(hosts),
+			"error", err,
+		)
+		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hosts); clearErr != nil {
+			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+				"host_count", len(hosts),
+				"error", clearErr,
+			)
+			err = multierror.Append(err, clearErr)
+		}
+		return ctxerr.Wrap(ctx, err, "enqueue ClearRecoveryLock commands")
+	}
+
+	logger.InfoContext(ctx, "sent ClearRecoveryLock commands",
+		"host_count", len(hosts),
+		"command_uuid", cmdUUID,
+	)
+
+	return nil
+}
+
+// RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)
+const RecoveryLockPasswordCharset = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+// GenerateRecoveryLockPassword generates a password in format: 5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT
+// (6 groups of 4 alphanumeric characters separated by dashes)
+func GenerateRecoveryLockPassword() string {
+	const (
+		groupCount = 6
+		groupLen   = 4
+	)
+
+	groups := make([]string, groupCount)
+	charsetLen := len(RecoveryLockPasswordCharset)
+
+	for i := range groupCount {
+		randBytes := make([]byte, groupLen)
+		_, _ = rand.Read(randBytes) // rand.Read never returns an error; it panics on failure
+
+		group := make([]byte, groupLen)
+		for j := range groupLen {
+			group[j] = RecoveryLockPasswordCharset[int(randBytes[j])%charsetLen]
+		}
+		groups[i] = string(group)
+	}
+
+	return strings.Join(groups, "-")
 }

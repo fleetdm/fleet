@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -235,7 +234,7 @@ func (ds *Datastore) QueryByName(
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))
+			return nil, ctxerr.Wrap(ctx, notFound("Report").WithName(name))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
 	}
@@ -471,7 +470,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		return ctxerr.Wrap(ctx, err, "rows affected updating query")
 	}
 	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
+		return ctxerr.Wrap(ctx, notFound("Report").WithID(q.ID))
 	}
 
 	if shouldDeleteStats {
@@ -576,11 +575,11 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 	stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
 	stmt, args, err := sqlx.In(stmt, queryIDs)
 	if err != nil {
-		level.Error(ds.logger).Log("msg", "error creating delete query stats statement", "err", err)
+		ds.logger.ErrorContext(ctx, "error creating delete query stats statement", "err", err)
 	} else {
 		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 		if err != nil {
-			level.Error(ds.logger).Log("msg", "error deleting query stats", "err", err)
+			ds.logger.ErrorContext(ctx, "error deleting query stats", "err", err)
 		}
 	}
 
@@ -588,11 +587,11 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 	stmt = fmt.Sprintf("DELETE FROM aggregated_stats WHERE type = '%s' AND id IN (?)", fleet.AggregatedStatsTypeScheduledQuery)
 	stmt, args, err = sqlx.In(stmt, queryIDs)
 	if err != nil {
-		level.Error(ds.logger).Log("msg", "error creating delete aggregated stats statement", "err", err)
+		ds.logger.ErrorContext(ctx, "error creating delete aggregated stats statement", "err", err)
 	} else {
 		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 		if err != nil {
-			level.Error(ds.logger).Log("msg", "error deleting aggregated stats", "err", err)
+			ds.logger.ErrorContext(ctx, "error deleting aggregated stats", "err", err)
 		}
 	}
 }
@@ -639,7 +638,7 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 	query := &fleet.Query{}
 	if err := sqlx.GetContext(ctx, db, query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
+			return nil, ctxerr.Wrap(ctx, notFound("Report").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}

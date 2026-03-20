@@ -12,122 +12,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
-var (
-	deleteIDsBatchSize = 1000
-)
-
-// NewActivity stores an activity item that the user performed
-func (ds *Datastore) NewActivity(
-	ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-) error {
-	// Sanity check to ensure we processed activity webhook before storing the activity
-	processed, _ := ctx.Value(fleet.ActivityWebhookContextKey).(bool)
-	if !processed {
-		return ctxerr.New(
-			ctx, "activity webhook not processed. Please use svc.NewActivity instead of ds.NewActivity. This is a Fleet server bug.",
-		)
-	}
-
-	var userID *uint
-	var userName *string
-	var userEmail *string
-	var fleetInitiated bool
-	var hostOnly bool
-	if user != nil {
-		// To support creating activities with users that were deleted. This can happen
-		// for automatically installed software which uses the author of the upload as the author of
-		// the installation.
-		if user.ID != 0 && !user.Deleted {
-			userID = &user.ID
-		}
-		userName = &user.Name
-		userEmail = &user.Email
-	}
-	if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-		userName = ptr.String(fleet.ActivityAutomationAuthor)
-		fleetInitiated = true
-	}
-
-	if hostOnlyActivity, ok := activity.(fleet.ActivityHostOnly); ok && hostOnlyActivity.HostOnly() {
-		hostOnly = true
-	}
-
-	cols := []string{"fleet_initiated", "user_id", "user_name", "activity_type", "details", "created_at", "host_only"}
-	args := []any{
-		fleetInitiated,
-		userID,
-		userName,
-		activity.ActivityName(),
-		details,
-		createdAt,
-		hostOnly,
-	}
-	if userEmail != nil {
-		args = append(args, userEmail)
-		cols = append(cols, "user_email")
-	}
-
-	if aa, ok := activity.(fleet.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
-		hostID, cmdUUID := aa.ActivateNextUpcomingActivityArgs()
-		// NOTE: ideally this would be called in the same transaction as storing
-		// the nanomdm command results, but the current design doesn't allow for
-		// that with the nano store being a distinct entity to our datastore (we
-		// should get rid of that distinction eventually, we've broken it already
-		// in some places and it doesn't bring much benefit anymore).
-		//
-		// Instead, this gets called from CommandAndReportResults, which is
-		// executed after the results have been saved in nano, but we already
-		// accept this non-transactional fact for many other states we manage in
-		// Fleet (wipe, lock results, setup experience results, etc. - see all
-		// critical data that gets updated in CommandAndReportResults) so there's
-		// no reason to treat the unified queue differently.
-		//
-		// This place here is a bit hacky but perfect for VPP/InHouse apps as the activity
-		// gets created only when the MDM command status is in a final state
-		// (success or failure), which is exactly when we want to activate the next
-		// activity. Though note that on success of the MDM command, we wait until the
-		// app gets verified (or it times out waiting for verification) to activate the
-		// next activity, to ensure the app is actually installed.
-		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
-		}
-	}
-
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		const insertActStmt = `INSERT INTO activities (%s) VALUES (%s)`
-		sql := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
-		res, err := tx.ExecContext(ctx, sql, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "new activity")
-		}
-
-		// this supposes a reasonable amount of hosts per activity, to revisit if we
-		// get in the 10K+.
-		if ah, ok := activity.(fleet.ActivityHosts); ok {
-			const insertActHostStmt = `INSERT INTO host_activities (host_id, activity_id) VALUES `
-
-			var sb strings.Builder
-			if hostIDs := ah.HostIDs(); len(hostIDs) > 0 {
-				sb.WriteString(insertActHostStmt)
-				actID, _ := res.LastInsertId()
-				for _, hid := range hostIDs {
-					sb.WriteString(fmt.Sprintf("(%d, %d),", hid, actID))
-				}
-
-				stmt := strings.TrimSuffix(sb.String(), ",")
-				if _, err := tx.ExecContext(ctx, stmt); err != nil {
-					return ctxerr.Wrap(ctx, err, "insert host activity")
-				}
-			}
-		}
-		return nil
-	})
-}
+var deleteIDsBatchSize = 1000
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -407,35 +295,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	return activities, metaData, nil
 }
 
-func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiredWindowDays int) error {
-	const selectActivitiesQuery = `
-		SELECT a.id FROM activities a
-		LEFT JOIN host_activities ha ON (a.id=ha.activity_id)
-		WHERE ha.activity_id IS NULL AND a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-		ORDER BY a.id ASC
-		LIMIT ?;`
-	var activityIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &activityIDs, selectActivitiesQuery, expiredWindowDays, maxCount); err != nil {
-		return ctxerr.Wrap(ctx, err, "select activities for deletion")
-	}
-	if len(activityIDs) > 0 {
-		deleteActivitiesQuery, args, err := sqlx.In(`DELETE FROM activities WHERE id IN (?);`, activityIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build activities IN query")
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, deleteActivitiesQuery, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete expired activities")
-		}
-	}
-
-	// `activities` and `queries` are not tied because the activity itself holds
-	// the query SQL so they don't need to be executed on the same transaction.
-	//
+func (ds *Datastore) CleanupExpiredLiveQueries(ctx context.Context, expiredWindowDays int) error {
 	// All expired live queries are deleted in batch sizes of
 	// `deleteIDsBatchSize` to ensure the table size is kept in check
-	// with high volumes of live queries (zero-trust workflows). This differs
-	// from the `activities` cleanup which uses maxCount as a limit to the
-	// number of activities to delete.
+	// with high volumes of live queries (zero-trust workflows).
 
 	const selectUnsavedQueryIDs = `
 		SELECT id
@@ -698,7 +561,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 	// if the activity is related to lock/wipe actions, clear the status for that
 	// action as it was canceled (note that lock/wipe is prevented at the service
 	// layer from being canceled if it was already activated).
-	if err := clearLockWipeForCanceledActivity(ctx, tx, hostID, executionID); err != nil {
+	if err := clearHostMDMActionsForCanceledLockWipe(ctx, tx, hostID, executionID); err != nil {
 		return nil, err
 	}
 
@@ -762,9 +625,9 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
 	}
 
-	// creating the canceled activity must be done via svc.NewActivity (not
-	// ds.NewActivity), so we return the ready-to-insert activity struct to the
-	// caller and let svc do the rest.
+	// creating the canceled activity must be done via svc.NewActivity, so we
+	// return the ready-to-insert activity struct to the caller and let svc do
+	// the rest.
 	return pastAct, nil
 }
 
@@ -920,56 +783,19 @@ func cancelHostScriptUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, a
 	}, nil
 }
 
-func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) error {
+func clearHostMDMActionsForCanceledLockWipe(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) error {
 	const clearLockStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND lock_ref = ?`
-	resLock, err := tx.ExecContext(ctx, clearLockStmt, hostID, executionID)
+	_, err := tx.ExecContext(ctx, clearLockStmt, hostID, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for lock")
 	}
 
 	const clearWipeStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND wipe_ref = ?`
-	resWipe, err := tx.ExecContext(ctx, clearWipeStmt, hostID, executionID)
+	_, err = tx.ExecContext(ctx, clearWipeStmt, hostID, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for wipe")
 	}
 
-	lockCnt, _ := resLock.RowsAffected()
-	wipeCnt, _ := resWipe.RowsAffected()
-	if lockCnt > 0 || wipeCnt > 0 {
-		// if it did delete host_mdm_actions, then it was a lock or wipe activity,
-		// we need to delete the "past" activity that gets created immediately
-		// when that command is queued.
-		actType := fleet.ActivityTypeLockedHost{}.ActivityName()
-		if wipeCnt > 0 {
-			actType = fleet.ActivityTypeWipedHost{}.ActivityName()
-		}
-
-		const findActStmt = `SELECT
-				id
-			FROM
-				activities
-				INNER JOIN host_activities ON (host_activities.activity_id = activities.id)
-			WHERE
-				host_activities.host_id = ? AND
-				activities.activity_type = ?
-			ORDER BY
-				activities.created_at DESC
-			LIMIT 1
-`
-		var activityID uint
-		if err := sqlx.GetContext(ctx, tx, &activityID, findActStmt, hostID, actType); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// no activity to delete, nothing to do
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "find past activity for lock/wipe")
-		}
-
-		const delStmt = `DELETE FROM activities WHERE id = ?`
-		if _, err := tx.ExecContext(ctx, delStmt, activityID); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete past activity for lock/wipe")
-		}
-	}
 	return nil
 }
 
@@ -1045,6 +871,19 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 		return 0, ctxerr.Wrap(ctx, err, "select blocked hosts")
 	}
 	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+}
+
+// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
+// fromCompletedExecID is the execution ID of the activity that just completed (if any).
+//
+// NOTE: this intentionally does not use a transaction wrapper. The original
+// call site in NewActivity (now in the activity bounded context) also called
+// activateNextUpcomingActivity outside a transaction. See @mna's comment in
+// cab7cc15bef (2025-10-28) explaining that this non-transactional approach is
+// accepted and consistent with how other critical state updates work in Fleet.
+func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	_, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, fromCompletedExecID)
+	return err
 }
 
 func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
@@ -1609,7 +1448,7 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "get in-house app title id")
 	}
 
-	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
+	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
 	// insert the nano command
 	namedArgs := map[string]any{
@@ -1646,7 +1485,7 @@ WHERE
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
+			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
 	}
 	return nil

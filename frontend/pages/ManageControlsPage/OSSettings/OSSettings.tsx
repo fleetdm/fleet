@@ -7,7 +7,7 @@ import SideNav from "pages/admin/components/SideNav";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
-import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
+import getOSSettingsNavItems from "./OSSettingsNavItems";
 import ProfileStatusAggregate from "./ProfileStatusAggregate";
 
 const baseClass = "os-settings";
@@ -52,14 +52,11 @@ const OSSettings = ({
     }
   );
 
+  const isTechnician = !!isTeamTechnician || !!isGlobalTechnician;
+
   const filteredNavItems = useMemo(() => {
-    if (isTeamTechnician || isGlobalTechnician) {
-      return OS_SETTINGS_NAV_ITEMS.filter(
-        (item) => item.title !== "Certificates"
-      );
-    }
-    return OS_SETTINGS_NAV_ITEMS;
-  }, [isTeamTechnician, isGlobalTechnician]);
+    return getOSSettingsNavItems(isTechnician);
+  }, [isTechnician]);
 
   const DEFAULT_SETTINGS_SECTION = filteredNavItems[0];
 

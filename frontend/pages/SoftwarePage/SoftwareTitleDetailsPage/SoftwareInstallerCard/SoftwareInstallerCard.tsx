@@ -17,6 +17,7 @@ import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
   getSelfServiceTooltip,
   getAutoUpdatesTooltip,
+  mergePolicies,
 } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
@@ -208,10 +209,12 @@ const SoftwareInstallerCard = ({
     installerType,
     isAndroidPlayStoreApp,
     isFleetMaintainedApp,
+    isLatestFmaVersion,
     isCustomPackage,
     isIosOrIpadosApp,
     sha256,
     androidPlayStoreId,
+    patchPolicy,
     automaticInstallPolicies,
     gitOpsModeEnabled,
     repoURL,
@@ -268,6 +271,11 @@ const SoftwareInstallerCard = ({
     isGlobalTechnician ||
     isTeamTechnician;
 
+  const mergedPolicies = mergePolicies({
+    automaticInstallPolicies,
+    patchPolicy,
+  });
+
   return (
     <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
@@ -280,25 +288,11 @@ const SoftwareInstallerCard = ({
               addedTimestamp={addedTimestamp}
               sha256={sha256}
               isFma={isFleetMaintainedApp}
+              isLatestFmaVersion={isLatestFmaVersion}
               isScriptPackage={isScriptPackage}
               androidPlayStoreId={androidPlayStoreId}
             />
             <div className={`${baseClass}__tags-wrapper`}>
-              {Array.isArray(automaticInstallPolicies) &&
-                automaticInstallPolicies.length > 0 && (
-                  <TooltipWrapper
-                    showArrow
-                    position="top"
-                    tipContent={
-                      automaticInstallPolicies.length === 1
-                        ? "A policy triggers install."
-                        : `${automaticInstallPolicies.length} policies trigger install.`
-                    }
-                    underline={false}
-                  >
-                    <Tag icon="refresh" text="Automatic install" />
-                  </TooltipWrapper>
-                )}
               {isSelfService && (
                 <TooltipWrapper
                   showArrow
@@ -359,12 +353,12 @@ const SoftwareInstallerCard = ({
           isLoading={isLoading}
         />
       </div>
-      {automaticInstallPolicies && (
+      {mergedPolicies.length > 0 && (
         <div className={`${baseClass}__installer-policies-table`}>
           <InstallerPoliciesTable
             teamId={teamId}
             isLoading={isLoading}
-            policies={automaticInstallPolicies}
+            policies={mergedPolicies}
           />
         </div>
       )}

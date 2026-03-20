@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1743,7 +1744,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
-		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" {
+		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil {
 			// 418 = Already exists, and indicate that an <Add> failed due to the item already existing on the device
 			// We need to re-issue a <Replace> command for this item
 			alreadyExistsCmdIDs = append(alreadyExistsCmdIDs, *protoCMD.Cmd.CmdRef)
@@ -1782,7 +1783,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 }
 
 func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alreadyExistsCmdIDs []string, deviceID string) ([]string, error) {
-	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, alreadyExistsCmdIDs)
+	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, deviceID, alreadyExistsCmdIDs)
 	if err != nil {
 		return nil, fmt.Errorf("get commands for resending: %w", err)
 	}
@@ -2123,7 +2124,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	displayName := reqDeviceName
 	var serial string
 	if hostUUID != "" {
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionTurnOn,
 			Platform: "windows",
@@ -2608,17 +2609,19 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
+	scepConfigSvc := scep.NewSCEPConfigService(logger, nil)
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
-	deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
-		ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
-			Context:            ctx,
-			Logger:             logger,
-			DataStore:          ds,
-			HostIDForUUIDCache: make(map[string]uint),
-		},
+	deps := microsoft_mdm.ProfilePreprocessDependencies{
+		Context:                    ctx,
+		Logger:                     logger,
+		DataStore:                  ds,
+		HostIDForUUIDCache:         make(map[string]uint),
 		AppConfig:                  appConfig,
 		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
 		ManagedCertificatePayloads: managedCertificatePayloads,
+		NDESConfig:                 groupedCAs.NDESSCEP,
+		GetNDESSCEPChallenge:       scepConfigSvc.GetNDESSCEPChallenge,
+		NDESChallengeErrorToDetail: scep.NDESChallengeErrorToDetail,
 	}
 
 	for profUUID, target := range installTargets {

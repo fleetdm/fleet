@@ -539,11 +539,6 @@ func TestSavedScripts(t *testing.T) {
 	ds.ListScriptsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
 		return nil, &fleet.PaginationMetadata{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: 0}, nil
 	}
@@ -891,7 +886,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2, 3}, nil, nil)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "all hosts must be on the same team as the script")
+		require.ErrorContains(t, err, "all hosts must be on the same fleet as the script")
 	})
 
 	t.Run("error if both host_ids and filters are specified", func(t *testing.T) {

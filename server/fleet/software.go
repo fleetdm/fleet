@@ -360,6 +360,14 @@ type SoftwareAutoUpdateScheduleFilter struct {
 	Enabled *bool
 }
 
+// FleetMaintainedVersion represents a cached version of a Fleet-maintained app.
+type FleetMaintainedVersion struct {
+	// ID is the ID of the software installer for this version.
+	ID uint `json:"id" db:"id"`
+	// Version is the version string.
+	Version string `json:"version" db:"version"`
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
@@ -799,6 +807,7 @@ type VPPBatchPayload struct {
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
+	LabelsIncludeAll   []string `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories          []string                  `json:"categories"`
 	DisplayName         string                    `json:"display_name"`
@@ -826,6 +835,7 @@ type VPPBatchPayloadWithPlatform struct {
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`
+	LabelsIncludeAll   []string                  `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.

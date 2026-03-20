@@ -43,7 +43,7 @@ We keep a record of all devices ingested via the ADE sync in the `host_dep_assig
 On every run, we pull the list of added/modified/deleted devices and:
 
 1. If the host was added/modified, we:
-   - Create/match a row in the `hosts` table for the new host. This allows IT admin to view the host by serial in team lists before it turns on MDM or has `fleetd` installed.
+   - Create/match a row in the `hosts` table for the new host. This allows IT admin to view the host by serial in a fleet before it turns on MDM or has `fleetd` installed.
    - Always assign a JSON profile for added devices. We assign JSON profile for modified devices if the profile has not been modified according to Apple DEP device response.
 2. If the host was deleted, we soft delete the `host_dep_assignments` entry.
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
@@ -30,7 +31,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -44,13 +44,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func errHandler(ctx context.Context, logger *logging.Logger, msg string, err error) {
-	level.Error(logger).Log("msg", msg, "err", err)
+func errHandler(ctx context.Context, logger *slog.Logger, msg string, err error) {
+	logger.ErrorContext(ctx, msg, "err", err)
 	ctxerr.Handle(ctx, err)
 }
 
@@ -58,7 +57,7 @@ func newVulnerabilitiesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	config *config.VulnerabilitiesConfig,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronVulnerabilities)
@@ -82,14 +81,14 @@ func newVulnerabilitiesSchedule(
 func cronVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	config *config.VulnerabilitiesConfig,
 ) error {
 	if config == nil {
 		return errors.New("nil configuration")
 	}
 
-	level.Info(logger).Log("periodicity", config.Periodicity)
+	logger.InfoContext(ctx, "", "periodicity", config.Periodicity)
 
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -97,13 +96,13 @@ func cronVulnerabilities(
 	}
 
 	if !appConfig.Features.EnableSoftwareInventory {
-		level.Info(logger).Log("msg", "software inventory not configured")
+		logger.InfoContext(ctx, "software inventory not configured")
 		return nil
 	}
 
-	vulnPath := configureVulnPath(*config, appConfig, logger)
+	vulnPath := configureVulnPath(ctx, *config, appConfig, logger)
 	if vulnPath != "" {
-		level.Info(logger).Log("msg", "scanning vulnerabilities")
+		logger.InfoContext(ctx, "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
@@ -117,24 +116,24 @@ func cronVulnerabilities(
 	return nil
 }
 
-func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *logging.Logger, maxConcurrency int) error {
+func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, maxConcurrency int) error {
 	ctx, span := tracer.Start(ctx, "vuln.update_host_counts")
 	defer span.End()
 
 	// Prevent invalid values for max concurrency
 	if maxConcurrency <= 0 {
-		level.Info(logger).Log("msg", "invalid maxConcurrency value provided, setting value to 1", "providedValue", maxConcurrency)
+		logger.InfoContext(ctx, "invalid maxConcurrency value provided, setting value to 1", "providedValue", maxConcurrency)
 		maxConcurrency = 1
 	}
 
 	start := time.Now()
-	level.Info(logger).Log("msg", "updating vulnerability host counts")
+	logger.InfoContext(ctx, "updating vulnerability host counts")
 
 	if err := ds.UpdateVulnerabilityHostCounts(ctx, maxConcurrency); err != nil {
 		span.RecordError(err)
 		return fmt.Errorf("updating vulnerability host counts: %w", err)
 	}
-	level.Info(logger).Log("msg", "vulnerability host counts updated", "took", time.Since(start).Seconds())
+	logger.InfoContext(ctx, "vulnerability host counts updated", "took", time.Since(start).Seconds())
 
 	return nil
 }
@@ -142,12 +141,12 @@ func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *loggi
 func scanVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	config *config.VulnerabilitiesConfig,
 	appConfig *fleet.AppConfig,
 	vulnPath string,
 ) error {
-	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
+	logger.DebugContext(ctx, "creating vulnerabilities databases path", "databases_path", vulnPath)
 	err := os.MkdirAll(vulnPath, 0o755)
 	if err != nil {
 		return fmt.Errorf("create vulnerabilities databases directory: %w", err)
@@ -185,7 +184,7 @@ func scanVulnerabilities(
 		}
 	}
 
-	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
+	logger.DebugContext(ctx, "", "vulnAutomationEnabled", vulnAutomationEnabled)
 
 	startTime, err := ds.GetCurrentTime(ctx)
 	if err != nil {
@@ -199,6 +198,17 @@ func scanVulnerabilities(
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+
+	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
+	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
+	// that write to the same tables, avoiding cross-schedule lock contention. The LEFT JOIN
+	// queries are index-backed on both sides, so execution time is fast for low orphan counts.
+	if err := ds.DeleteOrphanedSoftwareVulnerabilities(ctx); err != nil {
+		errHandler(ctx, logger, "deleting orphaned software vulnerabilities", err)
+	}
+	if err := ds.DeleteOrphanedOSVulnerabilities(ctx); err != nil {
+		errHandler(ctx, logger, "deleting orphaned OS vulnerabilities", err)
+	}
 
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationEnabled == "" {
@@ -249,7 +259,7 @@ func scanVulnerabilities(
 			if err := webhooks.TriggerVulnerabilitiesWebhook(
 				automationCtx,
 				ds,
-				logger.SlogLogger().With("webhook", "vulnerabilities"),
+				logger.With("webhook", "vulnerabilities"),
 				args,
 				mapper,
 			); err != nil {
@@ -261,7 +271,7 @@ func scanVulnerabilities(
 			if err := worker.QueueJiraVulnJobs(
 				automationCtx,
 				ds,
-				logger.SlogLogger().With("jira", "vulnerabilities"),
+				logger.With("jira", "vulnerabilities"),
 				recentV,
 				matchingMeta,
 			); err != nil {
@@ -273,7 +283,7 @@ func scanVulnerabilities(
 			if err := worker.QueueZendeskVulnJobs(
 				automationCtx,
 				ds,
-				logger.SlogLogger().With("zendesk", "vulnerabilities"),
+				logger.With("zendesk", "vulnerabilities"),
 				recentV,
 				matchingMeta,
 			); err != nil {
@@ -292,19 +302,19 @@ func scanVulnerabilities(
 func checkCustomVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	collectVulns bool,
 	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := tracer.Start(ctx, "vuln.check_custom")
 	defer span.End()
 
-	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger.SlogLogger(), startTime)
+	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, startTime)
 	if err != nil {
 		errHandler(ctx, logger, "checking custom vulnerabilities", err)
 	}
 
-	level.Debug(logger).Log("msg", "custom-vulnerabilities-analysis-done", "found new", len(vulns))
+	logger.DebugContext(ctx, "custom-vulnerabilities-analysis-done", "found new", len(vulns))
 
 	if !collectVulns {
 		return nil
@@ -316,7 +326,7 @@ func checkCustomVulnerabilities(
 func checkWinVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
@@ -352,10 +362,9 @@ func checkWinVulnerabilities(
 			}
 
 			start := time.Now()
-			r, err := msrc.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger.SlogLogger())
+			r, err := msrc.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger)
 			elapsed := time.Since(start)
-			level.Debug(logger).Log(
-				"msg", "msrc-analysis-done",
+			logger.DebugContext(analyzeCtx, "msrc-analysis-done",
 				"os name", o.Name,
 				"os version", o.Version,
 				"display version", o.DisplayVersion,
@@ -375,7 +384,7 @@ func checkWinVulnerabilities(
 func checkOvalVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
@@ -400,7 +409,7 @@ func checkOvalVulnerabilities(
 			errHandler(refreshCtx, logger, "updating oval definitions", err)
 		}
 		for _, d := range downloaded {
-			level.Debug(logger).Log("oval-sync-downloaded", d)
+			logger.DebugContext(refreshCtx, "", "oval-sync-downloaded", d)
 		}
 		refreshSpan.End()
 	}
@@ -412,13 +421,12 @@ func checkOvalVulnerabilities(
 		start := time.Now()
 		r, err := oval.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns)
 		if err != nil && errors.Is(err, oval.ErrUnsupportedPlatform) {
-			level.Debug(logger).Log("msg", "oval-analysis-unsupported", "platform", version.Name)
+			logger.DebugContext(analyzeCtx, "oval-analysis-unsupported", "platform", version.Name)
 			continue
 		}
 
 		elapsed := time.Since(start)
-		level.Debug(logger).Log(
-			"msg", "oval-analysis-done",
+		logger.DebugContext(analyzeCtx, "oval-analysis-done",
 			"platform", version.Name,
 			"elapsed", elapsed,
 			"found new", len(r))
@@ -435,7 +443,7 @@ func checkOvalVulnerabilities(
 func checkGovalDictionaryVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
@@ -455,12 +463,12 @@ func checkGovalDictionaryVulnerabilities(
 	if !config.DisableDataSync {
 		// Sync on disk goval_dictionary sqlite with current OS Versions.
 		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.goval_dictionary.refresh")
-		downloaded, err := goval_dictionary.Refresh(refreshCtx, versions, vulnPath, logger.SlogLogger())
+		downloaded, err := goval_dictionary.Refresh(refreshCtx, versions, vulnPath, logger)
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating goval_dictionary databases", err)
 		}
 		for _, d := range downloaded {
-			level.Debug(logger).Log("goval_dictionary-sync-downloaded", d)
+			logger.DebugContext(refreshCtx, "", "goval_dictionary-sync-downloaded", d)
 		}
 		refreshSpan.End()
 	}
@@ -470,14 +478,13 @@ func checkGovalDictionaryVulnerabilities(
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger.SlogLogger())
+		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
-			level.Debug(logger).Log("msg", "goval_dictionary-analysis-unsupported", "platform", version.Name)
+			logger.DebugContext(analyzeCtx, "goval_dictionary-analysis-unsupported", "platform", version.Name)
 			continue
 		}
 		elapsed := time.Since(start)
-		level.Debug(logger).Log(
-			"msg", "goval_dictionary-analysis-done",
+		logger.DebugContext(analyzeCtx, "goval_dictionary-analysis-done",
 			"platform", version.Name,
 			"elapsed", elapsed,
 			"found new", len(r))
@@ -494,7 +501,7 @@ func checkGovalDictionaryVulnerabilities(
 func checkNVDVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
@@ -512,7 +519,7 @@ func checkNVDVulnerabilities(
 			CVEFeedPrefixURL:     config.CVEFeedPrefixURL,
 			CISAKnownExploitsURL: config.CISAKnownExploitsURL,
 		}
-		err := nvd.Sync(syncCtx, opts, logger.SlogLogger())
+		err := nvd.Sync(syncCtx, opts, logger)
 		if err != nil {
 			errHandler(syncCtx, logger, "syncing vulnerability database", err)
 			// don't return, continue on ...
@@ -521,14 +528,14 @@ func checkNVDVulnerabilities(
 	}
 
 	loadCtx, loadSpan := tracer.Start(ctx, "vuln.nvd.load_cve_meta")
-	if err := nvd.LoadCVEMeta(loadCtx, logger.SlogLogger(), vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(loadCtx, logger, vulnPath, ds); err != nil {
 		errHandler(loadCtx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
 	loadSpan.End()
 
 	cpeCtx, cpeSpan := tracer.Start(ctx, "vuln.nvd.translate_software_to_cpe")
-	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger.SlogLogger())
+	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger)
 	if err != nil {
 		errHandler(cpeCtx, logger, "analyzing vulnerable software: Software->CPE", err)
 		cpeSpan.End()
@@ -537,7 +544,7 @@ func checkNVDVulnerabilities(
 	cpeSpan.End()
 
 	cveCtx, cveSpan := tracer.Start(ctx, "vuln.nvd.translate_cpe_to_cve")
-	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger.SlogLogger(), collectVulns, startTime)
+	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
 		errHandler(cveCtx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		cveSpan.End()
@@ -551,7 +558,7 @@ func checkNVDVulnerabilities(
 func checkMacOfficeVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
@@ -567,7 +574,7 @@ func checkMacOfficeVulnerabilities(
 		}
 		syncSpan.End()
 
-		level.Debug(logger).Log("msg", "finished sync mac office release notes")
+		logger.DebugContext(ctx, "finished sync mac office release notes")
 	}
 
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.macoffice.analyze")
@@ -575,8 +582,7 @@ func checkMacOfficeVulnerabilities(
 	r, err := macoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
 	elapsed := time.Since(start)
 
-	level.Debug(logger).Log(
-		"msg", "mac-office-analysis-done",
+	logger.DebugContext(analyzeCtx, "mac-office-analysis-done",
 		"elapsed", elapsed,
 		"found new", len(r))
 
@@ -592,7 +598,7 @@ func newAutomationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) (*schedule.Schedule, error) {
@@ -620,7 +626,7 @@ func newAutomationsSchedule(
 			"host_status_webhook",
 			func(ctx context.Context) error {
 				return webhooks.TriggerHostStatusWebhook(
-					ctx, ds, logger.SlogLogger().With("automation", "host_status"),
+					ctx, ds, logger.With("automation", "host_status"),
 				)
 			},
 		),
@@ -644,7 +650,7 @@ func newAutomationsSchedule(
 func scheduleFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) error {
 	for {
@@ -655,7 +661,7 @@ func scheduleFailingPoliciesAutomation(
 		if len(batch) == 0 {
 			break
 		}
-		level.Debug(logger).Log("adding_hosts", len(batch))
+		logger.DebugContext(ctx, "", "adding_hosts", len(batch))
 		for _, p := range batch {
 			if err := failingPoliciesSet.AddHost(p.PolicyID, p.Host); err != nil {
 				return ctxerr.Wrap(ctx, err, "failingPolicesSet.AddHost")
@@ -668,7 +674,7 @@ func scheduleFailingPoliciesAutomation(
 func triggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
@@ -680,19 +686,18 @@ func triggerFailingPoliciesAutomation(
 		return fmt.Errorf("parsing appConfig.ServerSettings.ServerURL: %w", err)
 	}
 
-	slogLogger := logger.SlogLogger()
-	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, slogLogger, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
-				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), slogLogger)
+				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
 
 		case policies.FailingPolicyJira:
 			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
 			}
-			if err := worker.QueueJiraFailingPolicyJob(ctx, ds, logger.SlogLogger(), policy, hosts); err != nil {
+			if err := worker.QueueJiraFailingPolicyJob(ctx, ds, logger, policy, hosts); err != nil {
 				return err
 			}
 			if err := failingPoliciesSet.RemoveHosts(policy.ID, hosts); err != nil {
@@ -704,7 +709,7 @@ func triggerFailingPoliciesAutomation(
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
 			}
-			if err := worker.QueueZendeskFailingPolicyJob(ctx, ds, logger.SlogLogger(), policy, hosts); err != nil {
+			if err := worker.QueueZendeskFailingPolicyJob(ctx, ds, logger, policy, hosts); err != nil {
 				return err
 			}
 			if err := failingPoliciesSet.RemoveHosts(policy.ID, hosts); err != nil {
@@ -724,11 +729,9 @@ func newWorkerIntegrationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
-	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
-	vppInstaller fleet.AppleMDMVPPInstaller,
 	androidModule android.Service,
 ) (*schedule.Schedule, error) {
 	const (
@@ -747,17 +750,17 @@ func newWorkerIntegrationsSchedule(
 	// create the worker and register the Jira and Zendesk jobs even if no
 	// integration is enabled, as that config can change live (and if it's not
 	// there won't be any records to process so it will mostly just sleep).
-	w := worker.NewWorker(ds, logger.SlogLogger())
+	w := worker.NewWorker(ds, logger)
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	jira := &worker.Jira{
 		Datastore:     ds,
-		Log:           logger.SlogLogger(),
+		Log:           logger,
 		NewClientFunc: newJiraClient,
 	}
 	zendesk := &worker.Zendesk{
 		Datastore:     ds,
-		Log:           logger.SlogLogger(),
+		Log:           logger,
 		NewClientFunc: newZendeskClient,
 	}
 	var (
@@ -768,37 +771,31 @@ func newWorkerIntegrationsSchedule(
 	// we leave depSvc and deCli nil and macos setup assistants jobs will be
 	// no-ops.
 	if depStorage != nil {
-		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
-		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger.SlogLogger())
+		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
+		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger)
 	}
 	macosSetupAsst := &worker.MacosSetupAssistant{
 		Datastore:  ds,
-		Log:        logger.SlogLogger(),
+		Log:        logger,
 		DEPService: depSvc,
 		DEPClient:  depCli,
 	}
-	appleMDM := &worker.AppleMDM{
-		Datastore:             ds,
-		Log:                   logger.SlogLogger(),
-		Commander:             commander,
-		BootstrapPackageStore: bootstrapPackageStore,
-		VPPInstaller:          vppInstaller,
-	}
+
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
-		Log:       logger.SlogLogger(),
+		Log:       logger,
 		Commander: commander,
 	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
-		Log:       logger.SlogLogger(),
+		Log:       logger,
 	}
 	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     ds,
-		Log:           logger.SlogLogger(),
+		Log:           logger,
 		AndroidModule: androidModule,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -839,7 +836,7 @@ func newWorkerIntegrationsSchedule(
 			return nil
 		}),
 		schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
-			return worker.ProcessDEPCooldowns(ctx, ds, logger.SlogLogger())
+			return worker.ProcessDEPCooldowns(ctx, ds, logger)
 		}),
 	)
 
@@ -899,12 +896,59 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 	return failerClient
 }
 
+func newAppleMDMWorkerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	commander *apple_mdm.MDMAppleCommander,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+) (*schedule.Schedule, error) {
+	const (
+		name             = string(fleet.CronAppleMDMWorker)
+		scheduleInterval = 10 * time.Second // schedule a worker to run every 10 seconds if none is running
+		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
+	)
+
+	logger = logger.With("cron", name)
+
+	w := worker.NewWorker(ds, logger)
+
+	appleMDM := &worker.AppleMDM{
+		Datastore:             ds,
+		Log:                   logger,
+		Commander:             commander,
+		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
+	}
+
+	w.Register(appleMDM)
+
+	s := schedule.New(
+		ctx, name, instanceID, scheduleInterval, ds, ds,
+		schedule.WithAltLockID("apple_mdm"),
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_worker", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
+			if err := w.ProcessJobs(workCtx); err != nil {
+				return fmt.Errorf("processing apple mdm jobs: %w", err)
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
 func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
 	svc fleet.Service,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
@@ -912,6 +956,7 @@ func newCleanupsAndAggregationSchedule(
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	androidSvc android.Service,
+	activitySvc activity_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -931,7 +976,7 @@ func newCleanupsAndAggregationSchedule(
 					return err
 				}
 				if expired > 0 {
-					level.Info(logger).Log("msg", "expired distributed query campaigns", "count", expired)
+					logger.InfoContext(ctx, "expired distributed query campaigns", "count", expired)
 				}
 
 				targetsStart := time.Now()
@@ -941,8 +986,7 @@ func newCleanupsAndAggregationSchedule(
 					return err
 				}
 				if deleted > 0 {
-					level.Info(logger).Log(
-						"msg", "cleaned up campaign targets",
+					logger.InfoContext(ctx, "cleaned up campaign targets",
 						"deleted", deleted,
 						"duration_ms", time.Since(targetsStart).Milliseconds(),
 					)
@@ -1056,7 +1100,7 @@ func newCleanupsAndAggregationSchedule(
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
 		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
-			return android_svc.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
@@ -1087,10 +1131,20 @@ func newCleanupsAndAggregationSchedule(
 			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
 				return nil
 			}
-			// A maxCount of 5,000 means that the cron job will keep the activities (and associated tables)
-			// sizes in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
+			// A maxCount of 5,000 means that the cron job will keep the activities table
+			// size in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
 			const maxCount = 5000
-			return ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+			return activitySvc.CleanupExpiredActivities(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+		}),
+		schedule.WithJob("cleanup_live_queries", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
+				return nil
+			}
+			return ds.CleanupExpiredLiveQueries(ctx, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
 		}),
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
 			// remove only those unused created more than a minute ago to avoid a
@@ -1131,7 +1185,7 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			}
 			if count > 0 {
-				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
+				logger.InfoContext(ctx, "revoked old conditional access certificates", "count", count)
 			}
 			return nil
 		}),
@@ -1147,7 +1201,7 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			}
 			if affected > 0 {
-				level.Info(logger).Log("msg", "reverted stale certificate templates", "count", affected)
+				logger.InfoContext(ctx, "reverted stale certificate templates", "count", affected)
 			}
 			return nil
 		}),
@@ -1161,7 +1215,7 @@ func newFrequentCleanupsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	lq fleet.LiveQueryStore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronFrequentCleanups)
@@ -1182,7 +1236,7 @@ func newFrequentCleanupsSchedule(
 			if err != nil {
 				return err
 			}
-			ids := stringSliceToUintSlice(names, logger)
+			ids := stringSliceToUintSlice(ctx, names, logger)
 			completed, err := ds.GetCompletedCampaigns(ctx, ids)
 			if err != nil {
 				return err
@@ -1200,7 +1254,7 @@ func newQueryResultsCleanupSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	liveQueryStore fleet.LiveQueryStore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronQueryResultsCleanup)
@@ -1222,7 +1276,7 @@ func newQueryResultsCleanupSchedule(
 			// Sync Redis counters to actual database row counts
 			for queryID, count := range queryCounts {
 				if err := liveQueryStore.SetQueryResultsCount(queryID, count); err != nil {
-					level.Warn(logger).Log("msg", "failed to set query results count in redis", "query_id", queryID, "err", err)
+					logger.WarnContext(ctx, "failed to set query results count in redis", "query_id", queryID, "err", err)
 				}
 			}
 			return nil
@@ -1234,29 +1288,29 @@ func newQueryResultsCleanupSchedule(
 
 func verifyDiskEncryptionKeys(
 	ctx context.Context,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	ds fleet.Datastore,
 ) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
-		logger.Log("err", "unable to get app config", "details", err)
+		logger.ErrorContext(ctx, "unable to get app config", "details", err)
 		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
 	if !appCfg.MDM.EnabledAndConfigured {
-		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
+		logger.InfoContext(ctx, "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
 
 	keys, err := ds.GetUnverifiedDiskEncryptionKeys(ctx)
 	if err != nil {
-		logger.Log("err", "unable to get unverified disk encryption keys from the database", "details", err)
+		logger.ErrorContext(ctx, "unable to get unverified disk encryption keys from the database", "details", err)
 		return err
 	}
 
 	cert, err := assets.CAKeyPair(ctx, ds)
 	if err != nil {
-		logger.Log("err", "unable to get CA keypair", "details", err)
+		logger.ErrorContext(ctx, "unable to get CA keypair", "details", err)
 		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
 	}
 
@@ -1275,18 +1329,18 @@ func verifyDiskEncryptionKeys(
 	}
 
 	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, decryptable, true, latest); err != nil {
-		logger.Log("err", "unable to update decryptable status", "details", err)
+		logger.ErrorContext(ctx, "unable to update decryptable status", "details", err)
 		return err
 	}
 	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, undecryptable, false, latest); err != nil {
-		logger.Log("err", "unable to update decryptable status", "details", err)
+		logger.ErrorContext(ctx, "unable to update decryptable status", "details", err)
 		return err
 	}
 
 	return nil
 }
 
-func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger *logging.Logger) (*schedule.Schedule, error) {
+func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger *slog.Logger) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUsageStatistics)
 		defaultInterval = 1 * time.Hour
@@ -1299,7 +1353,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 			func(ctx context.Context) error {
 				// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
 				// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config)
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, logger)
 			},
 		),
 	)
@@ -1307,7 +1361,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 	return s, nil
 }
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig, logger *slog.Logger) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -1326,7 +1380,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats, logger); err != nil {
 		return err
 	}
 
@@ -1346,7 +1400,7 @@ func newAppleMDMDEPProfileAssigner(
 	periodicity time.Duration,
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = logger.With("cron", name, "component", "nanodep-syncer")
@@ -1362,7 +1416,7 @@ func newAppleMDMDEPProfileAssigner(
 func appleMDMDEPSyncerJob(
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) func(context.Context) error {
 	var fleetSyncer *apple_mdm.DEPService
 	return func(ctx context.Context) error {
@@ -1385,18 +1439,18 @@ func appleMDMDEPSyncerJob(
 			return ctxerr.Wrap(ctx, err, "retrieving migrated ABM token")
 		}
 		if incompleteToken != nil {
-			logger.Log("msg", "migrated ABM token found, updating its metadata")
-			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger.SlogLogger(), false); err != nil {
+			logger.InfoContext(ctx, "migrated ABM token found, updating its metadata")
+			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger, false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
 			}
 			if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
 				return ctxerr.Wrap(ctx, err, "saving updated migrated ABM token")
 			}
-			logger.Log("msg", "completed migration of existing ABM token")
+			logger.InfoContext(ctx, "completed migration of existing ABM token")
 		}
 
 		if fleetSyncer == nil {
-			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
+			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
 		}
 
 		return fleetSyncer.RunAssigner(ctx)
@@ -1408,7 +1462,7 @@ func newAppleMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -1437,7 +1491,7 @@ func newWindowsMDMProfileManagerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMWindowsProfileManager)
@@ -1452,7 +1506,7 @@ func newWindowsMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
+			return service.ReconcileWindowsProfiles(ctx, ds, logger)
 		}),
 	)
 
@@ -1463,7 +1517,7 @@ func newAndroidMDMProfileManagerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
 ) (*schedule.Schedule, error) {
@@ -1477,7 +1531,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger.SlogLogger(), licenseKey, androidAgentConfig)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
 		}),
 	)
 
@@ -1489,7 +1543,7 @@ func newMDMAppleServiceDiscoverySchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	urlPrefix string,
 ) (*schedule.Schedule, error) {
 	const name = "mdm_service_discovery"
@@ -1510,7 +1564,7 @@ func newMDMAPNsPusher(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
@@ -1519,7 +1573,7 @@ func newMDMAPNsPusher(
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
-			level.Warn(logger).Log("msg", "invalid duration provided for FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL, using default interval")
+			logger.WarnContext(ctx, "invalid duration provided for FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL, using default interval")
 			interval = 1 * time.Minute
 		}
 	}
@@ -1545,9 +1599,9 @@ func newMDMAPNsPusher(
 	return s, nil
 }
 
-func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger *logging.Logger, instanceID string) {
+func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, instanceID string) {
 	if err := ds.UpdateAllCronStatsForInstance(ctx, instanceID, fleet.CronStatsStatusPending, fleet.CronStatsStatusCanceled); err != nil {
-		logger.Log("err", "cancel pending cron stats for instance", "details", err)
+		logger.ErrorContext(ctx, "cancel pending cron stats for instance", "details", err)
 	}
 }
 
@@ -1556,7 +1610,7 @@ func newActivitiesStreamingSchedule(
 	instanceID string,
 	activitySvc activity_api.Service,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	auditLogger activity_api.JSONLogger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1583,7 +1637,7 @@ func newHostVitalsLabelMembershipSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name     = string(fleet.CronHostVitalsLabelMembership)
@@ -1634,7 +1688,7 @@ func newBatchActivityCompletionCheckerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name     = string(fleet.CronBatchActivityCompletionChecker)
@@ -1665,12 +1719,12 @@ func cronBatchActivityCompletionChecker(
 	return nil
 }
 
-func stringSliceToUintSlice(s []string, logger *logging.Logger) []uint {
+func stringSliceToUintSlice(ctx context.Context, s []string, logger *slog.Logger) []uint {
 	result := make([]uint, 0, len(s))
 	for _, v := range s {
 		i, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
-			level.Warn(logger).Log("msg", "failed to parse string to uint", "string", v, "err", err)
+			logger.WarnContext(ctx, "failed to parse string to uint", "string", v, "err", err)
 			continue
 		}
 		result = append(result, uint(i))
@@ -1691,7 +1745,7 @@ func newIPhoneIPadRefetcher(
 	periodicity time.Duration,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	newActivityFn apple_mdm.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
@@ -1700,7 +1754,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger.SlogLogger(), newActivityFn)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 
@@ -1714,7 +1768,7 @@ func cronUninstallSoftwareMigration(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUninstallSoftwareMigration)
@@ -1739,7 +1793,7 @@ func cronUpgradeCodeSoftwareMigration(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUpgradeCodeSoftwareMigration)
@@ -1764,7 +1818,7 @@ func newMaintainedAppSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMaintainedApps)
@@ -1779,7 +1833,7 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger.SlogLogger())
+			return maintained_apps.Refresh(ctx, ds, logger)
 		}),
 	)
 
@@ -1790,7 +1844,7 @@ func newRefreshVPPAppVersionsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	vppAppsConfig apple_apps.Config,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1819,7 +1873,7 @@ func newIPhoneIPadReviver(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadReviver)
 	logger = logger.With("cron", name, "component", "iphone-ipad-reviver")
@@ -1827,7 +1881,7 @@ func newIPhoneIPadReviver(
 		ctx, name, instanceID, 1*time.Hour, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_reviver", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger.SlogLogger())
+			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger)
 		}),
 	)
 
@@ -1838,7 +1892,7 @@ func newUpcomingActivitiesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUpcomingActivitiesMaintenance)
@@ -1861,7 +1915,7 @@ func newBatchActivitiesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronScheduledBatchActivities)
@@ -1870,11 +1924,11 @@ func newBatchActivitiesSchedule(
 
 	logger = logger.With("cron", name)
 
-	w := worker.NewWorker(ds, logger.SlogLogger())
+	w := worker.NewWorker(ds, logger)
 
 	scriptsJob := &worker.BatchScripts{
 		Datastore: ds,
-		Log:       logger.SlogLogger(),
+		Log:       logger,
 	}
 
 	w.Register(scriptsJob)
@@ -1900,8 +1954,9 @@ func newAndroidMDMDeviceReconcilerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	licenseKey string,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidDeviceReconciler)
@@ -1913,7 +1968,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
-			return android_svc.ReconcileAndroidDevices(ctx, ds, logger.SlogLogger(), licenseKey)
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey, newActivityFn)
 		}),
 	)
 
@@ -1924,7 +1979,7 @@ func cronEnableAndroidAppReportsOnDefaultPolicy(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1950,7 +2005,7 @@ func cronMigrateToPerHostPolicy(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1969,5 +2024,29 @@ func cronMigrateToPerHostPolicy(
 			return androidSvc.MigrateToPerDevicePolicy(ctx)
 		}),
 	)
+	return s, nil
+}
+
+func newRecoveryLockPasswordSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSendRecoveryLockCommands)
+		defaultInterval = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
+			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger)
+		}),
+	)
+
 	return s, nil
 }

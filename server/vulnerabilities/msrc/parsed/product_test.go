@@ -151,6 +151,18 @@ func TestFullProductName(t *testing.T) {
 			finalName: "Windows Server 2022 (Server Core installation) Version 21H2",
 		},
 		{
+			fullName:  "Windows Server 2025",
+			arch:      "all",
+			prodName:  "Windows Server 2025",
+			finalName: "Windows Server 2025 Version 24H2",
+		},
+		{
+			fullName:  "Windows Server 2025 (Server Core installation)",
+			arch:      "all",
+			prodName:  "Windows Server 2025",
+			finalName: "Windows Server 2025 (Server Core installation) Version 24H2",
+		},
+		{
 			fullName:  "Windows 10 Version 20H2 for x64-based Systems",
 			arch:      "64-bit",
 			prodName:  "Windows 10",
@@ -540,6 +552,34 @@ func TestProductHasDisplayVersion(t *testing.T) {
 	}
 }
 
+func TestExtractDisplayVersionFromName(t *testing.T) {
+	tc := []struct {
+		name string
+		want string
+	}{
+		{"Microsoft Windows 10 Pro 22H2", "22H2"},
+		{"Microsoft Windows 10 Enterprise 22H2", "22H2"},
+		{"Microsoft Windows 10 Pro N 22H2", "22H2"},
+		{"Microsoft Windows 11 Pro 25H2", "25H2"},
+		{"Microsoft Windows 11 Enterprise 23H2", "23H2"},
+		{"Microsoft Windows 11 Enterprise 24H2", "24H2"},
+		{"Microsoft Windows 10 Version 1809", ""},
+		{"Microsoft Windows 10 Version 1607", ""},
+		{"Microsoft Windows Server 2022 Datacenter 21H2", "21H2"},
+		{"Microsoft Windows 10 Pro", ""},
+		{"Microsoft Windows 11 Enterprise", ""},
+		{"Microsoft Windows Server 2022", ""},
+		{"empty string", ""},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractDisplayVersionFromName(tt.name)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
 var msrcWinProducts = Products{
 	"10729": "Windows 10 for 32-bit Systems",
 	"10735": "Windows 10 for x64-based Systems",
@@ -554,6 +594,7 @@ var msrcWinProducts = Products{
 	"11923": "Windows Server 2022",
 	"11924": "Windows Server 2022 (Server Core installation)",
 	"12244": "Windows Server 2022, 23H2 Edition (Server Core installation)",
+	"12436": "Windows Server 2025 Version 24H2",
 }
 
 func TestMatchesOperatingSystem(t *testing.T) {
@@ -631,6 +672,16 @@ func TestMatchesOperatingSystem(t *testing.T) {
 				DisplayVersion: "23H2",
 			},
 			want: "12244",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2025 with display version",
+			os: fleet.OperatingSystem{
+				Name:           "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:           "64-bit",
+				DisplayVersion: "24H2",
+			},
+			want: "12436",
 			err:  nil,
 		},
 		{

@@ -24,8 +24,10 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -266,7 +268,7 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 	}
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or fleet role needs to be defined")
 }
 
 func (s *integrationTestSuite) TestUserEmailValidation() {
@@ -328,7 +330,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `team with id 9999 does not exist`)
+	assertBodyContains(t, resp, `fleet with id 9999 does not exist`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
@@ -365,6 +367,49 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 		}
 	}
 	require.True(t, found)
+}
+
+func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
+	// POST /api/v1/fleet/queries with labels_include_any should fail with 402 on free tier
+	var createResp createQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:             ptr.String("test-labels-query"),
+		Query:            ptr.String("SELECT 1"),
+		LabelsIncludeAny: []string{"some-label"},
+	}, http.StatusPaymentRequired, &createResp)
+
+	// Create a query without labels_include_any to use for the PATCH test
+	var createOKResp createQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:  ptr.String("test-labels-query-for-patch"),
+		Query: ptr.String("SELECT 1"),
+	}, http.StatusOK, &createOKResp)
+	defer s.cleanupQuery(createOKResp.Query.ID)
+
+	// PATCH with labels_include_any should also fail with 402 on free tier
+	var modifyResp modifyQueryResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createOKResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAny: []string{"some-label"},
+	}, http.StatusPaymentRequired, &modifyResp)
+
+	// PATCH with an explicit empty labels_include_any (clearing labels) must also require premium
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createOKResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAny: []string{},
+	}, http.StatusPaymentRequired, &modifyResp)
+
+	// POST /api/latest/fleet/spec/queries with labels_include_any should fail with 402 on free tier
+	var applyResp applyQuerySpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: "test-labels-spec-query", Query: "SELECT 1", LabelsIncludeAny: []string{"some-label"}},
+		},
+	}, http.StatusPaymentRequired, &applyResp)
+
+	// POST /api/latest/fleet/spec/queries with an explicit empty labels_include_any must also require premium.
+	// We send raw JSON because QuerySpec.LabelsIncludeAny has omitempty, so a Go []string{} would be
+	// stripped during marshaling and never reach the server as a non-nil empty slice.
+	rawBody := []byte(`{"specs":[{"name":"test-labels-spec-query-empty","query":"SELECT 1","labels_include_any":[]}]}`)
+	s.DoRaw("POST", "/api/latest/fleet/spec/queries", rawBody, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestCreatingAPIOnlyUserReturnsAPIToken() {
@@ -3356,6 +3401,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	policies := *hd.Policies
 	require.Len(t, policies, 2)
 	// Policies that did not run are listed before passing policies
+	// TODO(JVE): verify that this passes once JK merges his code
 	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[0].PolicyData))
 	require.Equal(t, policies[0].Response, "") // policy didn't "run"
 
@@ -3376,15 +3422,15 @@ func (s *integrationTestSuite) TestListActivities() {
 
 	prevActivities := s.listActivities()
 
-	timestamp := time.Now()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
+	activitySvc := mysql.NewTestActivityService(t, s.ds)
+	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
+	err := activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeAppliedSpecPack{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
+	err = activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeDeletedPack{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{}, nil, timestamp)
+	err = activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeEditedPack{})
 	require.NoError(t, err)
 
 	lenPage := len(prevActivities) + 2
@@ -8014,7 +8060,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
 	  }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+	assert.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)
@@ -10044,7 +10090,12 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 55)         // total number of cols
+	assert.Len(t, rows[0], 57)         // total number of cols
+	// Validate that both team_id and fleet_id columns are present.
+	assert.Contains(t, rows[0], "team_id")
+	assert.Contains(t, rows[0], "fleet_id")
+	assert.Contains(t, rows[0], "team_name")
+	assert.Contains(t, rows[0], "fleet_name")
 
 	const (
 		idCol        = 3
@@ -10069,13 +10120,17 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// valid format, some columns
 	res = s.DoRaw(
 		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
-		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space",
+		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,team_id,team_name",
 	)
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 	require.Contains(t, rows[0], "hostname") // first row contains headers
+	assert.Contains(t, rows[0], "team_id")
+	assert.Contains(t, rows[0], "fleet_id")
+	assert.Contains(t, rows[0], "team_name")
+	assert.Contains(t, rows[0], "fleet_name")
 	require.Contains(t, res.Header, "Content-Disposition")
 	require.Contains(t, res.Header, "Content-Type")
 	require.Contains(t, res.Header, "X-Content-Type-Options")
@@ -11045,27 +11100,48 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
+	androidOnly := androidMDMConfigurationRequiredEndpoints()
 
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
 		if slices.Contains(windowsOnly, path) {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
+		} else if slices.Contains(androidOnly, path) {
+			expectedErr = fleet.ErrAndroidMDMNotConfigured
 		}
+
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(path, tkn)
 		}
-		var params interface{}
-		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+
+		// build the body of the request
+		var params any
+		var multipartBody *bytes.Buffer
+		var headers map[string]string
+		switch {
+		case route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status":
 			params = getOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
-		}
-		// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
-		if route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup") {
+
+		case route.method == "POST" && route.path == "/api/latest/fleet/software/web_apps":
+			multipartBody, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+				"title": {"Test App"},
+				"url":   {"https://example.com"},
+			})
+
+		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+			// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
 			expectedErr = fleet.ErrMissingLicense
 		}
-		res := s.Do(route.method, path, params, expectedErr.StatusCode())
+
+		var res *http.Response
+		if multipartBody != nil {
+			res = s.DoRawWithHeaders(route.method, path, multipartBody.Bytes(), expectedErr.StatusCode(), headers)
+		} else {
+			res = s.Do(route.method, path, params, expectedErr.StatusCode())
+		}
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -12411,7 +12487,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 55)         // total number of cols
+	assert.Len(t, rows1[0], 57)         // total number of cols
 
 	var (
 		idIdx     int
@@ -12441,7 +12517,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 55)         // total number of cols
+	assert.Len(t, rows2[0], 57)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
@@ -15867,4 +15943,429 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
+}
+
+// TestOsqueryBodySizeLimit verifies the body size limits on the
+// /api/osquery/log and /api/osquery/distributed/write endpoints:
+//   - Bodies exceeding the default limit are rejected with HTTP 413.
+//   - Bodies within the limit are accepted.
+//   - A malformed (truncated) body within the limit is NOT reported as HTTP 413
+//     (guards against the false-positive PayloadTooLargeError fix).
+//   - Setting Osquery.MaxLogWriteBodySize / MaxDistributedWriteBodySize in the
+//     server config overrides the built-in defaults.
+func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
+	t := s.T()
+
+	host := createOrbitEnrolledHost(t, "linux", "body-limit", s.ds)
+
+	// Body over DefaultMaxOsqueryLogWriteSize must be rejected with 413. The padding
+	// is inside a JSON string value so the body is syntactically valid up to
+	// the point where the reader is cut off.
+	logPrefix := fmt.Sprintf(`{"node_key":%q,"log_type":"status","data":["`, *host.NodeKey)
+	logSuffix := `"]}`
+	logPadSize := int(fleet.DefaultMaxOsqueryLogWriteSize) + 1 - len(logPrefix) - len(logSuffix)
+	require.Positive(t, logPadSize, "padding must be positive; DefaultMaxOsqueryLogWriteSize may be too small")
+	overLimitLog := []byte(logPrefix + strings.Repeat("x", logPadSize) + logSuffix)
+	s.DoRawNoAuth("POST", "/api/osquery/log", overLimitLog, http.StatusRequestEntityTooLarge)
+
+	// A well-formed body within the limit is accepted.
+	withinLimitLog, err := json.Marshal(submitLogsRequest{
+		NodeKey: *host.NodeKey,
+		LogType: "status",
+		Data:    []json.RawMessage{},
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
+
+	// A truncated (malformed) body within the limit must NOT return 413.
+	// Before the fix, io.ErrUnexpectedEOF from the JSON decoder was incorrectly
+	// converted to PayloadTooLargeError even when the reader had not been exhausted.
+	// The correct response is 400 Bad Request.
+	truncatedLog := fmt.Appendf(nil, `{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey) // missing closing ]}
+	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusBadRequest)
+
+	// Body over DefaultMaxOsqueryDistributedWriteSize must be rejected with 413.
+	distPrefix := fmt.Sprintf(`{"node_key":%q,"queries":{"q1":[{"data":"`, *host.NodeKey)
+	distSuffix := `"}]},"statuses":{"q1":0},"messages":{},"stats":{}}`
+	distPadSize := int(fleet.DefaultMaxOsqueryDistributedWriteSize) + 1 - len(distPrefix) - len(distSuffix)
+	require.Positive(t, distPadSize, "padding must be positive; DefaultMaxOsqueryDistributedWriteSize may be too small")
+	overLimitDist := []byte(distPrefix + strings.Repeat("x", distPadSize) + distSuffix)
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", overLimitDist, http.StatusRequestEntityTooLarge)
+
+	// A well-formed body within the limit is accepted.
+	withinLimitDist, err := json.Marshal(submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  map[string]json.RawMessage{},
+		Statuses: map[string]any{},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+
+	// A truncated body within the limit must NOT return 413 (same false-positive guard).
+	// io.ErrUnexpectedEOF from the bodyDecoder path is now wrapped as BadRequestErr → 400.
+	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusBadRequest)
+
+	// Verify that Osquery.MaxLogWriteBodySize and MaxDistributedWriteBodySize
+	// in the server config override the built-in defaults.
+	s.Run("config override", func() {
+		const customLimit = 2 * units.MiB
+
+		cfg := config.TestConfig()
+		cfg.Osquery.MaxLogWriteBodySize = customLimit
+		cfg.Osquery.MaxDistributedWriteBodySize = customLimit
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// body over the custom limit must return 413.
+		logPad := customLimit + 1 - len(logPrefix) - len(logSuffix)
+		require.Positive(s.T(), logPad, "padding must be positive; customLimit may be too small")
+		ts.DoRawNoAuth("POST", "/api/osquery/log", []byte(logPrefix+strings.Repeat("x", logPad)+logSuffix), http.StatusRequestEntityTooLarge)
+
+		// body within the custom limit must succeed.
+		ts.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
+
+		// body over the custom limit must return 413.
+		distPad := customLimit + 1 - len(distPrefix) - len(distSuffix)
+		require.Positive(s.T(), distPad, "padding must be positive; customLimit may be too small")
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", []byte(distPrefix+strings.Repeat("x", distPad)+distSuffix), http.StatusRequestEntityTooLarge)
+
+		// body within the custom limit must succeed.
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+	})
+}
+
+func (s *integrationTestSuite) TestListHostReports() {
+	t := s.T()
+	ctx := t.Context()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	earlier := now.Add(-time.Hour)
+
+	// Create a global host (no team).
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// Create two global queries that save results and one that discards them.
+	admin := s.users[TestAdminUserEmail]
+	qAlpha, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_alpha",
+		Query:       "SELECT 1",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingSnapshot,
+		Description: "alpha description",
+	})
+	require.NoError(t, err)
+
+	qBeta, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_beta",
+		Query:       "SELECT 2",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingSnapshot,
+		Description: "beta description",
+	})
+	require.NoError(t, err)
+
+	qDiscard, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_discard",
+		Query:       "SELECT 3",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: true,
+		Logging:     fleet.LoggingDifferential, // non-snapshot + discard_data=1 → "don't store results"
+	})
+	require.NoError(t, err)
+
+	// Insert two result rows for qAlpha on the host (to test has_more_results and first_result).
+	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: earlier, Data: ptr.RawMessage([]byte(`{"col":"older"}`))},
+		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"newest"}`))},
+	}, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	// Insert one result row for qDiscard (only appears when include_reports_dont_store_results=true).
+	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+		{QueryID: qDiscard.ID, HostID: host.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"discarded"}`))},
+	}, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	url := fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", host.ID)
+
+	t.Run("unauthenticated returns 401", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSONWithoutAuth("GET", url, nil, http.StatusUnauthorized, &resp)
+	})
+
+	t.Run("observer can read reports", func(t *testing.T) {
+		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("admin can read reports", func(t *testing.T) {
+		s.setTokenForTest(t, TestAdminUserEmail, test.GoodPassword)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("nonexistent host returns 404", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/99999999/reports", nil, http.StatusNotFound, &resp)
+	})
+
+	t.Run("default excludes dont-store-results queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+		for _, r := range resp.Reports {
+			assert.NotEqual(t, qDiscard.Name, r.Name)
+		}
+	})
+
+	t.Run("include_reports_dont_store_results=true returns all queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true", "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 3, resp.Count)
+		require.Len(t, resp.Reports, 3)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+		assert.Equal(t, qDiscard.Name, resp.Reports[2].Name)
+	})
+
+	t.Run("response fields are populated correctly", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+
+		alpha := resp.Reports[0]
+		assert.Equal(t, qAlpha.ID, alpha.QueryID)
+		assert.Equal(t, qAlpha.Name, alpha.Name)
+		assert.Equal(t, "alpha description", alpha.Description)
+		// first_result is the most recent row.
+		require.NotNil(t, alpha.FirstResult)
+		assert.Equal(t, "newest", alpha.FirstResult["col"])
+		// last_fetched is the most recent timestamp.
+		require.NotNil(t, alpha.LastFetched)
+		assert.Equal(t, now.Unix(), alpha.LastFetched.Unix())
+		// n_host_results is 2 because there are 2 rows.
+		assert.Equal(t, 2, alpha.NHostResults)
+		assert.False(t, alpha.ReportClipped)
+		// qAlpha stores results (discard_data=false).
+		assert.True(t, alpha.StoreResults)
+
+		// qBeta has no results yet.
+		beta := resp.Reports[1]
+		assert.Equal(t, qBeta.ID, beta.QueryID)
+		assert.Nil(t, beta.FirstResult)
+		assert.Nil(t, beta.LastFetched)
+		assert.Equal(t, 0, beta.NHostResults)
+		// qBeta also stores results.
+		assert.True(t, beta.StoreResults)
+	})
+
+	t.Run("store_results is false for discard queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true", "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 3)
+		// qDiscard has discard_data=true → store_results must be false.
+		discard := resp.Reports[2]
+		assert.Equal(t, qDiscard.Name, discard.Name)
+		assert.False(t, discard.StoreResults)
+	})
+
+	t.Run("features.save_reports_disabled reflects app config", func(t *testing.T) {
+		// Default: query reports are enabled.
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		assert.False(t, resp.Features.SavedReportsDisabled)
+
+		// Save the current value before mutating.
+		var originalConfig fleet.AppConfig
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &originalConfig)
+		origDisabled := originalConfig.ServerSettings.QueryReportsDisabled
+
+		// Disable query reports.
+		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"query_reports_disabled":true}}`), http.StatusOK)
+		t.Cleanup(func() {
+			s.DoRaw("PATCH", "/api/latest/fleet/config",
+				fmt.Appendf(nil, `{"server_settings":{"query_reports_disabled":%v}}`, origDisabled),
+				http.StatusOK)
+		})
+
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		assert.True(t, resp.Features.SavedReportsDisabled)
+	})
+
+	t.Run("report_clipped when total results reach the cap", func(t *testing.T) {
+		// Save the current cap before mutating.
+		var originalConfig fleet.AppConfig
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &originalConfig)
+		origCap := originalConfig.ServerSettings.QueryReportCap
+
+		// Set the report cap to 2, which equals the number of rows already stored for qAlpha.
+		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"query_report_cap":2}}`), http.StatusOK)
+		t.Cleanup(func() {
+			s.DoRaw("PATCH", "/api/latest/fleet/config",
+				fmt.Appendf(nil, `{"server_settings":{"query_report_cap":%d}}`, origCap),
+				http.StatusOK)
+		})
+
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+		assert.True(t, resp.Reports[0].ReportClipped)  // qAlpha has 2 rows == cap of 2
+		assert.False(t, resp.Reports[1].ReportClipped) // qBeta has 0 rows
+	})
+
+	t.Run("name search", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "query", "alpha")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 1, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+	})
+
+	t.Run("sort by name ascending and descending", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// Ascending (A→Z).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name", "order_direction", "asc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+
+		// Descending (Z→A).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name", "order_direction", "desc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qBeta.Name, resp.Reports[0].Name)
+		assert.Equal(t, qAlpha.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("sort by last_fetched puts nulls last", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// ASC: qAlpha (has results) before qBeta (no results / NULL).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "last_fetched", "order_direction", "asc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+
+		// DESC: same NULL-last behaviour.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "last_fetched", "order_direction", "desc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// Page 0, 1 item per page.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp,
+			"order_key", "name", "per_page", "1", "page", "0")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		require.NotNil(t, resp.Meta)
+		assert.True(t, resp.Meta.HasNextResults)
+		assert.False(t, resp.Meta.HasPreviousResults)
+
+		// Page 1, 1 item per page.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp,
+			"order_key", "name", "per_page", "1", "page", "1")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qBeta.Name, resp.Reports[0].Name)
+		require.NotNil(t, resp.Meta)
+		assert.False(t, resp.Meta.HasNextResults)
+		assert.True(t, resp.Meta.HasPreviousResults)
+	})
+
+	t.Run("default page size is 50", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+		require.NotNil(t, resp.Meta)
+		// With only 2 queries, both fit within the default page size of 50.
+		assert.False(t, resp.Meta.HasNextResults)
+		assert.Len(t, resp.Reports, 2)
+	})
+
+	t.Run("alt path /hosts/:id/queries works", func(t *testing.T) {
+		altURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", altURL, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+	})
+
+	t.Run("default sort is last_fetched descending (newest first)", func(t *testing.T) {
+		// With no order params, the endpoint defaults to last_fetched DESC.
+		// qAlpha has results (non-NULL last_fetched) so it comes first; qBeta
+		// has no results (NULL) so it sorts last.
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("report_id alias is present in JSON response", func(t *testing.T) {
+		// The HostReport struct uses `renameto:"report_id"` on the QueryID field,
+		// which causes the endpointer to duplicate the key in the response as
+		// both "query_id" (deprecated) and "report_id" (new name).
+		rawBody := s.DoRaw("GET", url, nil, http.StatusOK)
+		var raw map[string]any
+		require.NoError(t, json.NewDecoder(rawBody.Body).Decode(&raw))
+
+		reports, ok := raw["reports"].([]any)
+		require.True(t, ok)
+		require.NotEmpty(t, reports)
+
+		firstReport, ok := reports[0].(map[string]any)
+		require.True(t, ok)
+
+		// Both the deprecated key and the new alias must be present.
+		_, hasQueryID := firstReport["query_id"]
+		_, hasReportID := firstReport["report_id"]
+		assert.True(t, hasQueryID, "expected deprecated key 'query_id' in response")
+		assert.True(t, hasReportID, "expected alias key 'report_id' in response")
+		assert.Equal(t, firstReport["query_id"], firstReport["report_id"])
+	})
 }

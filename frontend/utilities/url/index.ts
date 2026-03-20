@@ -50,6 +50,7 @@ interface IMutuallyExclusiveHostParams {
   configProfileUUID?: string;
   scriptBatchExecutionStatus?: string;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -152,7 +153,7 @@ export const reconcileSoftwareParams = ({
     return {
       software_title_id: softwareTitleId,
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
-      team_id: teamId,
+      fleet_id: teamId,
     };
   }
 
@@ -177,7 +178,7 @@ export const reconcileMutuallyInclusiveHostParams = ({
   macSettingsStatus,
   osSettings,
 }: IMutuallyInclusiveHostParams) => {
-  const reconciled: Record<string, unknown> = { team_id: teamId };
+  const reconciled: Record<string, unknown> = { fleet_id: teamId };
 
   if (label) {
     // if label is present, include team_id in the query but exclude others
@@ -186,15 +187,15 @@ export const reconcileMutuallyInclusiveHostParams = ({
 
   if (macSettingsStatus) {
     // ensure macos_settings filter is always applied in
-    // conjunction with a team_id, 0 (no fleets) by default
+    // conjunction with a fleet_id, 0 (no fleets) by default
     reconciled.macos_settings = macSettingsStatus;
-    reconciled.team_id = teamId ?? 0;
+    reconciled.fleet_id = teamId ?? 0;
   }
   if (osSettings) {
     // ensure os_settings filter is always applied in
-    // conjunction with a team_id, 0 (no fleets) by default
+    // conjunction with a fleet_id, 0 (no fleets) by default
     reconciled[HOSTS_QUERY_PARAMS.OS_SETTINGS] = osSettings;
-    reconciled.team_id = teamId ?? 0;
+    reconciled.fleet_id = teamId ?? 0;
   }
 
   return reconciled;
@@ -224,6 +225,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   configProfileUUID,
   scriptBatchExecutionStatus,
   scriptBatchExecutionId,
+  depProfileError,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -297,6 +299,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
         [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: scriptBatchExecutionStatus,
         [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: scriptBatchExecutionId,
       };
+    case !!depProfileError:
+      return { dep_profile_error: true };
     default:
       return {};
   }

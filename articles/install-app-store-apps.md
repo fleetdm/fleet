@@ -14,7 +14,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 1. Purchase the relevant app through Apple Business Manager (ABM). You must perform this step even if the app is free, or if it is a custom app you own. Learn how in [Apple's documentation](https://support.apple.com/guide/apple-business-manager/select-and-buy-content-axmc21817890/web).
 
-2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 3. Select **Add software > App store**, then select the app you just purchased.
 
@@ -26,13 +26,13 @@ You can also manage which Google Play Store apps are available for self-service 
 
 1. Head to the [Google Play Store](https://play.google.com/store/apps), find the app, and copy the ID at the end of the URL (e.g. "com.android.chrome")
 
-2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
 ## Edit or delete the app
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 2. Search for the app you want to remove and select the app to head to its **Software details** page.
 
@@ -44,7 +44,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 ## Configure automatic updates for an app (iOS / iPadOS only)
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 2. Search for the app you want to configure and select the app to head to its **Software details** page.
 
@@ -62,7 +62,7 @@ Apps can be installed manually on each host's **Host details** page. For macOS a
 > 
 > To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
-Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app is uninstalled by the end user, or when the host is unenrolled, the license won't be revoked. You can revoke the license by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/revoke-vpp-licenses.sh).
 
 > VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
 
@@ -73,7 +73,7 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 #### Configuration
 
-Currently, editing configuration is only supported for Android apps only. And, currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+Currently, editing configuration is only supported for Android apps. And currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 

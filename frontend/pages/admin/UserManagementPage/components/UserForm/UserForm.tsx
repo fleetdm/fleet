@@ -1,11 +1,4 @@
-import React, {
-  FormEvent,
-  useState,
-  useEffect,
-  useContext,
-  useRef,
-} from "react";
-import { Link } from "react-router";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
@@ -351,7 +344,10 @@ const UserForm = ({
     return (
       <>
         {isPremiumTier && (
-          <InfoBanner className={`${baseClass}__user-permissions-info`}>
+          <InfoBanner
+            color="grey"
+            className={`${baseClass}__user-permissions-info`}
+          >
             <p>
               Global users can manage or observe all users, entities, and
               settings in Fleet.
@@ -390,12 +386,11 @@ const UserForm = ({
         <p>
           Expecting to see fleets? Try again in a few seconds as the system
           catches up or&nbsp;
-          <Link
+          <CustomLink
             className={`${baseClass}__create-team-link`}
-            to={PATHS.ADMIN_TEAMS}
-          >
-            create a fleet
-          </Link>
+            url={PATHS.ADMIN_FLEETS}
+            text="create a fleet"
+          />
           .
         </p>
       </div>
@@ -408,7 +403,10 @@ const UserForm = ({
         {!!availableTeams.length &&
           (isModifiedByGlobalAdmin ? (
             <>
-              <InfoBanner className={`${baseClass}__user-permissions-info`}>
+              <InfoBanner
+                color="grey"
+                className={`${baseClass}__user-permissions-info`}
+              >
                 <p>
                   Users can manage or observe fleet-specific users, entities,
                   and settings in Fleet.

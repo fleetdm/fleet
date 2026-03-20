@@ -1,0 +1,1 @@
+* Added Content-Type header to Smallstep authorization requests to prevent Cloudflare from blocking them.
