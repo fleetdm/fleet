@@ -175,10 +175,11 @@ class GitHubClient {
   }
 
   async getPullRequestFiles(pullNumber) {
-    const { data } = await this.octokit.pulls.listFiles({
+    const data = await this.octokit.paginate(this.octokit.pulls.listFiles, {
       owner: this.owner,
       repo: this.repo,
       pull_number: pullNumber,
+      per_page: 100,
     });
     return data.map((f) => ({
       filename: f.filename,

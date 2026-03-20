@@ -44,7 +44,15 @@ function createWebhookHandler(config, github, claude) {
       return;
     }
 
-    const payload = JSON.parse(rawBody);
+    let payload;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch (err) {
+      console.error("[webhook] Invalid JSON payload:", err.message);
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, message: "Invalid JSON payload" }));
+      return;
+    }
 
     // Route check_run events for CI auto-fix
     if (event === "check_run") {

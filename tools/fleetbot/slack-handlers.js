@@ -2,6 +2,23 @@ const crypto = require("crypto");
 const path = require("path");
 const { validateTeamYaml, validatePolicyYaml } = require("./yaml-handler");
 
+// Allowed top-level paths within the GitOps directory
+const ALLOWED_PATH_PREFIXES = ["default.yml", "fleets/", "lib/"];
+
+/**
+ * Validate that a normalized path falls within the allowed GitOps structure.
+ * Returns null if valid, or an error message string if invalid.
+ */
+function validateGitopsPath(normalizedPath) {
+  if (normalizedPath.includes("..") || path.posix.isAbsolute(normalizedPath)) {
+    return `Path traversal not allowed: ${normalizedPath}`;
+  }
+  if (!ALLOWED_PATH_PREFIXES.some((prefix) => normalizedPath === prefix || normalizedPath.startsWith(prefix))) {
+    return `Path outside allowed GitOps structure (default.yml, fleets/, lib/): ${normalizedPath}`;
+  }
+  return null;
+}
+
 // Keyword → team file mapping for smart pre-fetching
 const TEAM_KEYWORDS = {
   workstation: "fleets/workstations.yml",
@@ -306,8 +323,9 @@ async function handleRequest({ userText, userId, channelId, threadTs, messageTs,
       const changes = [];
       for (const c of result.changes) {
         const normalized = path.posix.normalize(c.filePath);
-        if (normalized.startsWith("..") || path.posix.isAbsolute(normalized)) {
-          throw new Error(`Invalid file path in response: ${c.filePath}`);
+        const pathError = validateGitopsPath(normalized);
+        if (pathError) {
+          throw new Error(`Invalid file path in response: ${pathError}`);
         }
         const fullPath = `${config.github.gitopsBasePath}/${normalized}`;
 
@@ -374,7 +392,7 @@ async function handleRequest({ userText, userId, channelId, threadTs, messageTs,
       const warnings = [];
       for (const change of changes) {
         if (change.relPath.startsWith("fleets/")) {
-          const errs = validateTeamYaml(change.content);
+          const errs = validateTeamYaml(change.content, change.relPath);
           warnings.push(...errs.map((e) => `\`${change.relPath}\`: ${e}`));
         } else if (change.relPath.includes("/policies/")) {
           const errs = validatePolicyYaml(change.content);
@@ -571,28 +589,32 @@ function registerHandlers(app, config, github, claude) {
     }
     processingMessages.add(dedupeKey);
 
-    console.log(`[mention] @mention in ${channelId}: "${userText.slice(0, 100)}"`);
+    try {
+      console.log(`[mention] @mention in ${channelId}: "${userText.slice(0, 100)}"`);
 
-    // Track this thread for follow-ups
-    botThreadCache.add(threadTs);
+      // Track this thread for follow-ups
+      botThreadCache.add(threadTs);
 
-    const threadContext = event.thread_ts
-      ? await getThreadContext(client, channelId, event.thread_ts)
-      : "";
+      const threadContext = event.thread_ts
+        ? await getThreadContext(client, channelId, event.thread_ts)
+        : "";
 
-    await handleRequest({
-      userText,
-      userId: event.user,
-      channelId,
-      threadTs,
-      messageTs: event.ts,
-      threadContext,
-      client,
-      config,
-      github,
-      claude,
-      logPrefix: "[mention]",
-    });
+      await handleRequest({
+        userText,
+        userId: event.user,
+        channelId,
+        threadTs,
+        messageTs: event.ts,
+        threadContext,
+        client,
+        config,
+        github,
+        claude,
+        logPrefix: "[mention]",
+      });
+    } finally {
+      processingMessages.delete(dedupeKey);
+    }
   });
 
   // ── Messages: DM conversations only ─────────────────────────────────
@@ -622,31 +644,35 @@ function registerHandlers(app, config, github, claude) {
     }
     processingMessages.add(dedupeKey);
 
-    // Use thread if already in one, otherwise start a new thread from this message
-    const threadTs = event.thread_ts || event.ts;
+    try {
+      // Use thread if already in one, otherwise start a new thread from this message
+      const threadTs = event.thread_ts || event.ts;
 
-    console.log(`[dm] Message from ${event.user}: "${userText.slice(0, 100)}"`);
+      console.log(`[dm] Message from ${event.user}: "${userText.slice(0, 100)}"`);
 
-    // Track for follow-ups
-    botThreadCache.add(threadTs);
+      // Track for follow-ups
+      botThreadCache.add(threadTs);
 
-    const threadContext = event.thread_ts
-      ? await getThreadContext(client, channelId, event.thread_ts)
-      : "";
+      const threadContext = event.thread_ts
+        ? await getThreadContext(client, channelId, event.thread_ts)
+        : "";
 
-    await handleRequest({
-      userText,
-      userId: event.user,
-      channelId,
-      threadTs,
-      messageTs: event.ts,
-      threadContext,
-      client,
-      config,
-      github,
-      claude,
-      logPrefix: "[dm]",
-    });
+      await handleRequest({
+        userText,
+        userId: event.user,
+        channelId,
+        threadTs,
+        messageTs: event.ts,
+        threadContext,
+        client,
+        config,
+        github,
+        claude,
+        logPrefix: "[dm]",
+      });
+    } finally {
+      processingMessages.delete(dedupeKey);
+    }
   });
 }
 

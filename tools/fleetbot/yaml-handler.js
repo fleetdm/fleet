@@ -1,3 +1,4 @@
+const path = require("path");
 const yaml = require("js-yaml");
 const { createTwoFilesPatch } = require("diff");
 
@@ -26,7 +27,7 @@ function dumpYaml(obj) {
  * Returns a string suitable for display in Slack (truncated to maxLen).
  */
 function generateDiffSummary(filePath, original, modified, maxLen = 2800) {
-  if (!original) {
+  if (original == null) {
     // New file — show the full content, truncated
     const lines = modified.split("\n");
     const preview = lines.slice(0, 30).join("\n");
@@ -60,7 +61,7 @@ function generateDiffSummary(filePath, original, modified, maxLen = 2800) {
  * Validate a team YAML file has the expected structure.
  * Returns an array of error strings (empty if valid).
  */
-function validateTeamYaml(content) {
+function validateTeamYaml(content, filePath = "") {
   const errors = [];
   let data;
   try {
@@ -73,7 +74,9 @@ function validateTeamYaml(content) {
     return ["YAML did not parse to an object"];
   }
 
-  if (!data.name) errors.push("Missing required field: name");
+  // fleets/unassigned.yml intentionally omits name per the GitOps schema
+  const isUnassigned = path.posix.basename(filePath) === "unassigned.yml";
+  if (!data.name && !isUnassigned) errors.push("Missing required field: name");
 
   return errors;
 }
