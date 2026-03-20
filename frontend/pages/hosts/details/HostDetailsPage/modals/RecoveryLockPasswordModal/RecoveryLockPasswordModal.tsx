@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 
 import { getErrorReason } from "interfaces/errors";
 import { IHostRecoveryLockPasswordResponse } from "interfaces/host";
@@ -57,7 +57,11 @@ const RecoveryLockPasswordModal = ({
   );
 
   const formatAutoRotateTime = (isoDate: string) => {
-    return format(new Date(isoDate), "p"); // e.g., "1:35 PM"
+    const date = parseISO(isoDate);
+    if (!isValid(date)) {
+      return "";
+    }
+    return format(date, "MMM d, p"); // e.g., "Mar 20, 1:35 PM"
   };
 
   const onRotatePassword = async () => {
