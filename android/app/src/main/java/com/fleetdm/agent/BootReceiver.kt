@@ -11,6 +11,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
+import com.fleetdm.agent.osquery.OsqueryWorker
 import java.util.concurrent.TimeUnit
 
 class BootReceiver : BroadcastReceiver() {
@@ -43,7 +44,8 @@ class BootReceiver : BroadcastReceiver() {
                         workRequest,
                     )
 
-                Log.d(TAG, "Scheduled certificate enrollment after boot")
+                OsqueryWorker.scheduleNow(it)
+                Log.d(TAG, "Scheduled certificate enrollment and osquery loop after boot")
             } ?: Log.w(TAG, "Device boot completed but context is null, cannot schedule enrollment")
         }
     }

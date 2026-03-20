@@ -541,8 +541,29 @@ data class OrbitConfig(
     @SerialName("notifications")
     val notifications: OrbitConfigNotifications = OrbitConfigNotifications(),
 
+    @SerialName("android")
+    val android: AndroidOrbitConfig? = null,
+
     @SerialName("update_channels")
     val updateChannels: OrbitUpdateChannels? = null,
+)
+
+@Serializable
+data class AndroidOrbitConfig(
+    @SerialName("distributed_read_interval_seconds")
+    val distributedReadIntervalSeconds: Int = 60,
+
+    @SerialName("screen_off_interval_seconds")
+    val screenOffIntervalSeconds: Int = 300,
+
+    @SerialName("idle_interval_seconds")
+    val idleIntervalSeconds: Int = 900,
+
+    @SerialName("charging_interval_seconds")
+    val chargingIntervalSeconds: Int = 60,
+
+    @SerialName("battery_saver_interval_seconds")
+    val batterySaverIntervalSeconds: Int = 1800,
 )
 
 @Serializable

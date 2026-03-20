@@ -314,6 +314,15 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
+	var teamAndroidSettings *fleet.AndroidRuntimeSettings
+	if host.TeamID != nil {
+		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+		teamAndroidSettings = &team.Config.Android
+	}
+
 	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
@@ -508,12 +517,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 		}
 
+		var androidCfg *fleet.AndroidOrbitConfig
+		if host.Platform == "android" {
+			resolved := appConfig.Android.Resolve(teamAndroidSettings)
+			androidCfg = &resolved
+		}
+
 		return fleet.OrbitConfig{
 			ScriptExeTimeout: opts.ScriptExecutionTimeout,
 			Flags:            opts.CommandLineStartUpFlags,
 			Extensions:       extensionsFiltered,
 			Notifications:    notifs,
 			NudgeConfig:      nudgeConfig,
+			Android:          androidCfg,
 			UpdateChannels:   updateChannels,
 		}, nil
 	}
@@ -583,12 +599,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 	}
 
+	var androidCfg *fleet.AndroidOrbitConfig
+	if host.Platform == "android" {
+		resolved := appConfig.Android.Resolve(teamAndroidSettings)
+		androidCfg = &resolved
+	}
+
 	return fleet.OrbitConfig{
 		ScriptExeTimeout: opts.ScriptExecutionTimeout,
 		Flags:            opts.CommandLineStartUpFlags,
 		Extensions:       extensionsFiltered,
 		Notifications:    notifs,
 		NudgeConfig:      nudgeConfig,
+		Android:          androidCfg,
 		UpdateChannels:   updateChannels,
 	}, nil
 }

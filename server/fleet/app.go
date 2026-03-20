@@ -655,6 +655,8 @@ type AppConfig struct {
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
 	AgentOptions *json.RawMessage `json:"agent_options,omitempty"`
+	// Android holds Android-specific runtime settings for the Fleet Android app.
+	Android AndroidRuntimeSettings `json:"android"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on integration settings.
@@ -1702,6 +1704,40 @@ type AndroidSettings struct {
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings" renameto:"configuration_profiles"`
 	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
+}
+
+type AndroidRuntimeSettings struct {
+	DistributedReadIntervalSeconds optjson.Int `json:"distributed_read_interval_seconds"`
+	ScreenOffIntervalSeconds       optjson.Int `json:"screen_off_interval_seconds"`
+	IdleIntervalSeconds            optjson.Int `json:"idle_interval_seconds"`
+	ChargingIntervalSeconds        optjson.Int `json:"charging_interval_seconds"`
+	BatterySaverIntervalSeconds    optjson.Int `json:"battery_saver_interval_seconds"`
+}
+
+func (s AndroidRuntimeSettings) Resolve(overrides *AndroidRuntimeSettings) AndroidOrbitConfig {
+	resolved := DefaultAndroidOrbitConfig()
+	apply := func(value optjson.Int, current int) int {
+		if !value.Valid || value.Value <= 0 {
+			return current
+		}
+		return value.Value
+	}
+
+	resolved.DistributedReadIntervalSeconds = apply(s.DistributedReadIntervalSeconds, resolved.DistributedReadIntervalSeconds)
+	resolved.ScreenOffIntervalSeconds = apply(s.ScreenOffIntervalSeconds, resolved.ScreenOffIntervalSeconds)
+	resolved.IdleIntervalSeconds = apply(s.IdleIntervalSeconds, resolved.IdleIntervalSeconds)
+	resolved.ChargingIntervalSeconds = apply(s.ChargingIntervalSeconds, resolved.ChargingIntervalSeconds)
+	resolved.BatterySaverIntervalSeconds = apply(s.BatterySaverIntervalSeconds, resolved.BatterySaverIntervalSeconds)
+
+	if overrides != nil {
+		resolved.DistributedReadIntervalSeconds = apply(overrides.DistributedReadIntervalSeconds, resolved.DistributedReadIntervalSeconds)
+		resolved.ScreenOffIntervalSeconds = apply(overrides.ScreenOffIntervalSeconds, resolved.ScreenOffIntervalSeconds)
+		resolved.IdleIntervalSeconds = apply(overrides.IdleIntervalSeconds, resolved.IdleIntervalSeconds)
+		resolved.ChargingIntervalSeconds = apply(overrides.ChargingIntervalSeconds, resolved.ChargingIntervalSeconds)
+		resolved.BatterySaverIntervalSeconds = apply(overrides.BatterySaverIntervalSeconds, resolved.BatterySaverIntervalSeconds)
+	}
+
+	return resolved
 }
 
 func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {

@@ -48,10 +48,10 @@ This contract covers Android osquery behavior implemented in this PR branch:
   - `OsqueryQueryEngine`
   - `TableRegistry` + registered Android tables
 
-### Proposed Android runtime config contract
-This section captures the intended direction for Android runtime configuration so future work can be reviewed against a stable contract before implementation.
+### Implemented Android runtime config contract
+This section captures the implemented Android runtime configuration direction in this branch so future work can be reviewed against a stable contract.
 
-#### Decision
+#### Implemented decision
 Android runtime config should be delivered through the existing Orbit config endpoint:
 - transport: `POST /api/fleet/orbit/config`
 - auth: existing `orbit_node_key`
@@ -101,15 +101,14 @@ The following are not the proposed design:
 - overloading `mdm.android_settings` for agent polling/runtime behavior
 - creating a separate Android config endpoint unless Orbit config reuse proves insufficient
 
-#### UI direction
-Preferred server UX:
-- add a dedicated Android runtime config UI/API surface
-- keep it separate from Agent options and separate from Android MDM custom settings
+#### Current configuration surface
+Implemented in this branch:
+- Android runtime config is carried as a dedicated `android` object in the Orbit config payload
+- the server-side source of truth is a dedicated Android runtime config model, separate from `agent_options.config`
+- the Android app consumes the `android` object and uses it to choose polling intervals based on device state
 
-Rationale:
-- Agent options are semantically for osquery/Orbit agent behavior already understood by Fleet admins.
-- Android MDM custom settings are OS policy/profile artifacts, not app runtime behavior.
-- A dedicated Android config area makes ownership and validation clearer.
+Not yet implemented:
+- a dedicated Fleet UI page for editing Android runtime config
 
 ### Contract rules (must remain true)
 

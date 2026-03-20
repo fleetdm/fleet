@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import com.fleetdm.agent.device.Storage
+import com.fleetdm.agent.osquery.OsqueryWorker
 import com.fleetdm.agent.osquery.core.TableRegistry
 
 /**
@@ -132,9 +133,12 @@ class AgentApplication : Application() {
                     val configResult = ApiClient.getOrbitConfig()
                     configResult.onSuccess {
                         Log.d(TAG, "Successfully enrolled host with Fleet server")
+                        OsqueryWorker.scheduleNow(this@AgentApplication)
                     }.onFailure { error ->
                         Log.w(TAG, "Host enrollment failed: ${error.message}")
                     }
+                } else {
+                    OsqueryWorker.scheduleNow(this@AgentApplication)
                 }
             } catch (e: Exception) {
                 FleetLog.e(TAG, "Error refreshing enrollment credentials", e)

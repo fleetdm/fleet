@@ -205,11 +205,12 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 
 type TeamConfig struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions       *json.RawMessage    `json:"agent_options,omitempty"`
-	HostExpirySettings HostExpirySettings  `json:"host_expiry_settings"`
-	WebhookSettings    TeamWebhookSettings `json:"webhook_settings"`
-	Integrations       TeamIntegrations    `json:"integrations"`
-	MDM                TeamMDM             `json:"mdm"`
+	AgentOptions       *json.RawMessage       `json:"agent_options,omitempty"`
+	Android            AndroidRuntimeSettings `json:"android"`
+	HostExpirySettings HostExpirySettings     `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings    `json:"webhook_settings"`
+	Integrations       TeamIntegrations       `json:"integrations"`
+	MDM                TeamMDM                `json:"mdm"`
 	// the below aren't serialized as-is into config JSON column in the teams table
 	Features Features              `json:"features"`
 	Scripts  optjson.Slice[string] `json:"scripts,omitempty"`
@@ -219,6 +220,7 @@ type TeamConfig struct {
 func (t TeamConfig) ToLite() TeamConfigLite {
 	return TeamConfigLite{
 		AgentOptions:       t.AgentOptions,
+		Android:            t.Android,
 		HostExpirySettings: t.HostExpirySettings,
 		WebhookSettings:    t.WebhookSettings,
 		Integrations:       t.Integrations,
@@ -229,11 +231,12 @@ func (t TeamConfig) ToLite() TeamConfigLite {
 // TeamConfigLite contains only TeamConfig fields that are available as-is from teams.config JSON
 type TeamConfigLite struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions       *json.RawMessage    `json:"agent_options,omitempty"`
-	HostExpirySettings HostExpirySettings  `json:"host_expiry_settings"`
-	WebhookSettings    TeamWebhookSettings `json:"webhook_settings"`
-	Integrations       TeamIntegrations    `json:"integrations"`
-	MDM                TeamMDM             `json:"mdm"`
+	AgentOptions       *json.RawMessage       `json:"agent_options,omitempty"`
+	Android            AndroidRuntimeSettings `json:"android"`
+	HostExpirySettings HostExpirySettings     `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings    `json:"webhook_settings"`
+	Integrations       TeamIntegrations       `json:"integrations"`
+	MDM                TeamMDM                `json:"mdm"`
 }
 
 type TeamWebhookSettings struct {
@@ -662,6 +665,7 @@ type TeamSpec struct {
 	// "null" (JSON null). Otherwise, if the key is present and set, it will be
 	// set to the agent options JSON object.
 	AgentOptions       json.RawMessage         `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+	Android            AndroidRuntimeSettings  `json:"android,omitempty"`
 	HostExpirySettings *HostExpirySettings     `json:"host_expiry_settings,omitempty"`
 	Secrets            *[]EnrollSecret         `json:"secrets,omitempty"`
 	Features           *json.RawMessage        `json:"features"`
@@ -735,6 +739,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	return &TeamSpec{
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
+		Android:            t.Config.Android,
 		Features:           &featuresJSON,
 		Secrets:            &secrets,
 		MDM:                mdmSpec,
