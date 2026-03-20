@@ -6454,6 +6454,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
+		// Promote bundle_identifier from the first installed version to the top level.
+		if len(hs.InstalledVersions) > 0 && hs.InstalledVersions[0].BundleIdentifier != "" {
+			hs.HostSoftwareWithInstaller.BundleIdentifier = hs.InstalledVersions[0].BundleIdentifier
+		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
