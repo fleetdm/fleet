@@ -1,7 +1,11 @@
+## Android agent 1.3.0 (Feb 27, 2026)
+
+* Improved debug screen, including adding last error message and logs.
+
 ## Android agent 1.2.0 (Feb 13, 2026)
 
 * Fixed issue where certification installations incorrectly show failed statuses.
-* Fixed issue where agent does not re-enroll after the host is deleted in Fleet. 
+* Fixed issue where agent does not re-enroll after the host is deleted in Fleet.
 
 ## Android agent 1.1.0 (Jan 12, 2026)
 

@@ -847,7 +847,7 @@ type MaybeCancelPendingSetupExperienceStepsFunc func(ctx context.Context, host *
 
 type IsAllSetupExperienceSoftwareRequiredFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
-type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error)
+type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string, labelsIncludeAll []string) (uint, error)
 
 type ListFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
@@ -5111,11 +5111,11 @@ func (s *Service) IsAllSetupExperienceSoftwareRequired(ctx context.Context, host
 	return s.IsAllSetupExperienceSoftwareRequiredFunc(ctx, host)
 }
 
-func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error) {
+func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string, labelsIncludeAll []string) (uint, error) {
 	s.mu.Lock()
 	s.AddFleetMaintainedAppFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddFleetMaintainedAppFunc(ctx, teamID, appID, installScript, preInstallQuery, postInstallScript, uninstallScript, selfService, automaticInstall, labelsIncludeAny, labelsExcludeAny)
+	return s.AddFleetMaintainedAppFunc(ctx, teamID, appID, installScript, preInstallQuery, postInstallScript, uninstallScript, selfService, automaticInstall, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll)
 }
 
 func (s *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {

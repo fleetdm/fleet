@@ -72,3 +72,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-18">
 <meta name="description" value="Fleet helps a research company replace multiple tools with unified endpoint management."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Computational research company">
