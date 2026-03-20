@@ -172,6 +172,12 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         
+        # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
+        # by Cloudflare — their resolver sees the new record immediately, whereas the
+        # default Ubuntu runner resolver can lag by minutes before the record propagates.
+        sudo resolvectl dns eth0 1.1.1.1
+        sudo resolvectl flush-caches
+
         # Wait for Fleet server to be reachable
         echo "Waiting for Fleet server to pass health check..."
         HEALTH_CHECK_START=$(date +%s)
