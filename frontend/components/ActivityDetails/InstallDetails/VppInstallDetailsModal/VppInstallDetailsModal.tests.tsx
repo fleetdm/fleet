@@ -159,9 +159,12 @@ describe("getStatusMessage helper function", () => {
       })
     );
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(/installation has not been verified/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/within 10 minutes/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Please re-attempt this installation/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/within 10 minutes/i)).not.toBeInTheDocument();
   });
 
   it("shows Apple-specific failed verification message for macOS", () => {

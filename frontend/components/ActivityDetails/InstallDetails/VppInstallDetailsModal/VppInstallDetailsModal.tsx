@@ -149,23 +149,34 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        <div>
-          The host acknowledged the MDM command to install <b>{appName}</b>
-          {!isMyDevicePage && <> on {formattedHost}</>}, but the install
-          hasn&apos;t been verified. Fleet marks as failed if the install
-          isn&apos;t verified within {formattedVerifyTimeout}.
-        </div>
-        {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
-          <div className="vpp-install-details-modal__update-tip">
-            If you&apos;re updating the app and the app is open,{" "}
-            <TooltipWrapper
-              tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
-              position="top"
-            >
-              close it
-            </TooltipWrapper>{" "}
-            and try again.
-          </div>
+        {isAppleDevice(platform) ? (
+          <>
+            <div>
+              The host acknowledged the MDM command to install <b>{appName}</b>
+              {!isMyDevicePage && <> on {formattedHost}</>}, but the install
+              hasn&apos;t been verified. Fleet marks as failed if the install
+              isn&apos;t verified within {formattedVerifyTimeout}.
+            </div>
+            {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
+              <div className="vpp-install-details-modal__update-tip">
+                If you&apos;re updating the app and the app is open,{" "}
+                <TooltipWrapper
+                  tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
+                  position="top"
+                >
+                  close it
+                </TooltipWrapper>{" "}
+                and try again.
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            The MDM command (request) to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but
+            the installation has not been verified. Please re-attempt this
+            installation.
+          </>
         )}
       </>
     );
@@ -398,11 +409,14 @@ export const VppInstallDetailsModal = ({
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
   const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
+  const platform = hostSoftware?.app_store_app?.platform || detailsPlatform;
   const vppVerifyTimeoutSeconds = Number(
     vppCommandResult?.results_metadata?.vpp_verify_timeout_seconds
   );
   const isVerificationTimedOut =
-    displayStatus === "failed_install" && isMDMStatusAcknowledged;
+    displayStatus === "failed_install" &&
+    isMDMStatusAcknowledged &&
+    isAppleDevice(platform);
 
   // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
   const shouldShowInventoryVersions =
@@ -428,20 +442,13 @@ export const VppInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
-    platform: hostSoftware?.app_store_app?.platform || detailsPlatform,
+    platform,
     vppVerifyTimeoutSeconds: Number.isFinite(vppVerifyTimeoutSeconds)
       ? vppVerifyTimeoutSeconds
       : undefined,
     canOverrideFailureWithInstalled,
     hasInstalledVersionsOnHost,
   });
-
-  const renderInventoryVersionsSection = () => {
-    if (hostSoftware?.installed_versions?.length) {
-      return <InventoryVersions hostSoftware={hostSoftware} />;
-    }
-    return null;
-  };
 
   const renderInstallDetailsSection = () => {
     // Hide section if there's no details to display
@@ -529,7 +536,10 @@ export const VppInstallDetailsModal = ({
             host is refetched.
           </p>
         )}
-        {shouldShowInventoryVersions && renderInventoryVersionsSection()}
+        {shouldShowInventoryVersions &&
+        hostSoftware?.installed_versions?.length ? (
+          <InventoryVersions hostSoftware={hostSoftware} />
+        ) : null}
         {!isPendingInstall &&
           isInstalledByFleet &&
           !excludeInstallDetails &&
