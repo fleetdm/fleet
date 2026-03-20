@@ -19,7 +19,7 @@ describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
 
     expect(screen.getByText("Test User")).toBeVisible();
     expect(
-      screen.getByText(/rotated the Recovery Lock password/i)
+      screen.getByText(/triggered rotation of the Recovery Lock password/i)
     ).toBeVisible();
   });
 
@@ -36,7 +36,7 @@ describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
 
     expect(screen.getByText("Fleet")).toBeVisible();
     expect(
-      screen.getByText(/rotated the Recovery Lock password/i)
+      screen.getByText(/triggered rotation of the Recovery Lock password/i)
     ).toBeVisible();
   });
 

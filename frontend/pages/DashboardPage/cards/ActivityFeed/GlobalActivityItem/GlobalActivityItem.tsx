@@ -507,7 +507,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        rotated the Recovery Lock password for{" "}
+        triggered rotation of the Recovery Lock password for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
