@@ -5547,7 +5547,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 _Available in Fleet Premium._
 
-Remotely clear the passcode on an ADE-enrolled iOS/iPadOS host. Requires the host to have sent its unlock token during MDM check-in.
+Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sent its unlock token during MDM check-in.
 
 `POST /api/v1/fleet/hosts/:token/clear_passcode`
 
@@ -5560,7 +5560,7 @@ Remotely clear the passcode on an ADE-enrolled iOS/iPadOS host. Requires the hos
 
 #### Example 
 
-`POST /api/v1/fleet/hosts/123/clear_passcode`
+`DELETE /api/v1/fleet/hosts/123/passcode`
 
 #### Default response 
 
