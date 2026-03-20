@@ -62,21 +62,32 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
 	}
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range labels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			ds.logger.WarnContext(ctx, "vpp app has an unsupported label scope", "vpp_apps_teams_id", app.VPPAppsTeamsID, "invalid_label", fmt.Sprintf("%#v", l))
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
-		// there's a bug somewhere
-		ds.logger.WarnContext(ctx, "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		ds.logger.WarnContext(ctx, "vpp app has more than one scope of labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	app.LabelsExcludeAny = exclAny
 	app.LabelsIncludeAny = inclAny
+	app.LabelsIncludeAll = inclAll
 
 	categories, err := ds.getCategoriesForVPPApp(ctx, app.VPPAppsTeamsID)
 	if err != nil {
@@ -146,7 +157,8 @@ SELECT
 	label_id,
 	exclude,
 	l.name AS label_name,
-	va.title_id AS title_id
+	va.title_id AS title_id,
+	require_all
 FROM
 	vpp_app_team_labels vatl
 	JOIN vpp_apps_teams vat ON vat.id = vatl.vpp_app_team_id
@@ -344,18 +356,29 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 	}
 
 	var labels fleet.LabelIdentsWithScope
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range existingLabels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			ds.logger.WarnContext(ctx, "vpp app has an unsupported existing label scope", "vpp_apps_teams_id", vppAppTeamID, "invalid_label", fmt.Sprintf("%#v", l))
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
 		// there's a bug somewhere
-		return nil, ctxerr.New(ctx, "found both include and exclude labels on a vpp app")
+		return nil, ctxerr.New(ctx, "found labels for more than one scope on a vpp app")
 	}
 
 	switch {
@@ -374,6 +397,15 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
 		return &labels, nil
+
+	case len(inclAll) > 0:
+		labels.LabelScope = fleet.LabelScopeIncludeAll
+		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAll))
+		for _, l := range inclAll {
+			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+		return &labels, nil
+
 	default:
 		return nil, nil
 	}
@@ -2329,9 +2361,8 @@ FROM (
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
 			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
-		AND lm.host_id = ?
-		WHERE vatl.exclude = 0 AND vpp_apps_teams.platform = 'android'
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 0 AND vatl.require_all = 0 AND vpp_apps_teams.platform = 'android'
 		GROUP BY installable_id
 		HAVING
 			count_installer_labels > 0
@@ -2364,20 +2395,39 @@ FROM (
 			vpp_apps_teams.adam_id AS installable_id
 		FROM
 			vpp_app_team_labels vatl
-		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
-		JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
-		LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
-			AND lm.host_id = ?
-		WHERE vatl.exclude = 1 AND vpp_apps_teams.platform = 'android'
+			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
+			LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 1 AND vatl.require_all = 0 AND vpp_apps_teams.platform = 'android'
 		GROUP BY installable_id
 		HAVING
 			count_installer_labels > 0
 			AND count_installer_labels = count_host_updated_after_labels
-			AND count_host_labels = 0) t;
+			AND count_host_labels = 0
+
+		UNION
+
+		-- include all
+		SELECT
+			COUNT(*) AS count_installer_labels,
+			COUNT(lm.label_id) AS count_host_labels,
+			0 AS count_host_updated_after_labels,
+			vpp_apps_teams.adam_id AS installable_id
+		FROM
+			vpp_app_team_labels vatl
+			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 0 AND vatl.require_all = 1 AND vpp_apps_teams.platform = 'android'
+		GROUP BY installable_id
+		HAVING
+			count_installer_labels > 0
+			AND count_host_labels = count_installer_labels
+		) t
 	`
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID, hostID, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in android apps in scope for host")
 	}

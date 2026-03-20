@@ -100,7 +100,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 			},
 		),
 		table.NewPlugin("local_network_permissions", localnetworkpermissions.LocalNetworkPermissionsColumns(), localnetworkpermissions.LocalNetworkPermissionsGenerate),
-		table.NewPlugin("wifi_network", wifi_network.WifiNetworkColumns(),
+		table.NewPlugin("macadmins_wifi_network", wifi_network.WifiNetworkColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 				return wifi_network.WifiNetworkGenerate(ctx, queryContext, opts.Socket)
 			},

@@ -568,6 +568,7 @@ type SoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
+	LabelsIncludeAll   []string `json:"labels_include_all"`
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope

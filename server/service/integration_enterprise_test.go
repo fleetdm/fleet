@@ -12218,6 +12218,7 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 		byName[l.LabelName] = struct{}{}
 		require.Equal(t, *meta2.TitleID, l.TitleID)
 		require.False(t, l.Exclude)
+		require.False(t, l.RequireAll)
 	}
 	require.Len(t, byName, len(payload.LabelsIncludeAny))
 	for _, l := range payload.LabelsIncludeAny {
@@ -12232,9 +12233,25 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 		byName[l.LabelName] = struct{}{}
 		require.Equal(t, *meta2.TitleID, l.TitleID)
 		require.True(t, l.Exclude)
+		require.False(t, l.RequireAll)
 	}
 	require.Len(t, byName, len(payload.LabelsExcludeAny))
 	for _, l := range payload.LabelsExcludeAny {
+		_, ok := byName[l]
+		require.True(t, ok)
+	}
+
+	// check labels include all
+	require.Len(t, meta2.LabelsIncludeAll, len(payload.LabelsIncludeAll))
+	byName = make(map[string]struct{}, len(meta2.LabelsIncludeAll))
+	for _, l := range meta2.LabelsIncludeAll {
+		byName[l.LabelName] = struct{}{}
+		require.Equal(t, *meta2.TitleID, l.TitleID)
+		require.False(t, l.Exclude)
+		require.True(t, l.RequireAll)
+	}
+	require.Len(t, byName, len(payload.LabelsIncludeAll))
+	for _, l := range payload.LabelsIncludeAll {
 		_, ok := byName[l]
 		require.True(t, ok)
 	}
@@ -12284,6 +12301,21 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			Query: "select 1",
 		}}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
+		lblA := labelResp.Label
+
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  "label_b" + t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+		lblB := labelResp.Label
+
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  "label_c" + t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+		lblC := labelResp.Label
 
 		payload := &fleet.UploadSoftwareInstallerPayload{
 			InstallScript:     "some install script",
@@ -12299,6 +12331,60 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			LabelsIncludeAny: []string{t.Name()},
 		}
 
+		// validate that providing more than 1 type of label
+		// results in an error
+		testCases := []struct {
+			desc    string
+			incAny  []string
+			exclAny []string
+			incAll  []string
+		}{
+			{
+				desc:    "include_any_exclude_any",
+				incAny:  []string{lblA.Name},
+				exclAny: []string{lblB.Name},
+			},
+			{
+				desc:   "include_any_include_all",
+				incAny: []string{lblA.Name},
+				incAll: []string{lblB.Name},
+			},
+			{
+				desc:    "exclude_any_include_all",
+				exclAny: []string{lblA.Name},
+				incAll:  []string{lblB.Name},
+			},
+			{
+				desc:    "all_types",
+				incAny:  []string{lblA.Name},
+				exclAny: []string{lblB.Name},
+				incAll:  []string{lblC.Name},
+			},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+
+				payload := &fleet.UploadSoftwareInstallerPayload{
+					InstallScript:     "some install script",
+					PreInstallQuery:   "some pre install query",
+					PostInstallScript: "some post install script",
+					Filename:          "ruby.deb",
+					// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+					Title:            "ruby",
+					Version:          "1:2.5.1",
+					Source:           "deb_packages",
+					StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+					Platform:         "linux",
+					LabelsIncludeAny: tc.incAny,
+					LabelsIncludeAll: tc.incAll,
+					LabelsExcludeAny: tc.exclAny,
+				}
+
+				s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
+
+			})
+		}
+
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
@@ -12307,7 +12393,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// check activity
 		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": false, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
-			titleID, labelResp.Label.ID, t.Name())
+			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
@@ -12325,7 +12411,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}, http.StatusOK, "")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
-			titleID, labelResp.Label.ID, t.Name())
+			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 		// patch the software installer to change the labels
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
@@ -12335,12 +12421,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		expectedPayload := *payload
 		expectedPayload.LabelsIncludeAny = nil
-		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
+		expectedPayload.LabelsExcludeAny = []string{lblA.Name}
 		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
 		// Create a host and assign the label to it
 		host := createOrbitEnrolledHost(t, "linux", "label_host", s.ds)
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{labelResp.Label.ID: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lblA.ID: new(true)}, time.Now(), false)
 		require.NoError(t, err)
 
 		// Attempt to install. Should fail because label is "exclude any"
@@ -12354,8 +12440,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		expectedPayload.PreInstallQuery = "some other pre install query"
-		expectedPayload.LabelsIncludeAny = nil                            // no change
-		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name} // no change
+		expectedPayload.LabelsIncludeAny = nil                 // no change
+		expectedPayload.LabelsExcludeAny = []string{lblA.Name} // no change
 		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
 		// update the label to be "include any". This should allow for the installation to happen.
@@ -12363,7 +12449,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		w3 := multipart.NewWriter(&b3)
 		require.NoError(t, w3.WriteField("team_id", "0"))
 		require.NoError(t, w3.WriteField("pre_install_query", "some other pre install query"))
-		require.NoError(t, w3.WriteField("labels_include_any", labelResp.Label.Name))
+		require.NoError(t, w3.WriteField("labels_include_any", lblA.Name))
 		w3.Close()
 		headers = map[string]string{
 			"Content-Type":  w3.FormDataContentType(),
@@ -12372,7 +12458,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), b3.Bytes(), http.StatusOK, headers)
 		expectedPayload.PreInstallQuery = "some other pre install query"
-		expectedPayload.LabelsIncludeAny = []string{labelResp.Label.Name}
+		expectedPayload.LabelsIncludeAny = []string{lblA.Name}
 		expectedPayload.LabelsExcludeAny = nil
 		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
@@ -12385,7 +12471,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d, "software_display_name": ""}`,
-			labelResp.Label.ID, labelResp.Label.Name, titleID)
+			lblA.ID, lblA.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 		// orbit-downloading fails with invalid orbit node key
@@ -12404,7 +12490,69 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
-			labelResp.Label.ID, labelResp.Label.Name)
+			lblA.ID, lblA.Name)
+		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
+	})
+
+	t.Run("upload no team software installer with labels_include_all", func(t *testing.T) {
+		// create a label to use for include_all scoping
+		var labelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "some install script",
+			PreInstallQuery:  "some pre install query",
+			Filename:         "ruby.deb",
+			Title:            "ruby",
+			Version:          "1:2.5.1",
+			Source:           "deb_packages",
+			StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:         "linux",
+			LabelsIncludeAll: []string{labelResp.Label.Name},
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// check the software installer metadata: LabelsIncludeAll should be persisted
+		_, titleID := checkSoftwareInstaller(t, s.ds, payload)
+
+		// check that the added-software activity carries labels_include_all
+		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": false, "software_title_id": %d, "labels_include_all": [{"id": %d, "name": %q}]}`,
+			titleID, labelResp.Label.ID, t.Name())
+		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
+
+		// patch the installer to update an unrelated field; labels_include_all should be preserved
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			SelfService:     new(true),
+			InstallScript:   new("some install script"),
+			PreInstallQuery: new("some pre install query"),
+			Filename:        "ruby.deb",
+			TitleID:         titleID,
+			TeamID:          nil,
+		}, http.StatusOK, "")
+
+		// the edited-software activity should still carry labels_include_all
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_all": [{"id": %d, "name": %q}], "software_display_name": ""}`,
+			titleID, labelResp.Label.ID, t.Name())
+		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
+		// create a host and assign the label — install should succeed since host has all required labels
+		host := createOrbitEnrolledHost(t, "linux", "include_all_label_host", s.ds)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{labelResp.Label.ID: new(true)}, time.Now(), false)
+		require.NoError(t, err)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted)
+
+		// delete the installer; the deleted-software activity should carry labels_include_all
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_all": [{"id": %d, "name": %q}]}`,
+			labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
 	})
 
@@ -13381,8 +13529,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
 	ctx := context.Background()
 
-	fmt.Printf("dev_mode.Env(\"FLEET_DEV_BATCH_RETRY_INTERVAL\"): %v\n", dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL"))
-
 	// non-existent team
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
 
@@ -13590,24 +13736,65 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
-	// create some labels A and B
+	// create some labels A, B and C
 	lblA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "A"})
 	require.NoError(t, err)
 	lblB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "B"})
 	require.NoError(t, err)
+	lblC, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "C"})
+	require.NoError(t, err)
 
-	// providing both labels include/exclude results in an error
-	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{URL: rubyURL, LabelsIncludeAny: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+	// validate that providing more than 1 type of label
+	// results in an error
+	testCases := []struct {
+		desc    string
+		incAny  []string
+		exclAny []string
+		incAll  []string
+	}{
+		{
+			desc:    "include_any_exclude_any",
+			incAny:  []string{lblA.Name},
+			exclAny: []string{lblB.Name},
+		},
+		{
+			desc:   "include_any_include_all",
+			incAny: []string{lblA.Name},
+			incAll: []string{lblB.Name},
+		},
+		{
+			desc:    "exclude_any_include_all",
+			exclAny: []string{lblA.Name},
+			incAll:  []string{lblB.Name},
+		},
+		{
+			desc:    "all_types",
+			incAny:  []string{lblA.Name},
+			exclAny: []string{lblB.Name},
+			incAll:  []string{lblC.Name},
+		},
 	}
-	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included.`)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			softwareToInstall = []*fleet.SoftwareInstallerPayload{
+				{
+					URL:              rubyURL,
+					LabelsIncludeAny: tc.incAny,
+					LabelsExcludeAny: tc.exclAny,
+					LabelsIncludeAll: tc.incAll,
+				},
+			}
+			res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
+			assert.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
+
+		})
+	}
 
 	// providing a non-existing label results in an error
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{URL: rubyURL, LabelsIncludeAny: []string{"no-such-label"}},
 	}
-	res = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
+	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body), `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the software.`)
 
 	// valid installer scoped by label
@@ -13623,6 +13810,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
 	require.NoError(t, err)
 	require.Empty(t, meta.LabelsExcludeAny)
+	require.Empty(t, meta.LabelsIncludeAll)
 	require.Len(t, meta.LabelsIncludeAny, 1)
 	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
 	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
@@ -13691,7 +13879,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// with a label
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{Slug: &maintained1.Slug, LabelsIncludeAny: []string{lblA.Name}},
+		{Slug: &maintained1.Slug, LabelsIncludeAll: []string{lblA.Name}},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, "", batchResponse.RequestUUID)
@@ -13702,9 +13890,10 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
 	require.NoError(t, err)
 	require.Empty(t, meta.LabelsExcludeAny)
-	require.Len(t, meta.LabelsIncludeAny, 1)
-	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
-	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
+	require.Empty(t, meta.LabelsIncludeAny)
+	require.Len(t, meta.LabelsIncludeAll, 1)
+	require.Equal(t, lblA.ID, meta.LabelsIncludeAll[0].LabelID)
+	require.Equal(t, lblA.Name, meta.LabelsIncludeAll[0].LabelName)
 
 	// maintained app with no_check for sha, latest for version
 	maintained2, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -13769,7 +13958,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	http.DefaultTransport = mockTransport
 
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{Slug: &maintained2.Slug},
+		{Slug: &maintained2.Slug, LabelsIncludeAll: []string{lblA.Name}},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, "", batchResponse.RequestUUID)
@@ -13784,6 +13973,16 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.Equal(t, "1.0.0", titleResponse.SoftwareTitle.SoftwarePackage.Version)
+
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
+	require.NoError(t, err)
+
+	// Validate labels
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Empty(t, meta.LabelsIncludeAny)
+	require.Len(t, meta.LabelsIncludeAll, 1)
+	require.Equal(t, lblA.ID, meta.LabelsIncludeAll[0].LabelID)
+	require.Equal(t, lblA.Name, meta.LabelsIncludeAll[0].LabelName)
 
 	http.DefaultTransport = oldTransport
 }
@@ -18384,6 +18583,179 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInstallerID)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
+
+	// --- include_all tests ---
+	//
+	// Use a dedicated team so we can reuse the ruby.deb and vim.deb testdata
+	// files without conflicting with the no-team installers already uploaded above.
+	var inclAllTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.Team{Name: t.Name() + "-include-all"}, http.StatusOK, &inclAllTeamResp)
+	inclAllTeam := inclAllTeamResp.Team
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&inclAllTeam.ID, []uint{host.ID}))
+	require.NoError(t, err)
+
+	// Host has lbl1 and lbl2. lbl3 is not on the host (lbl3 was never added
+	// via RecordLabelQueryExecutions in this test above).
+
+	// Upload ruby.deb with labels_include_all: [lbl1, lbl2].
+	// Host has both labels, so it IS in scope and install should be attempted.
+	rubyIncludeAllPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some deb install script",
+		Filename:         "ruby.deb",
+		TeamID:           &inclAllTeam.ID,
+		LabelsIncludeAll: []string{lbl1.Name, lbl2.Name},
+		Platform:         "linux",
+	}
+	s.uploadSoftwareInstaller(t, rubyIncludeAllPayload, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ruby",
+		"team_id", fmt.Sprint(inclAllTeam.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	rubyInclAllTitleID := resp.SoftwareTitles[0].ID
+
+	var rubyInclAllDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyInclAllTitleID), nil, http.StatusOK, &rubyInclAllDetail, "team_id", fmt.Sprint(inclAllTeam.ID))
+	require.NotNil(t, rubyInclAllDetail.SoftwareTitle)
+	require.NotNil(t, rubyInclAllDetail.SoftwareTitle.SoftwarePackage)
+	rubyInclAllInstallerID := rubyInclAllDetail.SoftwareTitle.SoftwarePackage.InstallerID
+
+	policy3, err := s.ds.NewTeamPolicy(ctx, inclAllTeam.ID, nil, fleet.PolicyPayload{
+		Name:     "policy3",
+		Query:    "SELECT 3;",
+		Platform: "linux",
+	})
+	require.NoError(t, err)
+
+	mtplr = modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", inclAllTeam.ID, policy3.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyInclAllTitleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInclAllInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Send back a failed result for policy3.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy3.ID: new(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy3, err = s.ds.Policy(ctx, policy3.ID)
+	require.NoError(t, err)
+	// Host has all required labels, so the installer is in scope and the policy is marked failed.
+	require.Equal(t, uint(0), policy3.PassingHostCount)
+	require.Equal(t, uint(1), policy3.FailingHostCount)
+
+	// Installation attempt was made for ruby, because host has all required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInclAllInstallerID)
+	require.NoError(t, err)
+	require.NotNil(t, host1LastInstall)
+
+	// Upload vim.deb with labels_include_all: [lbl1, lbl3].
+	// Host has lbl1 but NOT lbl3, so it is NOT in scope and install should be skipped.
+	vimIncludeAllPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some deb install script",
+		Filename:         "vim.deb",
+		TeamID:           &inclAllTeam.ID,
+		LabelsIncludeAll: []string{lbl1.Name, lbl3.Name},
+		Platform:         "linux",
+	}
+	s.uploadSoftwareInstaller(t, vimIncludeAllPayload, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "vim",
+		"team_id", fmt.Sprint(inclAllTeam.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	vimInclAllTitleID := resp.SoftwareTitles[0].ID
+
+	var vimInclAllDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimInclAllTitleID), nil, http.StatusOK, &vimInclAllDetail, "team_id", fmt.Sprint(inclAllTeam.ID))
+	require.NotNil(t, vimInclAllDetail.SoftwareTitle)
+	require.NotNil(t, vimInclAllDetail.SoftwareTitle.SoftwarePackage)
+	vimInclAllInstallerID := vimInclAllDetail.SoftwareTitle.SoftwarePackage.InstallerID
+
+	policy4, err := s.ds.NewTeamPolicy(ctx, inclAllTeam.ID, nil, fleet.PolicyPayload{
+		Name:     "policy4",
+		Query:    "SELECT 4;",
+		Platform: "linux",
+	})
+	require.NoError(t, err)
+
+	mtplr = modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", inclAllTeam.ID, policy4.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vimInclAllTitleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInclAllInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Send back a failed result for policy4.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy4.ID: new(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy4, err = s.ds.Policy(ctx, policy4.ID)
+	require.NoError(t, err)
+	// Host is missing lbl3, so the installer is not in scope. Policy should not be counted as failed.
+	require.Equal(t, uint(0), policy4.PassingHostCount)
+	require.Equal(t, uint(0), policy4.FailingHostCount)
+
+	// No installation attempt for vim, because host is missing one of the required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInclAllInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Now add lbl3 to the host and re-run the policy failure. vim should now be in scope.
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl3.ID: new(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy4.ID: new(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy4, err = s.ds.Policy(ctx, policy4.ID)
+	require.NoError(t, err)
+	// Host now has all required labels, so the policy is marked as failed.
+	require.Equal(t, uint(0), policy4.PassingHostCount)
+	require.Equal(t, uint(1), policy4.FailingHostCount)
+
+	// Installation attempt was made for vim now that the host has all required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInclAllInstallerID)
+	require.NoError(t, err)
+	require.NotNil(t, host1LastInstall)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigger() {
@@ -19526,12 +19898,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
-	slices.SortFunc(listMAResp.FleetMaintainedApps, func(a, b fleet.MaintainedApp) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-	slices.SortFunc(expectedApps, func(a, b fleet.MaintainedApp) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
+	sortFMAs := func(a, b fleet.MaintainedApp) int {
+		if c := cmp.Compare(a.Name, b.Name); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Slug, b.Slug)
+	}
+	slices.SortFunc(listMAResp.FleetMaintainedApps, sortFMAs)
+	slices.SortFunc(expectedApps, sortFMAs)
 	require.Equal(t, expectedApps, listMAResp.FleetMaintainedApps)
 
 	var listMAResp2 listFleetMaintainedAppsResponse
@@ -19965,6 +20339,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	swTitle = titleResp.SoftwareTitle
 	require.NotNil(t, swTitle.SoftwarePackage)
 	require.Empty(t, swTitle.SoftwarePackage.LabelsExcludeAny)
+	require.Empty(t, swTitle.SoftwarePackage.LabelsIncludeAll)
 	require.Len(t, swTitle.SoftwarePackage.LabelsIncludeAny, 2)
 	gotNames := make(map[string]bool)
 	for _, lbl := range swTitle.SoftwarePackage.LabelsIncludeAny {
@@ -19992,7 +20367,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	req.LabelsExcludeAny = []string{lbl1.Name}
 	addMAResp = addFleetMaintainedAppResponse{}
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included`)
+	require.Contains(t, extractServerErrorText(r.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included`)
 }
 
 func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
@@ -21505,6 +21880,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
+		Platform:                 "darwin,windows",
 		ConditionalAccessEnabled: true,
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
@@ -21513,12 +21889,14 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		Query:                    "SELECT 2;",
 		Name:                     "Compliance check 2",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 	pr = teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
 		Query:                    "SELECT 3;",
 		Name:                     "Other policy",
+		Platform:                 "darwin,windows",
 		ConditionalAccessEnabled: false,
 	}, http.StatusOK, &pr)
 	p3 := pr.Policy
@@ -21869,6 +22247,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp1 = pr.Policy
 	pr = teamPolicyResponse{}
@@ -22002,6 +22381,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
 	pr = teamPolicyResponse{}
@@ -22009,6 +22389,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		Query:                    "SELECT 2;",
 		Name:                     "Compliance check 2",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 
@@ -26965,6 +27346,204 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation() {
+	t := s.T()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team_ca_platform_" + t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	//
+	// 1. Create team policy — invalid platforms
+	//
+
+	// conditional_access_enabled=true with platform="linux" should fail
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), map[string]any{
+		"name":                       "ca-linux",
+		"query":                      "SELECT 1;",
+		"platform":                   "linux",
+		"conditional_access_enabled": true,
+	}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// conditional_access_enabled=true with empty platform (all platforms) should fail
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), map[string]any{
+		"name":                       "ca-all-platforms",
+		"query":                      "SELECT 1;",
+		"platform":                   "",
+		"conditional_access_enabled": true,
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// conditional_access_enabled=true with platform="darwin" should succeed
+	var pr teamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), teamPolicyRequest{
+		Name:                     "ca-darwin",
+		Query:                    "SELECT 1;",
+		Platform:                 "darwin",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+	darwinPolicyID := pr.Policy.ID
+
+	// conditional_access_enabled=true with platform="windows" should succeed
+	pr = teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), teamPolicyRequest{
+		Name:                     "ca-windows",
+		Query:                    "SELECT 2;",
+		Platform:                 "windows",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+	windowsPolicyID := pr.Policy.ID
+
+	// conditional_access_enabled=true with platform="darwin,windows" should succeed
+	pr = teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), teamPolicyRequest{
+		Name:                     "ca-darwin-windows",
+		Query:                    "SELECT 3;",
+		Platform:                 "darwin,windows",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+
+	// conditional_access_enabled=false with platform="linux" should succeed (no restriction when disabled)
+	pr = teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), teamPolicyRequest{
+		Name:                     "no-ca-linux",
+		Query:                    "SELECT 4;",
+		Platform:                 "linux",
+		ConditionalAccessEnabled: false,
+	}, http.StatusOK, &pr)
+	linuxPolicyID := pr.Policy.ID
+
+	//
+	// 2. Modify team policy — platform validation on update
+	//
+
+	// Modify a darwin policy to enable conditional_access_enabled — should succeed (already darwin)
+	patchResp := &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			ConditionalAccessEnabled: new(true),
+		},
+	}, http.StatusOK, patchResp)
+
+	// Modify a linux policy to enable conditional_access_enabled — should fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, linuxPolicyID), map[string]any{
+		"conditional_access_enabled": true,
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// Modify a darwin conditional_access policy to change platform to linux — should fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), map[string]any{
+		"platform": "linux",
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// Modify a windows conditional_access policy to change platform to darwin — should succeed
+	patchResp = &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, windowsPolicyID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Platform: new("darwin"),
+		},
+	}, http.StatusOK, patchResp)
+
+	//
+	// 3. Modify global policy — conditional_access_enabled not allowed
+	//
+
+	// Create a global policy
+	createGlobal := &globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", &globalPolicyRequest{
+		Name:     "global-policy-ca-test",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	}, http.StatusOK, createGlobal)
+	globalPolicyID := createGlobal.Policy.ID
+
+	// Try to enable conditional_access_enabled on a global policy — should fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), map[string]any{
+		"conditional_access_enabled": true,
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"All fleets" policy cannot have conditional_access_enabled set`)
+	res.Body.Close()
+
+	//
+	// 4. Apply policy specs — platform validation
+	//
+
+	// Team spec with conditional_access_enabled=true and platform="linux" should fail
+	applyResp := applyPolicySpecsResponse{}
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", applyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                     "spec-ca-linux",
+				Query:                    "SELECT 1;",
+				Team:                     team1.Name,
+				Platform:                 "linux",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// Global spec (no team) with conditional_access_enabled=true should fail
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", applyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                     "spec-ca-global",
+				Query:                    "SELECT 1;",
+				Platform:                 "darwin",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"All fleets" policy cannot have conditional_access_enabled set`)
+	res.Body.Close()
+
+	// Team spec with conditional_access_enabled=true and platform="darwin" should succeed
+	s.DoJSON("POST", "/api/latest/fleet/spec/policies", applyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                     "spec-ca-darwin",
+				Query:                    "SELECT 1;",
+				Team:                     team1.Name,
+				Platform:                 "darwin",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// Team spec with conditional_access_enabled=true and platform="windows" should succeed
+	s.DoJSON("POST", "/api/latest/fleet/spec/policies", applyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                     "spec-ca-windows",
+				Query:                    "SELECT 2;",
+				Team:                     team1.Name,
+				Platform:                 "windows",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, http.StatusOK, &applyResp)
 }
 
 func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uint {
