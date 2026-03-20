@@ -121,11 +121,13 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
 > = {
   android: (
     <>
-      Android devices sync automatically. To manually
+      Android devices sync automatically, but changes may
       <br />
-      sync, go to <b>Settings &gt; Google &gt; Work profile</b>
+      not appear immediately due to Google rate limiting.
       <br />
-      <b>&gt; Device policy</b> on the device.
+      To manually sync, go to <b>Settings &gt; Google &gt;</b>
+      <br />
+      <b>Work profile &gt; Device policy</b> on the device.
     </>
   ),
   offline: (
