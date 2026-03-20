@@ -717,8 +717,6 @@ var criticalDetailQueries = map[string]bool{
 	"mdm_windows": true,
 }
 
-// detailQueriesForHost returns the map of detail+additional queries that should be executed by
-// osqueryd to fill in the host details.
 // hostDetailQueryConfig holds pre-loaded configuration data needed for building and ingesting
 // detail queries. Loading this once and passing it through avoids redundant database calls
 // (AppConfig, HostFeatures, TeamMDMConfig, conditional access) on every detail query result,
@@ -766,6 +764,8 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 	}, nil
 }
 
+// detailQueriesForHost returns the map of detail+additional queries that should be executed by
+// osqueryd to fill in the host details.
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
 	var criticalQueriesOnly bool
 	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
@@ -1118,6 +1118,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// unnecessary HostFeatures/TeamMDMConfig/conditional access DB calls for payloads
 	// that only contain label, policy, or live-query results.
 	var detailConfig *hostDetailQueryConfig
+	var detailConfigFailed bool
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1144,11 +1145,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		// Lazy-load detail config on first detail query result.
 		if detailConfig == nil && strings.HasPrefix(query, hostDetailQueryPrefix) {
+			if detailConfigFailed {
+				// Already failed to load detail config, skip all detail queries.
+				continue
+			}
 			var err error
 			detailConfig, err = svc.loadHostDetailQueryConfig(ctx, host)
 			if err != nil {
+				detailConfigFailed = true
 				logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "loading host detail query config"))
-				// Continue processing non-detail results even if detail config fails.
 				continue
 			}
 		}
@@ -1165,8 +1170,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		additionalUpdated = additionalUpdated || ingestedAdditionalUpdated
 	}
 
-	// Load AppConfig separately for label/policy processing — this is always needed
-	// and is independent of the detail query config.
+	// Load AppConfig separately for label/policy processing. detailConfig may be nil
+	// (no detail queries in this check-in) or may have failed to load (soft failure).
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
