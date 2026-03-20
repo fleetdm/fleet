@@ -32,7 +32,6 @@ const generateActions = () => {
   return DEFAULT_ACTION_OPTIONS;
 };
 
-
 const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
   warning: {
     tooltipText: (
