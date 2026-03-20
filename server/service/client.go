@@ -1884,7 +1884,7 @@ func (c *Client) DoGitOps(
 	// When an entity type is NOT excepted:
 	// - If the key is absent, all entities of that type are deleted.
 	var exceptions fleet.GitOpsExceptions
-	if appConfig != nil && appConfig.GitOpsConfig.GitopsModeEnabled {
+	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
 		if exceptions.Labels && incoming.LabelsPresent {
 			return nil, errors.New(
@@ -1928,17 +1928,11 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
-		// Labels: skip if excepted (key already validated as absent above).
-		// If not excepted and key is absent, treat as delete-all.
-		if !exceptions.Labels {
-			if !incoming.LabelsPresent {
-				incoming.Labels = nil // triggers delete-all in computeLabelChanges
-			}
-			if incoming.Labels == nil || len(incoming.Labels) > 0 {
-				err := c.doGitOpsLabels(incoming, logFn, dryRun)
-				if err != nil {
-					return nil, err
-				}
+		// Update labels if there were any changes.
+		if incoming.LabelChangesSummary.HasChanges() {
+			err := c.doGitOpsLabels(incoming, logFn, dryRun)
+			if err != nil {
+				return nil, err
 			}
 		}
 

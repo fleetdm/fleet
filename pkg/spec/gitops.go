@@ -32,6 +32,11 @@ type LabelChangesSummary struct {
 	LabelsMovements []LabelMovement
 }
 
+// HasChanges returns true if there are any label additions, removals, updates, or movements.
+func (s LabelChangesSummary) HasChanges() bool {
+	return len(s.LabelsToAdd) > 0 || len(s.LabelsToRemove) > 0 || len(s.LabelsToUpdate) > 0 || len(s.LabelsMovements) > 0
+}
+
 func NewLabelChangesSummary(changes []LabelChange, moves []LabelMovement) LabelChangesSummary {
 	r := LabelChangesSummary{
 		LabelsMovements: moves,
@@ -485,12 +490,8 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	}
 
-	// Get the labels. If `labels:` is specified but no labels are listed, this will
-	// set Labels as nil.  If `labels:` isn't present at all, it will be set as an
-	// empty array.
-	if _, ok := top["labels"]; !ok {
-		result.Labels = make([]*fleet.LabelSpec, 0)
-	} else {
+	// Get the labels. LabelsPresent tracks whether the key was in the YAML.
+	if _, ok := top["labels"]; ok {
 		result.LabelsPresent = true
 		multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
 	}

@@ -3430,8 +3430,7 @@ org_settings:
 `)
 		require.NoError(t, err)
 		assert.False(t, gitops.LabelsPresent)
-		assert.NotNil(t, gitops.Labels, "absent labels should be empty non-nil slice")
-		assert.Empty(t, gitops.Labels)
+		assert.Nil(t, gitops.Labels, "absent labels should be nil")
 	})
 
 	t.Run("labels present but empty", func(t *testing.T) {

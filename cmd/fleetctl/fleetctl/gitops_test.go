@@ -822,6 +822,19 @@ agent_options:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"secrets" is excepted from GitOps management`)
 
+	// Test: exceptions enforced even when GitOps mode is OFF (decoupled from UI mode)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			UIGitOpsMode: fleet.UIGitOpsModeConfig{
+				GitopsModeEnabled: false,
+				Exceptions:        fleet.GitOpsExceptions{Labels: true},
+			},
+		}, nil
+	}
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+
 	// NOTE: The "excepted keys omitted → no-op succeeds" case is tested in the integration
 	// tests (TestGitOpsBasicGlobalPremium), which has the full mock setup needed for a
 	// successful GitOps run.
@@ -5391,34 +5404,37 @@ software:
 
 func TestComputeLabelChanges(t *testing.T) {
 	testCases := []struct {
-		name            string
-		filename        string
-		teamName        string
-		existingLabels  []*fleet.LabelSpec
-		specifiedLabels []*fleet.LabelSpec
-		expected        []spec.LabelChange
+		name                 string
+		filename             string
+		teamName             string
+		existingLabels       []*fleet.LabelSpec
+		specifiedLabels      []*fleet.LabelSpec
+		processMissingLabels bool
+		expected             []spec.LabelChange
 	}{
 		{
-			name:     "no specified labels removes all regular labels",
+			name:     "labels present but empty removes all regular labels",
 			filename: "config.yml",
 			teamName: "team1",
 			existingLabels: []*fleet.LabelSpec{
 				{Name: "label1", LabelType: fleet.LabelTypeRegular},
 				{Name: "built-in", LabelType: fleet.LabelTypeBuiltIn},
 			},
-			specifiedLabels: nil,
+			specifiedLabels:      nil,
+			processMissingLabels: true,
 			expected: []spec.LabelChange{
 				{Name: "label1", Op: "-", TeamName: "team1", FileName: "config.yml"},
 			},
 		},
 		{
-			name:     "empty list of specified labels is a no-op",
+			name:     "labels absent is a no-op",
 			filename: "config.yml",
 			teamName: "team1",
 			existingLabels: []*fleet.LabelSpec{
 				{Name: "label1", LabelType: fleet.LabelTypeRegular},
 			},
-			specifiedLabels: []*fleet.LabelSpec{},
+			specifiedLabels:      nil,
+			processMissingLabels: false,
 			expected: []spec.LabelChange{
 				{Name: "label1", Op: "=", TeamName: "team1", FileName: "config.yml"},
 			},
@@ -5435,6 +5451,7 @@ func TestComputeLabelChanges(t *testing.T) {
 				{Name: "to-keep"},
 				{Name: "to-add"},
 			},
+			processMissingLabels: true,
 			expected: []spec.LabelChange{
 				{Name: "to-remove", Op: "-", TeamName: "team1", FileName: "config.yml"},
 				{Name: "to-keep", Op: "=", TeamName: "team1", FileName: "config.yml"},
@@ -5445,7 +5462,7 @@ func TestComputeLabelChanges(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels)
+			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels, tc.processMissingLabels)
 			require.ElementsMatch(t, tc.expected, changes)
 		})
 	}

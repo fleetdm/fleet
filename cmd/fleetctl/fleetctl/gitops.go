@@ -274,11 +274,19 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 				}
+				// When GitOps mode is on and labels are not excepted, treat absent labels
+				// as "delete all" (i.e. as if `labels:` was present but empty).
+				labelsExcepted := appConfig.GitOpsConfig.Exceptions.Labels
+				processMissingLabels := config.LabelsPresent
+				if !labelsExcepted {
+					processMissingLabels = true
+				}
 				labelChanges[teamName] = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
 					config.Labels,
+					processMissingLabels,
 				)
 			}
 
@@ -694,6 +702,7 @@ func computeLabelChanges(
 	teamName string,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
+	processMissingLabels bool,
 ) []spec.LabelChange {
 	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
@@ -704,11 +713,11 @@ func computeLabelChanges(
 		}
 	}
 
-	// Handle the cases where the 'labels:' section is either nil (an empty 'labels:' section was specified,
-	// meaning remove-all) or an empty list (the 'labels:' section was not specified, so we do a no-op).
+	// If no labels are specified: either no-op if labels are exempted from GitOps,
+	// or else delete them all.
 	if len(specifiedLabels) == 0 {
 		op := "="
-		if specifiedLabels == nil {
+		if processMissingLabels {
 			op = "-"
 		}
 		for _, l := range regularLabels {
