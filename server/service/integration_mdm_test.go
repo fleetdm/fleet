@@ -23001,7 +23001,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Run the cron job - should trigger auto-rotation
 		runRecoveryLockCron(t)
 
-		// Host should receive RotateRecoveryLock command (not SetRecoveryLock)
+		// Host should receive SetRecoveryLock command for rotation
+		// (rotation uses the same MDM command type as initial setup, but with a new password)
 		cmd, err = mdmClient.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd, "should receive rotation command")
