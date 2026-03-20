@@ -102,7 +102,7 @@ const renderFileTypeMessage = () => {
       <br />
       Windows (.msi, .exe,{" "}
       <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
-      or Linux (.deb, .rpm,{" "}
+      or Linux (.deb, .rpm, .tar.gz,{" "}
       <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
@@ -114,7 +114,7 @@ const renderFileTypeMessage = () => {
 / 3) Safe fallback if no options exist which should never happen */
 const getDefaultVersion = (
   versionOptions: CustomOptionType[],
-  selectedVersion?: string
+  selectedVersion?: string,
 ) => {
   // This shouldn't happen
   if (!versionOptions.length) {
@@ -276,7 +276,7 @@ const PackageForm = ({
 
       setFormData({ ...formData, automaticInstall });
     },
-    [formData]
+    [formData],
   );
 
   const onToggleSelfService = () => {
@@ -350,7 +350,7 @@ const PackageForm = ({
   const submitTooltipContent = createTooltipContent(
     formValidation,
     repoURL,
-    disableFieldsForGitOps
+    disableFieldsForGitOps,
   );
 
   const classNames = classnames(baseClass, className);
@@ -443,9 +443,10 @@ const PackageForm = ({
   );
 
   const renderCustomEditor = () => {
-    const fmaVersionsSortedByLatestFirst = sortByVersionLatestFirst<ISoftwareVersion>(
-      defaultSoftware.fleet_maintained_versions || []
-    );
+    const fmaVersionsSortedByLatestFirst =
+      sortByVersionLatestFirst<ISoftwareVersion>(
+        defaultSoftware.fleet_maintained_versions || [],
+      );
     const hasMultipleVersions = fmaVersionsSortedByLatestFirst.length > 1;
 
     const versionOptions = fmaVersionsSortedByLatestFirst.map(
@@ -457,7 +458,7 @@ const PackageForm = ({
           label: labelLatestVersion ? `Latest (${v.version})` : `${v.version}`,
           value: v.version,
         };
-      }
+      },
     );
 
     return (
