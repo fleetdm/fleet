@@ -29961,7 +29961,7 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/vscode_extensions.yml"
   },
   {
-    "name": "macadmins_wifi_network",
+    "name": "wifi_network",
     "platforms": [
       "darwin"
     ],
@@ -30030,8 +30030,8 @@
     ],
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "evented": false,
-    "url": "https://fleetdm.com/tables/macadmins_wifi_network",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_wifi_network.yml"
+    "url": "https://fleetdm.com/tables/wifi_network",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/wifi_network.yml"
   },
   {
     "name": "wifi_networks",
