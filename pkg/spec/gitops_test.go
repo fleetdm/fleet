@@ -224,10 +224,12 @@ func TestValidGitOpsYaml(t *testing.T) {
 							assert.Contains(t, pkg.LabelsIncludeAny, "a")
 							assert.Contains(t, pkg.Categories, "Communication")
 							assert.Empty(t, pkg.LabelsExcludeAny)
+							assert.Empty(t, pkg.LabelsIncludeAll)
 						} else {
 							assert.Empty(t, pkg.UninstallScript.Path)
 							assert.Contains(t, pkg.LabelsExcludeAny, "a")
 							assert.Empty(t, pkg.LabelsIncludeAny)
+							assert.Empty(t, pkg.LabelsIncludeAll)
 						}
 					}
 					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
@@ -426,12 +428,32 @@ func TestManualLabelEmptyHostList(t *testing.T) {
 labels:
   - name: TestLabel
     description: Label for testing
+    hosts: []
+    label_membership_type: manual`
+
+	gitops, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	require.NotNil(t, gitops.Labels[0].Hosts)
+	assert.Empty(t, gitops.Labels[0].Hosts)
+}
+
+func TestManualLabelNullHostsKey(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
     hosts:
     label_membership_type: manual`
 
 	gitops, err := gitOpsFromString(t, config)
 	require.NoError(t, err)
-	assert.NotNil(t, gitops.Labels[0].Hosts)
+	// hosts key present with null value should produce a non-nil empty slice
+	// (meaning "clear all hosts"), distinct from a nil slice (key omitted,
+	// meaning "preserve existing membership").
+	require.NotNil(t, gitops.Labels[0].Hosts)
+	assert.Empty(t, gitops.Labels[0].Hosts)
 }
 
 func TestDuplicateQueryNames(t *testing.T) {
@@ -2803,7 +2825,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   apple_settings:
     configuration_profiles:
@@ -2831,7 +2853,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   apple_settings:
     configuration_profiles:
@@ -2860,7 +2882,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   windows_settings:
     configuration_profiles:
@@ -2889,7 +2911,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   android_settings:
     configuration_profiles:
@@ -2918,10 +2940,10 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   setup_experience:
-  macos_setup:    
+  macos_setup:
 `
 		yamlPath := filepath.Join(dir, "gitops.yml")
 		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
