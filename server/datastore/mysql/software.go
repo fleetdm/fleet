@@ -4912,6 +4912,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				st.source,
 				st.extension_for,
 				st.upgrade_code,
+				st.bundle_identifier as title_bundle_identifier,
 				si.id as installer_id,
 				si.self_service as package_self_service,
 				si.filename as package_name,

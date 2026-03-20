@@ -5951,7 +5951,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
 	assert.Equal(t, "apps", sw[0].InstalledVersions[0].Source)
 	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].InstalledVersions[0].BundleIdentifier)
-	// top-level bundle_identifier should be promoted from installed_versions
+	// top-level bundle_identifier comes from software_titles.bundle_identifier
 	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].BundleIdentifier)
 
 	// The vpp app is installed by fleet, and also has been inventoried by osquery
