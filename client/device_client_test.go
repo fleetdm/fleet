@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +43,7 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 	t.Run("with wrong license", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusPaymentRequired
 		_, err = client.DesktopSummary(token)
-		require.ErrorIs(t, err, service.ErrMissingLicense)
+		require.ErrorIs(t, err, ErrMissingLicense)
 	})
 
 	t.Run("with no failing policies", func(t *testing.T) {
@@ -142,7 +141,7 @@ func TestDeviceClientRetryInvalidToken(t *testing.T) {
 
 		_, err = client.DesktopSummary("bad")
 		require.Error(t, err)
-		require.ErrorIs(t, err, service.ErrUnauthenticated)
+		require.ErrorIs(t, err, ErrUnauthenticated)
 		require.Equal(t, int64(1), callCounts.Load())
 	})
 
@@ -205,7 +204,7 @@ func TestDeviceClientRetryInvalidToken(t *testing.T) {
 
 		_, err = client.DesktopSummary("bad")
 		require.Error(t, err)
-		require.ErrorIs(t, err, service.ErrUnauthenticated)
+		require.ErrorIs(t, err, ErrUnauthenticated)
 		require.Equal(t, int64(4), callCounts.Load())
 	})
 }

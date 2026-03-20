@@ -11,13 +11,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/rs/zerolog/log"
 )
 
 // DeviceClient is used consume the `device/...` endpoints and meant to be used by Fleet Desktop
 type DeviceClient struct {
-	*service.BaseClient
+	*BaseClient
 
 	// fleetAlternativeBrowserHostFromServer serves a similar purpose as fleetAlternativeBrowserHost, but this value is set
 	// on the Fleet server and takes precedence over it.
@@ -35,7 +34,7 @@ type DeviceClient struct {
 // NewDeviceClient instantiates a new client to perform requests against device endpoints.
 func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string, fleetClientCrt *tls.Certificate, fleetAlternativeBrowserHost string) (*DeviceClient, error) {
 	capabilities := fleet.CapabilityMap{}
-	baseClient, err := service.NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCrt, capabilities, nil)
+	baseClient, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCrt, capabilities, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -63,10 +62,10 @@ func (dc *DeviceClient) request(verb, pathFmt, token, query string, params any, 
 			path = fmt.Sprintf(pathFmt, token)
 		}
 		reqErr := dc.requestAttempt(verb, path, query, params, responseDest)
-		if attempt >= maxAttempts || dc.invalidTokenRetryFunc == nil || token == "-" || !errors.Is(reqErr, service.ErrUnauthenticated) {
+		if attempt >= maxAttempts || dc.invalidTokenRetryFunc == nil || token == "-" || !errors.Is(reqErr, ErrUnauthenticated) {
 			if reqErr != nil {
 				log.Debug().Msgf("not retrying API error; attempt=%d, hook set=%t, token unset=%t, error is auth=%t",
-					attempt, dc.invalidTokenRetryFunc != nil, token == "-", errors.Is(reqErr, service.ErrUnauthenticated))
+					attempt, dc.invalidTokenRetryFunc != nil, token == "-", errors.Is(reqErr, ErrUnauthenticated))
 			}
 			return reqErr
 		}
@@ -159,7 +158,7 @@ func (dc *DeviceClient) CheckToken(token string) error {
 	verb, path := "HEAD", "/api/latest/fleet/device/%s/ping"
 	err := dc.request(verb, path, token, "", nil, nil)
 
-	if service.IsNotFoundErr(err) {
+	if IsNotFoundErr(err) {
 		_, err = dc.DesktopSummary(token)
 	}
 	return err
@@ -170,7 +169,7 @@ func (dc *DeviceClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/device/ping"
 	err := dc.request(verb, path, "-", "", nil, nil)
 
-	if err == nil || service.IsNotFoundErr(err) {
+	if err == nil || IsNotFoundErr(err) {
 		return nil
 	}
 
@@ -215,7 +214,7 @@ func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, err
 		return &r, nil
 	}
 
-	if service.IsNotFoundErr(err) {
+	if IsNotFoundErr(err) {
 		policies, err := dc.getListDevicePolicies(token)
 		if err != nil {
 			return nil, err

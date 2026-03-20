@@ -1,4 +1,4 @@
-package service
+package client
 
 import (
 	"crypto/tls"
@@ -19,43 +19,37 @@ import (
 	"github.com/google/uuid"
 )
 
-var errInvalidScheme = errors.New("address must start with https:// for remote connections")
+var ErrInvalidScheme = errors.New("address must start with https:// for remote connections")
 
 // HTTPClient interface allows the HTTP methods to be mocked.
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// httpClient is a backward-compatible alias for HTTPClient.
-type httpClient = HTTPClient
-
-type baseClient struct {
-	baseURL            *url.URL
-	http               httpClient
-	urlPrefix          string
-	insecureSkipVerify bool
-	// serverCapabilities is a map of capabilities that the server supports.
+type BaseClient struct {
+	BaseURL            *url.URL
+	HTTP               HTTPClient
+	URLPrefix          string
+	InsecureSkipVerify bool
+	// ServerCapabilities is a map of capabilities that the server supports.
 	// This map is updated on each response we receive from the server.
-	serverCapabilities fleet.CapabilityMap
-	// clientCapabilities is a map of capabilities that the client supports.
+	ServerCapabilities fleet.CapabilityMap
+	// ClientCapabilities is a map of capabilities that the client supports.
 	// This list is given when the client is instantiated and shouldn't be
 	// modified afterwards.
-	clientCapabilities fleet.CapabilityMap
+	ClientCapabilities fleet.CapabilityMap
 }
 
-// BaseClient is an exported alias for baseClient, used by the client/ package.
-type BaseClient = baseClient
-
-// parseResponse processes the status code and parses the response body.
+// ParseResponse processes the status code and parses the response body.
 // It does not close the response body (should be closed by the caller).
-func (bc *baseClient) parseResponse(verb, path string, response *http.Response, responseDest interface{}) error {
+func (bc *BaseClient) ParseResponse(verb, path string, response *http.Response, responseDest interface{}) error {
 	switch response.StatusCode {
 	case http.StatusNotFound:
-		return &notFoundErr{
-			msg: extractServerErrorText(response.Body),
+		return &NotFoundErr{
+			Msg: ExtractServerErrorText(response.Body),
 		}
 	case http.StatusUnauthorized:
-		errText := extractServerErrorText(response.Body)
+		errText := ExtractServerErrorText(response.Body)
 		if strings.Contains(errText, "password reset required") {
 			return ErrPasswordResetRequired
 		}
@@ -70,17 +64,17 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 			break
 		}
 
-		e := &statusCodeErr{
-			code: response.StatusCode,
-			body: extractServerErrorText(response.Body),
+		e := &StatusCodeErr{
+			Code: response.StatusCode,
+			Body: ExtractServerErrorText(response.Body),
 		}
 		return fmt.Errorf("%s %s received status %w", verb, path, e)
 	}
 
-	bc.setServerCapabilities(response)
+	bc.SetServerCapabilities(response)
 
 	if responseDest != nil {
-		if e, ok := responseDest.(bodyHandler); ok {
+		if e, ok := responseDest.(BodyHandler); ok {
 			if err := e.Handle(response); err != nil {
 				return fmt.Errorf("%s %s error with custom body handler contents: %w", verb, path, err)
 			}
@@ -91,7 +85,7 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 			}
 			if err := json.Unmarshal(b, &responseDest); err != nil {
 				const maxBodyLen = 200
-				truncatedBytes, isHTML := truncateAndDetectHTML(b, maxBodyLen)
+				truncatedBytes, isHTML := TruncateAndDetectHTML(b, maxBodyLen)
 
 				if isHTML {
 					return fmt.Errorf("decode %s %s response: %w, (server returned HTML instead of JSON), body: %s", verb, path, err, truncatedBytes)
@@ -106,36 +100,36 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 		}
 	}
 
-	bc.setServerCapabilities(response)
+	bc.SetServerCapabilities(response)
 
 	return nil
 }
 
-func (bc *baseClient) url(path, rawQuery string) *url.URL {
-	u := *bc.baseURL
-	u.Path = bc.urlPrefix + path
+func (bc *BaseClient) URL(path, rawQuery string) *url.URL {
+	u := *bc.BaseURL
+	u.Path = bc.URLPrefix + path
 	u.RawQuery = rawQuery
 	return &u
 }
 
-// setServerCapabilities updates the server capabilities based on the response
+// SetServerCapabilities updates the server capabilities based on the response
 // from the server.
-func (bc *baseClient) setServerCapabilities(response *http.Response) {
+func (bc *BaseClient) SetServerCapabilities(response *http.Response) {
 	capabilities := response.Header.Get(fleet.CapabilitiesHeader)
-	bc.serverCapabilities.PopulateFromString(capabilities)
+	bc.ServerCapabilities.PopulateFromString(capabilities)
 }
 
-func (bc *baseClient) GetServerCapabilities() fleet.CapabilityMap {
-	return bc.serverCapabilities
+func (bc *BaseClient) GetServerCapabilities() fleet.CapabilityMap {
+	return bc.ServerCapabilities
 }
 
-// setClientCapabilities header is used to set a header with the client
+// SetClientCapabilitiesHeader is used to set a header with the client
 // capabilities in the given request.
 //
-// This method is defined in baseClient because other clients generally have
+// This method is defined in BaseClient because other clients generally have
 // custom implementations of a method to perform the requests to the server.
-func (bc *baseClient) setClientCapabilitiesHeader(req *http.Request) {
-	if len(bc.clientCapabilities) == 0 {
+func (bc *BaseClient) SetClientCapabilitiesHeader(req *http.Request) {
+	if len(bc.ClientCapabilities) == 0 {
 		return
 	}
 
@@ -143,17 +137,17 @@ func (bc *baseClient) setClientCapabilitiesHeader(req *http.Request) {
 		req.Header = http.Header{}
 	}
 
-	req.Header.Set(fleet.CapabilitiesHeader, bc.clientCapabilities.String())
+	req.Header.Set(fleet.CapabilitiesHeader, bc.ClientCapabilities.String())
 }
 
-func newBaseClient(
+func NewBaseClient(
 	addr string,
 	insecureSkipVerify bool,
 	rootCA, urlPrefix string,
 	fleetClientCert *tls.Certificate,
 	capabilities fleet.CapabilityMap,
 	signerWrapper func(*http.Client) *http.Client,
-) (*baseClient, error) {
+) (*BaseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL: %w", err)
@@ -161,7 +155,7 @@ func newBaseClient(
 
 	allowHTTP := insecureSkipVerify || strings.Contains(baseURL.Host, "localhost") || strings.Contains(baseURL.Host, "127.0.0.1")
 	if baseURL.Scheme != "https" && !allowHTTP {
-		return nil, errInvalidScheme
+		return nil, ErrInvalidScheme
 	}
 
 	rootCAPool := x509.NewCertPool()
@@ -203,25 +197,26 @@ func newBaseClient(
 	if signerWrapper != nil {
 		httpClient = signerWrapper(httpClient)
 	}
-	client := &baseClient{
-		baseURL:            baseURL,
-		http:               httpClient,
-		insecureSkipVerify: insecureSkipVerify,
-		urlPrefix:          urlPrefix,
-		clientCapabilities: capabilities,
-		serverCapabilities: fleet.CapabilityMap{},
+	client := &BaseClient{
+		BaseURL:            baseURL,
+		HTTP:               httpClient,
+		InsecureSkipVerify: insecureSkipVerify,
+		URLPrefix:          urlPrefix,
+		ClientCapabilities: capabilities,
+		ServerCapabilities: fleet.CapabilityMap{},
 	}
 	return client, nil
 }
 
-type bodyHandler interface {
+// BodyHandler is an interface for custom response body handling.
+type BodyHandler interface {
 	Handle(*http.Response) error
 }
 
 type FileResponse struct {
 	DestPath      string
 	DestFile      string
-	destFilePath  string
+	DestFilePath  string
 	SkipMediaType bool
 	ProgressFunc  func(n int)
 }
@@ -243,8 +238,8 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 		filename = uuid.NewString()
 	}
 
-	f.destFilePath = filepath.Join(f.DestPath, filename)
-	destFile, err := os.Create(f.destFilePath)
+	f.DestFilePath = filepath.Join(f.DestPath, filename)
+	destFile, err := os.Create(f.DestFilePath)
 	if err != nil {
 		return fmt.Errorf("creating file: %w", err)
 	}
@@ -271,7 +266,7 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 }
 
 func (f *FileResponse) GetFilePath() string {
-	return f.destFilePath
+	return f.DestFilePath
 }
 
 type progressReader struct {
@@ -285,48 +280,17 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// Exported methods for use by the client/ package.
-
-// URL returns the full URL for the given path and query.
-func (bc *baseClient) URL(path, rawQuery string) *url.URL {
-	return bc.url(path, rawQuery)
-}
-
-// SetClientCapabilitiesHeader sets the client capabilities header on the request.
-func (bc *baseClient) SetClientCapabilitiesHeader(req *http.Request) {
-	bc.setClientCapabilitiesHeader(req)
-}
-
-// ParseResponse processes the status code and parses the response body (exported version).
-func (bc *baseClient) ParseResponse(verb, path string, response *http.Response, responseDest any) error {
-	return bc.parseResponse(verb, path, response, responseDest)
-}
-
 // DoHTTPRequest performs an HTTP request using the underlying HTTP client.
-func (bc *baseClient) DoHTTPRequest(req *http.Request) (*http.Response, error) {
-	return bc.http.Do(req)
+func (bc *BaseClient) DoHTTPRequest(req *http.Request) (*http.Response, error) {
+	return bc.HTTP.Do(req)
 }
 
 // GetRawHTTPClient returns the underlying HTTP client for type assertions (e.g., idle connection cleanup).
-func (bc *baseClient) GetRawHTTPClient() HTTPClient {
-	return bc.http
+func (bc *BaseClient) GetRawHTTPClient() HTTPClient {
+	return bc.HTTP
 }
 
 // SetHTTPClient sets the underlying HTTP client (used in tests).
-func (bc *baseClient) SetHTTPClient(c HTTPClient) {
-	bc.http = c
+func (bc *BaseClient) SetHTTPClient(c HTTPClient) {
+	bc.HTTP = c
 }
-
-// NewBaseClient creates a new BaseClient (exported version of newBaseClient).
-var NewBaseClient = newBaseClient
-
-// BodyHandler is an exported alias for bodyHandler.
-type BodyHandler = bodyHandler
-
-// IsNotFoundErr is the exported version of isNotFoundErr.
-func IsNotFoundErr(err error) bool {
-	return isNotFoundErr(err)
-}
-
-// StatusCodeErr is an exported alias for statusCodeErr.
-type StatusCodeErr = statusCodeErr

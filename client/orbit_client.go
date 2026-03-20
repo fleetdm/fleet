@@ -26,14 +26,12 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/rs/zerolog/log"
 )
 
 // OrbitClient exposes the Orbit API to communicate with the Fleet server.
 type OrbitClient struct {
-	*service.BaseClient
+	*BaseClient
 	nodeKeyFilePath string
 	enrollSecret    string
 	hostInfo        fleet.OrbitHostInfo
@@ -190,7 +188,7 @@ func NewOrbitClient(
 	hostIdentityCertPath string,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.GetOrbitClientCapabilities()
-	bc, err := service.NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
+	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +331,7 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 			err = oc.authenticatedRequest(verb, path, &fleet.OrbitGetConfigRequest{}, &resp)
 			var (
 				netErr        net.Error
-				statusCodeErr *service.StatusCodeErr
+				statusCodeErr *StatusCodeErr
 			)
 			if err != nil && oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.DebugErrFunc != nil {
 				oc.onGetConfigErrFns.DebugErrFunc(err)
@@ -429,7 +427,7 @@ func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallRes
 
 func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirectory string, progressFunc func(n int)) (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
-	resp := service.FileResponse{
+	resp := FileResponse{
 		DestPath:     downloadDirectory,
 		ProgressFunc: progressFunc,
 	}
@@ -442,7 +440,7 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 }
 
 func (oc *OrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDirectory string, progressFunc func(int)) (string, error) {
-	resp := service.FileResponse{
+	resp := FileResponse{
 		DestPath:      downloadDirectory,
 		DestFile:      filename,
 		SkipMediaType: true,
@@ -482,7 +480,7 @@ func (oc *OrbitClient) DownloadAndDiscardSoftwareInstaller(installerID uint) err
 func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
 	err := oc.request(verb, path, nil, nil)
-	if err == nil || service.IsNotFoundErr(err) {
+	if err == nil || IsNotFoundErr(err) {
 		return nil
 	}
 	return err
@@ -490,7 +488,7 @@ func (oc *OrbitClient) Ping() error {
 
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
-	params := contract.EnrollOrbitRequest{
+	params := fleet.EnrollOrbitRequest{
 		EnrollSecret:      oc.enrollSecret,
 		HardwareUUID:      oc.hostInfo.HardwareUUID,
 		HardwareSerial:    oc.hostInfo.HardwareSerial,
@@ -542,9 +540,9 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 		retry.WithErrorFilter(func(err error) (errorOutcome retry.ErrorOutcome) {
 			log.Info().Err(err).Msg("orbit enroll attempt failed")
 			switch {
-			case service.IsNotFoundErr(err):
+			case IsNotFoundErr(err):
 				return retry.ErrorOutcomeDoNotRetry
-			case errors.Is(err, service.ErrEndUserAuthRequired):
+			case errors.Is(err, ErrEndUserAuthRequired):
 				log.Debug().Msg("enroll unauthenticated, waiting for end-user to authenticate via SSO")
 				if !oc.initiatedIdpAuth {
 					if oc.openSSOWindow == nil {
@@ -567,7 +565,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			}
 		}),
 	); err != nil {
-		if service.IsNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return "", errors.New("enroll endpoint does not exist")
 		}
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
@@ -620,7 +618,7 @@ func (oc *OrbitClient) authenticatedRequest(verb string, path string, params any
 	case err == nil:
 		oc.setEnrolled(true)
 		return nil
-	case errors.Is(err, service.ErrUnauthenticated):
+	case errors.Is(err, ErrUnauthenticated):
 		if err := os.Remove(oc.nodeKeyFilePath); err != nil {
 			log.Info().Err(err).Msg("remove orbit node key")
 		}
