@@ -733,7 +733,7 @@
       "name": "Foxit PDF Editor",
       "slug": "foxit-pdf-editor/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.foxit-software.Foxit PDF Editor",
+      "unique_identifier": "com.foxit.PDFEditor",
       "description": "Foxit PDF Editor is a PDF editor."
     },
     {
