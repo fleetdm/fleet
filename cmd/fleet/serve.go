@@ -314,6 +314,10 @@ the way that the Fleet server works.
 				config.Server.PrivateKey = config.Server.PrivateKey[:32]
 			}
 
+			if config.MDM.CertificateProfilesLimit < 0 {
+				config.MDM.CertificateProfilesLimit = 0
+			}
+
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 

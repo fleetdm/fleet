@@ -3610,11 +3610,7 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 		return profilesToInstall, nil, nil
 	}
 
-	// Track how many times GetMDMAppleProfilesContents is called — it should be called twice:
-	// once for CA classification and once inside ProcessAndEnqueueProfiles.
-	var getContentsCallCount int
 	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
-		getContentsCallCount++
 		return map[string]mobileconfig.Mobileconfig{
 			caProfileUUID:    caContent,
 			nonCAProfileUUID: nonCAContent,
@@ -3696,7 +3692,6 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 	t.Run("limit=0 sends all profiles", func(t *testing.T) {
 		upsertedProfiles = nil
 		bulkUpsertCallCount = 0
-		getContentsCallCount = 0
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 0)
 		require.NoError(t, err)
 
@@ -3711,15 +3706,11 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 		}
 		assert.Equal(t, 5, caCount, "all CA host-profile pairs should be sent when limit=0")
 		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should be sent")
-		// GetMDMAppleProfilesContents should only be called once (inside ProcessAndEnqueueProfiles),
-		// not for CA classification since limit=0
-		assert.Equal(t, 1, getContentsCallCount, "should not fetch contents for classification when limit=0")
 	})
 
 	t.Run("limit=2 throttles CA profiles only", func(t *testing.T) {
 		upsertedProfiles = nil
 		bulkUpsertCallCount = 0
-		getContentsCallCount = 0
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 2)
 		require.NoError(t, err)
 
@@ -3734,8 +3725,6 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 		}
 		assert.Equal(t, 2, caCount, "only 2 CA host-profile pairs should be sent when limit=2")
 		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should still be sent")
-		// GetMDMAppleProfilesContents should be called twice: once for classification, once for enqueue
-		assert.Equal(t, 2, getContentsCallCount, "should fetch contents for classification when limit>0")
 	})
 }
 

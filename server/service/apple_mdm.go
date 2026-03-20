@@ -5080,11 +5080,9 @@ func ReconcileAppleProfiles(
 
 		// Throttle CA profile installations when a limit is configured.
 		// Skipped profiles remain in NULL status and will be picked up on the next reconciler tick.
-		if certProfilesLimit > 0 && caProfileUUIDs[p.ProfileUUID] {
-			if caInstallCount >= certProfilesLimit {
-				continue
-			}
-			caInstallCount++
+		isThrottledCA := certProfilesLimit > 0 && caProfileUUIDs[p.ProfileUUID]
+		if isThrottledCA && caInstallCount >= certProfilesLimit {
+			continue
 		}
 
 		toGetContents[p.ProfileUUID] = true
@@ -5133,6 +5131,11 @@ func ReconcileAppleProfiles(
 			target.EnrollmentIDs = append(target.EnrollmentIDs, userEnrollmentID)
 		} else {
 			target.EnrollmentIDs = append(target.EnrollmentIDs, p.HostUUID)
+		}
+
+		// Only count against the CA throttle limit after confirming the profile will actually be queued.
+		if isThrottledCA {
+			caInstallCount++
 		}
 		toGetContents[p.ProfileUUID] = true
 

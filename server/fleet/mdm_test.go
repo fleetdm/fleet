@@ -575,6 +575,7 @@ func TestHasCAVariables(t *testing.T) {
 		{"Custom SCEP proxy URL", []string{"CUSTOM_SCEP_PROXY_URL_my_ca"}, true},
 		{"Smallstep challenge", []string{"SMALLSTEP_SCEP_CHALLENGE_my_ca"}, true},
 		{"Smallstep proxy URL", []string{"SMALLSTEP_SCEP_PROXY_URL_my_ca"}, true},
+		{"Windows SCEP cert ID", []string{"SCEP_WINDOWS_CERTIFICATE_ID"}, true},
 		{"mixed with CA", []string{"HOST_UUID", "HOST_HARDWARE_SERIAL", "NDES_SCEP_CHALLENGE"}, true},
 		{"unknown var", []string{"UNKNOWN_VAR"}, false},
 	}
