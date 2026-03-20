@@ -122,9 +122,9 @@ graph TD
 ### In-house (.ipa) app install and verification
 
 In-house apps are installed using the Apple MDM protocol similar to VPP apps. 
-- Fleet first sends an `InstallApplication` command with a `ManifestURL` key that contains the Fleet `:title_id/in_house_app/manifest` endpoint instead of an `iTunesStoreID`.
-- The host requests the manifest from that endpoint, where it gets metadata and a download URL which is the `:title_id/in_house_app` endpoint
-- Fleet optionally cloudfront signs the download URL
+- Fleet first sends an `InstallApplication` command with a `ManifestURL` key, which contains the Fleet `:title_id/in_house_app/manifest` endpoint, instead of an `iTunesStoreID` key.
+- The host sends a request to that endpoint to get the manifest, which contains metadata and a download URL which is the `:title_id/in_house_app` endpoint.
+- Fleet optionally cloudfront signs the download URL.
 - The in-house app gets verified the same way as VPP installs, using `InstalledApplicationList`.
 
 ```mermaid
@@ -158,9 +158,11 @@ sequenceDiagram
 
 Android app installation works a bit differently than on other platforms. Fleet uses the Google Android Management API (AMAPI) which
 sends one declarative "policy" to devices. When an Android app is added to a fleet, a job gets triggered to add this app to the policy
-on relevant hosts with the install type set to "[AVAILABLE](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType)". For each host, this job will send a request to [enterprises.policies.modifyPolicyApplications](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/modifyPolicyApplications), and record its result in the database.
+on relevant hosts with the InstallType set to "[AVAILABLE](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType)". 
+For each host, this job will send a request to [enterprises.policies.modifyPolicyApplications](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/modifyPolicyApplications) which will make the app available for download in the Play Store for that host, and record its result in the database.
 
-Setup experience: currently, setup experience will add all relevant apps to a host's policy, but with the install type set to "[PREINSTALLED](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType)"
+Setup experience: currently, setup experience will add all relevant apps to a host's policy, 
+but with InstallType set to "[PREINSTALLED](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType)"
 which will automatically install the app on the device.
 
 ## Related resources
