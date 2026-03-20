@@ -1425,9 +1425,9 @@ func (ds *Datastore) applyHostFilters(
 	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
 	switch {
 	case wantFailedDEP:
-		depStatusFilter = `AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
+		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
 	case wantDepResp != "":
-		depStatusFilter = `AND hdep.assign_profile_response = ?`
+		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response = ?`
 		whereParams = append(whereParams, wantDepResp)
 	}
 
@@ -2167,10 +2167,10 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				%s
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id AND hdep.deleted_at IS NULL
+			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 			%s
 			%s
-			WHERE %s
+			WHERE %s AND hdep.deleted_at IS NULL
 			LIMIT 1;
 		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
