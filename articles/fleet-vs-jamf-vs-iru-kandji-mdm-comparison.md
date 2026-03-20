@@ -54,18 +54,89 @@ Iru (Kandji) offers direct support focused on implementing pre-built features. T
 
 The architectural differences between Jamf and Iru (Kandji) translate into practical trade-offs that affect daily operations.
 
-| Attribute | Fleet | Jamf | Iru (formerly Kandji) |
-| --- | --- | --- | --- |
-| Architecture | Open-source, API-first, self-hosted or cloud-managed | Proprietary, primarily cloud-hosted; legacy on-premises model | Proprietary, SaaS |
-| Source code | Fully public, including paid features | Closed-source; some open-source tools on GitHub | Closed-source; no public repositories |
-| Console management | Native git integration via fleetctl | Web console; GitOps usually depends on additional tooling | Web console; no documented native GitOps integration |
-| Operating system support | macOS, Windows, Linux, iOS, iPadOS, ChromeOS, Android | macOS, iOS, iPadOS, tvOS, visionOS; Android support available in broader Jamf offerings | Apple-first; buyers should verify current non-Apple support |
-| Apple DDM | Supported for macOS, iOS, iPadOS | Supported for cloud deployments | Supported |
-| Data collection | osquery-based near real-time reporting | Inventory via Jamf Pro; telemetry via Jamf Protect with separate licensing | Agent-based inventory collection |
-| Vulnerability reporting | Included in per-device license | Requires Jamf Protect with separate licensing | Included in offering |
-| SIEM integration | Included in per-device license | Via Jamf Protect with separate licensing; native Splunk integration | Datadog integration documented |
-| Self-hosted option | Yes | Historical option, now legacy or deprecated | No |
-| Licensing model | Single per-device license | Modular: Pro, Protect, and Connect licensed separately | Unified license approach |
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Dimension
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Jamf Pro
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Iru (Kandji)
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Team technical depth
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Teams comfortable with shell scripting, API integration, and custom automation development
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+IT generalists managing multiple responsibilities beyond Mac administration
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Customization needs
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Complex regulatory requirements; custom integrations via API workflows and scripts
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Standard compliance frameworks with no need for highly customized workflows
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Compliance approach
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Framework templates from CIS, NIST, STIG standards; audit trails with control citation mapping
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+One-click compliance templates for SOC 2, HIPAA; automated controls with continuous remediation
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Security tooling
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Optional Jamf Protect for EDR; Jamf Connect for identity. 'Jamf for Mac' bundles Pro + Connect + Protect; documented SIEM integrations
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+EDR and vulnerability management as add-ons (priced per device) via single agent; consolidates endpoint tools when purchased
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Device ecosystem
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Apple and Android support
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Cross-platform solution with support for Apple, Windows, and Android
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Implementation timeline
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Longer time-to-productivity; often requires consultants
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Faster deployment through pre-built automations and Liftoff onboarding
 
 ## What are the limitations of MDM solutions like Jamf and Iru (Kandji)?
 
@@ -122,5 +193,5 @@ You can maintain Jamf or Iru (Kandji) for core device management while adding mu
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-03-18">
+<meta name="publishedOn" value="2026-03-20">
 <meta name="description" value="Compare Fleet, Jamf, and Iru (formerly Kandji) across platform support, pricing, GitOps, security, and API capabilities to find the right MDM for your team.">
