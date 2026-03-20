@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260318120000, Down_20260318120000)
+	MigrationClient.AddMigration(Up_20260320114401, Down_20260320114401)
 }
 
-func Up_20260318120000(tx *sql.Tx) error {
+func Up_20260320114401(tx *sql.Tx) error {
 	// Add auto_rotate_at column to track when a viewed password should be automatically rotated.
 	// When a password is viewed via the API, auto_rotate_at is set to 1 hour in the future.
 	// The cron job rotates passwords where auto_rotate_at <= NOW().
@@ -23,6 +23,6 @@ func Up_20260318120000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260318120000(tx *sql.Tx) error {
+func Down_20260320114401(tx *sql.Tx) error {
 	return nil
 }
