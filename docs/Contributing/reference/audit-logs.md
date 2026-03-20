@@ -2351,35 +2351,35 @@ This activity contains the following fields:
 
 ## enabled_managed_local_account
 
-Generated when a user turns on create managed local account for a team (or unassigned hosts).
+Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## disabled_managed_local_account
 
-Generated when a user turns off create managed local account for a team (or unassigned hosts).
+Generated when a user turns off create managed local account for a fleet (or unassigned hosts).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
