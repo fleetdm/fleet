@@ -165,8 +165,10 @@ const EditTeamsAbmModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--ios`}
           tooltip={
             <>
-              iOS hosts are automatically added to this fleet in Fleet when they
-              appear in Apple Business Manager.
+              iOS hosts are automatically added to this fleet on initial sync
+              from ABM. If a host is manually assigned to a different fleet
+              before enrollment, it will enroll to the newly assigned fleet and
+              not the default.
             </>
           }
         />
@@ -181,8 +183,10 @@ const EditTeamsAbmModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--ipados`}
           tooltip={
             <>
-              iPadOS hosts are automatically added to this fleet in Fleet when
-              they appear in Apple Business Manager.
+              iPadOS hosts are automatically added to this fleet on initial sync
+              from ABM. If a host is manually assigned to a different fleet
+              before enrollment, it will enroll to the newly assigned fleet and
+              not the default.
             </>
           }
         />
