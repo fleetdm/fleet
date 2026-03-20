@@ -3357,6 +3357,20 @@ The best practice is to set this to 3x the number of new employees (end users) t
     sso_rate_limit_per_minute: 200
   ```
 
+### mdm.certificate_profiles_limit
+
+The maximum number of certificate authority (CA) profile installations sent to hosts per batch. Fleet's profile reconciler runs every 30 seconds. When this limit is set, only the configured number of CA profile installations are sent per run, preventing CA server overload in large deployments.
+
+This limit only applies to profiles that contain CA variables (NDES, DigiCert, Custom SCEP, Smallstep). Non-CA profiles are always sent without throttling. Profile removals are also not throttled. Hosts that enrolled via Apple Automated Device Enrollment (ADE) within the last hour bypass this limit so that initial setup is not delayed.
+
+- Default value: `0` (unlimited)
+- Environment variable: `FLEET_MDM_CERTIFICATE_PROFILES_LIMIT`
+- Config file format:
+  ```yaml
+  mdm:
+    certificate_profiles_limit: 10
+  ```
+
 ### mdm.apple_vpp_app_metadata_api_bearer_token
 
 By default, Fleet retrieves [Apple App Store (VPP) metadata](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata) from Apple using an API token from Fleet's Apple Developer account. This API token is hosted on fleetdm.com.
