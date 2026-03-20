@@ -242,6 +242,31 @@ type Label struct {
 	fleet.LabelSpec
 }
 
+// UnmarshalJSON distinguishes between "hosts" key omitted (nil, preserve
+// existing membership) and "hosts" key present with null value (clear all
+// hosts). Both cases produce a nil HostsSlice after default unmarshaling,
+// so we check the raw JSON for the key's presence.
+func (l *Label) UnmarshalJSON(data []byte) error {
+	// Use an alias to prevent infinite recursion.
+	type LabelAlias Label
+	var alias LabelAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*l = Label(alias)
+
+	if l.Hosts == nil {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err == nil {
+			if _, ok := raw["hosts"]; ok {
+				// "hosts" key was explicitly set to null — clear all hosts.
+				l.Hosts = []string{}
+			}
+		}
+	}
+	return nil
+}
+
 type SoftwarePackage struct {
 	BaseItem
 	fleet.SoftwarePackageSpec
@@ -1323,10 +1348,6 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
 		}
 
-		// Manual labels can have empty hosts lists, just make sure we initialize the empty list
-		if l.LabelMembershipType == fleet.LabelMembershipTypeManual && l.Hosts == nil {
-			l.Hosts = []string{}
-		}
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
 			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
