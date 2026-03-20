@@ -1753,6 +1753,9 @@ func (svc *Service) ingestQueryResults(
 
 	switch {
 	case strings.HasPrefix(query, hostDetailQueryPrefix):
+		if detailConfig == nil { // safety net for NilAway linter
+			return false, false, newOsqueryError("detail query config not loaded for query " + query)
+		}
 		trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
 		var ingested bool
 		ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, detailConfig)
