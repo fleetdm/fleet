@@ -6,10 +6,10 @@ We sponsor and participate in events so that we can support, connect, engage, an
 It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confidential/issues/new?template=propose-an-event.md)**
 
 
-## Current Events
+## Current events
 
 
-| QTR | Event Name | Date | Location |
+| QTR | Event name | Date | Location |
 | :---- | :---- | :---- | :---- |
 | Q1 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.kgy1oagh9dvl) | 2026-03-12 | Chicago |
 | Q1 | * **[Gartner Digital Workspace](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tvvzxp6efa6s)** | 2026-03-23 | San Diego |
@@ -23,7 +23,7 @@ It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confi
 | Q4 | * **[MacSysAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** |2026-09-29 | Gothenburg, Sweden |
 
 
-## Event Process
+## Event process
 There are three phases to running an event at FleetDM,
 - **Phase 1:** Propose, review and approve new events
 - **Phase 2:** Manage and and execute approved events
@@ -84,7 +84,7 @@ This will be managed in a structure central document for each event so that atte
 
 [Planning Doc/Tracking Template](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.uych0uenb12p#heading=h.qhf7mkrao68w0
 
-#### Phase 3 Event postgame
+#### Phase 3 event postgame
 **Objective** To consistently wrap up an event, gather lessons learned, and ensure the organization follows through with our new relationships.  
 
 After the event there are three important activites that need to be completed.
@@ -111,7 +111,7 @@ All child tasks in GitHub (e.g., draft and finalize talk title/abstract, design 
 
 We use GitHub labels to organize the difference between overall event issues and detailed execution tasks, allowing us to filter and track between overview issues only, and specific events only.  The color coding will help us to visually tell the difference between events.  Note the specific event labels have 6 possible colors defined. These should get re-used, as events are completed.
 
-| Label | Color | Hex Code | Definition (When to use it) |
+| Label | Color | Hex code | Definition (when to use it) |
 | :---- | :---- | :---- | :---- |
 | **:mktg-event** | Orange | \#F97316 | The standard label for all events. |
 | **:mktg-event:tp** | Dark Rust | \#9A3412 | Indicates this issue is part of event execution in general. |
@@ -180,7 +180,7 @@ We will use a local script that executes commands on the local GitHub command li
 TODO - add a test set up section where a user has a simple issue script they test
 
 
-#### Event Template Process and Script
+#### Event template process and script
 Creating a new event group is now simple.
 1. copy the script below and save as **NewEvent.sh**
 2. Edit the script.
@@ -772,13 +772,13 @@ create_sub_issue "6. Post-Mortem & Follow-Up"
 echo "Done."
 ```
 
-## **Connecting Eventbrite Registrations to Salesforce Campaigns (Event ID Key)**
+## **Connecting Eventbrite registrations to Salesforce campaigns (event ID key)**
 
 #### **Purpose**
 
 We need a reliable, repeatable way to associate each Eventbrite registration with the correct Salesforce Campaign **without adding any visible fields to the attendee experience**. This approach uses the Eventbrite **Event ID** as the canonical key to map registrations to Campaigns in Salesforce.
 
-#### **Core Idea**
+#### **Core idea**
 
 Each Eventbrite event has a unique identifier (`event_id`). We store that identifier on the corresponding Salesforce Campaign. When a new registration occurs, our integration (e.g., Clay) reads the `event_id` from the registration payload, finds the matching Campaign, then creates/updates the Campaign Member.
 
@@ -786,16 +786,16 @@ This creates a clean 1:1 relationship:
 
 **1 Eventbrite Event → 1 Salesforce Campaign → Many Campaign Members (registrants)**
 
-#### **Why This Approach**
+#### **Why this approach**
 
 * **Invisible to attendees:** No hidden checkout questions or user-facing “tags.”  
 * **Stable and unambiguous:** Event IDs are unique and don’t depend on event names.  
 * **Easy to operationalize:** Simple to document and enforce as a process.  
 * **Scalable to other platforms:** The same pattern could be extended to Lu.ma later using a platform-specific ID or key (if we ever want to use Lu.ma)
 
-### **Data Model (Salesforce)**
+### **Data model (Salesforce)**
 
-#### **Campaign Fields**
+#### **Campaign fields**
 
 Add the following field to **Campaign**:
 
@@ -806,9 +806,9 @@ Add the following field to **Campaign**:
 The composite key pattern lets us use one matching field across platforms and avoid collisions if we ever want to use [Lu.ma](http://Lu.ma) or others.
 
 
-### **Operational Workflow**
+### **Operational workflow**
 
-##### **1\) Capture the Eventbrite Event ID**
+##### **1\) Capture the Eventbrite event ID**
 
 The Event ID can be sourced from:
 
@@ -824,7 +824,7 @@ The Event ID can be sourced from:
 * Set:  
   * **Event Key** `eventbrite:{event_id}`
 
-##### **3\) Integration Logic (Clay)**
+##### **3\) Integration logic (Clay)**
 
 When Clay receives a new Eventbrite registration/attendee record:
 
@@ -839,19 +839,19 @@ When Clay receives a new Eventbrite registration/attendee record:
    * Optionally set Campaign Member Status (e.g., `Registered`, `Attended`, `No Show`) if we later sync those states
 
 
-### **Assumptions / Scope**
+### **Assumptions / scope**
 * **One ticket type per Campaign** (i.e., we do not need ticket-type-level mapping).  
 * **One event maps to exactly one Salesforce Campaign**.  
 * We are focusing on **registrations** (Campaign Members). 
 
-### **Governance & Quality Controls**
+### **Governance & quality controls**
 To keep the system clean and prevent broken mappings:
 
 * **Required fields:** Ensure Campaigns intended for Eventbrite syncing have `Event Key` populated.  
 * **Uniqueness guardrails:** Prevent multiple Campaigns from sharing the same Event Key (via process, reporting, or validation rules).  
 * **Monitoring:** Have a Clay/Salesforce report for “registrations received with no matching Campaign” to catch missing IDs early.
 
-### **(FUTURE) Extending This to Lu.ma (Future)**
+### **(FUTURE) Extending this to Lu.ma (future)**
 If we adopt Lu.ma later, we can follow the same model:
 
 * Store Lu.ma’s stable event identifier (ID or slug) on the Salesforce Campaign.  
@@ -864,4 +864,4 @@ This approach “connects” Eventbrite to Salesforce Campaigns by using the **E
 
 
 <meta name="maintainedBy" value="johnjeremiah">
-<meta name="title" value="🫧 Marketing Event Execution">
+<meta name="title" value="🫧 Marketing event execution">
