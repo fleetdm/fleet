@@ -527,6 +527,10 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
+    - name: Compute next retry
+      id: next-retry
+      run: echo "value=$(( ${{ inputs.retry || 0 }} + 1 ))" >> $GITHUB_OUTPUT
+
     - name: Slack Notification (failure with retries remaining)
       if: (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3
       uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
@@ -538,7 +542,7 @@ jobs:
             - type: "section"
               text:
                 type: "mrkdwn"
-                text: "*[TESTING - PLEASE IGNORE - @zwass] Agent integration test FAILED* (attempt ${{ (inputs.retry || 0) + 1 }}/4, retrying...)\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+                text: "*[TESTING - PLEASE IGNORE - @zwass] Agent integration test FAILED* (attempt ${{ steps.next-retry.outputs.value }}/4, retrying...)\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
 
     - name: Slack Notification (all retries exhausted)
       if: (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) >= 3
@@ -573,7 +577,7 @@ jobs:
     - name: Retry workflow on failure
       if: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3 }}
       run: |
-        gh workflow run integration.yml --repo ${{ github.repository }} --ref ${{ github.ref }} -f retry=${{ (inputs.retry || 0) + 1 }}
+        gh workflow run integration.yml --repo ${{ github.repository }} --ref ${{ github.ref }} -f retry=${{ steps.next-retry.outputs.value }}
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
