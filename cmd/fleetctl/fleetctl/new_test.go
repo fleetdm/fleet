@@ -76,10 +76,10 @@ func TestNewBasicFileStructure(t *testing.T) {
 		assert.NotContains(t, string(content), "<%=")
 
 		// Verify the output is valid YAML that round-trips correctly.
-		var parsed map[string]interface{}
+		var parsed map[string]any
 		require.NoError(t, yaml.Unmarshal(content, &parsed))
-		orgSettings, _ := parsed["org_settings"].(map[string]interface{})
-		orgInfo, _ := orgSettings["org_info"].(map[string]interface{})
+		orgSettings, _ := parsed["org_settings"].(map[string]any)
+		orgInfo, _ := orgSettings["org_info"].(map[string]any)
 		assert.Equal(t, `Acme "Corp" \ Inc`, orgInfo["org_name"])
 	})
 }
@@ -97,10 +97,10 @@ func TestNewOrgNameYAMLQuoting(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(content), `'Ops: IT & Security'`)
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	require.NoError(t, yaml.Unmarshal(content, &parsed))
-	orgSettings, _ := parsed["org_settings"].(map[string]interface{})
-	orgInfo, _ := orgSettings["org_info"].(map[string]interface{})
+	orgSettings, _ := parsed["org_settings"].(map[string]any)
+	orgInfo, _ := orgSettings["org_info"].(map[string]any)
 	assert.Equal(t, "Ops: IT & Security", orgInfo["org_name"])
 }
 
