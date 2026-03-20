@@ -5080,7 +5080,10 @@ func ReconcileAppleProfiles(
 
 		// Throttle CA profile installations when a limit is configured.
 		// Skipped profiles remain in NULL status and will be picked up on the next reconciler tick.
-		isThrottledCA := certProfilesLimit > 0 && caProfileUUIDs[p.ProfileUUID]
+		// Recently enrolled hosts (within 1 hour) bypass throttling so that setup experience
+		// and initial profile delivery are not delayed.
+		recentlyEnrolled := p.DeviceEnrolledAt != nil && time.Since(*p.DeviceEnrolledAt) < 1*time.Hour
+		isThrottledCA := certProfilesLimit > 0 && caProfileUUIDs[p.ProfileUUID] && !recentlyEnrolled
 		if isThrottledCA && caInstallCount >= certProfilesLimit {
 			continue
 		}

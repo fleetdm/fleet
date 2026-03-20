@@ -1240,7 +1240,7 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
-	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
+	man.addConfigDuration("auth.sso_session_validity_period", 15*time.Minute,
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
