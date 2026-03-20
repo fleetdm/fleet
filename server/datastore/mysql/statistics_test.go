@@ -26,6 +26,7 @@ func TestStatistics(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"ShouldSend", testStatisticsShouldSend},
+		{"ConditionalAccessStatistics", testConditionalAccessStatistics},
 		{"FleetMaintainedAppsInUse", testFleetMaintainedAppsInUse},
 	}
 	for _, c := range cases {
@@ -98,6 +99,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, stats.NumHostsFleetDesktopEnabled)
 	assert.False(t, stats.OktaConditionalAccessConfigured)
 	assert.False(t, stats.ConditionalAccessBypassDisabled)
+	assert.False(t, stats.ConditionalAccessEnabled)
+	assert.False(t, stats.EntraConditionalAccessConfigured)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -246,6 +249,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
 	assert.False(t, stats.OktaConditionalAccessConfigured)
 	assert.False(t, stats.ConditionalAccessBypassDisabled)
+	assert.False(t, stats.ConditionalAccessEnabled)
+	assert.False(t, stats.EntraConditionalAccessConfigured)
 
 	err = ds.RecordStatisticsSent(ctx)
 	require.NoError(t, err)
@@ -359,6 +364,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
 	assert.False(t, stats.OktaConditionalAccessConfigured)
 	assert.False(t, stats.ConditionalAccessBypassDisabled)
+	assert.False(t, stats.ConditionalAccessEnabled)
+	assert.False(t, stats.EntraConditionalAccessConfigured)
 
 	// Create multiple new sessions for a single user
 	_, err = ds.NewSession(ctx, u1.ID, 8)
@@ -401,6 +408,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
 	assert.False(t, stats.OktaConditionalAccessConfigured)
 	assert.False(t, stats.ConditionalAccessBypassDisabled)
+	assert.False(t, stats.ConditionalAccessEnabled)
+	assert.False(t, stats.EntraConditionalAccessConfigured)
 
 	// Add host to test hosts not responding stats
 	_, err = ds.NewHost(ctx, &fleet.Host{
@@ -472,6 +481,129 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.True(t, stats.OktaConditionalAccessConfigured)
 	assert.False(t, stats.ConditionalAccessBypassDisabled)
+}
+
+func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
+		return nil, nil
+	}
+	ctxb := context.Background()
+	ctx := ctxerr.NewContext(ctxb, eh)
+
+	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	// Initial state: nothing configured
+	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.ConditionalAccessEnabled)
+	assert.False(t, stats.EntraConditionalAccessConfigured)
+
+	err = ds.RecordStatisticsSent(ctx)
+	require.NoError(t, err)
+	time.Sleep(1100 * time.Millisecond)
+
+	// Enable conditional access on appconfig (for "No team")
+	cfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	cfg.Integrations.ConditionalAccessEnabled = optjson.SetBool(true)
+	err = ds.SaveAppConfig(ctx, cfg)
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.True(t, stats.ConditionalAccessEnabled)
+	assert.False(t, stats.EntraConditionalAccessConfigured)
+
+	// Disable on appconfig
+	err = ds.RecordStatisticsSent(ctx)
+	require.NoError(t, err)
+	time.Sleep(1100 * time.Millisecond)
+
+	cfg.Integrations.ConditionalAccessEnabled = optjson.SetBool(false)
+	err = ds.SaveAppConfig(ctx, cfg)
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.ConditionalAccessEnabled)
+
+	// Enable conditional access on a team
+	err = ds.RecordStatisticsSent(ctx)
+	require.NoError(t, err)
+	time.Sleep(1100 * time.Millisecond)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{
+		Name:        "ca-team",
+		Description: "team with conditional access",
+	})
+	require.NoError(t, err)
+	team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(true)
+	_, err = ds.SaveTeam(ctx, team)
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.True(t, stats.ConditionalAccessEnabled)
+
+	// Disable on team
+	err = ds.RecordStatisticsSent(ctx)
+	require.NoError(t, err)
+	time.Sleep(1100 * time.Millisecond)
+
+	team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(false)
+	_, err = ds.SaveTeam(ctx, team)
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.ConditionalAccessEnabled)
+
+	// Test Entra conditional access: create the integration but without setup done
+	err = ds.RecordStatisticsSent(ctx)
+	require.NoError(t, err)
+	time.Sleep(1100 * time.Millisecond)
+
+	fleetConfig.MicrosoftCompliancePartner = config.MicrosoftCompliancePartnerConfig{
+		ProxyAPIKey: "test-key",
+	}
+	err = ds.ConditionalAccessMicrosoftCreateIntegration(ctx, "test-tenant", "test-secret")
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.EntraConditionalAccessConfigured) // setup not done yet
+
+	// Mark setup done
+	err = ds.RecordStatisticsSent(ctx)
+	require.NoError(t, err)
+	time.Sleep(1100 * time.Millisecond)
+
+	err = ds.ConditionalAccessMicrosoftMarkSetupDone(ctx)
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.True(t, stats.EntraConditionalAccessConfigured)
+
+	// Without the fleet config proxy key, should be false even with setup done
+	err = ds.RecordStatisticsSent(ctx)
+	require.NoError(t, err)
+	time.Sleep(1100 * time.Millisecond)
+
+	fleetConfig.MicrosoftCompliancePartner = config.MicrosoftCompliancePartnerConfig{}
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.EntraConditionalAccessConfigured)
 }
 
 func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {

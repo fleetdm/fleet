@@ -66,3 +66,6 @@ By switching to Fleet, this global workforce management company gained a powerfu
 <meta name="articleTitle" value="How a global workforce management company achieved compliance and clarity with Fleet—keeping shift work in sync">
 <meta name="description" value="How a global workforce management company achieved compliance and clarity with Fleet—keeping shift work in sync">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Global workforce management software">
+<meta name="cardBodyForCustomersPage" value="A global workforce management company achieved compliance and clarity with Fleet — keeping shift work in sync.">
+

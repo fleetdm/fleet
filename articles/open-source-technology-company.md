@@ -72,3 +72,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-17">
 <meta name="description" value="An open-source technology company scales endpoint management with Fleet across 20,000 devices."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Open-source technology company">
