@@ -1377,6 +1377,9 @@ func (svc *Service) validateMDM(
 	if len(mdm.WindowsEntraTenantIDs.Value) > 0 && !lic.IsPremium() {
 		invalid.Append("windows_entra_tenant_ids", ErrMissingLicense.Error())
 	}
+	if mdm.AppleRequireHardwareAttestation && !lic.IsPremium() {
+		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
+	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
