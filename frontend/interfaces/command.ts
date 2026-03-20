@@ -12,6 +12,9 @@ export interface ICommand {
   updated_at: string;
   request_type: string;
   hostname: string;
+  /** Human-readable name for the command (e.g. profile display name for
+   * InstallProfile/RemoveProfile commands). May be null if not set. */
+  name: string | null;
 }
 
 /**
@@ -30,6 +33,9 @@ export interface ICommandResult {
   payload: string;
   /** Base64-encoded string containing the MDM command response */
   result: string;
+  /** Human-readable name for the command (e.g. profile display name for
+   * InstallProfile/RemoveProfile commands). May be null if not set. */
+  name: string | null;
   /** ResultsMetadata contains command-specific metadata.
    * VPP install commands includes a "software_installed" boolean. */
   results_metadata?: Record<string, unknown>;

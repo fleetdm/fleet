@@ -15,4 +15,40 @@
   .textarea--code {
     max-height: 200px;
   }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__copy-wrapper {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__copied-confirmation {
+    font-size: $x-small;
+    color: $ui-success;
+    white-space: nowrap;
+  }
+
+  &__copy-all {
+    display: flex;
+    align-items: center;
+
+    .button--text-link {
+      display: inline-flex;
+      align-items: center;
+      gap: $pad-xsmall;
+      font-size: $x-small;
+    }
+  }
 }

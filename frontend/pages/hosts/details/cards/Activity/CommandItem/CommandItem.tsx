@@ -18,27 +18,56 @@ interface ICommandItemProps {
   onShowDetails: ShowCommandDetailsHandler;
 }
 
-const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
-  const { command_status, request_type, updated_at } = command;
+const isProfileCommand = (requestType: string): boolean =>
+  requestType === "InstallProfile" || requestType === "RemoveProfile";
 
-  let statusVerb = "";
+const getStatusText = (command: ICommand): string => {
+  const { command_status, status } = command;
+
+  // Differentiate NotNow from regular Pending
+  if (status === "NotNow") {
+    return "is deferred";
+  }
+
   switch (command_status) {
     case "pending":
-      statusVerb = "will run";
-      break;
+      return "is pending";
     case "ran":
+      return "was acknowledged";
     case "failed":
-      statusVerb = command_status;
-      break;
+      return "failed";
     default:
-      statusVerb = "ran";
+      return "was acknowledged";
   }
+};
+
+const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
+  const { request_type, updated_at, name } = command;
+
+  const statusText = getStatusText(command);
 
   const onShowCommandDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onShowDetails(command);
   };
 
+  // For InstallProfile/RemoveProfile commands with a name, show the profile name
+  if (isProfileCommand(request_type) && name) {
+    return (
+      <FeedListItem
+        className={baseClass}
+        useFleetAvatar
+        allowShowDetails
+        createdAt={new Date(updated_at)}
+        onClickFeedItem={onShowCommandDetails}
+      >
+        The <b>{request_type}</b> command for <b>{name}</b> {statusText}.
+      </FeedListItem>
+    );
+  }
+
+  // For all other commands (or profile commands without a name), show with
+  // host affected and status
   return (
     <FeedListItem
       className={baseClass}
@@ -47,7 +76,7 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
       createdAt={new Date(updated_at)}
       onClickFeedItem={onShowCommandDetails}
     >
-      The <b>{request_type}</b> command {statusVerb}.
+      The <b>{request_type}</b> command {statusText}.
     </FeedListItem>
   );
 };

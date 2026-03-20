@@ -9,6 +9,7 @@ const DEFAULT_COMMAND_MOCK: ICommand = {
   updated_at: "2024-01-01T00:00:00Z",
   request_type: "InstallProfile",
   hostname: "default-hostname",
+  name: null,
 };
 
 export const createMockCommand = (overrides?: Partial<ICommand>): ICommand => ({
@@ -47,6 +48,7 @@ const DEFAULT_COMMAND_RESULT_MOCK: ICommandResult = {
     <Status>Acknowledged</Status>
     <Message>Installation complete</Message>
   </Result>`),
+  name: null,
 };
 
 /**

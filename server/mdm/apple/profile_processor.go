@@ -101,17 +101,28 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 			err = commander.RemoveProfile(ctx, target.EnrollmentIDs, target.ProfileIdentifier, target.CmdUUID)
 		}
 
+		// Determine whether the command was enqueued (even if push notification failed).
+		enqueued := false
 		var e *APNSDeliveryError
 		switch {
 		case errors.As(err, &e):
 			logger.DebugContext(ctx, "failed sending push notifications, profiles still enqueued", "details", err)
+			enqueued = true
 			ch <- remoteResult{nil, target.CmdUUID}
 			// this is fine to pass as success here, since we have sent the command but just didn't notify the client, but when the client checks back in it will process this profile.
 		case err != nil:
 			logger.ErrorContext(ctx, fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
 			ch <- remoteResult{err, target.CmdUUID}
 		default:
+			enqueued = true
 			ch <- remoteResult{nil, target.CmdUUID}
+		}
+
+		// Set the display name on the nano_commands row so it can be shown in the UI.
+		if enqueued && target.ProfileName != "" {
+			if err := ds.SetCommandName(ctx, target.CmdUUID, target.ProfileName); err != nil {
+				logger.ErrorContext(ctx, "setting command name for profile", "command_uuid", target.CmdUUID, "profile_name", target.ProfileName, "err", err)
+			}
 		}
 	}
 	for profUUID, target := range installTargets {
@@ -626,6 +637,7 @@ func preprocessProfileContents(
 				addedTargets[tempProfUUID] = &fleet.CmdTarget{
 					CmdUUID:           tempCmdUUID,
 					ProfileIdentifier: target.ProfileIdentifier,
+					ProfileName:       target.ProfileName,
 					EnrollmentIDs:     []string{enrollmentID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)

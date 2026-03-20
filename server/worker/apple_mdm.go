@@ -719,6 +719,7 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 		target := &fleet.CmdTarget{
 			CmdUUID:           uuid.NewString(),
 			ProfileIdentifier: profile.ProfileIdentifier,
+			ProfileName:       profile.ProfileName,
 			EnrollmentIDs:     []string{hostUUID},
 		}
 		installTargets[profile.ProfileUUID] = target

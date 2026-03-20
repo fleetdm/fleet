@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { stringToClipboard } from "utilities/copy_text";
 
 import { ICommand, ICommandResult } from "interfaces/command";
 
@@ -16,6 +17,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import IconStatusMessage from "components/IconStatusMessage";
 import { IconNames } from "components/icons";
+import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
@@ -42,6 +44,9 @@ const getIconName = (status: string): IconNames => {
   }
 };
 
+const isProfileCommand = (requestType: string): boolean =>
+  requestType === "InstallProfile" || requestType === "RemoveProfile";
+
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   const displayTime = result.updated_at
     ? ` (${formatDistanceToNow(new Date(result.updated_at), {
@@ -50,12 +55,20 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
       })})`
     : null;
 
+  const profileNamePart =
+    isProfileCommand(result.request_type) && result.name ? (
+      <>
+        {" "}
+        for <b>{result.name}</b>
+      </>
+    ) : null;
+
   switch (result.status) {
     case "CommandFormatError":
     case "Error":
       return (
         <span>
-          The <b>{result.request_type}</b> command failed on{" "}
+          The <b>{result.request_type}</b> command{profileNamePart} failed on{" "}
           <b>{result.hostname}</b>
           {displayTime}.
         </span>
@@ -64,8 +77,8 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
     case "Acknowledged":
       return (
         <span>
-          The <b>{result.request_type}</b> command ran on{" "}
-          <b>{result.hostname}</b>
+          The <b>{result.request_type}</b> command{profileNamePart} was
+          acknowledged by <b>{result.hostname}</b>
           {displayTime}.
         </span>
       );
@@ -73,17 +86,17 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
     case "Pending":
       return (
         <span>
-          The <b>{result.request_type}</b> command is running or will run on{" "}
-          <b>{result.hostname}</b> when it comes online.
+          The <b>{result.request_type}</b> command{profileNamePart} is pending
+          on <b>{result.hostname}</b>.
         </span>
       );
 
     case "NotNow":
       return (
         <span>
-          The <b>{result.request_type}</b> command didn&apos;t run on{" "}
-          <b>{result.hostname}</b> because the host was locked or was running on
-          battery power while in Power Nap. Fleet will try again.
+          The <b>{result.request_type}</b> command{profileNamePart} is deferred
+          on <b>{result.hostname}</b> because the host was locked or was running
+          on battery power while in Power Nap. Fleet will try again.
         </span>
       );
 
@@ -92,6 +105,66 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
       // statuses; for now, just fallback to status string
       return <span>{`Status: ${result.status}`}</span>;
   }
+};
+
+/** Formats a command result into a text representation suitable for
+ * clipboard copy (equivalent to `fleetctl get mdm-command-results --id ...`). */
+const formatCommandDetailsForCopy = (result: ICommandResult): string => {
+  const lines: string[] = [];
+  lines.push(`Host UUID: ${result.host_uuid}`);
+  lines.push(`Command UUID: ${result.command_uuid}`);
+  lines.push(`Status: ${result.status}`);
+  lines.push(`Request type: ${result.request_type}`);
+  if (result.name) {
+    lines.push(`Name: ${result.name}`);
+  }
+  lines.push(`Updated: ${result.updated_at}`);
+  lines.push(`Hostname: ${result.hostname}`);
+  if (result.payload) {
+    lines.push("");
+    lines.push("--- Request payload ---");
+    lines.push(result.payload);
+  }
+  if (result.result) {
+    lines.push("");
+    lines.push(`--- Response from ${result.hostname} ---`);
+    lines.push(result.result);
+  }
+  return lines.join("\n");
+};
+
+type CopyTarget = "payload" | "response" | "details";
+
+const CopyButton = ({
+  text,
+  target,
+  copyState,
+  onCopy,
+}: {
+  text: string;
+  target: CopyTarget;
+  copyState: CopyTarget | null;
+  onCopy: (value: string, target: CopyTarget) => void;
+}) => {
+  const isCopied = copyState === target;
+
+  return (
+    <div className={`${baseClass}__copy-wrapper`}>
+      {isCopied && (
+        <span className={`${baseClass}__copied-confirmation`}>Copied!</span>
+      )}
+      <Button
+        variant="icon"
+        onClick={(e: React.MouseEvent) => {
+          e.preventDefault();
+          onCopy(text, target);
+        }}
+        iconStroke
+      >
+        <Icon name="copy" />
+      </Button>
+    </div>
+  );
 };
 
 const ModalContent = ({
@@ -103,6 +176,17 @@ const ModalContent = ({
   isLoading: boolean;
   error: Error | null;
 }) => {
+  const [copyState, setCopyState] = useState<CopyTarget | null>(null);
+
+  const onCopy = useCallback((value: string, target: CopyTarget) => {
+    stringToClipboard(value).then(() => {
+      setCopyState(target);
+      setTimeout(() => {
+        setCopyState(null);
+      }, 2000);
+    });
+  }, []);
+
   if (isLoading) {
     return <Spinner />;
   }
@@ -135,22 +219,47 @@ const ModalContent = ({
         message={getStatusMessage(result)}
       />
       {!!result.payload && (
-        <Textarea label="Request payload:" variant="code">
-          {result.payload}
-        </Textarea>
+        <div className={`${baseClass}__section`}>
+          <div className={`${baseClass}__section-header`}>
+            <div className="textarea__label">Request payload:</div>
+            <CopyButton
+              text={result.payload}
+              target="payload"
+              copyState={copyState}
+              onCopy={onCopy}
+            />
+          </div>
+          <Textarea variant="code">{result.payload}</Textarea>
+        </div>
       )}
       {!!result.result && (
-        <Textarea
-          label={
-            <>
+        <div className={`${baseClass}__section`}>
+          <div className={`${baseClass}__section-header`}>
+            <div className="textarea__label">
               Response from <b>{result.hostname}</b>:
-            </>
-          }
-          variant="code"
-        >
-          {result.result}
-        </Textarea>
+            </div>
+            <CopyButton
+              text={result.result}
+              target="response"
+              copyState={copyState}
+              onCopy={onCopy}
+            />
+          </div>
+          <Textarea variant="code">{result.result}</Textarea>
+        </div>
       )}
+      <div className={`${baseClass}__copy-all`}>
+        <Button
+          variant="text-link"
+          onClick={(e: React.MouseEvent) => {
+            e.preventDefault();
+            onCopy(formatCommandDetailsForCopy(result), "details");
+          }}
+        >
+          <Icon name="copy" />
+          {copyState === "details" ? "Copied!" : "Copy command details"}
+        </Button>
+      </div>
     </div>
   );
 };

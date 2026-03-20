@@ -1877,6 +1877,7 @@ CREATE TABLE `nano_commands` (
   `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `subtype` enum('None','ProfileWithSecrets') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'None',
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`command_uuid`),
   CONSTRAINT `nano_commands_chk_1` CHECK ((`command_uuid` <> _utf8mb4'')),
   CONSTRAINT `nano_commands_chk_2` CHECK ((`request_type` <> _utf8mb4''))
@@ -2024,7 +2025,7 @@ CREATE TABLE `nano_users` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 SET @saved_cs_client     = @@character_set_client;
 /*!50503 SET character_set_client = utf8mb4 */;
-/*!50001 CREATE VIEW `nano_view_queue` AS SELECT 
+/*!50001 CREATE VIEW `nano_view_queue` AS SELECT
  1 AS `id`,
  1 AS `created_at`,
  1 AS `active`,
@@ -2032,6 +2033,7 @@ SET @saved_cs_client     = @@character_set_client;
  1 AS `command_uuid`,
  1 AS `request_type`,
  1 AS `command`,
+ 1 AS `name`,
  1 AS `result_updated_at`,
  1 AS `status`,
  1 AS `result`*/;
@@ -3192,7 +3194,7 @@ CREATE TABLE `yara_rules` (
 /*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`%` SQL SECURITY INVOKER */
-/*!50001 VIEW `nano_view_queue` AS select (`q`.`id` collate utf8mb4_unicode_ci) AS `id`,`q`.`created_at` AS `created_at`,`q`.`active` AS `active`,`q`.`priority` AS `priority`,(`c`.`command_uuid` collate utf8mb4_unicode_ci) AS `command_uuid`,(`c`.`request_type` collate utf8mb4_unicode_ci) AS `request_type`,(`c`.`command` collate utf8mb4_unicode_ci) AS `command`,`r`.`updated_at` AS `result_updated_at`,(`r`.`status` collate utf8mb4_unicode_ci) AS `status`,(`r`.`result` collate utf8mb4_unicode_ci) AS `result` from ((`nano_enrollment_queue` `q` join `nano_commands` `c` on((`q`.`command_uuid` = `c`.`command_uuid`))) left join `nano_command_results` `r` on(((`r`.`command_uuid` = `q`.`command_uuid`) and (`r`.`id` = `q`.`id`)))) order by `q`.`priority` desc,`q`.`created_at` */;
+/*!50001 VIEW `nano_view_queue` AS select (`q`.`id` collate utf8mb4_unicode_ci) AS `id`,`q`.`created_at` AS `created_at`,`q`.`active` AS `active`,`q`.`priority` AS `priority`,(`c`.`command_uuid` collate utf8mb4_unicode_ci) AS `command_uuid`,(`c`.`request_type` collate utf8mb4_unicode_ci) AS `request_type`,(`c`.`command` collate utf8mb4_unicode_ci) AS `command`,`c`.`name` AS `name`,`r`.`updated_at` AS `result_updated_at`,(`r`.`status` collate utf8mb4_unicode_ci) AS `status`,(`r`.`result` collate utf8mb4_unicode_ci) AS `result` from ((`nano_enrollment_queue` `q` join `nano_commands` `c` on((`q`.`command_uuid` = `c`.`command_uuid`))) left join `nano_command_results` `r` on(((`r`.`command_uuid` = `q`.`command_uuid`) and (`r`.`id` = `q`.`id`)))) order by `q`.`priority` desc,`q`.`created_at` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;

@@ -350,6 +350,8 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
+	// Name is the optional human-readable name of the command.
+	Name *string `json:"name" db:"name"`
 	// ResultsMetadata contains command-specific metadata.
 	// VPP install commands includes a "software_installed" boolean.
 	ResultsMetadata map[string]any `json:"results_metadata,omitempty" db:"-"`
@@ -375,6 +377,8 @@ type MDMCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// Name is the optional human-readable name of the command.
+	Name *string `json:"name" db:"name"`
 	// CommandStatus is the fleet computed field representing the status of the command
 	// based on the MDM protocol status
 	CommandStatus MDMCommandStatusFilter `json:"command_status" db:"command_status"`

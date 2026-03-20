@@ -1900,6 +1900,9 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands
 
+	// SetCommandName sets the display name on a nano_commands row identified by commandUUID.
+	SetCommandName(ctx context.Context, commandUUID string, name string) error
+
 	// GetMDMCommandPlatform returns the platform (i.e. "darwin" or "windows") for the given command.
 	GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error)
 

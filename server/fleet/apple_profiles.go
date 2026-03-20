@@ -16,6 +16,7 @@ import (
 type CmdTarget struct {
 	CmdUUID           string
 	ProfileIdentifier string
+	ProfileName       string
 	EnrollmentIDs     []string
 }
 
