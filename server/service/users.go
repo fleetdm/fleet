@@ -532,6 +532,8 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	currentUser := authz.UserFromContext(ctx)
 
+	var isDemotion bool
+
 	if p.GlobalRole != nil && *p.GlobalRole != "" {
 		if currentUser.GlobalRole == nil {
 			return nil, authz.ForbiddenWithInternal(
@@ -544,32 +546,15 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
 		}
 
-		// Check if demoting from admin - ensure we're not demoting the last one
-		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
-			if *p.GlobalRole != fleet.RoleAdmin {
-				count, err := svc.ds.CountGlobalAdmins(ctx)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "count global admins")
-				}
-				if count <= 1 {
-					return nil, fleet.NewInvalidArgumentError("global_role", "cannot demote the last global admin")
-				}
-			}
-		}
+		// Track whether this is a demotion from global admin so we can
+		// use an atomic check+save later to prevent TOCTOU races.
+		isDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin && *p.GlobalRole != fleet.RoleAdmin
 
 		user.GlobalRole = p.GlobalRole
 		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
-		// Check if demoting from admin by assigning teams (which removes global role)
-		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
-			count, err := svc.ds.CountGlobalAdmins(ctx)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "count global admins")
-			}
-			if count <= 1 {
-				return nil, fleet.NewInvalidArgumentError("teams", "cannot demote the last global admin")
-			}
-		}
+		// Track whether this is a demotion from global admin by assigning teams.
+		isDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin
 
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
 			return nil, authz.ForbiddenWithInternal(
@@ -581,7 +566,31 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.GlobalRole = nil
 	}
 
-	if p.NewPassword != nil {
+	if isDemotion {
+		// Use atomic check+save to prevent TOCTOU race when demoting the last admin.
+		// We must set the password before saving if a new password was also provided.
+		if p.NewPassword != nil {
+			if err = user.SetPassword(*p.NewPassword, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "setting new password")
+			}
+		}
+		err = svc.ds.SaveUserIfNotLastAdmin(ctx, user)
+		if errors.Is(err, fleet.ErrLastGlobalAdmin) {
+			if p.GlobalRole != nil {
+				return nil, fleet.NewInvalidArgumentError("global_role", "cannot demote the last global admin")
+			}
+			return nil, fleet.NewInvalidArgumentError("teams", "cannot demote the last global admin")
+		}
+		if err == nil && p.NewPassword != nil {
+			// Clean up password reset requests and sessions like setNewPassword does.
+			if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+			}
+			if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "destroying sessions after password change")
+			}
+		}
+	} else if p.NewPassword != nil {
 		// setNewPassword takes care of calling saveUser
 		err = svc.setNewPassword(ctx, user, *p.NewPassword, true)
 	} else {
@@ -639,18 +648,15 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error
 		return nil, err
 	}
 
-	// prevent deleting admin if they are the last one
+	// Atomically check that we're not deleting the last global admin before deleting.
 	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
-		count, err := svc.ds.CountGlobalAdmins(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "count global admins")
+		if err := svc.ds.DeleteUserIfNotLastAdmin(ctx, id); err != nil {
+			if errors.Is(err, fleet.ErrLastGlobalAdmin) {
+				return nil, fleet.NewInvalidArgumentError("id", "cannot delete the last global admin")
+			}
+			return nil, err
 		}
-		if count <= 1 {
-			return nil, fleet.NewInvalidArgumentError("id", "cannot delete the last global admin")
-		}
-	}
-
-	if err := svc.ds.DeleteUser(ctx, id); err != nil {
+	} else if err := svc.ds.DeleteUser(ctx, id); err != nil {
 		return nil, err
 	}
 

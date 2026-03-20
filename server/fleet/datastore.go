@@ -81,6 +81,14 @@ type Datastore interface {
 	SaveUsers(ctx context.Context, users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) error
+	// DeleteUserIfNotLastAdmin atomically checks that the user being deleted
+	// is not the last global admin before deleting. Returns ErrLastGlobalAdmin
+	// if the user is the last global admin.
+	DeleteUserIfNotLastAdmin(ctx context.Context, id uint) error
+	// SaveUserIfNotLastAdmin atomically checks that saving the user would not
+	// remove the last global admin (via demotion) before saving. Returns
+	// ErrLastGlobalAdmin if the save would remove the last global admin.
+	SaveUserIfNotLastAdmin(ctx context.Context, user *User) error
 	// CountGlobalAdmins returns the count of users with the global admin role.
 	CountGlobalAdmins(ctx context.Context) (int, error)
 	// PendingEmailChange creates a record with a pending email change for a user identified by uid. The change record

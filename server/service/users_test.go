@@ -101,6 +101,12 @@ func TestUserAuth(t *testing.T) {
 	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
 		return 2, nil // Return 2 to allow operations that check for last admin
 	}
+	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+		return nil // Allow delete (multiple admins exist)
+	}
+	ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, user *fleet.User) error {
+		return nil // Allow save (multiple admins exist)
+	}
 
 	testCases := []struct {
 		name string
@@ -1507,8 +1513,8 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return adminUser, nil
 		}
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		_, err := svc.DeleteUser(ctx, adminUser.ID)
@@ -1525,10 +1531,7 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return adminUser, nil
 		}
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 3, nil
-		}
-		ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+		ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1536,7 +1539,7 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		}
 		_, err := svc.DeleteUser(ctx, adminUser.ID)
 		require.NoError(t, err)
-		assert.True(t, ds.DeleteUserFuncInvoked)
+		assert.True(t, ds.DeleteUserIfNotLastAdminFuncInvoked)
 	})
 
 	t.Run("prevents deleting last global admin even if api-only user", func(t *testing.T) {
@@ -1551,8 +1554,8 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return apiOnlyAdmin, nil
 		}
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		_, err := svc.DeleteUser(ctx, apiOnlyAdmin.ID)
@@ -1583,7 +1586,7 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		_, err := svc.DeleteUser(ctx, maintainerUser.ID)
 		require.NoError(t, err)
 		assert.True(t, ds.DeleteUserFuncInvoked)
-		assert.False(t, ds.CountGlobalAdminsFuncInvoked)
+		assert.False(t, ds.DeleteUserIfNotLastAdminFuncInvoked)
 	})
 }
 
@@ -1602,8 +1605,8 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		adminUser := newAdminTestUser(nil)
 		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 		setupModifyUserMocks(ds, adminUser)
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, u *fleet.User) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
@@ -1619,8 +1622,8 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		adminUser := newAdminTestUser(nil)
 		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 		setupModifyUserMocks(ds, adminUser)
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, u *fleet.User) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 		ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 			return []*fleet.TeamSummary{{ID: 1}}, nil
@@ -1640,10 +1643,7 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		adminUser := newAdminTestUser(nil)
 		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 		setupModifyUserMocks(ds, adminUser)
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 3, nil
-		}
-		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+		ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, u *fleet.User) error {
 			return nil
 		}
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
@@ -1663,8 +1663,8 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 		})
 		require.NoError(t, err)
-		// CountGlobalAdmins should NOT have been called since role isn't changing
-		assert.False(t, ds.CountGlobalAdminsFuncInvoked)
+		// SaveUserIfNotLastAdmin should NOT have been called since role isn't changing
+		assert.False(t, ds.SaveUserIfNotLastAdminFuncInvoked)
 	})
 
 	t.Run("prevents demoting last global admin even if api-only user", func(t *testing.T) {
@@ -1677,8 +1677,8 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 			apiOnly: true,
 		})
 		setupModifyUserMocks(ds, apiOnlyAdmin)
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, u *fleet.User) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		_, err := svc.ModifyUser(ctx, apiOnlyAdmin.ID, fleet.UserPayload{

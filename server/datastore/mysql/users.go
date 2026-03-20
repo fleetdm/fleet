@@ -396,6 +396,65 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return ds.deleteEntity(ctx, usersTable, id)
 }
 
+// DeleteUserIfNotLastAdmin atomically checks that the user being deleted is not the
+// last global admin before deleting. It uses SELECT ... FOR UPDATE to prevent concurrent
+// requests from bypassing the check (TOCTOU race condition).
+func (ds *Datastore) DeleteUserIfNotLastAdmin(ctx context.Context, id uint) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Lock the admin rows to prevent concurrent modifications.
+		var count int
+		if err := sqlx.GetContext(ctx, tx, &count,
+			`SELECT COUNT(*) FROM users WHERE global_role = 'admin' FOR UPDATE`); err != nil {
+			return ctxerr.Wrap(ctx, err, "count global admins for delete")
+		}
+		if count <= 1 {
+			return fleet.ErrLastGlobalAdmin
+		}
+
+		// Transfer user data to deleted_users table for audit/activity purposes.
+		stmt := `
+			INSERT INTO users_deleted (id, name, email)
+			SELECT u.id, u.name, u.email
+			FROM users AS u
+			WHERE u.id = ?
+			ON DUPLICATE KEY UPDATE
+				name       = u.name,
+				email      = u.email`
+		if _, err := tx.ExecContext(ctx, stmt, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "populate users_deleted entry")
+		}
+
+		res, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete user")
+		}
+		rows, _ := res.RowsAffected()
+		if rows != 1 {
+			return ctxerr.Wrap(ctx, notFound("User").WithID(id))
+		}
+		return nil
+	})
+}
+
+// SaveUserIfNotLastAdmin atomically checks that saving the user would not remove
+// the last global admin (via demotion) before saving. It uses SELECT ... FOR UPDATE
+// to prevent concurrent requests from bypassing the check (TOCTOU race condition).
+func (ds *Datastore) SaveUserIfNotLastAdmin(ctx context.Context, user *fleet.User) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Lock the admin rows to prevent concurrent modifications.
+		var count int
+		if err := sqlx.GetContext(ctx, tx, &count,
+			`SELECT COUNT(*) FROM users WHERE global_role = 'admin' FOR UPDATE`); err != nil {
+			return ctxerr.Wrap(ctx, err, "count global admins for save")
+		}
+		if count <= 1 {
+			return fleet.ErrLastGlobalAdmin
+		}
+
+		return saveUserDB(ctx, tx, user)
+	})
+}
+
 func (ds *Datastore) CountGlobalAdmins(ctx context.Context) (int, error) {
 	var count int
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &count, `SELECT COUNT(*) FROM users WHERE global_role = 'admin'`)

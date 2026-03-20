@@ -12,6 +12,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// ErrLastGlobalAdmin is returned when an operation would remove the last global admin.
+var ErrLastGlobalAdmin = errors.New("cannot remove the last global admin")
+
 // UserSummary contains the minimal user fields.
 type UserSummary struct {
 	ID          uint   `db:"id"`
