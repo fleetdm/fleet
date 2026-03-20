@@ -267,6 +267,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			EnabledAndConfigured:        true,
 			AndroidEnabledAndConfigured: true,
 		},
+		UIGitOpsMode: fleet.UIGitOpsModeConfig{
+			Exceptions: DefaultGitOpsExceptions(),
+		},
 	}
 	AddLabelMocks(ds)
 
@@ -796,6 +799,15 @@ func (m *MemKeyValueStore) Get(ctx context.Context, key string) (*string, error)
 	}
 	vAsString := v.(string)
 	return &vAsString, nil
+}
+
+// DefaultGitOpsExceptions returns a GitOpsExceptions config suitable for tests.
+// Labels are excepted because many tests omit the `labels:` key from YAML but have mock labels set up.
+// Tests that explicitly include `labels:` in their YAML should set Labels to false.
+func DefaultGitOpsExceptions() fleet.GitOpsExceptions {
+	return fleet.GitOpsExceptions{
+		Labels: true,
+	}
 }
 
 func AddLabelMocks(ds *mock.Store) {
