@@ -1065,7 +1065,7 @@ type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) er
 
 type MarkRecoveryLockPasswordViewedFunc func(ctx context.Context, hostUUID string) (time.Time, error)
 
-type GetHostsForAutoRotationFunc func(ctx context.Context) ([]string, error)
+type GetHostsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error)
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
@@ -8204,7 +8204,7 @@ func (s *DataStore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID
 	return s.MarkRecoveryLockPasswordViewedFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetHostsForAutoRotation(ctx context.Context) ([]string, error) {
+func (s *DataStore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
 	s.mu.Lock()
 	s.GetHostsForAutoRotationFuncInvoked = true
 	s.mu.Unlock()

@@ -1676,8 +1676,9 @@ func SendRecoveryLockCommands(
 	ds fleet.Datastore,
 	commander *MDMAppleCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) error {
-	return sendRecoveryLockCommandsWithCommander(ctx, ds, commander, logger)
+	return sendRecoveryLockCommandsWithCommander(ctx, ds, commander, logger, newActivityFn)
 }
 
 func sendRecoveryLockCommandsWithCommander(
@@ -1685,6 +1686,7 @@ func sendRecoveryLockCommandsWithCommander(
 	ds fleet.Datastore,
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) error {
 	var result *multierror.Error
 
@@ -1708,7 +1710,7 @@ func sendRecoveryLockCommandsWithCommander(
 	}
 
 	// Handle AUTO-ROTATION for viewed passwords (password viewed 1+ hour ago)
-	if err := sendAutoRotationCommands(ctx, ds, commander, logger); err != nil {
+	if err := sendAutoRotationCommands(ctx, ds, commander, logger, newActivityFn); err != nil {
 		result = multierror.Append(result, err)
 	}
 
@@ -1865,6 +1867,7 @@ func sendAutoRotationCommands(
 	ds fleet.Datastore,
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) error {
 	hosts, err := ds.GetHostsForAutoRotation(ctx)
 	if err != nil {
@@ -1879,11 +1882,11 @@ func sendAutoRotationCommands(
 	logger.InfoContext(ctx, "performing auto-rotation for viewed passwords", "count", len(hosts))
 
 	var result *multierror.Error
-	for _, hostUUID := range hosts {
+	for _, host := range hosts {
 		newPassword := GenerateRecoveryLockPassword()
 
 		// Initiate rotation - stores pending password and validates eligibility
-		if err := ds.InitiateRecoveryLockRotation(ctx, hostUUID, newPassword); err != nil {
+		if err := ds.InitiateRecoveryLockRotation(ctx, host.HostUUID, newPassword); err != nil {
 			// Check for benign race conditions where host state changed between
 			// GetHostsForAutoRotation and now (e.g., manual rotation started,
 			// password removed, host deleted, etc.)
@@ -1892,14 +1895,14 @@ func sendAutoRotationCommands(
 				strings.Contains(errMsg, "rotation already pending") ||
 				strings.Contains(errMsg, "not eligible for rotation") {
 				logger.DebugContext(ctx, "host lost eligibility for auto-rotation",
-					"host_uuid", hostUUID,
+					"host_uuid", host.HostUUID,
 					"error", err,
 				)
 				continue
 			}
 
 			logger.ErrorContext(ctx, "failed to initiate auto-rotation",
-				"host_uuid", hostUUID,
+				"host_uuid", host.HostUUID,
 				"error", err,
 			)
 			result = multierror.Append(result, err)
@@ -1908,12 +1911,14 @@ func sendAutoRotationCommands(
 
 		// Enqueue RotateRecoveryLock command
 		cmdUUID := uuid.NewString()
-		if err := commander.RotateRecoveryLock(ctx, hostUUID, cmdUUID); err != nil {
+		if err := commander.RotateRecoveryLock(ctx, host.HostUUID, cmdUUID); err != nil {
 			var apnsErr *APNSDeliveryError
 			if errors.As(err, &apnsErr) {
-				// Command was persisted but push notification failed - log warning but don't fail.
+				// Command was persisted but push notification failed - log activity and continue.
+				// The command will be retried when the device checks in.
+				logAutoRotationActivity(ctx, logger, newActivityFn, host)
 				logger.WarnContext(ctx, "auto-rotation command enqueued but APNs push failed",
-					"host_uuid", hostUUID,
+					"host_uuid", host.HostUUID,
 					"command_uuid", cmdUUID,
 					"error", err,
 				)
@@ -1922,12 +1927,12 @@ func sendAutoRotationCommands(
 
 			// Persistence failed - clear pending rotation so host can be retried
 			logger.ErrorContext(ctx, "failed to enqueue auto-rotation command",
-				"host_uuid", hostUUID,
+				"host_uuid", host.HostUUID,
 				"error", err,
 			)
-			if clearErr := ds.ClearRecoveryLockRotation(ctx, hostUUID); clearErr != nil {
+			if clearErr := ds.ClearRecoveryLockRotation(ctx, host.HostUUID); clearErr != nil {
 				logger.ErrorContext(ctx, "failed to clear pending rotation after enqueue failure",
-					"host_uuid", hostUUID,
+					"host_uuid", host.HostUUID,
 					"error", clearErr,
 				)
 				result = multierror.Append(result, clearErr)
@@ -1936,13 +1941,40 @@ func sendAutoRotationCommands(
 			continue
 		}
 
+		// Log activity for auto-rotation (Fleet-initiated)
+		logAutoRotationActivity(ctx, logger, newActivityFn, host)
+
 		logger.DebugContext(ctx, "sent auto-rotation command",
-			"host_uuid", hostUUID,
+			"host_uuid", host.HostUUID,
 			"command_uuid", cmdUUID,
 		)
 	}
 
 	return result.ErrorOrNil()
+}
+
+// logAutoRotationActivity logs the rotation activity for auto-rotations.
+// It uses the same activity type as manual rotations but marks it as Fleet-initiated.
+func logAutoRotationActivity(
+	ctx context.Context,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+	host fleet.HostAutoRotationInfo,
+) {
+	if newActivityFn == nil {
+		return
+	}
+
+	if err := newActivityFn(ctx, nil, fleet.ActivityTypeTriggeredHostRecoveryLockPasswordRotation{
+		HostID:          host.HostID,
+		HostDisplayName: host.DisplayName,
+		FleetInitiated:  true,
+	}); err != nil {
+		logger.WarnContext(ctx, "auto-rotation: failed to create activity",
+			"host_uuid", host.HostUUID,
+			"err", err,
+		)
+	}
 }
 
 // RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)

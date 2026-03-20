@@ -11430,6 +11430,16 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		assert.True(t, fleet.IsNotFound(err))
 	})
 
+	// Helper to check if a host UUID is in the rotation info list
+	containsHostUUID := func(hosts []fleet.HostAutoRotationInfo, uuid string) bool {
+		for _, h := range hosts {
+			if h.HostUUID == uuid {
+				return true
+			}
+		}
+		return false
+	}
+
 	t.Run("GetHostsForAutoRotation returns due hosts", func(t *testing.T) {
 		host := setupHostWithVerifiedPassword(t, "auto-rotate-host1", "autorotateuuid1")
 
@@ -11443,7 +11453,7 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		// Should be returned
 		hosts, err := ds.GetHostsForAutoRotation(ctx)
 		require.NoError(t, err)
-		assert.Contains(t, hosts, host.UUID)
+		assert.True(t, containsHostUUID(hosts, host.UUID), "host should be in auto-rotation list")
 	})
 
 	t.Run("GetHostsForAutoRotation excludes future auto_rotate_at", func(t *testing.T) {
@@ -11459,7 +11469,7 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		// Should NOT be returned
 		hosts, err := ds.GetHostsForAutoRotation(ctx)
 		require.NoError(t, err)
-		assert.NotContains(t, hosts, host.UUID)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
 	})
 
 	t.Run("GetHostsForAutoRotation excludes hosts with pending rotation", func(t *testing.T) {
@@ -11480,7 +11490,7 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		// Should NOT be returned because pending rotation exists
 		hosts, err := ds.GetHostsForAutoRotation(ctx)
 		require.NoError(t, err)
-		assert.NotContains(t, hosts, host.UUID)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
 	})
 
 	t.Run("GetHostsForAutoRotation excludes non-verified hosts", func(t *testing.T) {
@@ -11500,7 +11510,7 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		// Should NOT be returned because status is not verified
 		hosts, err := ds.GetHostsForAutoRotation(ctx)
 		require.NoError(t, err)
-		assert.NotContains(t, hosts, host.UUID)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
 	})
 
 	t.Run("CompleteRecoveryLockRotation clears auto_rotate_at", func(t *testing.T) {

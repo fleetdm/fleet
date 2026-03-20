@@ -1157,3 +1157,10 @@ type HostRecoveryLockRotationStatus struct {
 	HasPendingRotation  bool    // pending_encrypted_password is not null
 	PendingErrorMessage *string // error from failed rotation
 }
+
+// HostAutoRotationInfo contains the minimal host data needed for auto-rotation activity logging.
+type HostAutoRotationInfo struct {
+	HostUUID    string `db:"host_uuid"`
+	HostID      uint   `db:"host_id"`
+	DisplayName string `db:"display_name"`
+}

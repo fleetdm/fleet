@@ -22315,7 +22315,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	runRecoveryLockCron := func(t *testing.T) {
 		t.Helper()
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		err := apple_mdm.SendRecoveryLockCommands(t.Context(), s.ds, s.mdmCommander, logger)
+		err := apple_mdm.SendRecoveryLockCommands(t.Context(), s.ds, s.mdmCommander, logger, s.fleetSvc.NewActivity)
 		require.NoError(t, err)
 	}
 
@@ -22991,8 +22991,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		expectedRotateAt := time.Now().Add(1 * time.Hour)
 		assert.WithinDuration(t, expectedRotateAt, *getPasswordResp.RecoveryLockPassword.AutoRotateAt, 2*time.Minute)
 
-		// Verify auto-rotation activity was created (Fleet-initiated)
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeAutoRotatedHostRecoveryLockPassword{}.ActivityName(),
+		// Verify auto-rotation activity was created (Fleet-initiated, uses same activity type as manual rotation)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeTriggeredHostRecoveryLockPasswordRotation{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 
 		// Disable recovery lock password

@@ -157,7 +157,6 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
 	ActivityTypeTriggeredHostRecoveryLockPasswordRotation{},
-	ActivityTypeAutoRotatedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedDeclarationProfile{},
 	ActivityTypeDeletedDeclarationProfile{},
@@ -1004,10 +1003,12 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-// ActivityTypeTriggeredHostRecoveryLockPasswordRotation is for user-initiated password rotation.
+// ActivityTypeTriggeredHostRecoveryLockPasswordRotation is for password rotation.
+// Can be user-initiated (manual) or Fleet-initiated (auto-rotation after password viewed).
 type ActivityTypeTriggeredHostRecoveryLockPasswordRotation struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	FleetInitiated  bool   `json:"-"` // True for auto-rotation, not serialized
 }
 
 func (a ActivityTypeTriggeredHostRecoveryLockPasswordRotation) ActivityName() string {
@@ -1018,23 +1019,8 @@ func (a ActivityTypeTriggeredHostRecoveryLockPasswordRotation) HostIDs() []uint 
 	return []uint{a.HostID}
 }
 
-// ActivityTypeAutoRotatedHostRecoveryLockPassword is for Fleet-initiated automatic password rotation.
-// This occurs when a password is viewed and then automatically rotated after 1 hour.
-type ActivityTypeAutoRotatedHostRecoveryLockPassword struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-}
-
-func (a ActivityTypeAutoRotatedHostRecoveryLockPassword) ActivityName() string {
-	return "auto_rotated_host_recovery_lock_password"
-}
-
-func (a ActivityTypeAutoRotatedHostRecoveryLockPassword) HostIDs() []uint {
-	return []uint{a.HostID}
-}
-
-func (a ActivityTypeAutoRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
-	return true
+func (a ActivityTypeTriggeredHostRecoveryLockPasswordRotation) WasFromAutomation() bool {
+	return a.FleetInitiated
 }
 
 type ActivityTypeCreatedDeclarationProfile struct {

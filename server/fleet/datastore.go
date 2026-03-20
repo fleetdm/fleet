@@ -1580,10 +1580,11 @@ type Datastore interface {
 	// Called when the password is viewed and returns the scheduled rotation time.
 	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
 
-	// GetHostsForAutoRotation returns host UUIDs where auto_rotate_at <= now
+	// GetHostsForAutoRotation returns hosts where auto_rotate_at <= now
 	// and are eligible for rotation (verified status, no pending rotation).
+	// Returns host info needed for rotation and activity logging.
 	// Limited to 100 hosts per batch.
-	GetHostsForAutoRotation(ctx context.Context) ([]string, error)
+	GetHostsForAutoRotation(ctx context.Context) ([]HostAutoRotationInfo, error)
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).

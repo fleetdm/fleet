@@ -7869,29 +7869,34 @@ func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUI
 	return rotateAt, nil
 }
 
-func (ds *Datastore) GetHostsForAutoRotation(ctx context.Context) ([]string, error) {
+func (ds *Datastore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
 	// Return hosts where:
 	// - auto_rotate_at is in the past (due for rotation)
 	// - status is verified (password is confirmed working)
 	// - no pending rotation (pending_encrypted_password IS NULL)
 	// - operation_type is install (not in remove state)
 	// - not deleted
+	// Join with hosts table to get host ID and display name for activity logging.
 	stmt := fmt.Sprintf(`
-		SELECT host_uuid
-		FROM host_recovery_key_passwords
-		WHERE auto_rotate_at IS NOT NULL
-		  AND auto_rotate_at <= NOW(6)
-		  AND status = '%s'
-		  AND pending_encrypted_password IS NULL
-		  AND operation_type = '%s'
-		  AND deleted = 0
+		SELECT
+			hrkp.host_uuid,
+			h.id AS host_id,
+			COALESCE(NULLIF(h.computer_name, ''), h.hostname) AS display_name
+		FROM host_recovery_key_passwords hrkp
+		JOIN hosts h ON h.uuid = hrkp.host_uuid
+		WHERE hrkp.auto_rotate_at IS NOT NULL
+		  AND hrkp.auto_rotate_at <= NOW(6)
+		  AND hrkp.status = '%s'
+		  AND hrkp.pending_encrypted_password IS NULL
+		  AND hrkp.operation_type = '%s'
+		  AND hrkp.deleted = 0
 		LIMIT 100
 	`, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall)
 
-	var hostUUIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt); err != nil {
+	var hosts []fleet.HostAutoRotationInfo
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get hosts for auto rotation")
 	}
 
-	return hostUUIDs, nil
+	return hosts, nil
 }
