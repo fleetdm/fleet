@@ -121,10 +121,10 @@ export const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                iOS hosts are automatically added to this fleet on initial
-                sync from ABM. If a host is manually assigned to a different
-                fleet before enrollment, it will enroll to the newly assigned
-                fleet and not the default.
+                iOS hosts are automatically added to this fleet on initial sync
+                from ABM. If a host is manually assigned to a different fleet
+                before enrollment, it will enroll to the newly assigned fleet
+                and not the default.
               </>
             }
           >
