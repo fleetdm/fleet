@@ -245,7 +245,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				ProfileStatusFilter:               &verified,
 				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
 				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
-				DEPProfileErrorFilter:             ptr.Bool(true),
+				DEPProfileErrorFilter:             new(true),
 				DEPAssignProfileResponseFilter:    (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseFailed))),
 			},
 		},
@@ -371,13 +371,13 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"dep_profile_error=true": {
 			url: "/foo?dep_profile_error=true",
 			hostListOptions: fleet.HostListOptions{
-				DEPProfileErrorFilter: ptr.Bool(true),
+				DEPProfileErrorFilter: new(true),
 			},
 		},
 		"dep_profile_error=false": {
 			url: "/foo?dep_profile_error=false",
 			hostListOptions: fleet.HostListOptions{
-				DEPProfileErrorFilter: ptr.Bool(false),
+				DEPProfileErrorFilter: new(false),
 			},
 		},
 		"error in dep_profile_error (not a boolean)": {
