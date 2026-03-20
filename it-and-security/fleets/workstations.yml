@@ -150,6 +150,7 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
+  - path: ../lib/linux/policies/1password-installed.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
