@@ -3403,3 +3403,101 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		assert.Equal(t, "bad_field", unknownErr.Field)
 	})
 }
+
+func TestGitOpsPresenceTracking(t *testing.T) {
+	t.Run("labels present", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: test-label
+    query: SELECT 1
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.LabelsPresent)
+	})
+
+	t.Run("labels absent", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+`)
+		require.NoError(t, err)
+		assert.False(t, gitops.LabelsPresent)
+		assert.NotNil(t, gitops.Labels, "absent labels should be empty non-nil slice")
+		assert.Empty(t, gitops.Labels)
+	})
+
+	t.Run("labels present but empty", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+labels:
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.LabelsPresent)
+		assert.Nil(t, gitops.Labels, "empty labels section should result in nil")
+	})
+
+	t.Run("secrets present", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: mysecret
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.SecretsPresent)
+	})
+
+	t.Run("secrets absent", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+`)
+		require.NoError(t, err)
+		assert.False(t, gitops.SecretsPresent)
+	})
+
+	t.Run("software present on team", func(t *testing.T) {
+		premiumConfig := &fleet.EnrichedAppConfig{}
+		premiumConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+		path, basePath := createTempFile(t, "", `
+name: TestTeam
+software:
+  packages:
+    - url: https://example.com/pkg.deb
+`)
+		gitops, err := GitOpsFromFile(path, basePath, premiumConfig, nopLogf)
+		require.NoError(t, err)
+		assert.True(t, gitops.SoftwarePresent)
+	})
+
+	t.Run("software absent on team", func(t *testing.T) {
+		premiumConfig := &fleet.EnrichedAppConfig{}
+		premiumConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+		path, basePath := createTempFile(t, "", `
+name: TestTeam
+`)
+		gitops, err := GitOpsFromFile(path, basePath, premiumConfig, nopLogf)
+		require.NoError(t, err)
+		assert.False(t, gitops.SoftwarePresent)
+	})
+}

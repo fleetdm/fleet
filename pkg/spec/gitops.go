@@ -335,6 +335,13 @@ type GitOps struct {
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
 	FleetSecrets map[string]string
+
+	// LabelsPresent indicates that the `labels:` key was explicitly present in the YAML file.
+	LabelsPresent bool
+	// SoftwarePresent indicates that the `software:` key was explicitly present in the YAML file.
+	SoftwarePresent bool
+	// SecretsPresent indicates that the `secrets:` key was explicitly present in the YAML file.
+	SecretsPresent bool
 }
 
 type GitOpsSoftware struct {
@@ -457,9 +464,9 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	for _, topKey := range topKeys {
 		// "name" is handled later with special logic based on the filename.
-		// "labels" is a special case where omitting is a no-op, rather than a directive to clear settings.
-		// settings keys were handled above.
-		if topKey == "name" || topKey == "labels" || topKey == "settings" || topKey == "org_settings" {
+		// "labels" and "software" are special cases where omitting may be a no-op (based on exception settings),
+		// rather than a directive to clear settings. settings keys were handled above.
+		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "settings" || topKey == "org_settings" {
 			continue
 		}
 		// "controls" can be set on _either_ global or "no team" file, and we can't say which it is if both
@@ -484,6 +491,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	if _, ok := top["labels"]; !ok {
 		result.Labels = make([]*fleet.LabelSpec, 0)
 	} else {
+		result.LabelsPresent = true
 		multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
 	}
 	// Get other top-level entities.
@@ -777,6 +785,7 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 		// Any secrets present on the server will be retained.
 		return multiError
 	}
+	result.SecretsPresent = true
 	// When secrets slice is empty, all secrets are removed.
 	enrollSecrets := make([]*fleet.EnrollSecret, 0)
 	if rawSecrets != nil {
@@ -1723,12 +1732,17 @@ var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
 
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
+	if ok {
+		result.SoftwarePresent = true
+	}
 	if result.global() {
 		if ok && string(softwareRaw) != "null" {
 			return multierror.Append(multiError, errors.New("'software' cannot be set on global file"))
 		}
 	} else if !ok {
-		return multierror.Append(multiError, errors.New("'software' is required"))
+		// Software key is absent — this is allowed (will be a no-op if excepted,
+		// or will be treated as "delete all" if not excepted).
+		return multiError
 	}
 	var software Software
 	if len(softwareRaw) > 0 {

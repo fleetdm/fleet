@@ -1878,6 +1878,28 @@ func (c *Client) DoGitOps(
 
 	group := spec.Group{} // as we parse the incoming gitops spec, we'll build out various group specs that will each be applied separately
 
+	// Check GitOps exception enforcement. When an entity type is excepted:
+	// - If the key is present in the YAML, fail with an error.
+	// - If the key is absent, it's a no-op (existing entities preserved).
+	// When an entity type is NOT excepted:
+	// - If the key is absent, all entities of that type are deleted.
+	var exceptions fleet.GitOpsExceptions
+	if appConfig != nil && appConfig.GitOpsConfig.GitopsModeEnabled {
+		exceptions = appConfig.GitOpsConfig.Exceptions
+		if exceptions.Labels && incoming.LabelsPresent {
+			return nil, errors.New(
+				`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
+		}
+		if exceptions.Secrets && incoming.SecretsPresent {
+			return nil, errors.New(
+				`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
+		}
+		if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
+			return nil, errors.New(
+				`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+		}
+	}
+
 	if incoming.TeamName == nil {
 		// OrgSettings is the basis of the group AppConfig, but we will be adding and removing some
 		// items because the GitOps structure is not the same as the AppConfig structure.
@@ -1888,10 +1910,14 @@ func (c *Client) DoGitOps(
 
 		// Enroll secrets are managed separately in Client.ApplyGroup, so we remove them from the
 		// OrgSettings so that they are not applied as part of the AppConfig.
-		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok {
-			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
-			delete(incoming.OrgSettings, "secrets")
+		// If secrets are not excepted and key is absent, treat as delete-all.
+		if !exceptions.Secrets && !incoming.SecretsPresent {
+			incoming.OrgSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
+		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && !exceptions.Secrets {
+			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
+		}
+		delete(incoming.OrgSettings, "secrets")
 
 		// Certificate authorities are managed separately in Client.ApplyGroup, so we remove them from the
 		// OrgSettings so that they are not applied as part of the AppConfig.
@@ -1902,11 +1928,17 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
-		// Labels
-		if incoming.Labels == nil || len(incoming.Labels) > 0 {
-			err := c.doGitOpsLabels(incoming, logFn, dryRun)
-			if err != nil {
-				return nil, err
+		// Labels: skip if excepted (key already validated as absent above).
+		// If not excepted and key is absent, treat as delete-all.
+		if !exceptions.Labels {
+			if !incoming.LabelsPresent {
+				incoming.Labels = nil // triggers delete-all in computeLabelChanges
+			}
+			if incoming.Labels == nil || len(incoming.Labels) > 0 {
+				err := c.doGitOpsLabels(incoming, logFn, dryRun)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -2112,11 +2144,18 @@ func (c *Client) DoGitOps(
 			team["features"] = features
 		}
 		team["scripts"] = scripts
-		team["software"] = map[string]any{}
-		team["software"].(map[string]any)["app_store_apps"] = incoming.Software.AppStoreApps
-		team["software"].(map[string]any)["packages"] = incoming.Software.Packages
-		team["software"].(map[string]any)["fleet_maintained_apps"] = incoming.Software.FleetMaintainedApps
-		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok {
+		// Software: skip if excepted (key already validated as absent above).
+		if !exceptions.Software {
+			team["software"] = map[string]any{}
+			team["software"].(map[string]any)["app_store_apps"] = incoming.Software.AppStoreApps
+			team["software"].(map[string]any)["packages"] = incoming.Software.Packages
+			team["software"].(map[string]any)["fleet_maintained_apps"] = incoming.Software.FleetMaintainedApps
+		}
+		// Secrets: if not excepted and key is absent, treat as delete-all.
+		if !exceptions.Secrets && !incoming.SecretsPresent {
+			incoming.TeamSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
+		}
+		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && !exceptions.Secrets {
 			team["secrets"] = teamSecrets
 		}
 

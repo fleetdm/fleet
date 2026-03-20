@@ -379,9 +379,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 				GitopsModeEnabled: true,
 				RepositoryURL:     "https://didsomeonesaygitops.biz",
 				Exceptions: fleet.GitOpsExceptions{
-					Software: false,
-					Secrets:  true,
-					Labels:   true,
+					Labels:   false,
+					Software: true,
+					Secrets:  false,
 				},
 			},
 		}, nil
@@ -687,6 +687,144 @@ software:
 	// assert.Equal(t, "https://hydrant2.example.com", h2.URL)
 	// assert.Equal(t, "hydrant2_id", h2.ClientID)
 	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
+}
+
+func TestGitOpsExceptionEnforcement(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+	setupDefaultTeamConfigMocks(ds)
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		return false, nil
+	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return nil, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
+	}
+
+	// Test: excepted keys present in YAML → error
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				GitopsModeEnabled: true,
+				RepositoryURL:     "https://example.com/repo",
+				Exceptions:        fleet.GitOpsExceptions{Labels: true, Secrets: true},
+			},
+		}, nil
+	}
+
+	// Labels excepted + present → error
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: test-label
+    query: SELECT 1
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+
+	// Secrets excepted + present → error
+	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile2.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: mysecret
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"secrets" is excepted from GitOps management`)
+
+	// NOTE: The "excepted keys omitted → no-op succeeds" case is tested in the integration
+	// tests (TestGitOpsBasicGlobalPremium), which has the full mock setup needed for a
+	// successful GitOps run.
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {
