@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"fyne.io/systray"
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/cmd/desktop/menu"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
@@ -199,7 +200,7 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(
+		client, err := fleetclient.NewDeviceClient(
 			fleetURL,
 			insecureSkipVerify,
 			rootCA,
@@ -559,7 +560,7 @@ func main() {
 }
 
 type mdmMigrationHandler struct {
-	client      *service.DeviceClient
+	client      *fleetclient.DeviceClient
 	tokenReader *token.Reader
 }
 
@@ -715,7 +716,7 @@ func logDir() (string, error) {
 	return dir, nil
 }
 
-func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher, error) {
+func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *fleetclient.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher, error) {
 	dir, err := migration.Dir()
 	if err != nil {
 		return nil, nil, nil, err

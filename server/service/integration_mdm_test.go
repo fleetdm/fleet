@@ -2306,12 +2306,12 @@ func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
 	require.NoError(t, err)
 
 	// notification is false because the escrow buddy capability is not set
-	orbitConfigResp := orbitGetConfigResponse{}
+	orbitConfigResp := fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 	require.False(t, orbitConfigResp.Notifications.RotateDiskEncryptionKey)
 
 	// send the request again, this time with the right header
-	orbitConfigResp = orbitGetConfigResponse{}
+	orbitConfigResp = fleet.OrbitGetConfigResponse{}
 	res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, map[string]string{
 		"Authorization":          fmt.Sprintf("Bearer %s", s.token),
 		fleet.CapabilitiesHeader: string(fleet.CapabilityEscrowBuddy),
@@ -7380,7 +7380,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 
-		orbitConfigResp := orbitGetConfigResponse{}
+		orbitConfigResp := fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
@@ -7465,7 +7465,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
@@ -7480,7 +7480,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.NoError(t, res.Body.Close())
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
@@ -7496,7 +7496,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.NoError(t, res.Body.Close())
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
@@ -7559,7 +7559,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.True(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
@@ -7601,7 +7601,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
@@ -7633,7 +7633,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.True(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
@@ -7665,7 +7665,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.True(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
@@ -7786,7 +7786,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Windows MDM" notification.
 	for _, meta := range metadataHosts {
-		var resp orbitGetConfigResponse
+		var resp fleet.OrbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
@@ -7841,7 +7841,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	assert.True(t, acResp.MDM.EnableTurnOnWindowsMDMManually)
 	// No hosts should be told to enroll or unenroll because (un)enrollment is all done by the end-user
 	for _, meta := range metadataHosts {
-		var resp orbitGetConfigResponse
+		var resp fleet.OrbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
@@ -7864,7 +7864,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// receive the "needs enrollment to Windows MDM" and "needs migration" notifications.
 	// They still get enrollment notifications as we have not proceeded with enrollment.
 	for _, meta := range metadataHosts {
-		var resp orbitGetConfigResponse
+		var resp fleet.OrbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
@@ -7891,7 +7891,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 
 	// get the orbit config for that MDM-enrolled host returns true for the
 	// unenrollment notification
-	var resp orbitGetConfigResponse
+	var resp fleet.OrbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitHost.OrbitNodeKey)),
 		http.StatusOK, &resp)
@@ -7903,7 +7903,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// get the orbit config for each host, only the fleet-enrolled ones get the unenrollment,
 	// and none get enrollment/migration (because MDM is now off).
 	for _, meta := range metadataHosts {
-		var resp orbitGetConfigResponse
+		var resp fleet.OrbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
@@ -7929,7 +7929,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
       minimum_version: ""
  `))
 
-	var resp orbitGetConfigResponse
+	var resp fleet.OrbitGetConfigResponse
 	// missing orbit key
 	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
 
@@ -7939,7 +7939,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	err := s.ds.UpdateHostOperatingSystem(context.Background(), h.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
 	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
@@ -7955,7 +7955,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
  `))
 
 	// still empty if MDM is turned off for the host
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
 
@@ -7970,7 +7970,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	wantCfg, err := fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("14.6.1")})
 	require.NoError(t, err)
@@ -7991,7 +7991,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	require.NoError(t, err)
 
 	// NudgeConfig should be empty
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 20:00:00 +0000 UTC")
@@ -8008,7 +8008,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	}, http.StatusOK, &tmResp)
 	s.assertMacOSDeclarationsByName(&team.ID, servermdm.FleetMacOSUpdatesProfileName, true)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.6.9")})
 	require.NoError(t, err)
@@ -8030,7 +8030,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	err = s.ds.UpdateHostOperatingSystem(context.Background(), h2.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
 	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("14.6.1")})
 	require.NoError(t, err)
@@ -8053,7 +8053,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	err = s.ds.UpdateHostOperatingSystem(context.Background(), h3.ID, fleet.OperatingSystem{Platform: "darwin", Version: "14.1"})
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h3.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Nil(t, resp.NudgeConfig)
 
@@ -8071,7 +8071,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h4.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Nil(t, resp.NudgeConfig)
 }
@@ -9576,7 +9576,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	windowsHost := createOrbitEnrolledHost(t, "windows", t.Name(), s.ds)
 
 	checkNotification := func(want bool) {
-		resp := orbitGetConfigResponse{}
+		resp := fleet.OrbitGetConfigResponse{}
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *windowsHost.OrbitNodeKey)), http.StatusOK, &resp)
 		require.Equal(t, want, resp.Notifications.EnforceBitLockerEncryption)
 	}
@@ -9691,7 +9691,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	assert.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
 
 	// try to call the endpoint while the host is not MDM-enrolled
-	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *host.OrbitNodeKey,
 		EncryptionKey: []byte("WILL-FAIL"),
 	}, http.StatusBadRequest)
@@ -9706,7 +9706,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NoError(t, err)
 
 	// set its encryption key
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *host.OrbitNodeKey,
 		EncryptionKey: []byte("ABC"),
 	}, http.StatusNoContent)
@@ -9754,7 +9754,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.Equal(t, "ABC", string(decrypted))
 
 	// set it with a client error
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey: *host.OrbitNodeKey,
 		ClientError:  "fail",
 	}, http.StatusNoContent)
@@ -9772,7 +9772,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.Equal(t, "fail", hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
 	// set a different key
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *host.OrbitNodeKey,
 		EncryptionKey: []byte("DEF"),
 	}, http.StatusNoContent)
@@ -9839,7 +9839,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": false } }`), http.StatusOK, &acResp)
 		assert.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
 
-		s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 			OrbitNodeKey:  *host.OrbitNodeKey,
 			EncryptionKey: []byte("NEW-KEY"),
 		}, http.StatusNoContent)
@@ -9865,7 +9865,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": true } }`), http.StatusOK, &acResp)
 		assert.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
 
-		s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 			OrbitNodeKey:  *host.OrbitNodeKey,
 			EncryptionKey: []byte("NEW-KEY-2"),
 		}, http.StatusNoContent)
@@ -11916,7 +11916,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	}`), http.StatusOK, &acResp)
 
 	// orbit config asks for a migration but not to renew enrollment profile
-	resp := orbitGetConfigResponse{}
+	resp := fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 	require.True(t, resp.Notifications.NeedsMDMMigration)
@@ -11944,7 +11944,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.True(t, *hostResp.Host.MDM.ConnectedToFleet)
 
 	// orbit config asks for a migration because user migrations are enabled, but no ask to renew the enrollment profile.
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 	require.True(t, resp.Notifications.NeedsMDMMigration)
@@ -12002,7 +12002,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	err = s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
 	// orbit config asks to renew the enrollment profile, migration is not needed anymore so it's false
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &resp)
 	require.True(t, resp.Notifications.RenewEnrollmentProfile)
 	require.False(t, resp.Notifications.NeedsMDMMigration)
@@ -12012,7 +12012,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_migration": { "enable": false } }
 	}`), http.StatusOK, &acResp)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &resp)
 	require.True(t, resp.Notifications.RenewEnrollmentProfile)
 	require.False(t, resp.Notifications.NeedsMDMMigration)
@@ -15003,7 +15003,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.True(t, policySeen)
 
 	// Validate that orbit got a notif (and get the exec ID for the script)
-	var orbitResp orbitGetConfigResponse
+	var orbitResp fleet.OrbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *mdmHost2.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
@@ -15032,7 +15032,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
 
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *mdmHost2.OrbitNodeKey, scriptExecID)),
 		http.StatusOK, &orbitPostScriptResp)
@@ -18057,8 +18057,8 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	var orbitRes getOrbitSetupExperienceStatusResponse
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusRequest{OrbitNodeKey: orbitNodeKey}, http.StatusOK, &orbitRes)
+	var orbitRes fleet.GetOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: orbitNodeKey}, http.StatusOK, &orbitRes)
 
 	require.Len(t, orbitRes.Results.Software, 2)
 
@@ -18097,7 +18097,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
 
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusRequest{OrbitNodeKey: orbitNodeKey}, http.StatusOK, &orbitRes)
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: orbitNodeKey}, http.StatusOK, &orbitRes)
 
 	require.Len(t, orbitRes.Results.Software, 2)
 
@@ -18877,7 +18877,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 
 	// save a script result for host 1, as the script should've been activated
 	// when MDM was turned off
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *mdmHost.OrbitNodeKey, scriptExecID)),
 		http.StatusOK, &orbitPostScriptResp)
@@ -19452,7 +19452,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "test-script.sh"}`, mdmHost.ID, mdmHost.DisplayName()), 0)
 
 	// record a script result post-cancelation
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[0].UUID)),
 		http.StatusOK, &orbitPostScriptResp)

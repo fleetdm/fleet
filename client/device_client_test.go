@@ -1,4 +1,4 @@
-package service
+package client
 
 import (
 	"bytes"
@@ -10,16 +10,17 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/require"
 )
 
-type mockHttpClient struct {
+type mockHTTPClient struct {
 	resBody    string
 	statusCode int
 	err        error
 }
 
-func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
+func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -37,13 +38,13 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 	token := "test_token"
 	require.NoError(t, err)
 
-	mockRequestDoer := &mockHttpClient{}
-	client.http = mockRequestDoer
+	mockRequestDoer := &mockHTTPClient{}
+	client.SetHTTPClient(mockRequestDoer)
 
 	t.Run("with wrong license", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusPaymentRequired
 		_, err = client.DesktopSummary(token)
-		require.ErrorIs(t, err, ErrMissingLicense)
+		require.ErrorIs(t, err, service.ErrMissingLicense)
 	})
 
 	t.Run("with no failing policies", func(t *testing.T) {
@@ -141,7 +142,7 @@ func TestDeviceClientRetryInvalidToken(t *testing.T) {
 
 		_, err = client.DesktopSummary("bad")
 		require.Error(t, err)
-		require.ErrorIs(t, err, ErrUnauthenticated)
+		require.ErrorIs(t, err, service.ErrUnauthenticated)
 		require.Equal(t, int64(1), callCounts.Load())
 	})
 
@@ -204,7 +205,7 @@ func TestDeviceClientRetryInvalidToken(t *testing.T) {
 
 		_, err = client.DesktopSummary("bad")
 		require.Error(t, err)
-		require.ErrorIs(t, err, ErrUnauthenticated)
+		require.ErrorIs(t, err, service.ErrUnauthenticated)
 		require.Equal(t, int64(4), callCounts.Load())
 	})
 }

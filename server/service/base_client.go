@@ -21,10 +21,13 @@ import (
 
 var errInvalidScheme = errors.New("address must start with https:// for remote connections")
 
-// httpClient interface allows the HTTP methods to be mocked.
-type httpClient interface {
+// HTTPClient interface allows the HTTP methods to be mocked.
+type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
+
+// httpClient is a backward-compatible alias for HTTPClient.
+type httpClient = HTTPClient
 
 type baseClient struct {
 	baseURL            *url.URL
@@ -39,6 +42,9 @@ type baseClient struct {
 	// modified afterwards.
 	clientCapabilities fleet.CapabilityMap
 }
+
+// BaseClient is an exported alias for baseClient, used by the client/ package.
+type BaseClient = baseClient
 
 // parseResponse processes the status code and parses the response body.
 // It does not close the response body (should be closed by the caller).
@@ -278,3 +284,49 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	pr.progressFunc(n)
 	return n, err
 }
+
+// Exported methods for use by the client/ package.
+
+// URL returns the full URL for the given path and query.
+func (bc *baseClient) URL(path, rawQuery string) *url.URL {
+	return bc.url(path, rawQuery)
+}
+
+// SetClientCapabilitiesHeader sets the client capabilities header on the request.
+func (bc *baseClient) SetClientCapabilitiesHeader(req *http.Request) {
+	bc.setClientCapabilitiesHeader(req)
+}
+
+// ParseResponse processes the status code and parses the response body (exported version).
+func (bc *baseClient) ParseResponse(verb, path string, response *http.Response, responseDest any) error {
+	return bc.parseResponse(verb, path, response, responseDest)
+}
+
+// DoHTTPRequest performs an HTTP request using the underlying HTTP client.
+func (bc *baseClient) DoHTTPRequest(req *http.Request) (*http.Response, error) {
+	return bc.http.Do(req)
+}
+
+// GetRawHTTPClient returns the underlying HTTP client for type assertions (e.g., idle connection cleanup).
+func (bc *baseClient) GetRawHTTPClient() HTTPClient {
+	return bc.http
+}
+
+// SetHTTPClient sets the underlying HTTP client (used in tests).
+func (bc *baseClient) SetHTTPClient(c HTTPClient) {
+	bc.http = c
+}
+
+// NewBaseClient creates a new BaseClient (exported version of newBaseClient).
+var NewBaseClient = newBaseClient
+
+// BodyHandler is an exported alias for bodyHandler.
+type BodyHandler = bodyHandler
+
+// IsNotFoundErr is the exported version of isNotFoundErr.
+func IsNotFoundErr(err error) bool {
+	return isNotFoundErr(err)
+}
+
+// StatusCodeErr is an exported alias for statusCodeErr.
+type StatusCodeErr = statusCodeErr

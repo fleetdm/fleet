@@ -1,4 +1,4 @@
-package service
+package client
 
 import (
 	"bytes"
@@ -26,13 +26,14 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/rs/zerolog/log"
 )
 
 // OrbitClient exposes the Orbit API to communicate with the Fleet server.
 type OrbitClient struct {
-	*baseClient
+	*service.BaseClient
 	nodeKeyFilePath string
 	enrollSecret    string
 	hostInfo        fleet.OrbitHostInfo
@@ -90,13 +91,13 @@ func (oc *OrbitClient) SetOpenSSOWindowFunc(f func() error) {
 	oc.openSSOWindow = f
 }
 
-func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
+func (oc *OrbitClient) request(verb string, path string, params any, resp any) error {
 	return oc.requestWithExternal(verb, path, params, resp, false)
 }
 
 // requestWithExternal is used to make requests to Fleet or external URLs. If external is true, the pathOrURL
 // is used as the full URL to make the request to.
-func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params interface{}, resp interface{}, external bool) error {
+func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params any, resp any, external bool) error {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -133,22 +134,22 @@ func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params
 		request, err = http.NewRequestWithContext(
 			ctx,
 			verb,
-			oc.url(parsedURL.Path, parsedURL.RawQuery).String(),
+			oc.URL(parsedURL.Path, parsedURL.RawQuery).String(),
 			bytes.NewBuffer(bodyBytes),
 		)
 		if err != nil {
 			return err
 		}
-		oc.setClientCapabilitiesHeader(request)
+		oc.SetClientCapabilitiesHeader(request)
 	}
-	response, err := oc.http.Do(request)
+	response, err := oc.DoHTTPRequest(request)
 	if err != nil {
 		oc.setLastRecordedError(err)
 		return fmt.Errorf("%s %s: %w", verb, pathOrURL, err)
 	}
 	defer response.Body.Close()
 
-	if err := oc.parseResponse(verb, pathOrURL, response, resp); err != nil {
+	if err := oc.ParseResponse(verb, pathOrURL, response, resp); err != nil {
 		oc.setLastRecordedError(err)
 		return err
 	}
@@ -189,7 +190,7 @@ func NewOrbitClient(
 	hostIdentityCertPath string,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.GetOrbitClientCapabilities()
-	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
+	bc, err := service.NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +200,7 @@ func NewOrbitClient(
 
 	return &OrbitClient{
 		nodeKeyFilePath:            nodeKeyFilePath,
-		baseClient:                 bc,
+		BaseClient:                 bc,
 		enrollSecret:               enrollSecret,
 		hostInfo:                   orbitHostInfo,
 		enrolled:                   false,
@@ -228,15 +229,7 @@ func (oc *OrbitClient) RestartTriggered() bool {
 	}
 }
 
-// closeIdleConnections attempts to close idle connections from the pool
-// every 55 minutes.
-//
-// Some load balancers (e.g. AWS ELB) have a maximum lifetime for a connection
-// (no matter if the connection is active or not) and will forcefully close the
-// connection causing errors in the client (e.g. https://github.com/fleetdm/fleet/issues/18783).
-// To prevent these errors, we will attempt to cleanup idle connections every 55
-// minutes to not let these connection grow too old. (AWS ELB's default value for maximum
-// lifetime of a connection is 3600 seconds.)
+// closeIdleConnections attempts to close idle connections from the pool every 55 minutes.
 func (oc *OrbitClient) closeIdleConnections() {
 	oc.lastIdleConnectionsCleanupMu.Lock()
 	defer oc.lastIdleConnectionsCleanupMu.Unlock()
@@ -247,7 +240,8 @@ func (oc *OrbitClient) closeIdleConnections() {
 
 	oc.lastIdleConnectionsCleanup = time.Now()
 
-	c, ok := oc.baseClient.http.(*http.Client)
+	rawClient := oc.GetRawHTTPClient()
+	c, ok := rawClient.(*http.Client)
 	if !ok {
 		return
 	}
@@ -271,7 +265,6 @@ func (oc *OrbitClient) RunConfigReceivers() error {
 	wg.Add(len(oc.ConfigReceivers))
 
 	for _, receiver := range oc.ConfigReceivers {
-		receiver := receiver
 		go func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -325,14 +318,10 @@ func (oc *OrbitClient) InterruptConfigReceivers(err error) {
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
-// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
-// to reduce traffic to the Fleet server.
-// Upon network errors, this method will retry the get config request (every 30 seconds).
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	oc.configCache.mu.Lock()
 	defer oc.configCache.mu.Unlock()
 
-	// If time-to-live passed, we update the config cache
 	now := time.Now()
 	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
 		verb, path := "POST", "/api/fleet/orbit/config"
@@ -340,23 +329,22 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 			resp fleet.OrbitConfig
 			err  error
 		)
-		// Retry until we don't get a network error or a 5XX error.
 		_ = retry.Do(func() error {
-			err = oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
+			err = oc.authenticatedRequest(verb, path, &fleet.OrbitGetConfigRequest{}, &resp)
 			var (
 				netErr        net.Error
-				statusCodeErr *statusCodeErr
+				statusCodeErr *service.StatusCodeErr
 			)
 			if err != nil && oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.DebugErrFunc != nil {
 				oc.onGetConfigErrFns.DebugErrFunc(err)
 			}
-			if errors.As(err, &netErr) || (errors.As(err, &statusCodeErr) && statusCodeErr.code >= 500) {
+			if errors.As(err, &netErr) || (errors.As(err, &statusCodeErr) && statusCodeErr.StatusCode() >= 500) {
 				now := time.Now()
 				if oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.OnNetErrFunc != nil && now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrInterval)) {
 					oc.onGetConfigErrFns.OnNetErrFunc(err)
 					oc.lastNetErrOnGetConfigLogged = now
 				}
-				return err // retry on network or server 5XX errors
+				return err
 			}
 			return nil
 		}, retry.WithInterval(configRetryOnNetworkError))
@@ -367,40 +355,37 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	return oc.configCache.config, oc.configCache.err
 }
 
-// SetOrUpdateDeviceToken sends a request to the server to set or update the
-// device token with the given value.
+// SetOrUpdateDeviceToken sends a request to the server to set or update the device token.
 func (oc *OrbitClient) SetOrUpdateDeviceToken(deviceAuthToken string) error {
 	verb, path := "POST", "/api/fleet/orbit/device_token"
-	params := setOrUpdateDeviceTokenRequest{
+	params := fleet.SetOrUpdateDeviceTokenRequest{
 		DeviceAuthToken: deviceAuthToken,
 	}
-	var resp setOrUpdateDeviceTokenResponse
+	var resp fleet.SetOrUpdateDeviceTokenResponse
 	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
 		return err
 	}
 	return nil
 }
 
-// SetOrUpdateDeviceMappingEmail sends a request to the server to set or update the
-// device mapping email with the given value.
+// SetOrUpdateDeviceMappingEmail sends a request to the server to set or update the device mapping email.
 func (oc *OrbitClient) SetOrUpdateDeviceMappingEmail(email string) error {
 	verb, path := "PUT", "/api/fleet/orbit/device_mapping"
-	params := orbitPutDeviceMappingRequest{
+	params := fleet.OrbitPutDeviceMappingRequest{
 		Email: email,
 	}
-	var resp orbitPutDeviceMappingResponse
+	var resp fleet.OrbitPutDeviceMappingResponse
 	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
 		return err
 	}
 	return nil
 }
 
-// GetHostScript returns the script fetched from Fleet server to run on this
-// host.
+// GetHostScript returns the script fetched from Fleet server to run on this host.
 func (oc *OrbitClient) GetHostScript(execID string) (*fleet.HostScriptResult, error) {
 	verb, path := "POST", "/api/fleet/orbit/scripts/request"
-	var resp orbitGetScriptResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitGetScriptRequest{
+	var resp fleet.OrbitGetScriptResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitGetScriptRequest{
 		ExecutionID: execID,
 	}, &resp); err != nil {
 		return nil, err
@@ -411,8 +396,8 @@ func (oc *OrbitClient) GetHostScript(execID string) (*fleet.HostScriptResult, er
 // SaveHostScriptResult saves the result of running the script on this host.
 func (oc *OrbitClient) SaveHostScriptResult(result *fleet.HostScriptResultPayload) error {
 	verb, path := "POST", "/api/fleet/orbit/scripts/result"
-	var resp orbitPostScriptResultResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitPostScriptResultRequest{
+	var resp fleet.OrbitPostScriptResultResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitPostScriptResultRequest{
 		HostScriptResultPayload: result,
 	}, &resp); err != nil {
 		return err
@@ -422,8 +407,8 @@ func (oc *OrbitClient) SaveHostScriptResult(result *fleet.HostScriptResultPayloa
 
 func (oc *OrbitClient) GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error) {
 	verb, path := "POST", "/api/fleet/orbit/software_install/details"
-	var resp orbitGetSoftwareInstallResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitGetSoftwareInstallRequest{
+	var resp fleet.OrbitGetSoftwareInstallResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID: installId,
 	}, &resp); err != nil {
 		return nil, err
@@ -433,8 +418,8 @@ func (oc *OrbitClient) GetInstallerDetails(installId string) (*fleet.SoftwareIns
 
 func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
 	verb, path := "POST", "/api/fleet/orbit/software_install/result"
-	var resp orbitPostSoftwareInstallResultResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitPostSoftwareInstallResultRequest{
+	var resp fleet.OrbitPostSoftwareInstallResultResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitPostSoftwareInstallResultRequest{
 		HostSoftwareInstallResultPayload: payload,
 	}, &resp); err != nil {
 		return err
@@ -444,11 +429,11 @@ func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallRes
 
 func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirectory string, progressFunc func(n int)) (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
-	resp := FileResponse{
+	resp := service.FileResponse{
 		DestPath:     downloadDirectory,
 		ProgressFunc: progressFunc,
 	}
-	if err := oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitDownloadSoftwareInstallerRequest{
 		InstallerID: installerID,
 	}, &resp); err != nil {
 		return "", err
@@ -457,7 +442,7 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 }
 
 func (oc *OrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDirectory string, progressFunc func(int)) (string, error) {
-	resp := FileResponse{
+	resp := service.FileResponse{
 		DestPath:      downloadDirectory,
 		DestFile:      filename,
 		SkipMediaType: true,
@@ -469,6 +454,7 @@ func (oc *OrbitClient) DownloadSoftwareInstallerFromURL(url string, filename str
 	return resp.GetFilePath(), nil
 }
 
+// NullFileResponse discards downloaded file content.
 type NullFileResponse struct{}
 
 func (f *NullFileResponse) Handle(resp *http.Response) error {
@@ -484,11 +470,10 @@ func (f *NullFileResponse) Handle(resp *http.Response) error {
 }
 
 // DownloadAndDiscardSoftwareInstaller downloads the software installer and discards it.
-// This method is used during load testing by osquery-perf.
 func (oc *OrbitClient) DownloadAndDiscardSoftwareInstaller(installerID uint) error {
 	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
 	resp := NullFileResponse{}
-	return oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
+	return oc.authenticatedRequest(verb, path, &fleet.OrbitDownloadSoftwareInstallerRequest{
 		InstallerID: installerID,
 	}, &resp)
 }
@@ -497,8 +482,7 @@ func (oc *OrbitClient) DownloadAndDiscardSoftwareInstaller(installerID uint) err
 func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
 	err := oc.request(verb, path, nil, nil)
-	if err == nil || isNotFoundErr(err) {
-		// notFound is ok, it means an old server without the capabilities header
+	if err == nil || service.IsNotFoundErr(err) {
 		return nil
 	}
 	return err
@@ -517,7 +501,7 @@ func (oc *OrbitClient) enroll() (string, error) {
 		ComputerName:      oc.hostInfo.ComputerName,
 		HardwareModel:     oc.hostInfo.HardwareModel,
 	}
-	var resp EnrollOrbitResponse
+	var resp fleet.EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
 	if err != nil {
 		return "", err
@@ -529,8 +513,6 @@ func (oc *OrbitClient) enroll() (string, error) {
 // want to re-enroll at the same time.
 var enrollLock sync.Mutex
 
-// getNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
-// otherwise it enrolls the host with Fleet and saves the node key to disk
 func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	if oc.TestNodeKey != "" {
 		return oc.TestNodeKey, nil
@@ -554,24 +536,15 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			orbitNodeKey_, err = oc.enrollAndWriteNodeKeyFile()
 			return err
 		},
-		// The below configuration means the following retry intervals (exponential backoff):
-		// 10s, 20s, 40s, 80s, 160s and then return the failure (max attempts = 6)
-		// thus executing no more than ~6 enroll request failures every ~5 minutes.
 		retry.WithInterval(orbitEnrollRetryInterval()),
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
 		retry.WithBackoffMultiplier(constant.OrbitEnrollBackoffMultiplier),
 		retry.WithErrorFilter(func(err error) (errorOutcome retry.ErrorOutcome) {
 			log.Info().Err(err).Msg("orbit enroll attempt failed")
 			switch {
-			case isNotFoundErr(err):
-				// Do not retry if the endpoint does not exist.
+			case service.IsNotFoundErr(err):
 				return retry.ErrorOutcomeDoNotRetry
-			case errors.Is(err, ErrEndUserAuthRequired):
-				// If we get an ErrEndUserAuthRequired error, then the user
-				// needs to authenticate with the identity provider.
-				//
-				// Open a browser window to the sign-on page and
-				// then keep retrying until they authenticate.
+			case errors.Is(err, service.ErrEndUserAuthRequired):
 				log.Debug().Msg("enroll unauthenticated, waiting for end-user to authenticate via SSO")
 				if !oc.initiatedIdpAuth {
 					if oc.openSSOWindow == nil {
@@ -586,7 +559,6 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 					}
 					oc.initiatedIdpAuth = true
 				}
-				// Sleep for 20 seconds, making the total retry interval 30 seconds
 				time.Sleep(20 * time.Second)
 				return retry.ErrorOutcomeResetAttempts
 			default:
@@ -595,7 +567,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			}
 		}),
 	); err != nil {
-		if isNotFoundErr(err) {
+		if service.IsNotFoundErr(err) {
 			return "", errors.New("enroll endpoint does not exist")
 		}
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
@@ -619,19 +591,14 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 	}
 
 	if runtime.GOOS == "windows" {
-
-		// creating the secret file with empty content
 		if err := os.WriteFile(oc.nodeKeyFilePath, nil, constant.DefaultFileMode); err != nil {
 			return "", fmt.Errorf("create orbit node key file: %w", err)
 		}
-
-		// restricting file access
 		if err := platform.ChmodRestrictFile(oc.nodeKeyFilePath); err != nil {
 			return "", fmt.Errorf("apply ACLs: %w", err)
 		}
 	}
 
-	// writing raw key material to the acl-ready secret file
 	if err := os.WriteFile(oc.nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("write orbit node key file: %w", err)
 	}
@@ -639,21 +606,21 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 	return orbitNodeKey, nil
 }
 
-func (oc *OrbitClient) authenticatedRequest(verb string, path string, params interface{}, resp interface{}) error {
+func (oc *OrbitClient) authenticatedRequest(verb string, path string, params any, resp any) error {
 	nodeKey, err := oc.getNodeKeyOrEnroll()
 	if err != nil {
 		return err
 	}
 
-	s := params.(setOrbitNodeKeyer)
-	s.setOrbitNodeKey(nodeKey)
+	s := params.(fleet.SetOrbitNodeKeyer)
+	s.SetOrbitNodeKey(nodeKey)
 
 	err = oc.request(verb, path, params, resp)
 	switch {
 	case err == nil:
 		oc.setEnrolled(true)
 		return nil
-	case errors.Is(err, ErrUnauthenticated):
+	case errors.Is(err, service.ErrUnauthenticated):
 		if err := os.Remove(oc.nodeKeyFilePath); err != nil {
 			log.Info().Err(err).Msg("remove orbit node key")
 		}
@@ -675,28 +642,24 @@ func (oc *OrbitClient) authenticatedRequest(verb string, path string, params int
 func (oc *OrbitClient) Enrolled() bool {
 	oc.enrolledMu.Lock()
 	defer oc.enrolledMu.Unlock()
-
 	return oc.enrolled
 }
 
 func (oc *OrbitClient) setEnrolled(v bool) {
 	oc.enrolledMu.Lock()
 	defer oc.enrolledMu.Unlock()
-
 	oc.enrolled = v
 }
 
 func (oc *OrbitClient) LastRecordedError() error {
 	oc.lastRecordedErrMu.Lock()
 	defer oc.lastRecordedErrMu.Unlock()
-
 	return oc.lastRecordedErr
 }
 
 func (oc *OrbitClient) setLastRecordedError(err error) {
 	oc.lastRecordedErrMu.Lock()
 	defer oc.lastRecordedErrMu.Unlock()
-
 	oc.lastRecordedErr = fmt.Errorf("%s: %w", time.Now().UTC().Format("2006-01-02T15:04:05Z"), err)
 }
 
@@ -711,13 +674,11 @@ func orbitEnrollRetryInterval() time.Duration {
 	return constant.OrbitEnrollRetrySleep
 }
 
-// SetOrUpdateDiskEncryptionKey sends a request to the server to set or update the disk
-// encryption keys and result of the encryption process
+// SetOrUpdateDiskEncryptionKey sends a request to the server to set or update the disk encryption keys.
 func (oc *OrbitClient) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
 	verb, path := "POST", "/api/fleet/orbit/disk_encryption_key"
-
-	var resp orbitPostDiskEncryptionKeyResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitPostDiskEncryptionKeyRequest{
+	var resp fleet.OrbitPostDiskEncryptionKeyResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitPostDiskEncryptionKeyRequest{
 		EncryptionKey: diskEncryptionStatus.EncryptionKey,
 		ClientError:   diskEncryptionStatus.ClientError,
 	}, &resp); err != nil {
@@ -746,21 +707,20 @@ var testStdoutHTTPTracer = &httptrace.ClientTrace{
 // GetSetupExperienceStatus checks the status of the setup experience for this host.
 func (oc *OrbitClient) GetSetupExperienceStatus(resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
 	verb, path := "POST", "/api/fleet/orbit/setup_experience/status"
-	var resp getOrbitSetupExperienceStatusResponse
-	err := oc.authenticatedRequest(verb, path, &getOrbitSetupExperienceStatusRequest{
+	var resp fleet.GetOrbitSetupExperienceStatusResponse
+	err := oc.authenticatedRequest(verb, path, &fleet.GetOrbitSetupExperienceStatusRequest{
 		ResetFailedSetupSteps: resetFailedSetupSteps,
 	}, &resp)
 	if err != nil {
 		return nil, err
 	}
-
 	return resp.Results, nil
 }
 
 func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 	verb, path := "POST", "/api/fleet/orbit/luks_data"
-	var resp orbitPostLUKSResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitPostLUKSRequest{
+	var resp fleet.OrbitPostLUKSResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitPostLUKSRequest{
 		Passphrase:  lr.Passphrase,
 		KeySlot:     lr.KeySlot,
 		Salt:        lr.Salt,
@@ -768,16 +728,14 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 	}, &resp); err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (oc *OrbitClient) InitiateSetupExperience() (fleet.SetupExperienceInitResult, error) {
 	verb, path := "POST", "/api/fleet/orbit/setup_experience/init"
-	var resp orbitSetupExperienceInitResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitSetupExperienceInitRequest{}, &resp); err != nil {
+	var resp fleet.OrbitSetupExperienceInitResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitSetupExperienceInitRequest{}, &resp); err != nil {
 		return fleet.SetupExperienceInitResult{}, err
 	}
-
 	return resp.Result, nil
 }

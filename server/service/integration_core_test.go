@@ -4182,7 +4182,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	})
 
 	// create a custom_installer email for orbit host
-	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", fleet.OrbitPutDeviceMappingRequest{
 		OrbitNodeKey: *orbitHost.OrbitNodeKey,
 		Email:        "e@b.c",
 	}, http.StatusOK)
@@ -4214,7 +4214,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", orbitHost.ID), putHostDeviceMappingRequest{Email: "f@b.c"}, http.StatusOK, &putResp)
 
 	// update the custom_installer email for orbit host, will get ignored (because a custom_override exists)
-	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", fleet.OrbitPutDeviceMappingRequest{
 		OrbitNodeKey: *orbitHost.OrbitNodeKey,
 		Email:        "g@b.c",
 	}, http.StatusOK)
@@ -10541,7 +10541,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	// the orbit endpoint to set the disk encryption key always fails in this
 	// suite because MDM is not configured.
 	orbitHost := createOrbitEnrolledHost(t, "windows", "diskenc", s.ds)
-	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *orbitHost.OrbitNodeKey,
 		EncryptionKey: []byte("testkey"),
 	}, http.StatusBadRequest)
@@ -11121,7 +11121,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		var headers map[string]string
 		switch {
 		case route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status":
-			params = getOrbitSetupExperienceStatusRequest{
+			params = fleet.GetOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
 
@@ -11175,19 +11175,19 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 		require.NoError(t, err)
 	}()
 
-	var resp orbitGetConfigResponse
+	var resp fleet.OrbitGetConfigResponse
 	// missing orbit key
 	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
 
 	hNoMDM := createOrbitEnrolledHost(t, "darwin", "nomdm", s.ds)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hNoMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
 	hSimpleMDM := createOrbitEnrolledHost(t, "darwin", "simplemdm", s.ds)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hSimpleMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -11196,7 +11196,7 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -11209,14 +11209,14 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.NoError(t, err)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.True(t, resp.Notifications.RenewEnrollmentProfile)
 
 	// if the fleet mdm host is fully enrolled (not pending anymore), then the notification is false
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, true, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -12316,7 +12316,7 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 
 	// Orbit client gets no extensions if extensions are not configured.
 	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar1", s.ds)
-	resp := orbitGetConfigResponse{}
+	resp := fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.Extensions)
 
@@ -12388,7 +12388,7 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 
 	// Orbit client gets extensions configured for its platform.
 	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar2", s.ds)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
     "hello_world_macos": {
@@ -12400,12 +12400,12 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
 
 	// Orbit client gets no extensions if none of the platforms target it.
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.Extensions)
 
 	// Orbit client gets the two extensions configured for its platform.
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
 	"hello_world_linux": {
@@ -13651,28 +13651,28 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	orbitHost := createOrbitEnrolledHost(t, "windows", "device_token", s.ds)
 
 	// Write empty token
-	body := setOrUpdateDeviceTokenRequest{
+	body := fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 
 	// Use illegal characters
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "../.",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 
 	// Write bad node key
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    "",
 		DeviceAuthToken: "token",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusUnauthorized, &response{})
 
 	// Write a good token.
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "token",
 	}
@@ -13681,14 +13681,14 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	// Try to write the token again for a different host.
 	// First write a valid token.
 	orbitHost2 := createOrbitEnrolledHost(t, "darwin", "device_token2", s.ds)
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
 		DeviceAuthToken: "token2",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
 
 	// Now write a duplicate token, which will result in a conflict with the first host.
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
 		DeviceAuthToken: "token",
 	}
@@ -13732,7 +13732,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	require.Equal(t, "echo 'hello world'", result.ScriptContents)
 	require.Nil(t, result.ExitCode)
 
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)

@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
@@ -1017,7 +1018,7 @@ func orbitAction(c *cli.Context) error {
 	var (
 		signerWrapper               func(*http.Client) *http.Client
 		hostIdentityCertificatePath string
-		orbitClient                 *service.OrbitClient
+		orbitClient                 *fleetclient.OrbitClient
 	)
 	if c.Bool("fleet-managed-host-identity-certificate") {
 		commonName := osqueryHostInfo.HardwareUUID
@@ -1117,7 +1118,7 @@ func orbitAction(c *cli.Context) error {
 		)
 	}
 
-	orbitClient, err = service.NewOrbitClient(
+	orbitClient, err = fleetclient.NewOrbitClient(
 		c.String("root-dir"),
 		fleetURL,
 		c.String("fleet-certificate"),
@@ -1125,7 +1126,7 @@ func orbitAction(c *cli.Context) error {
 		enrollSecret,
 		fleetClientCertificate,
 		orbitHostInfo,
-		&service.OnGetConfigErrFuncs{
+		&fleetclient.OnGetConfigErrFuncs{
 			DebugErrFunc: func(err error) {
 				log.Debug().Err(err).Msg("get config")
 			},
@@ -1168,11 +1169,11 @@ func orbitAction(c *cli.Context) error {
 	orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
 	var trw *token.ReadWriter
-	var deviceClient *service.DeviceClient
+	var deviceClient *fleetclient.DeviceClient
 	// Note that the deviceClient used by orbit must not define a retry on
 	// invalid token, because its goal is to detect invalid tokens when
 	// making requests with this client.
-	deviceClient, err = service.NewDeviceClient(
+	deviceClient, err = fleetclient.NewDeviceClient(
 		fleetURL,
 		c.Bool("insecure"),
 		c.String("fleet-certificate"),
@@ -1366,7 +1367,7 @@ func orbitAction(c *cli.Context) error {
 	}
 	addSubsystem(&g, "osqueryd runner", r)
 
-	checkerClient, err := service.NewOrbitClient(
+	checkerClient, err := fleetclient.NewOrbitClient(
 		c.String("root-dir"),
 		fleetURL,
 		c.String("fleet-certificate"),
@@ -1374,7 +1375,7 @@ func orbitAction(c *cli.Context) error {
 		enrollSecret,
 		fleetClientCertificate,
 		orbitHostInfo,
-		&service.OnGetConfigErrFuncs{
+		&fleetclient.OnGetConfigErrFuncs{
 			DebugErrFunc: func(err error) {
 				log.Debug().Err(err).Msg("get config")
 			},
@@ -1575,7 +1576,7 @@ func orbitAction(c *cli.Context) error {
 	return nil
 }
 
-func processSetupExperience(orbitClient *service.OrbitClient, rootDir string, openMyDevicePage func() error) error {
+func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
 	exp, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
 	if err != nil {
@@ -2144,12 +2145,12 @@ func (s *serviceChecker) Interrupt(err error) {
 //
 // This struct and its methods are designed to play nicely with `oklog.Group`.
 type capabilitiesChecker struct {
-	client        *service.OrbitClient
+	client        *fleetclient.OrbitClient
 	interruptCh   chan struct{} // closed when interrupt is triggered
 	executeDoneCh chan struct{} // closed when execute returns
 }
 
-func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
+func newCapabilitiesChecker(client *fleetclient.OrbitClient) *capabilitiesChecker {
 	return &capabilitiesChecker{
 		client:        client,
 		interruptCh:   make(chan struct{}),

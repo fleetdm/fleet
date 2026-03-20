@@ -763,7 +763,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	enrolledHost.OrbitNodeKey = &orbitKey
 
 	// call the /config endpoint as fleetd would
-	var orbitConfigResp orbitGetConfigResponse
+	var orbitConfigResp fleet.OrbitGetConfigResponse
 	var caps fleet.CapabilityMap
 	if opts.UseOldFleetdFlow {
 		// important thing is that it doesn't have the CapabilitySetupExperience
@@ -804,7 +804,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 		// calling the orbit config endpoint again does NOT enqueue a new job, and doesn't
 		// return the RunSetupExperience notification anymore
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
 			http.StatusOK, map[string]string{fleet.CapabilitiesHeader: caps.String()})
 		b, err := io.ReadAll(res.Body)
@@ -838,7 +838,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		})
 
 		// call the /status endpoint to automatically release the host
-		var statusResp getOrbitSetupExperienceStatusResponse
+		var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	}
 
@@ -3184,7 +3184,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	installUUID := getLatestSoftwareInstallExecID(t, s.ds, h.ID)
 
 	// process installation successfully
-	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
 		OrbitNodeKey: *h.OrbitNodeKey,
 		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 			HostID:                h.ID,
