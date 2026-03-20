@@ -24,7 +24,7 @@ func TestUp_20260318210346(t *testing.T) {
 	require.NoError(t, err)
 
 	// Existing instances should have labels and secrets excepted (preserving current behavior)
-	require.True(t, config.UIGitOpsMode.Exceptions.Labels)
-	require.True(t, config.UIGitOpsMode.Exceptions.Secrets)
-	require.False(t, config.UIGitOpsMode.Exceptions.Software)
+	require.True(t, config.GitOpsConfig.Exceptions.Labels)
+	require.True(t, config.GitOpsConfig.Exceptions.Secrets)
+	require.False(t, config.GitOpsConfig.Exceptions.Software)
 }

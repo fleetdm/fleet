@@ -279,7 +279,7 @@ type GitOpsExceptions struct {
 	Secrets  bool `json:"secrets"`
 }
 
-type UIGitOpsModeConfig struct {
+type GitOpsConfig struct {
 	GitopsModeEnabled bool             `json:"gitops_mode_enabled"`
 	RepositoryURL     string           `json:"repository_url"`
 	Exceptions        GitOpsExceptions `json:"exceptions"`
@@ -680,7 +680,7 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
-	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
+	GitOpsConfig GitOpsConfig `json:"gitops"`
 
 	// Scripts is a slice of script file paths.
 	//
@@ -1071,8 +1071,8 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 
 	c.Features.ApplyDefaultsForNewInstalls()
 
-	c.UIGitOpsMode.Exceptions.Secrets = true
-	c.UIGitOpsMode.Exceptions.Labels = false
+	c.GitOpsConfig.Exceptions.Secrets = true
+	c.GitOpsConfig.Exceptions.Labels = false
 
 	c.ApplyDefaults()
 }
