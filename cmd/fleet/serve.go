@@ -237,12 +237,6 @@ the way that the Fleet server works.
 						sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle_time"},
 						sdkmetric.Stream{Name: "db.client.connection.closed.max_idle_time"},
 					),
-					// Keep latency metrics with db.sql prefix
-					// Signoz's "DB Call Metrics" gets latency data from traces, not metrics
-					// sdkmetric.NewView(
-					// 	 sdkmetric.Instrument{Name: "db.sql.latency"},
-					//	 sdkmetric.Stream{Name: "db.client.operation.duration"},
-					// ),
 				}
 
 				meterProvider = sdkmetric.NewMeterProvider(
