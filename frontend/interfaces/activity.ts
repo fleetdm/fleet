@@ -172,8 +172,7 @@ export type IHostPastActivityType =
   | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.ViewedHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
-  | ActivityType.TriggeredHostRecoveryLockPasswordRotation
-  | ActivityType.AutoRotatedHostRecoveryLockPassword
+  | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware

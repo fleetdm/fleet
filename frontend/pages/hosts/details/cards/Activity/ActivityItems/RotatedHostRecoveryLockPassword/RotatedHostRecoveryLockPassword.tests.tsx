@@ -11,7 +11,7 @@ describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
       <RotatedHostRecoveryLockPasswordActivityItem
         activity={createMockHostPastActivity({
           actor_full_name: "Test User",
-          type: ActivityType.TriggeredHostRecoveryLockPasswordRotation,
+          type: ActivityType.RotatedHostRecoveryLockPassword,
         })}
         tab="past"
       />
@@ -19,16 +19,16 @@ describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
 
     expect(screen.getByText("Test User")).toBeVisible();
     expect(
-      screen.getByText(/triggered a Recovery Lock password rotation/i)
+      screen.getByText(/rotated the Recovery Lock password/i)
     ).toBeVisible();
   });
 
-  it("renders auto-rotation activity content", () => {
+  it("renders Fleet-initiated (auto) rotation activity content", () => {
     render(
       <RotatedHostRecoveryLockPasswordActivityItem
         activity={createMockHostPastActivity({
           actor_full_name: "Fleet",
-          type: ActivityType.AutoRotatedHostRecoveryLockPassword,
+          type: ActivityType.RotatedHostRecoveryLockPassword,
         })}
         tab="past"
       />
@@ -36,7 +36,7 @@ describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
 
     expect(screen.getByText("Fleet")).toBeVisible();
     expect(
-      screen.getByText(/auto-rotated the Recovery Lock password/i)
+      screen.getByText(/rotated the Recovery Lock password/i)
     ).toBeVisible();
   });
 
@@ -45,7 +45,7 @@ describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
       <RotatedHostRecoveryLockPasswordActivityItem
         activity={createMockHostPastActivity({
           actor_full_name: "Test User",
-          type: ActivityType.TriggeredHostRecoveryLockPasswordRotation,
+          type: ActivityType.RotatedHostRecoveryLockPassword,
         })}
         tab="past"
       />
@@ -59,7 +59,7 @@ describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
       <RotatedHostRecoveryLockPasswordActivityItem
         activity={createMockHostPastActivity({
           actor_full_name: "Test User",
-          type: ActivityType.TriggeredHostRecoveryLockPasswordRotation,
+          type: ActivityType.RotatedHostRecoveryLockPassword,
         })}
         tab="past"
       />
