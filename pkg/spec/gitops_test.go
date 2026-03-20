@@ -2219,7 +2219,7 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.txt"), []byte("nope"), 0o644))
 

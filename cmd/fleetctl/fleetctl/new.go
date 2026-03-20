@@ -1,18 +1,15 @@
 package fleetctl
 
 import (
-	"context"
 	"embed"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/manifoldco/promptui"
 	"github.com/urfave/cli/v2"
@@ -41,29 +38,6 @@ var fleetVersionPattern = regexp.MustCompile(`^fleet-v(\d+\.\d+\.\d+)$`)
 
 // semverPattern matches a plain "X.Y.Z" (possibly with pre-release suffix).
 var semverPattern = regexp.MustCompile(`^(\d+\.\d+\.\d+)`)
-
-// resolveFleetctlVersion returns a semver version string for fleetctl.
-// It tries to extract it from the app version (e.g. "fleet-v4.74.0" -> "4.74.0"),
-// falling back to the latest published version on npm.
-func resolveFleetctlVersion(appVersion string) string {
-	// Try "fleet-vX.Y.Z" format.
-	if m := fleetVersionPattern.FindStringSubmatch(appVersion); len(m) == 2 {
-		return m[1]
-	}
-	// Try plain semver (possibly with pre-release/build suffix).
-	if m := semverPattern.FindStringSubmatch(appVersion); len(m) == 2 {
-		return m[1]
-	}
-	// Fall back to latest published version from npm.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if out, err := exec.CommandContext(ctx, "npm", "view", "fleetctl", "version").CombinedOutput(); err == nil {
-		if v := strings.TrimSpace(string(out)); semverPattern.MatchString(v) {
-			return v
-		}
-	}
-	return "latest"
-}
 
 func printNextSteps(w io.Writer) {
 	fmt.Fprintln(w, "")
@@ -156,8 +130,7 @@ func newCommand() *cli.Command {
 			yamlOrgName = strings.ReplaceAll(yamlOrgName, `"`, `\"`)
 
 			vars := map[string]string{
-				"org_name":        yamlOrgName,
-				"FleetctlVersion": resolveFleetctlVersion(c.App.Version),
+				"org_name": yamlOrgName,
 			}
 
 			templateRoot := "templates/new"
