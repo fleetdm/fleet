@@ -48,8 +48,7 @@ export enum ActivityType {
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
   ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
-  TriggeredHostRecoveryLockPasswordRotation = "triggered_host_recovery_lock_password_rotation",
-  AutoRotatedHostRecoveryLockPassword = "auto_rotated_host_recovery_lock_password",
+  RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
   EnabledRecoveryLockPasswords = "enabled_recovery_lock_passwords",
   DisabledRecoveryLockPasswords = "disabled_recovery_lock_passwords",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
@@ -402,10 +401,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   read_host_disk_encryption_key: "Viewed disk encryption key",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
-  triggered_host_recovery_lock_password_rotation:
-    "Triggered Recovery Lock password rotation",
-  auto_rotated_host_recovery_lock_password:
-    "Auto-rotated Recovery Lock password",
+  rotated_host_recovery_lock_password: "Rotated Recovery Lock password",
   enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",
   disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
