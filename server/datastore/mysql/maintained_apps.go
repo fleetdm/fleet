@@ -47,7 +47,7 @@ ON DUPLICATE KEY UPDATE
 const teamFMATitlesJoin = `
 			team_titles.id software_title_id FROM fleet_maintained_apps fma
 			LEFT JOIN (
-				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform
+				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform, si.fleet_maintained_app_id
 				FROM software_titles st
 				LEFT JOIN
 					software_installers si
@@ -63,14 +63,22 @@ const teamFMATitlesJoin = `
 					AND vat.platform = va.platform
 					AND vat.global_or_team_id = ?
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
-			) team_titles 
-				ON team_titles.unique_identifier = fma.unique_identifier
-				-- pattern match fma name to a similar title name, since upgrade_code is not surfaced in fma table
+			) team_titles
+				-- prefer direct FMA link (avoids ambiguity when apps share a bundle identifier,
+				-- e.g. Firefox and Firefox ESR both use org.mozilla.firefox)
+				ON team_titles.fleet_maintained_app_id = fma.id
 				OR (
-					team_titles.platform = fma.platform 
-					AND fma.platform = 'windows' 
-					-- Box Drive is the only FMA at the point of writing this where unique_identifier is shorter than name
-					AND team_titles.name LIKE CONCAT(LEAST(fma.name, fma.unique_identifier), '%')
+					team_titles.fleet_maintained_app_id IS NULL
+					AND (
+						team_titles.unique_identifier = fma.unique_identifier
+						-- pattern match fma name to a similar title name, since upgrade_code is not surfaced in fma table
+						OR (
+							team_titles.platform = fma.platform
+							AND fma.platform = 'windows'
+							-- Box Drive is the only FMA at the point of writing this where unique_identifier is shorter than name
+							AND team_titles.name LIKE CONCAT(LEAST(fma.name, fma.unique_identifier), '%')
+						)
+					)
 				)
 `
 
