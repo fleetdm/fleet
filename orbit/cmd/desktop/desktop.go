@@ -28,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/gofrs/flock"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
@@ -275,9 +274,9 @@ func main() {
 					refetchToken()
 					summary, err := client.DesktopSummary(tokenReader.GetCached())
 
-					if err == nil || errors.Is(err, service.ErrMissingLicense) {
+					if err == nil || errors.Is(err, fleetclient.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
-						isFreeTier := errors.Is(err, service.ErrMissingLicense)
+						isFreeTier := errors.Is(err, fleetclient.ErrMissingLicense)
 						var desktopSummary *fleet.DesktopSummary
 						if summary != nil {
 							desktopSummary = &summary.DesktopSummary
@@ -371,11 +370,11 @@ func main() {
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				if err != nil {
 					switch {
-					case errors.Is(err, service.ErrMissingLicense):
+					case errors.Is(err, fleetclient.ErrMissingLicense):
 						// Policy reporting in Fleet Desktop requires a license,
 						// so we just show the "My device" item as usual.
 						menuManager.SetConnected(&fleet.DesktopSummary{}, true)
-					case errors.Is(err, service.ErrUnauthenticated):
+					case errors.Is(err, fleetclient.ErrUnauthenticated):
 						log.Debug().Err(err).Msg("get desktop summary auth failure")
 						// This usually happens every ~1 hour when the token expires.
 						<-checkToken()
