@@ -90,7 +90,6 @@ module.exports = {
       'jahzielv',
       'getvictor',
       'pintomi1989',
-      'nonpunctual',
       'dantecatalfamo',
       'SFriendLee',
       'ddribeiro',
