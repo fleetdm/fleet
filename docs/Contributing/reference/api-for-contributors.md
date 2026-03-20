@@ -3553,11 +3553,24 @@ This endpoint returns the results for a specific MDM command associated with a s
       "request_type": "InstallApplication",
       "hostname": "mycomputer",
       "payload": "[base64]",
-      "result": "[base64]"
+      "result": "[base64]",
+      "results_metadata": {
+        "software_installed": false,
+        "vpp_verify_timeout_seconds": 600
+      }
     }
   ]
 }
 ```
+
+`results_metadata` contains command-specific metadata.
+
+For VPP `InstallApplication` command results, `results_metadata` may include:
+
+| Name                      | Type    | Description |
+| ------------------------- | ------- | ----------- |
+| software_installed        | boolean | Whether Fleet has reconciled the app as installed on the host. |
+| vpp_verify_timeout_seconds | integer | The VPP install verification timeout, in seconds, used by Fleet when determining whether an acknowledged install should be marked failed. |
 
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
