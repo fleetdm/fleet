@@ -207,7 +207,7 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (
 		return 0, err
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery)
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "")
 	if err != nil {
 		return 0, err
 	}

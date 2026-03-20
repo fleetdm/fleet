@@ -339,6 +339,7 @@ type countTeamPoliciesRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
 	TeamID         uint              `url:"fleet_id"`
 	MergeInherited bool              `query:"merge_inherited,optional"`
+	AutomationType string            `query:"automation_type,optional"`
 }
 
 type countTeamPoliciesResponse struct {
@@ -351,14 +352,14 @@ func (r countTeamPoliciesResponse) Error() error { return r.Err }
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countTeamPoliciesRequest)
-	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited)
+	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType)
 	if err != nil {
 		return countTeamPoliciesResponse{Err: err}, nil
 	}
 	return countTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
 }
 
-func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error) {
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -374,18 +375,18 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if mergeInherited {
-		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery)
+		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery, automationType)
 		if err != nil {
 			return 0, 0, err
 		}
-		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery)
+		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType)
 		if err != nil {
 			return 0, 0, err
 		}
 		return count, inheritedCount, nil
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery)
+	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery, automationType)
 	if err != nil {
 		return 0, 0, err
 	}

@@ -36,3 +36,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="Financial services platform manages 6,000+ hosts with cross-platform support, continuous auditing, and open, flexible device management.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Financial services platform">

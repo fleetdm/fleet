@@ -70,3 +70,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-18">
 <meta name="description" value="An IT services company builds zero-touch device workflows with Fleet, automating deployment and security."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="IT services company">

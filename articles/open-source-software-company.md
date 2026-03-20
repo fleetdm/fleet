@@ -72,3 +72,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-18">
 <meta name="description" value="An open-source software company uses Fleet to unify device management and improve Linux visibility."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Open-source software company">

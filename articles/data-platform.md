@@ -72,3 +72,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-18">
 <meta name="description" value="This data platform company uses Fleet to cut costs and improve visibility across macOS, Windows, Linux, and mobile devices."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Data platform">
+<meta name="cardBodyForCustomersPage" value="Data platform company cuts $5–6M in hardware costs with API-driven device management.">
