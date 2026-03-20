@@ -3560,7 +3560,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 }
 
 func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	ds := new(mock.Store)
 	pushFactory, _ := newMockAPNSPushProviderFactory()
@@ -3725,6 +3725,83 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 		}
 		assert.Equal(t, 2, caCount, "only 2 CA host-profile pairs should be sent when limit=2")
 		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should still be sent")
+	})
+
+	t.Run("recently enrolled hosts bypass throttle", func(t *testing.T) {
+		upsertedProfiles = nil
+		bulkUpsertCallCount = 0
+
+		recentEnrollTime := time.Now().Add(-30 * time.Minute)
+		var recentProfilesToInstall []*fleet.MDMAppleProfilePayload
+		for _, h := range hostUUIDs {
+			recentProfilesToInstall = append(recentProfilesToInstall,
+				&fleet.MDMAppleProfilePayload{
+					ProfileUUID: caProfileUUID, ProfileIdentifier: "com.ca.profile", ProfileName: "CA Profile",
+					HostUUID: h, Scope: fleet.PayloadScopeSystem, DeviceEnrolledAt: &recentEnrollTime,
+				},
+				&fleet.MDMAppleProfilePayload{
+					ProfileUUID: nonCAProfileUUID, ProfileIdentifier: "com.regular.profile", ProfileName: "Regular Profile",
+					HostUUID: h, Scope: fleet.PayloadScopeSystem, DeviceEnrolledAt: &recentEnrollTime,
+				},
+			)
+		}
+		ds.ListMDMAppleProfilesToInstallAndRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+			return recentProfilesToInstall, nil, nil
+		}
+
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 2)
+		require.NoError(t, err)
+
+		var caCount, nonCACount int
+		for _, p := range upsertedProfiles {
+			if p.ProfileUUID == caProfileUUID {
+				caCount++
+			} else if p.ProfileUUID == nonCAProfileUUID {
+				nonCACount++
+			}
+		}
+		assert.Equal(t, 5, caCount, "all CA host-profile pairs should be sent for recently enrolled hosts")
+		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should be sent")
+
+		// Restore original profilesToInstall for subsequent subtests.
+		ds.ListMDMAppleProfilesToInstallAndRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+			return profilesToInstall, nil, nil
+		}
+	})
+
+	t.Run("removals are not throttled", func(t *testing.T) {
+		upsertedProfiles = nil
+		bulkUpsertCallCount = 0
+
+		var profilesToRemove []*fleet.MDMAppleProfilePayload
+		for _, h := range hostUUIDs {
+			profilesToRemove = append(profilesToRemove,
+				&fleet.MDMAppleProfilePayload{
+					ProfileUUID: caProfileUUID, ProfileIdentifier: "com.ca.profile", ProfileName: "CA Profile",
+					HostUUID: h, Scope: fleet.PayloadScopeSystem, OperationType: fleet.MDMOperationTypeInstall,
+					Status: &fleet.MDMDeliveryVerifying, CommandUUID: uuid.NewString(),
+				},
+			)
+		}
+		ds.ListMDMAppleProfilesToInstallAndRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+			return nil, profilesToRemove, nil
+		}
+
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler), 2)
+		require.NoError(t, err)
+
+		var removeCount int
+		for _, p := range upsertedProfiles {
+			if p.ProfileUUID == caProfileUUID && p.OperationType == fleet.MDMOperationTypeRemove {
+				removeCount++
+			}
+		}
+		assert.Equal(t, 5, removeCount, "all CA profile removals should proceed regardless of throttle limit")
+
+		// Restore original profilesToInstall for subsequent subtests.
+		ds.ListMDMAppleProfilesToInstallAndRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+			return profilesToInstall, nil, nil
+		}
 	})
 }
 

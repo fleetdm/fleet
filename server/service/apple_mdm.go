@@ -5001,9 +5001,11 @@ func ReconcileAppleProfiles(
 	// Index host profiles to install by host and profile UUID, for easier bulk error processing
 	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
 
-	// When a certificate profiles limit is configured, classify profiles as CA/non-CA
-	// so we can throttle CA profile installations.
+	// When a certificate profiles limit is configured, fetch profile contents to classify
+	// profiles as CA/non-CA so we can throttle CA profile installations. The fetched contents
+	// are reused later by ProcessAndEnqueueProfiles to avoid a duplicate database call.
 	var caProfileUUIDs map[string]bool
+	var prefetchedContents map[string]mobileconfig.Mobileconfig
 	if certProfilesLimit > 0 {
 		uniqueUUIDs := make(map[string]struct{}, len(toInstall))
 		for _, p := range toInstall {
@@ -5013,12 +5015,13 @@ func ReconcileAppleProfiles(
 		for u := range uniqueUUIDs {
 			uuids = append(uuids, u)
 		}
-		contents, err := ds.GetMDMAppleProfilesContents(ctx, uuids)
+		var err error
+		prefetchedContents, err = ds.GetMDMAppleProfilesContents(ctx, uuids)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting profile contents for CA classification")
 		}
-		caProfileUUIDs = make(map[string]bool, len(contents))
-		for pUUID, content := range contents {
+		caProfileUUIDs = make(map[string]bool, len(prefetchedContents))
+		for pUUID, content := range prefetchedContents {
 			fleetVars := variables.Find(string(content))
 			if fleet.HasCAVariables(fleetVars) {
 				caProfileUUIDs[pUUID] = true
@@ -5027,6 +5030,7 @@ func ReconcileAppleProfiles(
 	}
 
 	var caInstallCount int
+	throttledHostsByProfile := make(map[string][]string)
 	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
@@ -5085,6 +5089,7 @@ func ReconcileAppleProfiles(
 		recentlyEnrolled := p.DeviceEnrolledAt != nil && time.Since(*p.DeviceEnrolledAt) < 1*time.Hour
 		isThrottledCA := certProfilesLimit > 0 && caProfileUUIDs[p.ProfileUUID] && !recentlyEnrolled
 		if isThrottledCA && caInstallCount >= certProfilesLimit {
+			throttledHostsByProfile[p.ProfileUUID] = append(throttledHostsByProfile[p.ProfileUUID], p.HostUUID)
 			continue
 		}
 
@@ -5156,6 +5161,11 @@ func ReconcileAppleProfiles(
 		}
 		hostProfiles = append(hostProfiles, hostProfile)
 		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
+	}
+
+	for profileUUID, hostUUIDs := range throttledHostsByProfile {
+		logger.InfoContext(ctx, "throttled CA certificate profile installation", "profile.uuid", profileUUID, "mdm.target.host.uuids", hostUUIDs,
+			"mdm.certificate.profiles.limit", certProfilesLimit)
 	}
 
 	for _, p := range toRemove {
@@ -5267,6 +5277,7 @@ func ReconcileAppleProfiles(
 		removeTargets,
 		hostProfilesToInstallMap,
 		userEnrollmentsToHostUUIDsMap,
+		prefetchedContents,
 	)
 	if err != nil {
 		// revert the status of all pending profiles to null so they get picked up again in the next cron run.
