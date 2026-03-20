@@ -552,6 +552,34 @@ func TestProductHasDisplayVersion(t *testing.T) {
 	}
 }
 
+func TestExtractDisplayVersionFromName(t *testing.T) {
+	tc := []struct {
+		name string
+		want string
+	}{
+		{"Microsoft Windows 10 Pro 22H2", "22H2"},
+		{"Microsoft Windows 10 Enterprise 22H2", "22H2"},
+		{"Microsoft Windows 10 Pro N 22H2", "22H2"},
+		{"Microsoft Windows 11 Pro 25H2", "25H2"},
+		{"Microsoft Windows 11 Enterprise 23H2", "23H2"},
+		{"Microsoft Windows 11 Enterprise 24H2", "24H2"},
+		{"Microsoft Windows 10 Version 1809", ""},
+		{"Microsoft Windows 10 Version 1607", ""},
+		{"Microsoft Windows Server 2022 Datacenter 21H2", "21H2"},
+		{"Microsoft Windows 10 Pro", ""},
+		{"Microsoft Windows 11 Enterprise", ""},
+		{"Microsoft Windows Server 2022", ""},
+		{"empty string", ""},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractDisplayVersionFromName(tt.name)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
 // msrcWinProducts mirrors what production code produces: raw MSRC product names
 // are always processed through NewProductFromFullName before reaching GetMatchForOS
 var msrcWinProducts = Products{

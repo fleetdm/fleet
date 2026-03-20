@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
+
+// displayVersionPattern matches Windows display version strings like "22H2", "23H2", "24H2".
+var displayVersionPattern = regexp.MustCompile(`\b\d{2}H[12]\b`)
 
 // Product abstracts a MS full product name.
 // A full product name includes the name of the product plus its arch
@@ -50,14 +54,24 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 		// a Server Core product if no desktop alternative has been found.
 		isCore := product.IsServerCore()
 
-		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Contains(string(product), os.DisplayVersion) {
-			if matchByDisplayVersion == "" || !isCore {
-				matchByDisplayVersion = pID
+		if product.HasDisplayVersion() {
+			// Use os.DisplayVersion if available, otherwise try to extract it from the OS name.
+			// The OS name may already contain the display version (e.g., "Microsoft Windows 10 Pro 22H2")
+			// even when the DisplayVersion field is empty, which can happen when osquery includes
+			// the version in the name but the Windows registry query for DisplayVersion returns empty.
+			dv := os.DisplayVersion
+			if dv == "" {
+				dv = extractDisplayVersionFromName(os.Name)
 			}
-			if installationTypeKnown {
-				break
+			if dv != "" && strings.Contains(string(product), dv) {
+				if matchByDisplayVersion == "" || !isCore {
+					matchByDisplayVersion = pID
+				}
+				if installationTypeKnown {
+					break
+				}
+				continue
 			}
-			continue
 		}
 
 		// If os.DisplayVersion is empty, we need to confirm that the product
@@ -236,6 +250,14 @@ func (p Product) Name() string {
 // IsServerCore returns true if the product name indicates a Server Core installation.
 func (p Product) IsServerCore() bool {
 	return strings.Contains(strings.ToLower(string(p)), "server core")
+}
+
+// extractDisplayVersionFromName attempts to extract a Windows display version
+// (e.g., "22H2", "23H2", "24H2") from an OS name string like "Microsoft Windows 10 Pro 22H2".
+// Returns an empty string if no display version is found.
+func extractDisplayVersionFromName(name string) string {
+	match := displayVersionPattern.FindString(name)
+	return match
 }
 
 // Matches checks whether product A matches product B by checking to see if both are for the same

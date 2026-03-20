@@ -351,7 +351,8 @@ type MDMCommandResult struct {
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
 	// ResultsMetadata contains command-specific metadata.
-	// VPP install commands includes a "software_installed" boolean.
+	// VPP install commands include a "software_installed" boolean and
+	// "vpp_verify_timeout_seconds" integer.
 	ResultsMetadata map[string]any `json:"results_metadata,omitempty" db:"-"`
 }
 

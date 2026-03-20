@@ -20,7 +20,7 @@ It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confi
 | Q2 | * **[MacDevOpsYVR](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka)** | 2026-06-25 | Montreal |
 | Q2 | * **[PSU MacAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.yibj67h9z2xz)** | 2026-07-07 | PennState |
 | Q3 | * **[JNUC 2026 Gurrilla](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** | 2026-09-23 | Kansas City |
-| Q4 | * **[MacSysAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** |2026-09-29 | XX |
+| Q4 | * **[MacSysAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** |2026-09-29 | Gothenburg, Sweden |
 
 
 ## Event Process
