@@ -1073,6 +1073,7 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 
 	c.GitOpsConfig.Exceptions.Secrets = true
 	c.GitOpsConfig.Exceptions.Labels = false
+	c.GitOpsConfig.Exceptions.Software = false
 
 	c.ApplyDefaults()
 }
