@@ -3757,13 +3757,16 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
+	sql := "select * from time;"
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
 		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
-		Query: ptr.String("select * from time;"),
+		Query: ptr.String(sql),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
+	assert.Equal(t, query.Query, sql)
+	assert.Equal(t, createQueryResp.Report.Query, sql)
 
 	// listing returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
@@ -3803,6 +3806,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var getQryResp getQueryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
 	assert.Equal(t, query.ID, getQryResp.Query.ID)
+	assert.Equal(t, query.ID, getQryResp.Report.ID)
+	assert.Equal(t, sql, getQryResp.Query.Query)
+	assert.Equal(t, sql, getQryResp.Report.Query)
 
 	// list scheduled queries in pack, none yet
 	var getInPackResp getScheduledQueriesInPackResponse
@@ -3888,6 +3894,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var modQryResp modifyQueryResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
 	assert.Equal(t, "updated", modQryResp.Query.Description)
+	assert.Equal(t, sql, modQryResp.Query.Query)
+	assert.Equal(t, sql, modQryResp.Report.Query)
 
 	// TODO(jahziel): check that the query results were deleted
 
