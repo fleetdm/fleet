@@ -1198,6 +1198,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller)
+	}); err != nil {
+		initFatal(err, "failed to register apple_mdm_worker schedule")
+	}
+
+	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
 	}); err != nil {
 		initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
@@ -1456,7 +1464,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	healthCheckers := make(map[string]health.Checker)
 	{
 		// a list of dependencies which could affect the status of the app if unavailable.
-		deps := map[string]interface{}{
+		deps := map[string]any{
 			"mysql": ds,
 			"redis": resultStore,
 		}
