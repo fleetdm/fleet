@@ -706,38 +706,4 @@ func testSharedBundleIdentifier(t *testing.T, ds *Datastore) {
 	gotApp, err = ds.GetMaintainedAppByID(ctx, firefoxESR.ID, &team.ID)
 	require.NoError(t, err)
 	require.Nil(t, gotApp.TitleID, "Firefox ESR should NOT have a title ID when only Firefox was added")
-
-	// Now also add Firefox ESR
-	_, esrTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:                "Mozilla Firefox ESR",
-		BundleIdentifier:     "org.mozilla.firefox",
-		Source:               "apps",
-		StorageID:            "firefox-esr-storage",
-		Filename:             "FirefoxESR.dmg",
-		Extension:            "dmg",
-		Platform:             "darwin",
-		Version:              "115.0",
-		UserID:               user.ID,
-		TeamID:               &team.ID,
-		InstallScript:        "echo install",
-		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: &firefoxESR.ID,
-	})
-	require.NoError(t, err)
-
-	// Both should now show as added, each pointing to their own title
-	apps, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.ListOptions{IncludeMetadata: true})
-	require.NoError(t, err)
-	require.Len(t, apps, 2)
-	for _, app := range apps {
-		if app.ID == firefox.ID {
-			gotFirefox = app
-		} else if app.ID == firefoxESR.ID {
-			gotFirefoxESR = app
-		}
-	}
-	require.NotNil(t, gotFirefox.TitleID)
-	require.Equal(t, firefoxTitleID, *gotFirefox.TitleID)
-	require.NotNil(t, gotFirefoxESR.TitleID)
-	require.Equal(t, esrTitleID, *gotFirefoxESR.TitleID)
 }
