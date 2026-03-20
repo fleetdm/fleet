@@ -173,7 +173,35 @@
     - 🤝 Collaboration: You work best in a participatory, team-based environment.
     - 🛠️ Technical: You understand the software development processes.
     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-    - ➕ Bonus: Cybersecurity or IT background.
+     - ➕ Bonus: Cybersecurity or IT background.
+
+- jobTitle: 🌐 Customer Solutions Architect
+  department: Customers
+  hiringManagerName: Dale Ribeiro
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/daleribeiro/
+  hiringManagerGithubUsername: ddribeiro
+  onTargetEarnings: "$130,000 - $175,000"
+  responsibilities: |
+    - 🧑‍🔬 Serve as a technical resource for Fleet's customers, providing solutions architecture guidance for deploying and managing Fleet across diverse environments.
+    - 🚀 Assist customers with onboarding, deployment planning, and fast-track migration engagements, ensuring successful adoption of Fleet's MDM and endpoint operations capabilities.
+    - ⏫ Work hand-in-hand with Customer Success Managers and Customer Support Engineers, escalating and resolving complex technical issues for enterprise customers.
+    - 🔧 Review and validate customer server configurations for self-hosted deployments, ensuring infrastructure supports the size and scale of their Fleet environment.
+    - 🤝 Participate in customer meetings to provide detailed technical explanations, demonstrations, and solutioning based on experience managing Apple, Windows, and Linux devices.
+    - 💡 Collaborate with Product Design and Engineering teams during the confirm and celebrate process, verifying that shipped features fulfill customer requests and desired outcomes.
+    - 📖 Contribute to internal knowledge sharing by documenting solutions, troubleshooting guides, and best practices in the handbook and internal resources.
+    - 🌡️ Proactively identify potential risks in customer environments and recommend improvements to drive long-term success and platform adoption.
+  experience: |
+    - 🦉 3+ years of experience in a technical customer-facing role (Solutions Architect, Technical Account Manager, Solutions Consultant, Sales Engineer, etc.) in the device management or cybersecurity space.
+    - 💭 Cybersecurity or IT background, with experience using device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+    - 💖 An excellent understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+    - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues and coordinate intricate deployment initiatives.
+    - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts.
+    - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
+    - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
+    - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+    - 🤝 Collaboration: You work best in a participatory, team-based environment.
+    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+    - ➕ Bonus: Familiarity with osquery, GitOps workflows, Terraform, Tines/Torq, and open source projects. Experience working alongside IT, SRE, CPE, or SecOps teams.
 
 #- jobTitle: 🌐 Solutions Consultant
 # department: IT & Enablement
