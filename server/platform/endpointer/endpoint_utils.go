@@ -585,7 +585,11 @@ func MakeDecoder(
 					return nil, BadRequestErr("gzip decoder error", err)
 				}
 				defer gzr.Close()
-				body = gzr
+				if maxRequestBodySize != -1 {
+					body = io.LimitReader(gzr, maxRequestBodySize)
+				} else {
+					body = gzr
+				}
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline
