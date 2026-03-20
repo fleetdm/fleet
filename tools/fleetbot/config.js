@@ -10,7 +10,7 @@ const config = {
     repo: process.env.GITHUB_REPO || "fleetdm/fleet",
     baseBranch: process.env.GITHUB_BASE_BRANCH || "main",
     gitopsBasePath: process.env.GITOPS_BASE_PATH || "it-and-security",
-    botUsername: process.env.GITHUB_BOT_USERNAME || "",
+    botUsername: process.env.GITHUB_BOT_USERNAME,
   },
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY,
@@ -25,7 +25,7 @@ const config = {
     autoFix: process.env.CI_AUTO_FIX !== "false",
   },
   mcp: {
-    url: process.env.FLEET_MCP_URL || "http://localhost:8080/sse",
+    url: process.env.FLEET_MCP_URL || "http://localhost:8181/sse",
     authToken: process.env.FLEET_MCP_AUTH_TOKEN,
   },
 };
@@ -35,6 +35,7 @@ const required = [
   ["SLACK_BOT_TOKEN", config.slack.botToken],
   ["SLACK_APP_TOKEN", config.slack.appToken],
   ["GITHUB_TOKEN", config.github.token],
+  ["GITHUB_BOT_USERNAME", config.github.botUsername],
   ["ANTHROPIC_API_KEY", config.anthropic.apiKey],
   ["GITHUB_WEBHOOK_SECRET", config.webhook.secret],
   ["FLEET_MCP_AUTH_TOKEN", config.mcp.authToken],

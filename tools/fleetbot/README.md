@@ -81,7 +81,7 @@ GITHUB_BOT_USERNAME=your-bot-github-username   # used to ignore the bot's own PR
 GITOPS_BASE_PATH=it-and-security                # path within the repo to the GitOps config
 
 ANTHROPIC_API_KEY=sk-ant-...
-ANTHROPIC_MODEL=claude-sonnet-4-5-20250514      # optional, this is the default
+ANTHROPIC_MODEL=claude-opus-4-6                  # optional, this is the default
 
 FLEET_MCP_URL=http://localhost:8080/sse
 PORT=3000                                        # port for the GitHub webhook listener

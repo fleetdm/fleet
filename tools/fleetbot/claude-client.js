@@ -267,9 +267,9 @@ class ClaudeClient {
       changes: data.changes.map((c) => ({
         filePath: c.file_path,
         changeDescription: c.change_description,
-        content: c.content || null,
-        search: c.search || null,
-        replace: c.replace || null,
+        content: c.content ?? null,
+        search: c.search ?? null,
+        replace: c.replace ?? null,
         isNewFile: c.is_new_file || false,
       })),
     };

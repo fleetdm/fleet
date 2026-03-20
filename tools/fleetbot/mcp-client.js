@@ -28,8 +28,12 @@ class McpClient {
     if (this._connected) return;
 
     console.log(`[mcp] Connecting to ${this.url}...`);
+    const headers = {};
+    if (this.authToken) {
+      headers.Authorization = `Bearer ${this.authToken}`;
+    }
     const transport = new SSEClientTransport(new URL(this.url), {
-      requestInit: { headers: { Authorization: `Bearer ${this.authToken}` } },
+      requestInit: { headers },
     });
 
     this.client = new Client({ name: "fleetbot", version: "1.0.0" });

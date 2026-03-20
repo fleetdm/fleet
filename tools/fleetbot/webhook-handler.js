@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const path = require("path");
+const { resolveChangeContent, validateProposedChanges, validateResolvedChanges } = require("./yaml-handler");
 
 function verifySignature(rawBody, signatureHeader, secret) {
   if (!signatureHeader) return false;
@@ -90,9 +91,11 @@ function createWebhookHandler(config, github, claude) {
 
     // Skip bot's own comments to prevent infinite loops
     const commentAuthor = payload.comment.user.login;
+    const commentBody = payload.comment.body || "";
     if (
-      (config.github.botUsername && commentAuthor === config.github.botUsername) ||
-      payload.comment.user.type === "Bot"
+      commentAuthor === config.github.botUsername ||
+      payload.comment.user.type === "Bot" ||
+      commentBody.startsWith("🤖 **Fleet:**")
     ) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true, message: "skipping bot comment" }));
@@ -117,7 +120,6 @@ function createWebhookHandler(config, github, claude) {
     const prNumber = event === "issue_comment"
       ? payload.issue.number
       : payload.pull_request.number;
-    const commentBody = payload.comment.body;
     const commentId = payload.comment.id;
     console.log(`[webhook] PR #${prNumber} comment from ${commentAuthor}: "${commentBody.slice(0, 100)}"`);
 
@@ -174,19 +176,19 @@ async function processComment({ prNumber, commentBody, commentId, event, mention
     console.warn(`[webhook] Failed to add reaction: ${err.message}`);
   }
 
-  // Fetch the files changed in the PR
+  // Fetch the files changed in the PR (only GitOps files)
   console.log(`[webhook] Fetching changed files for PR #${prNumber}...`);
   const prFiles = await github.getPullRequestFiles(prNumber);
-  const activeFiles = prFiles.filter((f) => f.status !== "removed");
-  console.log(`[webhook] ${activeFiles.length} files to read from branch ${pr.headBranch}`);
+  const gitopsPrefix = config.github.gitopsBasePath + "/";
+  const activeFiles = prFiles.filter((f) => f.status !== "removed" && f.filename.startsWith(gitopsPrefix));
+  console.log(`[webhook] ${activeFiles.length} GitOps files to read from branch ${pr.headBranch}`);
 
   // Read current contents of each file from the PR branch
   const currentFiles = {};
   for (const file of activeFiles) {
     const content = await github.getFileContentFromRef(file.filename, pr.headBranch);
     if (content !== null) {
-      // Use relative path (strip gitops base path) for Claude
-      const relPath = file.filename.replace(config.github.gitopsBasePath + "/", "");
+      const relPath = file.filename.slice(gitopsPrefix.length);
       currentFiles[relPath] = content;
     }
   }
@@ -206,17 +208,31 @@ async function processComment({ prNumber, commentBody, commentId, event, mention
 
   console.log(`[webhook] Claude proposed ${proposal.changes.length} changes`);
 
-  // Validate file paths to prevent directory traversal
-  const changes = proposal.changes.map((c) => {
+  // Guard: reject placeholder or suspiciously short content
+  validateProposedChanges(proposal.changes);
+
+  // Validate file paths: prevent traversal and enforce GitOps allowlist
+  const ALLOWED_PREFIXES = ["default.yml", "fleets/", "lib/"];
+  const changes = [];
+  for (const c of proposal.changes) {
     const normalized = path.posix.normalize(c.filePath);
-    if (normalized.startsWith("..") || path.posix.isAbsolute(normalized)) {
-      throw new Error(`Invalid file path in response: ${c.filePath}`);
+    if (normalized.startsWith("..") || path.posix.isAbsolute(normalized) ||
+        !ALLOWED_PREFIXES.some((p) => normalized === p || normalized.startsWith(p))) {
+      throw new Error(`Invalid file path in response (must be under default.yml, fleets/, or lib/): ${c.filePath}`);
     }
-    return {
-      path: `${config.github.gitopsBasePath}/${normalized}`,
-      content: c.content,
-    };
-  });
+    const fullPath = `${config.github.gitopsBasePath}/${normalized}`;
+    const content = await resolveChangeContent(
+      c, (p) => github.getFileContentFromRef(p, pr.headBranch), fullPath, "[webhook]"
+    );
+    changes.push({ path: fullPath, content, relPath: normalized });
+  }
+
+  // Validate YAML schema on resolved content
+  const warnings = validateResolvedChanges(changes);
+  if (warnings.length > 0) {
+    console.warn(`[webhook] YAML validation warnings:\n${warnings.join("\n")}`);
+  }
+
   console.log(`[webhook] Committing ${changes.length} file(s) to ${pr.headBranch}...`);
   await github.commitChanges(pr.headBranch, changes, `Update: ${proposal.summary}`);
 
@@ -268,7 +284,8 @@ async function handleCheckRun(payload, config, github, claude) {
       console.log(`[ci-fix] Previous CI fix failed, retrying (attempt 2)...`);
     }
   } catch (err) {
-    console.warn(`[ci-fix] Could not check commit history: ${err.message}`);
+    console.warn(`[ci-fix] Could not check commit history: ${err.message}, skipping as a safety precaution`);
+    return;
   }
 
   // Fetch PR details
@@ -305,14 +322,15 @@ async function handleCheckRun(payload, config, github, claude) {
   }
   console.log(`[ci-fix] Extracted errors:\n${errorLines}`);
 
-  // Fetch current files from the PR branch
+  // Fetch current files from the PR branch (only GitOps files)
   const prFiles = await github.getPullRequestFiles(prNumber);
-  const activeFiles = prFiles.filter((f) => f.status !== "removed");
+  const gitopsPrefix = config.github.gitopsBasePath + "/";
+  const activeFiles = prFiles.filter((f) => f.status !== "removed" && f.filename.startsWith(gitopsPrefix));
   const currentFiles = {};
   for (const file of activeFiles) {
     const content = await github.getFileContentFromRef(file.filename, pr.headBranch);
     if (content !== null) {
-      const relPath = file.filename.replace(config.github.gitopsBasePath + "/", "");
+      const relPath = file.filename.slice(gitopsPrefix.length);
       currentFiles[relPath] = content;
     }
   }
@@ -330,17 +348,30 @@ async function handleCheckRun(payload, config, github, claude) {
 
   console.log(`[ci-fix] Claude proposed ${proposal.changes.length} changes`);
 
-  // Validate file paths and commit the fix
-  const changes = proposal.changes.map((c) => {
+  // Guard: reject placeholder or suspiciously short content
+  validateProposedChanges(proposal.changes);
+
+  // Validate file paths: prevent traversal and enforce GitOps allowlist
+  const ALLOWED_PREFIXES = ["default.yml", "fleets/", "lib/"];
+  const changes = [];
+  for (const c of proposal.changes) {
     const normalized = path.posix.normalize(c.filePath);
-    if (normalized.startsWith("..") || path.posix.isAbsolute(normalized)) {
-      throw new Error(`Invalid file path in CI fix response: ${c.filePath}`);
+    if (normalized.startsWith("..") || path.posix.isAbsolute(normalized) ||
+        !ALLOWED_PREFIXES.some((p) => normalized === p || normalized.startsWith(p))) {
+      throw new Error(`Invalid file path in CI fix response (must be under default.yml, fleets/, or lib/): ${c.filePath}`);
     }
-    return {
-      path: `${config.github.gitopsBasePath}/${normalized}`,
-      content: c.content,
-    };
-  });
+    const fullPath = `${config.github.gitopsBasePath}/${normalized}`;
+    const content = await resolveChangeContent(
+      c, (p) => github.getFileContentFromRef(p, pr.headBranch), fullPath, "[ci-fix]"
+    );
+    changes.push({ path: fullPath, content, relPath: normalized });
+  }
+
+  // Validate YAML schema on resolved content
+  const ciWarnings = validateResolvedChanges(changes);
+  if (ciWarnings.length > 0) {
+    console.warn(`[ci-fix] YAML validation warnings:\n${ciWarnings.join("\n")}`);
+  }
   console.log(`[ci-fix] Committing ${changes.length} file(s) to ${pr.headBranch}...`);
   await github.commitChanges(pr.headBranch, changes, `CI fix: ${proposal.summary}`);
 
