@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import { IHostReport } from "services/entities/host_reports";
 import { humanLastSeen } from "utilities/helpers";
@@ -45,17 +45,17 @@ const HostReportCard = ({
     [report, onShowDetails, onViewAllHosts]
   );
 
-  const actionOptions: IDropdownOption[] = [];
-  if (hasResults) {
-    actionOptions.push({
-      value: "show_details",
-      label: "Show details",
+  const actionOptions: IDropdownOption[] = useMemo(() => {
+    const options: IDropdownOption[] = [];
+    if (hasResults) {
+      options.push({ value: "show_details", label: "Show details" });
+    }
+    options.push({
+      value: "view_all_hosts",
+      label: "View report for all hosts",
     });
-  }
-  actionOptions.push({
-    value: "view_all_hosts",
-    label: "View report for all hosts",
-  });
+    return options;
+  }, [hasResults]);
 
   const renderLastUpdated = () => {
     if (isAwaitingResults) return null;
