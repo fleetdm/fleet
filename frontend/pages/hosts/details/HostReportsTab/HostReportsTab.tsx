@@ -256,7 +256,9 @@ const HostReportsTab = ({
             onPrevPage={() => setPage((p) => Math.max(0, p - 1))}
             disableNext={!meta?.has_next_results}
             disablePrev={!meta?.has_previous_results}
-            hidePagination={totalCount <= PAGE_SIZE}
+            hidePagination={
+              !!meta && !meta.has_next_results && !meta.has_previous_results
+            }
           />
         </>
       )}

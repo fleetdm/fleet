@@ -5,13 +5,22 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "pill-badge";
 
-interface IPillBadge {
-  children?: React.ReactNode;
-  /** @deprecated Use children instead */
-  text?: string;
+interface IPillBadgeWithChildren {
+  children: React.ReactNode;
+  text?: never;
   tipContent?: JSX.Element | string;
   className?: string;
 }
+
+interface IPillBadgeWithText {
+  children?: never;
+  /** @deprecated Use children instead */
+  text: string;
+  tipContent?: JSX.Element | string;
+  className?: string;
+}
+
+type IPillBadge = IPillBadgeWithChildren | IPillBadgeWithText;
 
 const PillBadge = ({ children, text, tipContent, className }: IPillBadge) => {
   const classNames = classnames(baseClass, className);
