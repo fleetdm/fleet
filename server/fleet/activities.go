@@ -156,7 +156,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
-	ActivityTypeTriggeredHostRecoveryLockPasswordRotation{},
+	ActivityTypeRotatedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedDeclarationProfile{},
 	ActivityTypeDeletedDeclarationProfile{},
@@ -1003,23 +1003,23 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-// ActivityTypeTriggeredHostRecoveryLockPasswordRotation is for password rotation.
+// ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.
 // Can be user-initiated (manual) or Fleet-initiated (auto-rotation after password viewed).
-type ActivityTypeTriggeredHostRecoveryLockPasswordRotation struct {
+type ActivityTypeRotatedHostRecoveryLockPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 	FleetInitiated  bool   `json:"-"` // True for auto-rotation, not serialized
 }
 
-func (a ActivityTypeTriggeredHostRecoveryLockPasswordRotation) ActivityName() string {
-	return "triggered_host_recovery_lock_password_rotation"
+func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
+	return "rotated_host_recovery_lock_password"
 }
 
-func (a ActivityTypeTriggeredHostRecoveryLockPasswordRotation) HostIDs() []uint {
+func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-func (a ActivityTypeTriggeredHostRecoveryLockPasswordRotation) WasFromAutomation() bool {
+func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
 	return a.FleetInitiated
 }
 

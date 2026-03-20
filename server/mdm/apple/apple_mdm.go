@@ -1965,7 +1965,7 @@ func logAutoRotationActivity(
 		return
 	}
 
-	if err := newActivityFn(ctx, nil, fleet.ActivityTypeTriggeredHostRecoveryLockPasswordRotation{
+	if err := newActivityFn(ctx, nil, fleet.ActivityTypeRotatedHostRecoveryLockPassword{
 		HostID:          host.HostID,
 		HostDisplayName: host.DisplayName,
 		FleetInitiated:  true,

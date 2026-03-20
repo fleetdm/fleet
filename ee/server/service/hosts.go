@@ -666,7 +666,7 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 		if err := svc.NewActivity(
 			ctx,
 			vc.User,
-			fleet.ActivityTypeTriggeredHostRecoveryLockPasswordRotation{
+			fleet.ActivityTypeRotatedHostRecoveryLockPassword{
 				HostID:          host.ID,
 				HostDisplayName: host.DisplayName(),
 			},

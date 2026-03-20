@@ -22529,7 +22529,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password, "password should be different after rotation")
 
 		// Verify activity was created for user-triggered rotation
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeTriggeredHostRecoveryLockPasswordRotation{}.ActivityName(),
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeRotatedHostRecoveryLockPassword{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 
 		// Disable recovery lock password
@@ -22992,7 +22992,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.WithinDuration(t, expectedRotateAt, *getPasswordResp.RecoveryLockPassword.AutoRotateAt, 2*time.Minute)
 
 		// Verify auto-rotation activity was created (Fleet-initiated, uses same activity type as manual rotation)
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeTriggeredHostRecoveryLockPasswordRotation{}.ActivityName(),
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeRotatedHostRecoveryLockPassword{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 
 		// Disable recovery lock password
