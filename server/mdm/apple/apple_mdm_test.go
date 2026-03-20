@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -323,14 +322,13 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 	}
 
 	// helper function to check if the error matches expectations for a given platform and log appropriately
-	checkErr := func(platform string, wantErr string, gotErrs map[string]error, msg string) {
-		key := fmt.Sprintf("mdm.%s_updates.minimum_version", platform)
+	checkErr := func(platform string, wantErr string, gotErrs map[string]string, msg string) {
 		if wantErr == "" {
 			assert.Empty(t, gotErrs, msg+": expected no error for platform %s but got: %v", platform, gotErrs)
 		} else {
 			assert.Len(t, gotErrs, 1, msg+": expected error for platform %s but got no errors", platform)
-			assert.Contains(t, gotErrs, key, msg+": expected error for platform %s but got no error", platform)
-			assert.ErrorContains(t, gotErrs[key], wantErr, msg+": expected error for platform %s but got: %v", platform, gotErrs[key])
+			assert.Contains(t, gotErrs, platform, msg+": expected error for platform %s but key not found in error map: %v", platform, gotErrs)
+			assert.Contains(t, gotErrs[platform], wantErr, msg+": expected error for platform %s but got: %v", platform, gotErrs[platform])
 		}
 	}
 
@@ -339,35 +337,59 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 			ac := mockAppConfigMDM()
 			for _, v := range expectSupportedMacOSPublic {
 				ac.MacOSUpdates.MinimumVersion = optjson.SetString(v)
-				checkErr("macos", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect public macOS version to be supported when including non-public asset sets")
-				checkErr("macos", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect public macOS version to be supported when excluding non-public asset sets")
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect public macOS version to be supported when including non-public asset sets")
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect public macOS version to be supported when excluding non-public asset sets")
 			}
 			for _, v := range expectSupportedMacOSNonPublic {
 				ac.MacOSUpdates.MinimumVersion = optjson.SetString(v)
-				checkErr("macos", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect non-public macOS version to be supported when including non-public asset sets")
-				checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect non-public macOS version to return error when excluding non-public asset sets")
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect non-public macOS version to be supported when including non-public asset sets")
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+				require.NoError(t, err)
+				checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public macOS version to return error when excluding non-public asset sets")
 			}
 
 			ac.MacOSUpdates.MinimumVersion = optjson.SetString("11.7.9") // not supported in either asset set, so we expect an error in both cases
-			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect unsupported macOS version to return error when including non-public asset sets")
-			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect unsupported macOS version to return error when excluding non-public asset sets")
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported macOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported macOS version to return error when excluding non-public asset sets")
 		})
 		t.Run("team mdm settings", func(t *testing.T) {
 			tm := mockTeamMDM()
 			for _, v := range expectSupportedMacOSPublic {
 				tm.MacOSUpdates.MinimumVersion = optjson.SetString(v)
-				checkErr("macos", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect public macOS version to be supported when including non-public asset sets")
-				checkErr("macos", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect public macOS version to be supported when excluding non-public asset sets")
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect public macOS version to be supported when including non-public asset sets")
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect public macOS version to be supported when excluding non-public asset sets")
 			}
 			for _, v := range expectSupportedMacOSNonPublic {
 				tm.MacOSUpdates.MinimumVersion = optjson.SetString(v)
-				checkErr("macos", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect non-public macOS version to be supported when including non-public asset sets")
-				checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect non-public macOS version to return error when excluding non-public asset sets")
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect non-public macOS version to be supported when including non-public asset sets")
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+				require.NoError(t, err)
+				checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public macOS version to return error when excluding non-public asset sets")
 			}
 
 			tm.MacOSUpdates.MinimumVersion = optjson.SetString("11.7.9") // not supported in either asset set, so we expect an error in both cases
-			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect unsupported macOS version to return error when including non-public asset sets")
-			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect unsupported macOS version to return error when excluding non-public asset sets")
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported macOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported macOS version to return error when excluding non-public asset sets")
 		})
 	})
 
@@ -375,31 +397,55 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 		t.Run("app config mdm settings", func(t *testing.T) {
 			ac := mockAppConfigMDM()
 			ac.IOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSPublic)
-			checkErr("ios", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect public iOS version to be supported when including non-public asset sets")
-			checkErr("ios", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect public iOS version to be supported when excluding non-public asset sets")
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect public iOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect public iOS version to be supported when excluding non-public asset sets")
 
 			ac.IOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSNonPublic)
-			checkErr("ios", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect non-public iOS version to be supported when including non-public asset sets")
-			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect non-public iOS version to return error when excluding non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect non-public iOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public iOS version to return error when excluding non-public asset sets")
 
 			ac.IOSUpdates.MinimumVersion = optjson.SetString("5.3.9") // only supported for Apple Watch, so we expect an error
-			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect unsupported iOS version to return error when including non-public asset sets")
-			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect unsupported iOS version to return error when excluding non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iOS version to return error when excluding non-public asset sets")
 		})
 
 		t.Run("team mdm settings", func(t *testing.T) {
 			tm := mockTeamMDM()
 			tm.IOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSPublic)
-			checkErr("ios", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect public iOS version to be supported when including non-public asset sets")
-			checkErr("ios", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect public iOS version to be supported when excluding non-public asset sets")
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect public iOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect public iOS version to be supported when excluding non-public asset sets")
 
 			tm.IOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSNonPublic)
-			checkErr("ios", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect non-public iOS version to be supported when including non-public asset sets")
-			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect non-public iOS version to return error when excluding non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect non-public iOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public iOS version to return error when excluding non-public asset sets")
 
 			tm.IOSUpdates.MinimumVersion = optjson.SetString("5.3.9") // only supported for Apple Watch, so we expect an error
-			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect unsupported iOS version to return error when including non-public asset sets")
-			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect unsupported iOS version to return error when excluding non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iOS version to return error when excluding non-public asset sets")
 		})
 	})
 
@@ -407,32 +453,79 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 		t.Run("app config mdm settings", func(t *testing.T) {
 			ac := mockAppConfigMDM()
 			ac.IPadOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSPublic)
-			checkErr("ipados", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect public iPadOS version to be supported when including non-public asset sets")
-			checkErr("ipados", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect public iPadOS version to be supported when excluding non-public asset sets")
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect public iPadOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect public iPadOS version to be supported when excluding non-public asset sets")
 
 			ac.IPadOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSNonPublic)
-			checkErr("ipados", "", ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect non-public iPadOS version to be supported when including non-public asset sets")
-			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect non-public iPadOS version to return error when excluding non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect non-public iPadOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public iPadOS version to return error when excluding non-public asset sets")
 
 			ac.IPadOSUpdates.MinimumVersion = optjson.SetString("5.3.9") // only supported for Apple Watch, so we expect an error
-			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, false), "expect unsupported iPadOS version to return error when including non-public asset sets")
-			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(ac, true), "expect unsupported iPadOS version to return error when excluding non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when excluding non-public asset sets")
 		})
 
 		t.Run("team mdm settings", func(t *testing.T) {
 			tm := mockTeamMDM()
 			tm.IPadOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSPublic)
-			checkErr("ipados", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect public iPadOS version to be supported when including non-public asset sets")
-			checkErr("ipados", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect public iPadOS version to be supported when excluding non-public asset sets")
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect public iPadOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect public iPadOS version to be supported when excluding non-public asset sets")
 
 			tm.IPadOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSNonPublic)
-			checkErr("ipados", "", ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect non-public iPadOS version to be supported when including non-public asset sets")
-			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect non-public iPadOS version to return error when excluding non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect non-public iPadOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public iPadOS version to return error when excluding non-public asset sets")
 
 			tm.IPadOSUpdates.MinimumVersion = optjson.SetString("5.3.9") // only supported for Apple Watch, so we expect an error
-			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, false), "expect unsupported iPadOS version to return error when including non-public asset sets")
-			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, ValidateMDMSettingsAppleSupportedOSVersion(tm, true), "expect unsupported iPadOS version to return error when excluding non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when excluding non-public asset sets")
 		})
+	})
+
+	// These subtests are placed last so that the dev_mode override cleanup for the error server
+	// doesn't interfere with the earlier subtests that rely on the valid mock server.
+	t.Run("GetAssetMetadata error", func(t *testing.T) {
+		// Use a server that returns invalid JSON so GetAssetMetadata returns an error.
+		errSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("not valid json"))
+			require.NoError(t, err)
+		}))
+		t.Cleanup(errSrv.Close)
+		dev_mode.SetOverride("FLEET_DEV_GDMF_URL", errSrv.URL, t)
+
+		ac := mockAppConfigMDM()
+		got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+		require.Error(t, err)
+		assert.Nil(t, got)
+
+		tm := mockTeamMDM()
+		got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+		require.Error(t, err)
+		assert.Nil(t, got)
 	})
 }
 
@@ -483,7 +576,15 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 	t.Run("no hosts needing recovery lock does not send commands", func(t *testing.T) {
 		ds := new(mock.Store)
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
 
@@ -503,9 +604,17 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 	t.Run("host needing recovery lock gets SetRecoveryLock and password stored with pending status", func(t *testing.T) {
 		ds := new(mock.Store)
 
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
 		}
 
 		// Track call order to verify correct sequencing
@@ -544,9 +653,17 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 	t.Run("SetRecoveryLock failure clears pending status to allow retry", func(t *testing.T) {
 		ds := new(mock.Store)
 
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
 		}
 
 		// Track call order to verify correct sequencing
@@ -585,9 +702,17 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 	t.Run("APNs delivery failure does not clear pending status", func(t *testing.T) {
 		ds := new(mock.Store)
 
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
 		}
 
 		// Track call order to verify ClearRecoveryLockPendingStatus is NOT called
@@ -623,7 +748,8 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 // mockRecoveryLockCommander implements RecoveryLockCommander for testing.
 type mockRecoveryLockCommander struct {
-	setRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	setRecoveryLockFn   func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	clearRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -631,4 +757,75 @@ func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUI
 		return m.setRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
 	}
 	return nil
+}
+
+func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	if m.clearRecoveryLockFn != nil {
+		return m.clearRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
+	}
+	return nil
+}
+
+func TestSendClearRecoveryLockCommands(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("hosts needing clear get ClearRecoveryLock command", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		// No hosts need SET
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		hostUUID := "host-uuid-1"
+		// ClaimHostsForRecoveryLockClear queries verified hosts where config is disabled and marks them pending
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+
+		var clearCalled bool
+		mockCommander := &mockRecoveryLockCommander{
+			clearRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				clearCalled = true
+				require.Equal(t, []string{hostUUID}, hostUUIDs)
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+		require.True(t, clearCalled, "ClearRecoveryLock should have been called")
+	})
+
+	t.Run("no hosts needing clear does not send commands", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		// No hosts need SET
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			clearRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				t.Fatal("ClearRecoveryLock should not be called when no hosts need clearing")
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+	})
 }

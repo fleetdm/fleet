@@ -804,7 +804,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.Context, host *fleet.Host) bool {
-	if host.Platform != "darwin" {
+	if host.Platform != "darwin" && host.Platform != "windows" {
 		return false
 	}
 
@@ -1159,8 +1159,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		if host.Platform == "darwin" {
-			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, policyResults); err != nil {
+		if host.Platform == "darwin" || host.Platform == "windows" {
+			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, host.Platform, policyResults); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -2487,6 +2487,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	hostID uint,
 	hostTeamID *uint,
 	hostOrbitNodeKey *string,
+	hostPlatform string,
 	incomingPolicyResults map[uint]*bool,
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
@@ -2535,7 +2536,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	}
 
 	// Get policies configured for conditional access.
-	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID)
+	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID, hostPlatform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
 	}
@@ -2562,13 +2563,14 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
 
 	return nil
 }
 
 func (svc *Service) setHostConditionalAccessAsync(
 	hostID uint,
+	hostPlatform string,
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
@@ -2576,11 +2578,12 @@ func (svc *Service) setHostConditionalAccessAsync(
 	go func() {
 		logger := svc.logger.With(
 			"host_id", hostID,
+			"platform", hostPlatform,
 			"managed", managed,
 			"compliant", compliant,
 		)
 		start := time.Now()
-		if err := svc.setHostConditionalAccess(hostID, hostConditionalAccessStatus, managed, compliant); err != nil {
+		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant); err != nil {
 			logger.ErrorContext(context.TODO(), "set host conditional access", "took", time.Since(start), "err", err)
 		}
 		logger.DebugContext(context.TODO(), "set host conditional access", "took", time.Since(start))
@@ -2593,6 +2596,7 @@ var conditionalAccessSetWaitTime = 10 * time.Second
 
 func (svc *Service) setHostConditionalAccess(
 	hostID uint,
+	hostPlatform string,
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
@@ -2605,10 +2609,18 @@ func (svc *Service) setHostConditionalAccess(
 	}
 	logger := svc.logger.With(
 		"host_id", hostID,
+		"platform", hostPlatform,
 		"managed", managed,
 		"compliant", compliant,
 	)
 	logger.DebugContext(ctx, "set compliance status")
+
+	// Currently, only macOS and Windows are supported.
+	osName := "macOS" // "macOS" is what Entra requires for darwin hosts.
+	if hostPlatform == "windows" {
+		osName = "windows"
+	}
+
 	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(ctx,
 		integration.TenantID,
 		integration.ProxyServerSecret,
@@ -2618,7 +2630,7 @@ func (svc *Service) setHostConditionalAccess(
 
 		managed,
 		hostConditionalAccessStatus.DisplayName,
-		"macOS",
+		osName,
 		hostConditionalAccessStatus.OSVersion,
 		compliant,
 		time.Now().UTC(),
@@ -2626,38 +2638,46 @@ func (svc *Service) setHostConditionalAccess(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
 	}
-	const (
-		timeout = 1 * time.Minute
-	)
-	logger.DebugContext(ctx, "set compliance status message sent")
-	startTime := time.Now()
-	for range time.Tick(conditionalAccessSetWaitTime) {
-		if time.Since(startTime) > timeout {
-			return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
-		}
-		logger.DebugContext(ctx, "get compliance status message wait")
-		messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
-			integration.TenantID, integration.ProxyServerSecret, response.MessageID,
+
+	//
+	// The macOS API is asynchronous, the Windows API is not.
+	// So we only need to retrieve the status of the "request" for macOS hosts.
+	//
+
+	if hostPlatform == "darwin" {
+		const (
+			timeout = 1 * time.Minute
 		)
-		if err != nil {
-			// Retry again in case of network or transient errors.
-			logger.InfoContext(ctx, "get message status, retrying", "err", err)
-			continue
-		}
-		if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
-			logger.DebugContext(ctx, "set device compliance status completed",
-				"took", time.Since(startTime),
+		logger.DebugContext(ctx, "set compliance status message sent")
+		startTime := time.Now()
+		for range time.Tick(conditionalAccessSetWaitTime) {
+			if time.Since(startTime) > timeout {
+				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
+			}
+			logger.DebugContext(ctx, "get compliance status message wait")
+			messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
+				integration.TenantID, integration.ProxyServerSecret, response.MessageID,
 			)
-			break
+			if err != nil {
+				// Retry again in case of network or transient errors.
+				logger.InfoContext(ctx, "get message status, retrying", "err", err)
+				continue
+			}
+			if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
+				logger.DebugContext(ctx, "set device compliance status completed",
+					"took", time.Since(startTime),
+				)
+				break
+			}
+			detail := ""
+			if messageStatus.Detail != nil {
+				detail = *messageStatus.Detail
+			}
+			logger.InfoContext(ctx, "get message status, retrying",
+				"status", messageStatus.Status,
+				"detail", detail,
+			)
 		}
-		detail := ""
-		if messageStatus.Detail != nil {
-			detail = *messageStatus.Detail
-		}
-		logger.InfoContext(ctx, "get message status, retrying",
-			"status", messageStatus.Status,
-			"detail", detail,
-		)
 	}
 
 	if err := svc.ds.SetHostConditionalAccessStatus(ctx, hostID, managed, compliant); err != nil {

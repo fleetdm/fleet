@@ -109,7 +109,7 @@ Fleet supports MDM migration without requiring device wipes, allowing organizati
 <meta name="publishedOn" value="2026-02-27">
 <meta name="description" value="Compare Fleet and Workspace ONE on multi-platform, deployment, and security capabilities.">
 
-<meta name="articleSlugInCategory" value="fleet-vs-workspace-one"> 
+<meta name="articleSlugInCategory" value="workspace-one-vs-fleet"> 
 <meta name="introductionTextBlockOne" value="Organizations with mixed device fleets often manage macOS, Windows, and Linux through separate tools, creating visibility gaps and inconsistent policy enforcement. A multi-platform MDM consolidates device management into a single console with unified reporting and controls."> 
 <meta name="introductionTextBlockTwo" value="
 Fleet is a multi-platform device management solution with support for macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android devices. Fleet delivers device state updates in under 30 seconds, integrates with git repositories for GitOps workflows via its fleetctl CLI, and offers the transparency of an open-source codebase. Workspace ONE also provides multi-platform device management through a proprietary hybrid cloud/on-premises architecture. This guide compares how these two MDM providers differ in architecture, security capabilities, and deployment flexibility."> 
