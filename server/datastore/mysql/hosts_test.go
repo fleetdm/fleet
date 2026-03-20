@@ -1828,7 +1828,6 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 			fleet.DEPAssignProfileResponseThrottled,
 			fleet.DEPAssignProfileResponseNotAccessible,
 		} {
-			resp := resp
 			hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp})
 			require.NoError(t, err)
 			for _, h := range hosts {
