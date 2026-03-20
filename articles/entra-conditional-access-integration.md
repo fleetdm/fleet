@@ -80,7 +80,7 @@ Select the avatar on the right side of the top navigation and select **Labels > 
 For Entra's "Conditional Access" feature we need to deploy a Platform SSO extension for Company Portal.
 The extension must be deployed via configuration profiles. For more information see https://learn.microsoft.com/en-us/intune/intune-service/configuration/platform-sso-macos#step-3---deploy-the-company-portal-app-for-macos.
 
-If you're using Fleet's MDM features, head to **Controls > OS settings > Configuration profiles > + Add profile**.
+If you're using Fleet's MDM features, head to **Controls > OS settings > Custom settings > + Add profile**.
 Set **Target > Custom > Include all** and select **Company Portal installed**.
 
 Upload the following configuration profile:
