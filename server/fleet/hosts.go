@@ -998,7 +998,7 @@ type HostSummary struct {
 	LowDiskSpaceCount   *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
 	BuiltinLabels       []*LabelSummary        `json:"builtin_labels" db:"-"`
 	Platforms           []*HostSummaryPlatform `json:"platforms" db:"-"`
-	DEPAssignErrorCount uint                   `db:"dep_assign_error_count"`
+	DEPAssignErrorCount uint                   `json:"dep_assign_error_count" db:"dep_assign_error_count"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,

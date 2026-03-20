@@ -607,6 +607,31 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.DEPProfileErrorFilter = &boolVal
 	}
 
+	depAssignProfileResponse := r.URL.Query().Get("dep_assign_profile_response")
+	if depAssignProfileResponse != "" {
+		switch fleet.DEPAssignProfileResponseStatus(depAssignProfileResponse) {
+		case fleet.DEPAssignProfileResponseSuccess,
+			fleet.DEPAssignProfileResponseFailed,
+			fleet.DEPAssignProfileResponseThrottled,
+			fleet.DEPAssignProfileResponseNotAccessible:
+			resp := fleet.DEPAssignProfileResponseStatus(depAssignProfileResponse)
+			hopt.DEPAssignProfileResponseFilter = &resp
+		default:
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid dep_assign_profile_response: %s. Valid options are '%s', '%s', '%s', or '%s'.",
+						depAssignProfileResponse,
+						fleet.DEPAssignProfileResponseSuccess,
+						fleet.DEPAssignProfileResponseFailed,
+						fleet.DEPAssignProfileResponseThrottled,
+						fleet.DEPAssignProfileResponseNotAccessible,
+					),
+				),
+			)
+		}
+	}
+
 	return hopt, nil
 }
 

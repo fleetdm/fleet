@@ -1425,7 +1425,7 @@ func (ds *Datastore) applyHostFilters(
 	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
 	switch {
 	case wantFailedDEP:
-		depStatusFilter = `AND hdep.assign_profile_response IN ('FAILED', 'THROTTLED')`
+		depStatusFilter = `AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
 	case wantDepResp != "":
 		depStatusFilter = `AND hdep.assign_profile_response = ?`
 		whereParams = append(whereParams, wantDepResp)
@@ -2152,6 +2152,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 		args = append(args, fleet.ExpandPlatform(*platform))
 	}
 
+	depFailed := fmt.Sprintf("'%s'", string(fleet.DEPAssignProfileResponseFailed))
+	depThrottled := fmt.Sprintf("'%s'", string(fleet.DEPAssignProfileResponseThrottled))
+
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
@@ -2160,7 +2163,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
-				COALESCE(SUM(CASE WHEN hdep.assign_profile_response IN ('FAILED', 'THROTTLED') THEN 1 ELSE 0 END), 0) dep_assign_error_count,
+				COALESCE(SUM(CASE WHEN hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -2169,7 +2172,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 			%s
 			WHERE %s
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
 	stmt, args, err := sqlx.In(sqlStatement, args...)
 	if err != nil {

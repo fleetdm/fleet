@@ -160,7 +160,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
 				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
-				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending",
+				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending" +
+				"&dep_profile_error=true&dep_assign_profile_response=FAILED",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -196,6 +197,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				ProfileStatusFilter:               &verified,
 				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
 				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
+				DEPProfileErrorFilter:             ptr.Bool(true),
+				DEPAssignProfileResponseFilter:    (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseFailed))),
 			},
 		},
 		"all params defined (deprecated)": {
@@ -205,7 +208,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
 				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
-				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending",
+				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending" +
+				"&dep_profile_error=true&dep_assign_profile_response=FAILED",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -241,6 +245,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				ProfileStatusFilter:               &verified,
 				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
 				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
+				DEPProfileErrorFilter:             ptr.Bool(true),
+				DEPAssignProfileResponseFilter:    (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseFailed))),
 			},
 		},
 		"policy_id and policy_response params (for coverage)": {
@@ -361,6 +367,50 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error in script_batch_execution_status": {
 			url:          "/foo?script_batch_execution_id=abc123&script_batch_execution_status=foo",
 			errorMessage: "Invalid script_batch_execution_status: foo",
+		},
+		"dep_profile_error=true": {
+			url: "/foo?dep_profile_error=true",
+			hostListOptions: fleet.HostListOptions{
+				DEPProfileErrorFilter: ptr.Bool(true),
+			},
+		},
+		"dep_profile_error=false": {
+			url: "/foo?dep_profile_error=false",
+			hostListOptions: fleet.HostListOptions{
+				DEPProfileErrorFilter: ptr.Bool(false),
+			},
+		},
+		"error in dep_profile_error (not a boolean)": {
+			url:          "/foo?dep_profile_error=foo",
+			errorMessage: "Invalid dep_profile_error",
+		},
+		"dep_assign_profile_response=SUCCESS": {
+			url: "/foo?dep_assign_profile_response=SUCCESS",
+			hostListOptions: fleet.HostListOptions{
+				DEPAssignProfileResponseFilter: (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseSuccess))),
+			},
+		},
+		"dep_assign_profile_response=FAILED": {
+			url: "/foo?dep_assign_profile_response=FAILED",
+			hostListOptions: fleet.HostListOptions{
+				DEPAssignProfileResponseFilter: (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseFailed))),
+			},
+		},
+		"dep_assign_profile_response=THROTTLED": {
+			url: "/foo?dep_assign_profile_response=THROTTLED",
+			hostListOptions: fleet.HostListOptions{
+				DEPAssignProfileResponseFilter: (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseThrottled))),
+			},
+		},
+		"dep_assign_profile_response=NOT_ACCESSIBLE": {
+			url: "/foo?dep_assign_profile_response=NOT_ACCESSIBLE",
+			hostListOptions: fleet.HostListOptions{
+				DEPAssignProfileResponseFilter: (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseNotAccessible))),
+			},
+		},
+		"error in dep_assign_profile_response (invalid value)": {
+			url:          "/foo?dep_assign_profile_response=INVALID",
+			errorMessage: "Invalid dep_assign_profile_response",
 		},
 		"negative software_id": {
 			url:          "/foo?software_id=-10",
