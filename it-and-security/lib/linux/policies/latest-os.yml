@@ -1,0 +1,18 @@
+- name: Linux - Operating system up to date
+  query: |
+    SELECT 1 FROM os_version WHERE
+      (name LIKE 'Ubuntu%' AND version_compare(version, '22.04') >= 0) OR
+      (name LIKE 'Fedora%' AND CAST(version AS INTEGER) >= 40) OR
+      (name LIKE '%Debian%' AND CAST(version AS INTEGER) >= 12) OR
+      (name LIKE '%CentOS%' AND CAST(version AS INTEGER) >= 9) OR
+      (name LIKE '%Red Hat%' AND CAST(version AS INTEGER) >= 9) OR
+      (name LIKE '%openSUSE%');
+  critical: false
+  description: >-
+    This policy checks if the Linux host is running a supported operating system version.
+    Unsupported OS versions may no longer receive security patches, leaving the host vulnerable.
+  resolution: |-
+    Upgrade to a supported version of your Linux distribution.
+    If you need help, please reach out in #help-it.
+  platform: linux
+  calendar_events_enabled: false
