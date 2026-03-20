@@ -616,14 +616,17 @@ func (r callbackSSOResponse) Html() string { return r.content }
 func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
 	if r.token != "" {
-		http.SetCookie(w, &http.Cookie{
+		cookie := &http.Cookie{
 			Name:     "__Host-token",
 			Value:    r.token,
 			Path:     "/",
 			Secure:   cookieSecure,
 			SameSite: http.SameSiteLaxMode,
-			Expires:  time.Now().Add(r.expires).UTC(),
-		})
+		}
+		if r.expires > 0 {
+			cookie.Expires = time.Now().Add(r.expires).UTC()
+		}
+		http.SetCookie(w, cookie)
 	}
 }
 
