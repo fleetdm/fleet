@@ -2553,7 +2553,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead. |
+| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 
 <br/>
 
@@ -2563,7 +2563,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead. |
+| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 
 <br/>
 
@@ -6151,7 +6151,7 @@ Deletes the label specified by ID.
 
 ## OS settings
 
-- [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile)
+- [Create configuration profile](#create-configuration-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
@@ -6164,7 +6164,7 @@ Deletes the label specified by ID.
 - [Batch-resend custom OS setting (configuration profile)](#batch-resend-custom-os-setting-configuration-profile)
 
 
-### Create custom OS setting (configuration profile)
+### Create configuration profile
 
 > **Experimental feature**. Deploying Windows SCEP profile is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -12556,7 +12556,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption          | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true.                                                                                        |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead.                                                                                                                                      |
+| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
 
 <br/>
 
@@ -12566,7 +12566,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead.                                                                                                                             |
+| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
 
 
 <br/>
