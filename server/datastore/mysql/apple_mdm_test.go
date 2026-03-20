@@ -11150,7 +11150,7 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		// Try to initiate second rotation - should fail
 		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, "another-password")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "rotation already pending")
+		assert.ErrorIs(t, err, fleet.ErrRecoveryLockRotationPending)
 	})
 
 	t.Run("InitiateRecoveryLockRotation rejects pending status", func(t *testing.T) {
@@ -11163,7 +11163,7 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		// Try to initiate rotation on pending status - should fail
 		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, "new-password")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not eligible for rotation")
+		assert.ErrorIs(t, err, fleet.ErrRecoveryLockNotEligible)
 	})
 
 	t.Run("InitiateRecoveryLockRotation allows failed status", func(t *testing.T) {
