@@ -116,9 +116,18 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
 
 // We exclude "unlocked" as we dont display a tooltip for it.
 export const REFETCH_TOOLTIP_MESSAGES: Record<
-  HostMdmDeviceStatusUIStateNoUnlock | "offline",
+  HostMdmDeviceStatusUIStateNoUnlock | "offline" | "android",
   JSX.Element
 > = {
+  android: (
+    <>
+      Android devices sync automatically. To manually
+      <br />
+      sync, go to <b>Settings &gt; Google &gt; Work profile</b>
+      <br />
+      <b>&gt; Device policy</b> on the device.
+    </>
+  ),
   offline: (
     <>
       You can&apos;t fetch data from <br /> an offline host.

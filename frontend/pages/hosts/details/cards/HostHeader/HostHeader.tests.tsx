@@ -41,8 +41,8 @@ describe("HostHeader", () => {
     expect(screen.getByText("My device")).toBeInTheDocument();
     expect(screen.getByText(/unavailable/i)).toBeInTheDocument();
   });
-  it("does not render refetch button for Android", () => {
-    render(
+  it("renders a disabled refetch button with tooltip for Android", async () => {
+    const { user } = renderWithSetup(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
         showRefetchSpinner={false}
@@ -50,7 +50,14 @@ describe("HostHeader", () => {
         renderActionsDropdown={renderActionDropdown}
       />
     );
-    expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
+    const refetchButton = screen.getByRole("button", { name: /refetch/i });
+    expect(refetchButton).toBeDisabled();
+
+    await user.hover(screen.getByText("Refetch"));
+
+    expect(
+      await screen.findByText(/Android devices sync automatically/i)
+    ).toBeInTheDocument();
   });
 
   it("disables refetch button when host is offline", () => {
