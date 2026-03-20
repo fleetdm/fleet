@@ -243,6 +243,31 @@ type Label struct {
 	fleet.LabelSpec
 }
 
+// UnmarshalJSON distinguishes between "hosts" key omitted (nil, preserve
+// existing membership) and "hosts" key present with null value (clear all
+// hosts). Both cases produce a nil HostsSlice after default unmarshaling,
+// so we check the raw JSON for the key's presence.
+func (l *Label) UnmarshalJSON(data []byte) error {
+	// Use an alias to prevent infinite recursion.
+	type LabelAlias Label
+	var alias LabelAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*l = Label(alias)
+
+	if l.Hosts == nil {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err == nil {
+			if _, ok := raw["hosts"]; ok {
+				// "hosts" key was explicitly set to null — clear all hosts.
+				l.Hosts = []string{}
+			}
+		}
+	}
+	return nil
+}
+
 type SoftwarePackage struct {
 	BaseItem
 	fleet.SoftwarePackageSpec
@@ -276,6 +301,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.Categories = spec.Categories
 	packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
+	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
 	packageLevel.SelfService = spec.SelfService
 
@@ -1323,10 +1349,6 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
 		}
 
-		// Manual labels can have empty hosts lists, just make sure we initialize the empty list
-		if l.LabelMembershipType == fleet.LabelMembershipTypeManual && l.Hosts == nil {
-			l.Hosts = []string{}
-		}
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
 			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
@@ -1753,8 +1775,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
-		if len(item.LabelsExcludeAny) > 0 && len(item.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
+		var count int
+		for _, set := range [][]string{item.LabelsExcludeAny, item.LabelsIncludeAny, item.LabelsIncludeAll} {
+			if len(set) > 0 {
+				count++
+			}
+		}
+		if count > 1 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
 			continue
 		}
 
@@ -1774,8 +1802,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
-		if len(maintainedAppSpec.LabelsExcludeAny) > 0 && len(maintainedAppSpec.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
+		var count int
+		for _, set := range [][]string{maintainedAppSpec.LabelsExcludeAny, maintainedAppSpec.LabelsIncludeAny, maintainedAppSpec.LabelsIncludeAll} {
+			if len(set) > 0 {
+				count++
+			}
+		}
+		if count > 1 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
 			continue
 		}
 
@@ -1900,10 +1934,18 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					continue
 				}
 			}
-			if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
-				multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
+
+			var count int
+			for _, set := range [][]string{softwarePackageSpec.LabelsExcludeAny, softwarePackageSpec.LabelsIncludeAny, softwarePackageSpec.LabelsIncludeAll} {
+				if len(set) > 0 {
+					count++
+				}
+			}
+			if count > 1 {
+				multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
 				continue
 			}
+
 			if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
 				multiError = multierror.Append(multiError, fmt.Errorf("hash_sha256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
 				continue

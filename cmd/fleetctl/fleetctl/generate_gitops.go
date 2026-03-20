@@ -1957,6 +1957,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
 				labelKey = "labels_exclude_any"
 			}
+			if len(softwareTitle.SoftwarePackage.LabelsIncludeAll) > 0 {
+				labels = softwareTitle.SoftwarePackage.LabelsIncludeAll
+				labelKey = "labels_include_all"
+			}
 			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
@@ -1970,6 +1974,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
 				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
 				labelKey = "labels_exclude_any"
+			}
+			if len(softwareTitle.AppStoreApp.LabelsIncludeAll) > 0 {
+				labels = softwareTitle.AppStoreApp.LabelsIncludeAll
+				labelKey = "labels_include_all"
 			}
 			if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
 				softwareSpec["setup_experience"] = true

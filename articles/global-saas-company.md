@@ -85,3 +85,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-03">
 <meta name="description" value="How a global SaaS company manages 10,000+ devices with Fleet, using GitOps automation and real-time visibility across macOS, Windows, and Linux."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Global SaaS company">

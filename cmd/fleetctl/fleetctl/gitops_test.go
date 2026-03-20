@@ -1279,8 +1279,18 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
 	assert.True(t, savedAppConfig.WebhookSettings.ActivitiesWebhook.Enable)
 	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
-	assert.Len(t, appliedLabelSpecs, 2)
+	require.Len(t, appliedLabelSpecs, 3)
 	assert.Len(t, deletedLabels, 1)
+	// Label "d" is a manual label without hosts key — Hosts should be nil (preserve membership).
+	var labelD *fleet.LabelSpec
+	for _, l := range appliedLabelSpecs {
+		if l.Name == "d" {
+			labelD = l
+			break
+		}
+	}
+	require.NotNil(t, labelD, "label d should be in applied specs")
+	assert.Nil(t, labelD.Hosts, "omitting hosts key should result in nil Hosts (preserve membership)")
 
 	// Reset labels arrays
 	deletedLabels = make([]string, 0)

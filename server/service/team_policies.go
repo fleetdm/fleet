@@ -616,6 +616,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	if p.ConditionalAccessEnabled != nil && *p.ConditionalAccessEnabled && teamID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf(`policy payload verification: %s`, errPolicyAllFleetsForConditionalAccess),
+		})
+	}
+
 	p.Type = policy.Type
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -706,6 +712,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		for _, label := range p.LabelsExcludeAny {
 			policy.LabelsExcludeAny = append(policy.LabelsExcludeAny, fleet.LabelIdent{LabelName: label})
 		}
+	}
+
+	if err := fleet.PolicyVerifyConditionalAccess(policy.ConditionalAccessEnabled, policy.Platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", err),
+		})
 	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)

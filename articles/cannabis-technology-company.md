@@ -36,3 +36,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="A cannabis tech company consolidated Jamf and Intune with Fleet, unified macOS and Windows, and adopted GitOps with Okta integration.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Cannabis technology company">
+

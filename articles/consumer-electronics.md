@@ -72,3 +72,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-18">
 <meta name="description" value="This consumer electronics company simplifies cross-platform management with Fleet, reducing tools and improving visibility."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Consumer electronics">
