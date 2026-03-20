@@ -51,6 +51,7 @@ func main() {
 	} else {
 		logrus.Warn("MCP_AUTH_TOKEN is not set — server is unauthenticated")
 	}
+	handler = mcpRouteGuard(handler)
 	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
 		logrus.Fatalf("server error: %v", err)
 	}
