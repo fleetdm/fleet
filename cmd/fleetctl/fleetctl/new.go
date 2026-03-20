@@ -157,9 +157,9 @@ func newCommand() *cli.Command {
 				}
 
 				content, err = renderTemplate(content, vars)
-			if err != nil {
-				return fmt.Errorf("rendering template %s: %w", path, err)
-			}
+				if err != nil {
+					return fmt.Errorf("rendering template %s: %w", path, err)
+				}
 
 				if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 					return err
