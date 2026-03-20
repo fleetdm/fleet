@@ -17,7 +17,9 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/stretchr/testify/assert/yaml"
 )
 
 func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
@@ -213,6 +215,35 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	external_refs.EnrichManifest(out)
 
+	// we need to read from a file
+	if input.PatchPolicyPath != "" {
+		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy path")
+		}
+
+		p := patch_policy.PolicyData{}
+		err = yaml.Unmarshal(policyBytes, &p)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
+		}
+		p.Platform = "darwin"
+		p.TitleName = out.Name
+		p.Version = out.Version
+		um, err := patch_policy.Generate(p)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "patch policy")
+		}
+		out.PatchPolicy = maintained_apps.PatchPolicy{
+			Name:        um.Name,
+			Query:       um.Query,
+			Platform:    um.Platform,
+			Description: um.Description,
+			Resolution:  um.Resolution,
+		}
+
+	}
+
 	return out, nil
 }
 
@@ -233,6 +264,7 @@ type inputApp struct {
 	Frozen               bool     `json:"frozen"`
 	InstallScriptPath    string   `json:"install_script_path"`
 	UninstallScriptPath  string   `json:"uninstall_script_path"`
+	PatchPolicyPath      string   `json:"patch_policy_path"`
 }
 
 type brewCask struct {
