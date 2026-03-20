@@ -2349,6 +2349,23 @@ This activity contains the following fields:
 }
 ```
 
+## cleared_passcode
+
+Generated when a user clears the passcode on an iOS or iPadOS host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": 1,
+	"host_display_name": "Anna's MacBook Pro",
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
