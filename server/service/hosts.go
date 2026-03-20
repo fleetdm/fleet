@@ -3890,14 +3890,8 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
 	}
 
-	// Schedule auto-rotation by marking the password as viewed.
-	// This sets auto_rotate_at to 1 hour from now.
-	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
-	}
-	password.AutoRotateAt = &rotateAt
-
+	// Create activity first. If this fails, we return an error before scheduling
+	// rotation, ensuring we don't rotate passwords that were never returned to the user.
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
@@ -3908,6 +3902,14 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
 	}
+
+	// Schedule auto-rotation by marking the password as viewed.
+	// This sets auto_rotate_at to 1 hour from now.
+	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+	password.AutoRotateAt = &rotateAt
 
 	return password, nil
 }

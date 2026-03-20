@@ -4737,6 +4737,9 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
 			return time.Now().Add(1 * time.Hour), nil
 		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 3)
@@ -4769,6 +4772,9 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 			return &fleet.HostRecoveryLockPassword{
 				Password: "test-password-4",
 			}, nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
 		}
 
 		expectedRotateAt := time.Now().Add(1 * time.Hour)
@@ -4819,7 +4825,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
-		// Should fail because MarkRecoveryLockPasswordViewed failed
+		// Should fail because rotation scheduling failed - password must not be
+		// returned unless rotation is successfully scheduled
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 5)
 		require.Error(t, err)
 		assert.Nil(t, password)
