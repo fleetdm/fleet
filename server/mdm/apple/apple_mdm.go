@@ -1890,10 +1890,9 @@ func sendAutoRotationCommands(
 			// Check for benign race conditions where host state changed between
 			// GetHostsForAutoRotation and now (e.g., manual rotation started,
 			// password removed, host deleted, etc.)
-			errMsg := err.Error()
 			if fleet.IsNotFound(err) ||
-				strings.Contains(errMsg, "rotation already pending") ||
-				strings.Contains(errMsg, "not eligible for rotation") {
+				errors.Is(err, fleet.ErrRecoveryLockRotationPending) ||
+				errors.Is(err, fleet.ErrRecoveryLockNotEligible) {
 				logger.DebugContext(ctx, "host lost eligibility for auto-rotation",
 					"host_uuid", host.HostUUID,
 					"error", err,

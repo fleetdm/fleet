@@ -7680,10 +7680,10 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID 
 		}
 
 		if dest.HasPending {
-			return ctxerr.Errorf(ctx, "rotation already pending for host %s", hostUUID)
+			return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockRotationPending, fmt.Sprintf("host %s", hostUUID))
 		}
 
-		return ctxerr.Errorf(ctx, "host %s not eligible for rotation (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String)
+		return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockNotEligible, fmt.Sprintf("host %s (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String))
 	}
 
 	return nil
