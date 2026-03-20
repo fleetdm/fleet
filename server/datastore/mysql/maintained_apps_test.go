@@ -676,7 +676,7 @@ func testSharedBundleIdentifier(t *testing.T, ds *Datastore) {
 		TeamID:               &team.ID,
 		InstallScript:        "echo install",
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: ptr.Uint(firefox.ID),
+		FleetMaintainedAppID: &firefox.ID,
 	})
 	require.NoError(t, err)
 
@@ -721,7 +721,7 @@ func testSharedBundleIdentifier(t *testing.T, ds *Datastore) {
 		TeamID:               &team.ID,
 		InstallScript:        "echo install",
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: ptr.Uint(firefoxESR.ID),
+		FleetMaintainedAppID: &firefoxESR.ID,
 	})
 	require.NoError(t, err)
 
