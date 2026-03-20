@@ -483,64 +483,6 @@ $max-width: 2560px;
   }
 }
 
-@mixin bottom-border(
-  $active-color: $core-fleet-black,
-  $inactive-color: $ui-fleet-black-25
-) {
-  // Light underline always visible
-  &::before {
-    content: "";
-    display: block;
-    position: absolute;
-    left: 0;
-    bottom: -1px;
-    height: 1px;
-    width: 100%;
-    background: $inactive-color;
-    pointer-events: none;
-    transform: scaleX(1);
-    transform-origin: right;
-    transition: transform 0.3s ease;
-    pointer-events: none;
-  }
-
-  // Dark underline, animates in
-  &::after {
-    content: "";
-    display: block;
-    position: absolute;
-    left: 0;
-    bottom: -1px;
-    height: 1px;
-    width: 100%;
-    background: $active-color;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.2s ease;
-    pointer-events: none;
-  }
-}
-
-// Caution: LinkCell depends on this to have animation only under text and not icons etc
-@mixin animated-bottom-border(
-  $active-color: $core-fleet-black,
-  $inactive-color: $ui-fleet-black-25
-) {
-  position: relative;
-  margin-bottom: -1px;
-
-  &:hover {
-    margin-bottom: -1px; // Account for underline height, removed for link-cell truncated
-  }
-
-  @include bottom-border($active-color, $inactive-color);
-
-  &:hover::after,
-  &:focus::after {
-    transform: scaleX(1);
-  }
-}
-
 @mixin gradient-background {
   background: linear-gradient(180deg, #eff6fa 0%, #fff 100%);
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
