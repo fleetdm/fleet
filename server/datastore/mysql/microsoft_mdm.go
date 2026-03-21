@@ -1021,6 +1021,9 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	}
 
 	// Generate and enqueue <Delete> commands for each profile.
+	// Track which profiles were successfully enqueued so we only
+	// update rows that have a corresponding queued command.
+	enqueuedTargets := make(map[string]*removeTarget)
 	for profUUID, target := range targets {
 		syncML, ok := profileContents[profUUID]
 		if !ok || len(syncML) == 0 {
@@ -1036,16 +1039,11 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, target.hostUUIDs, deleteCmd); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting delete commands for hosts")
 		}
+		enqueuedTargets[profUUID] = target
 	}
 
-	// Update host-profile rows: mark as remove + pending with the new command UUID.
-	const updateStmt = `
-	UPDATE host_mdm_windows_profiles
-	SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
-	WHERE profile_uuid IN (?) AND status IS NOT NULL AND operation_type = ?`
-
-	// We need to update each profile's hosts with their specific command UUID.
-	for profUUID, target := range targets {
+	// Update host-profile rows only for profiles that had delete commands enqueued.
+	for profUUID, target := range enqueuedTargets {
 		upStmt, upArgs, err := sqlx.In(
 			`UPDATE host_mdm_windows_profiles
 			SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
@@ -2383,14 +2381,28 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 		// Mark profiles for removal instead of deleting them. The reconciler
 		// will pick these up (status=NULL, operation_type='remove') and
 		// generate <Delete> SyncML commands.
-		for _, p := range profilesToRemove {
-			if _, err := tx.ExecContext(ctx,
-				`UPDATE host_mdm_windows_profiles
+		// Batch update using (profile_uuid, host_uuid) IN (...) for efficiency.
+		const removeBatchSize = 1000
+		for i := 0; i < len(profilesToRemove); i += removeBatchSize {
+			end := min(i+removeBatchSize, len(profilesToRemove))
+			batch := profilesToRemove[i:end]
+
+			var sb strings.Builder
+			sb.WriteString(`UPDATE host_mdm_windows_profiles
 				SET operation_type = ?, status = NULL, command_uuid = '', detail = ''
-				WHERE profile_uuid = ? AND host_uuid = ?`,
-				fleet.MDMOperationTypeRemove, p.ProfileUUID, p.HostUUID,
-			); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "marking profile for removal")
+				WHERE (profile_uuid, host_uuid) IN (`)
+			args := make([]any, 0, 1+len(batch)*2)
+			args = append(args, fleet.MDMOperationTypeRemove)
+			for j, p := range batch {
+				if j > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString("(?, ?)")
+				args = append(args, p.ProfileUUID, p.HostUUID)
+			}
+			sb.WriteString(")")
+			if _, err := tx.ExecContext(ctx, sb.String(), args...); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "marking profiles for removal")
 			}
 		}
 		updatedDB = true

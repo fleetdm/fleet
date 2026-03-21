@@ -1884,8 +1884,24 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		unenrolledHost: {},
 		linuxHost:      {},
-		// windows profiles are directly deleted without a pending state (there's no on-host removal of profiles)
-		windowsHosts[0]: {},
+		// windows profiles are now marked for removal instead of being directly deleted
+		windowsHosts[0]: {
+			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
 		windowsHosts[1]: {
 			{
 				ProfileUUID:   globalProfiles[5].ProfileUUID,
@@ -1942,10 +1958,10 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	toRemoveDarwin, err = ds.ListMDMAppleProfilesToRemove(ctx)
 	require.NoError(t, err)
 	require.Len(t, toRemoveDarwin, 6)
-	// 3 are now "to remove" for windows
+	// 6 are now "to remove" for windows (3 for windowsHosts[0] marked remove+NULL, 3 for windowsHosts[1] install+NULL)
 	toRemoveWindows, err = ds.ListMDMWindowsProfilesToRemove(ctx)
 	require.NoError(t, err)
-	require.Len(t, toRemoveWindows, 3)
+	require.Len(t, toRemoveWindows, 6)
 
 	// update status of the moved host via its uuid (team has no profiles)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(
@@ -2056,11 +2072,43 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				IdentifierOrName: globalProfiles[4].Identifier,
 			},
 		},
-		unenrolledHost:  {},
-		linuxHost:       {},
-		windowsHosts[0]: {},
-		// windows profiles are directly deleted without a pending state
-		windowsHosts[1]: {},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
+		// windows profiles are now marked for removal instead of being directly deleted
+		windowsHosts[1]: {
+			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
 		windowsHosts[2]: {
 			{
 				ProfileUUID:   globalProfiles[5].ProfileUUID,
@@ -2110,10 +2158,10 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	toRemoveDarwin, err = ds.ListMDMAppleProfilesToRemove(ctx)
 	require.NoError(t, err)
 	require.Len(t, toRemoveDarwin, 6)
-	// no profiles to remove in windows
+	// 6 profiles still to remove in windows (3 remove+NULL on windowsHosts[0], 3 remove+NULL on windowsHosts[1])
 	toRemoveWindows, err = ds.ListMDMWindowsProfilesToRemove(ctx)
 	require.NoError(t, err)
-	require.Len(t, toRemoveWindows, 0)
+	require.Len(t, toRemoveWindows, 6)
 
 	// update status of the affected team
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
@@ -2234,6 +2282,21 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		linuxHost:      {},
 		windowsHosts[0]: {
 			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
 				ProfileUUID:   tm1Profiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -2244,7 +2307,23 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeInstall,
 			},
 		},
-		windowsHosts[1]: {},
+		windowsHosts[1]: {
+			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
 		windowsHosts[2]: {
 			{
 				ProfileUUID:   globalProfiles[5].ProfileUUID,
@@ -8969,8 +9048,11 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, profNameToProf["W2"].ProfileUUID)
 	require.NoError(t, err)
 
-	assertHostProfileOpStatus(t, ds, host3.UUID)
-	assertHostProfileOpStatus(t, ds, host4.UUID)
+	// Windows profiles with non-NULL status are now marked for removal instead of being deleted
+	assertHostProfileOpStatus(t, ds, host3.UUID,
+		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+	assertHostProfileOpStatus(t, ds, host4.UUID,
+		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
 
 	// set the android profile as pending install on host 5 and installed on host 6
 	forceSetAndroidHostProfileStatus(t, ds, host5.UUID, test.ToMDMAndroidConfigProfile(profNameToProf["G2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)

@@ -2597,6 +2597,9 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 	// Build remove targets — profiles that need to be removed from hosts
 	// (e.g. host moved teams, label membership changed).
+	// We only collect targets here; hp entries are created after the delete
+	// command is successfully built and enqueued.
+	removePayloadData := make(map[string][]*fleet.MDMWindowsProfilePayload) // profUUID -> payloads
 	for _, p := range toRemove {
 		toGetContents[p.ProfileUUID] = true
 		target := removeTargets[p.ProfileUUID]
@@ -2608,18 +2611,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 			removeTargets[p.ProfileUUID] = target
 		}
 		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
-
-		hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
-			ProfileUUID:   p.ProfileUUID,
-			HostUUID:      p.HostUUID,
-			ProfileName:   p.ProfileName,
-			CommandUUID:   target.cmdUUID,
-			OperationType: fleet.MDMOperationTypeRemove,
-			Status:        &fleet.MDMDeliveryPending,
-			Checksum:      p.Checksum,
-		}
-		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
-		logger.DebugContext(ctx, "removing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+		removePayloadData[p.ProfileUUID] = append(removePayloadData[p.ProfileUUID], p)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2754,6 +2746,21 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+		}
+
+		// Only create hp entries after the command was successfully enqueued.
+		for _, rp := range removePayloadData[profUUID] {
+			hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				ProfileUUID:   rp.ProfileUUID,
+				HostUUID:      rp.HostUUID,
+				ProfileName:   rp.ProfileName,
+				CommandUUID:   target.cmdUUID,
+				OperationType: fleet.MDMOperationTypeRemove,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      rp.Checksum,
+			}
+			hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
+			logger.DebugContext(ctx, "removing profile", "profile_uuid", rp.ProfileUUID, "host_id", rp.HostUUID, "name", rp.ProfileName)
 		}
 	}
 

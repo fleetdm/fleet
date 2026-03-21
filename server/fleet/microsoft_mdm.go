@@ -1660,6 +1660,12 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
 				}
 			}
+
+			for _, nested := range cmds[0].DeleteCommands {
+				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+				}
+			}
 		} else {
 			// non atomic profile, loop over all commands
 			for _, cmd := range cmds {
@@ -1717,7 +1723,13 @@ func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
 // then generates <Delete> commands targeting those same URIs.
 // If the original profile was <Atomic>, the delete commands are also wrapped in <Atomic>.
 func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*MDMWindowsCommand, error) {
-	cmds, err := UnmarshallMultiTopLevelXMLProfile(profileBytes)
+	// Mirror the install-side behavior: SCEP profiles are wrapped in <Atomic> if not already.
+	normalized := profileBytes
+	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
+		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
+	}
+
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling profile bytes for delete: %w", err)
 	}
@@ -1769,7 +1781,8 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 
 	var rawCommand []byte
 
-	if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+	switch {
+	case len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic:
 		// Atomic profile: extract URIs from nested commands, wrap deletes in <Atomic>
 		uris := extractLocURIs(&cmds[0])
 		if len(uris) == 0 {
@@ -1788,7 +1801,7 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 		if err != nil {
 			return nil, fmt.Errorf("marshalling atomic delete command: %w", err)
 		}
-	} else if len(cmds) == 1 {
+	case len(cmds) == 1:
 		// Single non-atomic command (Replace, Add, or Exec at top level)
 		uri := cmds[0].GetTargetURI()
 		if uri == "" {
@@ -1799,7 +1812,7 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 		if err != nil {
 			return nil, fmt.Errorf("marshalling delete command: %w", err)
 		}
-	} else {
+	default:
 		// Multiple top-level non-atomic commands
 		var deleteCmds []SyncMLCmd
 		for _, cmd := range cmds {
