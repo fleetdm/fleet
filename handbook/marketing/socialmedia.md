@@ -1,10 +1,10 @@
-# Social Media
+# Social media
 
 **Fleet accounts:** 
 
-## Fleet Social Media Directory
+## Fleet social media directory
 
-| Social Media Platform | Fleet UserID |
+| Social media platform | Fleet UserID |
 | :--- | :--- |
 | [LinkedIn](https://www.linkedin.com/company/fleetdm/) | FleetDM |
 | [YouTube](https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ) | FleetDM |

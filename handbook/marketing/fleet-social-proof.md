@@ -1,9 +1,9 @@
-# Marketing Assets
+# Marketing assets
 
 This is the single source of truth of all Fleet customer stroies.
 
 
-## 🟠 Social Proof
+## 🟠 Social proof
 
 Champion stories and case studies showing real customers achieving real outcomes. Use in late-stage sales, objection handling, vertical campaigns, and website. Audience: AEs, demand gen, content team.
 
@@ -18,7 +18,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [How Deputy achieved compliance and clarity with Fleet](https://fleetdm.com/articles/deputy-achieves-compliance-and-clarity-with-fleet) | Software / SaaS | ✓ |  | ✓ | <nobr>2024‑12‑17</nobr> |
 | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | Networking / CDN | ✓ | ✓ | ✓ | <nobr>2025‑01‑29</nobr> |
 
-### Anonymous stories — Financial Services
+### Anonymous stories — financial services
 
 | Story | Mac | Windows | Linux | Date |
 | --- | --- | --- | --- | --- |
@@ -31,7 +31,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [American financial services company migrates to Fleet for MDM and next-gen change management](https://fleetdm.com/case-study/financial-services-company) | ✓ | ✓ |  | <nobr>2024‑12‑19</nobr> |
 | [Digital bank strengthens security and compliance with Fleet](https://fleetdm.com/case-study/digital-bank) | ✓ | ✓ | ✓ | <nobr>2024‑06‑01</nobr> |
 
-### Anonymous stories — Technology & SaaS
+### Anonymous stories — technology & SaaS
 
 | Story | Mac | Windows | Linux | Date |
 | --- | --- | --- | --- | --- |
@@ -45,7 +45,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Global social media platform migrates to Fleet](https://fleetdm.com/case-study/global-social-media-platform) | ✓ | ✓ | ✓ | <nobr>2024‑12‑16</nobr> |
 | [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | ✓ | ✓ | ✓ | <nobr>2024‑06‑01</nobr> |
 
-### Anonymous stories — Security, IT Services, Healthcare & Other
+### Anonymous stories — security, IT services, healthcare & other
 
 | Story | Vertical | Mac | Windows | Linux | Date |
 | --- | --- | --- | --- | --- | --- |
@@ -74,7 +74,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [National research organization improves Linux automation with Fleet](https://fleetdm.com/articles/national-research-organization) | Research / Nonprofit |  |  | ✓ | <nobr>2026‑03‑14</nobr> |
 | [Technology platform manages 15,000 iPads with Fleet](https://fleetdm.com/articles/technology-platform) | Technology |  |  |  | <nobr>2026‑03‑14</nobr> |
 
-### Fleet Customer Testimonials
+### Fleet customer testimonials
 
 > All quotes sourced from [fleetdm.com/customers](https://fleetdm.com/customers)
 
