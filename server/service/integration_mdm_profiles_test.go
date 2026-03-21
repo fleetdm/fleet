@@ -1147,12 +1147,19 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		}
 	}
 
-	verifyCommands := func(wantProfileInstalls int, status string) {
+	// verifyCommands checks the number of commands sent to the device.
+	// nRemovals is optional — when a profile is replaced, <Delete> commands
+	// are generated for the old version in addition to install commands.
+	verifyCommands := func(wantProfileInstalls int, status string, nRemovals ...int) {
+		nRemove := 0
+		if len(nRemovals) > 0 {
+			nRemove = nRemovals[0]
+		}
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
-		// profile installs + 2 protocol commands acks
-		require.Len(t, cmds, wantProfileInstalls+2)
+		// profile installs + delete commands + 2 protocol commands acks
+		require.Len(t, cmds, wantProfileInstalls+nRemove+2)
 		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
 		atomicCmds := 0
@@ -1170,7 +1177,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
-		require.Equal(t, wantProfileInstalls, atomicCmds)
+		require.Equal(t, wantProfileInstalls+nRemove, atomicCmds)
 		cmds, err = mdmDevice.SendResponse()
 		require.NoError(t, err)
 		// the ack of the message should be the only returned command
@@ -1182,9 +1189,17 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 			// Clear the profiles
 			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
 				http.StatusNoContent)
-			// Also clear host-profile rows left behind by the two-phase removal
+			// Clear host-profile rows and queued commands left behind by
+			// two-phase removal, so subsequent subtests start clean.
 			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID)
+				if _, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID); err != nil {
+					return err
+				}
+				// Also dequeue any pending commands for this host's enrollment
+				_, err := q.ExecContext(context.Background(), `
+					DELETE wmcq FROM windows_mdm_command_queue wmcq
+					JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
+					WHERE mwe.host_uuid = ?`, h.UUID)
 				return err
 			})
 		})
@@ -1210,9 +1225,17 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 			// Clear the profiles
 			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
 				http.StatusNoContent)
-			// Also clear host-profile rows left behind by the two-phase removal
+			// Clear host-profile rows and queued commands left behind by
+			// two-phase removal, so subsequent subtests start clean.
 			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID)
+				if _, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID); err != nil {
+					return err
+				}
+				// Also dequeue any pending commands for this host's enrollment
+				_, err := q.ExecContext(context.Background(), `
+					DELETE wmcq FROM windows_mdm_command_queue wmcq
+					JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
+					WHERE mwe.host_uuid = ?`, h.UUID)
 				return err
 			})
 		})
@@ -1233,8 +1256,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		copiedTestProfiles[0].Contents = syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1-Modified"}})
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: copiedTestProfiles}, http.StatusNoContent)
 
-		// Confirm that one profile was sent and its status
-		verifyCommands(1, syncml.CmdStatusOK)
+		// Confirm that one install profile was sent along with a <Delete> command
+		// for the old version. When a profile's content changes, the old version is
+		// deleted from mdm_windows_configuration_profiles (triggering a <Delete>
+		// command) and the new version is installed.
+		verifyCommands(1, syncml.CmdStatusOK, 1)
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
 		checkProfilesStatus(t) // all profiles verified
@@ -6827,12 +6853,14 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 	// for the Windows profile, set host4 as failed
 	forceSetWindowsHostProfileStatus(t, s.ds, host4.UUID, test.ToMDMWindowsConfigProfile(profNameToPayload["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 
-	// delete the Windows profile. host3's install had NULL status so it's deleted
-	// outright; host4's install had non-NULL status (failed) so it is marked for removal.
+	// delete the Windows profile. Both hosts had non-NULL status (pending/failed)
+	// so both are marked for removal with a <Delete> command enqueued.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["W2"].ProfileUUID), nil, http.StatusOK, &deleteResp)
 
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		host3: {},
+		host3: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
 		host4: {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 		},

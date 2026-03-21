@@ -1785,6 +1785,7 @@ const windowsProfilesToRemoveQuery = `
 	SELECT
 		hmwp.profile_uuid,
 		hmwp.host_uuid,
+		hmwp.profile_name,
 		hmwp.operation_type,
 		COALESCE(hmwp.detail, '') as detail,
 		hmwp.status,
@@ -2307,7 +2308,7 @@ ON DUPLICATE KEY UPDATE
 	// if/else blocks which made the code harder to follow.
 	var (
 		stmt                   string
-		args                   []interface{}
+		args                   []any
 		result                 sql.Result
 		deletedProfileUUIDs    []string
 		deletedProfileContents = make(map[string][]byte)
@@ -2320,7 +2321,7 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "build statement to load obsolete profiles")
 		}
 	} else {
-		stmt, args = loadToBeDeletedProfiles, []interface{}{profTeamID}
+		stmt, args = loadToBeDeletedProfiles, []any{profTeamID}
 	}
 	if err = sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, stmt, args...); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "load obsolete profiles")
@@ -2352,7 +2353,7 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 		}
 	} else {
-		stmt, args = deleteAllProfilesForTeam, []interface{}{profTeamID}
+		stmt, args = deleteAllProfilesForTeam, []any{profTeamID}
 	}
 	if result, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "delete obsolete profiles")

@@ -1467,20 +1467,7 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 	}
 }
 
-// simulateWindowsRemoveReconciliation simulates the reconciler processing
-// Windows profile removal rows. In production, after BulkSetPendingMDMHostProfiles
-// marks profiles for removal (operation_type='remove', status=NULL), the
-// reconciler picks them up and sets them to 'verifying'. This causes
-// GetHostMDMWindowsProfiles to filter them out (it excludes remove+verifying/verified).
-// Without this simulation, the remove rows accumulate and appear in assertions.
-func simulateWindowsRemoveReconciliation(t *testing.T, ds *Datastore) {
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(),
-			`UPDATE host_mdm_windows_profiles SET status = ? WHERE operation_type = ? AND status IS NULL`,
-			fleet.MDMDeliveryVerifying, fleet.MDMOperationTypeRemove)
-		return err
-	})
-}
+
 
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
