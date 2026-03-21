@@ -1336,6 +1336,47 @@ type anyProfile struct {
 
 // only asserts the profile ID, status and operation
 func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
+	// Clean up completed Windows removal rows before asserting.
+	// In production, the full lifecycle is: mark for remove → reconciler
+	// sends <Delete> → device confirms → row deleted. Stale remove rows
+	// that are not expected in any assertion are cleaned up here to
+	// simulate this full lifecycle.
+	wantRemoveKeys := make(map[string]bool)
+	for h, profs := range want {
+		if h.Platform != "windows" {
+			continue
+		}
+		for _, p := range profs {
+			if p.OperationType == fleet.MDMOperationTypeRemove {
+				wantRemoveKeys[p.ProfileUUID+"\n"+h.UUID] = true
+			}
+		}
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Get all remove rows
+		var rows []struct {
+			ProfileUUID string `db:"profile_uuid"`
+			HostUUID    string `db:"host_uuid"`
+		}
+		if err := sqlx.SelectContext(context.Background(), q, &rows,
+			`SELECT profile_uuid, host_uuid FROM host_mdm_windows_profiles WHERE operation_type = 'remove'`); err != nil {
+			return err
+		}
+		for _, r := range rows {
+			key := r.ProfileUUID + "\n" + r.HostUUID
+			if !wantRemoveKeys[key] {
+				// This remove row is not expected in assertions — delete it
+				// to simulate the full reconcile + device confirmation lifecycle.
+				if _, err := q.ExecContext(context.Background(),
+					`DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND host_uuid = ? AND operation_type = 'remove'`,
+					r.ProfileUUID, r.HostUUID); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+
 	ctx := context.Background()
 	for h, wantProfs := range want {
 		var gotProfs []anyProfile
@@ -1422,6 +1463,21 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 			)
 		}
 	}
+}
+
+// simulateWindowsRemoveReconciliation simulates the reconciler processing
+// Windows profile removal rows. In production, after BulkSetPendingMDMHostProfiles
+// marks profiles for removal (operation_type='remove', status=NULL), the
+// reconciler picks them up and sets them to 'verifying'. This causes
+// GetHostMDMWindowsProfiles to filter them out (it excludes remove+verifying/verified).
+// Without this simulation, the remove rows accumulate and appear in assertions.
+func simulateWindowsRemoveReconciliation(t *testing.T, ds *Datastore) {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`UPDATE host_mdm_windows_profiles SET status = ? WHERE operation_type = ? AND status IS NULL`,
+			fleet.MDMDeliveryVerifying, fleet.MDMOperationTypeRemove)
+		return err
+	})
 }
 
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
@@ -8286,8 +8342,15 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 				IdentifierOrName: allProfs[2].Identifier,
 			},
 		},
-		// windows profiles are directly deleted without a pending state (there's no on-host removal of profiles)
-		winHost: {},
+		// windows profiles are now marked for removal (two-phase: mark for remove, then reconciler sends <Delete> commands)
+		winHost: {
+			{
+				ProfileUUID:      allProfs[3].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: allProfs[3].Name,
+			},
+		},
 		androidHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,

@@ -1633,7 +1633,9 @@ const windowsProfilesToInstallQuery = `
 		-- profiles in A but not in B
 		( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
 		-- profiles in A and B with operation type "install" and NULL status
-		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
+		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL ) OR
+		-- profiles in desired state that are currently marked for removal need to be re-installed
+		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = 'remove' )
 `
 
 func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMWindowsProfilePayload, error) {
