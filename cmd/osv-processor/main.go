@@ -25,11 +25,11 @@ type OSVData struct {
 }
 
 type Affected struct {
-	Package           Package                `json:"package"`
-	Ranges            []Range                `json:"ranges"`
-	Versions          []string               `json:"versions,omitempty"`
-	EcosystemSpecific map[string]interface{} `json:"ecosystem_specific,omitempty"`
-	DatabaseSpecific  map[string]interface{} `json:"database_specific,omitempty"`
+	Package           Package        `json:"package"`
+	Ranges            []Range        `json:"ranges"`
+	Versions          []string       `json:"versions,omitempty"`
+	EcosystemSpecific map[string]any `json:"ecosystem_specific,omitempty"`
+	DatabaseSpecific  map[string]any `json:"database_specific,omitempty"`
 }
 
 type Package struct {
