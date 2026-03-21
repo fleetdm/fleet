@@ -143,7 +143,8 @@ func main() {
 		if generateTodayDeltas || generateYesterdayDeltas {
 			relPath, err := filepath.Rel(*inputDir, path)
 			if err == nil {
-				fullRelPath := filepath.Join("osv/cve", relPath)
+				normalizedRelPath := strings.TrimPrefix(filepath.ToSlash(relPath), "osv/cve/")
+				fullRelPath := "osv/cve/" + normalizedRelPath
 				if generateTodayDeltas {
 					inToday = todayCVEFiles[fullRelPath]
 				}
@@ -266,8 +267,8 @@ func main() {
 		artifact.TotalPackages = len(artifact.Vulnerabilities)
 
 		outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-%s.json.gz",
-			strings.Replace(ver, ".", "", -1),
-			time.Now().Format("2006-01-02")))
+			strings.ReplaceAll(ver, ".", ""),
+			time.Now().UTC().Format("2006-01-02")))
 
 		if err := writeArtifact(outputFile, artifact); err != nil {
 			log.Fatalf("Failed to write artifact for Ubuntu %s: %v", ver, err)
@@ -286,7 +287,7 @@ func main() {
 			artifact.TotalPackages = len(artifact.Vulnerabilities)
 
 			outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
-				strings.Replace(ver, ".", "", -1), today))
+				strings.ReplaceAll(ver, ".", ""), today))
 
 			if err := writeArtifact(outputFile, artifact); err != nil {
 				log.Fatalf("Failed to write today's delta for Ubuntu %s: %v", ver, err)
@@ -305,7 +306,7 @@ func main() {
 			artifact.TotalPackages = len(artifact.Vulnerabilities)
 
 			outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
-				strings.Replace(ver, ".", "", -1), yesterday))
+				strings.ReplaceAll(ver, ".", ""), yesterday))
 
 			if err := writeArtifact(outputFile, artifact); err != nil {
 				log.Fatalf("Failed to write yesterday's delta for Ubuntu %s: %v", ver, err)
@@ -322,7 +323,10 @@ func buildVersionFilter(versions, excludeVersions string) (targetVersions, exclu
 		// Inclusive mode: only process specified versions
 		targetVersions = make(map[string]bool)
 		for _, ver := range strings.Split(versions, ",") {
-			targetVersions[strings.TrimSpace(ver)] = true
+			trimmed := strings.TrimSpace(ver)
+			if trimmed != "" {
+				targetVersions[trimmed] = true
+			}
 		}
 		return targetVersions, nil
 	}
@@ -331,7 +335,10 @@ func buildVersionFilter(versions, excludeVersions string) (targetVersions, exclu
 		// Exclusive mode: process all except specified versions
 		excludedVersions = make(map[string]bool)
 		for _, ver := range strings.Split(excludeVersions, ",") {
-			excludedVersions[strings.TrimSpace(ver)] = true
+			trimmed := strings.TrimSpace(ver)
+			if trimmed != "" {
+				excludedVersions[trimmed] = true
+			}
 		}
 		return nil, excludedVersions
 	}
@@ -424,7 +431,22 @@ func writeArtifact(path string, artifact *ArtifactData) error {
 	encoder := json.NewEncoder(gzWriter)
 	encoder.SetIndent("", "  ")
 
-	return encoder.Encode(artifact)
+	if err := encoder.Encode(artifact); err != nil {
+		_ = gzWriter.Close()
+		_ = file.Close()
+		return err
+	}
+
+	if err := gzWriter.Close(); err != nil {
+		_ = file.Close()
+		return err
+	}
+
+	if err := file.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func loadChangedFiles(changedFilesPath string) (map[string]bool, error) {

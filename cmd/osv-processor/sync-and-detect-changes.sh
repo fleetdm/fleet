@@ -10,13 +10,12 @@
 #   0: Success
 #   1: Error occurred
 
-set -e
+set -euo pipefail
 
 # Configuration
 REPO_URL="https://github.com/canonical/ubuntu-security-notices.git"
 REPO_DIR="ubuntu-security-notices"
 DAYS_TO_KEEP=3 # how much git history to keep
-DELTA_DAYS=2 # how many delta files to generate (Generate today + yesterday deltas)
 
 echo "=== OSV Repository Sync ==="
 echo ""
