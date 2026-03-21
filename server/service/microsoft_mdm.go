@@ -2566,6 +2566,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		hostUUIDs []string
 	}
 	installTargets := make(map[string]*cmdTarget)
+	removeTargets := make(map[string]*cmdTarget)
 
 	for _, p := range toInstall {
 		toGetContents[p.ProfileUUID] = true
@@ -2592,6 +2593,33 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		// Add to map for fast lookup
 		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
 		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+	}
+
+	// Build remove targets — profiles that need to be removed from hosts
+	// (e.g. host moved teams, label membership changed).
+	for _, p := range toRemove {
+		toGetContents[p.ProfileUUID] = true
+		target := removeTargets[p.ProfileUUID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID: uuid.New().String(),
+				profID:  p.ProfileUUID,
+			}
+			removeTargets[p.ProfileUUID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+
+		hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			ProfileUUID:   p.ProfileUUID,
+			HostUUID:      p.HostUUID,
+			ProfileName:   p.ProfileName,
+			CommandUUID:   target.cmdUUID,
+			OperationType: fleet.MDMOperationTypeRemove,
+			Status:        &fleet.MDMDeliveryPending,
+			Checksum:      p.Checksum,
+		}
+		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
+		logger.DebugContext(ctx, "removing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2710,10 +2738,23 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 	}
 
-	// Windows profiles are just deleted from the DB, the notion of sending
-	// a command to remove a profile doesn't exist.
-	if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, toRemove); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
+	// Generate and enqueue <Delete> commands for profiles being removed
+	// from hosts (Scenario B: host moved teams, label membership changed).
+	for profUUID, target := range removeTargets {
+		p, ok := profileContents[profUUID]
+		if !ok {
+			// Profile was deleted between list and fetch — the cancel
+			// function already handled command generation at deletion time.
+			continue
+		}
+		command, err := fleet.BuildDeleteCommandFromProfileBytes(p.SyncML, target.cmdUUID)
+		if err != nil {
+			logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
+			continue
+		}
+		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+		}
 	}
 
 	// Upsert the host profiles we need to track.

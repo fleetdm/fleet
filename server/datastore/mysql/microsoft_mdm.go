@@ -379,6 +379,31 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 			wipeCmdStatus string
 		)
 
+		// Look up operation types for matching commands so we can pass
+		// isRemoveOperation to BuildMDMWindowsProfilePayloadFromMDMResponse.
+		cmdOperationTypes := make(map[string]fleet.MDMOperationType)
+		{
+			matchingCmdUUIDs := make([]string, 0, len(matchingCmds))
+			for _, cmd := range matchingCmds {
+				matchingCmdUUIDs = append(matchingCmdUUIDs, cmd.CommandUUID)
+			}
+			const getOpTypesStmt = `SELECT command_uuid, operation_type FROM host_mdm_windows_profiles WHERE host_uuid = ? AND command_uuid IN (?)`
+			opStmt, opArgs, opErr := sqlx.In(getOpTypesStmt, enrolledDevice.HostUUID, matchingCmdUUIDs)
+			if opErr != nil {
+				return ctxerr.Wrap(ctx, opErr, "building IN for operation types")
+			}
+			var opResults []struct {
+				CommandUUID   string                 `db:"command_uuid"`
+				OperationType fleet.MDMOperationType `db:"operation_type"`
+			}
+			if err := sqlx.SelectContext(ctx, tx, &opResults, opStmt, opArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "selecting operation types for matching commands")
+			}
+			for _, r := range opResults {
+				cmdOperationTypes[r.CommandUUID] = r.OperationType
+			}
+		}
+
 		for _, cmd := range matchingCmds {
 			statusCode := ""
 			if status, ok := enrichedSyncML.CmdRefUUIDToStatus[cmd.CommandUUID]; ok && status.Data != nil {
@@ -395,8 +420,9 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 					// Secret may be found in the command, so we make a new struct with the expanded secret.
 					cmdWithSecret := cmd
 					cmdWithSecret.RawCommand = []byte(rawCommandWithSecret)
+					isRemove := cmdOperationTypes[cmd.CommandUUID] == fleet.MDMOperationTypeRemove
 					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmdWithSecret, enrichedSyncML.CmdRefUUIDToStatus,
-						enrolledDevice.HostUUID)
+						enrolledDevice.HostUUID, isRemove)
 					if err != nil {
 						return err
 					}
@@ -499,7 +525,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// MySQL will use the `host_uuid` part of the primary key as a first
 	// pass, and then filter that subset by `command_uuid`.
 	const getMatchingHostProfilesStmt = `
-		SELECT host_uuid, profile_uuid, command_uuid, retries, checksum
+		SELECT host_uuid, profile_uuid, command_uuid, retries, checksum, operation_type
 		FROM host_mdm_windows_profiles
 		WHERE host_uuid = ? AND command_uuid IN (?)`
 
@@ -534,7 +560,9 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	for _, hp := range matchingHostProfiles {
 		payload := uuidsToPayloads[hp.CommandUUID]
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
-			if hp.Retries < mdm.MaxProfileRetries {
+			// Don't retry remove operations — removal is best-effort.
+			// Only retry install operations up to the max retry count.
+			if hp.OperationType != fleet.MDMOperationTypeRemove && hp.Retries < mdm.MaxProfileRetries {
 				// if we haven't hit the max retries, we set
 				// the host profile status to nil (which causes
 				// an install profile command to be enqueued
@@ -895,12 +923,20 @@ WHERE
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Read SyncML bytes before deleting the config profile row,
+		// since we need them to generate <Delete> commands.
+		var syncML []byte
+		if err := sqlx.GetContext(ctx, tx, &syncML,
+			`SELECT syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reading profile syncml before deletion")
+		}
+
 		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
 			return err
 		}
 
-		// cancel any pending host installs immediately for this profile
-		if err := cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}); err != nil {
+		profileContents := map[string][]byte{profileUUID: syncML}
+		if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}, profileContents); err != nil {
 			return err
 		}
 
@@ -921,28 +957,110 @@ func deleteMDMWindowsConfigProfile(ctx context.Context, tx sqlx.ExtContext, prof
 	return nil
 }
 
-func cancelWindowsHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
-	// For Windows, we currently don't support sending a command to remove a
-	// profile that was installed, so all we need to do here is delete any
-	// host-profile tuple that had this profile (whether with operation install
-	// or remove, does not matter).
-	const delStmt = `
-	DELETE FROM
-		host_mdm_windows_profiles
-	WHERE profile_uuid IN (?)`
-
+// cancelWindowsHostInstallsForDeletedMDMProfiles handles host-profile cleanup
+// when config profiles are deleted. It uses a two-phase approach:
+//   - Phase 1: Delete rows that were never sent to the device (NULL status + install)
+//   - Phase 2: For rows that were sent (non-NULL status + install), generate SyncML
+//     <Delete> commands and enqueue them, then mark the rows for removal.
+func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
+	ctx context.Context, tx sqlx.ExtContext,
+	profileUUIDs []string, profileContents map[string][]byte,
+) error {
 	if len(profileUUIDs) == 0 {
 		return nil
 	}
 
-	stmt, args, err := sqlx.In(delStmt, profileUUIDs)
+	// Phase 1: Delete host-profile rows that were never sent to the device.
+	const delNeverSentStmt = `
+	DELETE FROM host_mdm_windows_profiles
+	WHERE profile_uuid IN (?) AND status IS NULL AND operation_type = ?`
+
+	delStmt, delArgs, err := sqlx.In(delNeverSentStmt, profileUUIDs, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN to delete host_mdm_windows_profiles")
+		return ctxerr.Wrap(ctx, err, "building IN for phase 1 delete")
+	}
+	if _, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting never-sent host profiles")
 	}
 
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host_mdm_windows_profiles for deleted profile")
+	// Phase 2: Find rows that were sent to the device (non-NULL status + install).
+	const selectSentStmt = `
+	SELECT host_uuid, profile_uuid
+	FROM host_mdm_windows_profiles
+	WHERE profile_uuid IN (?) AND status IS NOT NULL AND operation_type = ?`
+
+	selStmt, selArgs, err := sqlx.In(selectSentStmt, profileUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN for phase 2 select")
 	}
+	var sentRows []struct {
+		HostUUID    string `db:"host_uuid"`
+		ProfileUUID string `db:"profile_uuid"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &sentRows, selStmt, selArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting sent host profiles for removal")
+	}
+
+	if len(sentRows) == 0 {
+		return nil
+	}
+
+	// Group hosts by profile UUID for efficient command generation.
+	type removeTarget struct {
+		cmdUUID   string
+		hostUUIDs []string
+	}
+	targets := make(map[string]*removeTarget)
+	for _, row := range sentRows {
+		t := targets[row.ProfileUUID]
+		if t == nil {
+			t = &removeTarget{cmdUUID: uuid.NewString()}
+			targets[row.ProfileUUID] = t
+		}
+		t.hostUUIDs = append(t.hostUUIDs, row.HostUUID)
+	}
+
+	// Generate and enqueue <Delete> commands for each profile.
+	for profUUID, target := range targets {
+		syncML, ok := profileContents[profUUID]
+		if !ok || len(syncML) == 0 {
+			continue
+		}
+
+		deleteCmd, err := fleet.BuildDeleteCommandFromProfileBytes(syncML, target.cmdUUID)
+		if err != nil {
+			// Log and continue — best-effort removal.
+			continue
+		}
+
+		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, target.hostUUIDs, deleteCmd); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting delete commands for hosts")
+		}
+	}
+
+	// Update host-profile rows: mark as remove + pending with the new command UUID.
+	const updateStmt = `
+	UPDATE host_mdm_windows_profiles
+	SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
+	WHERE profile_uuid IN (?) AND status IS NOT NULL AND operation_type = ?`
+
+	// We need to update each profile's hosts with their specific command UUID.
+	for profUUID, target := range targets {
+		upStmt, upArgs, err := sqlx.In(
+			`UPDATE host_mdm_windows_profiles
+			SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
+			WHERE profile_uuid = ? AND host_uuid IN (?) AND operation_type = ?`,
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, target.cmdUUID,
+			profUUID, target.hostUUIDs, fleet.MDMOperationTypeInstall,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN for phase 2 update")
+		}
+		if _, err := tx.ExecContext(ctx, upStmt, upArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host profiles to remove")
+		}
+	}
+
 	return nil
 }
 
@@ -951,11 +1069,28 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=? AND name=?`, globalOrTeamID, profileName)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Read the profile UUID and SyncML before deletion.
+		var profile struct {
+			ProfileUUID string `db:"profile_uuid"`
+			SyncML      []byte `db:"syncml"`
+		}
+		if err := sqlx.GetContext(ctx, tx, &profile,
+			`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id=? AND name=?`,
+			globalOrTeamID, profileName); err != nil {
+			if err == sql.ErrNoRows {
+				return nil // nothing to delete
+			}
+			return ctxerr.Wrap(ctx, err, "reading profile before deletion")
+		}
+
+		if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profile.ProfileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+
+		profileContents := map[string][]byte{profile.ProfileUUID: profile.SyncML}
+		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profile.ProfileUUID}, profileContents)
+	})
 }
 
 func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}, error) {
@@ -1617,7 +1752,9 @@ const windowsProfilesToRemoveQuery = `
 	WHERE
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- TODO(mna): why don't we have the same exception for "remove" operations as for Apple
+		-- exclude remove operations with non-NULL status (already processed,
+		-- matching Apple's pattern to avoid re-processing terminal removes)
+		(hmwp.operation_type != 'remove' OR hmwp.status IS NULL) AND
 
 		-- except "would be removed" profiles if they are a broken label-based profile
 		-- (regardless of if it is an include-all or exclude-any label)
@@ -2137,7 +2274,35 @@ ON DUPLICATE KEY UPDATE
 		if err = sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, stmt, args...); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "load obsolete profiles")
 		}
+	} else {
+		if err = sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, loadToBeDeletedProfiles, profTeamID); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load obsolete profiles")
+		}
+	}
 
+	// Read SyncML bytes for profiles about to be deleted, so we can
+	// generate <Delete> commands to remove settings from devices.
+	deletedProfileContents := make(map[string][]byte, len(deletedProfileUUIDs))
+	if len(deletedProfileUUIDs) > 0 {
+		const readSyncMLStmt = `SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid IN (?)`
+		rdStmt, rdArgs, rdErr := sqlx.In(readSyncMLStmt, deletedProfileUUIDs)
+		if rdErr != nil {
+			return false, ctxerr.Wrap(ctx, rdErr, "building IN to read deleted profile syncml")
+		}
+		var profileRows []struct {
+			ProfileUUID string `db:"profile_uuid"`
+			SyncML      []byte `db:"syncml"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &profileRows, rdStmt, rdArgs...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "reading deleted profile syncml")
+		}
+		for _, r := range profileRows {
+			deletedProfileContents[r.ProfileUUID] = r.SyncML
+		}
+	}
+
+	// Now delete the config profile rows.
+	if len(keepNames) > 0 {
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepNames)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
@@ -2146,10 +2311,6 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
 		}
 	} else {
-		if err = sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, loadToBeDeletedProfiles, profTeamID); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "load obsolete profiles")
-		}
-
 		if result, err = tx.ExecContext(ctx, deleteAllProfilesForTeam,
 			profTeamID); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "delete all profiles for team")
@@ -2160,8 +2321,8 @@ ON DUPLICATE KEY UPDATE
 		updatedDB = rows > 0
 	}
 	if len(deletedProfileUUIDs) > 0 {
-		// cancel installs of the deleted profiles immediately
-		if err := cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
+		// cancel installs of the deleted profiles and enqueue delete commands
+		if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs, deletedProfileContents); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
 		}
 	}
@@ -2219,8 +2380,18 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 	}
 
 	if len(profilesToRemove) > 0 {
-		if err := ds.bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx, tx, profilesToRemove); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "bulk delete profiles to remove")
+		// Mark profiles for removal instead of deleting them. The reconciler
+		// will pick these up (status=NULL, operation_type='remove') and
+		// generate <Delete> SyncML commands.
+		for _, p := range profilesToRemove {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE host_mdm_windows_profiles
+				SET operation_type = ?, status = NULL, command_uuid = '', detail = ''
+				WHERE profile_uuid = ? AND host_uuid = ?`,
+				fleet.MDMOperationTypeRemove, p.ProfileUUID, p.HostUUID,
+			); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "marking profile for removal")
+			}
 		}
 		updatedDB = true
 	}

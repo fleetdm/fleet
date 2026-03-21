@@ -276,7 +276,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(tt.cmd, tt.statuses, tt.hostUUID)
+			payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(tt.cmd, tt.statuses, tt.hostUUID, false)
 
 			if tt.expectedError != "" {
 				require.Error(t, err)
@@ -398,4 +398,243 @@ func TestCmdIDUnmarshalXML(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
+	tests := []struct {
+		name        string
+		profileXML  string
+		expectError string
+		// checkFn is called on the resulting command for custom assertions
+		checkFn func(t *testing.T, cmd *MDMWindowsCommand)
+	}{
+		{
+			name: "single Replace command",
+			profileXML: `<Replace>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Browser/AllowDoNotTrack</LocURI></Target>
+					<Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+					<Data>1</Data>
+				</Item>
+			</Replace>`,
+			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
+				// Should produce a single <Delete> command
+				cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+				require.NoError(t, err)
+				require.Len(t, cmds, 1)
+				require.Equal(t, CmdDelete, cmds[0].XMLName.Local)
+				require.Equal(t, "./Device/Vendor/MSFT/Policy/Config/Browser/AllowDoNotTrack", cmds[0].GetTargetURI())
+			},
+		},
+		{
+			name: "atomic profile with multiple Replace commands",
+			profileXML: `<Atomic>
+				<CmdID>1</CmdID>
+				<Replace>
+					<CmdID>2</CmdID>
+					<Item>
+						<Target><LocURI>./Device/Vendor/MSFT/BitLocker/RequireStorageCardEncryption</LocURI></Target>
+						<Data>1</Data>
+					</Item>
+				</Replace>
+				<Replace>
+					<CmdID>3</CmdID>
+					<Item>
+						<Target><LocURI>./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target>
+						<Data>1</Data>
+					</Item>
+				</Replace>
+			</Atomic>`,
+			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
+				cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+				require.NoError(t, err)
+				require.Len(t, cmds, 1)
+				require.Equal(t, CmdAtomic, cmds[0].XMLName.Local)
+				require.Len(t, cmds[0].DeleteCommands, 2)
+				require.Equal(t, "./Device/Vendor/MSFT/BitLocker/RequireStorageCardEncryption", cmds[0].DeleteCommands[0].GetTargetURI())
+				require.Equal(t, "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption", cmds[0].DeleteCommands[1].GetTargetURI())
+			},
+		},
+		{
+			name: "multiple top-level Replace commands (non-atomic)",
+			profileXML: `<Replace>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursStart</LocURI></Target>
+					<Data>8</Data>
+				</Item>
+			</Replace>
+			<Replace>
+				<CmdID>2</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd</LocURI></Target>
+					<Data>17</Data>
+				</Item>
+			</Replace>`,
+			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
+				cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+				require.NoError(t, err)
+				require.Len(t, cmds, 2)
+				for _, c := range cmds {
+					require.Equal(t, CmdDelete, c.XMLName.Local)
+				}
+				require.Equal(t, "./Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursStart", cmds[0].GetTargetURI())
+				require.Equal(t, "./Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd", cmds[1].GetTargetURI())
+			},
+		},
+		{
+			name: "atomic profile with Add and Exec commands",
+			profileXML: `<Atomic>
+				<CmdID>1</CmdID>
+				<Add>
+					<CmdID>2</CmdID>
+					<Item>
+						<Target><LocURI>./Device/Vendor/MSFT/VPNv2/MyVPN/ProfileXML</LocURI></Target>
+						<Data>vpn-config</Data>
+					</Item>
+				</Add>
+				<Exec>
+					<CmdID>3</CmdID>
+					<Item>
+						<Target><LocURI>./Device/Vendor/MSFT/VPNv2/MyVPN/Connect</LocURI></Target>
+					</Item>
+				</Exec>
+			</Atomic>`,
+			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
+				cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+				require.NoError(t, err)
+				require.Len(t, cmds, 1)
+				require.Equal(t, CmdAtomic, cmds[0].XMLName.Local)
+				require.Len(t, cmds[0].DeleteCommands, 2)
+				require.Equal(t, "./Device/Vendor/MSFT/VPNv2/MyVPN/ProfileXML", cmds[0].DeleteCommands[0].GetTargetURI())
+				require.Equal(t, "./Device/Vendor/MSFT/VPNv2/MyVPN/Connect", cmds[0].DeleteCommands[1].GetTargetURI())
+			},
+		},
+		{
+			name:        "empty profile",
+			profileXML:  "",
+			expectError: "no commands found in profile",
+		},
+		{
+			name: "command UUID is set correctly",
+			profileXML: `<Replace>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/SomePolicy</LocURI></Target>
+					<Data>1</Data>
+				</Item>
+			</Replace>`,
+			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
+				require.Equal(t, "test-uuid-123", cmd.CommandUUID)
+				require.Empty(t, cmd.TargetLocURI)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, err := BuildDeleteCommandFromProfileBytes([]byte(tt.profileXML), "test-uuid-123")
+			if tt.expectError != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectError)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, cmd)
+				if tt.checkFn != nil {
+					tt.checkFn(t, cmd)
+				}
+			}
+		})
+	}
+}
+
+func TestWindowsResponseToDeliveryStatusForRemove(t *testing.T) {
+	tests := []struct {
+		resp     string
+		expected MDMDeliveryStatus
+	}{
+		{"200", MDMDeliveryVerified},
+		{"202", MDMDeliveryVerified},
+		{"216", MDMDeliveryVerified},
+		{"404", MDMDeliveryVerified}, // Not Found → success for remove
+		{"405", MDMDeliveryVerified}, // Not Allowed → success for remove
+		{"500", MDMDeliveryFailed},
+		{"400", MDMDeliveryFailed},
+		{"507", MDMDeliveryFailed},
+		{"", MDMDeliveryPending},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.resp, func(t *testing.T) {
+			got := WindowsResponseToDeliveryStatusForRemove(tt.resp)
+			require.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.T) {
+	// Test that 404 and 405 are treated as success for remove operations
+	statusOK := "200"
+	status404 := syncml.CmdStatusNotFound
+	status405 := syncml.CmdStatusNotAllowed
+	status500 := "500"
+
+	t.Run("atomic remove with 405 is success", func(t *testing.T) {
+		cmd := MDMWindowsCommand{
+			CommandUUID: "cmd-1",
+			RawCommand:  []byte(`<Atomic><CmdID>cmd-1</CmdID><Delete><CmdID>sub-1</CmdID><Item><Target><LocURI>./Device/Test</LocURI></Target></Item></Delete></Atomic>`),
+		}
+		statuses := map[string]SyncMLCmd{
+			"cmd-1": {Data: &status405},
+		}
+		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
+		require.NoError(t, err)
+		require.Equal(t, MDMDeliveryVerified, *payload.Status)
+	})
+
+	t.Run("atomic remove with 405 is failure for install", func(t *testing.T) {
+		cmd := MDMWindowsCommand{
+			CommandUUID: "cmd-1",
+			RawCommand:  []byte(`<Atomic><CmdID>cmd-1</CmdID><Replace><CmdID>sub-1</CmdID><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>1</Data></Item></Replace></Atomic>`),
+		}
+		statuses := map[string]SyncMLCmd{
+			"cmd-1": {Data: &status405},
+		}
+		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
+		require.NoError(t, err)
+		require.Equal(t, MDMDeliveryFailed, *payload.Status)
+	})
+
+	t.Run("non-atomic remove with mixed 200 and 404", func(t *testing.T) {
+		cmdStr := ptr.String("Replace")
+		cmd := MDMWindowsCommand{
+			CommandUUID: "cmd-1",
+			RawCommand: []byte(`<Delete><CmdID>del-1</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Delete>` +
+				`<Delete><CmdID>del-2</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`),
+		}
+		statuses := map[string]SyncMLCmd{
+			"del-1": {Data: &statusOK, Cmd: cmdStr},
+			"del-2": {Data: &status404, Cmd: cmdStr},
+		}
+		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
+		require.NoError(t, err)
+		require.Equal(t, MDMDeliveryVerified, *payload.Status)
+	})
+
+	t.Run("non-atomic remove with 500 fails", func(t *testing.T) {
+		cmdStr := ptr.String("Replace")
+		cmd := MDMWindowsCommand{
+			CommandUUID: "cmd-1",
+			RawCommand: []byte(`<Delete><CmdID>del-1</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Delete>` +
+				`<Delete><CmdID>del-2</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`),
+		}
+		statuses := map[string]SyncMLCmd{
+			"del-1": {Data: &statusOK, Cmd: cmdStr},
+			"del-2": {Data: &status500, Cmd: cmdStr},
+		}
+		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
+		require.NoError(t, err)
+		require.Equal(t, MDMDeliveryFailed, *payload.Status)
+	})
 }

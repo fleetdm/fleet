@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/google/uuid"
 )
 
 const (
@@ -1030,6 +1031,10 @@ type SyncMLCmd struct {
 	// ExecCommands is a catch-all for any nested <Exec> commands,
 	// which can be found under <Atomic> elements.
 	ExecCommands []SyncMLCmd `xml:"Exec,omitempty"`
+
+	// DeleteCommands is a catch-all for any nested <Delete> commands,
+	// which can be found under <Atomic> elements.
+	DeleteCommands []SyncMLCmd `xml:"Delete,omitempty"`
 }
 
 type SyncMLChallenge struct {
@@ -1593,10 +1598,19 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	cmdWithSecret MDMWindowsCommand,
 	statuses map[string]SyncMLCmd,
 	hostUUID string,
+	isRemoveOperation bool,
 ) (*MDMWindowsProfilePayload, error) {
 	cmds, err := UnmarshallMultiTopLevelXMLProfile(cmdWithSecret.RawCommand)
 	if err != nil {
 		return nil, err
+	}
+
+	// Select the appropriate status mapper based on operation type.
+	// For remove operations, 404 (Not Found) and 405 (Not Allowed) are
+	// treated as success since the setting is effectively not on the device.
+	statusMapper := WindowsResponseToDeliveryStatus
+	if isRemoveOperation {
+		statusMapper = WindowsResponseToDeliveryStatusForRemove
 	}
 
 	var commandStatus MDMDeliveryStatus
@@ -1607,7 +1621,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 		if !ok {
 			return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
 		}
-		commandStatus = WindowsResponseToDeliveryStatus(*status.Data)
+		commandStatus = statusMapper(*status.Data)
 	} else {
 		// non atomic profile, loop over all commands to determine overall status
 		for _, cmd := range cmds {
@@ -1615,7 +1629,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 			if !ok {
 				return nil, fmt.Errorf("missing status for command %s", cmd.CmdID.Value)
 			}
-			cmdStatus := WindowsResponseToDeliveryStatus(*status.Data)
+			cmdStatus := statusMapper(*status.Data)
 			if cmdStatus == MDMDeliveryFailed {
 				// Failed always take precedence
 				commandStatus = MDMDeliveryFailed
@@ -1681,6 +1695,134 @@ func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 	}
 
 	return MDMDeliveryFailed
+}
+
+// WindowsResponseToDeliveryStatusForRemove converts a SyncML response status to an
+// MDMDeliveryStatus for remove operations. Unlike install operations, 404 (Not Found)
+// and 405 (Not Allowed) are treated as success — if the setting isn't on the device
+// or doesn't support deletion, the removal "succeeded" in practical terms.
+func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
+	if len(resp) == 0 {
+		return MDMDeliveryPending
+	}
+	if strings.HasPrefix(resp, "2") || resp == syncml.CmdStatusNotFound || resp == syncml.CmdStatusNotAllowed {
+		return MDMDeliveryVerified
+	}
+	return MDMDeliveryFailed
+}
+
+// BuildDeleteCommandFromProfileBytes generates a SyncML <Delete> command that
+// reverses the settings applied by the given profile. It parses the profile's
+// SyncML to extract all OMA-URIs from <Replace>, <Add>, and <Exec> commands,
+// then generates <Delete> commands targeting those same URIs.
+// If the original profile was <Atomic>, the delete commands are also wrapped in <Atomic>.
+func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*MDMWindowsCommand, error) {
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(profileBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling profile bytes for delete: %w", err)
+	}
+	if len(cmds) == 0 {
+		return nil, errors.New("no commands found in profile")
+	}
+
+	// extractLocURIs collects all Target LocURIs from Replace, Add, and Exec commands.
+	extractLocURIs := func(cmd *SyncMLCmd) []string {
+		var uris []string
+		for _, nested := range cmd.ReplaceCommands {
+			if uri := nested.GetTargetURI(); uri != "" {
+				uris = append(uris, uri)
+			}
+		}
+		for _, nested := range cmd.AddCommands {
+			if uri := nested.GetTargetURI(); uri != "" {
+				uris = append(uris, uri)
+			}
+		}
+		for _, nested := range cmd.ExecCommands {
+			if uri := nested.GetTargetURI(); uri != "" {
+				uris = append(uris, uri)
+			}
+		}
+		return uris
+	}
+
+	// makeDeleteCmd creates a single <Delete> SyncMLCmd for the given LocURI.
+	makeDeleteCmd := func(locURI string, cmdID string) SyncMLCmd {
+		target := locURI
+		return SyncMLCmd{
+			XMLName: xml.Name{Local: CmdDelete},
+			CmdID:   CmdID{Value: cmdID, IncludeFleetComment: true},
+			Items:   []CmdItem{{Target: &target}},
+		}
+	}
+
+	// newCmdUUID generates a unique command ID. The first call uses the
+	// provided commandUUID, subsequent calls generate new UUIDs.
+	first := true
+	newCmdUUID := func() string {
+		if first {
+			first = false
+			return commandUUID
+		}
+		return uuid.NewString()
+	}
+
+	var rawCommand []byte
+
+	if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+		// Atomic profile: extract URIs from nested commands, wrap deletes in <Atomic>
+		uris := extractLocURIs(&cmds[0])
+		if len(uris) == 0 {
+			return nil, errors.New("no target URIs found in atomic profile")
+		}
+
+		atomicCmd := SyncMLCmd{
+			XMLName: xml.Name{Local: CmdAtomic},
+			CmdID:   CmdID{Value: commandUUID, IncludeFleetComment: true},
+		}
+		for _, uri := range uris {
+			atomicCmd.DeleteCommands = append(atomicCmd.DeleteCommands, makeDeleteCmd(uri, uuid.NewString()))
+		}
+
+		rawCommand, err = xml.Marshal(atomicCmd)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling atomic delete command: %w", err)
+		}
+	} else if len(cmds) == 1 {
+		// Single non-atomic command (Replace, Add, or Exec at top level)
+		uri := cmds[0].GetTargetURI()
+		if uri == "" {
+			return nil, errors.New("no target URI found in profile")
+		}
+		deleteCmd := makeDeleteCmd(uri, commandUUID)
+		rawCommand, err = xml.Marshal(deleteCmd)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling delete command: %w", err)
+		}
+	} else {
+		// Multiple top-level non-atomic commands
+		var deleteCmds []SyncMLCmd
+		for _, cmd := range cmds {
+			uri := cmd.GetTargetURI()
+			if uri == "" {
+				continue
+			}
+			deleteCmds = append(deleteCmds, makeDeleteCmd(uri, newCmdUUID()))
+		}
+		if len(deleteCmds) == 0 {
+			return nil, errors.New("no target URIs found in profile")
+		}
+		rawCommand, err = xml.Marshal(deleteCmds)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling delete commands: %w", err)
+		}
+	}
+
+	return &MDMWindowsCommand{
+		CommandUUID:  commandUUID,
+		RawCommand:   rawCommand,
+		TargetLocURI: "",
+	}, nil
 }
 
 // xml.Unmarshal expects a single top-level element, or all top-level elements to have the same <Tag>
