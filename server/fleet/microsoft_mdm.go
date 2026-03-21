@@ -1768,17 +1768,6 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 		}
 	}
 
-	// newCmdUUID generates a unique command ID. The first call uses the
-	// provided commandUUID, subsequent calls generate new UUIDs.
-	first := true
-	newCmdUUID := func() string {
-		if first {
-			first = false
-			return commandUUID
-		}
-		return uuid.NewString()
-	}
-
 	var rawCommand []byte
 
 	switch {
@@ -1813,14 +1802,20 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 			return nil, fmt.Errorf("marshalling delete command: %w", err)
 		}
 	default:
-		// Multiple top-level non-atomic commands
+		// Multiple top-level non-atomic commands. The first command uses
+		// commandUUID as its CmdID (matching the pattern in
+		// buildCommandFromProfileBytes), subsequent commands get new UUIDs.
 		var deleteCmds []SyncMLCmd
 		for _, cmd := range cmds {
 			uri := cmd.GetTargetURI()
 			if uri == "" {
 				continue
 			}
-			deleteCmds = append(deleteCmds, makeDeleteCmd(uri, newCmdUUID()))
+			cmdID := uuid.NewString()
+			if len(deleteCmds) == 0 {
+				cmdID = commandUUID
+			}
+			deleteCmds = append(deleteCmds, makeDeleteCmd(uri, cmdID))
 		}
 		if len(deleteCmds) == 0 {
 			return nil, errors.New("no target URIs found in profile")

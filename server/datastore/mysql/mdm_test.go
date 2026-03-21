@@ -1335,12 +1335,13 @@ type anyProfile struct {
 }
 
 // only asserts the profile ID, status and operation
-func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
-	// Clean up completed Windows removal rows before asserting.
-	// In production, the full lifecycle is: mark for remove → reconciler
-	// sends <Delete> → device confirms → row deleted. Stale remove rows
-	// that are not expected in any assertion are cleaned up here to
-	// simulate this full lifecycle.
+// cleanupStaleWindowsRemoveRows simulates the full Windows profile removal
+// lifecycle (reconciler sends <Delete> → device confirms → row deleted) for
+// remove rows that are NOT expected in the test assertions. Without this,
+// remove rows from previous test phases accumulate and cause count mismatches.
+// Only rows whose (profile_uuid, host_uuid) pair is NOT in the want map's
+// remove entries are cleaned up.
+func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
 	wantRemoveKeys := make(map[string]bool)
 	for h, profs := range want {
 		if h.Platform != "windows" {
@@ -1353,7 +1354,6 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 		}
 	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		// Get all remove rows
 		var rows []struct {
 			ProfileUUID string `db:"profile_uuid"`
 			HostUUID    string `db:"host_uuid"`
@@ -1365,8 +1365,6 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 		for _, r := range rows {
 			key := r.ProfileUUID + "\n" + r.HostUUID
 			if !wantRemoveKeys[key] {
-				// This remove row is not expected in assertions — delete it
-				// to simulate the full reconcile + device confirmation lifecycle.
 				if _, err := q.ExecContext(context.Background(),
 					`DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND host_uuid = ? AND operation_type = 'remove'`,
 					r.ProfileUUID, r.HostUUID); err != nil {
@@ -1376,6 +1374,10 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 		}
 		return nil
 	})
+}
+
+func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
+	cleanupStaleWindowsRemoveRows(t, ds, want)
 
 	ctx := context.Background()
 	for h, wantProfs := range want {
