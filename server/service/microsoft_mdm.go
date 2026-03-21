@@ -2739,9 +2739,34 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 			// function already handled command generation at deletion time.
 			continue
 		}
-		command, err := fleet.BuildDeleteCommandFromProfileBytes(p.SyncML, target.cmdUUID)
+		// Collect LocURIs from all OTHER profiles still being installed to
+		// avoid deleting settings enforced by a remaining profile.
+		activeLocURIs := make(map[string]bool)
+		for otherUUID, otherContent := range profileContents {
+			if otherUUID == profUUID {
+				continue // skip the profile being deleted
+			}
+			if _, isBeingRemoved := removeTargets[otherUUID]; isBeingRemoved {
+				continue // also being removed, don't protect its URIs
+			}
+			otherCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(otherContent.SyncML)
+			if err != nil {
+				continue
+			}
+			for _, cmd := range otherCmds {
+				if uri := cmd.GetTargetURI(); uri != "" {
+					activeLocURIs[uri] = true
+				}
+			}
+		}
+
+		command, err := fleet.BuildDeleteCommandFromProfileBytes(p.SyncML, target.cmdUUID, activeLocURIs)
 		if err != nil {
 			logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
+			continue
+		}
+		if command == nil {
+			// All LocURIs are protected by other active profiles — skip.
 			continue
 		}
 		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {

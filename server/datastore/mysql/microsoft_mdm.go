@@ -1062,6 +1062,46 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// Generate and enqueue <Delete> commands for each profile.
 	// Track which profiles were successfully enqueued so we only
 	// update rows that have a corresponding queued command.
+	// Collect LocURIs from OTHER active profiles in the same team(s) so we
+	// don't send <Delete> for settings still enforced by a remaining profile.
+	// This prevents deleting one profile from undoing settings in another.
+	activeLocURIs := make(map[string]bool)
+	if len(profileUUIDs) > 0 {
+		// Get team IDs for the profiles being deleted (from host assignments).
+		var teamIDs []uint
+		for _, row := range sentRows {
+			// Look up team from the host.
+			var teamID uint
+			if err := sqlx.GetContext(ctx, tx, &teamID,
+				`SELECT COALESCE(team_id, 0) FROM hosts WHERE uuid = ?`, row.HostUUID); err == nil {
+				teamIDs = append(teamIDs, teamID)
+			}
+		}
+		if len(teamIDs) > 0 {
+			// Query all SyncML from profiles NOT being deleted in the same team(s).
+			const activeProfilesStmt = `
+				SELECT syncml FROM mdm_windows_configuration_profiles
+				WHERE team_id IN (?) AND profile_uuid NOT IN (?)`
+			apStmt, apArgs, apErr := sqlx.In(activeProfilesStmt, teamIDs, profileUUIDs)
+			if apErr == nil {
+				var activeProfiles [][]byte
+				if err := sqlx.SelectContext(ctx, tx, &activeProfiles, apStmt, apArgs...); err == nil {
+					for _, syncML := range activeProfiles {
+						cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(syncML)
+						if err != nil {
+							continue
+						}
+						for _, cmd := range cmds {
+							if uri := cmd.GetTargetURI(); uri != "" {
+								activeLocURIs[uri] = true
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	enqueuedTargets := make(map[string]*removeTarget)
 	for profUUID, target := range targets {
 		syncML, ok := profileContents[profUUID]
@@ -1072,12 +1112,25 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 			continue
 		}
 
-		deleteCmd, err := fleet.BuildDeleteCommandFromProfileBytes(syncML, target.cmdUUID)
+		deleteCmd, err := fleet.BuildDeleteCommandFromProfileBytes(syncML, target.cmdUUID, activeLocURIs)
 		if err != nil {
-			// Log the error so it's traceable — silent failures here would
-			// leave settings enforced on the device with no way to diagnose.
 			ds.logger.WarnContext(ctx, "skipping delete command generation: build error",
 				"profile_uuid", profUUID, "err", err)
+			continue
+		}
+		if deleteCmd == nil {
+			// All LocURIs in this profile are also targeted by other active
+			// profiles — skip the <Delete> to avoid undoing their settings.
+			// Delete the host-profile rows directly since no command is needed.
+			delSkipStmt, delSkipArgs, delSkipErr := sqlx.In(
+				`DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND host_uuid IN (?)`,
+				profUUID, target.hostUUIDs)
+			if delSkipErr != nil {
+				return ctxerr.Wrap(ctx, delSkipErr, "building IN for protected profile cleanup")
+			}
+			if _, err := tx.ExecContext(ctx, delSkipStmt, delSkipArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up protected profile rows")
+			}
 			continue
 		}
 

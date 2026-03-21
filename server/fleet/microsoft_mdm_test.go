@@ -549,6 +549,132 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 	}
 }
 
+func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
+	// Bug 005: When two profiles target the same LocURI and one is deleted,
+	// the <Delete> should NOT include LocURIs that are still targeted by
+	// another active profile.
+
+	t.Run("single Replace with protected LocURI returns nil", func(t *testing.T) {
+		profileXML := `<Replace>
+			<CmdID>1</CmdID>
+			<Item>
+				<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock</LocURI></Target>
+				<Data>5</Data>
+			</Item>
+		</Replace>`
+		exclude := map[string]bool{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
+		}
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", exclude)
+		require.NoError(t, err)
+		require.Nil(t, cmd, "should return nil when the only LocURI is protected")
+	})
+
+	t.Run("multi-Replace with one protected LocURI", func(t *testing.T) {
+		profileXML := `<Replace>
+			<CmdID>1</CmdID>
+			<Item>
+				<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock</LocURI></Target>
+				<Data>5</Data>
+			</Item>
+		</Replace>
+		<Replace>
+			<CmdID>2</CmdID>
+			<Item>
+				<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled</LocURI></Target>
+				<Data>0</Data>
+			</Item>
+		</Replace>`
+		// Only MaxInactivityTimeDeviceLock is protected; DevicePasswordEnabled should still get a <Delete>
+		exclude := map[string]bool{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
+		}
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", exclude)
+		require.NoError(t, err)
+		require.NotNil(t, cmd, "should generate a command for the non-protected LocURI")
+
+		cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1, "should have exactly one Delete command")
+		require.Equal(t, CmdDelete, cmds[0].XMLName.Local)
+		require.Equal(t, "./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled", cmds[0].GetTargetURI())
+	})
+
+	t.Run("atomic with all protected LocURIs returns nil", func(t *testing.T) {
+		profileXML := `<Atomic>
+			<CmdID>1</CmdID>
+			<Replace>
+				<CmdID>2</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/BitLocker/A</LocURI></Target>
+					<Data>1</Data>
+				</Item>
+			</Replace>
+			<Replace>
+				<CmdID>3</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/BitLocker/B</LocURI></Target>
+					<Data>1</Data>
+				</Item>
+			</Replace>
+		</Atomic>`
+		exclude := map[string]bool{
+			"./Device/Vendor/MSFT/BitLocker/A": true,
+			"./Device/Vendor/MSFT/BitLocker/B": true,
+		}
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", exclude)
+		require.NoError(t, err)
+		require.Nil(t, cmd, "should return nil when all atomic LocURIs are protected")
+	})
+
+	t.Run("atomic with partial protection keeps unprotected", func(t *testing.T) {
+		profileXML := `<Atomic>
+			<CmdID>1</CmdID>
+			<Replace>
+				<CmdID>2</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/BitLocker/A</LocURI></Target>
+					<Data>1</Data>
+				</Item>
+			</Replace>
+			<Replace>
+				<CmdID>3</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/BitLocker/B</LocURI></Target>
+					<Data>1</Data>
+				</Item>
+			</Replace>
+		</Atomic>`
+		exclude := map[string]bool{
+			"./Device/Vendor/MSFT/BitLocker/A": true,
+		}
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", exclude)
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+
+		cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		require.Equal(t, CmdAtomic, cmds[0].XMLName.Local)
+		require.Len(t, cmds[0].DeleteCommands, 1, "should only have one Delete for the unprotected URI")
+		require.Equal(t, "./Device/Vendor/MSFT/BitLocker/B", cmds[0].DeleteCommands[0].GetTargetURI())
+	})
+
+	t.Run("no exclusions works as before", func(t *testing.T) {
+		profileXML := `<Replace>
+			<CmdID>1</CmdID>
+			<Item>
+				<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock</LocURI></Target>
+				<Data>5</Data>
+			</Item>
+		</Replace>`
+		// No exclude parameter — should generate the Delete normally
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid")
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+	})
+}
+
 func TestWindowsResponseToDeliveryStatusForRemove(t *testing.T) {
 	tests := []struct {
 		resp     string

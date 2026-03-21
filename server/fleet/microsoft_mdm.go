@@ -1732,7 +1732,12 @@ func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
 // SyncML to extract all OMA-URIs from <Replace>, <Add>, and <Exec> commands,
 // then generates <Delete> commands targeting those same URIs.
 // If the original profile was <Atomic>, the delete commands are also wrapped in <Atomic>.
-func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*MDMWindowsCommand, error) {
+//
+// locURIsInUseByOtherProfiles is an optional set of LocURIs that are still
+// targeted by other active profiles in the same team. These LocURIs will be
+// skipped when generating <Delete> commands, so that deleting one profile
+// does not undo settings enforced by a different profile.
+func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, locURIsInUseByOtherProfiles ...map[string]bool) (*MDMWindowsCommand, error) {
 	// Mirror the install-side behavior: SCEP profiles are wrapped in <Atomic> if not already.
 	normalized := profileBytes
 	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
@@ -1778,6 +1783,18 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 		}
 	}
 
+	// Build the set of protected LocURIs from the variadic parameter.
+	inUse := make(map[string]bool)
+	if len(locURIsInUseByOtherProfiles) > 0 && locURIsInUseByOtherProfiles[0] != nil {
+		inUse = locURIsInUseByOtherProfiles[0]
+	}
+
+	// safeToDelete returns true if the LocURI is safe to delete (no other
+	// active profile targets it).
+	safeToDelete := func(uri string) bool {
+		return !inUse[uri]
+	}
+
 	var rawCommand []byte
 
 	switch {
@@ -1793,7 +1810,15 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 			CmdID:   CmdID{Value: commandUUID, IncludeFleetComment: true},
 		}
 		for _, uri := range uris {
+			// Skip LocURIs targeted by other active profiles in the same team.
+			if !safeToDelete(uri) {
+				continue
+			}
 			atomicCmd.DeleteCommands = append(atomicCmd.DeleteCommands, makeDeleteCmd(uri, uuid.NewString()))
+		}
+		if len(atomicCmd.DeleteCommands) == 0 {
+			// All URIs are excluded — nothing to delete.
+			return nil, nil
 		}
 
 		rawCommand, err = xml.Marshal(atomicCmd)
@@ -1805,6 +1830,10 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 		uri := cmds[0].GetTargetURI()
 		if uri == "" {
 			return nil, errors.New("no target URI found in profile")
+		}
+		// Skip if this LocURI is targeted by another active profile.
+		if !safeToDelete(uri) {
+			return nil, nil
 		}
 		deleteCmd := makeDeleteCmd(uri, commandUUID)
 		rawCommand, err = xml.Marshal(deleteCmd)
@@ -1818,7 +1847,8 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string)
 		var deleteCmds []SyncMLCmd
 		for _, cmd := range cmds {
 			uri := cmd.GetTargetURI()
-			if uri == "" {
+			// Skip empty URIs and URIs targeted by other active profiles.
+			if uri == "" || !safeToDelete(uri) {
 				continue
 			}
 			cmdID := uuid.NewString()
