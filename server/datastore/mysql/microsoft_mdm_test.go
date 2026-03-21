@@ -2170,6 +2170,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)

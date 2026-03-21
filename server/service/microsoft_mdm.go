@@ -2750,11 +2750,13 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 		// Only create hp entries after the command was successfully enqueued.
 		for _, rp := range removePayloadData[profUUID] {
-			// Use existing checksum or empty if not available (remove operations
-			// don't need a checksum, but the column is NOT NULL).
+			// Use existing checksum or a 16-byte zero value if not available.
+			// Remove operations don't need a checksum, but the column is
+			// BINARY(16) NOT NULL so we provide a properly sized zero value
+			// to avoid implicit MySQL padding/coercion issues.
 			checksum := rp.Checksum
 			if len(checksum) == 0 {
-				checksum = []byte{}
+				checksum = make([]byte, 16)
 			}
 			hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
 				ProfileUUID:   rp.ProfileUUID,

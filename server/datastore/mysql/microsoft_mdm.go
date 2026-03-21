@@ -585,14 +585,13 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
-	// Clean up remove + verified/verifying rows for the command UUIDs we just
-	// processed. These are terminal states for removal operations and the row
-	// should be deleted. We scope to the specific command_uuids rather than all
-	// remove rows for the host, to avoid accidentally deleting rows being
-	// processed by a concurrent response for a different command.
+	// Clean up remove + verified rows for the command UUIDs we just processed.
+	// Only delete 'verified' (not 'verifying') — verifying is an in-flight
+	// state and should not be deleted until the device confirms. We scope to
+	// specific command_uuids to avoid deleting rows from concurrent responses.
 	removeCleanupStmt, removeCleanupArgs, err := sqlx.In(`
 		DELETE FROM host_mdm_windows_profiles
-		WHERE host_uuid = ? AND command_uuid IN (?) AND operation_type = 'remove' AND status IN ('verified', 'verifying')`,
+		WHERE host_uuid = ? AND command_uuid IN (?) AND operation_type = 'remove' AND status = 'verified'`,
 		hostUUID, commandUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN for remove cleanup")
@@ -947,6 +946,11 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 		var syncML []byte
 		if err := sqlx.GetContext(ctx, tx, &syncML,
 			`SELECT syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profileUUID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// Preserve the original NotFound error contract so callers
+				// can distinguish missing profiles from other DB errors.
+				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
+			}
 			return ctxerr.Wrap(ctx, err, "reading profile syncml before deletion")
 		}
 
@@ -1675,10 +1679,9 @@ const windowsProfilesToInstallQuery = `
 		( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
 		-- profiles in A and B with operation type "install" and NULL status
 		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL ) OR
-		-- profiles in desired state that are currently marked for removal need to be
-		-- re-installed (use parameter instead of literal to stay consistent with the
-		-- constant fleet.MDMOperationTypeRemove)
-		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? )
+		-- profiles in desired state that are currently marked for removal need
+		-- to be re-installed, excluding in-flight or completed removals
+		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND COALESCE(hmwp.status, '') NOT IN ('verifying', 'verified') )
 `
 
 func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMWindowsProfilePayload, error) {
