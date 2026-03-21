@@ -204,6 +204,25 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 	}
 }
 
+// exceptLabels enables the labels exception for a test (because its YAML omits `labels:` but
+// relies on labels existing in the DB). It registers a cleanup to restore the exception.
+func (s *enterpriseIntegrationGitopsTestSuite) exceptLabels(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+	appConf, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.UIGitOpsMode.Exceptions.Labels = true
+	err = s.DS.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		appConf, err := s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		appConf.UIGitOpsMode.Exceptions.Labels = false
+		err = s.DS.SaveAppConfig(ctx, appConf)
+		require.NoError(t, err)
+	})
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, output string) {
 	s.assertDryRunOutputWithDeprecation(t, output, false)
 }
@@ -915,6 +934,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) writeConfigFile(t *testing.T, con
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabels() {
 	t := s.T()
 	ctx := context.Background()
+	s.exceptLabels(t)
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
@@ -1040,6 +1060,7 @@ settings:
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabels() {
 	t := s.T()
 	ctx := context.Background()
+	s.exceptLabels(t)
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
@@ -4069,6 +4090,14 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysGlobal() {
 	t := s.T()
 	ctx := context.Background()
 
+	t.Cleanup(func() {
+		appConf, err := s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{}
+		err = s.DS.SaveAppConfig(ctx, appConf)
+		require.NoError(t, err)
+	})
+
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 	t.Setenv("FLEET_URL", s.Server.URL)
@@ -4134,6 +4163,13 @@ labels:
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 
+	// Enable labels and secrets exceptions so that omitting these keys in step 2 preserves existing data.
+	appConf, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{Labels: true, Secrets: true}
+	err = s.DS.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
 	// Step 2: Apply a minimal global config that omits policies, agent_options, reports, labels.
 	const minimalGlobalConfig = `
 controls:
@@ -4187,6 +4223,14 @@ org_settings:
 func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysFleet() {
 	t := s.T()
 	ctx := context.Background()
+
+	t.Cleanup(func() {
+		appConf, err := s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{}
+		err = s.DS.SaveAppConfig(ctx, appConf)
+		require.NoError(t, err)
+	})
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
@@ -4260,6 +4304,13 @@ software:
 	require.NoError(t, err)
 	require.Len(t, titles, 1)
 
+	// Enable secrets exception so that omitting the `secrets:` key in step 2 preserves existing data.
+	appConf, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{Secrets: true}
+	err = s.DS.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
 	// Step 2: Apply a minimal fleet config that omits policies, agent_options, controls, reports, software, settings.
 	minimalFleetConfig := fmt.Sprintf(`
 name: %s
@@ -4315,6 +4366,7 @@ name: %s
 func (s *enterpriseIntegrationGitopsTestSuite) TestFMALabelsIncludeAll() {
 	t := s.T()
 	ctx := context.Background()
+	s.exceptLabels(t)
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)

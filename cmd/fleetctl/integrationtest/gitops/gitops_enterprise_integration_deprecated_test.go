@@ -150,6 +150,7 @@ team_settings:
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabelsDeprecated() {
 	t := s.T()
 	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	s.exceptLabels(t)
 
 	ctx := context.Background()
 
@@ -275,6 +276,7 @@ team_settings:
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabelsDeprecated() {
 	t := s.T()
 	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	s.exceptLabels(t)
 
 	ctx := context.Background()
 

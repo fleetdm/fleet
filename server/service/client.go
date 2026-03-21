@@ -2147,6 +2147,9 @@ func (c *Client) DoGitOps(
 		}
 		// Secrets: if not excepted and key is absent, treat as delete-all.
 		if !exceptions.Secrets && !incoming.SecretsPresent {
+			if incoming.TeamSettings == nil {
+				incoming.TeamSettings = make(map[string]interface{})
+			}
 			incoming.TeamSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
 		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && !exceptions.Secrets {
