@@ -1339,27 +1339,42 @@ type anyProfile struct {
 // lifecycle (reconciler sends <Delete> → device confirms → row deleted) for
 // remove rows that are NOT expected in the test assertions. Without this,
 // remove rows from previous test phases accumulate and cause count mismatches.
-// Only rows whose (profile_uuid, host_uuid) pair is NOT in the want map's
-// remove entries are cleaned up.
+//
+// Scoped to only the Windows hosts present in the want map so that rows
+// belonging to hosts not in the current assertion are left untouched. This
+// prevents implicitly hiding issues for hosts the test phase doesn't check.
 func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
+	// Collect the set of Windows host UUIDs in the assertion and the
+	// (profile_uuid, host_uuid) pairs that are expected as remove rows.
+	wantWindowsHostUUIDs := make([]string, 0)
 	wantRemoveKeys := make(map[string]bool)
 	for h, profs := range want {
 		if h.Platform != "windows" {
 			continue
 		}
+		wantWindowsHostUUIDs = append(wantWindowsHostUUIDs, h.UUID)
 		for _, p := range profs {
 			if p.OperationType == fleet.MDMOperationTypeRemove {
 				wantRemoveKeys[p.ProfileUUID+"\n"+h.UUID] = true
 			}
 		}
 	}
+	if len(wantWindowsHostUUIDs) == 0 {
+		return
+	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Only select remove rows for hosts in the current assertion's want map.
+		stmt, args, err := sqlx.In(
+			`SELECT profile_uuid, host_uuid FROM host_mdm_windows_profiles WHERE operation_type = 'remove' AND host_uuid IN (?)`,
+			wantWindowsHostUUIDs)
+		if err != nil {
+			return err
+		}
 		var rows []struct {
 			ProfileUUID string `db:"profile_uuid"`
 			HostUUID    string `db:"host_uuid"`
 		}
-		if err := sqlx.SelectContext(context.Background(), q, &rows,
-			`SELECT profile_uuid, host_uuid FROM host_mdm_windows_profiles WHERE operation_type = 'remove'`); err != nil {
+		if err := sqlx.SelectContext(context.Background(), q, &rows, stmt, args...); err != nil {
 			return err
 		}
 		for _, r := range rows {
@@ -1466,8 +1481,6 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 		}
 	}
 }
-
-
 
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
