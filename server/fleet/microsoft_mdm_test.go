@@ -557,11 +557,11 @@ func TestWindowsResponseToDeliveryStatusForRemove(t *testing.T) {
 		{"200", MDMDeliveryVerified},
 		{"202", MDMDeliveryVerified},
 		{"216", MDMDeliveryVerified},
-		{"404", MDMDeliveryVerified}, // Not Found → success for remove
-		{"405", MDMDeliveryVerified}, // Not Allowed → success for remove
-		{"500", MDMDeliveryFailed},
-		{"400", MDMDeliveryFailed},
-		{"507", MDMDeliveryFailed},
+		{"404", MDMDeliveryVerified}, // Not Found: setting not on device
+		{"405", MDMDeliveryVerified}, // Not Allowed: read-only node per OMA-DM spec
+		{"500", MDMDeliveryVerified}, // Command Failed: Windows returns this for non-deletable CSP nodes
+		{"400", MDMDeliveryFailed},   // Bad Request: genuine error
+		{"507", MDMDeliveryFailed},   // Atomic Failed: genuine error
 		{"", MDMDeliveryPending},
 	}
 
@@ -622,7 +622,11 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.
 		require.Equal(t, MDMDeliveryVerified, *payload.Status)
 	})
 
-	t.Run("non-atomic remove with 500 fails", func(t *testing.T) {
+	t.Run("non-atomic remove with 500 succeeds (best-effort)", func(t *testing.T) {
+		// Windows returns 500 for CSP nodes that don't support <Delete>
+		// (e.g. DeviceLock/AccountLockoutPolicy). For remove operations,
+		// this is treated as success since the admin wants the profile
+		// gone from Fleet regardless.
 		cmdStr := ptr.String("Replace")
 		cmd := MDMWindowsCommand{
 			CommandUUID: "cmd-1",
@@ -635,6 +639,6 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.
 		}
 		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
 		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryFailed, *payload.Status)
+		require.Equal(t, MDMDeliveryVerified, *payload.Status)
 	})
 }

@@ -1704,14 +1704,24 @@ func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 }
 
 // WindowsResponseToDeliveryStatusForRemove converts a SyncML response status to an
-// MDMDeliveryStatus for remove operations. Unlike install operations, 404 (Not Found)
-// and 405 (Not Allowed) are treated as success — if the setting isn't on the device
-// or doesn't support deletion, the removal "succeeded" in practical terms.
+// MDMDeliveryStatus for remove operations. Profile removal is best-effort: the admin
+// wants the profile gone from Fleet regardless of whether the device can undo it.
+//
+// Treated as success (verified):
+//   - 2xx: device confirmed removal
+//   - 404 (Not Found): setting was never on the device
+//   - 405 (Not Allowed): CSP node is read-only per OMA-DM spec
+//   - 500 (Command Failed): CSP doesn't support <Delete> — in practice Windows
+//     returns 500 (not 405) for nodes that can't be deleted, such as
+//     DeviceLock/AccountLockoutPolicy and some SystemServices CSP nodes
 func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
 	if len(resp) == 0 {
 		return MDMDeliveryPending
 	}
-	if strings.HasPrefix(resp, "2") || resp == syncml.CmdStatusNotFound || resp == syncml.CmdStatusNotAllowed {
+	if strings.HasPrefix(resp, "2") ||
+		resp == syncml.CmdStatusNotFound ||
+		resp == syncml.CmdStatusNotAllowed ||
+		resp == syncml.CmdStatusCommandFailed {
 		return MDMDeliveryVerified
 	}
 	return MDMDeliveryFailed
