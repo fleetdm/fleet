@@ -2750,6 +2750,12 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 		// Only create hp entries after the command was successfully enqueued.
 		for _, rp := range removePayloadData[profUUID] {
+			// Use existing checksum or empty if not available (remove operations
+			// don't need a checksum, but the column is NOT NULL).
+			checksum := rp.Checksum
+			if len(checksum) == 0 {
+				checksum = []byte{}
+			}
 			hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
 				ProfileUUID:   rp.ProfileUUID,
 				HostUUID:      rp.HostUUID,
@@ -2757,7 +2763,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 				CommandUUID:   target.cmdUUID,
 				OperationType: fleet.MDMOperationTypeRemove,
 				Status:        &fleet.MDMDeliveryPending,
-				Checksum:      rp.Checksum,
+				Checksum:      checksum,
 			}
 			hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
 			logger.DebugContext(ctx, "removing profile", "profile_uuid", rp.ProfileUUID, "host_id", rp.HostUUID, "name", rp.ProfileName)

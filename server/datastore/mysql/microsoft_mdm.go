@@ -581,8 +581,20 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		return nil
 	}
 	stmt = fmt.Sprintf(updateHostProfilesStmt, values)
-	_, err = tx.ExecContext(ctx, stmt, args...)
-	return ctxerr.Wrap(ctx, err, "updating host profiles")
+	if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host profiles")
+	}
+
+	// Clean up remove + verified/verifying rows — these are terminal states
+	// for removal operations and the row should be deleted.
+	if _, err = tx.ExecContext(ctx, `
+		DELETE FROM host_mdm_windows_profiles
+		WHERE host_uuid = ? AND operation_type = 'remove' AND status IN ('verified', 'verifying')`,
+		hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up completed remove profiles")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
