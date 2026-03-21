@@ -1,3 +1,10 @@
+## Fleet 4.81.3 (Mar 20, 2026)
+
+### Bug fixes
+
+- Added configurable body size limits for the `/api/osquery/log` and `/api/osquery/distributed/write` endpoints.
+- Fixed false positive `PayloadTooLargeError` errors.
+
 ## Fleet 4.81.2 (Mar 06, 2026)
 
 ### Bug fixes
