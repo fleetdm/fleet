@@ -192,10 +192,10 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
-github.com/fleetdm/fleet/v4/server/fleet/AppConfig	UIGitOpsMode	fleet.UIGitOpsModeConfig
-github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	GitopsModeEnabled	bool
-github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	RepositoryURL	string
-github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	Exceptions	fleet.GitOpsExceptions
+github.com/fleetdm/fleet/v4/server/fleet/AppConfig	GitOpsConfig	fleet.GitOpsConfig
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	GitopsModeEnabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	RepositoryURL	string
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	Exceptions	fleet.GitOpsExceptions
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Labels	bool
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Software	bool
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Secrets	bool
