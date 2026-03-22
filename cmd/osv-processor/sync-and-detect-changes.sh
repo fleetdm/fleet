@@ -61,12 +61,12 @@ cd "$REPO_DIR"
 # Get files changed today (since midnight UTC today)
 TODAY_UTC=$(date -u +%Y-%m-%d)
 git log --since="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
-    | sort -u > "../changed_files_today.txt"
+    | grep -v '^$' | sort -u > "../changed_files_today.txt"
 
 # Get files changed yesterday (from midnight yesterday to midnight today UTC)
 YESTERDAY_UTC=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
 git log --since="${YESTERDAY_UTC}T00:00:00Z" --until="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
-    | sort -u > "../changed_files_yesterday.txt"
+    | grep -v '^$' | sort -u > "../changed_files_yesterday.txt"
 
 TODAY_COUNT=$(wc -l < "../changed_files_today.txt" | xargs)
 YESTERDAY_COUNT=$(wc -l < "../changed_files_yesterday.txt" | xargs)
