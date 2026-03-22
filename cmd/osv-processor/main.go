@@ -209,7 +209,6 @@ func main() {
 					artifacts[ubuntuVer] = &ArtifactData{
 						SchemaVersion:   "1.0",
 						UbuntuVersion:   ubuntuVer,
-						Generated:       time.Now().UTC().Format(time.RFC3339),
 						Vulnerabilities: make(map[string][]ProcessedVuln),
 					}
 				}
@@ -223,7 +222,6 @@ func main() {
 						todayArtifacts[ubuntuVer] = &ArtifactData{
 							SchemaVersion:   "1.0",
 							UbuntuVersion:   ubuntuVer,
-							Generated:       time.Now().UTC().Format(time.RFC3339),
 							Vulnerabilities: make(map[string][]ProcessedVuln),
 						}
 					}
@@ -238,7 +236,6 @@ func main() {
 						yesterdayArtifacts[ubuntuVer] = &ArtifactData{
 							SchemaVersion:   "1.0",
 							UbuntuVersion:   ubuntuVer,
-							Generated:       time.Now().UTC().Format(time.RFC3339),
 							Vulnerabilities: make(map[string][]ProcessedVuln),
 						}
 					}
@@ -261,14 +258,20 @@ func main() {
 	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
 	log.Printf("Discovered %d Ubuntu versions", len(artifacts))
 
+	// Compute timestamp once for consistent artifact naming across midnight UTC
+	runTime := time.Now().UTC()
+	dateStr := runTime.Format("2006-01-02")
+	generatedTimestamp := runTime.Format(time.RFC3339)
+
 	// Write full artifacts
 	for ver, artifact := range artifacts {
+		artifact.Generated = generatedTimestamp
 		artifact.TotalCVEs = countTotalCVEs(artifact)
 		artifact.TotalPackages = len(artifact.Vulnerabilities)
 
 		outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-%s.json.gz",
 			strings.ReplaceAll(ver, ".", ""),
-			time.Now().UTC().Format("2006-01-02")))
+			dateStr))
 
 		if err := writeArtifact(outputFile, artifact); err != nil {
 			log.Fatalf("Failed to write artifact for Ubuntu %s: %v", ver, err)
@@ -280,14 +283,14 @@ func main() {
 
 	// Write delta artifacts (if any were generated)
 	if generateTodayDeltas && len(todayArtifacts) > 0 {
-		today := time.Now().UTC().Format("2006-01-02")
-		log.Printf("\nWriting today's delta artifacts (%s)...", today)
+		log.Printf("\nWriting today's delta artifacts (%s)...", dateStr)
 		for ver, artifact := range todayArtifacts {
+			artifact.Generated = generatedTimestamp
 			artifact.TotalCVEs = countTotalCVEs(artifact)
 			artifact.TotalPackages = len(artifact.Vulnerabilities)
 
 			outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
-				strings.ReplaceAll(ver, ".", ""), today))
+				strings.ReplaceAll(ver, ".", ""), dateStr))
 
 			if err := writeArtifact(outputFile, artifact); err != nil {
 				log.Fatalf("Failed to write today's delta for Ubuntu %s: %v", ver, err)
@@ -299,14 +302,15 @@ func main() {
 	}
 
 	if generateYesterdayDeltas && len(yesterdayArtifacts) > 0 {
-		yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
-		log.Printf("\nWriting yesterday's delta artifacts (%s)...", yesterday)
+		yesterdayStr := runTime.AddDate(0, 0, -1).Format("2006-01-02")
+		log.Printf("\nWriting yesterday's delta artifacts (%s)...", yesterdayStr)
 		for ver, artifact := range yesterdayArtifacts {
+			artifact.Generated = generatedTimestamp
 			artifact.TotalCVEs = countTotalCVEs(artifact)
 			artifact.TotalPackages = len(artifact.Vulnerabilities)
 
 			outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
-				strings.ReplaceAll(ver, ".", ""), yesterday))
+				strings.ReplaceAll(ver, ".", ""), yesterdayStr))
 
 			if err := writeArtifact(outputFile, artifact); err != nil {
 				log.Fatalf("Failed to write yesterday's delta for Ubuntu %s: %v", ver, err)
@@ -436,7 +440,6 @@ func writeArtifact(path string, artifact *ArtifactData) (err error) {
 	}()
 
 	encoder := json.NewEncoder(gzWriter)
-	encoder.SetIndent("", "  ")
 
 	if err = encoder.Encode(artifact); err != nil {
 		return err
