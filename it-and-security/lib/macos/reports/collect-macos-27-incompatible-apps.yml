@@ -13,7 +13,10 @@
       a.bundle_identifier,
       a.bundle_short_version AS version,
       m.value AS architectures,
-      DATETIME(a.last_opened_time, 'unixepoch') AS last_opened_time
+      CASE WHEN a.last_opened_time = -1
+        THEN 'Never'
+        ELSE DATETIME(a.last_opened_time, 'unixepoch')
+      END AS last_opened_time
     FROM apps a
     JOIN mdls m
       ON m.path = a.path
