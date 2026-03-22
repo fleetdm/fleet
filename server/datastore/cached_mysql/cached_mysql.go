@@ -69,8 +69,8 @@ const (
 	// FMA names cache stores a map of unique_identifier -> canonical name
 	// for Fleet-maintained apps. Used during software ingestion to override
 	// osquery-reported names with the FMA canonical name.
-	fmaNamesByIdentifierKey                   = "FMANamesByIdentifier"
-	defaultFMANamesByIdentifierExpiration     = 5 * time.Minute
+	fmaNamesByIdentifierKey               = "FMANamesByIdentifier"
+	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
 )
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
@@ -120,18 +120,18 @@ type cachedMysql struct {
 
 	c *cloneCache
 
-	appConfigExp              time.Duration
-	packsExp                  time.Duration
-	scheduledQueriesExp       time.Duration
-	teamAgentOptionsExp       time.Duration
-	teamFeaturesExp           time.Duration
-	teamMDMConfigExp          time.Duration
-	defaultTeamConfigExp      time.Duration
-	queryByNameExp            time.Duration
-	queryResultsCountExp      time.Duration
-	yaraRuleByNameExp         time.Duration
-	mdmConfigAssetExp         time.Duration
-	fmaNamesByIdentifierExp   time.Duration
+	appConfigExp            time.Duration
+	packsExp                time.Duration
+	scheduledQueriesExp     time.Duration
+	teamAgentOptionsExp     time.Duration
+	teamFeaturesExp         time.Duration
+	teamMDMConfigExp        time.Duration
+	defaultTeamConfigExp    time.Duration
+	queryByNameExp          time.Duration
+	queryResultsCountExp    time.Duration
+	yaraRuleByNameExp       time.Duration
+	mdmConfigAssetExp       time.Duration
+	fmaNamesByIdentifierExp time.Duration
 }
 
 type Option func(*cachedMysql)
