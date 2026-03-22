@@ -154,6 +154,7 @@ policies:
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
+  - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
   - path: ../lib/all/reports/dex-queries.yml
 software:
   packages:

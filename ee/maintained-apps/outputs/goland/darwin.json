@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3.3",
+      "version": "2025.3.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.goland';"
       },
-      "installer_url": "https://download.jetbrains.com/go/goland-2025.3.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/go/goland-2025.3.4-aarch64.dmg",
       "install_script_ref": "8af38bfd",
       "uninstall_script_ref": "483ece2b",
-      "sha256": "bfdf242676b1c80be8e5a3609a0538b51d81491d1eb59831c4ff5a6c9eaf05be",
+      "sha256": "f575bdd3d3ab04b856b8c5ff768145c7272153deef3f9b800b76e04ecd8568b8",
       "default_categories": [
         "Developer tools"
       ]

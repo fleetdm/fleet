@@ -1,4 +1,4 @@
-# Marketing Assets
+# Marketing assets
 
 This is the single source of truth of all marketing assets created or co-created by the marketing team. Any collateral listed on this page should be treated as the latest and most updated collateral.
 
