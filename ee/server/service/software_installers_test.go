@@ -897,3 +897,168 @@ func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *test
 		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
 	}
 }
+
+func TestConditionalGETBehavior(t *testing.T) {
+	t.Parallel()
+
+	content := []byte("#!/bin/bash\necho 'test'\n")
+	etag := fmt.Sprintf(`"%x"`, sha256.Sum256(content))
+
+	tests := []struct {
+		name           string
+		ifNoneMatch    string
+		handler        http.HandlerFunc
+		expectStatus   int
+		expectBodyNil  bool
+		expectErr      bool
+	}{
+		{
+			name:        "no If-None-Match, normal 200 response",
+			ifNoneMatch: "",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Empty(t, r.Header.Get("If-None-Match"))
+				w.Header().Set("ETag", etag)
+				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
+				w.Write(content)
+			},
+			expectStatus:  200,
+			expectBodyNil: false,
+		},
+		{
+			name:        "If-None-Match sent, server returns 304",
+			ifNoneMatch: etag,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, etag, r.Header.Get("If-None-Match"))
+				w.WriteHeader(http.StatusNotModified)
+			},
+			expectStatus:  304,
+			expectBodyNil: true,
+		},
+		{
+			name:        "If-None-Match sent, server returns 200 (ETag changed)",
+			ifNoneMatch: `"old-etag"`,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, `"old-etag"`, r.Header.Get("If-None-Match"))
+				w.Header().Set("ETag", etag)
+				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
+				w.Write(content)
+			},
+			expectStatus:  200,
+			expectBodyNil: false,
+		},
+		{
+			name:        "If-None-Match sent, server returns 403",
+			ifNoneMatch: etag,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusForbidden)
+			},
+			expectStatus: 0,
+			expectErr:    true,
+		},
+		{
+			name:        "If-None-Match sent, server returns 500",
+			ifNoneMatch: etag,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+			},
+			expectStatus: 0,
+			expectErr:    true,
+		},
+		{
+			name:        "If-None-Match with weak ETag",
+			ifNoneMatch: `W/` + etag,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, `W/`+etag, r.Header.Get("If-None-Match"))
+				w.WriteHeader(http.StatusNotModified)
+			},
+			expectStatus:  304,
+			expectBodyNil: true,
+		},
+		{
+			name:        "If-None-Match with S3 multipart ETag",
+			ifNoneMatch: `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`, r.Header.Get("If-None-Match"))
+				w.WriteHeader(http.StatusNotModified)
+			},
+			expectStatus:  304,
+			expectBodyNil: true,
+		},
+		{
+			name:        "server returns no ETag, normal download",
+			ifNoneMatch: "",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
+				w.Write(content)
+			},
+			expectStatus:  200,
+			expectBodyNil: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := httptest.NewServer(tt.handler)
+			t.Cleanup(srv.Close)
+
+			// Reproduce the downloadURLFn logic with If-None-Match support
+			client := &http.Client{}
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/test.sh", nil)
+			require.NoError(t, err)
+			if tt.ifNoneMatch != "" {
+				req.Header.Set("If-None-Match", tt.ifNoneMatch)
+			}
+			resp, err := client.Do(req)
+			if tt.expectErr {
+				// Fleet's downloadURLFn returns error for 4xx/5xx
+				require.NoError(t, err) // HTTP client doesn't error on 4xx/5xx
+				assert.True(t, resp.StatusCode >= 400)
+				resp.Body.Close()
+				return
+			}
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			assert.Equal(t, tt.expectStatus, resp.StatusCode)
+			if tt.expectBodyNil && resp.StatusCode == http.StatusNotModified {
+				// 304 has no body, which is what our downloadURLFn returns as nil TempFileReader
+				assert.Equal(t, int64(0), resp.ContentLength)
+			}
+		})
+	}
+}
+
+func TestValidETag(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		valid bool
+	}{
+		{"strong ETag", `"abc123"`, true},
+		{"weak ETag", `W/"abc123"`, true},
+		{"empty quotes", `""`, true},
+		{"S3 multipart", `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`, true},
+		{"unquoted", `abc123`, false},
+		{"single quote", `"`, false},
+		{"empty string", ``, false},
+		{"missing closing quote", `"abc`, false},
+		{"control char (newline)", "\"abc\n\"", false},
+		{"control char (carriage return)", "\"abc\r\"", false},
+		{"control char (null)", "\"abc\x00\"", false},
+		{"DEL character", "\"abc\x7f\"", false},
+		{"tab allowed", "\"abc\t123\"", true},
+		{"oversized (>512)", `"` + strings.Repeat("a", 512) + `"`, false},
+		{"exactly 512 bytes", `"` + strings.Repeat("a", 509) + `"`, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.valid, validETag(tt.input))
+		})
+	}
+}

@@ -540,6 +540,12 @@ type UploadSoftwareInstallerPayload struct {
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
+	// Cache enables conditional HTTP downloads using ETag. When true, the
+	// download request includes If-None-Match with the stored ETag.
+	Cache bool
+	// HTTPETag stores the ETag from the last download response, used for
+	// conditional GET requests when Cache is true.
+	HTTPETag *string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -584,6 +590,8 @@ type ExistingSoftwareInstaller struct {
 	Title            string  `db:"title"`
 	PackageIDList    string  `db:"package_ids"`
 	PackageIDs       []string
+	StorageID        string  `db:"storage_id"`
+	HTTPETag         *string `db:"http_etag"`
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -814,6 +822,10 @@ type SoftwarePackageSpec struct {
 	SHA256             string   `json:"hash_sha256"`
 	Categories         []string `json:"categories"`
 	DisplayName        string   `json:"display_name,omitempty"`
+	// Cache enables conditional HTTP downloads using ETag headers. When true,
+	// Fleet sends If-None-Match with the stored ETag on subsequent downloads.
+	// If the server returns 304 Not Modified, the download is skipped entirely.
+	Cache bool `json:"cache"`
 }
 
 func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {

@@ -592,6 +592,7 @@ software:
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3. If you don't want to host the package, add it to Fleet first and then copy the `hash_sha256`.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and a package with that hash was already added to Fleet, the download will be skipped. This speeds up GitOps runs. If a package with that hash doesn't exist in Fleet, Fleet will download the package from the `url` and add the package if the hash matches. Fleet will error if the hash doesn't match. You can specify `hash_sha256` without `url` if the package was already added to Fleet via the UI or the API.
+- `cache` enables conditional HTTP downloads using ETag headers. When set to `true`, Fleet stores the ETag from the download response and sends it as `If-None-Match` on subsequent GitOps runs. If the server returns 304 Not Modified, the download is skipped entirely. This is useful for packages with `/latest` download URLs where providing a static `hash_sha256` isn't practical. Cannot be used together with `hash_sha256` (hash-pinned packages are already cached by hash). Not all servers support ETags correctly; verify your download URL returns consistent ETags before enabling.
 - `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
@@ -623,6 +624,23 @@ You can view the hash for existing software in the software detail page in the F
 # Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
 - hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
 ```
+
+##### Cache
+
+For packages with `/latest` download URLs where the hash changes on each new version, use `cache: true` to avoid re-downloading unchanged packages:
+
+```yaml
+- url: https://nvidia.gpcloudservice.com/global-protect/getmsi.esp?version=64&platform=windows
+  cache: true
+  install_script:
+    path: ../lib/software/install-msi.ps1
+  uninstall_script:
+    path: ../lib/software/uninstall-gp.ps1
+```
+
+On the first GitOps run, Fleet downloads the package normally and stores the server's ETag. On subsequent runs, Fleet sends a conditional GET request. If the server confirms the content hasn't changed (304 Not Modified), the download is skipped.
+
+> Not all servers return reliable ETags. Some CDNs (e.g. CloudFront, Cloudflare) may return the same ETag even after the file changes. Test your download URL before enabling `cache`.
 
 ### app_store_apps
 

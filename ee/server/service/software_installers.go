@@ -2050,6 +2050,18 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				)
 			}
 		}
+		if payload.Cache && payload.URL == "" {
+			return "", fleet.NewInvalidArgumentError(
+				"software.cache",
+				"Couldn't edit software. The 'cache' option requires a 'url' field.",
+			)
+		}
+		if payload.Cache && payload.SHA256 != "" {
+			return "", fleet.NewInvalidArgumentError(
+				"software.cache",
+				"Couldn't edit software. The 'cache' option cannot be used with 'hash_sha256' (hash-pinned packages are already cached by hash).",
+			)
+		}
 		if !dryRun {
 			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 			if err != nil {
@@ -2196,13 +2208,22 @@ func (svc *Service) softwareBatchUpload(
 	defer close(done)
 
 	maxInstallerSize := svc.config.Server.MaxInstallerSizeBytes
-	downloadURLFn := func(ctx context.Context, url string) (*http.Response, *fleet.TempFileReader, error) {
+	// downloadURLFn downloads an installer from a URL. If ifNoneMatch is non-empty,
+	// the request includes an If-None-Match header for conditional GET.
+	//
+	// On 304 Not Modified, returns (resp, nil, nil): resp has StatusCode 304
+	// and a closed body, tfr is nil. Callers MUST check resp.StatusCode before
+	// using tfr.
+	downloadURLFn := func(ctx context.Context, downloadURL string, ifNoneMatch string) (*http.Response, *fleet.TempFileReader, error) {
 		client := fleethttp.NewClient()
 		client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 		if err != nil {
-			return nil, nil, fmt.Errorf("creating request for URL %q: %w", url, err)
+			return nil, nil, fmt.Errorf("creating request for URL %q: %w", downloadURL, err)
+		}
+		if ifNoneMatch != "" {
+			req.Header.Set("If-None-Match", ifNoneMatch)
 		}
 
 		resp, err := client.Do(req)
@@ -2211,18 +2232,25 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.Human(maxInstallerSize)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
 				)
 			}
 
-			return nil, nil, fmt.Errorf("performing request for URL %q: %w", url, err)
+			return nil, nil, fmt.Errorf("performing request for URL %q: %w", downloadURL, err)
 		}
+
+		// 304 Not Modified: content unchanged, return response with no body.
+		if resp.StatusCode == http.StatusNotModified {
+			resp.Body.Close()
+			return resp, nil, nil
+		}
+
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, nil, fleet.NewInvalidArgumentError(
 				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", url),
+				fmt.Sprintf("Couldn't edit software. URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", downloadURL),
 			)
 		}
 
@@ -2230,7 +2258,7 @@ func (svc *Service) softwareBatchUpload(
 		if resp.StatusCode >= 400 {
 			return nil, nil, fleet.NewInvalidArgumentError(
 				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", url, resp.StatusCode),
+				fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", downloadURL, resp.StatusCode),
 			)
 		}
 
@@ -2242,13 +2270,25 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.Human(maxInstallerSize)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
 				)
 			}
-			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
+			return nil, nil, fmt.Errorf("reading installer %q contents: %w", downloadURL, err)
 		}
 
 		return resp, tfr, nil
+	}
+
+	// retryDownload wraps downloadURLFn with the standard retry policy.
+	retryDownload := func(ctx context.Context, downloadURL, ifNoneMatch string) (*http.Response, *fleet.TempFileReader, error) {
+		var resp *http.Response
+		var tfr *fleet.TempFileReader
+		err := retry.Do(func() error {
+			var retryErr error
+			resp, tfr, retryErr = downloadURLFn(ctx, downloadURL, ifNoneMatch)
+			return retryErr
+		}, retry.WithMaxAttempts(fleet.BatchDownloadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
+		return resp, tfr, err
 	}
 
 	var manualAgentInstall bool
@@ -2314,6 +2354,7 @@ func (svc *Service) softwareBatchUpload(
 				Categories:         p.Categories,
 				DisplayName:        p.DisplayName,
 				RollbackVersion:    p.RollbackVersion,
+				Cache:              p.Cache,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2432,6 +2473,20 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			// Layer 2: Conditional GET with If-None-Match (opt-in via cache: true).
+			// When cache is enabled and we have an existing installer with an ETag,
+			// the download request includes If-None-Match. If 304, skip download entirely.
+			var existingForCache *fleet.ExistingSoftwareInstaller
+			shouldAttemptCacheCheck := !fmaVersionCached && p.Cache && p.SHA256 == "" && p.URL != "" && installer.StorageID == ""
+			if shouldAttemptCacheCheck {
+				existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, tmID, p.URL)
+				if lookupErr != nil {
+					svc.logger.WarnContext(ctx, "cache lookup failed, will download normally", "url", p.URL, "err", lookupErr)
+				} else if existing != nil && existing.StorageID != "" && existing.HTTPETag != nil && *existing.HTTPETag != "" {
+					existingForCache = existing
+				}
+			}
+
 			// no accessible matching installer was found, so attempt to download it from URL.
 			if !fmaVersionCached && (installer.StorageID == "" || !installerBytesExist) {
 				if p.SHA256 != "" && p.URL == "" {
@@ -2467,18 +2522,46 @@ func (svc *Service) softwareBatchUpload(
 					installer.UninstallScript = ""
 					installer.PreInstallQuery = ""
 				} else {
-					var resp *http.Response
-					err = retry.Do(func() error {
-						var retryErr error
-						resp, tfr, retryErr = downloadURLFn(ctx, p.URL)
-						if retryErr != nil {
-							return retryErr
-						}
+					// Determine If-None-Match for conditional GET (Layer 2)
+					var ifNoneMatch string
+					if existingForCache != nil {
+						ifNoneMatch = *existingForCache.HTTPETag
+					}
 
-						return nil
-					}, retry.WithMaxAttempts(fleet.BatchDownloadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
+					resp, tfr, err := retryDownload(ctx, p.URL, ifNoneMatch)
 					if err != nil {
 						return err
+					}
+
+					// Layer 2: handle 304 Not Modified (cache: true with matching ETag).
+					// When the server returns 304, we trust the origin server's ETag as a
+					// content fingerprint and reuse the cached installer. This is an explicit
+					// opt-in (cache: true) by the user who accepts the trust assumption.
+					if resp != nil && resp.StatusCode == http.StatusNotModified && existingForCache != nil {
+						bytesExist, existErr := svc.softwareInstallStore.Exists(ctx, existingForCache.StorageID)
+						if existErr == nil && bytesExist {
+							fillSoftwareInstallerPayloadFromExisting(installer, existingForCache, existingForCache.StorageID)
+							installer.HTTPETag = existingForCache.HTTPETag
+							installers[i] = &installerPayloadWithExtras{
+								UploadSoftwareInstallerPayload: installer,
+								ExtraInstallers:                extraInstallers,
+							}
+							return nil
+						}
+						svc.logger.WarnContext(ctx, "304 received but installer bytes missing, re-downloading", "url", p.URL)
+						resp, tfr, err = retryDownload(ctx, p.URL, "")
+						if err != nil {
+							return err
+						}
+					}
+
+					// Guard against nil response or nil body (e.g. unexpected 304 without
+					// cache context, or server returning 304 without If-None-Match)
+					if resp == nil {
+						return fmt.Errorf("download of %q returned nil response", p.URL)
+					}
+					if tfr == nil {
+						return fmt.Errorf("download of %q returned no body (status %d); if cache is enabled, the server may be incorrectly returning 304", p.URL, resp.StatusCode)
 					}
 
 					installer.InstallerFile = tfr
@@ -2486,6 +2569,17 @@ func (svc *Service) softwareBatchUpload(
 
 					filename := maintained_apps.FilenameFromResponse(resp)
 					installer.Filename = filename
+
+					// Capture ETag from download response for future conditional requests.
+					// Only store when cache is enabled to avoid unnecessary DB writes.
+					// Validate format before storing to prevent malformed values.
+					if p.Cache {
+						if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
+							installer.HTTPETag = &etag
+						} else if etag == "" {
+							svc.logger.WarnContext(ctx, "cache enabled but server returned no ETag", "url", p.URL)
+						}
+					}
 
 					// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
 					// unsupported fields early. Determine extension from filename to
@@ -2720,6 +2814,25 @@ func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInsta
 	payload.Title = existing.Title
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
+}
+
+// validETag checks if an ETag value looks like a valid quoted-string per
+// RFC 7232 section 2.3. It rejects control characters, DEL (0x7F), and values
+// exceeding 512 bytes.
+func validETag(etag string) bool {
+	if len(etag) > 512 {
+		return false
+	}
+	for _, c := range etag {
+		if c < 0x20 && c != '\t' {
+			return false
+		}
+		if c == 0x7F {
+			return false
+		}
+	}
+	e := strings.TrimPrefix(etag, "W/")
+	return len(e) >= 2 && e[0] == '"' && e[len(e)-1] == '"'
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {
