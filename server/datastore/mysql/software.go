@@ -935,7 +935,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	if fmaErr != nil {
 		// Log but don't fail - we can still use osquery-reported names.
 		// A nil map is safe here since Go's map access on nil returns the zero value.
-		slog.Warn("failed to get FMA names by identifier", "err", fmaErr)
+		if ds.logger != nil {
+			ds.logger.WarnContext(ctx, "failed to get FMA names by identifier", "err", fmaErr)
+		}
 		fmaNames = nil
 	}
 

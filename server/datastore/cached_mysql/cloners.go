@@ -2,6 +2,7 @@ package cached_mysql
 
 import (
 	"encoding/json"
+	"maps"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -49,8 +50,6 @@ func (m fmaNameMap) Clone() (fleet.Cloner, error) {
 		return fmaNameMap(nil), nil
 	}
 	clone := make(fmaNameMap, len(m))
-	for k, v := range m {
-		clone[k] = v
-	}
+	maps.Copy(clone, m)
 	return clone, nil
 }

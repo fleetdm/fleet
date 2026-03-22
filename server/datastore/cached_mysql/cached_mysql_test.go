@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -996,9 +997,7 @@ func TestCachedFMANamesByIdentifier(t *testing.T) {
 	mockedDS.GetFMANamesByIdentifierFunc = func(ctx context.Context) (map[string]string, error) {
 		// Return a copy to avoid mutation
 		result := make(map[string]string, len(fmaNames))
-		for k, v := range fmaNames {
-			result[k] = v
-		}
+		maps.Copy(result, fmaNames)
 		return result, nil
 	}
 
