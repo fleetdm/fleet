@@ -2740,30 +2740,30 @@ WHERE
 			}
 
 			args := []interface{}{
-				tmID,                                  // team_id
-				globalOrTeamID,                        // global_or_team_id
-				installer.StorageID,                   // storage_id
-				installer.Filename,                    // filename
-				installer.Extension,                   // extension
-				installer.Version,                     // version
-				installScriptID,                       // install_script_content_id
-				uninstallScriptID,                     // uninstall_script_content_id
-				installer.PreInstallQuery,             // pre_install_query
-				postInstallScriptID,                   // post_install_script_content_id
-				installer.Platform,                    // platform
-				installer.SelfService,                 // self_service
-				installer.UpgradeCode,                 // upgrade_code
-				titleID,                               // title_id
-				installer.UserID,                      // user_id
-				installer.UserID,                      // user_name (subselect by user_id)
-				installer.UserID,                      // user_email (subselect by user_id)
-				installer.URL,                         // url
+				tmID,                                    // team_id
+				globalOrTeamID,                          // global_or_team_id
+				installer.StorageID,                     // storage_id
+				installer.Filename,                      // filename
+				installer.Extension,                     // extension
+				installer.Version,                       // version
+				installScriptID,                         // install_script_content_id
+				uninstallScriptID,                       // uninstall_script_content_id
+				installer.PreInstallQuery,               // pre_install_query
+				postInstallScriptID,                     // post_install_script_content_id
+				installer.Platform,                      // platform
+				installer.SelfService,                   // self_service
+				installer.UpgradeCode,                   // upgrade_code
+				titleID,                                 // title_id
+				installer.UserID,                        // user_id
+				installer.UserID,                        // user_name (subselect by user_id)
+				installer.UserID,                        // user_email (subselect by user_id)
+				installer.URL,                           // url
 				strings.Join(installer.PackageIDs, ","), // package_ids
-				installer.InstallDuringSetup,          // install_during_setup
-				installer.FleetMaintainedAppID,        // fleet_maintained_app_id
-				isActive,                              // is_active
-				installer.HTTPETag,                    // http_etag
-				installer.InstallDuringSetup,          // ON DUPLICATE KEY: install_during_setup
+				installer.InstallDuringSetup,            // install_during_setup
+				installer.FleetMaintainedAppID,          // fleet_maintained_app_id
+				isActive,                                // is_active
+				installer.HTTPETag,                      // http_etag
+				installer.InstallDuringSetup,            // ON DUPLICATE KEY: install_during_setup
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
 			// for this team+title. This prevents duplicate rows from repeated batch sets

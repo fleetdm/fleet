@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -905,12 +906,12 @@ func TestConditionalGETBehavior(t *testing.T) {
 	etag := fmt.Sprintf(`"%x"`, sha256.Sum256(content))
 
 	tests := []struct {
-		name           string
-		ifNoneMatch    string
-		handler        http.HandlerFunc
-		expectStatus   int
-		expectBodyNil  bool
-		expectErr      bool
+		name          string
+		ifNoneMatch   string
+		handler       http.HandlerFunc
+		expectStatus  int
+		expectBodyNil bool
+		expectErr     bool
 	}{
 		{
 			name:        "no If-None-Match, normal 200 response",
@@ -919,7 +920,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 				assert.Empty(t, r.Header.Get("If-None-Match"))
 				w.Header().Set("ETag", etag)
 				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
-				w.Write(content)
+				_, _ = w.Write(content)
 			},
 			expectStatus:  200,
 			expectBodyNil: false,
@@ -941,7 +942,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 				require.Equal(t, `"old-etag"`, r.Header.Get("If-None-Match"))
 				w.Header().Set("ETag", etag)
 				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
-				w.Write(content)
+				_, _ = w.Write(content)
 			},
 			expectStatus:  200,
 			expectBodyNil: false,
@@ -989,7 +990,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 			ifNoneMatch: "",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
-				w.Write(content)
+				_, _ = w.Write(content)
 			},
 			expectStatus:  200,
 			expectBodyNil: false,
@@ -1004,7 +1005,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 			t.Cleanup(srv.Close)
 
 			// Reproduce the downloadURLFn logic with If-None-Match support
-			client := &http.Client{}
+			client := fleethttp.NewClient()
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/test.sh", nil)
 			require.NoError(t, err)
 			if tt.ifNoneMatch != "" {
