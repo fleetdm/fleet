@@ -10,7 +10,7 @@ func init() {
 }
 
 func Up_20260322120000(tx *sql.Tx) error {
-	_, err := tx.Exec(`ALTER TABLE software_installers ADD COLUMN http_etag VARCHAR(512) DEFAULT NULL`)
+	_, err := tx.Exec(`ALTER TABLE software_installers ADD COLUMN http_etag VARCHAR(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to add http_etag column to software_installers: %w", err)
 	}
