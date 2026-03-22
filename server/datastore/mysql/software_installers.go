@@ -2303,13 +2303,10 @@ INSERT INTO software_installers (
 	package_ids,
 	install_during_setup,
 	fleet_maintained_app_id,
-	is_active,
-	http_etag,
-	http_last_modified
+	is_active
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?,
-  ?, ?
+  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2328,9 +2325,7 @@ ON DUPLICATE KEY UPDATE
   user_email = VALUES(user_email),
   url = VALUES(url),
   install_during_setup = COALESCE(?, install_during_setup),
-  is_active = VALUES(is_active),
-  http_etag = VALUES(http_etag),
-  http_last_modified = VALUES(http_last_modified)
+  is_active = VALUES(is_active)
 `
 
 	const updateInstaller = `
@@ -2764,8 +2759,6 @@ WHERE
 				installer.InstallDuringSetup,
 				installer.FleetMaintainedAppID,
 				isActive,
-				installer.HTTPETag,
-				installer.HTTPLastModified,
 				installer.InstallDuringSetup,
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
@@ -3576,43 +3569,6 @@ WHERE
 	}
 
 	return byTeam, nil
-}
-
-func (ds *Datastore) GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
-	stmt := `
-SELECT
-	si.id AS installer_id,
-	si.team_id AS team_id,
-	si.storage_id AS storage_id,
-	si.filename AS filename,
-	si.extension AS extension,
-	si.version AS version,
-	si.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
-	st.name AS title,
-	si.package_ids AS package_ids,
-	si.http_etag AS http_etag,
-	si.http_last_modified AS http_last_modified
-FROM
-	software_installers si
-	JOIN software_titles st ON si.title_id = st.id
-WHERE
-	si.global_or_team_id = ? AND si.url = ?
-ORDER BY si.id DESC
-LIMIT 1
-`
-	var installer fleet.ExistingSoftwareInstaller
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &installer, stmt, teamID, url); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get installer by team and URL")
-	}
-	if installer.PackageIDList != "" {
-		installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
-	}
-	return &installer, nil
 }
 
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
