@@ -322,7 +322,7 @@ func buildVersionFilter(versions, excludeVersions string) (targetVersions, exclu
 	if versions != "" {
 		// Inclusive mode: only process specified versions
 		targetVersions = make(map[string]bool)
-		for _, ver := range strings.Split(versions, ",") {
+		for ver := range strings.SplitSeq(versions, ",") {
 			trimmed := strings.TrimSpace(ver)
 			if trimmed != "" {
 				targetVersions[trimmed] = true
@@ -334,7 +334,7 @@ func buildVersionFilter(versions, excludeVersions string) (targetVersions, exclu
 	if excludeVersions != "" {
 		// Exclusive mode: process all except specified versions
 		excludedVersions = make(map[string]bool)
-		for _, ver := range strings.Split(excludeVersions, ",") {
+		for ver := range strings.SplitSeq(excludeVersions, ",") {
 			trimmed := strings.TrimSpace(ver)
 			if trimmed != "" {
 				excludedVersions[trimmed] = true
@@ -364,8 +364,7 @@ func parseOSVFile(path string) (*OSVData, error) {
 func extractUbuntuVersion(ecosystem string) string {
 	// Example: "Ubuntu:24.04:LTS" -> "24.04"
 	// Example: "Ubuntu:Pro:22.04:LTS" -> "22.04"
-	parts := strings.Split(ecosystem, ":")
-	for _, part := range parts {
+	for part := range strings.SplitSeq(ecosystem, ":") {
 		// Look for version pattern like "24.04", "22.04", "20.04"
 		if len(part) == 5 && strings.Contains(part, ".") {
 			return part
@@ -418,31 +417,28 @@ func countTotalCVEs(artifact *ArtifactData) int {
 	return len(seen)
 }
 
-func writeArtifact(path string, artifact *ArtifactData) error {
+func writeArtifact(path string, artifact *ArtifactData) (err error) {
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
 
 	gzWriter := gzip.NewWriter(file)
-	defer gzWriter.Close()
+	defer func() {
+		if cerr := gzWriter.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
 
 	encoder := json.NewEncoder(gzWriter)
 	encoder.SetIndent("", "  ")
 
-	if err := encoder.Encode(artifact); err != nil {
-		_ = gzWriter.Close()
-		_ = file.Close()
-		return err
-	}
-
-	if err := gzWriter.Close(); err != nil {
-		_ = file.Close()
-		return err
-	}
-
-	if err := file.Close(); err != nil {
+	if err = encoder.Encode(artifact); err != nil {
 		return err
 	}
 

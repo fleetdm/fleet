@@ -4,7 +4,7 @@
 #
 # Outputs:
 #   - Creates/updates ubuntu-security-notices directory (shallow clone)
-#   - Changed_files_today.txt and changed_files_yesterday.txt
+#   - changed_files_today.txt and changed_files_yesterday.txt
 #
 # Exit codes:
 #   0: Success
