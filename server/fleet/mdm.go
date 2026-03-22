@@ -679,7 +679,8 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
-	Path string `json:"path,omitempty"`
+	Path  string `json:"path,omitempty"`
+	Paths string `json:"paths,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to
@@ -698,6 +699,39 @@ type MDMProfileSpec struct {
 	// member of in order to receive the profile. It must not be a member of any
 	// of the listed labels.
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+}
+
+// Implement the SupportsFileInclude interface so that MDMProfileSpec
+// can support globs in GitOps.
+
+// GetBaseItem converts MDMProfileSpec's string Path/Paths to a BaseItem.
+// Nil pointers are returned for empty strings.
+func (p *MDMProfileSpec) GetBaseItem() BaseItem {
+	var b BaseItem
+	if p.Path != "" {
+		path := p.Path
+		b.Path = &path
+	}
+	if p.Paths != "" {
+		paths := p.Paths
+		b.Paths = &paths
+	}
+	return b
+}
+
+// SetBaseItem updates MDMProfileSpec's Path/Paths from a BaseItem.
+// Nil pointers become empty strings.
+func (p *MDMProfileSpec) SetBaseItem(v BaseItem) {
+	if v.Path != nil {
+		p.Path = *v.Path
+	} else {
+		p.Path = ""
+	}
+	if v.Paths != nil {
+		p.Paths = *v.Paths
+	} else {
+		p.Paths = ""
+	}
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to add backwards
