@@ -898,7 +898,7 @@ func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *test
 	}
 }
 
-func TestCheckURLChanged(t *testing.T) {
+func TestHasURLContentChanged(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -915,7 +915,6 @@ func TestCheckURLChanged(t *testing.T) {
 			lastModified: nil,
 			handler:      nil, // should not be called
 			wantChanged:  true,
-			wantErr:      false,
 		},
 		{
 			name: "server returns 304 Not Modified",
@@ -926,7 +925,6 @@ func TestCheckURLChanged(t *testing.T) {
 				w.WriteHeader(http.StatusNotModified)
 			},
 			wantChanged: false,
-			wantErr:     false,
 		},
 		{
 			name: "server returns 200 with same ETag",
@@ -936,7 +934,6 @@ func TestCheckURLChanged(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			},
 			wantChanged: false,
-			wantErr:     false,
 		},
 		{
 			name: "server returns 200 with different ETag",
@@ -946,7 +943,6 @@ func TestCheckURLChanged(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			},
 			wantChanged: true,
-			wantErr:     false,
 		},
 		{
 			name:         "server returns 200 with same Last-Modified",
@@ -957,7 +953,6 @@ func TestCheckURLChanged(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			},
 			wantChanged: false,
-			wantErr:     false,
 		},
 		{
 			name:         "server returns 200 with different Last-Modified",
@@ -967,7 +962,6 @@ func TestCheckURLChanged(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			},
 			wantChanged: true,
-			wantErr:     false,
 		},
 		{
 			name: "server returns 200 with no headers, assume changed",
@@ -976,16 +970,56 @@ func TestCheckURLChanged(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			},
 			wantChanged: true,
-			wantErr:     false,
 		},
 		{
-			name: "empty string cached ETag, assume changed",
-			etag: ptr.String(""),
+			name:        "empty string cached ETag, assume changed",
+			etag:        ptr.String(""),
+			wantChanged: true,
+		},
+		{
+			name: "weak ETag prefix stripped for comparison (W/ on server)",
+			etag: ptr.String(`"abc123"`),
 			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("ETag", `W/"abc123"`)
 				w.WriteHeader(http.StatusOK)
 			},
+			wantChanged: false,
+		},
+		{
+			name: "weak ETag prefix stripped for comparison (W/ on cached)",
+			etag: ptr.String(`W/"abc123"`),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("ETag", `"abc123"`)
+				w.WriteHeader(http.StatusOK)
+			},
+			wantChanged: false,
+		},
+		{
+			name:         "both ETag and Last-Modified, ETag takes precedence",
+			etag:         ptr.String(`"abc123"`),
+			lastModified: ptr.String("Thu, 20 Mar 2025 12:00:00 GMT"),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("ETag", `"abc123"`)
+				w.Header().Set("Last-Modified", "Fri, 21 Mar 2025 12:00:00 GMT")
+				w.WriteHeader(http.StatusOK)
+			},
+			wantChanged: false, // ETag matches, Last-Modified differs but is ignored
+		},
+		{
+			name: "server returns 403 Forbidden, assume changed",
+			etag: ptr.String(`"abc123"`),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusForbidden)
+			},
 			wantChanged: true,
-			wantErr:     false,
+		},
+		{
+			name: "server returns 500, assume changed",
+			etag: ptr.String(`"abc123"`),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+			},
+			wantChanged: true,
 		},
 	}
 
@@ -1002,7 +1036,7 @@ func TestCheckURLChanged(t *testing.T) {
 				serverURL = "http://localhost:0/nonexistent"
 			}
 
-			changed, err := checkURLChanged(t.Context(), serverURL, tt.etag, tt.lastModified)
+			changed, err := hasURLContentChanged(t.Context(), serverURL, tt.etag, tt.lastModified)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -1013,14 +1047,52 @@ func TestCheckURLChanged(t *testing.T) {
 	}
 }
 
-func TestCheckURLChanged_ConnectionError(t *testing.T) {
+func TestHasURLContentChanged_ConnectionError(t *testing.T) {
 	t.Parallel()
 
-	// Use a server that immediately closes to trigger a connection error
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	srv.Close()
 
-	changed, err := checkURLChanged(t.Context(), srv.URL, ptr.String(`"abc"`), nil)
+	changed, err := hasURLContentChanged(t.Context(), srv.URL, ptr.String(`"abc"`), nil)
 	require.Error(t, err)
 	assert.True(t, changed, "should assume changed on error")
+}
+
+func TestHasURLContentChanged_NonHTTPScheme(t *testing.T) {
+	t.Parallel()
+
+	changed, err := hasURLContentChanged(t.Context(), "file:///etc/passwd", ptr.String(`"abc"`), nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported URL scheme")
+	assert.True(t, changed)
+}
+
+func TestValidETag(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		input string
+		valid bool
+	}{
+		{`"abc123"`, true},
+		{`W/"abc123"`, true},
+		{`""`, true},
+		{`abc123`, false},
+		{`"`, false},
+		{``, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.valid, validETag(tt.input))
+		})
+	}
+}
+
+func TestNormalizeETag(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, `"abc"`, normalizeETag(`"abc"`))
+	assert.Equal(t, `"abc"`, normalizeETag(`W/"abc"`))
+	assert.Equal(t, `"abc"`, normalizeETag(`W/"abc"`)) // idempotent
 }

@@ -9757,6 +9757,9 @@ func (s *DataStore) GetInstallerByTeamAndURL(ctx context.Context, teamID uint, u
 	s.mu.Lock()
 	s.GetInstallerByTeamAndURLFuncInvoked = true
 	s.mu.Unlock()
+	if s.GetInstallerByTeamAndURLFunc == nil {
+		return nil, nil
+	}
 	return s.GetInstallerByTeamAndURLFunc(ctx, teamID, url)
 }
 

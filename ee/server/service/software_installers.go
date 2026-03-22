@@ -2435,35 +2435,10 @@ func (svc *Service) softwareBatchUpload(
 			// When no hash is provided but we have a URL, check if the URL content has
 			// changed since the last download using conditional HTTP requests (ETag/Last-Modified).
 			// This avoids re-downloading unchanged packages on every GitOps run.
-			var urlContentUnchanged bool
-			if !fmaVersionCached && p.SHA256 == "" && p.URL != "" && installer.StorageID == "" {
-				existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, tmID, p.URL)
-				if lookupErr != nil {
-					slog.Warn("failed to look up installer by URL, will re-download", "url", p.URL, "err", lookupErr)
-				} else if existing != nil && existing.StorageID != "" {
-					changed, headErr := checkURLChanged(ctx, p.URL, existing.HTTPETag, existing.HTTPLastModified)
-					if headErr != nil {
-						slog.Warn("HEAD request failed, falling back to full download", "url", p.URL, "err", headErr)
-					} else if !changed {
-						fillSoftwareInstallerPayloadFromExisting(installer, existing, existing.StorageID)
-						installer.HTTPETag = existing.HTTPETag
-						installer.HTTPLastModified = existing.HTTPLastModified
-						urlContentUnchanged = true
-
-						// Verify the bytes still exist in the store
-						bytesExist, existErr := svc.softwareInstallStore.Exists(ctx, installer.StorageID)
-						if existErr != nil {
-							slog.Warn("failed to check installer store, will re-download", "url", p.URL, "err", existErr)
-							urlContentUnchanged = false
-						} else if !bytesExist {
-							urlContentUnchanged = false
-						}
-					}
-				}
-			}
+			canSkipDownload := svc.tryReuseExistingInstaller(ctx, p, installer, tmID, fmaVersionCached)
 
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if !fmaVersionCached && !urlContentUnchanged && (installer.StorageID == "" || !installerBytesExist) {
+			if !fmaVersionCached && !canSkipDownload && (installer.StorageID == "" || !installerBytesExist) {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
@@ -2518,10 +2493,11 @@ func (svc *Service) softwareBatchUpload(
 					installer.Filename = filename
 
 					// Capture HTTP cache headers for conditional download on future runs.
-					if etag := resp.Header.Get("ETag"); etag != "" {
+					// Validate format before storing to prevent storing malformed values.
+					if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
 						installer.HTTPETag = &etag
 					}
-					if lastMod := resp.Header.Get("Last-Modified"); lastMod != "" {
+					if lastMod := resp.Header.Get("Last-Modified"); lastMod != "" && validHTTPDate(lastMod) {
 						installer.HTTPLastModified = &lastMod
 					}
 
@@ -2758,32 +2734,107 @@ func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInsta
 	payload.Title = existing.Title
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
+	payload.HTTPETag = existing.HTTPETag
+	payload.HTTPLastModified = existing.HTTPLastModified
 }
 
-// checkURLChanged performs a conditional HTTP HEAD request to determine if the
-// content at the given URL has changed since the last download. It uses
+// tryReuseExistingInstaller checks if a URL-only installer (no hash) can be
+// reused from a previous download. It looks up the existing installer by
+// team+URL, sends a conditional HEAD request, and verifies the bytes still
+// exist in the store. Returns true if the installer was reused successfully.
+func (svc *Service) tryReuseExistingInstaller(
+	ctx context.Context,
+	p *fleet.SoftwareInstallerPayload,
+	installer *fleet.UploadSoftwareInstallerPayload,
+	tmID uint,
+	fmaVersionCached bool,
+) bool {
+	if fmaVersionCached || p.SHA256 != "" || p.URL == "" || installer.StorageID != "" {
+		return false
+	}
+
+	existing, err := svc.ds.GetInstallerByTeamAndURL(ctx, tmID, p.URL)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "failed to look up installer by URL, will re-download", "url", p.URL, "err", err)
+		return false
+	}
+	if existing == nil || existing.StorageID == "" {
+		return false
+	}
+
+	changed, err := hasURLContentChanged(ctx, p.URL, existing.HTTPETag, existing.HTTPLastModified)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "HEAD request failed, falling back to full download", "url", p.URL, "err", err)
+		return false
+	}
+	if changed {
+		return false
+	}
+
+	fillSoftwareInstallerPayloadFromExisting(installer, existing, existing.StorageID)
+
+	// Verify the bytes still exist in the store
+	bytesExist, err := svc.softwareInstallStore.Exists(ctx, installer.StorageID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "failed to check installer store, will re-download", "url", p.URL, "err", err)
+		return false
+	}
+	if !bytesExist {
+		return false
+	}
+
+	return true
+}
+
+// headRequestTimeout is the maximum time allowed for a conditional HEAD request
+// when checking if a URL's content has changed.
+const headRequestTimeout = 30 * time.Second
+
+// hasURLContentChanged performs a conditional HTTP HEAD request to determine if
+// the content at the given URL has changed since the last download. It uses
 // If-None-Match (ETag) and If-Modified-Since (Last-Modified) headers.
 // Returns true if the content has changed or if the check cannot be performed.
-func checkURLChanged(ctx context.Context, url string, etag, lastModified *string) (bool, error) {
-	if (etag == nil || *etag == "") && (lastModified == nil || *lastModified == "") {
+//
+// Note: if the download URL redirects (e.g. to a CDN), the cached headers are
+// from the final response but the HEAD request targets the original URL. This
+// may cause spurious re-downloads for URLs that redirect to varying endpoints.
+func hasURLContentChanged(ctx context.Context, rawURL string, etag, lastModified *string) (bool, error) {
+	hasETag := etag != nil && *etag != ""
+	hasLastMod := lastModified != nil && *lastModified != ""
+
+	if !hasETag && !hasLastMod {
 		return true, nil
 	}
 
-	client := fleethttp.NewClient()
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	// Validate URL scheme to prevent SSRF via non-HTTP schemes.
+	// The URL is already validated upstream (BatchSetSoftwareInstallers), but
+	// we enforce http/https here as defense-in-depth.
+	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return true, fmt.Errorf("creating HEAD request for %q: %w", url, err)
+		return true, fmt.Errorf("parsing URL %q: %w", rawURL, err)
 	}
-	if etag != nil && *etag != "" {
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return true, fmt.Errorf("unsupported URL scheme %q for conditional download check", parsed.Scheme)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, headRequestTimeout)
+	defer cancel()
+
+	client := fleethttp.NewClient(fleethttp.WithTimeout(headRequestTimeout))
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, rawURL, nil)
+	if err != nil {
+		return true, fmt.Errorf("creating HEAD request for %q: %w", rawURL, err)
+	}
+	if hasETag {
 		req.Header.Set("If-None-Match", *etag)
 	}
-	if lastModified != nil && *lastModified != "" {
+	if hasLastMod {
 		req.Header.Set("If-Modified-Since", *lastModified)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return true, fmt.Errorf("HEAD request for %q: %w", url, err)
+		return true, fmt.Errorf("HEAD request for %q: %w", rawURL, err)
 	}
 	defer resp.Body.Close()
 
@@ -2791,13 +2842,14 @@ func checkURLChanged(ctx context.Context, url string, etag, lastModified *string
 		return false, nil
 	}
 
-	// Server didn't honor conditional request, compare headers directly
-	if etag != nil && *etag != "" {
+	// Server didn't honor conditional request, compare headers directly.
+	// Use weak ETag comparison per RFC 7232 section 2.3.2: strip the W/ prefix.
+	if hasETag {
 		if serverETag := resp.Header.Get("ETag"); serverETag != "" {
-			return serverETag != *etag, nil
+			return normalizeETag(serverETag) != normalizeETag(*etag), nil
 		}
 	}
-	if lastModified != nil && *lastModified != "" {
+	if hasLastMod {
 		if serverLastMod := resp.Header.Get("Last-Modified"); serverLastMod != "" {
 			return serverLastMod != *lastModified, nil
 		}
@@ -2805,6 +2857,24 @@ func checkURLChanged(ctx context.Context, url string, etag, lastModified *string
 
 	// Can't determine, assume changed
 	return true, nil
+}
+
+// normalizeETag strips the weak validator prefix (W/) from an ETag for
+// comparison purposes, per RFC 7232 section 2.3.2.
+func normalizeETag(etag string) string {
+	return strings.TrimPrefix(etag, "W/")
+}
+
+// validETag checks if an ETag value looks like a valid quoted-string per RFC 7232.
+func validETag(etag string) bool {
+	e := strings.TrimPrefix(etag, "W/")
+	return len(e) >= 2 && e[0] == '"' && e[len(e)-1] == '"'
+}
+
+// validHTTPDate checks if a string can be parsed as an HTTP-date per RFC 7231.
+func validHTTPDate(s string) bool {
+	_, err := http.ParseTime(s)
+	return err == nil
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {

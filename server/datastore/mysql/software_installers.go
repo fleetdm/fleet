@@ -3599,10 +3599,11 @@ FROM
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
 	si.global_or_team_id = ? AND si.url = ?
+ORDER BY si.id DESC
 LIMIT 1
 `
 	var installer fleet.ExistingSoftwareInstaller
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, teamID, url); err != nil {
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &installer, stmt, teamID, url); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
