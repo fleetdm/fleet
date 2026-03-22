@@ -3598,12 +3598,14 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.global_or_team_id = ? AND si.url = ? AND si.is_active = 1
+	si.global_or_team_id = ? AND si.url = ?
 ORDER BY si.id DESC
 LIMIT 1
 `
 	var installer fleet.ExistingSoftwareInstaller
-	// Use reader: the installer was written in a previous GitOps run, not the current transaction.
+	// Use reader: the installer was written in a previous GitOps run. On rapid sequential
+	// runs, the replica may be slightly stale, which results in a cache miss (full download)
+	// rather than incorrect behavior. This is an acceptable trade-off vs loading the writer.
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, teamID, url); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

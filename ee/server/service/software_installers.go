@@ -2062,6 +2062,11 @@ func (svc *Service) BatchSetSoftwareInstallers(
 					"software.cache",
 					"Couldn't edit software. The 'cache' option cannot be used with 'hash_sha256' (hash-pinned packages are already cached by hash).",
 				)
+			case !strings.HasPrefix(payload.URL, "http://") && !strings.HasPrefix(payload.URL, "https://"):
+				return "", fleet.NewInvalidArgumentError(
+					"software.cache",
+					"Couldn't edit software. The 'cache' option requires an http:// or https:// URL.",
+				)
 			}
 		}
 		if !dryRun {
@@ -2534,7 +2539,8 @@ func (svc *Service) softwareBatchUpload(
 							svc.logger.WarnContext(ctx, "cache lookup failed, will download normally", "url", p.URL, "err", lookupErr)
 						} else if existing != nil && existing.StorageID != "" &&
 							existing.HTTPETag != nil && *existing.HTTPETag != "" &&
-							existing.Extension != "ipa" { // #5: skip cache for .ipa multi-platform packages
+							existing.Extension != "ipa" && // skip cache for .ipa (multi-platform extraInstallers)
+							validETag(*existing.HTTPETag) { // re-validate before use as defense-in-depth
 							existingForCache = existing
 							ifNoneMatch = *existing.HTTPETag
 						}
@@ -2592,7 +2598,7 @@ func (svc *Service) softwareBatchUpload(
 					if p.Cache {
 						if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
 							installer.HTTPETag = &etag
-						} else if p.Cache {
+						} else {
 							svc.logger.WarnContext(ctx, "cache enabled but no usable ETag from server", "url", p.URL, "etag", resp.Header.Get("ETag"))
 						}
 					}
@@ -2846,10 +2852,9 @@ func validETag(etag string) bool {
 		return false
 	}
 	for _, c := range etag {
-		if c < 0x20 {
-			return false
-		}
-		if c == 0x7F {
+		// Reject control chars (<0x20) and non-printable-ASCII (>0x7E) per
+		// RFC 7232 ABNF. We reject obs-text (>0x7F) for defense-in-depth.
+		if c < 0x20 || c > 0x7E {
 			return false
 		}
 	}
