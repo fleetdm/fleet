@@ -540,6 +540,12 @@ type UploadSoftwareInstallerPayload struct {
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
+	// HTTPETag stores the ETag header from the last download of this installer URL,
+	// used for conditional HTTP requests to avoid re-downloading unchanged content.
+	HTTPETag *string
+	// HTTPLastModified stores the Last-Modified header from the last download of this installer URL,
+	// used for conditional HTTP requests to avoid re-downloading unchanged content.
+	HTTPLastModified *string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -584,6 +590,9 @@ type ExistingSoftwareInstaller struct {
 	Title            string  `db:"title"`
 	PackageIDList    string  `db:"package_ids"`
 	PackageIDs       []string
+	StorageID        string  `db:"storage_id"`
+	HTTPETag         *string `db:"http_etag"`
+	HTTPLastModified *string `db:"http_last_modified"`
 }
 
 type UpdateSoftwareInstallerPayload struct {

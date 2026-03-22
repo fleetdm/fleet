@@ -897,3 +897,130 @@ func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *test
 		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
 	}
 }
+
+func TestCheckURLChanged(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		etag         *string
+		lastModified *string
+		handler      http.HandlerFunc
+		wantChanged  bool
+		wantErr      bool
+	}{
+		{
+			name:         "no cached headers, assume changed",
+			etag:         nil,
+			lastModified: nil,
+			handler:      nil, // should not be called
+			wantChanged:  true,
+			wantErr:      false,
+		},
+		{
+			name: "server returns 304 Not Modified",
+			etag: ptr.String(`"abc123"`),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, http.MethodHead, r.Method)
+				require.Equal(t, `"abc123"`, r.Header.Get("If-None-Match"))
+				w.WriteHeader(http.StatusNotModified)
+			},
+			wantChanged: false,
+			wantErr:     false,
+		},
+		{
+			name: "server returns 200 with same ETag",
+			etag: ptr.String(`"abc123"`),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("ETag", `"abc123"`)
+				w.WriteHeader(http.StatusOK)
+			},
+			wantChanged: false,
+			wantErr:     false,
+		},
+		{
+			name: "server returns 200 with different ETag",
+			etag: ptr.String(`"abc123"`),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("ETag", `"def456"`)
+				w.WriteHeader(http.StatusOK)
+			},
+			wantChanged: true,
+			wantErr:     false,
+		},
+		{
+			name:         "server returns 200 with same Last-Modified",
+			lastModified: ptr.String("Thu, 20 Mar 2025 12:00:00 GMT"),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, "Thu, 20 Mar 2025 12:00:00 GMT", r.Header.Get("If-Modified-Since"))
+				w.Header().Set("Last-Modified", "Thu, 20 Mar 2025 12:00:00 GMT")
+				w.WriteHeader(http.StatusOK)
+			},
+			wantChanged: false,
+			wantErr:     false,
+		},
+		{
+			name:         "server returns 200 with different Last-Modified",
+			lastModified: ptr.String("Thu, 20 Mar 2025 12:00:00 GMT"),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Last-Modified", "Fri, 21 Mar 2025 12:00:00 GMT")
+				w.WriteHeader(http.StatusOK)
+			},
+			wantChanged: true,
+			wantErr:     false,
+		},
+		{
+			name: "server returns 200 with no headers, assume changed",
+			etag: ptr.String(`"abc123"`),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			},
+			wantChanged: true,
+			wantErr:     false,
+		},
+		{
+			name: "empty string cached ETag, assume changed",
+			etag: ptr.String(""),
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			},
+			wantChanged: true,
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var serverURL string
+			if tt.handler != nil {
+				srv := httptest.NewServer(tt.handler)
+				t.Cleanup(srv.Close)
+				serverURL = srv.URL
+			} else {
+				serverURL = "http://localhost:0/nonexistent"
+			}
+
+			changed, err := checkURLChanged(t.Context(), serverURL, tt.etag, tt.lastModified)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantChanged, changed)
+		})
+	}
+}
+
+func TestCheckURLChanged_ConnectionError(t *testing.T) {
+	t.Parallel()
+
+	// Use a server that immediately closes to trigger a connection error
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.Close()
+
+	changed, err := checkURLChanged(t.Context(), srv.URL, ptr.String(`"abc"`), nil)
+	require.Error(t, err)
+	assert.True(t, changed, "should assume changed on error")
+}

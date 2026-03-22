@@ -1,0 +1,1 @@
+- Skip re-downloading software installers when URL content hasn't changed, using HTTP conditional requests (ETag/Last-Modified).

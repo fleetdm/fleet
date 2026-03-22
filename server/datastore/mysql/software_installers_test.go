@@ -58,6 +58,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
+		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
 	}
 
 	for _, c := range cases {
@@ -4554,4 +4555,70 @@ func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, metadata.InstallerID, *policyAfterUpdate.SoftwareInstallerID)
 	})
+}
+
+func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	etag := `"abc123"`
+	lastMod := "Thu, 20 Mar 2025 12:00:00 GMT"
+
+	// Add installer to team1 with HTTP cache headers
+	err = ds.BatchSetSoftwareInstallers(ctx, &team1.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr,
+			BundleIdentifier: "com.example.app",
+			Extension:        "pkg",
+			StorageID:        "hash1",
+			Filename:         "app.pkg",
+			Title:            "App",
+			Version:          "1.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team1.ID,
+			Platform:         "darwin",
+			URL:              "https://example.com/app/latest",
+			HTTPETag:         &etag,
+			HTTPLastModified: &lastMod,
+		},
+	})
+	require.NoError(t, err)
+
+	// Lookup by correct team and URL: should return the installer with cache headers
+	existing, err := ds.GetInstallerByTeamAndURL(ctx, team1.ID, "https://example.com/app/latest")
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "hash1", existing.StorageID)
+	assert.Equal(t, "app.pkg", existing.Filename)
+	assert.Equal(t, "pkg", existing.Extension)
+	assert.Equal(t, "1.0", existing.Version)
+	assert.Equal(t, "darwin", existing.Platform)
+	require.NotNil(t, existing.HTTPETag)
+	assert.Equal(t, etag, *existing.HTTPETag)
+	require.NotNil(t, existing.HTTPLastModified)
+	assert.Equal(t, lastMod, *existing.HTTPLastModified)
+
+	// Lookup with wrong team: should return nil
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, team2.ID, "https://example.com/app/latest")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
+
+	// Lookup with wrong URL: should return nil
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, team1.ID, "https://example.com/other/app")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
+
+	// Lookup on "no team" (ID 0): should return nil since we added to team1
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, 0, "https://example.com/app/latest")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
 }

@@ -2738,6 +2738,8 @@ CREATE TABLE `software_installers` (
   `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
   `upgrade_code` varchar(48) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `is_active` tinyint(1) NOT NULL DEFAULT '0',
+  `http_etag` varchar(255) DEFAULT NULL,
+  `http_last_modified` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_software_installers_team_title_version` (`global_or_team_id`,`title_id`,`version`),
   KEY `fk_software_installers_title` (`title_id`),

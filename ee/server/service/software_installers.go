@@ -2432,8 +2432,38 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			// When no hash is provided but we have a URL, check if the URL content has
+			// changed since the last download using conditional HTTP requests (ETag/Last-Modified).
+			// This avoids re-downloading unchanged packages on every GitOps run.
+			var urlContentUnchanged bool
+			if !fmaVersionCached && p.SHA256 == "" && p.URL != "" && installer.StorageID == "" {
+				existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, tmID, p.URL)
+				if lookupErr != nil {
+					slog.Warn("failed to look up installer by URL, will re-download", "url", p.URL, "err", lookupErr)
+				} else if existing != nil && existing.StorageID != "" {
+					changed, headErr := checkURLChanged(ctx, p.URL, existing.HTTPETag, existing.HTTPLastModified)
+					if headErr != nil {
+						slog.Warn("HEAD request failed, falling back to full download", "url", p.URL, "err", headErr)
+					} else if !changed {
+						fillSoftwareInstallerPayloadFromExisting(installer, existing, existing.StorageID)
+						installer.HTTPETag = existing.HTTPETag
+						installer.HTTPLastModified = existing.HTTPLastModified
+						urlContentUnchanged = true
+
+						// Verify the bytes still exist in the store
+						bytesExist, existErr := svc.softwareInstallStore.Exists(ctx, installer.StorageID)
+						if existErr != nil {
+							slog.Warn("failed to check installer store, will re-download", "url", p.URL, "err", existErr)
+							urlContentUnchanged = false
+						} else if !bytesExist {
+							urlContentUnchanged = false
+						}
+					}
+				}
+			}
+
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if !fmaVersionCached && (installer.StorageID == "" || !installerBytesExist) {
+			if !fmaVersionCached && !urlContentUnchanged && (installer.StorageID == "" || !installerBytesExist) {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
@@ -2486,6 +2516,14 @@ func (svc *Service) softwareBatchUpload(
 
 					filename := maintained_apps.FilenameFromResponse(resp)
 					installer.Filename = filename
+
+					// Capture HTTP cache headers for conditional download on future runs.
+					if etag := resp.Header.Get("ETag"); etag != "" {
+						installer.HTTPETag = &etag
+					}
+					if lastMod := resp.Header.Get("Last-Modified"); lastMod != "" {
+						installer.HTTPLastModified = &lastMod
+					}
 
 					// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
 					// unsupported fields early. Determine extension from filename to
@@ -2720,6 +2758,53 @@ func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInsta
 	payload.Title = existing.Title
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
+}
+
+// checkURLChanged performs a conditional HTTP HEAD request to determine if the
+// content at the given URL has changed since the last download. It uses
+// If-None-Match (ETag) and If-Modified-Since (Last-Modified) headers.
+// Returns true if the content has changed or if the check cannot be performed.
+func checkURLChanged(ctx context.Context, url string, etag, lastModified *string) (bool, error) {
+	if (etag == nil || *etag == "") && (lastModified == nil || *lastModified == "") {
+		return true, nil
+	}
+
+	client := fleethttp.NewClient()
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	if err != nil {
+		return true, fmt.Errorf("creating HEAD request for %q: %w", url, err)
+	}
+	if etag != nil && *etag != "" {
+		req.Header.Set("If-None-Match", *etag)
+	}
+	if lastModified != nil && *lastModified != "" {
+		req.Header.Set("If-Modified-Since", *lastModified)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return true, fmt.Errorf("HEAD request for %q: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotModified {
+		return false, nil
+	}
+
+	// Server didn't honor conditional request, compare headers directly
+	if etag != nil && *etag != "" {
+		if serverETag := resp.Header.Get("ETag"); serverETag != "" {
+			return serverETag != *etag, nil
+		}
+	}
+	if lastModified != nil && *lastModified != "" {
+		if serverLastMod := resp.Header.Get("Last-Modified"); serverLastMod != "" {
+			return serverLastMod != *lastModified, nil
+		}
+	}
+
+	// Can't determine, assume changed
+	return true, nil
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {
