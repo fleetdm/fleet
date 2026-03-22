@@ -2739,31 +2739,32 @@ WHERE
 				isActive = 1
 			}
 
+			// Args match insertNewOrEditedInstaller column order.
 			args := []interface{}{
-				tmID,                                    // team_id
-				globalOrTeamID,                          // global_or_team_id
-				installer.StorageID,                     // storage_id
-				installer.Filename,                      // filename
-				installer.Extension,                     // extension
-				installer.Version,                       // version
-				installScriptID,                         // install_script_content_id
-				uninstallScriptID,                       // uninstall_script_content_id
-				installer.PreInstallQuery,               // pre_install_query
-				postInstallScriptID,                     // post_install_script_content_id
-				installer.Platform,                      // platform
-				installer.SelfService,                   // self_service
-				installer.UpgradeCode,                   // upgrade_code
-				titleID,                                 // title_id
-				installer.UserID,                        // user_id
-				installer.UserID,                        // user_name (subselect by user_id)
-				installer.UserID,                        // user_email (subselect by user_id)
-				installer.URL,                           // url
-				strings.Join(installer.PackageIDs, ","), // package_ids
-				installer.InstallDuringSetup,            // install_during_setup
-				installer.FleetMaintainedAppID,          // fleet_maintained_app_id
-				isActive,                                // is_active
-				installer.HTTPETag,                      // http_etag
-				installer.InstallDuringSetup,            // ON DUPLICATE KEY: install_during_setup
+				tmID,
+				globalOrTeamID,
+				installer.StorageID,
+				installer.Filename,
+				installer.Extension,
+				installer.Version,
+				installScriptID,
+				uninstallScriptID,
+				installer.PreInstallQuery,
+				postInstallScriptID,
+				installer.Platform,
+				installer.SelfService,
+				installer.UpgradeCode,
+				titleID,
+				installer.UserID,
+				installer.UserID, // user_name subselect
+				installer.UserID, // user_email subselect
+				installer.URL,
+				strings.Join(installer.PackageIDs, ","),
+				installer.InstallDuringSetup,
+				installer.FleetMaintainedAppID,
+				isActive,
+				installer.HTTPETag,
+				installer.InstallDuringSetup, // ON DUPLICATE KEY
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
 			// for this team+title. This prevents duplicate rows from repeated batch sets
@@ -3597,7 +3598,7 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.global_or_team_id = ? AND si.url = ?
+	si.global_or_team_id = ? AND si.url = ? AND si.is_active = 1
 ORDER BY si.id DESC
 LIMIT 1
 `

@@ -2050,17 +2050,19 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				)
 			}
 		}
-		if payload.Cache && payload.URL == "" {
-			return "", fleet.NewInvalidArgumentError(
-				"software.cache",
-				"Couldn't edit software. The 'cache' option requires a 'url' field.",
-			)
-		}
-		if payload.Cache && payload.SHA256 != "" {
-			return "", fleet.NewInvalidArgumentError(
-				"software.cache",
-				"Couldn't edit software. The 'cache' option cannot be used with 'hash_sha256' (hash-pinned packages are already cached by hash).",
-			)
+		if payload.Cache {
+			switch {
+			case payload.URL == "":
+				return "", fleet.NewInvalidArgumentError(
+					"software.cache",
+					"Couldn't edit software. The 'cache' option requires a 'url' field.",
+				)
+			case payload.SHA256 != "":
+				return "", fleet.NewInvalidArgumentError(
+					"software.cache",
+					"Couldn't edit software. The 'cache' option cannot be used with 'hash_sha256' (hash-pinned packages are already cached by hash).",
+				)
+			}
 		}
 		if !dryRun {
 			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
@@ -2240,8 +2242,10 @@ func (svc *Service) softwareBatchUpload(
 		}
 
 		// 304 Not Modified: content unchanged, return response with no body.
+		// Set Body to http.NoBody after closing so downstream Close() calls are safe.
 		if resp.StatusCode == http.StatusNotModified {
 			resp.Body.Close()
+			resp.Body = http.NoBody
 			return resp, nil, nil
 		}
 
@@ -2280,15 +2284,20 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	// retryDownload wraps downloadURLFn with the standard retry policy.
+	// Note: a 304 response returns nil error and is treated as success (not retried).
 	retryDownload := func(ctx context.Context, downloadURL, ifNoneMatch string) (*http.Response, *fleet.TempFileReader, error) {
 		var resp *http.Response
 		var tfr *fleet.TempFileReader
 		err := retry.Do(func() error {
-			// Close any TempFileReader from a previous attempt to avoid leaking
-			// file descriptors and temp files on disk.
+			// Close resources from a previous attempt to avoid leaking
+			// file descriptors, temp files, and HTTP connections.
 			if tfr != nil {
 				tfr.Close()
 				tfr = nil
+			}
+			if resp != nil && resp.Body != nil {
+				resp.Body.Close()
+				resp = nil
 			}
 			var retryErr error
 			resp, tfr, retryErr = downloadURLFn(ctx, downloadURL, ifNoneMatch)
@@ -2514,17 +2523,18 @@ func (svc *Service) softwareBatchUpload(
 					installer.UninstallScript = ""
 					installer.PreInstallQuery = ""
 				} else {
-					// Layer 2: Conditional GET with If-None-Match (opt-in via cache: true).
-					// Look up the existing installer by URL to get its stored ETag.
-					// This lookup is only done when we're about to download, avoiding
-					// wasted DB queries when the download branch is skipped.
+					// Layer 2: Conditional GET (opt-in via cache: true).
+					// Look up existing installer by URL for its ETag, only when
+					// we're about to download (avoids wasted DB queries).
 					var existingForCache *fleet.ExistingSoftwareInstaller
 					var ifNoneMatch string
 					if p.Cache && p.SHA256 == "" && p.URL != "" {
 						existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, tmID, p.URL)
 						if lookupErr != nil {
 							svc.logger.WarnContext(ctx, "cache lookup failed, will download normally", "url", p.URL, "err", lookupErr)
-						} else if existing != nil && existing.StorageID != "" && existing.HTTPETag != nil && *existing.HTTPETag != "" {
+						} else if existing != nil && existing.StorageID != "" &&
+							existing.HTTPETag != nil && *existing.HTTPETag != "" &&
+							existing.Extension != "ipa" { // #5: skip cache for .ipa multi-platform packages
 							existingForCache = existing
 							ifNoneMatch = *existing.HTTPETag
 						}
@@ -2535,14 +2545,11 @@ func (svc *Service) softwareBatchUpload(
 						return err
 					}
 
-					// Layer 2: handle 304 Not Modified (cache: true with matching ETag).
-					// When the server returns 304, we trust the origin server's ETag as a
-					// content fingerprint and reuse the cached installer. This is an explicit
-					// opt-in (cache: true) by the user who accepts the trust assumption.
-					//
-					// Note: the 304 fast-path skips post-download processing (extension
-					// validation, script field clearing, metadata extraction). The cached
-					// installer's metadata from the original download is reused as-is.
+					// Handle 304 Not Modified (cache: true with matching ETag).
+					// TRUST ASSUMPTION: cache: true is an explicit user opt-in that trusts
+					// the origin server's ETag as a content fingerprint. The 304 fast-path
+					// skips all post-download processing (metadata extraction, script field
+					// clearing, etc.). The cached installer's metadata is reused as-is.
 					if resp != nil && resp.StatusCode == http.StatusNotModified && existingForCache != nil {
 						bytesExist, existErr := svc.softwareInstallStore.Exists(ctx, existingForCache.StorageID)
 						if existErr == nil && bytesExist {
@@ -2555,25 +2562,23 @@ func (svc *Service) softwareBatchUpload(
 							return nil
 						}
 						svc.logger.WarnContext(ctx, "304 received but installer bytes missing, re-downloading", "url", p.URL)
-						// Re-download without If-None-Match to force a fresh response.
 						resp, tfr, err = retryDownload(ctx, p.URL, "")
 						if err != nil {
 							return err
 						}
-						// Reject 304 on unconditional re-download (server bug)
 						if resp != nil && resp.StatusCode == http.StatusNotModified {
 							return fmt.Errorf("server returned 304 on unconditional re-download of %q", p.URL)
 						}
 					}
 
-					// These guards protect against server protocol violations (e.g.
-					// unexpected 304 without cache context). In normal flow, downloadURLFn
-					// never returns nil resp on success.
-					if resp == nil {
-						return fmt.Errorf("download of %q returned nil response", p.URL)
-					}
-					if tfr == nil {
-						return fmt.Errorf("download of %q returned no body (status %d); the server may be incorrectly returning 304", p.URL, resp.StatusCode)
+					// Protocol violation guards: downloadURLFn never returns nil resp
+					// on success, but guard defensively for server misbehavior.
+					if resp == nil || tfr == nil {
+						statusCode := 0
+						if resp != nil {
+							statusCode = resp.StatusCode
+						}
+						return fmt.Errorf("download of %q returned no body (status %d); the server may be incorrectly returning 304", p.URL, statusCode)
 					}
 
 					installer.InstallerFile = tfr
@@ -2584,15 +2589,18 @@ func (svc *Service) softwareBatchUpload(
 
 					// Capture ETag from download response for future conditional requests.
 					// Only store when cache is enabled to avoid unnecessary DB writes.
-					// Validate format before storing to prevent malformed values.
 					if p.Cache {
 						if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
 							installer.HTTPETag = &etag
-						} else if etag == "" {
-							svc.logger.WarnContext(ctx, "cache enabled but server returned no ETag", "url", p.URL)
-						} else {
-							svc.logger.WarnContext(ctx, "cache enabled but server returned invalid ETag, ignoring", "url", p.URL, "etag", etag)
+						} else if p.Cache {
+							svc.logger.WarnContext(ctx, "cache enabled but no usable ETag from server", "url", p.URL, "etag", resp.Header.Get("ETag"))
 						}
+					}
+
+					// #4: When cache is disabled, clear any stale ETag from a previous
+					// cache-enabled run so it won't be reused if cache is re-enabled later.
+					if !p.Cache {
+						installer.HTTPETag = nil
 					}
 
 					// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
@@ -2838,7 +2846,7 @@ func validETag(etag string) bool {
 		return false
 	}
 	for _, c := range etag {
-		if c < 0x20 && c != '\t' {
+		if c < 0x20 {
 			return false
 		}
 		if c == 0x7F {
