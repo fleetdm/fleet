@@ -15,12 +15,12 @@ import (
 	"testing"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -1052,6 +1052,7 @@ func TestValidETag(t *testing.T) {
 		{"control char (null)", "\"abc\x00\"", false},
 		{"DEL character", "\"abc\x7f\"", false},
 		{"tab allowed", "\"abc\t123\"", true},
+		{"weak prefix unquoted inner", `W/abc123`, false},
 		{"oversized (>512)", `"` + strings.Repeat("a", 512) + `"`, false},
 		{"exactly 512 bytes", `"` + strings.Repeat("a", 509) + `"`, true},
 	}
