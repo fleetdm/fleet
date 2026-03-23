@@ -140,18 +140,11 @@ func main() {
 
 		inToday := false
 		inYesterday := false
-		if generateTodayDeltas || generateYesterdayDeltas {
-			relPath, err := filepath.Rel(*inputDir, path)
-			if err == nil {
-				normalizedRelPath := strings.TrimPrefix(filepath.ToSlash(relPath), "osv/cve/")
-				fullRelPath := "osv/cve/" + normalizedRelPath
-				if generateTodayDeltas {
-					inToday = todayCVEFiles[fullRelPath]
-				}
-				if generateYesterdayDeltas {
-					inYesterday = yesterdayCVEFiles[fullRelPath]
-				}
-			}
+		if generateTodayDeltas {
+			inToday = shouldIncludeInDelta(*inputDir, path, todayCVEFiles)
+		}
+		if generateYesterdayDeltas {
+			inYesterday = shouldIncludeInDelta(*inputDir, path, yesterdayCVEFiles)
 		}
 
 		for _, affected := range osvData.Affected {
@@ -332,6 +325,10 @@ func buildVersionFilter(versions, excludeVersions string) (targetVersions, exclu
 				targetVersions[trimmed] = true
 			}
 		}
+		// If no valid versions were parsed, fall back to auto-detect
+		if len(targetVersions) == 0 {
+			return nil, nil
+		}
 		return targetVersions, nil
 	}
 
@@ -344,11 +341,27 @@ func buildVersionFilter(versions, excludeVersions string) (targetVersions, exclu
 				excludedVersions[trimmed] = true
 			}
 		}
+		// If no valid versions were parsed, fall back to auto-detect
+		if len(excludedVersions) == 0 {
+			return nil, nil
+		}
 		return nil, excludedVersions
 	}
 
 	// Auto-detect all versions
 	return nil, nil
+}
+
+func shouldIncludeInDelta(inputDir, filePath string, changedFiles map[string]bool) bool {
+	relPath, err := filepath.Rel(inputDir, filePath)
+	if err != nil {
+		return false
+	}
+
+	normalizedRelPath := strings.TrimPrefix(filepath.ToSlash(relPath), "osv/cve/")
+	fullRelPath := "osv/cve/" + normalizedRelPath
+
+	return changedFiles[fullRelPath]
 }
 
 func parseOSVFile(path string) (*OSVData, error) {

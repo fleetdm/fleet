@@ -431,10 +431,24 @@ func TestBuildVersionFilter(t *testing.T) {
 			expectedExcludedVersions: map[string]bool{"14.04": true, "16.04": true},
 		},
 		{
-			name:                     "Inclusive mode: only empty strings",
+			name:                     "Inclusive mode: only empty strings falls back to auto-detect",
 			versions:                 ",,",
 			excludeVersions:          "",
-			expectedTargetVersions:   map[string]bool{},
+			expectedTargetVersions:   nil,
+			expectedExcludedVersions: nil,
+		},
+		{
+			name:                     "Inclusive mode: only whitespace falls back to auto-detect",
+			versions:                 "  ,  ,  ",
+			excludeVersions:          "",
+			expectedTargetVersions:   nil,
+			expectedExcludedVersions: nil,
+		},
+		{
+			name:                     "Exclusive mode: only empty strings falls back to auto-detect",
+			versions:                 "",
+			excludeVersions:          ",,",
+			expectedTargetVersions:   nil,
 			expectedExcludedVersions: nil,
 		},
 	}
@@ -444,6 +458,105 @@ func TestBuildVersionFilter(t *testing.T) {
 			targetVersions, excludedVersions := buildVersionFilter(tt.versions, tt.excludeVersions)
 			require.Equal(t, tt.expectedTargetVersions, targetVersions)
 			require.Equal(t, tt.expectedExcludedVersions, excludedVersions)
+		})
+	}
+}
+
+func TestShouldIncludeInDelta(t *testing.T) {
+	tests := []struct {
+		name          string
+		inputDir      string
+		filePath      string
+		changedFiles  map[string]bool
+		expectedMatch bool
+	}{
+		{
+			name:     "Unix path: file in changed set",
+			inputDir: "/tmp/ubuntu-osv",
+			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-1234.json",
+			changedFiles: map[string]bool{
+				"osv/cve/CVE-2024-1234.json": true,
+			},
+			expectedMatch: true,
+		},
+		{
+			name:     "Unix path: file not in changed set",
+			inputDir: "/tmp/ubuntu-osv",
+			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-9999.json",
+			changedFiles: map[string]bool{
+				"osv/cve/CVE-2024-1234.json": true,
+			},
+			expectedMatch: false,
+		},
+		{
+			name:     "Nested directory: file in changed set",
+			inputDir: "/data/osv",
+			filePath: "/data/osv/osv/cve/2024/CVE-2024-1111.json",
+			changedFiles: map[string]bool{
+				"osv/cve/2024/CVE-2024-1111.json": true,
+			},
+			expectedMatch: true,
+		},
+		{
+			name:     "File already has osv/cve prefix in relative path",
+			inputDir: "/workspace",
+			filePath: "/workspace/osv/cve/CVE-2024-2222.json",
+			changedFiles: map[string]bool{
+				"osv/cve/CVE-2024-2222.json": true,
+			},
+			expectedMatch: true,
+		},
+		{
+			name:     "Changed files with leading slash (should not match)",
+			inputDir: "/tmp/ubuntu-osv",
+			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-3333.json",
+			changedFiles: map[string]bool{
+				"/osv/cve/CVE-2024-3333.json": true, // Wrong: has leading slash
+			},
+			expectedMatch: false,
+		},
+		{
+			name:     "Changed files without osv/cve prefix (should not match)",
+			inputDir: "/tmp/ubuntu-osv",
+			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-4444.json",
+			changedFiles: map[string]bool{
+				"CVE-2024-4444.json": true, // Wrong: missing osv/cve/ prefix
+			},
+			expectedMatch: false,
+		},
+		{
+			name:          "Empty changed files set",
+			inputDir:      "/tmp/ubuntu-osv",
+			filePath:      "/tmp/ubuntu-osv/osv/cve/CVE-2024-5555.json",
+			changedFiles:  map[string]bool{},
+			expectedMatch: false,
+		},
+		{
+			name:     "Relative path cannot be computed (parent directory)",
+			inputDir: "/tmp/ubuntu-osv/subdir",
+			filePath: "/tmp/other-dir/osv/cve/CVE-2024-6666.json",
+			changedFiles: map[string]bool{
+				"osv/cve/CVE-2024-6666.json": true,
+			},
+			expectedMatch: false, // filepath.Rel will work but path won't match
+		},
+		{
+			name:     "Multiple files in changed set, match one",
+			inputDir: "/data/osv",
+			filePath: "/data/osv/osv/cve/CVE-2024-7777.json",
+			changedFiles: map[string]bool{
+				"osv/cve/CVE-2024-1111.json": true,
+				"osv/cve/CVE-2024-7777.json": true,
+				"osv/cve/CVE-2024-9999.json": true,
+			},
+			expectedMatch: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shouldIncludeInDelta(tt.inputDir, tt.filePath, tt.changedFiles)
+			require.Equal(t, tt.expectedMatch, result)
 		})
 	}
 }
