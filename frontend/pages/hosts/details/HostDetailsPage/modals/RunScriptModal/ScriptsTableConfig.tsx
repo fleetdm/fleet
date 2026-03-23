@@ -108,7 +108,7 @@ export const generateTableColumnConfigs = (
           <Button
             className="script-info"
             onClick={onClickScriptName}
-            variant="inverse"
+            variant="text-link"
           >
             <TooltipTruncatedTextCell
               value={cellProps.row.original.name}

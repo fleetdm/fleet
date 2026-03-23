@@ -213,6 +213,7 @@ $base-class: "button";
       background-color: transparent;
       box-shadow: none;
       text-decoration: underline;
+      text-underline-offset: 3px;
     }
 
     &:active {
