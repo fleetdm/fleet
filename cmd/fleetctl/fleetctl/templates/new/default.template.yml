@@ -107,12 +107,10 @@ controls:
   #   # then enrolls the device in Fleet.  Unsure?  Get help @ fleetdm.com/support.
 
   ###########################################################
-  # Uncomment when you are ready to start using Fleet's Windows management features.
+  # Uncomment when you are ready to start using Fleet's Windows MDM features.
   # 
-  # For more information about setting up Windows MDM, see:
+  # Read more:
   #   • https://fleetdm.com/guides/windows-mdm-setup
-  #
-  # Note: This is a global setting that cannot be applied per-fleet.
   ###########################################################
   # windows_enabled_and_configured: true
 
