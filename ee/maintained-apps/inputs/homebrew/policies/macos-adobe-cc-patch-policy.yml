@@ -1,4 +1,4 @@
  name: macOS - Enable FileVault
  description: This policy checks if FileVault (disk encryption) is enabled.
  resolution: As an IT admin, turn on disk encryption in Fleet.
- query: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'bundle_id' AND version_compare(bundle_short_version, '$FMA_VERSION') < 0);"
+ query: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud' AND version_compare(bundle_short_version, '$FMA_VERSION') < 0);"
