@@ -24,8 +24,13 @@ type getQueryRequest struct {
 }
 
 type getQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
-	Err   error        `json:"error,omitempty"`
+	// Because `fleet.Query` has a `query` field that we don't want to rename,
+	// it's simpler to just duplicate the query in the response struct rather than
+	// relying on the `renameto` tag here.
+	// TODO - In Fleet 5, remove the extra field.
+	Query  *fleet.Query `json:"query,omitempty"`
+	Report *fleet.Query `json:"report,omitempty"`
+	Err    error        `json:"error,omitempty"`
 }
 
 func (r getQueryResponse) Error() error { return r.Err }
@@ -36,7 +41,7 @@ func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err != nil {
 		return getQueryResponse{Err: err}, nil
 	}
-	return getQueryResponse{query, nil}, nil
+	return getQueryResponse{Query: query, Report: query}, nil
 }
 
 func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -251,8 +256,13 @@ type createQueryRequest struct {
 }
 
 type createQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
-	Err   error        `json:"error,omitempty"`
+	// Because `fleet.Query` has a `query` field that we don't want to rename,
+	// it's simpler to just duplicate the query in the response struct rather than
+	// relying on the `renameto` tag here.
+	// TODO - In Fleet 5, remove the extra field.
+	Query  *fleet.Query `json:"query,omitempty"`
+	Report *fleet.Query `json:"report,omitempty"`
+	Err    error        `json:"error,omitempty"`
 }
 
 func (r createQueryResponse) Error() error { return r.Err }
@@ -263,7 +273,7 @@ func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return createQueryResponse{Err: err}, nil
 	}
-	return createQueryResponse{query, nil}, nil
+	return createQueryResponse{Query: query, Report: query}, nil
 }
 
 func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
@@ -389,8 +399,13 @@ type modifyQueryRequest struct {
 }
 
 type modifyQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
-	Err   error        `json:"error,omitempty"`
+	// Because `fleet.Query` has a `query` field that we don't want to rename,
+	// it's simpler to just duplicate the query in the response struct rather than
+	// relying on the `renameto` tag here.
+	// TODO - In Fleet 5, remove the extra field.
+	Query  *fleet.Query `json:"query,omitempty"`
+	Report *fleet.Query `json:"report,omitempty"`
+	Err    error        `json:"error,omitempty"`
 }
 
 func (r modifyQueryResponse) Error() error { return r.Err }
@@ -401,7 +416,7 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return modifyQueryResponse{Err: err}, nil
 	}
-	return modifyQueryResponse{query, nil}, nil
+	return modifyQueryResponse{Query: query, Report: query}, nil
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
