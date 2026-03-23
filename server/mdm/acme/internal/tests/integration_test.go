@@ -75,6 +75,62 @@ func testNewNonce(t *testing.T, s *integrationTestSuite) {
 			http.StatusNoContent,
 			true,
 		},
+		{
+			"HEAD with valid identifier",
+			http.MethodHead,
+			enrollValid.PathIdentifier,
+			http.StatusOK,
+			true,
+		},
+		{
+			"POST with valid identifier",
+			http.MethodPost,
+			enrollValid.PathIdentifier,
+			http.StatusNoContent,
+			true,
+		},
+		{
+			"GET with revoked identifier",
+			http.MethodGet,
+			enrollRevoked.PathIdentifier,
+			http.StatusNotFound,
+			false,
+		},
+		{
+			"HEAD with revoked identifier",
+			http.MethodHead,
+			enrollRevoked.PathIdentifier,
+			http.StatusNotFound,
+			false,
+		},
+		{
+			"POST with revoked identifier",
+			http.MethodPost,
+			enrollRevoked.PathIdentifier,
+			http.StatusNotFound,
+			false,
+		},
+		{
+			"GET with expired identifier",
+			http.MethodGet,
+			enrollExpired.PathIdentifier,
+			http.StatusNotFound,
+			false,
+		},
+		{
+			"HEAD with expired identifier",
+			http.MethodHead,
+			enrollExpired.PathIdentifier,
+			http.StatusNotFound,
+			false,
+		},
+		{
+			"POST with expired identifier",
+			http.MethodPost,
+			enrollExpired.PathIdentifier,
+			http.StatusNotFound,
+			false,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
