@@ -46,7 +46,7 @@ const RecoveryLockPasswordModal = ({
       select: (data) => data.recovery_lock_password.password,
       // prevent caching this sensitive string
       cacheTime: 0,
-    },
+    }
   );
 
   const onRotatePassword = async () => {
@@ -55,7 +55,7 @@ const RecoveryLockPasswordModal = ({
       await hostAPI.rotateRecoveryLockPassword(hostId);
       renderFlash(
         "success",
-        "Successfully sent request to rotate Recovery Lock password.",
+        "Successfully sent request to rotate Recovery Lock password."
       );
       onCancel();
     } catch (e) {
