@@ -118,6 +118,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	ReferencedYamlPath	
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	SHA256	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	DisplayName	string
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Cache	bool
 github.com/fleetdm/fleet/v4/server/fleet/SoftwareSpec	FleetMaintainedApps	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]	Valid	bool

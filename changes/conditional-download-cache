@@ -1,0 +1,1 @@
+- Added `cache` option for software packages that enables conditional HTTP downloads using ETag headers, skipping re-download when content hasn't changed.

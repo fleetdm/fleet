@@ -576,11 +576,17 @@ WITH display_version_table AS (
 			SELECT data AS ubr
 			FROM registry
 			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+		),
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
 		)
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
@@ -588,6 +594,8 @@ WITH display_version_table AS (
 			display_version_table d
 		LEFT JOIN
 			ubr_table u
+		LEFT JOIN
+			installation_type_table it
 ```
 
 ## os_windows
@@ -605,6 +613,11 @@ WITH display_version_table AS (
 	SELECT data AS ubr
 	FROM registry
 	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+	),
+	installation_type_table AS (
+	SELECT data AS installation_type
+	FROM registry
+	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
 	)
 	SELECT
 		os.name,
@@ -612,7 +625,8 @@ WITH display_version_table AS (
 		os.arch,
 		k.version as kernel_version,
 		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version
+		COALESCE(d.display_version, '') AS display_version,
+		COALESCE(it.installation_type, '') AS installation_type
 	FROM
 		os_version os,
 		kernel_info k
@@ -620,6 +634,8 @@ WITH display_version_table AS (
 		display_version_table d
 	LEFT JOIN
 		ubr_table u
+	LEFT JOIN
+		installation_type_table it
 ```
 
 ## osquery_flags
