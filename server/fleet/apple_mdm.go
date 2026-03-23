@@ -526,15 +526,15 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 // HostDEPAssignment represents a row in the host_dep_assignments table.
 type HostDEPAssignment struct {
 	// HostID is the id of the host in Fleet.
-	HostID uint `db:"host_id" json:"host_id"`
+	HostID uint `db:"host_id" json:"-"`
 	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
 	// server in Apple Busines Manager (ABM).
 	AddedAt time.Time `db:"added_at" json:"added_at"`
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
 	// MDM server in Apple Busines Manager (ABM).
-	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
-	ABMTokenID *uint `db:"abm_token_id" json:"-"`
+	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id"`
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
 	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`

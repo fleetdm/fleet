@@ -2361,6 +2361,7 @@ type getHostDEPAssignmentRequest struct {
 }
 
 type getHostDEPAssignmentResponse struct {
+	ID                uint                     `json:"id"`
 	HostDEPAssignment *fleet.HostDEPAssignment `json:"host_dep_assignment"`
 	DEPDevice         *godep.Device            `json:"dep_device"`
 	Err               error                    `json:"error,omitempty"`
@@ -2374,7 +2375,9 @@ func getHostDEPAssignmentEndpoint(ctx context.Context, request any, svc fleet.Se
 	if err != nil {
 		return getHostDEPAssignmentResponse{Err: err}, nil
 	}
+
 	return getHostDEPAssignmentResponse{
+		ID:                req.ID,
 		HostDEPAssignment: depAssignment,
 		DEPDevice:         depDevice,
 	}, nil
@@ -2415,6 +2418,12 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get ABM token for dep assignment")
+	}
+
+	// If Apple MDM is not configured (e.g. free tier), depStorage will be nil
+	// and NewDEPClient would panic. Return what we have from Fleet's DB.
+	if svc.depStorage == nil {
+		return depAssignment, nil, nil
 	}
 
 	// Call Apple's "Get Device Details" API. Per the issue spec: on error, log

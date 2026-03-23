@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -3239,7 +3240,6 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 
 func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 	t := s.T()
-	ctx := context.Background()
 
 	// ------------------------------------------------------------------
 	// 1. Set up ABM / DEP mock infrastructure
@@ -3258,7 +3258,8 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 	fakeProfilePushTime := fakeProfileAssignTime.Add(5 * time.Second)
 
 	// Keep track of calls to the /devices endpoint so we can assert it was hit.
-	var deviceDetailsCalled int
+	// Use atomic.Int32 to avoid data races since the handler runs in a separate goroutine.
+	var deviceDetailsCalled atomic.Int32
 
 	s.mockDEPResponse(orgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
@@ -3296,7 +3297,7 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 			require.NoError(t, encoder.Encode(resp))
 		case "/devices":
 			// Apple's "Get Device Details" endpoint — called by our new endpoint.
-			deviceDetailsCalled++
+			deviceDetailsCalled.Add(1)
 			require.NoError(t, encoder.Encode(map[string]any{
 				"devices": map[string]any{
 					depSerial: map[string]any{
@@ -3330,20 +3331,50 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 		}
 	}
 	require.NotNil(t, depHost, "expected to find DEP host after sync")
-	t.Cleanup(func() { require.NoError(t, s.ds.DeleteHost(ctx, depHost.ID)) })
 
 	// ------------------------------------------------------------------
 	// 2. Happy path: DEP host returns both fleet record + Apple details
 	// ------------------------------------------------------------------
-	deviceDetailsCalled = 0
+	deviceDetailsCalled.Store(0)
 	var depResp getHostDEPAssignmentResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", depHost.ID), nil, http.StatusOK, &depResp)
 
 	// host_dep_assignment must be present and reference the right host
 	require.NotNil(t, depResp.HostDEPAssignment, "host_dep_assignment should not be nil for a DEP host")
-	require.Equal(t, depHost.ID, depResp.HostDEPAssignment.HostID)
+	require.Equal(t, depHost.ID, depResp.ID)
 	require.False(t, depResp.HostDEPAssignment.AddedAt.IsZero(), "added_at should be set")
 	require.Nil(t, depResp.HostDEPAssignment.DeletedAt, "deleted_at should be nil for an active DEP host")
+	// ABMTokenID is the FK linking this record to its ABM token and should be present in the response
+	require.NotNil(t, depResp.HostDEPAssignment.ABMTokenID, "abm_token_id should be present in the response")
+	// the DEP sync calls /profile/devices which writes profile_uuid, assign_profile_response, and response_updated_at
+	require.NotNil(t, depResp.HostDEPAssignment.ProfileUUID, "profile_uuid should be set after DEP sync")
+	require.Equal(t, fakeProfileUUID, *depResp.HostDEPAssignment.ProfileUUID)
+	require.NotNil(t, depResp.HostDEPAssignment.AssignProfileResponse, "assign_profile_response should be set after DEP sync")
+	require.Equal(t, fleet.DEPAssignProfileResponseSuccess, *depResp.HostDEPAssignment.AssignProfileResponse)
+	require.NotNil(t, depResp.HostDEPAssignment.ResponseUpdatedAt, "response_updated_at should be set after DEP sync")
+	// migration fields are not set during a plain DEP sync
+	require.Nil(t, depResp.HostDEPAssignment.MDMMigrationDeadline, "mdm_migration_deadline should be nil for a freshly synced host")
+	require.Nil(t, depResp.HostDEPAssignment.MDMMigrationCompleted, "mdm_migration_completed should be nil for a freshly synced host")
+
+	// Set a migration deadline and mark migration completed, then re-fetch to
+	// confirm both fields are surfaced in the response.
+	migrationDeadline := time.Now().Add(24 * time.Hour).UTC().Truncate(time.Second)
+	require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(
+		context.Background(),
+		[]fleet.Host{*depHost},
+		*depResp.HostDEPAssignment.ABMTokenID,
+		map[uint]time.Time{depHost.ID: migrationDeadline},
+	))
+	require.NoError(t, s.ds.SetHostMDMMigrationCompleted(context.Background(), depHost.ID))
+
+	deviceDetailsCalled.Store(0)
+	var migrationResp getHostDEPAssignmentResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", depHost.ID), nil, http.StatusOK, &migrationResp)
+
+	require.NotNil(t, migrationResp.HostDEPAssignment.MDMMigrationDeadline, "mdm_migration_deadline should be set after upsert")
+	require.WithinDuration(t, migrationDeadline, *migrationResp.HostDEPAssignment.MDMMigrationDeadline, time.Second)
+	require.NotNil(t, migrationResp.HostDEPAssignment.MDMMigrationCompleted, "mdm_migration_completed should be set after SetHostMDMMigrationCompleted")
+	require.WithinDuration(t, migrationDeadline, *migrationResp.HostDEPAssignment.MDMMigrationCompleted, time.Second)
 
 	// dep_device must be present and contain Apple's live data
 	require.NotNil(t, depResp.DEPDevice, "dep_device should not be nil for a DEP host with a valid ABM token")
@@ -3353,31 +3384,38 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 	require.Equal(t, fakeProfileUUID, depResp.DEPDevice.ProfileUUID)
 
 	// The mock ABM /devices endpoint should have been called exactly once.
-	require.Equal(t, 1, deviceDetailsCalled, "expected exactly one call to Apple's Get Device Details API")
+	require.Equal(t, int32(1), deviceDetailsCalled.Load(), "expected exactly one call to Apple's Get Device Details API")
 
 	// ------------------------------------------------------------------
 	// 3. Non-DEP host: both fields should be null
 	// ------------------------------------------------------------------
-	nonDEPHost, err := s.ds.NewHost(ctx, &fleet.Host{
-		HardwareSerial:  uuid.New().String(),
-		Platform:        "darwin",
-		DetailUpdatedAt: time.Now(),
-		LastEnrolledAt:  time.Now(),
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, s.ds.DeleteHost(ctx, nonDEPHost.ID)) })
+	nonDEPHost := createOrbitEnrolledHost(t, "darwin", "non-dep", s.ds)
 
-	deviceDetailsCalled = 0
+	deviceDetailsCalled.Store(0)
 	var nonDEPResp getHostDEPAssignmentResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", nonDEPHost.ID), nil, http.StatusOK, &nonDEPResp)
 
 	require.Nil(t, nonDEPResp.HostDEPAssignment, "host_dep_assignment should be null for a non-DEP host")
 	require.Nil(t, nonDEPResp.DEPDevice, "dep_device should be null for a non-DEP host")
 	// Apple's API should never be called for a non-DEP host.
-	require.Equal(t, 0, deviceDetailsCalled, "Apple Get Device Details should not be called for a non-DEP host")
+	require.Equal(t, int32(0), deviceDetailsCalled.Load(), "Apple Get Device Details should not be called for a non-DEP host")
 
 	// ------------------------------------------------------------------
-	// 4. ABM returns an error: host_dep_assignment is populated, dep_device is null
+	// 4. Non-Apple (Windows) host: both fields should be null, Apple API never called
+	// ------------------------------------------------------------------
+	windowsHost := createOrbitEnrolledHost(t, "windows", "non-apple", s.ds)
+
+	deviceDetailsCalled.Store(0)
+	var windowsResp getHostDEPAssignmentResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", windowsHost.ID), nil, http.StatusOK, &windowsResp)
+
+	require.Nil(t, windowsResp.HostDEPAssignment, "host_dep_assignment should be null for a non-Apple host")
+	require.Nil(t, windowsResp.DEPDevice, "dep_device should be null for a non-Apple host")
+	// Apple's DEP API must never be called for a non-Apple host.
+	require.Equal(t, int32(0), deviceDetailsCalled.Load(), "Apple Get Device Details should not be called for a non-Apple host")
+
+	// ------------------------------------------------------------------
+	// 5. ABM returns an error: host_dep_assignment is populated, dep_device is null
 	// ------------------------------------------------------------------
 	s.mockDEPResponse(orgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -3385,7 +3423,7 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 		case "/devices":
 			// Simulate a server-side ABM error
-			deviceDetailsCalled++
+			deviceDetailsCalled.Add(1)
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"code":"INTERNAL_ERROR","message":"something went wrong"}`))
 		default:
@@ -3393,20 +3431,20 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 		}
 	}))
 
-	deviceDetailsCalled = 0
+	deviceDetailsCalled.Store(0)
 	var abmErrResp getHostDEPAssignmentResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", depHost.ID), nil, http.StatusOK, &abmErrResp)
 
 	// Fleet's record should still come back
 	require.NotNil(t, abmErrResp.HostDEPAssignment, "host_dep_assignment should still be returned when ABM errors")
-	require.Equal(t, depHost.ID, abmErrResp.HostDEPAssignment.HostID)
+	require.Equal(t, depHost.ID, abmErrResp.ID)
 	// But Apple's data should be nil
 	require.Nil(t, abmErrResp.DEPDevice, "dep_device should be null when ABM returns an error")
 	// The mock endpoint was still called once (the attempt was made)
-	require.Equal(t, 1, deviceDetailsCalled, "Apple Get Device Details should still be attempted even when it errors")
+	require.Equal(t, int32(1), deviceDetailsCalled.Load(), "Apple Get Device Details should still be attempted even when it errors")
 
 	// ------------------------------------------------------------------
-	// 5. Unauthenticated request: should be rejected
+	// 6. Unauthenticated request: should be rejected
 	// ------------------------------------------------------------------
 	savedToken := s.token
 	s.token = "bad-token"
@@ -3414,7 +3452,7 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 	s.token = savedToken
 
 	// ------------------------------------------------------------------
-	// 6. Non-existent host: should return 404
+	// 7. Non-existent host: should return 404
 	// ------------------------------------------------------------------
 	s.DoJSON("GET", "/api/latest/fleet/hosts/999999/dep_assignment", nil, http.StatusNotFound, &getHostDEPAssignmentResponse{})
 }
