@@ -3945,7 +3945,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	// upload LUKS data (no error, and no trigger, first this time)
 	keySlot = ptr.Uint(3)
-	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
+	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{ // #nosec G101 - test data
 		OrbitNodeKey: *teamHost.OrbitNodeKey,
 		Passphrase:   "the mome raths outgrabe",
 		Salt:         "jabberwocky, but salty",
@@ -12363,7 +12363,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		for _, tc := range testCases {
 			t.Run(tc.desc, func(t *testing.T) {
-
 				payload := &fleet.UploadSoftwareInstallerPayload{
 					InstallScript:     "some install script",
 					PreInstallQuery:   "some pre install query",
@@ -12381,7 +12380,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 				}
 
 				s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
-
 			})
 		}
 
@@ -13786,7 +13784,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 			}
 			res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
 			assert.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
-
 		})
 	}
 
