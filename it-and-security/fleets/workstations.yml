@@ -76,11 +76,7 @@ controls:
         labels_include_any:
           - "Macs with 1Password installed"
       - path: ../lib/macos/configuration-profiles/santa-configuration.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
@@ -136,6 +132,8 @@ policies:
   - path: ../lib/macos/policies/install-nudge.yml
   - path: ../lib/macos/policies/update-claude.yml
   - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/macos/policies/santa-latest-and-configured.yml
+  - path: ../lib/macos/policies/install-santa-extension.yml
   # Windows policies
   - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
@@ -166,12 +164,6 @@ software:
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Security
-    - path: ../lib/macos/software/santa.yml # Santa for macOS
-      self_service: true
-      labels_include_any:
-        - Santa test devices
       categories:
         - Security
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
@@ -330,6 +322,9 @@ software:
       self_service: true
       categories:
         - Productivity
+    - identifier: santa/darwin
+      install_during_setup: true
+      self_service: false
     # Windows apps
     - slug: slack/windows # Slack for Windows
       self_service: true

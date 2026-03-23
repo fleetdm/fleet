@@ -1,0 +1,19 @@
+- name: macOS - Santa installed and up to date
+  query: >-
+    SELECT 1 WHERE
+    EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.northpolesec.santa' AND version_compare(bundle_short_version, (SELECT version FROM fleet_maintained_apps WHERE unique_identifier = 'com.northpolesec.santa')) >= 0)
+    AND EXISTS (SELECT 1 FROM macos_profiles WHERE display_name = 'Santa Configuration')
+    AND EXISTS (SELECT 1 FROM macos_profiles WHERE display_name = 'Santa Rules');
+  install_software:
+    fleet_maintained_app_identifier: santa/darwin
+  critical: false
+  description: >-
+    This policy checks that Santa is installed at the latest version and that
+    both the Santa configuration and rules profiles are installed on the device.
+    Santa is an open-source application control system for macOS that helps
+    protect your device by monitoring and controlling software execution.
+  resolution: >-
+    Santa should be automatically installed. If it is missing or out of date,
+    Fleet will attempt to reinstall it. If the configuration profiles are missing,
+    contact IT support.
+  platform: darwin
