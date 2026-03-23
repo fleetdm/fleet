@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -28,7 +29,9 @@ func (s *Service) NewNonce(ctx context.Context, identifier string) (string, erro
 	}
 
 	nonce := types.CreateNonceEncodedForHeader()
-	// TODO: store in Redis with proper expiration
+	if err := s.nonces.Store(ctx, nonce, redis_nonces_store.DefaultNonceExpiration); err != nil {
+		return "", err
+	}
 	return nonce, nil
 }
 
