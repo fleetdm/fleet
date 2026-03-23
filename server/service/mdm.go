@@ -873,6 +873,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 						res.ResultsMetadata = make(map[string]any)
 					}
 					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
 				}
 			}
 		}
@@ -3171,7 +3172,7 @@ func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.
 		}
 	}
 
-	if r.MultipartForm.File["certificate"] == nil || len(r.MultipartForm.File["certificate"]) == 0 {
+	if len(r.MultipartForm.File["certificate"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "certificate multipart field is required",
 			InternalErr: err,

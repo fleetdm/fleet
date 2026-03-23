@@ -480,16 +480,6 @@ When an agreement is routed to the [CFO](https://fleetdm.com/handbook/finance#te
 2. The CFO will comment in the issue once they've signed the agreement and assign the issue to [Deal Desk](https://fleetdm.com/handbook/finance#team) to confirm a signed copy of the agreement is correctly stored in Google Drive. Then the issue can be closed.  
 
 
-### Monitor compliance tests
-
-1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
-2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
-3. Click on a test, then click on "Tasks".  
-4. Click on "Create task." Then, "Create GitHub issue."
-5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-finance" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
-6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
-
-
 ### Check GitHub terms
 
 Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@latest/github/site-policy/github-terms-of-service) and search “inbound=outbound” to find the clause, if still there as is, paste a screenshot into the table in this [document](https://docs.google.com/document/d/101rcp9v3Zdml4YolGRmqYS5ruAKzQvXLOTHLXCavPuE/edit#heading=h.xu6qsi0wrns). If the clause has changed, contact Mike M. and let him know.
@@ -554,6 +544,9 @@ The following table lists this department's rituals, frequency, and Directly Res
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
+
+##### Monitor compliance tests
+Please see [handbook/it#monitor-compliance-tests](https://fleetdm.com/handbook/it#monitor-compliance-tests)
 
 ### Run payroll
 Please see [handbook/people#run-payroll](https://fleetdm.com/handbook/people#run-payroll)
