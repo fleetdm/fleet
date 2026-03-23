@@ -16210,29 +16210,6 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.False(t, discard.StoreResults)
 	})
 
-	t.Run("features.save_reports_disabled reflects app config", func(t *testing.T) {
-		// Default: query reports are enabled.
-		var resp listHostReportsResponse
-		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
-		assert.False(t, resp.Features.SavedReportsDisabled)
-
-		// Save the current value before mutating.
-		var originalConfig fleet.AppConfig
-		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &originalConfig)
-		origDisabled := originalConfig.ServerSettings.QueryReportsDisabled
-
-		// Disable query reports.
-		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"query_reports_disabled":true}}`), http.StatusOK)
-		t.Cleanup(func() {
-			s.DoRaw("PATCH", "/api/latest/fleet/config",
-				fmt.Appendf(nil, `{"server_settings":{"query_reports_disabled":%v}}`, origDisabled),
-				http.StatusOK)
-		})
-
-		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
-		assert.True(t, resp.Features.SavedReportsDisabled)
-	})
-
 	t.Run("report_clipped when total results reach the cap", func(t *testing.T) {
 		// Save the current cap before mutating.
 		var originalConfig fleet.AppConfig

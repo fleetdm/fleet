@@ -32,6 +32,8 @@ type SortOption =
   | "name_asc"
   | "name_desc";
 
+const DEFAULT_SORT_OPTION: SortOption = "newest_results";
+
 const SORT_OPTIONS: IDropdownOption[] = [
   { value: "newest_results", label: "Newest results" },
   { value: "oldest_results", label: "Oldest results" },
@@ -79,11 +81,9 @@ const HostReportsTab = ({
   const searchQuery = location.query.query ?? "";
   const sortOption: SortOption =
     location.query.sort &&
-    ["newest_results", "oldest_results", "name_asc", "name_desc"].includes(
-      location.query.sort
-    )
+    SORT_OPTIONS.some((o) => o.value === location.query.sort)
       ? (location.query.sort as SortOption)
-      : "newest_results";
+      : DEFAULT_SORT_OPTION;
   const showDontStoreResults = location.query.show_dont_store === "true";
   const [page, setPage] = useState(0);
 
@@ -146,7 +146,7 @@ const HostReportsTab = ({
           pathPrefix: location.pathname,
           queryParams: {
             ...location.query,
-            sort: value === "newest_results" ? undefined : value,
+            sort: value === DEFAULT_SORT_OPTION ? undefined : value,
           },
         })
       );

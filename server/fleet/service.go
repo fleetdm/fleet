@@ -347,9 +347,8 @@ type Service interface {
 	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
 	QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
 	// ListHostReports returns the reports/queries associated with the given host, filtered,
-	// sorted, and paginated according to opts. The bool return value indicates whether
-	// query reports are globally disabled in the org settings.
-	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, savedReportsDisabled bool, err error)
+	// sorted, and paginated according to opts.
+	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error

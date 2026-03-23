@@ -1954,16 +1954,11 @@ type listHostReportsRequest struct {
 	IncludeReportsDontStoreResults *bool `query:"include_reports_dont_store_results,optional"`
 }
 
-type listHostReportsFeatures struct {
-	SavedReportsDisabled bool `json:"save_reports_disabled"`
-}
-
 type listHostReportsResponse struct {
-	Reports  []*fleet.HostReport       `json:"reports"`
-	Count    int                       `json:"count"`
-	Meta     *fleet.PaginationMetadata `json:"meta,omitempty"`
-	Features listHostReportsFeatures   `json:"features"`
-	Err      error                     `json:"error,omitempty"`
+	Reports []*fleet.HostReport       `json:"reports"`
+	Count   int                       `json:"count"`
+	Meta    *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r listHostReportsResponse) Error() error { return r.Err }
@@ -1981,7 +1976,7 @@ func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service
 		IncludeReportsDontStoreResults: includeReportsDontStoreResults,
 	}
 
-	reports, count, meta, savedReportsDisabled, err := svc.ListHostReports(ctx, req.ID, opts)
+	reports, count, meta, err := svc.ListHostReports(ctx, req.ID, opts)
 	if err != nil {
 		return listHostReportsResponse{Err: err}, nil
 	}
@@ -1990,9 +1985,6 @@ func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service
 		Reports: reports,
 		Count:   count,
 		Meta:    meta,
-		Features: listHostReportsFeatures{
-			SavedReportsDisabled: savedReportsDisabled,
-		},
 	}, nil
 }
 
@@ -2004,34 +1996,32 @@ func (svc *Service) ListHostReports(
 	[]*fleet.HostReport,
 	int,
 	*fleet.PaginationMetadata,
-	bool,
 	error,
 ) {
 	// Load host to get team ID and authorize.
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get host")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get host")
 	}
 
 	// Verify the caller can read this specific host.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{ID: host.ID, TeamID: host.TeamID}, fleet.ActionRead); err != nil {
-		return nil, 0, nil, false, err
+		return nil, 0, nil, err
 	}
 
 	// Authorize against the host's team. Global queries (team_id IS NULL) are
 	// intentionally visible to all users who can read queries in this context —
 	// team-scoped users see global queries in addition to their own team's queries.
 	if err := svc.authz.Authorize(ctx, &fleet.Query{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
-		return nil, 0, nil, false, err
+		return nil, 0, nil, err
 	}
 
 	appConfig, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
-		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get app config")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 	maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
-	savedReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
 
 	// This end-point is always paginated; metadata is required for HasNextResults.
 	opts.ListOptions.IncludeMetadata = true
@@ -2045,7 +2035,7 @@ func (svc *Service) ListHostReports(
 	case "", "name", "last_fetched":
 		// valid
 	default:
-		return nil, 0, nil, false, fleet.NewInvalidArgumentError("order_key", "must be one of: name, last_fetched")
+		return nil, 0, nil, fleet.NewInvalidArgumentError("order_key", "must be one of: name, last_fetched")
 	}
 
 	// Default: sort by newest results first. Applies only when the caller has
@@ -2058,10 +2048,10 @@ func (svc *Service) ListHostReports(
 
 	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, opts, maxQueryReportRows)
 	if err != nil {
-		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "list host reports from datastore")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
 	}
 
-	return reports, total, meta, savedReportsDisabled, nil
+	return reports, total, meta, nil
 }
 
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, []*fleet.Host, error) {

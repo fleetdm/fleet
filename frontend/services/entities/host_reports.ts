@@ -21,9 +21,6 @@ export interface IListHostReportsResponse {
     has_previous_results: boolean;
     has_next_results: boolean;
   };
-  features: {
-    save_reports_disabled: boolean;
-  };
 }
 
 export interface IListHostReportsParams {

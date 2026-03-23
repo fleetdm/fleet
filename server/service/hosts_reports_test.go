@@ -76,7 +76,7 @@ func TestListHostReports(t *testing.T) {
 	t.Run("admin can list reports for host with no team", func(t *testing.T) {
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
 		opts := fleet.ListHostReportsOptions{}
-		reports, count, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, opts)
+		reports, count, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, opts)
 		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 		assert.Len(t, reports, 2)
@@ -95,7 +95,7 @@ func TestListHostReports(t *testing.T) {
 	t.Run("admin can list reports for host with team", func(t *testing.T) {
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
 		opts := fleet.ListHostReportsOptions{}
-		reports, count, _, _, err := svc.ListHostReports(viewerCtx, hostWithTeam.ID, opts)
+		reports, count, _, err := svc.ListHostReports(viewerCtx, hostWithTeam.ID, opts)
 		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 		assert.Len(t, reports, 2)
@@ -110,29 +110,15 @@ func TestListHostReports(t *testing.T) {
 		}
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: observer})
 		opts := fleet.ListHostReportsOptions{}
-		reports, count, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, opts)
+		reports, count, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, opts)
 		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 		assert.Len(t, reports, 2)
 	})
 
-	t.Run("save_reports_disabled is forwarded from app config", func(t *testing.T) {
-		original := ds.AppConfigFunc
-		t.Cleanup(func() { ds.AppConfigFunc = original })
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true},
-			}, nil
-		}
-		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
-		_, _, _, disabled, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, fleet.ListHostReportsOptions{})
-		require.NoError(t, err)
-		assert.True(t, disabled)
-	})
-
 	t.Run("invalid order_key returns bad request", func(t *testing.T) {
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
-		_, _, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, fleet.ListHostReportsOptions{
+		_, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "invalid_key"},
 		})
 		require.Error(t, err)
@@ -141,7 +127,7 @@ func TestListHostReports(t *testing.T) {
 	})
 
 	t.Run("unauthenticated gets error", func(t *testing.T) {
-		_, _, _, _, err := svc.ListHostReports(ctx, hostNoTeam.ID, fleet.ListHostReportsOptions{})
+		_, _, _, err := svc.ListHostReports(ctx, hostNoTeam.ID, fleet.ListHostReportsOptions{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "forbidden")
 	})
@@ -156,7 +142,7 @@ func TestListHostReports(t *testing.T) {
 		}
 		// hostWithTeam belongs to teamID=42; teamObserver only has access to teamID=99.
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: teamObserver})
-		_, _, _, _, err := svc.ListHostReports(viewerCtx, hostWithTeam.ID, fleet.ListHostReportsOptions{})
+		_, _, _, err := svc.ListHostReports(viewerCtx, hostWithTeam.ID, fleet.ListHostReportsOptions{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "forbidden")
 	})
@@ -208,7 +194,7 @@ func TestListHostReportsDatastorePassthrough(t *testing.T) {
 		},
 	}
 
-	_, _, _, _, err := svc.ListHostReports(viewerCtx, host.ID, opts)
+	_, _, _, err := svc.ListHostReports(viewerCtx, host.ID, opts)
 	require.NoError(t, err)
 
 	assert.Equal(t, host.ID, capturedHostID)

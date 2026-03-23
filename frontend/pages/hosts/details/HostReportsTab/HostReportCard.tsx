@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { ReactNode, useCallback, useMemo } from "react";
 
 import { IHostReport } from "services/entities/host_reports";
 import { humanLastSeen } from "utilities/helpers";
@@ -25,8 +25,8 @@ const ReportBanner = ({
   children,
 }: {
   iconName: IconNames;
-  message: React.ReactNode;
-  children?: React.ReactNode;
+  message: ReactNode;
+  children?: ReactNode;
 }) => (
   <InfoBanner color="grey" borderRadius="xlarge">
     <div className={`${baseClass}__banner-content`}>
