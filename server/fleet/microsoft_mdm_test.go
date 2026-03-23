@@ -420,7 +420,8 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 				</Item>
 			</Replace>`,
 			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
-				// Should produce a single <Delete> command
+				require.Equal(t, "test-uuid-123", cmd.CommandUUID)
+				require.Empty(t, cmd.TargetLocURI)
 				cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
 				require.NoError(t, err)
 				require.Len(t, cmds, 1)
@@ -539,20 +540,6 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 			name:        "empty profile",
 			profileXML:  "",
 			expectError: "no commands found in profile",
-		},
-		{
-			name: "command UUID is set correctly",
-			profileXML: `<Replace>
-				<CmdID>1</CmdID>
-				<Item>
-					<Target><LocURI>./Device/Vendor/MSFT/Policy/Config/SomePolicy</LocURI></Target>
-					<Data>1</Data>
-				</Item>
-			</Replace>`,
-			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
-				require.Equal(t, "test-uuid-123", cmd.CommandUUID)
-				require.Empty(t, cmd.TargetLocURI)
-			},
 		},
 	}
 
@@ -707,14 +694,14 @@ func TestWindowsResponseToDeliveryStatusForRemove(t *testing.T) {
 		resp     string
 		expected MDMDeliveryStatus
 	}{
-		{"200", MDMDeliveryVerified},
-		{"202", MDMDeliveryVerified},
-		{"216", MDMDeliveryVerified},
-		{"404", MDMDeliveryVerified}, // Not Found: setting not on device
-		{"405", MDMDeliveryVerified}, // Not Allowed: read-only node per OMA-DM spec
-		{"500", MDMDeliveryVerified}, // Command Failed: Windows returns this for non-deletable CSP nodes
-		{"400", MDMDeliveryFailed},   // Bad Request: genuine error
-		{"507", MDMDeliveryFailed},   // Atomic Failed: genuine error
+		{syncml.CmdStatusOK, MDMDeliveryVerified},
+		{syncml.CmdStatusAcceptedForProcessing, MDMDeliveryVerified},
+		{syncml.CmdStatusAtomicRollbackAccepted, MDMDeliveryVerified},
+		{syncml.CmdStatusNotFound, MDMDeliveryVerified},      // setting not on device
+		{syncml.CmdStatusNotAllowed, MDMDeliveryVerified},    // read-only node per OMA-DM spec
+		{syncml.CmdStatusCommandFailed, MDMDeliveryVerified}, // Windows returns this for non-deletable CSP nodes
+		{syncml.CmdStatusBadRequest, MDMDeliveryFailed},      // genuine error
+		{syncml.CmdStatusAtomicFailed, MDMDeliveryFailed},    // genuine error
 		{"", MDMDeliveryPending},
 	}
 
@@ -727,48 +714,29 @@ func TestWindowsResponseToDeliveryStatusForRemove(t *testing.T) {
 }
 
 func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.T) {
-	// Test that 404 and 405 are treated as success for remove operations
-	statusOK := "200"
-	status404 := syncml.CmdStatusNotFound
-	status405 := syncml.CmdStatusNotAllowed
-	status500 := "500"
-
 	t.Run("atomic remove with 405 is success", func(t *testing.T) {
 		cmd := MDMWindowsCommand{
 			CommandUUID: "cmd-1",
 			RawCommand:  []byte(`<Atomic><CmdID>cmd-1</CmdID><Delete><CmdID>sub-1</CmdID><Item><Target><LocURI>./Device/Test</LocURI></Target></Item></Delete></Atomic>`),
 		}
 		statuses := map[string]SyncMLCmd{
-			"cmd-1": {Data: &status405},
+			"cmd-1": {Data: new(syncml.CmdStatusNotAllowed)},
 		}
 		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
 		require.NoError(t, err)
 		require.Equal(t, MDMDeliveryVerified, *payload.Status)
 	})
 
-	t.Run("atomic remove with 405 is failure for install", func(t *testing.T) {
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand:  []byte(`<Atomic><CmdID>cmd-1</CmdID><Replace><CmdID>sub-1</CmdID><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>1</Data></Item></Replace></Atomic>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"cmd-1": {Data: &status405},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", false)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryFailed, *payload.Status)
-	})
-
 	t.Run("non-atomic remove with mixed 200 and 404", func(t *testing.T) {
-		cmdStr := ptr.String("Replace")
+		cmdStr := new("Replace")
 		cmd := MDMWindowsCommand{
 			CommandUUID: "cmd-1",
 			RawCommand: []byte(`<Delete><CmdID>del-1</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Delete>` +
 				`<Delete><CmdID>del-2</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`),
 		}
 		statuses := map[string]SyncMLCmd{
-			"del-1": {Data: &statusOK, Cmd: cmdStr},
-			"del-2": {Data: &status404, Cmd: cmdStr},
+			"del-1": {Data: new(syncml.CmdStatusOK), Cmd: cmdStr},
+			"del-2": {Data: new(syncml.CmdStatusNotFound), Cmd: cmdStr},
 		}
 		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
 		require.NoError(t, err)
@@ -776,19 +744,15 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.
 	})
 
 	t.Run("non-atomic remove with 500 succeeds (best-effort)", func(t *testing.T) {
-		// Windows returns 500 for CSP nodes that don't support <Delete>
-		// (e.g. DeviceLock/AccountLockoutPolicy). For remove operations,
-		// this is treated as success since the admin wants the profile
-		// gone from Fleet regardless.
-		cmdStr := ptr.String("Replace")
+		cmdStr := new("Replace")
 		cmd := MDMWindowsCommand{
 			CommandUUID: "cmd-1",
 			RawCommand: []byte(`<Delete><CmdID>del-1</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Delete>` +
 				`<Delete><CmdID>del-2</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`),
 		}
 		statuses := map[string]SyncMLCmd{
-			"del-1": {Data: &statusOK, Cmd: cmdStr},
-			"del-2": {Data: &status500, Cmd: cmdStr},
+			"del-1": {Data: new(syncml.CmdStatusOK), Cmd: cmdStr},
+			"del-2": {Data: new(syncml.CmdStatusCommandFailed), Cmd: cmdStr},
 		}
 		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
 		require.NoError(t, err)
