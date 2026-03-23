@@ -146,7 +146,7 @@ services:
   # localstack to simulate AWS integrations like firehose & kinesis
   # use http://localhost:4566 as the `--endpoint-url` argument in awscli
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:4.5
     ports:
       - "4566:4566"
       - "4571:4571"
