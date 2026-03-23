@@ -126,7 +126,7 @@ describe("SoftwareUninstallDetailsModal - ModalButtons component", () => {
       <ModalButtons uninstallStatus="pending_uninstall" onCancel={onCancel} />
     );
 
-    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Retry" })
     ).not.toBeInTheDocument();
@@ -137,7 +137,7 @@ describe("SoftwareUninstallDetailsModal - ModalButtons component", () => {
 
   // from device user page, cannot reach pending uninstall modal
 
-  it("from successful uninstall activity, shows Done", () => {
+  it("from successful uninstall activity, shows Close", () => {
     const onCancel = jest.fn();
 
     render(
@@ -148,7 +148,7 @@ describe("SoftwareUninstallDetailsModal - ModalButtons component", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
   // from device user page, cannot reach successful uninstall modal

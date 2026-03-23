@@ -36,12 +36,12 @@ module.exports = {
     let eventsToGetDetailsFor = futureGitopsEvents.events;
 
     await sails.helpers.flow.simultaneouslyForEach(eventsToGetDetailsFor, async (event)=>{
-
       // Convert the ISO timestamps that represent the start and end time of the event into a formatted string.
       // Create new Date objects from the start and end times.
       let eventStartsOn = new Date(event.start.utc);
       let eventEndsOn = new Date(event.end.utc);
-
+      // Get a JS timestamp of when this event starts (used to sort the final list of events.)
+      let eventStartsAt = eventStartsOn.getTime();
       let eventTimeZone = event.start.timezone;
       let formattedDateString = new Intl.DateTimeFormat('en-US', {
         timeZone: eventTimeZone,
@@ -84,6 +84,7 @@ module.exports = {
       let eventDetails = {
         eventbriteLink: event.url,
         eventTime: eventTimeDetailsString,
+        startsAt: eventStartsAt,
       };
 
       // If an event has a venue_id, we'll send a request to the Eventbrite API to get details about the venue.
@@ -113,7 +114,8 @@ module.exports = {
 
       futureGitopsWorkshops.push(eventDetails);
     });
-
+    // Sort the events that will be displayed on the page.
+    futureGitopsWorkshops = _.sortBy(futureGitopsWorkshops, 'startsAt');
     // Respond with view.
     return {
       futureGitopsWorkshops
