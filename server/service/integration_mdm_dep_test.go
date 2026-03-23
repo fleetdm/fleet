@@ -3236,3 +3236,185 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	require.Equal(t, titleID2, getHostSw.Software[1].ID)
 	require.Equal(t, installerPayload2.Title, getHostSw.Software[1].Name)
 }
+
+func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
+	t := s.T()
+	ctx := context.Background()
+
+	// ------------------------------------------------------------------
+	// 1. Set up ABM / DEP mock infrastructure
+	// ------------------------------------------------------------------
+	orgName := t.Name()
+	abmToken := s.enableABM(orgName)
+	require.NotNil(t, abmToken)
+
+	// Serial number for the DEP device we will simulate
+	depSerial := uuid.New().String()
+
+	// Apple's "Get Device Details" response that the mock ABM server will return
+	// when our endpoint calls /devices.
+	fakeProfileUUID := uuid.New().String()
+	fakeProfileAssignTime := time.Now().UTC().Truncate(time.Second)
+	fakeProfilePushTime := fakeProfileAssignTime.Add(5 * time.Second)
+
+	// Keep track of calls to the /devices endpoint so we can assert it was hit.
+	var deviceDetailsCalled int
+
+	s.mockDEPResponse(orgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "abc", "org_name": %q}`, orgName)))
+		case "/profile":
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: fakeProfileUUID}))
+		case "/server/devices":
+			require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{
+				{
+					SerialNumber:      depSerial,
+					Model:             "MacBook Pro",
+					OS:                "osx",
+					OpType:            "added",
+					ProfileStatus:     "assigned",
+					ProfileUUID:       fakeProfileUUID,
+					ProfileAssignTime: fakeProfileAssignTime,
+					ProfilePushTime:   fakeProfilePushTime,
+				},
+			}}))
+		case "/devices/sync":
+			require.NoError(t, encoder.Encode(godep.DeviceResponse{Cursor: "done"}))
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var req profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &req))
+			resp := godep.ProfileResponse{ProfileUUID: req.ProfileUUID, Devices: make(map[string]string)}
+			for _, d := range req.Devices {
+				resp.Devices[d] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			require.NoError(t, encoder.Encode(resp))
+		case "/devices":
+			// Apple's "Get Device Details" endpoint — called by our new endpoint.
+			deviceDetailsCalled++
+			require.NoError(t, encoder.Encode(map[string]interface{}{
+				"devices": map[string]interface{}{
+					depSerial: map[string]interface{}{
+						"serial_number":       depSerial,
+						"model":               "MacBook Pro",
+						"profile_status":      "assigned",
+						"profile_uuid":        fakeProfileUUID,
+						"profile_assign_time": fakeProfileAssignTime.Format(time.RFC3339),
+						"profile_push_time":   fakeProfilePushTime.Format(time.RFC3339),
+						"device_family":       "Mac",
+					},
+				},
+			}))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	// Run the DEP sync so Fleet ingests the device and creates a host +
+	// host_dep_assignments row.
+	s.runDEPSchedule()
+
+	// Find the host that was just created by the DEP sync.
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp)
+	var depHost *fleet.Host
+	for _, h := range listResp.Hosts {
+		if h.HardwareSerial == depSerial {
+			depHost = h.Host
+			break
+		}
+	}
+	require.NotNil(t, depHost, "expected to find DEP host after sync")
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteHost(ctx, depHost.ID)) })
+
+	// ------------------------------------------------------------------
+	// 2. Happy path: DEP host returns both fleet record + Apple details
+	// ------------------------------------------------------------------
+	deviceDetailsCalled = 0
+	var depResp getHostDEPAssignmentResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", depHost.ID), nil, http.StatusOK, &depResp)
+
+	// host_dep_assignment must be present and reference the right host
+	require.NotNil(t, depResp.HostDEPAssignment, "host_dep_assignment should not be nil for a DEP host")
+	require.Equal(t, depHost.ID, depResp.HostDEPAssignment.HostID)
+	require.False(t, depResp.HostDEPAssignment.AddedAt.IsZero(), "added_at should be set")
+	require.Nil(t, depResp.HostDEPAssignment.DeletedAt, "deleted_at should be nil for an active DEP host")
+
+	// dep_device must be present and contain Apple's live data
+	require.NotNil(t, depResp.DEPDevice, "dep_device should not be nil for a DEP host with a valid ABM token")
+	require.Equal(t, depSerial, depResp.DEPDevice.SerialNumber)
+	require.Equal(t, "MacBook Pro", depResp.DEPDevice.Model)
+	require.Equal(t, "assigned", depResp.DEPDevice.ProfileStatus)
+	require.Equal(t, fakeProfileUUID, depResp.DEPDevice.ProfileUUID)
+
+	// The mock ABM /devices endpoint should have been called exactly once.
+	require.Equal(t, 1, deviceDetailsCalled, "expected exactly one call to Apple's Get Device Details API")
+
+	// ------------------------------------------------------------------
+	// 3. Non-DEP host: both fields should be null
+	// ------------------------------------------------------------------
+	nonDEPHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+		LastEnrolledAt:  time.Now(),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteHost(ctx, nonDEPHost.ID)) })
+
+	deviceDetailsCalled = 0
+	var nonDEPResp getHostDEPAssignmentResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", nonDEPHost.ID), nil, http.StatusOK, &nonDEPResp)
+
+	require.Nil(t, nonDEPResp.HostDEPAssignment, "host_dep_assignment should be null for a non-DEP host")
+	require.Nil(t, nonDEPResp.DEPDevice, "dep_device should be null for a non-DEP host")
+	// Apple's API should never be called for a non-DEP host.
+	require.Equal(t, 0, deviceDetailsCalled, "Apple Get Device Details should not be called for a non-DEP host")
+
+	// ------------------------------------------------------------------
+	// 4. ABM returns an error: host_dep_assignment is populated, dep_device is null
+	// ------------------------------------------------------------------
+	s.mockDEPResponse(orgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/devices":
+			// Simulate a server-side ABM error
+			deviceDetailsCalled++
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"code":"INTERNAL_ERROR","message":"something went wrong"}`))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	deviceDetailsCalled = 0
+	var abmErrResp getHostDEPAssignmentResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", depHost.ID), nil, http.StatusOK, &abmErrResp)
+
+	// Fleet's record should still come back
+	require.NotNil(t, abmErrResp.HostDEPAssignment, "host_dep_assignment should still be returned when ABM errors")
+	require.Equal(t, depHost.ID, abmErrResp.HostDEPAssignment.HostID)
+	// But Apple's data should be nil
+	require.Nil(t, abmErrResp.DEPDevice, "dep_device should be null when ABM returns an error")
+	// The mock endpoint was still called once (the attempt was made)
+	require.Equal(t, 1, deviceDetailsCalled, "Apple Get Device Details should still be attempted even when it errors")
+
+	// ------------------------------------------------------------------
+	// 5. Unauthenticated request: should be rejected
+	// ------------------------------------------------------------------
+	savedToken := s.token
+	s.token = "bad-token"
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", depHost.ID), nil, http.StatusUnauthorized, &getHostDEPAssignmentResponse{})
+	s.token = savedToken
+
+	// ------------------------------------------------------------------
+	// 6. Non-existent host: should return 404
+	// ------------------------------------------------------------------
+	s.DoJSON("GET", "/api/latest/fleet/hosts/999999/dep_assignment", nil, http.StatusNotFound, &getHostDEPAssignmentResponse{})
+}

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -879,6 +880,12 @@ type Service interface {
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
+
+	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
+	// Apple's live device details from ABM for the given host ID.
+	// Returns (nil, nil, nil) for non-DEP hosts.
+	// If ABM returns an error, dep_device is nil and the error is logged.
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.Device, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode MDMLabelsMode) (*MDMAppleConfigProfile, error)

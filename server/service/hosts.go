@@ -29,9 +29,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
@@ -2348,6 +2350,87 @@ func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
 	}
 
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get host DEP assignment
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostDEPAssignmentRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostDEPAssignmentResponse struct {
+	HostDEPAssignment *fleet.HostDEPAssignment `json:"host_dep_assignment"`
+	DEPDevice         *godep.Device            `json:"dep_device"`
+	Err               error                    `json:"error,omitempty"`
+}
+
+func (r getHostDEPAssignmentResponse) Error() error { return r.Err }
+
+func getHostDEPAssignmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostDEPAssignmentRequest)
+	depAssignment, depDevice, err := svc.GetHostDEPAssignmentDetails(ctx, req.ID)
+	if err != nil {
+		return getHostDEPAssignmentResponse{Err: err}, nil
+	}
+	return getHostDEPAssignmentResponse{
+		HostDEPAssignment: depAssignment,
+		DEPDevice:         depDevice,
+	}, nil
+}
+
+func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+	// Load the host first so we can do a team-aware authorization check,
+	// mirroring what GET /hosts/:id does.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host for dep assignment")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	// Fetch Fleet's DEP assignment record. A not-found error means the host is
+	// not a DEP host; return all nils so the response contains JSON nulls.
+	depAssignment, err := svc.ds.GetHostDEPAssignment(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host dep assignment")
+	}
+
+	// Without an ABM token ID we can't resolve which org name to use for the
+	// Apple API call, so return what we have from Fleet's DB.
+	if depAssignment.ABMTokenID == nil {
+		return depAssignment, nil, nil
+	}
+
+	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get ABM token for dep assignment")
+	}
+
+	// Call Apple's "Get Device Details" API. Per the issue spec: on error, log
+	// and return dep_device as nil rather than surfacing the error to the caller.
+	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	depDevice, err := depClient.GetDeviceDetails(ctx, abmToken.OrganizationName, host.HardwareSerial)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "get DEP device details from ABM",
+			"host_id", hostID,
+			"org_name", abmToken.OrganizationName,
+			"err", err,
+		)
+		return depAssignment, nil, nil
+	}
+
+	return depAssignment, depDevice, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

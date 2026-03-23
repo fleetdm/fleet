@@ -2026,7 +2026,9 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed,
+		       profile_uuid, assign_profile_response, response_updated_at
+		FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
@@ -6324,16 +6326,16 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 	err error,
 ) {
 	hostsStmt := `
-SELECT 
-	h.id as host_id, 
-	h.uuid as uuid, 
+SELECT
+	h.id as host_id,
+	h.uuid as uuid,
 	hmdm.installed_from_dep,
 	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
 FROM hosts h
 	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
 	INNER JOIN nano_enrollments ne ON ne.id = h.uuid
 	LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
-WHERE 
+WHERE
 	(h.platform = 'ios' OR h.platform = 'ipados')
 	AND TRIM(h.uuid) != ''
 	AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
