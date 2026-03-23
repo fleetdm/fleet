@@ -1346,6 +1346,13 @@
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
+      "name": "Proxyman",
+      "slug": "proxyman/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.proxyman.NSProxy",
+      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
+    },
+    {
       "name": "PuTTY",
       "slug": "putty/windows",
       "platform": "windows",
