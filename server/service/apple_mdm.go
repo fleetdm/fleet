@@ -5163,9 +5163,18 @@ func ReconcileAppleProfiles(
 		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
 	}
 
+	// Log throttled hosts in batches to avoid exceeding log line size limits (e.g. 1MB Kinesis/Firehose limit).
+	const throttleLogBatchSize = 1000
 	for profileUUID, hostUUIDs := range throttledHostsByProfile {
-		logger.InfoContext(ctx, "throttled CA certificate profile installation", "profile.uuid", profileUUID, "mdm.target.host.uuids", hostUUIDs,
-			"mdm.certificate.profiles.limit", certProfilesLimit)
+		for i := 0; i < len(hostUUIDs); i += throttleLogBatchSize {
+			end := min(i+throttleLogBatchSize, len(hostUUIDs))
+			logger.InfoContext(ctx, "throttled CA certificate profile installation",
+				"profile.uuid", profileUUID,
+				"mdm.target.host.uuids", hostUUIDs[i:end],
+				"mdm.certificate.profiles.limit", certProfilesLimit,
+				"batch", fmt.Sprintf("%d-%d/%d", i+1, end, len(hostUUIDs)),
+			)
+		}
 	}
 
 	for _, p := range toRemove {
