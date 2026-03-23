@@ -26932,6 +26932,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	// team tests and no team tests
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1" + t.Name()})
 	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 2" + t.Name()})
+	require.NoError(t, err)
 
 	// mock an installer being uploaded through FMA
 	updateInstallerFMAID := func(fmaID, teamID, titleID uint) {
@@ -27185,17 +27187,11 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 	t.Run("batch team patch policy", func(t *testing.T) {
 		// initialize FMA server
-		states := make(map[string]*fmaTestState, 2)
+		states := make(map[string]*fmaTestState, 1)
 		states["/zoom/windows.json"] = &fmaTestState{
 			version:        "1.0",
 			installerBytes: []byte("xyz"),
 			installerPath:  "/zoom.msi",
-		}
-		states["/1password/darwin.json"] = &fmaTestState{
-			version:        "1.0",
-			installerBytes: []byte("xyz"),
-			installerPath:  "/1password.pkg",
-			patchQuery:     "SELECT 1; -- custom query 1.0",
 		}
 		startFMAServers(t, s.ds, states)
 
@@ -27223,7 +27219,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}, {Slug: ptr.String("1password/darwin")}}, TeamName: team.Name},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
 		)
@@ -27283,17 +27279,10 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			Type:                   fleet.PolicyTypePatch,
 			FleetMaintainedAppSlug: "zoom/windows",
 		}
-		// Add patch policy to 1password
-		spec2 := &fleet.PolicySpec{
-			Name:                   "team patch policy 2",
-			Team:                   team.Name,
-			Type:                   fleet.PolicyTypePatch,
-			FleetMaintainedAppSlug: "1password/darwin",
-		}
 
 		applyResp = applyPolicySpecsResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
-			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec, spec2}},
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
 			http.StatusOK, &applyResp,
 		)
 
@@ -27301,10 +27290,9 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
-		require.Len(t, listPolResp.Policies, 2)
+		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
-		require.Equal(t, "SELECT 1; -- custom query 1.0", listPolResp.Policies[1].PolicyData.Query)
 
 		// check policy membership
 		createHostPolicyResults(teamHosts[0], listPolResp.Policies[0])
@@ -27314,10 +27302,9 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		// Test 2: FMA Version is updated (query should use new version)
 		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"), "")
-		resetFMAState(states["/1password/darwin.json"], "1.2", []byte("abc"), "SELECT 1; -- custom query 1.2")
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}, {Slug: ptr.String("1password/darwin")}}, TeamName: team.Name},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
 		)
@@ -27325,16 +27312,15 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		applyResp = applyPolicySpecsResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
-			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec, spec2}},
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
 			http.StatusOK, &applyResp,
 		)
 		title = getActiveTitleForTeam(team.ID, "zoom")
 
 		listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
-		require.Len(t, listPolResp.Policies, 2)
+		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.2", title.ID)
-		require.Equal(t, "SELECT 1; -- custom query 1.2", listPolResp.Policies[1].PolicyData.Query)
 
 		// check policy membership
 		listPolResp.Policies[0], err = s.ds.Policy(ctx, listPolResp.Policies[0].ID)
@@ -27345,7 +27331,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 				{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
-				{Slug: ptr.String("1password/darwin"), SelfService: true, RollbackVersion: "1.0"},
 			}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
@@ -27354,17 +27339,118 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		applyResp = applyPolicySpecsResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
-			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec, spec2}},
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
 			http.StatusOK, &applyResp,
 		)
 		title = getActiveTitleForTeam(team.ID, "zoom")
 
 		listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
-		require.Len(t, listPolResp.Policies, 2)
+		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
-		require.Equal(t, "SELECT 1; -- custom query 1.0", listPolResp.Policies[1].PolicyData.Query)
 	})
+
+	t.Run("override and empty queries behave the same", func(t *testing.T) {
+		// initialize FMA server
+		states := make(map[string]*fmaTestState, 2)
+		states["/zoom/windows.json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/zoom.msi",
+		}
+		states["/1password/darwin.json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/1password.pkg",
+			patchQuery:     "SELECT 1; -- custom query 1.0",
+		}
+		startFMAServers(t, s.ds, states)
+
+		// Add installers at version 1.0
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}, {Slug: ptr.String("1password/darwin")}}, TeamName: team2.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
+
+		checkPolicies := func(policies []*fleet.Policy, version string) {
+			require.Len(t, policies, 2)
+			require.Equal(t, fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '%s') < 0);`, version), policies[0].Query)
+			require.Equal(t, fmt.Sprintf(`SELECT 1; -- custom query %s`, version), policies[1].Query)
+		}
+
+		specs := []*fleet.PolicySpec{
+			{
+				Name:                   "team patch policy",
+				Query:                  "SELECT 1",
+				Team:                   team2.Name,
+				Type:                   fleet.PolicyTypePatch,
+				FleetMaintainedAppSlug: "zoom/windows",
+			},
+			{
+				Name:                   "team patch policy 2",
+				Team:                   team2.Name,
+				Type:                   fleet.PolicyTypePatch,
+				FleetMaintainedAppSlug: "1password/darwin",
+			},
+		}
+
+		// Apply patch policies
+		applyResp := applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: specs},
+			http.StatusOK, &applyResp,
+		)
+
+		listPolResp := listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		checkPolicies(listPolResp.Policies, "1.0")
+
+		// Pin FMA versions to 1.2, queries should update
+		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"), "")
+		resetFMAState(states["/1password/darwin.json"], "1.2", []byte("abc"), "SELECT 1; -- custom query 1.2")
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}, {Slug: ptr.String("1password/darwin")}}, TeamName: team2.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
+
+		applyResp = applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: specs},
+			http.StatusOK, &applyResp,
+		)
+
+		listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		checkPolicies(listPolResp.Policies, "1.2")
+
+		// Rollback FMA versions to 1.0, queries should use older versions
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+				{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
+				{Slug: ptr.String("1password/darwin"), SelfService: true, RollbackVersion: "1.0"},
+			}, TeamName: team2.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
+
+		applyResp = applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: specs},
+			http.StatusOK, &applyResp,
+		)
+
+		listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		checkPolicies(listPolResp.Policies, "1.0")
+	})
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation() {
