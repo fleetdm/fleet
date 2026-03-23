@@ -30,6 +30,28 @@ The IT department is directly responsible for solutions consulting, dogfooding, 
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 
+### DNS records for Salesforce email sending (sandbox)
+
+The following DNS records need to be configured for Salesforce email sending in the sandbox environment:
+
+#### 1. DKIM CNAME records
+
+| Record type | Host | Value |
+|---|---|---|
+| CNAME | `fleetdm-a._domainkey.fleetdm.com` | `fleetdm-a.247cq1.custdkim.salesforce.com` |
+| CNAME | `fleetdm-b._domainkey.fleetdm.com` | `fleetdm-b.tb8v4e.custdkim.salesforce.com` |
+
+#### 2. Authorized email domain TXT record
+
+| Record type | Host | Value |
+|---|---|---|
+| TXT | `fleetdm.com` | `00Dca000004Fu61=1TBca0000000BTJ` |
+
+#### 3. SPF record update
+
+Check the existing SPF TXT record for `fleetdm.com` and confirm it includes `_spf.salesforce.com`. If it's missing, add it to the existing SPF record.
+
+
 ### Secure company-issued equipment for a team member
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
