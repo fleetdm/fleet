@@ -34,6 +34,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 	// https://datatracker.ietf.org/doc/html/rfc8555/#section-7.1.1
 	ae.GET("/api/mdm/acme/{identifier}/directory", getDirectoryEndpoint, api_http.GetDirectoryRequest{})
 	ae.POST("/api/mdm/acme/{identifier}/directory", getDirectoryEndpoint, api_http.GetDirectoryRequest{})
+
+	ae.POST("/api/mdm/acme/{identifier}/new_account", createAccountEndpoint, api_http.JWSRequestContainer{})
+	ae.POST("/api/mdm/acme/{identifier}/new_order", createOrderEndpoint, api_http.JWSRequestContainer{})
 }
 
 // getNewNonceEndpoint handles HEAD/GET /api/mdm/acme/{identifier}/new_nonce requests.
@@ -57,4 +60,29 @@ func getDirectoryEndpoint(ctx context.Context, request any, svc api.Service) pla
 		return api_http.GetDirectoryResponse{Err: err}
 	}
 	return api_http.GetDirectoryResponse{Directory: dir}
+}
+
+// createAccountEndpoint handles POST /api/mdm/acme/{identifier}/new_account requests.
+func createAccountEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.JWSRequestContainer)
+	newAccountRequest := api_http.CreateNewAccountRequest{}
+	err := svc.AuthenticateNewAccountMessage(ctx, req, &newAccountRequest)
+	if err != nil {
+		return api_http.CreateNewAccountResponse{Err: err}
+	}
+
+	account, err := svc.CreateAccount(ctx, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
+	// TODO(mna) Fill out the returned object with the proper URL here or in the svc so it can be returned in the Location header as per ACME spec
+	_, _ = account, err
+	panic("unimplemented")
+}
+
+// createAccountEndpoint handles POST /api/mdm/acme/{identifier}/new_account requests.
+func createOrderEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.JWSRequestContainer)
+	newOrderRequest := api_http.CreateNewOrderRequest{}
+	err := svc.AuthenticateMessageFromAccount(ctx, req, &newOrderRequest)
+	// req := request.(*api_http.CreateNewAccountRequest)
+	_, _ = newOrderRequest, err
+	panic("unimplemented")
 }

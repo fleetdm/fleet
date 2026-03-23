@@ -4,9 +4,14 @@ package http
 
 import (
 	"context"
+	"crypto/x509"
+	"io"
 	"net/http"
+	"net/url"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	"go.step.sm/crypto/jose"
 )
 
 type GetNewNonceRequest struct {
@@ -49,3 +54,79 @@ type GetDirectoryResponse struct {
 
 // Error implements the platform_http.Errorer interface.
 func (r GetDirectoryResponse) Error() error { return r.Err }
+
+type CreateNewAccountRequest struct {
+	Enrollment *types.Enrollment `json:"-"`
+	JSONWebKey *jose.JSONWebKey  `json:"-"`
+
+	// OnlyReturnExisting indicates that no new account should be created but the
+	// existing account for this key should be returned if it exists. This is the
+	// only actual parameter read from the payload of the JWS request
+	OnlyReturnExisting bool `json:"onlyReturnExisting"`
+}
+
+type CreateNewAccountResponse struct {
+	Nonce string
+	Err   error `json:"error,omitempty"`
+}
+
+// Error implements the platform_http.Errorer interface.
+func (r CreateNewAccountResponse) Error() error { return r.Err }
+
+type CreateNewOrderRequest struct {
+	types.AccountAuthenticatedRequestBase
+
+	Identifiers []types.Identifier `json:"identifiers"`
+}
+
+type CreateNewOrderResponse struct {
+	Nonce string
+	Err   error `json:"error,omitempty"`
+}
+
+// Error implements the platform_http.Errorer interface.
+func (r CreateNewOrderResponse) Error() error { return r.Err }
+
+// JWS Request container is a container for doing basic decoding and validation operations common to all
+// authenticated ACME requests, which come in the form of a JWS in flattened serialization syntax. This is
+// parsed into a jose.JSONWebSignature with some basic validation done on it and then the downstream
+// handler can use the included JWK or KeyID to do further authentication and authorization as needed.
+type JWSRequestContainer struct {
+	JWS jose.JSONWebSignature
+
+	Key        *jose.JSONWebKey
+	KeyID      *string
+	Identifier string `url:"identifier"`
+}
+
+func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	jwsBytes, err := io.ReadAll(r)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
+	}
+	req.Identifier = u.Get("identifier")
+	jws, err := jose.ParseJWS(string(jwsBytes))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing jws")
+	}
+	// The JWS must have exactly one signature because ACME uses the "flattened" JWS JSON serialization
+	if len(jws.Signatures) == 0 {
+		return ctxerr.New(ctx, "jws must have a signature")
+	}
+	if len(jws.Signatures) > 1 {
+		return ctxerr.New(ctx, "jws must have only one signature")
+	}
+	// All ACME requests should have either a JWK in the header or a KeyID that points to an account, but never both
+	if jws.Signatures[0].Protected.JSONWebKey == nil && jws.Signatures[0].Protected.KeyID == "" {
+		return ctxerr.New(ctx, "jws must have a key or key ID in the protected header")
+	}
+
+	if jws.Signatures[0].Protected.JSONWebKey != nil {
+		req.Key = jws.Signatures[0].Protected.JSONWebKey
+	}
+	// KeyID should be the account URL
+	if jws.Signatures[0].Protected.KeyID != "" {
+		req.KeyID = &jws.Signatures[0].Protected.KeyID
+	}
+	return nil
+}
