@@ -19,7 +19,7 @@ You can read more about the anatomy of these files and what they do in [Fleet's 
 
 3. In GitHub, enable the `Apply latest configuration to Fleet` GitHub Actions workflow, and run workflow manually. Now, when anyone pushes a new commit to the default branch, the action will run and update Fleet. For pull requests, the workflow will do a dry run only.
 
-### GitLab setup
+### GitLab
 
 1. Create your own GitLab repository and push the files in this folder to your new repo. Note that a pipeline will run once and fail because the required variables haven't been added (step 2).
 
