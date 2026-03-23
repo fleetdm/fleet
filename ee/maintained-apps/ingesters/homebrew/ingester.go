@@ -215,7 +215,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	external_refs.EnrichManifest(out)
 
-	// we need to read from a file
 	if input.PatchPolicyPath != "" {
 		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
 		if err != nil {
@@ -227,21 +226,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
 		}
+
 		p.Platform = "darwin"
-		p.TitleName = out.Name
 		p.Version = out.Version
-		um, err := patch_policy.Generate(p)
+		query, err := patch_policy.GenerateFromManifest(p)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "patch policy")
 		}
-		out.PatchPolicy = maintained_apps.PatchPolicy{
-			Name:        um.Name,
-			Query:       um.Query,
-			Platform:    um.Platform,
-			Description: um.Description,
-			Resolution:  um.Resolution,
-		}
-
+		out.Queries.Patch = query
 	}
 
 	return out, nil

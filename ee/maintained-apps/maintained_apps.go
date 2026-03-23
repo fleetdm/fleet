@@ -18,24 +18,24 @@ const OutputPath = "ee/maintained-apps/outputs"
 
 type FMAQueries struct {
 	Exists string `json:"exists"`
+	Patch  string `json:"patch"`
 }
 
 type FMAManifestApp struct {
-	Version            string      `json:"version"`
-	Queries            FMAQueries  `json:"queries"`
-	InstallerURL       string      `json:"installer_url"`
-	UniqueIdentifier   string      `json:"unique_identifier,omitempty"`
-	InstallScriptRef   string      `json:"install_script_ref"`
-	UninstallScriptRef string      `json:"uninstall_script_ref"`
-	InstallScript      string      `json:"-"`
-	UninstallScript    string      `json:"-"`
-	SHA256             string      `json:"sha256"`
-	Slug               string      `json:"-"`
-	Name               string      `json:"-"`
-	DefaultCategories  []string    `json:"default_categories"`
-	Frozen             bool        `json:"-"`
-	UpgradeCode        string      `json:"upgrade_code,omitempty"`
-	PatchPolicy        PatchPolicy `json:"patch_policy"`
+	Version            string     `json:"version"`
+	Queries            FMAQueries `json:"queries"`
+	InstallerURL       string     `json:"installer_url"`
+	UniqueIdentifier   string     `json:"unique_identifier,omitempty"`
+	InstallScriptRef   string     `json:"install_script_ref"`
+	UninstallScriptRef string     `json:"uninstall_script_ref"`
+	InstallScript      string     `json:"-"`
+	UninstallScript    string     `json:"-"`
+	SHA256             string     `json:"sha256"`
+	Slug               string     `json:"-"`
+	Name               string     `json:"-"`
+	DefaultCategories  []string   `json:"default_categories"`
+	Frozen             bool       `json:"-"`
+	UpgradeCode        string     `json:"upgrade_code,omitempty"`
 }
 
 func (a *FMAManifestApp) Platform() string {

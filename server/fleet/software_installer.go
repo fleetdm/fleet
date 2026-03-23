@@ -138,6 +138,8 @@ type SoftwareInstaller struct {
 
 	// PatchPolicy is present for Fleet maintained apps with an associated patch policy
 	PatchPolicy *PatchPolicyData `json:"patch_policy"`
+	// PatchQuery is the query to use for creating a patch policy
+	PatchQuery string `json:"-" db:"patch_query"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.

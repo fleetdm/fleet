@@ -1009,7 +1009,8 @@ SELECT
   si.self_service,
   si.url,
   COALESCE(st.name, '') AS software_title,
-  COALESCE(st.bundle_identifier, '') AS bundle_identifier
+  COALESCE(st.bundle_identifier, '') AS bundle_identifier,
+  si.patch_query
   %s
 FROM
   software_installers si

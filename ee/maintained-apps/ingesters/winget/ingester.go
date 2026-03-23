@@ -366,6 +366,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	external_refs.EnrichManifest(&out)
 
+	// TODO(JK): patch policy
+
 	return &out, nil
 }
 
