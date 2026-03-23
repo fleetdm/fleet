@@ -110,7 +110,7 @@ controls:
   # Uncomment when you are ready to start using Fleet's Windows management features.
   # 
   # For more information about setting up Windows MDM, see:
-  #   • https://fleetdm.com/docs/using-fleet/windows-https://fleetdm.com/guides/windows-mdm-setup
+  #   • https://fleetdm.com/guides/windows-mdm-setup
   #
   # Note: This is a global setting that cannot be applied per-fleet.
   ###########################################################
