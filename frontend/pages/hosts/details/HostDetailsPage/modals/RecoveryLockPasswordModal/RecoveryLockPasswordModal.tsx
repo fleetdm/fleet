@@ -13,7 +13,6 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -47,7 +46,7 @@ const RecoveryLockPasswordModal = ({
       select: (data) => data.recovery_lock_password.password,
       // prevent caching this sensitive string
       cacheTime: 0,
-    }
+    },
   );
 
   const onRotatePassword = async () => {
@@ -56,7 +55,7 @@ const RecoveryLockPasswordModal = ({
       await hostAPI.rotateRecoveryLockPassword(hostId);
       renderFlash(
         "success",
-        "Successfully sent request to rotate Recovery Lock password."
+        "Successfully sent request to rotate Recovery Lock password.",
       );
       onCancel();
     } catch (e) {
@@ -70,34 +69,20 @@ const RecoveryLockPasswordModal = ({
   };
 
   const renderRotateButton = () => {
-    if (canRotatePassword) {
-      return (
-        <Button
-          variant="text-link"
-          onClick={onRotatePassword}
-          disabled={isRotating}
-          className={`${baseClass}__rotate-button`}
-        >
-          <Icon name="refresh" />
-          {isRotating ? "Rotating..." : "Rotate password"}
-        </Button>
-      );
+    if (!canRotatePassword) {
+      return null;
     }
 
     return (
-      <span className={`${baseClass}__rotate-button--disabled`}>
-        <TooltipWrapper
-          underline={false}
-          showArrow
-          position="bottom"
-          tipContent="Only users with the maintainer role and above can rotate password."
-        >
-          <span className={`${baseClass}__rotate-button-content`}>
-            <Icon name="refresh" />
-            Rotate password
-          </span>
-        </TooltipWrapper>
-      </span>
+      <Button
+        variant="text-link"
+        onClick={onRotatePassword}
+        disabled={isRotating}
+        className={`${baseClass}__rotate-button`}
+      >
+        <Icon name="refresh" />
+        {isRotating ? "Rotating..." : "Rotate password"}
+      </Button>
     );
   };
 
