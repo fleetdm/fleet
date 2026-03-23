@@ -6,17 +6,10 @@
   text-underline-offset: 3px;
 
   &:hover {
-    color: $core-fleet-black;
     text-decoration-color: $core-fleet-black;
-    .external-link-icon__outline {
-      fill: $core-fleet-black;
-      stroke: $core-fleet-black;
-    }
-    .external-link-icon__arrow {
-      stroke: $core-fleet-white;
-    }
   }
 
+  &:hover,
   &:focus-visible {
     .external-link-icon__outline {
       fill: $core-fleet-black;
@@ -85,7 +78,8 @@
       stroke: $core-fleet-white;
     }
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       color: $ui-fleet-black-5;
       text-decoration-color: $ui-fleet-black-5;
 
@@ -100,18 +94,8 @@
     }
 
     &:focus-visible {
-      color: $ui-fleet-black-5;
       text-decoration: none;
       outline-color: $ui-fleet-black-5;
-
-      .external-link-icon__outline {
-        fill: $ui-fleet-black-5;
-        stroke: $ui-fleet-black-5;
-      }
-
-      .external-link-icon__arrow {
-        stroke: $tooltip-bg;
-      }
     }
   }
 
