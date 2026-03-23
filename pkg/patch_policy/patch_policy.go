@@ -50,6 +50,8 @@ func GenerateFromManifest(p PolicyData) (string, error) {
 func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*PolicyData, error) {
 	var query string
 
+	fmt.Println(p)
+
 	if p.Description == "" {
 		p.Description = "Outdated software might introduce security vulnerabilities or compatibility issues."
 	}
@@ -58,7 +60,7 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 		p.Resolution = "Install the latest version from self-service."
 	}
 
-	switch p.Platform {
+	switch installer.Platform {
 	case "darwin":
 		if p.Name == "" {
 			p.Name = fmt.Sprintf("macos - %s up to date", installer.SoftwareTitle)

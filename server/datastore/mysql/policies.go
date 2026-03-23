@@ -1072,7 +1072,6 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		// what if there's an override patch policy?
 		generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
 			Name:        args.Name,
-			Platform:    args.Platform,
 			Description: args.Description,
 			Resolution:  args.Resolution,
 		}, installer)
@@ -1483,7 +1482,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					}
 					generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
 						Name:        spec.Name,
-						Platform:    spec.Platform,
 						Description: spec.Description,
 						Resolution:  spec.Resolution,
 					}, installer)

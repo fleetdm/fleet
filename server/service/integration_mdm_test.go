@@ -12272,6 +12272,7 @@ type appStoreApp interface {
 
 func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
 
 	// non-existent team

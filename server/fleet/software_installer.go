@@ -542,6 +542,7 @@ type UploadSoftwareInstallerPayload struct {
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
+	PatchQuery                  string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {

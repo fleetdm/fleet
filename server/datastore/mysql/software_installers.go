@@ -323,8 +323,9 @@ INSERT INTO software_installers (
 	fleet_maintained_app_id,
  	url,
  	upgrade_code,
- 	is_active
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?)`
+ 	is_active,
+	patch_query
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -348,6 +349,7 @@ INSERT INTO software_installers (
 			payload.URL,
 			payload.UpgradeCode,
 			true,
+			payload.PatchQuery,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
