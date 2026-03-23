@@ -187,7 +187,7 @@ const LocationModal = ({
       <ModalFooter
         primaryButtons={
           <Button type="button" onClick={onExit}>
-            Done
+            Close
           </Button>
         }
       />
