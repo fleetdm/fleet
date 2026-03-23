@@ -157,7 +157,7 @@ This policy will:
 - **Fail**: When a certificate exists and expires within 30 days (needs renewal)
 - **Pass**: When no certificate exists yet, or certificate is valid for more than 30 days
 
-### Automated workflow
+### Renewal workflow
 
 To renew certificates, you can:
 
