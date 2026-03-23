@@ -152,42 +152,19 @@ var teamLabelsRefs = []string{
 }
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
+	// Enqueue <Delete> commands for Windows profiles. This must run
+	// first because the main transaction deletes the config profile rows
+	// (which contain the SyncML bytes needed to generate <Delete> commands).
+	if err := ds.enqueueWindowsDeleteCommandsForTeam(ctx, tid); err != nil {
+		return ctxerr.Wrapf(ctx, err, "enqueuing windows delete commands for team %d", tid)
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Delete team policies first, because policies can have associated installers and scripts
 		// which may be deleted on cascade before deleting the policies (which are also deleted on cascade).
 		_, err := tx.ExecContext(ctx, `DELETE FROM policies WHERE team_id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)
-		}
-
-		// Before deleting team config profiles, generate <Delete> commands for
-		// Windows profiles that were delivered to hosts. This must happen before
-		// the config profile rows are deleted (they contain the SyncML bytes
-		// needed to generate <Delete> commands).
-		var winProfileUUIDs []string
-		if err := sqlx.SelectContext(ctx, tx, &winProfileUUIDs,
-			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid); err != nil {
-			return ctxerr.Wrapf(ctx, err, "loading windows profile UUIDs for team %d", tid)
-		}
-		if len(winProfileUUIDs) > 0 {
-			winProfileContents := make(map[string][]byte)
-			var profRows []struct {
-				ProfileUUID string `db:"profile_uuid"`
-				SyncML      []byte `db:"syncml"`
-			}
-			stmt, args, err := sqlx.In(
-				`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid IN (?)`,
-				winProfileUUIDs)
-			if err == nil {
-				if err := sqlx.SelectContext(ctx, tx, &profRows, stmt, args...); err == nil {
-					for _, r := range profRows {
-						winProfileContents[r.ProfileUUID] = r.SyncML
-					}
-				}
-			}
-			if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, winProfileUUIDs, winProfileContents); err != nil {
-				return ctxerr.Wrapf(ctx, err, "cancelling windows profile installs for team %d", tid)
-			}
 		}
 
 		// Delete related records from teamRefs tables before deleting the team itself
@@ -235,6 +212,34 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 		}
 
 		return nil
+	})
+}
+
+// enqueueWindowsDeleteCommandsForTeam generates SyncML <Delete> commands for
+// Windows profiles assigned to the given team. Runs in its own transaction to
+// keep load out of the main DeleteTeam transaction.
+func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, tid uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var profRows []struct {
+			ProfileUUID string `db:"profile_uuid"`
+			SyncML      []byte `db:"syncml"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &profRows,
+			`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "loading windows profiles for team %d", tid)
+		}
+		if len(profRows) == 0 {
+			return nil
+		}
+
+		profileUUIDs := make([]string, 0, len(profRows))
+		profileContents := make(map[string][]byte, len(profRows))
+		for _, r := range profRows {
+			profileUUIDs = append(profileUUIDs, r.ProfileUUID)
+			profileContents[r.ProfileUUID] = r.SyncML
+		}
+
+		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs, profileContents)
 	})
 }
 
