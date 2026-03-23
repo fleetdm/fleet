@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
@@ -22,10 +20,6 @@ func GetRoutes(svc api.Service) eu.HandlerRoutesFunc {
 }
 
 func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerOption) {
-	opts = append(opts, kithttp.ServerErrorEncoder(func(ctx context.Context, err error, w http.ResponseWriter) {
-		fmt.Println(">>>>> ERROR ENCODING RESPONSE:", err)
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
 	ae := newEndpointerWithNoAuth(svc, opts, r)
 
 	// must support HEAD, GET and POST-as-GET for new_nonce as per
@@ -46,7 +40,6 @@ func getNewNonceEndpoint(ctx context.Context, request any, svc api.Service) plat
 	req := request.(*api_http.GetNewNonceRequest)
 	nonce, err := svc.NewNonce(ctx, req.Identifier)
 	if err != nil {
-		fmt.Println(">>>>>> ERROR GETTING NONCE:", err)
 		return api_http.GetNewNonceResponse{Err: err}
 	}
 	return api_http.GetNewNonceResponse{

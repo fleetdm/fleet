@@ -4,7 +4,6 @@ package http
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
@@ -28,7 +27,6 @@ type GetNewNonceResponse struct {
 func (r GetNewNonceResponse) Error() error { return r.Err }
 
 func (r GetNewNonceResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	fmt.Println(">>>>>> HIJACK RENDER CALLED")
 	w.Header().Set("Replay-Nonce", r.Nonce)
 	w.Header().Set("Cache-Control", "no-store")
 

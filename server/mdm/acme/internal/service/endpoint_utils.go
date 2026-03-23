@@ -3,12 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"reflect"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -20,7 +18,6 @@ import (
 
 // encodeResponse encodes the response as JSON.
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) error {
-	fmt.Println(">>>>> encodeResponse called: ", spew.Sdump(response))
 	return eu.EncodeCommonResponse(ctx, w, response,
 		func(w http.ResponseWriter, response any) error {
 			enc := json.NewEncoder(w)
