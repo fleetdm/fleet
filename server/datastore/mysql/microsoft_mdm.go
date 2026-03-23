@@ -1122,8 +1122,8 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 			continue
 		}
 		if deleteCmd == nil {
-			// All LocURIs in this profile are also targeted by other active
-			// profiles — skip the <Delete> to avoid undoing their settings.
+			// No delete command needed (profile only has Exec commands, or all
+			// LocURIs are protected by other active profiles).
 			// Delete the host-profile rows directly since no command is needed.
 			delSkipStmt, delSkipArgs, delSkipErr := sqlx.In(
 				`DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND host_uuid IN (?)`,

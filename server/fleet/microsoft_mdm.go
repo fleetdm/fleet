@@ -1606,8 +1606,9 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	}
 
 	// Select the appropriate status mapper based on operation type.
-	// For remove operations, 404 (Not Found) and 405 (Not Allowed) are
-	// treated as success since the setting is effectively not on the device.
+	// For remove operations, 404 (Not Found), 405 (Not Allowed), and
+	// 500 (Command Failed) are treated as success since the setting is
+	// effectively not on the device. Our remove operations are best-effort.
 	statusMapper := WindowsResponseToDeliveryStatus
 	if isRemoveOperation {
 		statusMapper = WindowsResponseToDeliveryStatusForRemove
@@ -1711,7 +1712,7 @@ func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 //   - 2xx: device confirmed removal
 //   - 404 (Not Found): setting was never on the device
 //   - 405 (Not Allowed): CSP node is read-only per OMA-DM spec
-//   - 500 (Command Failed): CSP doesn't support <Delete> — in practice Windows
+//   - 500 (Command Failed): CSP doesn't support <Delete>; in manual testing Windows
 //     returns 500 (not 405) for nodes that can't be deleted, such as
 //     DeviceLock/AccountLockoutPolicy and some SystemServices CSP nodes
 func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
@@ -1752,7 +1753,9 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 		return nil, errors.New("no commands found in profile")
 	}
 
-	// extractLocURIs collects all Target LocURIs from Replace, Add, and Exec commands.
+	// extractLocURIs collects all Target LocURIs from Replace and Add commands.
+	// Exec commands are intentionally excluded — they trigger one-time actions
+	// and don't persist nodes in the DM tree, so there is nothing to delete.
 	extractLocURIs := func(cmd *SyncMLCmd) []string {
 		var uris []string
 		for _, nested := range cmd.ReplaceCommands {
@@ -1761,11 +1764,6 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 			}
 		}
 		for _, nested := range cmd.AddCommands {
-			if uri := nested.GetTargetURI(); uri != "" {
-				uris = append(uris, uri)
-			}
-		}
-		for _, nested := range cmd.ExecCommands {
 			if uri := nested.GetTargetURI(); uri != "" {
 				uris = append(uris, uri)
 			}
@@ -1802,7 +1800,8 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 		// Atomic profile: extract URIs from nested commands, wrap deletes in <Atomic>
 		uris := extractLocURIs(&cmds[0])
 		if len(uris) == 0 {
-			return nil, errors.New("no target URIs found in atomic profile")
+			// All nested commands are Exec (or have no URIs) — nothing to delete.
+			return nil, nil
 		}
 
 		atomicCmd := SyncMLCmd{
@@ -1826,7 +1825,11 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 			return nil, fmt.Errorf("marshalling atomic delete command: %w", err)
 		}
 	case len(cmds) == 1:
-		// Single non-atomic command (Replace, Add, or Exec at top level)
+		// Single non-atomic command at top level.
+		if cmds[0].XMLName.Local == CmdExec {
+			// Exec triggers a one-time action — nothing to delete.
+			return nil, nil
+		}
 		uri := cmds[0].GetTargetURI()
 		if uri == "" {
 			return nil, errors.New("no target URI found in profile")
@@ -1846,6 +1849,10 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 		// buildCommandFromProfileBytes), subsequent commands get new UUIDs.
 		var deleteCmds []SyncMLCmd
 		for _, cmd := range cmds {
+			// Skip Exec commands — they trigger one-time actions, nothing to delete.
+			if cmd.XMLName.Local == CmdExec {
+				continue
+			}
 			uri := cmd.GetTargetURI()
 			// Skip empty URIs and URIs targeted by other active profiles.
 			if uri == "" || !safeToDelete(uri) {
@@ -1858,7 +1865,8 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 			deleteCmds = append(deleteCmds, makeDeleteCmd(uri, cmdID))
 		}
 		if len(deleteCmds) == 0 {
-			return nil, errors.New("no target URIs found in profile")
+			// All commands were Exec or protected; nothing to delete.
+			return nil, nil
 		}
 		rawCommand, err = xml.Marshal(deleteCmds)
 		if err != nil {

@@ -405,6 +405,7 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 		name        string
 		profileXML  string
 		expectError string
+		expectNil   bool
 		// checkFn is called on the resulting command for custom assertions
 		checkFn func(t *testing.T, cmd *MDMWindowsCommand)
 	}{
@@ -484,7 +485,7 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 			},
 		},
 		{
-			name: "atomic profile with Add and Exec commands",
+			name: "atomic profile with Add and Exec commands skips Exec",
 			profileXML: `<Atomic>
 				<CmdID>1</CmdID>
 				<Add>
@@ -502,14 +503,37 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 				</Exec>
 			</Atomic>`,
 			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
+				// Only the Add should produce a Delete; Exec is skipped.
 				cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
 				require.NoError(t, err)
 				require.Len(t, cmds, 1)
 				require.Equal(t, CmdAtomic, cmds[0].XMLName.Local)
-				require.Len(t, cmds[0].DeleteCommands, 2)
+				require.Len(t, cmds[0].DeleteCommands, 1)
 				require.Equal(t, "./Device/Vendor/MSFT/VPNv2/MyVPN/ProfileXML", cmds[0].DeleteCommands[0].GetTargetURI())
-				require.Equal(t, "./Device/Vendor/MSFT/VPNv2/MyVPN/Connect", cmds[0].DeleteCommands[1].GetTargetURI())
 			},
+		},
+		{
+			name: "single Exec command returns nil",
+			profileXML: `<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target><LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipe</LocURI></Target>
+				</Item>
+			</Exec>`,
+			expectNil: true,
+		},
+		{
+			name: "atomic profile with only Exec commands returns nil",
+			profileXML: `<Atomic>
+				<CmdID>1</CmdID>
+				<Exec>
+					<CmdID>2</CmdID>
+					<Item>
+						<Target><LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipe</LocURI></Target>
+					</Item>
+				</Exec>
+			</Atomic>`,
+			expectNil: true,
 		},
 		{
 			name:        "empty profile",
@@ -538,6 +562,9 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 			if tt.expectError != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectError)
+			} else if tt.expectNil {
+				require.NoError(t, err)
+				require.Nil(t, cmd)
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, cmd)
