@@ -2,19 +2,42 @@ import React, { useCallback, useMemo } from "react";
 
 import { IHostReport } from "services/entities/host_reports";
 import { humanLastSeen } from "utilities/helpers";
+import { pluralize } from "utilities/strings/stringUtils";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
 import ActionsDropdown from "components/ActionsDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PillBadge from "components/PillBadge";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { Colors } from "styles/var/colors";
 
 const baseClass = "host-report-card";
-const iconColor = "ui-fleet-black-75";
+const ICON_COLOR: Colors = "ui-fleet-black-75";
+
+const ReportBanner = ({
+  iconName,
+  message,
+  children,
+}: {
+  iconName: IconNames;
+  message: React.ReactNode;
+  children?: React.ReactNode;
+}) => (
+  <InfoBanner color="grey" borderRadius="xlarge">
+    <div className={`${baseClass}__banner-content`}>
+      <div className={`${baseClass}__banner-text`}>
+        <Icon name={iconName} color={ICON_COLOR} />
+        {message}
+      </div>
+      {children}
+    </div>
+  </InfoBanner>
+);
 
 interface IHostReportCardProps {
   report: IHostReport;
@@ -86,70 +109,53 @@ const HostReportCard = ({
   };
 
   const renderBanner = () => {
-    // Report doesn't store results
     if (doesNotStoreResults) {
       return (
-        <InfoBanner color="grey" borderRadius="xlarge">
-          <div className={`${baseClass}__banner-content`}>
-            <div className={`${baseClass}__banner-text`}>
-              <Icon name="info-outline" color={iconColor} />
-              Results from this report are not stored in Fleet.
-            </div>
-          </div>
-        </InfoBanner>
+        <ReportBanner
+          iconName="info-outline"
+          message="Results from this report are not stored in Fleet."
+        />
       );
     }
 
-    // Awaiting results
     if (isAwaitingResults) {
       return (
-        <InfoBanner color="grey" borderRadius="xlarge">
-          <div className={`${baseClass}__banner-content`}>
-            <div className={`${baseClass}__banner-text`}>
-              <Icon name="pending-outline" color={iconColor} />
-              Fleet is awaiting results from {hostName}.
-            </div>
-          </div>
-        </InfoBanner>
+        <ReportBanner
+          iconName="pending-outline"
+          message={`Fleet is awaiting results from ${hostName}.`}
+        />
       );
     }
 
-    // Has run but returned no data
     if (!hasData) {
       return (
-        <InfoBanner color="grey" borderRadius="xlarge">
-          <div className={`${baseClass}__banner-content`}>
-            <div className={`${baseClass}__banner-text`}>
-              <Icon name="check" color={iconColor} />
-              This report has run on {hostName}, but returned no data for this
-              host.
-            </div>
-          </div>
-        </InfoBanner>
+        <ReportBanner
+          iconName="check"
+          message={`This report has run on ${hostName}, but returned no data for this host.`}
+        />
       );
     }
 
-    // Has data and additional results
     if (report.n_host_results > 1) {
+      const additionalCount = report.n_host_results - 1;
       return (
-        <InfoBanner color="grey" borderRadius="xlarge">
-          <div className={`${baseClass}__banner-content`}>
-            <div className={`${baseClass}__banner-text`}>
-              <Icon name="info-outline" color={iconColor} />
-              {report.n_host_results - 1} additional result
-              {report.n_host_results - 1 !== 1 ? "s" : ""} not shown
-            </div>
-            <Button
-              className={`${baseClass}__view-full-report`}
-              variant="inverse"
-              size="small"
-              onClick={() => onShowDetails(report)}
-            >
-              View full report
-              <Icon name="chevron-right" color={iconColor} />
-            </Button>
-          </div>
-        </InfoBanner>
+        <ReportBanner
+          iconName="info-outline"
+          message={`${additionalCount} additional ${pluralize(
+            additionalCount,
+            "result"
+          )} not shown`}
+        >
+          <Button
+            className={`${baseClass}__view-full-report`}
+            variant="inverse"
+            size="small"
+            onClick={() => onShowDetails(report)}
+          >
+            View full report
+            <Icon name="chevron-right" color={ICON_COLOR} />
+          </Button>
+        </ReportBanner>
       );
     }
 
@@ -174,7 +180,7 @@ const HostReportCard = ({
               className={`${baseClass}__clipped-badge`}
               tipContent="This report has paused saving results. If automations are enabled, results are still sent to your log destination."
             >
-              <Icon size="small" name="warning" color="ui-fleet-black-75" />
+              <Icon size="small" name="warning" color={ICON_COLOR} />
               Report clipped
             </PillBadge>
           )}

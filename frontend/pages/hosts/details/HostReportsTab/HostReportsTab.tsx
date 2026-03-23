@@ -8,6 +8,7 @@ import hostReportsAPI, {
   IListHostReportsResponse,
 } from "services/entities/host_reports";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { pluralize } from "utilities/strings/stringUtils";
 import { getNextLocationPath } from "utilities/helpers";
 
 import Spinner from "components/Spinner";
@@ -205,7 +206,7 @@ const HostReportsTab = ({
       <div className={`${baseClass}__controls`}>
         <div className={`${baseClass}__controls-left`}>
           <span className={`${baseClass}__count`}>
-            {totalCount} report{totalCount !== 1 ? "s" : ""}
+            {totalCount} {pluralize(totalCount, "report")}
           </span>
           {!saveReportsDisabledInConfig && (
             <Slider
