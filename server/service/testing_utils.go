@@ -1427,6 +1427,7 @@ type fmaTestState struct {
 	installerBytes []byte
 	sha256         string
 	installerPath  string
+	patchQuery     string
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1480,8 +1481,11 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 
 		versions := []*ma.FMAManifestApp{
 			{
-				Version:            state.version,
-				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				Version: state.version,
+				Queries: ma.FMAQueries{
+					Exists: "SELECT 1 FROM osquery_info;",
+					Patch:  state.patchQuery,
+				},
 				InstallerURL:       installerServer.URL + state.installerPath,
 				InstallScriptRef:   "foobaz",
 				UninstallScriptRef: "foobaz",

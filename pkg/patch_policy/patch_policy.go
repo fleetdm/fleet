@@ -48,9 +48,8 @@ func GenerateFromManifest(p PolicyData) (string, error) {
 
 // GenerateFromInstaller creates a patch policy with all fields from an installer
 func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*PolicyData, error) {
-	var query string
-
-	fmt.Println(p)
+	// use the patch policy query from the app manifest if available
+	query := installer.PatchQuery
 
 	if p.Description == "" {
 		p.Description = "Outdated software might introduce security vulnerabilities or compatibility issues."
@@ -63,7 +62,7 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 	switch installer.Platform {
 	case "darwin":
 		if p.Name == "" {
-			p.Name = fmt.Sprintf("macos - %s up to date", installer.SoftwareTitle)
+			p.Name = fmt.Sprintf("macOS - %s up to date", installer.SoftwareTitle)
 		}
 		if installer.PatchQuery == "" {
 			// TODO: what if there's an override query? Whoever calls this will have to find out
@@ -75,7 +74,7 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 		}
 	case "windows":
 		if p.Name == "" {
-			p.Name = fmt.Sprintf("windows - %s up to date", installer.SoftwareTitle)
+			p.Name = fmt.Sprintf("Windows - %s up to date", installer.SoftwareTitle)
 		}
 		if installer.PatchQuery == "" {
 			// TODO: use upgrade code to improve accuracy?

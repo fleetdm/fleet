@@ -2306,10 +2306,11 @@ INSERT INTO software_installers (
 	package_ids,
 	install_during_setup,
 	fleet_maintained_app_id,
-	is_active
+	is_active,
+	patch_query
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?
+  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2328,7 +2329,8 @@ ON DUPLICATE KEY UPDATE
   user_email = VALUES(user_email),
   url = VALUES(url),
   install_during_setup = COALESCE(?, install_during_setup),
-  is_active = VALUES(is_active)
+  is_active = VALUES(is_active),
+  patch_query = VALUES(patch_query)
 `
 
 	const updateInstaller = `
@@ -2340,7 +2342,8 @@ SET
 	install_script_content_id = ?,
 	uninstall_script_content_id = ?,
 	post_install_script_content_id = ?,
-	pre_install_query = ?
+	pre_install_query = ? 
+	-- TODO(JK): need to update patch query?
 WHERE id = ?
 `
 
@@ -2762,6 +2765,7 @@ WHERE
 				installer.InstallDuringSetup,
 				installer.FleetMaintainedAppID,
 				isActive,
+				installer.PatchQuery,
 				installer.InstallDuringSetup,
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
@@ -2792,6 +2796,7 @@ WHERE
 					postInstallScriptID,
 					installer.PreInstallQuery,
 					existingID,
+					// TODO(JK): update patch query?
 				}
 				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {
 					return ctxerr.Wrapf(ctx, err, "updating existing installer with name %q", installer.Filename)
