@@ -170,14 +170,14 @@ const HostReportsTab = ({
 
   const onShowDetails = useCallback(
     (report: IHostReport) => {
-      router.push(PATHS.HOST_REPORT_RESULTS(hostId, report.query_id));
+      router.push(PATHS.HOST_REPORT_RESULTS(hostId, report.report_id));
     },
     [hostId, router]
   );
 
   const onViewAllHosts = useCallback(
     (report: IHostReport) => {
-      router.push(PATHS.REPORT_DETAILS(report.query_id));
+      router.push(PATHS.REPORT_DETAILS(report.report_id));
     },
     [router]
   );
@@ -244,7 +244,7 @@ const HostReportsTab = ({
           <div className={`${baseClass}__reports-list`}>
             {reports.map((report) => (
               <HostReportCard
-                key={report.query_id}
+                key={report.report_id}
                 report={report}
                 hostName={hostName}
                 onShowDetails={onShowDetails}

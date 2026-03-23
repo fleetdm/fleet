@@ -34,7 +34,7 @@ func TestListHostReports(t *testing.T) {
 
 	sampleReports := []*fleet.HostReport{
 		{
-			QueryID:      1,
+			ReportID:      1,
 			Name:         "Query Alpha",
 			Description:  "desc alpha",
 			LastFetched:  &now,
@@ -42,7 +42,7 @@ func TestListHostReports(t *testing.T) {
 			NHostResults: 3,
 		},
 		{
-			QueryID:      2,
+			ReportID:      2,
 			Name:         "Query Beta",
 			Description:  "desc beta",
 			LastFetched:  nil,
@@ -214,7 +214,7 @@ func TestHostReportJSONRoundTrip(t *testing.T) {
 	// This test exercises the HostReport struct's FirstResult field to ensure
 	// the data mapping from query_results.data JSON is correct.
 	report := &fleet.HostReport{
-		QueryID:      1,
+		ReportID:      1,
 		Name:         "USB Devices",
 		Description:  "List USB devices",
 		LastFetched:  &now,
@@ -230,7 +230,7 @@ func TestHostReportJSONRoundTrip(t *testing.T) {
 	err = json.Unmarshal(b, &decoded)
 	require.NoError(t, err)
 
-	assert.Equal(t, report.QueryID, decoded.QueryID)
+	assert.Equal(t, report.ReportID, decoded.ReportID)
 	assert.Equal(t, report.Name, decoded.Name)
 	assert.Equal(t, report.Description, decoded.Description)
 	assert.Equal(t, report.FirstResult, decoded.FirstResult)

@@ -19,6 +19,9 @@ import { Colors } from "styles/var/colors";
 const baseClass = "host-report-card";
 const ICON_COLOR: Colors = "ui-fleet-black-75";
 
+const ACTION_SHOW_DETAILS = "show_details";
+const ACTION_VIEW_ALL_HOSTS = "view_all_hosts";
+
 const ReportBanner = ({
   iconName,
   message,
@@ -59,9 +62,9 @@ const HostReportCard = ({
 
   const onActionChange = useCallback(
     (value: string) => {
-      if (value === "show_details") {
+      if (value === ACTION_SHOW_DETAILS) {
         onShowDetails(report);
-      } else if (value === "view_all_hosts") {
+      } else if (value === ACTION_VIEW_ALL_HOSTS) {
         onViewAllHosts(report);
       }
     },
@@ -71,10 +74,10 @@ const HostReportCard = ({
   const actionOptions: IDropdownOption[] = useMemo(() => {
     const options: IDropdownOption[] = [];
     if (hasResults) {
-      options.push({ value: "show_details", label: "Show details" });
+      options.push({ value: ACTION_SHOW_DETAILS, label: "Show details" });
     }
     options.push({
-      value: "view_all_hosts",
+      value: ACTION_VIEW_ALL_HOSTS,
       label: "View report for all hosts",
     });
     return options;

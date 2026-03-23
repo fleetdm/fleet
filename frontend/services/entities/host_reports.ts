@@ -3,7 +3,6 @@ import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
 export interface IHostReport {
-  query_id: number;
   report_id: number;
   name: string;
   description: string;
