@@ -252,7 +252,7 @@ func TestListActivitiesDeletedUserFallsBackToStoredName(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: new(deletedUserID), ActorFullName: &storedName, ActorEmail: &storedEmail},
+			{ID: 1, Type: "test_activity", ActorID: &deletedUserID, ActorFullName: &storedName, ActorEmail: &storedEmail},
 		}),
 		// UsersByIDs returns nothing for the deleted user
 		withUsers(nil),
