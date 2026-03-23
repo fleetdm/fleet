@@ -96,6 +96,11 @@ To propose an ad, or a change to an ad:
 4. Launch campaign once approved.
 
 
+### Manage LinkedIn ad creatives
+
+LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
+
+
 ### Settle content strategy
 
 The CMO is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
