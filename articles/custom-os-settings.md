@@ -22,9 +22,17 @@ Fleet UI:
 
 3. Select **Add profile** and choose your configuration profile.
 
-4. To edit the OS setting, first remove the old configuration profile and then add the new one. On macOS, iOS, iPadOS, and Android, removing a configuration profile will remove enforcement of the OS setting.
+4. To edit the OS setting, first remove the old configuration profile and then add the new one.
 
 Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) in the Fleet API.
+
+### Removal behavior
+
+When a configuration profile is removed from Fleet or a host changes teams, Fleet reverses the settings that were applied by the profile:
+
+- **macOS, iOS, iPadOS, and Android:** Removing a configuration profile removes enforcement of the OS setting on the host.
+
+- **Windows:** Fleet sends SyncML `<Delete>` commands to reverse the settings applied by the profile. This is best-effort: most common CSPs (Policy, VPNv2) support `<Delete>` and revert to their defaults, but some CSPs (e.g. Firewall, WDATP) only accept `<Replace>` and return an error for `<Delete>`. Fleet treats these errors as success since the profile is no longer managed. The setting remains on the device at its last configured value but is no longer enforced by Fleet.
 
 ### Device and user scope
 
