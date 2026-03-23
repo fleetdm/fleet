@@ -112,7 +112,7 @@ export const generateTableColumnConfigs = (
           >
             <TooltipTruncatedTextCell
               value={cellProps.row.original.name}
-              classes="w400"
+              className="w400" // Funky workaround for a truncation text cell WITHIN a button
             />
           </Button>
         );

@@ -65,10 +65,12 @@ const ConditionalAccessModal = ({
   };
 
   const getPolicyDisabled = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin");
+    !policy.platform.includes("darwin") && !policy.platform.includes("windows");
 
   const getPolicyTooltipContent = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin") ? "Policy does not target macOS" : null;
+    !policy.platform.includes("darwin") && !policy.platform.includes("windows")
+      ? "Policy does not target macOS or Windows"
+      : null;
 
   const learnMoreLink = (
     <CustomLink
@@ -125,6 +127,7 @@ const ConditionalAccessModal = ({
             onCancel={onExit}
             teamId={teamId}
             disableList={!formData.enabled}
+            renderPlatform
           />
         </div>
       </>
@@ -140,7 +143,7 @@ const ConditionalAccessModal = ({
       />{" "}
       to block single sign-on from hosts failing policies. {learnMoreLink}
       <div className="modal-cta-wrap">
-        <Button onClick={onExit}>Done</Button>
+        <Button onClick={onExit}>Close</Button>
       </div>
     </>
   );

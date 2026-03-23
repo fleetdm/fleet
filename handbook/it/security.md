@@ -1944,13 +1944,13 @@ We ask for vulnerabilities reported by researchers and prefer to perform coordin
 For other vulnerabilities affecting Fleet or code used in Fleet, the Head of Security, CTO and CEO can accept the risk of patching them according to custom timelines, depending on the risk and possible temporary mitigations.
 
 
-### Mapping of CVSSv3 scores to Fleet severity
+### Mapping of CVSSv4 scores to Fleet severity
 
 Fleet adapts the severity assigned to vulnerabilities when needed.
 
 The features we use in a library, for example, can mean that some vulnerabilities in the library are unexploitable. In other cases, it might make the vulnerability easier to exploit. In those cases, Fleet would first categorize the vulnerability using publicly available information, then lower or increase the severity based on additional context.
 
-When using externally provided CVSSv3 scores, Fleet maps them like this:
+When using externally provided CVSSv4 scores, Fleet maps them like this:
 
 | CVSSv3 score                       | Fleet severity                      |
 | ---------------------------------- | ----------------------------------- |

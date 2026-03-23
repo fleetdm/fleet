@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -209,8 +208,8 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(johnUser.ID)},
-			{ID: 2, Type: "another_activity", ActorID: ptr.Uint(janeUser.ID)},
+			{ID: 1, Type: "test_activity", ActorID: &johnUser.ID},
+			{ID: 2, Type: "another_activity", ActorID: &janeUser.ID},
 			{ID: 3, Type: "system_activity"}, // No actor
 		}),
 		withUsers([]*activity.User{johnUser, janeUser}),
@@ -253,7 +252,7 @@ func TestListActivitiesDeletedUserFallsBackToStoredName(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(deletedUserID), ActorFullName: &storedName, ActorEmail: &storedEmail},
+			{ID: 1, Type: "test_activity", ActorID: &deletedUserID, ActorFullName: &storedName, ActorEmail: &storedEmail},
 		}),
 		// UsersByIDs returns nothing for the deleted user
 		withUsers(nil),
@@ -289,7 +288,7 @@ func TestListActivitiesWithMatchQuery(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(johnUser.ID)},
+			{ID: 1, Type: "test_activity", ActorID: &johnUser.ID},
 		}),
 		withSearchUserIDs([]uint{100, 200, 300}), // 3 users match "john", but only user 100 has activities
 		withUsers([]*activity.User{johnUser}),
@@ -347,9 +346,9 @@ func TestListActivitiesWithDuplicateUserIDs(t *testing.T) {
 	// Multiple activities by the same user
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "created_policy", ActorID: ptr.Uint(johnUser.ID)},
-			{ID: 2, Type: "deleted_policy", ActorID: ptr.Uint(johnUser.ID)},
-			{ID: 3, Type: "edited_policy", ActorID: ptr.Uint(johnUser.ID)},
+			{ID: 1, Type: "created_policy", ActorID: &johnUser.ID},
+			{ID: 2, Type: "deleted_policy", ActorID: &johnUser.ID},
+			{ID: 3, Type: "edited_policy", ActorID: &johnUser.ID},
 		}),
 		withUsers([]*activity.User{johnUser}),
 	)
@@ -419,7 +418,7 @@ func TestListActivitiesErrors(t *testing.T) {
 			name: "user enrichment error",
 			opts: []func(*testSetup){
 				withActivities([]*api.Activity{
-					{ID: 1, Type: "test_activity", ActorID: ptr.Uint(100)},
+					{ID: 1, Type: "test_activity", ActorID: new(uint(100))},
 				}),
 				withUsersByIDsError(errors.New("user service error")),
 			},

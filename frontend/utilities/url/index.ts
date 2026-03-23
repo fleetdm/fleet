@@ -50,6 +50,7 @@ interface IMutuallyExclusiveHostParams {
   configProfileUUID?: string;
   scriptBatchExecutionStatus?: string;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -224,6 +225,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   configProfileUUID,
   scriptBatchExecutionStatus,
   scriptBatchExecutionId,
+  depProfileError,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -297,6 +299,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
         [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: scriptBatchExecutionStatus,
         [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: scriptBatchExecutionId,
       };
+    case !!depProfileError:
+      return { dep_profile_error: true };
     default:
       return {};
   }

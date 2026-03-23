@@ -22,15 +22,6 @@
   autoIssue:
     labels: [":help-finance"]
     repo: "confidential"
-- task: "Vanta check"
-  startedOn: "2025-06-09"
-  frequency: "Weekly"
-  description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#monitor-compliance-tests"
-  dri: "rfoo2015"
-  autoIssue:
-    labels: [":help-finance"]
-    repo: "confidential"
 - task: "Key review prep"
   startedOn: "2024-02-14"
   frequency: "Triweekly"
