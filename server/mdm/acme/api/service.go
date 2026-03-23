@@ -6,4 +6,5 @@ package api
 // It embeds all method-specific interfaces. Bootstrap returns this type.
 type Service interface {
 	DirectoryNonceService
+	AccountService
 }

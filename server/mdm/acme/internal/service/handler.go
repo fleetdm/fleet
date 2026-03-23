@@ -26,6 +26,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoin
 	// TODO(mna): double-check that it works with HEAD (I think we handle it automatically for GET)
 	ae.GET("/api/mdm/acme/{identifier}/new_nonce", getNewNonceEndpoint, api_http.GetNewNonceRequest{})
 	ae.GET("/api/mdm/acme/{identifier}/directory", getDirectoryEndpoint, api_http.GetDirectoryRequest{})
+
+	ae.POST("/api/mdm/acme/{identifier}/new_account", createAccountEndpoint, api_http.JWSRequestContainer{})
+	ae.POST("/api/mdm/acme/{identifier}/new_order", createOrderEndpoint, api_http.JWSRequestContainer{})
 }
 
 // getNewNonceEndpoint handles HEAD/GET /api/mdm/acme/{identifier}/new_nonce requests.
@@ -49,4 +52,25 @@ func getDirectoryEndpoint(ctx context.Context, request any, svc api.Service) pla
 		return api_http.GetDirectoryResponse{Err: err}
 	}
 	return api_http.GetDirectoryResponse{Directory: dir}
+}
+
+// createAccountEndpoint handles POST /api/mdm/acme/{identifier}/new_account requests.
+func createAccountEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.JWSRequestContainer)
+	newAccountRequest := api_http.CreateNewAccountRequest{}
+	err := svc.AuthenticateNewAccountMessage(ctx, req, &newAccountRequest)
+	if err != nil {
+		return api_http.CreateNewAccountResponse{Err: err}
+	}
+
+	account, err := svc.CreateAccount(ctx, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
+	// TODO Fill out the returned object with the proper URL here or in the svc so it can be returned in the Location header as per ACME spec
+}
+
+// createAccountEndpoint handles POST /api/mdm/acme/{identifier}/new_account requests.
+func createOrderEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.JWSRequestContainer)
+	newOrderRequest := api_http.CreateNewOrderRequest{}
+	err := svc.AuthenticateMessageFromAccount(ctx, req, &newOrderRequest)
+	req := request.(*api_http.CreateNewAccountRequest)
 }
