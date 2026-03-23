@@ -1063,9 +1063,7 @@ const TAGGED_TEMPLATES = {
   editedWindowsUpdates: (activity: IActivity) => {
     const deadlineDays = activity.details?.deadline_days;
     const gracePeriodDays = activity.details?.grace_period_days;
-    const isCleared =
-      deadlineDays === undefined ||
-      deadlineDays === null;
+    const isCleared = deadlineDays === undefined || deadlineDays === null;
     const teamText = activity.details?.team_name ? (
       <>
         the <b>{activity.details.team_name}</b> fleet
