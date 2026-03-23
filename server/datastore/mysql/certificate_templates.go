@@ -422,7 +422,7 @@ func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID u
 
 	affected, _ := results.RowsAffected()
 	if affected == 0 {
-		return ctxerr.Errorf(ctx, "template %d does not exist for host %d", templateID, hostID)
+		return ctxerr.Wrapf(ctx, notFound("HostCertificateTemplate"), "template %d does not exist for host %d", templateID, hostID)
 	}
 
 	return nil
