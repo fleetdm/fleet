@@ -759,7 +759,7 @@ org_settings:
 
 - `ai_features_disabled` disables AI-assisted policy descriptions and resolutions. (default: `false`)
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
-- `live_report_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
+- `live_reporting_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
 - `query_reports_disabled` disables query reports and deletes existing reports. (default: `false`)
 - `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
