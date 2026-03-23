@@ -12,7 +12,6 @@ import teamsAPI from "services/entities/teams";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import validatePresence from "components/forms/validators/validate_presence";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "windows-target-form";
@@ -45,14 +44,22 @@ const validateGracePeriodDays = (value: string) => {
 
 const validateForm = (formData: IWindowsTargetFormData) => {
   const errors: IWindowsTargetFormErrors = {};
+  const deadlineEmpty = formData.deadlineDays.trim() === "";
+  const graceEmpty = formData.gracePeriodDays.trim() === "";
 
-  if (!validatePresence(formData.deadlineDays)) {
-    errors.deadlineDays = "The deadline days is required.";
-  } else if (!validateDeadlineDays(formData.deadlineDays)) {
+  // Both empty is valid (clears enforcement)
+  if (deadlineEmpty && graceEmpty) {
+    return errors;
+  }
+
+  if (!deadlineEmpty && !validateDeadlineDays(formData.deadlineDays)) {
     errors.deadlineDays = "Deadline must meet criteria below.";
   }
 
-  if (!validatePresence(formData.gracePeriodDays)) {
+  if (deadlineEmpty && !graceEmpty) {
+    errors.gracePeriodDays =
+      "Grace period must be empty if no deadline is set.";
+  } else if (!deadlineEmpty && graceEmpty) {
     errors.gracePeriodDays = "The grace period days is required.";
   } else if (!validateGracePeriodDays(formData.gracePeriodDays)) {
     errors.gracePeriodDays = "Grace period must meet criteria below.";
@@ -64,8 +71,8 @@ const validateForm = (formData: IWindowsTargetFormData) => {
 interface IWindowsMdmConfigData {
   mdm: {
     windows_updates: {
-      deadline_days: number;
-      grace_period_days: number;
+      deadline_days: number | null;
+      grace_period_days: number | null;
     };
   };
 }
@@ -77,8 +84,12 @@ const createMdmConfigData = (
   return {
     mdm: {
       windows_updates: {
-        deadline_days: parseInt(deadlineDays, 10),
-        grace_period_days: parseInt(gracePeriodDays, 10),
+        deadline_days:
+          deadlineDays.trim() === "" ? null : parseInt(deadlineDays, 10),
+        grace_period_days:
+          gracePeriodDays.trim() === ""
+            ? null
+            : parseInt(gracePeriodDays, 10),
       },
     },
   };
