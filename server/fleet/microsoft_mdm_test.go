@@ -546,13 +546,14 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd, err := BuildDeleteCommandFromProfileBytes([]byte(tt.profileXML), "test-uuid-123")
-			if tt.expectError != "" {
+			switch {
+			case tt.expectError != "":
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectError)
-			} else if tt.expectNil {
+			case tt.expectNil:
 				require.NoError(t, err)
 				require.Nil(t, cmd)
-			} else {
+			default:
 				require.NoError(t, err)
 				require.NotNil(t, cmd)
 				if tt.checkFn != nil {
