@@ -9,7 +9,7 @@ You can read more about the anatomy of these files and what they do in [Fleet's 
 
 > Unsure? Talk to a human at fleetdm.com/support
 
-## Getting started with GitOps
+## Getting started
 
 ### GitHub setup
 
