@@ -11,7 +11,7 @@ You can read more about the anatomy of these files and what they do in [Fleet's 
 
 ## Getting started
 
-### GitHub setup
+### GitHub
 
 1. Create your own GitHub repository and push the files in this folder to your new repo. Note that a workflow will run once and fail because the required variables haven't been added (step 2).
 
