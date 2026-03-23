@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -81,4 +82,25 @@ func (s *integrationTestSuite) newNonce(t *testing.T, httpMethod, pathIdentifier
 		Nonce:      resp.Header.Get("Replay-Nonce"),
 	}
 	return result, resp
+}
+
+// getDirectory makes an HTTP request to get directory endpoint and returns the parsed response and the raw response.
+func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdentifier string) (*api_http.GetDirectoryResponse, *http.Response) {
+	t.Helper()
+	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/directory", pathIdentifier) //nolint:gosec // test server URL is safe
+	req, err := http.NewRequest(httpMethod, url, nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, resp
+	}
+
+	var result api_http.GetDirectoryResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	resp.Body.Close()
+	require.NoError(t, err)
+	return &result, resp
 }

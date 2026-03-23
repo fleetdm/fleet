@@ -33,6 +33,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 	// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.3 and
 	// https://datatracker.ietf.org/doc/html/rfc8555/#section-7.1.1
 	ae.GET("/api/mdm/acme/{identifier}/directory", getDirectoryEndpoint, api_http.GetDirectoryRequest{})
+	ae.POST("/api/mdm/acme/{identifier}/directory", getDirectoryEndpoint, api_http.GetDirectoryRequest{})
 }
 
 // getNewNonceEndpoint handles HEAD/GET /api/mdm/acme/{identifier}/new_nonce requests.
