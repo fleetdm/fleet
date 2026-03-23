@@ -1140,6 +1140,7 @@ func EncodeCommonResponse(
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
 	domainErrorEncoder DomainErrorEncoder,
 ) error {
+	fmt.Println(">>>>>> COMMON RESPONSE")
 	// Infer alias rules from `renameto` struct tags on the response type.
 	aliasRules := ExtractAliasRules(response)
 	if cs, ok := response.(cookieSetter); ok {
@@ -1160,11 +1161,13 @@ func EncodeCommonResponse(
 	}
 
 	if e, ok := response.(platform_http.Errorer); ok && e.Error() != nil {
+		fmt.Println(">>>>> ENCODE ERROR")
 		EncodeError(ctx, e.Error(), w, domainErrorEncoder)
 		return nil
 	}
 
 	if render, ok := response.(renderHijacker); ok {
+		fmt.Println(">>>>>> JIJACK")
 		render.HijackRender(ctx, w)
 		return nil
 	}

@@ -1,0 +1,93 @@
+package tests
+
+import (
+	"net/http"
+	"testing"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/require"
+)
+
+func TestIntegration(t *testing.T) {
+	s := setupIntegrationTest(t)
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, s *integrationTestSuite)
+	}{
+		{"NewNonce", testNewNonce},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer s.truncateTables(t)
+			c.fn(t, s)
+		})
+	}
+}
+
+func testNewNonce(t *testing.T, s *integrationTestSuite) {
+	// create a valid enrollment
+	enrollValid := &types.ACMEEnrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enrollValid)
+
+	// create a revoked enrollment
+	enrollRevoked := &types.ACMEEnrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enrollRevoked)
+
+	// create an expired enrollment
+	enrollExpired := &types.ACMEEnrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enrollExpired)
+
+	cases := []struct {
+		desc       string
+		method     string
+		identifier string
+		wantStatus int
+		wantNonce  bool
+	}{
+		{
+			"GET with unknown identifier",
+			http.MethodGet,
+			"no-such-identifier",
+			http.StatusNotFound,
+			false,
+		},
+		{
+			"HEAD with unknown identifier",
+			http.MethodHead,
+			"no-such-identifier",
+			http.StatusNotFound,
+			false,
+		},
+		{
+			"POST with unknown identifier",
+			http.MethodPost,
+			"no-such-identifier",
+			http.StatusNotFound,
+			false,
+		},
+		{
+			"GET with valid identifier",
+			http.MethodGet,
+			enrollValid.PathIdentifier,
+			http.StatusNoContent,
+			true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			result, resp := s.newNonce(t, c.method, c.identifier)
+			require.Equal(t, c.wantStatus, resp.StatusCode)
+			if c.wantNonce {
+				t.Logf("Received nonce: %s", result.Nonce)
+				require.NotEmpty(t, result.Nonce)
+				require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+			} else {
+				require.Empty(t, result.Nonce)
+				require.Empty(t, resp.Header.Get("Cache-Control"))
+			}
+		})
+	}
+}

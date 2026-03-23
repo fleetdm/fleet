@@ -10,25 +10,22 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/service"
-	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/kit/endpoint"
 )
 
 // New creates a new ACME bounded context and returns its service and route handler.
 func New(
 	dbConns *platform_mysql.DBConnections,
-	authorizer platform_authz.Authorizer,
 	redisPool fleet.RedisPool,
 	providers acme.DataProviders,
 	logger *slog.Logger,
-) (api.Service, func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc) {
+) (api.Service, func() eu.HandlerRoutesFunc) {
 	ds := mysql.NewDatastore(dbConns, logger)
-	svc := service.NewService(authorizer, ds, redisPool, providers, logger)
+	svc := service.NewService(ds, redisPool, providers, logger)
 
-	routesFn := func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
-		return service.GetRoutes(svc, authMiddleware)
+	routesFn := func() eu.HandlerRoutesFunc {
+		return service.GetRoutes(svc)
 	}
 
 	return svc, routesFn
