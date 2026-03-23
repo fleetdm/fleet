@@ -22,7 +22,7 @@ SELECT
 	host_identifier,
 	not_valid_after,
 	revoked
-FROM 
+FROM
 	acme_enrollments
 WHERE
 	path_identifier = ?
@@ -34,7 +34,7 @@ LIMIT 1
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("ACME enrollment").WithName(pathIdentifier))
 		}
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "getting ACME enrollment")
 	}
 	return &enrollment, nil
 }

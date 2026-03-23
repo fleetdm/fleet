@@ -3,6 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -67,6 +68,11 @@ func (s *integrationTestSuite) truncateTables(t *testing.T) {
 	s.TruncateTables(t)
 }
 
+func drainAndCloseBody(resp *http.Response) {
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+}
+
 // newNonce makes an HTTP request to new nonce endpoint and returns the parsed response and the raw response.
 func (s *integrationTestSuite) newNonce(t *testing.T, httpMethod, pathIdentifier string) (*api_http.GetNewNonceResponse, *http.Response) {
 	t.Helper()
@@ -76,6 +82,7 @@ func (s *integrationTestSuite) newNonce(t *testing.T, httpMethod, pathIdentifier
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
+	defer drainAndCloseBody(resp)
 
 	result := &api_http.GetNewNonceResponse{
 		HTTPMethod: resp.Request.Method,
@@ -93,6 +100,7 @@ func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdenti
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
+	defer drainAndCloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, resp
@@ -100,7 +108,6 @@ func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdenti
 
 	var result api_http.GetDirectoryResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
-	resp.Body.Close()
 	require.NoError(t, err)
 	return &result, resp
 }
