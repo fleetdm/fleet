@@ -379,29 +379,26 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 			wipeCmdStatus string
 		)
 
-		// Look up operation types for matching commands so we can pass
-		// isRemoveOperation to BuildMDMWindowsProfilePayloadFromMDMResponse.
+		// Look up operation types for matching commands so we can pass isRemoveOperation to BuildMDMWindowsProfilePayloadFromMDMResponse.
 		cmdOperationTypes := make(map[string]fleet.MDMOperationType)
-		{
-			matchingCmdUUIDs := make([]string, 0, len(matchingCmds))
-			for _, cmd := range matchingCmds {
-				matchingCmdUUIDs = append(matchingCmdUUIDs, cmd.CommandUUID)
-			}
-			const getOpTypesStmt = `SELECT command_uuid, operation_type FROM host_mdm_windows_profiles WHERE host_uuid = ? AND command_uuid IN (?)`
-			opStmt, opArgs, opErr := sqlx.In(getOpTypesStmt, enrolledDevice.HostUUID, matchingCmdUUIDs)
-			if opErr != nil {
-				return ctxerr.Wrap(ctx, opErr, "building IN for operation types")
-			}
-			var opResults []struct {
-				CommandUUID   string                 `db:"command_uuid"`
-				OperationType fleet.MDMOperationType `db:"operation_type"`
-			}
-			if err := sqlx.SelectContext(ctx, tx, &opResults, opStmt, opArgs...); err != nil {
-				return ctxerr.Wrap(ctx, err, "selecting operation types for matching commands")
-			}
-			for _, r := range opResults {
-				cmdOperationTypes[r.CommandUUID] = r.OperationType
-			}
+		matchingCmdUUIDs := make([]string, 0, len(matchingCmds))
+		for _, cmd := range matchingCmds {
+			matchingCmdUUIDs = append(matchingCmdUUIDs, cmd.CommandUUID)
+		}
+		const getOpTypesStmt = `SELECT command_uuid, operation_type FROM host_mdm_windows_profiles WHERE host_uuid = ? AND command_uuid IN (?)`
+		opStmt, opArgs, opErr := sqlx.In(getOpTypesStmt, enrolledDevice.HostUUID, matchingCmdUUIDs)
+		if opErr != nil {
+			return ctxerr.Wrap(ctx, opErr, "building IN for operation types")
+		}
+		var opResults []struct {
+			CommandUUID   string                 `db:"command_uuid"`
+			OperationType fleet.MDMOperationType `db:"operation_type"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &opResults, opStmt, opArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting operation types for matching commands")
+		}
+		for _, r := range opResults {
+			cmdOperationTypes[r.CommandUUID] = r.OperationType
 		}
 
 		for _, cmd := range matchingCmds {
@@ -420,9 +417,8 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 					// Secret may be found in the command, so we make a new struct with the expanded secret.
 					cmdWithSecret := cmd
 					cmdWithSecret.RawCommand = []byte(rawCommandWithSecret)
-					isRemove := cmdOperationTypes[cmd.CommandUUID] == fleet.MDMOperationTypeRemove
 					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmdWithSecret, enrichedSyncML.CmdRefUUIDToStatus,
-						enrolledDevice.HostUUID, isRemove)
+						enrolledDevice.HostUUID, cmdOperationTypes[cmd.CommandUUID] == fleet.MDMOperationTypeRemove)
 					if err != nil {
 						return err
 					}
@@ -560,8 +556,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	for _, hp := range matchingHostProfiles {
 		payload := uuidsToPayloads[hp.CommandUUID]
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
-			// Don't retry remove operations — removal is best-effort.
-			// Only retry install operations up to the max retry count.
+			// Don't retry remove operations; removal is best-effort. Only retry install operations up to the max retry count.
 			if hp.OperationType != fleet.MDMOperationTypeRemove && hp.Retries < mdm.MaxProfileRetries {
 				// if we haven't hit the max retries, we set
 				// the host profile status to nil (which causes
@@ -586,13 +581,13 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	}
 
 	// Clean up remove + verified rows for the command UUIDs we just processed.
-	// Only delete 'verified' (not 'verifying') — verifying is an in-flight
+	// Only delete 'verified' (not 'verifying'); verifying is an in-flight
 	// state and should not be deleted until the device confirms. We scope to
 	// specific command_uuids to avoid deleting rows from concurrent responses.
 	removeCleanupStmt, removeCleanupArgs, err := sqlx.In(`
 		DELETE FROM host_mdm_windows_profiles
-		WHERE host_uuid = ? AND command_uuid IN (?) AND operation_type = 'remove' AND status = 'verified'`,
-		hostUUID, commandUUIDs)
+		WHERE host_uuid = ? AND command_uuid IN (?) AND operation_type = ? AND status = ?`,
+		hostUUID, commandUUIDs, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryVerified)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN for remove cleanup")
 	}
@@ -940,20 +935,17 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Read SyncML bytes before deleting the config profile row,
-		// since we need them to generate <Delete> commands.
-		var syncML []byte
-		if err := sqlx.GetContext(ctx, tx, &syncML,
-			`SELECT syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profileUUID); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// Preserve the original NotFound error contract so callers
-				// can distinguish missing profiles from other DB errors.
-				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
-			}
-			return ctxerr.Wrap(ctx, err, "reading profile syncml before deletion")
+	// SyncML bytes are needed to generate <Delete> commands.
+	var syncML []byte
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &syncML,
+		`SELECT syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profileUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
 		}
+		return ctxerr.Wrap(ctx, err, "reading profile syncml before deletion")
+	}
 
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
 			return err
 		}
