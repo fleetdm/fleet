@@ -68,7 +68,7 @@ org_settings:
     #   • https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm
     ###########################################################
     # apple_business_manager:
-    #   - organization_name: "My Company, Inc." # This must exactly match the "Organization Name" field in Apple Business Manager (ABM).
+    #   - organization_name: "My Company, Inc." # This must exactly match the organization name in Apple Business Manager (ABM).
     #     macos_fleet: "💻 Workstations" # Where new macOS devices from ABM will appear
 
     ###########################################################
