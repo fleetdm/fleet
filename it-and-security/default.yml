@@ -85,7 +85,6 @@ reports:
   - path: ./lib/all/reports/collect-operating-system-information.yml
   - path: ./lib/all/reports/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/reports/detect-apns-certificate.yml
-  - path: ./lib/macos/reports/collect-macos-compatibility-data.yml
   - path: ./lib/macos/reports/collect-xprotect-reports.yml
 controls:
   enable_disk_encryption: true
