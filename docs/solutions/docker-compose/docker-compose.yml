@@ -103,7 +103,7 @@ services:
       # to short-circuit region discovery
       - FLEET_S3_SOFTWARE_INSTALLERS_REGION=${FLEET_S3_SOFTWARE_INSTALLERS_REGION}
     ports:
-      - "127.0.0.1:${FLEET_SERVER_PORT}:${FLEET_SERVER_PORT}" # UI/API
+      - "${FLEET_SERVER_PORT}:${FLEET_SERVER_PORT}" # UI/API
     volumes:
       - data:/fleet
       - logs:/logs
