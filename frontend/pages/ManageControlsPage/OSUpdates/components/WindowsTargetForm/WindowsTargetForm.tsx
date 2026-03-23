@@ -87,9 +87,7 @@ const createMdmConfigData = (
         deadline_days:
           deadlineDays.trim() === "" ? null : parseInt(deadlineDays, 10),
         grace_period_days:
-          gracePeriodDays.trim() === ""
-            ? null
-            : parseInt(gracePeriodDays, 10),
+          gracePeriodDays.trim() === "" ? null : parseInt(gracePeriodDays, 10),
       },
     },
   };
