@@ -59,6 +59,7 @@ type addAppStoreAppRequest struct {
 	AutomaticInstall bool                            `json:"automatic_install"`
 	LabelsIncludeAny []string                        `json:"labels_include_any"`
 	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
+	LabelsIncludeAll []string                        `json:"labels_include_all"`
 	Categories       []string                        `json:"categories"`
 	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
 }
@@ -77,6 +78,7 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		SelfService:          req.SelfService,
 		LabelsIncludeAny:     req.LabelsIncludeAny,
 		LabelsExcludeAny:     req.LabelsExcludeAny,
+		LabelsIncludeAll:     req.LabelsIncludeAll,
 		AddAutoInstallPolicy: req.AutomaticInstall,
 		Categories:           req.Categories,
 		Configuration:        req.Configuration,
@@ -106,6 +108,7 @@ type updateAppStoreAppRequest struct {
 	SelfService       *bool           `json:"self_service"`
 	LabelsIncludeAny  []string        `json:"labels_include_any"`
 	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
+	LabelsIncludeAll  []string        `json:"labels_include_all"`
 	Categories        []string        `json:"categories"`
 	Configuration     json.RawMessage `json:"configuration,omitempty"`
 	DisplayName       *string         `json:"display_name"`
@@ -133,6 +136,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		SelfService:      req.SelfService,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsExcludeAny: req.LabelsExcludeAny,
+		LabelsIncludeAll: req.LabelsIncludeAll,
 		Categories:       req.Categories,
 		Configuration:    req.Configuration,
 		DisplayName:      req.DisplayName,
