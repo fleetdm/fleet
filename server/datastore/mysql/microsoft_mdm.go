@@ -993,20 +993,18 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		return nil
 	}
 
-	// Phase 0: Clean up any existing remove rows for these profiles (e.g., from a
-	// previous failed removal attempt). Without this, re-deleting a profile that
-	// had a prior remove+failed row would leave orphaned rows that neither Phase 1
-	// nor Phase 2 handles (they only target operation_type='install').
-	const delExistingRemoveStmt = `
+	// Phase 0: Clean up remove+failed rows from previous failed removal attempts.
+	// These are terminal — the device already processed them, nothing more to do.
+	const delFailedRemoveStmt = `
 	DELETE FROM host_mdm_windows_profiles
-	WHERE profile_uuid IN (?) AND operation_type = ?`
+	WHERE profile_uuid IN (?) AND operation_type = ? AND status IN ('failed', 'verified', 'verifying')`
 
-	delRemStmt, delRemArgs, err := sqlx.In(delExistingRemoveStmt, profileUUIDs, fleet.MDMOperationTypeRemove)
+	delRemStmt, delRemArgs, err := sqlx.In(delFailedRemoveStmt, profileUUIDs, fleet.MDMOperationTypeRemove)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN for phase 0 remove cleanup")
 	}
 	if _, err := tx.ExecContext(ctx, delRemStmt, delRemArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up existing remove rows")
+		return ctxerr.Wrap(ctx, err, "cleaning up terminal remove rows")
 	}
 
 	// Phase 1: Delete host-profile rows that were never sent to the device.
@@ -1022,13 +1020,18 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "deleting never-sent host profiles")
 	}
 
-	// Phase 2: Find rows that were sent to the device (non-NULL status + install).
+	// Phase 2: Find rows that need <Delete> commands. This includes:
+	// - install rows with non-NULL status (profile was sent to device)
+	// - remove+NULL rows (created by bulkSetPending during team moves — the
+	//   profile WAS on the device but was marked for removal before this
+	//   cancel function ran, e.g. during team deletion)
 	const selectSentStmt = `
 	SELECT host_uuid, profile_uuid
 	FROM host_mdm_windows_profiles
-	WHERE profile_uuid IN (?) AND status IS NOT NULL AND operation_type = ?`
+	WHERE profile_uuid IN (?)
+	  AND ((status IS NOT NULL AND operation_type = ?) OR (operation_type = ? AND status IS NULL))`
 
-	selStmt, selArgs, err := sqlx.In(selectSentStmt, profileUUIDs, fleet.MDMOperationTypeInstall)
+	selStmt, selArgs, err := sqlx.In(selectSentStmt, profileUUIDs, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN for phase 2 select")
 	}
@@ -1141,13 +1144,15 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	}
 
 	// Update host-profile rows only for profiles that had delete commands enqueued.
+	// This covers both install rows (being flipped to remove) and remove+NULL rows
+	// (being given a command_uuid and set to pending).
 	for profUUID, target := range enqueuedTargets {
 		upStmt, upArgs, err := sqlx.In(
 			`UPDATE host_mdm_windows_profiles
 			SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
-			WHERE profile_uuid = ? AND host_uuid IN (?) AND operation_type = ?`,
+			WHERE profile_uuid = ? AND host_uuid IN (?)`,
 			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, target.cmdUUID,
-			profUUID, target.hostUUIDs, fleet.MDMOperationTypeInstall,
+			profUUID, target.hostUUIDs,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN for phase 2 update")

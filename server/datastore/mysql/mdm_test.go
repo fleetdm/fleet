@@ -55,6 +55,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
+		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 	}
 
@@ -9209,6 +9210,94 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
+}
+
+// testDeleteTeamCancelsWindowsProfileInstalls verifies that when a team is
+// deleted, <Delete> commands are generated for Windows profiles that were
+// delivered to hosts. This ensures settings are actually removed from devices
+// rather than silently orphaned.
+func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a team with Windows profiles.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "delete-team-test"})
+	require.NoError(t, err)
+
+	windowsProfs := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "TW1", "TW1"),
+		windowsConfigProfileForTest(t, "TW2", "TW2"),
+	}
+	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, windowsProfs, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Collect profile UUIDs.
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+	profUUIDs := make([]string, len(profs))
+	for i, p := range profs {
+		profUUIDs[i] = p.ProfileUUID
+	}
+
+	// Create Windows hosts enrolled in MDM and assigned to the team.
+	host1 := test.NewHost(t, ds, "tw-host1", "tw1", "tw1key", "tw-host1-uuid", time.Now())
+	host1.Platform = "windows"
+	host1.TeamID = &team.ID
+	err = ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host1)
+
+	host2 := test.NewHost(t, ds, "tw-host2", "tw2", "tw2key", "tw-host2-uuid", time.Now())
+	host2.Platform = "windows"
+	host2.TeamID = &team.ID
+	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host2)
+
+	// Simulate profiles delivered to both hosts (install + verified).
+	for _, h := range []*fleet.Host{host1, host2} {
+		for _, p := range profs {
+			forceSetWindowsHostProfileStatus(t, ds, h.UUID,
+				test.ToMDMWindowsConfigProfile(p),
+				fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+		}
+	}
+
+	// Verify: 4 rows, all install+verified.
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall},
+		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall},
+		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+
+	// Delete the team — this should generate <Delete> commands.
+	err = ds.DeleteTeam(ctx, team.ID)
+	require.NoError(t, err)
+
+	// Config profiles should be gone.
+	teamProfs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamProfs, 0)
+
+	// Host-profile rows should be remove+pending (not remove+NULL, not deleted).
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	// Verify <Delete> commands were enqueued.
+	var deleteCmdCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &deleteCmdCount, `
+			SELECT COUNT(*) FROM windows_mdm_command_queue wmcq
+			JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcq.command_uuid
+			WHERE wmc.raw_command LIKE '%<Delete>%'`)
+	})
+	// 2 profiles × 2 hosts = 4 queue entries (but command rows are shared per profile)
+	require.Equal(t, 4, deleteCmdCount, "expected 4 delete command queue entries (2 profiles × 2 hosts)")
 }
 
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {

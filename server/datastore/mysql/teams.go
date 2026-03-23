@@ -160,6 +160,36 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)
 		}
 
+		// Before deleting team config profiles, generate <Delete> commands for
+		// Windows profiles that were delivered to hosts. This must happen before
+		// the config profile rows are deleted (they contain the SyncML bytes
+		// needed to generate <Delete> commands).
+		var winProfileUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &winProfileUUIDs,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "loading windows profile UUIDs for team %d", tid)
+		}
+		if len(winProfileUUIDs) > 0 {
+			winProfileContents := make(map[string][]byte)
+			var profRows []struct {
+				ProfileUUID string `db:"profile_uuid"`
+				SyncML      []byte `db:"syncml"`
+			}
+			stmt, args, err := sqlx.In(
+				`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid IN (?)`,
+				winProfileUUIDs)
+			if err == nil {
+				if err := sqlx.SelectContext(ctx, tx, &profRows, stmt, args...); err == nil {
+					for _, r := range profRows {
+						winProfileContents[r.ProfileUUID] = r.SyncML
+					}
+				}
+			}
+			if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, winProfileUUIDs, winProfileContents); err != nil {
+				return ctxerr.Wrapf(ctx, err, "cancelling windows profile installs for team %d", tid)
+			}
+		}
+
 		// Delete related records from teamRefs tables before deleting the team itself
 		// to avoid foreign key constraint violations
 		for _, table := range teamRefs {
