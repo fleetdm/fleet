@@ -271,18 +271,18 @@ const PlatformWrapper = ({
     if (packageType === "deb") {
       packageTypeHelpText = (
         <>
-          Run this on your computer, then deploy the generated package to
-          your hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
+          Run this on your computer, then deploy the generated package to your
+          hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
           <code>--type=rpm</code>. For Arch Linux, use{" "}
-          <code>--type=pkg.tar.zst</code>.For ARM, use{" "}
+          <code>--type=pkg.tar.zst</code>. For ARM, use{" "}
           <code>--arch=arm64</code>
         </>
       );
     } else if (packageType === "msi") {
       packageTypeHelpText = (
         <>
-          Run this on your computer, then deploy the generated package to
-          your hosts. For ARM, use <code>--arch=arm64</code>
+          Run this on your computer, then deploy the generated package to your
+          hosts. For ARM, use <code>--arch=arm64</code>
         </>
       );
     } else if (packageType === "pkg") {
