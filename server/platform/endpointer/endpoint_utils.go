@@ -32,17 +32,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// We use our own wrapper here, to preserve the Close method of the original io.ReadCloser
-// But also allows us to modify the limit at a laterp oint.
-type LimitedReadCloser struct {
-	*io.LimitedReader
-	Closer io.Closer
-}
-
-func (lrc *LimitedReadCloser) Close() error {
-	return lrc.Closer.Close()
-}
-
 type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
 
 // ParseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
@@ -501,23 +490,7 @@ type requestValidator interface {
 // The customQueryDecoder parameter allows services to inject domain-specific
 // query parameter decoding logic.
 //
-// If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
-
-// limitExhaustedBody returns true when the LimitedReader was the cause of an
-// unexpected EOF — i.e. the underlying body actually had more data beyond the
-// limit. It does this by attempting a single-byte read from the underlying
-// reader (limitedReader.R) which bypasses the limit wrapper. A successful read
-// means the body exceeded the limit; an immediate EOF means the body ended
-// exactly at the limit (malformed JSON, not an oversized payload).
-//
-// This is used to avoid false-positive PayloadTooLargeError responses for
-// bodies whose JSON is malformed and happen to be exactly maxRequestBodySize
-// bytes long.
-func limitExhaustedBody(limitedReader *io.LimitedReader) bool {
-	var peek [1]byte
-	n, _ := limitedReader.R.Read(peek[:])
-	return n > 0
-}
+// If adding a new way to parse/decode the requset, make sure to wrap the body with http.MaxBytesReader using the maxRequestBodySize
 
 func MakeDecoder(
 	iface interface{},
@@ -537,17 +510,12 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
-			var limitedReader *io.LimitedReader
 			if maxRequestBodySize != -1 {
-				limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
-
-				r.Body = &LimitedReadCloser{
-					LimitedReader: limitedReader,
-					Closer:        r.Body,
-				}
+				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
+			var maxBytesErr *http.MaxBytesError
+			if err != nil && errors.As(err, &maxBytesErr) {
 				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 			}
 			return ret, err
@@ -564,14 +532,8 @@ func MakeDecoder(
 		nilBody := false
 		var rewriter *JSONKeyRewriteReader
 
-		var limitedReader *io.LimitedReader
 		if maxRequestBodySize != -1 {
-			limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
-
-			r.Body = &LimitedReadCloser{
-				LimitedReader: limitedReader,
-				Closer:        r.Body,
-			}
+			r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 		}
 
 		buf := bufio.NewReader(r.Body)
@@ -585,7 +547,13 @@ func MakeDecoder(
 					return nil, BadRequestErr("gzip decoder error", err)
 				}
 				defer gzr.Close()
-				body = gzr
+				if maxRequestBodySize != -1 {
+					// Limit decompressed bytes to prevent gzip bombs from bypassing
+					// the raw body size limit applied above.
+					body = http.MaxBytesReader(nil, gzr, maxRequestBodySize)
+				} else {
+					body = gzr
+				}
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline
@@ -611,7 +579,8 @@ func MakeDecoder(
 						}
 					}
 
-					if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
+					var maxBytesErr *http.MaxBytesError
+					if errors.As(err, &maxBytesErr) {
 						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 					}
 
@@ -682,10 +651,11 @@ func MakeDecoder(
 					}
 				}
 
+				var maxBytesErr *http.MaxBytesError
+				if errors.As(err, &maxBytesErr) {
+					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					if limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
-					}
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err

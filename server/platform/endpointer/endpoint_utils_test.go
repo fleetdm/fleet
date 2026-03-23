@@ -1,6 +1,8 @@
 package endpointer
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -276,9 +278,9 @@ func TestMakeDecoderRequestDecoderFalsePositive(t *testing.T) {
 
 	t.Run("malformed JSON exactly at limit returns decode error, not 413", func(t *testing.T) {
 		// Build a body of exactly `limit` bytes that is malformed JSON (no closing
-		// brace). The LimitedReader is exhausted (N==0), but a peek at the
-		// underlying reader returns EOF — the body ended at the limit, it was not
-		// cut short. Must not produce PayloadTooLargeError.
+		// brace). The MaxBytesReader allows the full read (body fits within limit),
+		// so the JSON decoder sees io.ErrUnexpectedEOF — not *http.MaxBytesError.
+		// Must not produce PayloadTooLargeError.
 		prefix := `{"data":"`
 		body := strings.NewReader(prefix + strings.Repeat("x", limit-len(prefix))) // exactly limit bytes, no closing
 		r := httptest.NewRequest("POST", "/", body)
@@ -308,5 +310,47 @@ func TestMakeDecoderRequestDecoderFalsePositive(t *testing.T) {
 		rd, ok := result.(*testRequestDecoderType)
 		require.True(t, ok)
 		assert.Equal(t, "hello", rd.Data)
+	})
+}
+
+type testGzipRequestType struct {
+	Data string `json:"data"`
+}
+
+func TestMakeDecoderGzipBomb(t *testing.T) {
+	const limit = 100
+
+	makeDecoder := func() kithttp.DecodeRequestFunc {
+		return MakeDecoder(testGzipRequestType{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)
+	}
+
+	gzipBody := func(data string) *bytes.Buffer {
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		_, err := gw.Write([]byte(data))
+		require.NoError(t, err)
+		require.NoError(t, gw.Close())
+		return &buf
+	}
+
+	t.Run("gzip bomb exceeding decompressed limit returns 413", func(t *testing.T) {
+		// Compressed payload is small but decompresses well beyond the limit.
+		big := `{"data":"` + strings.Repeat("x", limit*10) + `"}`
+		r := httptest.NewRequest("POST", "/", gzipBody(big))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makeDecoder()(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "gzip bomb must produce PayloadTooLargeError, got: %v", err)
+	})
+
+	t.Run("valid gzip body within limit is decoded successfully", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		result, err := makeDecoder()(context.Background(), r)
+		require.NoError(t, err)
+		rd, ok := result.(*testGzipRequestType)
+		require.True(t, ok)
+		assert.Equal(t, "hi", rd.Data)
 	})
 }
