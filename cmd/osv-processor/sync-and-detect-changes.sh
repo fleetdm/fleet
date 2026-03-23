@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Sync Canonical OSV repository using shallow clone with rolling window
 # Usage: ./sync-and-detect-changes.sh
 #
@@ -24,6 +24,9 @@ if [ -d "$REPO_DIR/.git" ]; then
     echo "Repository exists, updating with rolling window..."
     cd "$REPO_DIR"
 
+    git config core.sparseCheckout true
+    echo "osv/" > .git/info/sparse-checkout
+
     OLD_SHA=$(git rev-parse HEAD)
     OLD_COUNT=$(git log --oneline | wc -l | xargs)
 
@@ -44,9 +47,18 @@ if [ -d "$REPO_DIR/.git" ]; then
     cd ..
 else
     echo "Cloning repository (shallow since ${DAYS_TO_KEEP} days ago)..."
-    git clone --shallow-since="${DAYS_TO_KEEP} days ago" --quiet "$REPO_URL" "$REPO_DIR"
 
+    mkdir -p "$REPO_DIR"
     cd "$REPO_DIR"
+    git init --quiet
+    git remote add origin "$REPO_URL"
+
+    git config core.sparseCheckout true
+    echo "osv/" > .git/info/sparse-checkout
+
+    git fetch --shallow-since="${DAYS_TO_KEEP} days ago" --quiet origin main
+    git checkout --quiet main
+
     COMMIT_SHA=$(git rev-parse HEAD)
     COMMIT_COUNT=$(git log --oneline | wc -l | xargs)
     cd ..
@@ -61,12 +73,12 @@ cd "$REPO_DIR"
 # Get files changed today (since midnight UTC today)
 TODAY_UTC=$(date -u +%Y-%m-%d)
 git log --since="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
-    | grep -v '^$' | sort -u > "../changed_files_today.txt"
+    | sed '/^$/d' | sort -u > "../changed_files_today.txt"
 
 # Get files changed yesterday (from midnight yesterday to midnight today UTC)
 YESTERDAY_UTC=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
 git log --since="${YESTERDAY_UTC}T00:00:00Z" --until="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
-    | grep -v '^$' | sort -u > "../changed_files_yesterday.txt"
+    | sed '/^$/d' | sort -u > "../changed_files_yesterday.txt"
 
 TODAY_COUNT=$(wc -l < "../changed_files_today.txt" | xargs)
 YESTERDAY_COUNT=$(wc -l < "../changed_files_yesterday.txt" | xargs)
