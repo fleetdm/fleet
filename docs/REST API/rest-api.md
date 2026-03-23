@@ -1504,6 +1504,8 @@ None.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "enable_managed_local_account": false,
+    "end_user_local_account_type": "admin",
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -1824,6 +1826,8 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "enable_managed_local_account": false,
+    "end_user_local_account_type": "admin",
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2412,6 +2416,8 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| enable_managed_local_account     | boolean | _Available in Fleet Premium._ During Setup Assistant, a managed local account will be created on macOS hosts that belong to no team if set to true. |
+| end_user_local_account_type     | string | _Available in Fleet Premium._ Specifies the type of local end user account is created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
