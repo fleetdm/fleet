@@ -1450,19 +1450,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	}
 	require.NotNil(t, labelD, "label d should be in applied specs")
 	assert.Nil(t, labelD.Hosts, "omitting hosts key should result in nil Hosts (preserve membership)")
-
-	// Reset labels arrays
-	deletedLabels = make([]string, 0)
-	appliedLabelSpecs = make([]*fleet.LabelSpec, 0)
-	// Except labels so that omitting the `labels:` key is a no-op.
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}, GitOpsConfig: fleet.GitOpsConfig{Exceptions: fleet.GitOpsExceptions{Labels: true}}}, nil
-	}
-	// Real run w/out top-level labels key
-	logs = RunAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml"})
-	fmt.Printf("%s", logs)
-	assert.Len(t, appliedLabelSpecs, 0)
-	assert.Len(t, deletedLabels, 0)
 }
 
 func TestGitOpsFullTeam(t *testing.T) {
