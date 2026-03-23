@@ -251,7 +251,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
 			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 			// Disable labels exception because the global YAML includes `labels:`.
-			(*savedAppConfig).UIGitOpsMode.Exceptions.Labels = false
+			(*savedAppConfig).GitOpsConfig.Exceptions.Labels = false
 			tokExpire := time.Now().Add(time.Hour)
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)
@@ -385,7 +385,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
 			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 			// Disable labels exception because the global YAML includes `labels:`.
-			(*savedAppConfig).UIGitOpsMode.Exceptions.Labels = false
+			(*savedAppConfig).GitOpsConfig.Exceptions.Labels = false
 			tokExpire := time.Now().Add(time.Hour)
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)

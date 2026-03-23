@@ -267,7 +267,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			EnabledAndConfigured:        true,
 			AndroidEnabledAndConfigured: true,
 		},
-		UIGitOpsMode: fleet.UIGitOpsModeConfig{
+		GitOpsConfig: fleet.GitOpsConfig{
 			Exceptions: DefaultGitOpsExceptions(),
 		},
 	}

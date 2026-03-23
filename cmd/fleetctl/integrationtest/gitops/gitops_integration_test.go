@@ -87,7 +87,7 @@ func (s *integrationGitopsTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	appConf.ServerSettings.ServerURL = server.URL
 	// Disable gitops exceptions so that existing tests can freely use labels, secrets, etc. in their YAML.
-	appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{}
+	appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{}
 	err = s.DS.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 }

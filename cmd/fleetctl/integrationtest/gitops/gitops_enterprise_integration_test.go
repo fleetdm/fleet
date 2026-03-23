@@ -134,7 +134,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	appConf.ServerSettings.ServerURL = server.URL
 	// Disable gitops exceptions so that existing tests can freely use labels, secrets, etc. in their YAML.
 	// Tests that specifically test exception enforcement should re-enable them.
-	appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{}
+	appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{}
 	err = s.DS.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 }
@@ -211,13 +211,13 @@ func (s *enterpriseIntegrationGitopsTestSuite) exceptLabels(t *testing.T) {
 	ctx := context.Background()
 	appConf, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
-	appConf.UIGitOpsMode.Exceptions.Labels = true
+	appConf.GitOpsConfig.Exceptions.Labels = true
 	err = s.DS.SaveAppConfig(ctx, appConf)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		appConf, err := s.DS.AppConfig(ctx)
 		require.NoError(t, err)
-		appConf.UIGitOpsMode.Exceptions.Labels = false
+		appConf.GitOpsConfig.Exceptions.Labels = false
 		err = s.DS.SaveAppConfig(ctx, appConf)
 		require.NoError(t, err)
 	})
@@ -4093,7 +4093,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysGlobal() {
 	t.Cleanup(func() {
 		appConf, err := s.DS.AppConfig(ctx)
 		require.NoError(t, err)
-		appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{}
+		appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{}
 		err = s.DS.SaveAppConfig(ctx, appConf)
 		require.NoError(t, err)
 	})
@@ -4166,7 +4166,7 @@ labels:
 	// Enable labels and secrets exceptions so that omitting these keys in step 2 preserves existing data.
 	appConf, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
-	appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{Labels: true, Secrets: true}
+	appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{Labels: true, Secrets: true}
 	err = s.DS.SaveAppConfig(ctx, appConf)
 	require.NoError(t, err)
 
@@ -4227,7 +4227,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysFleet() {
 	t.Cleanup(func() {
 		appConf, err := s.DS.AppConfig(ctx)
 		require.NoError(t, err)
-		appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{}
+		appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{}
 		err = s.DS.SaveAppConfig(ctx, appConf)
 		require.NoError(t, err)
 	})
@@ -4307,7 +4307,7 @@ software:
 	// Enable secrets exception so that omitting the `secrets:` key in step 2 preserves existing data.
 	appConf, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
-	appConf.UIGitOpsMode.Exceptions = fleet.GitOpsExceptions{Secrets: true}
+	appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{Secrets: true}
 	err = s.DS.SaveAppConfig(ctx, appConf)
 	require.NoError(t, err)
 
