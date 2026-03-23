@@ -118,7 +118,6 @@ controls:
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/uninstall-santa-extension.sh
-    - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
@@ -132,7 +131,6 @@ policies:
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
-  - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/install-nudge.yml
   - path: ../lib/macos/policies/update-claude.yml
   - path: ../lib/macos/policies/update-slack.yml

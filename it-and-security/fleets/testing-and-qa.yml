@@ -30,7 +30,7 @@ controls:
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: 
+    macos_setup_assistant:
   macos_updates:
     deadline:
     minimum_version:
@@ -38,6 +38,7 @@ controls:
   scripts:
     # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     # Windows scripts
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     # Linux scripts
@@ -46,6 +47,7 @@ controls:
 policies:
   # macOS policies
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
