@@ -2595,10 +2595,9 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
-	// Build remove targets — profiles that need to be removed from hosts
-	// (e.g. host moved teams, label membership changed).
-	// We only collect targets here; hp entries are created after the delete
-	// command is successfully built and enqueued.
+	// Build remove targets: profiles that need to be removed from hosts (e.g. host moved teams, label membership changed).
+	// We only collect targets here; host_mdm_windows_profiles entries are
+	// created after the delete command is successfully built and enqueued.
 	removePayloadData := make(map[string][]*fleet.MDMWindowsProfilePayload) // profUUID -> payloads
 	for _, p := range toRemove {
 		toGetContents[p.ProfileUUID] = true
@@ -2730,13 +2729,11 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 	}
 
-	// Generate and enqueue <Delete> commands for profiles being removed
-	// from hosts (Scenario B: host moved teams, label membership changed).
+	// Generate and enqueue <Delete> commands for profiles being removed from hosts.
 	for profUUID, target := range removeTargets {
 		p, ok := profileContents[profUUID]
 		if !ok {
-			// Profile was deleted between list and fetch — the cancel
-			// function already handled command generation at deletion time.
+			// Profile was deleted between list and fetch. (The deletion path already called cancelWindowsHostInstallsForDeletedMDMProfiles)
 			continue
 		}
 		// Collect LocURIs from all OTHER profiles still being installed to
@@ -2766,19 +2763,16 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 			continue
 		}
 		if command == nil {
-			// All LocURIs are protected by other active profiles — skip.
+			// All LocURIs are protected by other active profiles; skip.
 			continue
 		}
 		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
 		}
 
-		// Only create hp entries after the command was successfully enqueued.
+		// Only create host profile entries after the command was successfully enqueued.
 		for _, rp := range removePayloadData[profUUID] {
-			// Use existing checksum or a 16-byte zero value if not available.
-			// Remove operations don't need a checksum, but the column is
-			// BINARY(16) NOT NULL so we provide a properly sized zero value
-			// to avoid implicit MySQL padding/coercion issues.
+			// Remove operations don't need a checksum; use a zero value if none exists (defensive coding).
 			checksum := rp.Checksum
 			if len(checksum) == 0 {
 				checksum = make([]byte, 16)
@@ -2793,7 +2787,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 				Checksum:      checksum,
 			}
 			hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
-			logger.DebugContext(ctx, "removing profile", "profile_uuid", rp.ProfileUUID, "host_id", rp.HostUUID, "name", rp.ProfileName)
+			logger.DebugContext(ctx, "removing profile", "profile.uuid", rp.ProfileUUID, "host.uuid", rp.HostUUID, "profile.name", rp.ProfileName)
 		}
 	}
 
