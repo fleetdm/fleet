@@ -719,7 +719,7 @@
       "name": "Mozilla Firefox ESR",
       "slug": "firefox@esr/windows",
       "platform": "windows",
-      "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
+      "unique_identifier": "Mozilla Firefox 140.8.0 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
     },
     {
