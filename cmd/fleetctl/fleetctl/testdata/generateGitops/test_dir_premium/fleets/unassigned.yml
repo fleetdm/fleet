@@ -1,5 +1,6 @@
 controls:
   android_enabled_and_configured: true
+  apple_require_hardware_attestation: false
   enable_disk_encryption: true
   enable_recovery_lock_password: false
   enable_turn_on_windows_mdm_manually: false
