@@ -1335,7 +1335,6 @@ type anyProfile struct {
 	IdentifierOrName string
 }
 
-// only asserts the profile ID, status and operation
 // cleanupStaleWindowsRemoveRows simulates the full Windows profile removal
 // lifecycle (reconciler sends <Delete> → device confirms → row deleted) for
 // remove rows that are NOT expected in the test assertions. Without this,
@@ -1392,6 +1391,7 @@ func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.
 	})
 }
 
+// assertHostProfiles only asserts the profile UUID, status, and operation.
 func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
 	cleanupStaleWindowsRemoveRows(t, ds, want)
 
@@ -1943,7 +1943,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		unenrolledHost: {},
 		linuxHost:      {},
-		// windows profiles are now marked for removal instead of being directly deleted
 		windowsHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[5].ProfileUUID,
@@ -8345,7 +8344,6 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 				IdentifierOrName: allProfs[2].Identifier,
 			},
 		},
-		// windows profiles are now marked for removal (two-phase: mark for remove, then reconciler sends <Delete> commands)
 		winHost: {
 			{
 				ProfileUUID:      allProfs[3].ProfileUUID,
@@ -9114,7 +9112,6 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, profNameToProf["W2"].ProfileUUID)
 	require.NoError(t, err)
 
-	// Windows profiles with non-NULL status are now marked for removal instead of being deleted
 	assertHostProfileOpStatus(t, ds, host3.UUID,
 		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
 	assertHostProfileOpStatus(t, ds, host4.UUID,
