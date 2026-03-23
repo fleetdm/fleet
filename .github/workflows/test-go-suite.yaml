@@ -252,7 +252,7 @@ jobs:
           S3_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
-          AWS_ENDPOINT_URL="http://localhost:4566" \
+          AWS_ENDPOINT_URL="http://127.0.0.1:4566" \
           AWS_REGION=us-east-1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
