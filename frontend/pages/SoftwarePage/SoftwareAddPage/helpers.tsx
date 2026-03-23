@@ -3,6 +3,7 @@ import React from "react";
 export const ADD_SOFTWARE_ERROR_PREFIX = "Couldn't add.";
 export const DEFAULT_ADD_SOFTWARE_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
 export const REQUEST_TIMEOUT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Request timeout. Please make sure your server and load balancer timeout is long enough.`;
+export const FIREFOX_CONFLICT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Only one of Mozilla Firefox or Mozilla Firefox ESR can be added to the same fleet.`;
 
 /**
  * Ensures that a string ends with a period.
@@ -37,7 +38,8 @@ export const formatAlreadyAvailableInstallMessage = (msg: string) => {
 
   // New regex for "SoftwareInstaller <package> already exists with fleet <fleet>."
   // or "In-house app <package> already exists with fleet <fleet>."
-  const packageExistsRegex = /^(?:SoftwareInstaller|In-house app) "(.+?)" already.+ fleet "(.+?)"\./;
+  const packageExistsRegex =
+    /^(?:SoftwareInstaller|In-house app) "(.+?)" already.+ fleet "(.+?)"\./;
   match = cleaned.match(packageExistsRegex);
   if (match) {
     return (

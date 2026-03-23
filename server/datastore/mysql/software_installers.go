@@ -200,6 +200,14 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 
 	err = ds.checkSoftwareConflictsByIdentifier(ctx, payload)
 	if err != nil {
+		// Firefox and Firefox ESR share the same bundle identifier (org.mozilla.firefox),
+		// so provide a specific error message for this conflict case.
+		if payload.FleetMaintainedAppID != nil && payload.BundleIdentifier == "org.mozilla.firefox" {
+			return 0, 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+				Message: fleet.CantAddFirefoxConflictMessage,
+			}, "firefox FMA conflicts with existing firefox installer")
+		}
+
 		teamName, err := ds.getTeamName(ctx, payload.TeamID)
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "get team for installer conflict error")
