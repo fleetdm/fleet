@@ -36,3 +36,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="A banking platform replaced legacy tools with Fleet to guarantee script execution, unify Mac and Windows, and prove compliance in audits.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Banking platform">

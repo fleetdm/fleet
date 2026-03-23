@@ -116,6 +116,8 @@ export const HOST_LINUX_PLATFORMS = [
   "tuxedo",
   "neon",
   "archarm", // Arch Linux ARM
+  "flatcar", // Flatcar Container Linux
+  "coreos", // CoreOS Container Linux
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;

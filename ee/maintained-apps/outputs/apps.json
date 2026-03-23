@@ -709,6 +709,20 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "Mozilla Firefox ESR",
+      "slug": "firefox@esr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.firefox",
+      "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox ESR",
+      "slug": "firefox@esr/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
+      "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
       "name": "Fork",
       "slug": "fork/darwin",
       "platform": "darwin",
@@ -931,6 +945,13 @@
       "platform": "darwin",
       "unique_identifier": "com.aone.keka",
       "description": "Keka is a file archiver."
+    },
+    {
+      "name": "kitty",
+      "slug": "kitty/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.kovidgoyal.kitty",
+      "description": "kitty is a fast, feature-rich, GPU-based terminal emulator."
     },
     {
       "name": "Krita",
@@ -1330,6 +1351,13 @@
       "platform": "darwin",
       "unique_identifier": "com.initex.proxifier.v3.macos",
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
+    },
+    {
+      "name": "Proxyman",
+      "slug": "proxyman/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.proxyman.NSProxy",
+      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
     },
     {
       "name": "PuTTY",
