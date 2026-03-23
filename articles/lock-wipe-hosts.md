@@ -57,6 +57,8 @@ If you're gifting a company-owned macOS host or you want to prevent the host fro
 
 For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). However, it is possible to use the [doWipe command via the API](https://fleetdm.com/docs/rest-api/rest-api#parameters57).
 
+If the wipe command fails (status 500 in MDM command results and the device is not wiped), you can run a [fallback wipe script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/wipe-windows-device.ps1) via Fleet. This script validates and repairs WinRE (the most common cause of wipe failure), suspends BitLocker, and triggers the wipe locally via the WMI-to-CSP bridge, bypassing the MDM command queue.
+
 ## Unlock a host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to unlock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
