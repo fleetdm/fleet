@@ -17,4 +17,10 @@
       color: $ui-fleet-black-50;
     }
   }
+
+  &__rotate-button-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
 }
