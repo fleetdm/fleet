@@ -282,7 +282,6 @@ type GenerateGitopsCommand struct {
 	AppConfig    *fleet.EnrichedAppConfig
 	SoftwareList map[uint]Software
 	ScriptList   map[uint]string
-	FMASlugMap   map[uint]string // Maps software_title_id to FMA slug
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -342,7 +341,6 @@ func createGenerateGitopsAction(fleetClient generateGitopsClient) func(*cli.Cont
 			FilesToWrite: make(map[string]interface{}),
 			SoftwareList: make(map[uint]Software),
 			ScriptList:   make(map[uint]string),
-			FMASlugMap:   make(map[uint]string),
 		}
 		return cmd.Run()
 	}

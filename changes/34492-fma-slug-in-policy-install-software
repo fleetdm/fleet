@@ -1,0 +1,1 @@
+- Added support for Fleet-maintained app `slug` in policy `install_software` via GitOps.
