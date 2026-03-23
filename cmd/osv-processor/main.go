@@ -75,6 +75,10 @@ func main() {
 	changedFilesYesterday := flag.String("changed-files-yesterday", "", "Path to file containing CVE files changed yesterday (generates yesterday's deltas)")
 	flag.Parse()
 
+	runTime := time.Now().UTC()
+	dateStr := runTime.Format("2006-01-02")
+	generatedTimestamp := runTime.Format(time.RFC3339)
+
 	if err := os.MkdirAll(*outputDir, 0o755); err != nil {
 		log.Fatalf("Failed to create output directory: %v", err)
 	}
@@ -250,11 +254,6 @@ func main() {
 
 	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
 	log.Printf("Discovered %d Ubuntu versions", len(artifacts))
-
-	// Compute timestamp once for consistent artifact naming across midnight UTC
-	runTime := time.Now().UTC()
-	dateStr := runTime.Format("2006-01-02")
-	generatedTimestamp := runTime.Format(time.RFC3339)
 
 	// Write full artifacts
 	for ver, artifact := range artifacts {
