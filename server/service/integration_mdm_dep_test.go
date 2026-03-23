@@ -3266,7 +3266,7 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "abc", "org_name": %q}`, orgName)))
+			_, _ = fmt.Fprintf(w, `{"admin_id": "abc", "org_name": %q}`, orgName)
 		case "/profile":
 			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: fakeProfileUUID}))
 		case "/server/devices":
@@ -3297,9 +3297,9 @@ func (s *integrationMDMTestSuite) TestGetHostDEPAssignment() {
 		case "/devices":
 			// Apple's "Get Device Details" endpoint — called by our new endpoint.
 			deviceDetailsCalled++
-			require.NoError(t, encoder.Encode(map[string]interface{}{
-				"devices": map[string]interface{}{
-					depSerial: map[string]interface{}{
+			require.NoError(t, encoder.Encode(map[string]any{
+				"devices": map[string]any{
+					depSerial: map[string]any{
 						"serial_number":       depSerial,
 						"model":               "MacBook Pro",
 						"profile_status":      "assigned",

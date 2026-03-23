@@ -2368,7 +2368,7 @@ type getHostDEPAssignmentResponse struct {
 
 func (r getHostDEPAssignmentResponse) Error() error { return r.Err }
 
-func getHostDEPAssignmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getHostDEPAssignmentEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostDEPAssignmentRequest)
 	depAssignment, depDevice, err := svc.GetHostDEPAssignmentDetails(ctx, req.ID)
 	if err != nil {
