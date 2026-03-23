@@ -18,7 +18,7 @@ import (
 	"strings"
 
 	"github.com/cenkalti/backoff/v4"
-	hostidentitypkg "github.com/fleetdm/fleet/v4/pkg/hostidentity"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -131,7 +131,7 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 // hasRenewalExtension checks if the CSR contains the renewal extension
 func hasRenewalExtension(csr *x509.CertificateRequest) bool {
 	for _, ext := range csr.Extensions {
-		if ext.Id.Equal(hostidentitypkg.RenewalExtensionOID) {
+		if ext.Id.Equal(types.RenewalExtensionOID) {
 			return true
 		}
 	}
@@ -142,10 +142,10 @@ func hasRenewalExtension(csr *x509.CertificateRequest) bool {
 func renewalMiddleware(ds fleet.Datastore, logger *slog.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request
-		var renewalData hostidentitypkg.RenewalData
+		var renewalData types.RenewalData
 		found := false
 		for _, ext := range m.CSR.Extensions {
-			if ext.Id.Equal(hostidentitypkg.RenewalExtensionOID) {
+			if ext.Id.Equal(types.RenewalExtensionOID) {
 				if err := json.Unmarshal(ext.Value, &renewalData); err != nil {
 					return nil, fmt.Errorf("invalid renewal extension: %w", err)
 				}
