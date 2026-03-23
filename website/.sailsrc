@@ -1,8 +1,7 @@
 {
   "generators": {
     "modules": {
-      "landing-page": "./generators/landing-page",
-      "gitops": "./generators/gitops"
+      "landing-page": "./generators/landing-page"
     }
   },
   "_generatedWith": {
