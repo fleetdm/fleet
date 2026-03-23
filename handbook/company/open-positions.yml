@@ -175,6 +175,34 @@
     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
     - ➕ Bonus: Cybersecurity or IT background.
 
+- jobTitle: 🐋 Customer Solutions Architect
+  department: Customers
+  hiringManagerName: Zay Hanlon
+  hiringManagerGithubUsername: zayhanlon
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+  onTargetEarnings: "$115,000 - $140,000"
+  responsibilities: |
+    - ⏫ Own post-sales components of customer onboarding and deployment, and own post-sales components of solutions consulting
+    - 📣 Manage multiple customer deployments and 'feature' escalations simultaneously
+    - 🪴 Promote existing product best practices in lieu of engineering-led product changes whenever possible
+    - 🌡️ Work alongside the customer and internal teams to expediate processes when product changes may be required
+    - 🕴️ Have the ability to guide the customer rather than be guided, be the subject matter expert
+    - 🚀 Work collaboratively with product, engineering, and customer support to creatively solve problems outside the normal scope of product use
+    - 📈 Proactively engage with customers to identify areas where product adoption can be increased, or areas where product best practices are not in place
+    - 💡 Excellent communication and collaboration skills, with the ability to partner with various teams and stakeholders to drive desired customer outcomes and key objectives
+    - 🧪 Extensive experience with GitHub, no code solutions like Tines/Torq, cloud environments, and/or configuring log pipelines to a SIEM or data cloud platform
+  experience: |
+    - 💭 Cybersecurity or IT background in solutions consulting/ services consulting/ or solutions architecture. Experience with cloud environments like AWS and Azure or device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+    - 💖 You know how to do a lot with little time and limited resources
+    - ✍🏾 You have the ability to effectively communicate with key stakeholders, from senior executives to day-to-day engineering contacts, to influence decision making
+    - 🧬 You have extensive experience using and designing REST API's
+    - 🧑‍🔬 Experience working with self-managed/self-hosted products with complex and varying customer environments (understanding of semantic versioning and the config surface of a deployable product)
+    - 🤝 Experience with enterprise customer environments and trends and the technologies that plug-in to them (SIEM's, EDR solutions, data visualization solutions, no-code automation)
+    - 🦉 5+ years of work experience in post-sales solutions architecture, services consulting, or technical account management.
+    - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving and creatively architechting new solutions while assisting external stakeholders.
+    - ➕ Familiarity with osquery, SQLite, and GitOps workflows. Experience working with IT, SRE,CPE, or SecOps teams.
+    - ✨ Nice to have: Ability to read and understand server-side code (GO), experience with Terraform or other infrastructure as code, experience with Tines/Torq or other no-code tool,
+
 #- jobTitle: 🌐 Solutions Consultant
 # department: IT & Enablement
 # hiringManagerName: Allen Houchins
