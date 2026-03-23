@@ -126,13 +126,19 @@ func (s *Service) AuthenticateNewAccountMessage(ctx context.Context, message api
 	return nil
 }
 
-func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message api_http.JWSRequestContainer, request any) error {
+func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message api_http.JWSRequestContainer, request types.AccountAuthenticatedRequest) error {
 	if message.KeyID == nil || *message.KeyID == "" {
 		// TODO: we should always get a key ID here
 		return ctxerr.New(ctx, "missing JWK in JWS message")
 	}
 	if message.JWS.Signatures[0].Protected.Nonce == "" {
 		return ctxerr.New(ctx, "missing nonce in JWS message")
+	}
+	switch message.JWS.Signatures[0].Protected.Algorithm {
+	case string(jose.ES256), string(jose.ES384), string(jose.ES512):
+		// All acceptable algorithms
+	default:
+		return ctxerr.New(ctx, "unsupported signature algorithm in JWS message")
 	}
 	// First fetch the enrollment associated with the identifier, 404 if not exists.
 	enrollment, err := s.store.GetEnrollmentByIdentifier(ctx, message.Identifier)
