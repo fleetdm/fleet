@@ -1,6 +1,7 @@
 import React from "react";
 import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+import CustomLink from "components/CustomLink";
 
 interface IDeviceStatusTag {
   title: string;
@@ -121,13 +122,17 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
 > = {
   android: (
     <>
-      Android devices sync automatically, but changes may
+      Android hosts sync data automatically when they
       <br />
-      not appear immediately due to Google rate limiting.
+      change, but changes may not appear immediately
       <br />
-      To manually sync, go to <b>Settings &gt; Google &gt;</b>
-      <br />
-      <b>Work profile &gt; Device policy</b> on the device.
+      due to Google rate limiting.{" "}
+      <CustomLink
+        url="TODO"
+        text="Learn how to manually sync"
+        variant="tooltip-link"
+        newTab
+      />
     </>
   ),
   offline: (
