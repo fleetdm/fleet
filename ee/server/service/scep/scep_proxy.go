@@ -511,7 +511,8 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	// Get the challenge from NDES
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
 	client.Transport = ntlmssp.Negotiator{
-		RoundTripper: fleethttp.NewTransport(),
+		RoundTripper:   fleethttp.NewTransport(),
+		AllowBasicAuth: proxy.AllowBasicAuth,
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {

@@ -120,6 +120,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.AdminURL = ptr.String(p.NDESSCEPProxy.AdminURL)
 		caToCreate.Username = ptr.String(p.NDESSCEPProxy.Username)
 		caToCreate.Password = &p.NDESSCEPProxy.Password
+		caToCreate.AllowBasicAuth = &p.NDESSCEPProxy.AllowBasicAuth
 		caDisplayType = "NDES SCEP"
 		activity = fleet.ActivityAddedNDESSCEPProxy{}
 	}
@@ -668,12 +669,13 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 	if existing == nil || (existing.URL == "" && existing.AdminURL == "" && existing.Username == "" && existing.Password == "") {
 		svc.logger.DebugContext(ctx, "adding new NDES SCEP CA as none exists")
 		batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
-			Type:     string(fleet.CATypeNDESSCEPProxy),
-			Name:     &ndesName,
-			URL:      &incoming.URL,
-			AdminURL: &incoming.AdminURL,
-			Username: &incoming.Username,
-			Password: &incoming.Password,
+			Type:           string(fleet.CATypeNDESSCEPProxy),
+			Name:           &ndesName,
+			URL:            &incoming.URL,
+			AdminURL:       &incoming.AdminURL,
+			Username:       &incoming.Username,
+			Password:       &incoming.Password,
+			AllowBasicAuth: &incoming.AllowBasicAuth,
 		})
 		return nil
 	}
@@ -682,12 +684,13 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 	svc.logger.DebugContext(ctx, "updating existing NDES SCEP CA")
 	incoming.ID = existing.ID
 	batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
-		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     &ndesName,
-		URL:      &incoming.URL,
-		AdminURL: &incoming.AdminURL,
-		Username: &incoming.Username,
-		Password: &incoming.Password,
+		Type:           string(fleet.CATypeNDESSCEPProxy),
+		Name:           &ndesName,
+		URL:            &incoming.URL,
+		AdminURL:       &incoming.AdminURL,
+		Username:       &incoming.Username,
+		Password:       &incoming.Password,
+		AllowBasicAuth: &incoming.AllowBasicAuth,
 	})
 
 	return nil
@@ -1183,6 +1186,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.AdminURL = p.NDESSCEPProxyCAUpdatePayload.AdminURL
 		caToUpdate.Username = p.NDESSCEPProxyCAUpdatePayload.Username
 		caToUpdate.Password = p.NDESSCEPProxyCAUpdatePayload.Password
+		caToUpdate.AllowBasicAuth = p.NDESSCEPProxyCAUpdatePayload.AllowBasicAuth
 		if caToUpdate.Name != nil {
 			caActivityName = *caToUpdate.Name
 		} else {
@@ -1437,6 +1441,11 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 			NDESProxy.Password = *ndesSCEP.Password
 		} else {
 			NDESProxy.Password = *oldCA.Password
+		}
+		if ndesSCEP.AllowBasicAuth != nil {
+			NDESProxy.AllowBasicAuth = *ndesSCEP.AllowBasicAuth
+		} else if oldCA.AllowBasicAuth != nil {
+			NDESProxy.AllowBasicAuth = *oldCA.AllowBasicAuth
 		}
 
 		if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
