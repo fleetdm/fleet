@@ -1148,7 +1148,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 	}
 
 	// verifyCommands checks the number of commands sent to the device.
-	// nRemovals is optional — when a profile is replaced, <Delete> commands
+	// nRemovals is optional. When a profile is replaced, <Delete> commands
 	// are generated for the old version in addition to install commands.
 	verifyCommands := func(wantProfileInstalls int, status string, nRemovals ...int) {
 		nRemove := 0
@@ -1184,25 +1184,25 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		require.Len(t, cmds, 1)
 	}
 
-	t.Run("do not resend if nothing changed", func(t *testing.T) {
-		t.Cleanup(func() {
-			// Clear the profiles
-			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
-				http.StatusNoContent)
-			// Clear host-profile rows and queued commands left behind by
-			// two-phase removal, so subsequent subtests start clean.
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				if _, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID); err != nil {
-					return err
-				}
-				// Also dequeue any pending commands for this host's enrollment
-				_, err := q.ExecContext(context.Background(), `
-					DELETE wmcq FROM windows_mdm_command_queue wmcq
-					JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
-					WHERE mwe.host_uuid = ?`, h.UUID)
+	// cleanupWindowsHostState removes host-profile rows and queued commands
+	// left behind by two-phase removal, so subsequent subtests start clean.
+	cleanupWindowsHostState := func() {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
+			http.StatusNoContent)
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID); err != nil {
 				return err
-			})
+			}
+			_, err := q.ExecContext(context.Background(), `
+				DELETE wmcq FROM windows_mdm_command_queue wmcq
+				JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
+				WHERE mwe.host_uuid = ?`, h.UUID)
+			return err
 		})
+	}
+
+	t.Run("do not resend if nothing changed", func(t *testing.T) {
+		t.Cleanup(cleanupWindowsHostState)
 
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// profiles to install + 2 boilerplate <Status>
@@ -1221,24 +1221,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 	})
 
 	t.Run("resend if contents changed", func(t *testing.T) {
-		t.Cleanup(func() {
-			// Clear the profiles
-			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
-				http.StatusNoContent)
-			// Clear host-profile rows and queued commands left behind by
-			// two-phase removal, so subsequent subtests start clean.
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				if _, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID); err != nil {
-					return err
-				}
-				// Also dequeue any pending commands for this host's enrollment
-				_, err := q.ExecContext(context.Background(), `
-					DELETE wmcq FROM windows_mdm_command_queue wmcq
-					JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
-					WHERE mwe.host_uuid = ?`, h.UUID)
-				return err
-			})
-		})
+		t.Cleanup(cleanupWindowsHostState)
 
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// profiles to install + 2 boilerplate <Status>
@@ -5995,8 +5978,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
-	// W2 has broken labels now so it stays in its current state (install+pending).
-	// Broken label-based profiles are excluded from both install and remove lists.
+	// W2 references a deleted label, so the reconciler skips it entirely
+	// (it appears in neither the install nor the remove list).
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
 		windowsHost: {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
@@ -6815,8 +6798,8 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 	// create some Apple and Windows hosts
 	host1, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	host3, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-	host4, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host3, mdmDevice3 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host4, mdmDevice4 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	for i, h := range []*fleet.Host{host1, host2, host3, host4} {
 		t.Logf("host %d: %s", i+1, h.UUID)
 	}
@@ -6950,6 +6933,35 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 		host4: {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 		},
+	})
+
+	// Simulate device check-ins to process the <Delete> commands. After
+	// the device responds with OK, the remove+verified rows are cleaned up.
+	for _, device := range []*mdmtest.TestWindowsMDMClient{mdmDevice3, mdmDevice4} {
+		cmds, err := device.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := device.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			status := syncml.CmdStatusOK
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &c.Cmd.CmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = device.SendResponse()
+		require.NoError(t, err)
+	}
+
+	// After the devices confirmed the <Delete>, the remove rows should be
+	// cleaned up (verified removes are deleted from host_mdm_windows_profiles).
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		host3: {},
+		host4: {},
 	})
 
 	// add new profile A3 and re-add A2, behaves as if a new profile because it has a new uuid
