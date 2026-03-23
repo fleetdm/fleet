@@ -1753,9 +1753,7 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 		return nil, errors.New("no commands found in profile")
 	}
 
-	// extractLocURIs collects all Target LocURIs from Replace and Add commands.
-	// Exec commands are intentionally excluded — they trigger one-time actions
-	// and don't persist nodes in the DM tree, so there is nothing to delete.
+	// extractLocURIs collects all Target LocURIs from Replace and Add commands. Exec commands are intentionally excluded.
 	extractLocURIs := func(cmd *SyncMLCmd) []string {
 		var uris []string
 		for _, nested := range cmd.ReplaceCommands {
@@ -1795,12 +1793,15 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 
 	var rawCommand []byte
 
+	// Profile validation guarantees that a profile is either a single <Atomic> wrapping everything, or one
+	// or more non-atomic commands (Replace, Add, Exec). Multiple <Atomic> blocks are rejected at upload time,
+	// so we don't handle that case here.
 	switch {
 	case len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic:
 		// Atomic profile: extract URIs from nested commands, wrap deletes in <Atomic>
 		uris := extractLocURIs(&cmds[0])
 		if len(uris) == 0 {
-			// All nested commands are Exec (or have no URIs) — nothing to delete.
+			// All nested commands are Exec (or have no URIs); nothing to delete.
 			return nil, nil
 		}
 
