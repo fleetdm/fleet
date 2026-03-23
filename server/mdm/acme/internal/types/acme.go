@@ -2,8 +2,9 @@ package types
 
 import (
 	"context"
-	"os"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 )
 
 type Directory struct {
@@ -44,7 +45,7 @@ func (a *ACMEEnrollment) IsValid() bool {
 // the Fleet server URL by default, but can be overridden by the FLEET_DEV_STEP_CA_SERVER
 // environment variable for test purposes.
 func AppleACMEBaseURL(serverURL string) string {
-	if base := os.Getenv("FLEET_DEV_STEP_CA_SERVER"); base != "" {
+	if base := dev_mode.Env("FLEET_DEV_STEP_CA_SERVER"); base != "" {
 		return base
 	}
 	return serverURL
