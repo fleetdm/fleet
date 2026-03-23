@@ -3914,7 +3914,6 @@ func TestGitOpsFeatures(t *testing.T) {
 				"detail_query_b": nil,
 			},
 		},
-
 	}
 
 	globalFileUpdatedFeatures, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -3999,7 +3998,6 @@ func TestGitOpsSSOSettings(t *testing.T) {
 			EnableJITProvisioning: true,
 			EnableJITRoleSync:     true,
 		},
-
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -4087,7 +4085,6 @@ func TestGitOpsSMTPSettings(t *testing.T) {
 			SMTPVerifySSLCerts:       true,
 			SMTPEnableStartTLS:       true,
 		},
-
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -4138,7 +4135,6 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 				},
 			},
 		},
-
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -4208,7 +4204,6 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 		Integrations: fleet.Integrations{
 			ConditionalAccessEnabled: optjson.SetBool(true),
 		},
-
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
