@@ -11,5 +11,5 @@ import (
 type AccountService interface {
 	CreateAccount(ctx context.Context, enrollmentID uint, jwk jose.JSONWebKey, onlyReturnExisting bool) (*types.Account, error)
 	AuthenticateNewAccountMessage(ctx context.Context, message *api_http.JWSRequestContainer, request *api_http.CreateNewAccountRequest) error
-	AuthenticateMessageFromAccount(ctx context.Context, message *api_http.JWSRequestContainer, request *types.AccountAuthenticatedRequest) error
+	AuthenticateMessageFromAccount(ctx context.Context, message *api_http.JWSRequestContainer, request types.AccountAuthenticatedRequest) error
 }

@@ -72,5 +72,4 @@ func createOrderEndpoint(ctx context.Context, request any, svc api.Service) plat
 	req := request.(*api_http.JWSRequestContainer)
 	newOrderRequest := api_http.CreateNewOrderRequest{}
 	err := svc.AuthenticateMessageFromAccount(ctx, req, &newOrderRequest)
-	req := request.(*api_http.CreateNewAccountRequest)
 }
