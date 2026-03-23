@@ -1,6 +1,6 @@
 ---
 name: fleet-gitops
-description: Use when working on Fleet GitOps configuration files, including osquery queries, configuration profiles, and DDM declarations in the it-and-security folder.
+description: Use when working on Fleet GitOps configuration files, including osquery queries, configuration profiles, DDM declarations, software management, and CVE remediation in the it-and-security folder.
 ---
 
 # Fleet GitOps – Kilocode Skill
@@ -30,7 +30,7 @@ When generating or modifying configuration profiles:
 - When adding software for macOS or Windows hosts, **always check the Fleet-maintained app catalog first** before using a custom package:
   - https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps
 - In GitOps YAML, use the `fleet_maintained_apps` key with the app's `slug` to reference a Fleet-maintained app.
-- If a Fleet-maintained app is not available for the required software, note this and proceed with a custom package.
+- When remediating a CVE, use Fleet's built-in vulnerability detection to identify affected software, then follow the Software section above to deploy a fix — preferring a Fleet-maintained app update where available, otherwise a custom package.
 
 ## Declarative Device Management (DDM)
 
