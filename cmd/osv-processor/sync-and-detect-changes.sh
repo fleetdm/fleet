@@ -30,19 +30,20 @@ if [ -d "$REPO_DIR/.git" ]; then
     OLD_SHA=$(git rev-parse HEAD)
     OLD_COUNT=$(git log --oneline | wc -l | xargs)
 
-    git fetch --update-shallow --shallow-since="${DAYS_TO_KEEP} days ago" origin main --quiet
+    git fetch --update-shallow --shallow-since="${DAYS_TO_KEEP} days ago" origin main
 
     NEW_SHA=$(git rev-parse origin/main)
 
+    echo ""
     if [ "$OLD_SHA" = "$NEW_SHA" ]; then
-        echo "  No new commits (already at $NEW_SHA)"
+        echo "No new commits (already at $NEW_SHA)"
     else
-        echo "  Updating: $OLD_SHA -> $NEW_SHA"
-        git reset --hard origin/main --quiet
+        echo "Updating: $OLD_SHA -> $NEW_SHA"
+        git reset --hard origin/main
     fi
 
     NEW_COUNT=$(git log --oneline | wc -l | xargs)
-    echo "  History: $OLD_COUNT commits -> $NEW_COUNT commits"
+    echo "History: $OLD_COUNT commits -> $NEW_COUNT commits"
 
     cd ..
 else
@@ -50,22 +51,21 @@ else
 
     mkdir -p "$REPO_DIR"
     cd "$REPO_DIR"
-    git init --quiet
+    git init --initial-branch=main
     git remote add origin "$REPO_URL"
 
     git config core.sparseCheckout true
     echo "osv/" > .git/info/sparse-checkout
 
-    git fetch --shallow-since="${DAYS_TO_KEEP} days ago" --quiet origin main
-    git checkout --quiet main
+    git fetch --shallow-since="${DAYS_TO_KEEP} days ago" origin main
+    git checkout -b main --track origin/main
 
     COMMIT_SHA=$(git rev-parse HEAD)
     COMMIT_COUNT=$(git log --oneline | wc -l | xargs)
     cd ..
 
-    echo "  Cloned at: $COMMIT_SHA"
-    echo "  History: $COMMIT_COUNT commits"
-    du -sh "$REPO_DIR" | awk '{print "  Size: " $1}'
+    echo ""
+    echo "Cloned at: $COMMIT_SHA"
 fi
 
 cd "$REPO_DIR"
@@ -84,16 +84,17 @@ TODAY_COUNT=$(wc -l < "../changed_files_today.txt" | xargs)
 YESTERDAY_COUNT=$(wc -l < "../changed_files_yesterday.txt" | xargs)
 cd ..
 
-echo "  Today: $TODAY_COUNT CVE files changed"
-echo "  Yesterday: $YESTERDAY_COUNT CVE files changed"
+echo "Today: $TODAY_COUNT CVE files changed"
+echo "Yesterday: $YESTERDAY_COUNT CVE files changed"
 
 echo ""
-echo "=== Sync Complete ==="
+echo "Sync Complete"
 cd "$REPO_DIR"
 FINAL_SHA=$(git rev-parse HEAD)
 FINAL_COUNT=$(git log --oneline | wc -l | xargs)
 cd ..
 
+du -sh "$REPO_DIR" | awk '{print "Size: " $1}'
 echo "REPO_SHA=$FINAL_SHA"
 echo "REPO_COMMITS=$FINAL_COUNT"
 echo "OSV_DIR=$REPO_DIR/osv/cve"

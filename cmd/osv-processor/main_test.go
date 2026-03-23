@@ -532,7 +532,7 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			expectedMatch: false,
 		},
 		{
-			name:     "Relative path cannot be computed (parent directory)",
+			name:     "File outside input directory tree (relative path doesn't match)",
 			inputDir: "/tmp/ubuntu-osv/subdir",
 			filePath: "/tmp/other-dir/osv/cve/CVE-2024-6666.json",
 			changedFiles: map[string]bool{
