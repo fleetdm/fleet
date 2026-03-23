@@ -228,9 +228,40 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if err != nil {
 			initFatal(err, "Failed to initialize OTEL metrics exporter")
 		}
+
+		// Create views to rename otelsql metrics to match what OpenTelemetry Signoz expects
+		// Reference: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/
+		dbMetricViews := []sdkmetric.View{
+			sdkmetric.NewView(
+				sdkmetric.Instrument{Name: "db.sql.connection.open"},
+				sdkmetric.Stream{Name: "db.client.connection.count"},
+			),
+			sdkmetric.NewView(
+				sdkmetric.Instrument{Name: "db.sql.connection.max_open"},
+				sdkmetric.Stream{Name: "db.client.connection.max"},
+			),
+			sdkmetric.NewView(
+				sdkmetric.Instrument{Name: "db.sql.connection.wait"},
+				sdkmetric.Stream{Name: "db.client.connection.wait_count"},
+			),
+			sdkmetric.NewView(
+				sdkmetric.Instrument{Name: "db.sql.connection.wait_duration"},
+				sdkmetric.Stream{Name: "db.client.connection.wait_time"},
+			),
+			sdkmetric.NewView(
+				sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle"},
+				sdkmetric.Stream{Name: "db.client.connection.closed.max_idle"},
+			),
+			sdkmetric.NewView(
+				sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle_time"},
+				sdkmetric.Stream{Name: "db.client.connection.closed.max_idle_time"},
+			),
+		}
+
 		meterProvider = sdkmetric.NewMeterProvider(
 			sdkmetric.WithResource(res),
 			sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
+			sdkmetric.WithView(dbMetricViews...),
 		)
 		otel.SetMeterProvider(meterProvider)
 
