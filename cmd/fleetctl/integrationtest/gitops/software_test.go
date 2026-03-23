@@ -249,11 +249,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 	for _, c := range cases {
 		c.noTeamFile = filepath.Join("../../fleetctl", c.noTeamFile)
 		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
-			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
-			// Disable labels exception only for tests using the global file that includes `labels:`.
-			if !strings.HasPrefix(filepath.Base(c.noTeamFile), "no_team_setup_software") {
-				(*savedAppConfig).GitOpsConfig.Exceptions.Labels = false
-			}
+			ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 			tokExpire := time.Now().Add(time.Hour)
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)
@@ -385,11 +381,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	for _, c := range cases {
 		c.noTeamFile = filepath.Join("../../fleetctl", c.noTeamFile)
 		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
-			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
-			// Disable labels exception only for tests using the global file that includes `labels:`.
-			if !strings.HasPrefix(filepath.Base(c.noTeamFile), "no_team_setup_software") {
-				(*savedAppConfig).GitOpsConfig.Exceptions.Labels = false
-			}
+			ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 			tokExpire := time.Now().Add(time.Hour)
 			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
 			require.NoError(t, err)

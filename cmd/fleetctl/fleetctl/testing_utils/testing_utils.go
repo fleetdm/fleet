@@ -267,9 +267,6 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			EnabledAndConfigured:        true,
 			AndroidEnabledAndConfigured: true,
 		},
-		GitOpsConfig: fleet.GitOpsConfig{
-			Exceptions: DefaultGitOpsExceptions(),
-		},
 	}
 	AddLabelMocks(ds)
 
@@ -801,15 +798,6 @@ func (m *MemKeyValueStore) Get(ctx context.Context, key string) (*string, error)
 	return &vAsString, nil
 }
 
-// DefaultGitOpsExceptions returns a GitOpsExceptions config suitable for tests.
-// Labels are excepted because many tests omit the `labels:` key from YAML but have mock labels set up.
-// Tests that explicitly include `labels:` in their YAML should set Labels to false.
-func DefaultGitOpsExceptions() fleet.GitOpsExceptions {
-	return fleet.GitOpsExceptions{
-		Labels: true,
-	}
-}
-
 func AddLabelMocks(ds *mock.Store) {
 	var deletedLabels []string
 	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
@@ -831,7 +819,13 @@ func AddLabelMocks(ds *mock.Store) {
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		return nil
 	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
 
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{ID: 1, Name: name}, nil
+	}
 	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil

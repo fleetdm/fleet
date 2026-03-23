@@ -1391,20 +1391,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedLabelSpecs, 0)
 	assert.Len(t, deletedLabels, 0)
 
-	// Dry run w/out top-level labels key
-	logs = RunAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml", "--dry-run"})
-	fmt.Printf("%s", logs)
-	fmt.Printf("-----------\n")
-	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
-	assert.Len(t, enrolledSecrets, 0)
-	assert.Len(t, appliedPolicySpecs, 0)
-	assert.Len(t, appliedQueries, 0)
-	assert.Len(t, appliedScripts, 0)
-	assert.Len(t, appliedMacProfiles, 0)
-	assert.Len(t, appliedWinProfiles, 0)
-	assert.Len(t, appliedLabelSpecs, 0)
-	assert.Len(t, deletedLabels, 0)
-
 	// Real run w/ top-level labels key
 	logs = RunAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths.yml"})
 	fmt.Printf("%s", logs)
@@ -1482,7 +1468,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 			EnabledAndConfigured:        true,
 			WindowsEnabledAndConfigured: true,
 		},
-		GitOpsConfig: fleet.GitOpsConfig{Exceptions: testing_utils.DefaultGitOpsExceptions()},
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &appConfig, nil
@@ -1863,8 +1848,8 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		},
 	)
 
-	// Mock appConfig — labels excepted because YAML omits `labels:` and AddLabelMocks creates existing labels.
-	savedAppConfig := &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: fleet.GitOpsExceptions{Labels: true}}}
+	// Mock appConfig
+	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appConfig := savedAppConfig.Copy()
 		return appConfig, nil
@@ -1964,7 +1949,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
-	testing_utils.AddLabelMocks(ds)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return nil
+	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 	setupDefaultTeamConfigMocks(ds)
@@ -2197,17 +2187,16 @@ software:
 
 	// Dry run
 	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
-	emptyWithExceptions := fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: fleet.GitOpsExceptions{Labels: true}}}
-	assert.Equal(t, emptyWithExceptions, *savedAppConfig, "AppConfig should be empty")
+	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
 	// Dry run should not attempt to get the VPP token when applying VPP apps (it may not exist).
 	require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked)
 	ds.ListTeamsFuncInvoked = false
 
 	// Dry run, deleting other teams
-	savedAppConfig = &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: fleet.GitOpsExceptions{Labels: true}}}
+	savedAppConfig = &fleet.AppConfig{}
 	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run", "--delete-other-teams"})
-	assert.Equal(t, emptyWithExceptions, *savedAppConfig, "AppConfig should be empty")
+	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.True(t, ds.ListTeamsFuncInvoked)
 
 	// Real run
@@ -2280,10 +2269,10 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	// Mock Apple GDMF API (required for validating OS update minimum version settings)
 	mdmtest.StartNewAppleGDMFTestServer(t)
 
-	// Mock appConfig — labels excepted because YAML omits `labels:` and AddLabelMocks creates existing labels.
+	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: fleet.GitOpsExceptions{Labels: true}}}, nil
+		return &fleet.AppConfig{}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
@@ -2372,7 +2361,12 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, 0, nil, nil
 	}
-	testing_utils.AddLabelMocks(ds)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return nil
+	}
 
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		job.ID = 1
@@ -2844,9 +2838,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds, savedAppConfigPtr, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
 	testing_utils.StartSoftwareInstallerServer(t)
 
-	// This test includes `labels:` in its YAML, so disable the labels exception.
-	(*savedAppConfigPtr).GitOpsConfig.Exceptions.Labels = false
-
 	var enrolledSecrets []*fleet.EnrollSecret
 	var enrolledTeamSecrets []*fleet.EnrollSecret
 	var appliedPolicySpecs []*fleet.PolicySpec
@@ -2977,9 +2968,11 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	require.Len(t, enrolledTeamSecrets, 2)
 
 	t.Run("no-team.yml using relative paths", func(t *testing.T) {
-		// Re-enable labels exception since these YAML files don't include `labels:`.
-		(*savedAppConfigPtr).GitOpsConfig.Exceptions.Labels = true
-		t.Cleanup(func() { (*savedAppConfigPtr).GitOpsConfig.Exceptions.Labels = false })
+		// Override label mocks to return no existing labels, since these YAML files
+		// don't include `labels:` and multi-file deletion would cause dedup errors.
+		ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+			return nil, nil
+		}
 
 		globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
 		teamFileBasic := createTeamFileBasic(t, teamName)
@@ -3489,6 +3482,10 @@ software:
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			ds, savedAppConfigPtr, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+			// No existing labels — this test doesn't test label behavior.
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+				return nil, nil
+			}
 
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				if len(tt.tokens) > 0 {
@@ -3917,7 +3914,7 @@ func TestGitOpsFeatures(t *testing.T) {
 				"detail_query_b": nil,
 			},
 		},
-		GitOpsConfig: fleet.GitOpsConfig{Exceptions: testing_utils.DefaultGitOpsExceptions()},
+
 	}
 
 	globalFileUpdatedFeatures, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -4002,7 +3999,7 @@ func TestGitOpsSSOSettings(t *testing.T) {
 			EnableJITProvisioning: true,
 			EnableJITRoleSync:     true,
 		},
-		GitOpsConfig: fleet.GitOpsConfig{Exceptions: testing_utils.DefaultGitOpsExceptions()},
+
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -4049,7 +4046,7 @@ org_settings:
 
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
-	appConfig := fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: testing_utils.DefaultGitOpsExceptions()}}
+	appConfig := fleet.AppConfig{}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &appConfig, nil
@@ -4090,7 +4087,7 @@ func TestGitOpsSMTPSettings(t *testing.T) {
 			SMTPVerifySSLCerts:       true,
 			SMTPEnableStartTLS:       true,
 		},
-		GitOpsConfig: fleet.GitOpsConfig{Exceptions: testing_utils.DefaultGitOpsExceptions()},
+
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -4141,7 +4138,7 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 				},
 			},
 		},
-		GitOpsConfig: fleet.GitOpsConfig{Exceptions: testing_utils.DefaultGitOpsExceptions()},
+
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -4211,7 +4208,7 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 		Integrations: fleet.Integrations{
 			ConditionalAccessEnabled: optjson.SetBool(true),
 		},
-		GitOpsConfig: fleet.GitOpsConfig{Exceptions: testing_utils.DefaultGitOpsExceptions()},
+
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
