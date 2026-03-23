@@ -70,8 +70,13 @@
     }
   }
 
-  &__command-line-tool {
+  &__command-line-tool.custom-link {
     color: inherit;
+    font-weight: $bold;
+  }
+
+  &__advanced--osqueryd .custom-link {
+    font-weight: $bold;
   }
 
   .download-certificate--tooltip {

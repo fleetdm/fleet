@@ -242,7 +242,6 @@ const PlatformWrapper = ({
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/installing-fleetctl`}
               text="Fleet command-line tool"
               newTab
-              bold
             />
           </span>
         )}
@@ -425,7 +424,6 @@ const PlatformWrapper = ({
                     url="https://www.osquery.io/downloads"
                     text="osquery"
                     newTab
-                    bold
                   />{" "}
                   installed:
                 </p>
