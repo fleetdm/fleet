@@ -1,6 +1,7 @@
 import React, { useContext, useRef, useState } from "react";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import PATHS from "router/paths";
 
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
@@ -132,15 +133,12 @@ const ConditionalAccessModal = ({
 
   const renderNotConfigured = () => (
     <>
-      To block single sign-on from hosts failing policies, you must first
-      connect Fleet to {providerText}.
-      <br />
-      <br />
-      This can be configured in <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-      <b>Conditional access</b>.
-      <br />
-      <br />
-      {learnMoreLink}
+      <CustomLink
+        url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
+        text={`Connect Fleet to ${providerText}`}
+        emphasized
+      />{" "}
+      to block single sign-on from hosts failing policies. {learnMoreLink}
       <div className="modal-cta-wrap">
         <Button onClick={onExit}>Done</Button>
       </div>

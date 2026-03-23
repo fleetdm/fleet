@@ -167,16 +167,12 @@ const CalendarEventsModal = ({
           <img src={CalendarPreview} alt="Calendar preview" />
         </a>
         <div>
-          To create calendar events for end users if their hosts fail policies,
-          you must first connect Fleet to your Google Workspace service account.
-        </div>
-        <div>
-          This can be configured in{" "}
           <CustomLink
             url={paths.ADMIN_INTEGRATIONS_CALENDARS}
-            text="Settings &gt; Integrations &gt; Calendars"
-          />
-          .
+            text="Connect Fleet to Google Workspace"
+            emphasized
+          />{" "}
+          to create calendar events for end users if their hosts fail policies.
         </div>
         <div>
           <CustomLink

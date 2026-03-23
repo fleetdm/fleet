@@ -125,16 +125,16 @@ const PolicyRunScriptModal = ({
     if (!availableScripts?.length) {
       return (
         <div className={`${baseClass}__no-scripts`}>
-          <b>No scripts available for install</b>
+          <b>No scripts available</b>
           <div>
-            Go to{" "}
             <CustomLink
               url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
                 fleet_id: teamId,
               })}
-              text="Controls &gt; Scripts"
+              text="Add script"
+              emphasized
             />{" "}
-            to add scripts to this fleet.
+            to this fleet to enable policy automation.
           </div>
         </div>
       );

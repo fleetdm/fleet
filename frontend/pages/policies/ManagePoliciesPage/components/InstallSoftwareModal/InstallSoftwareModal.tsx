@@ -271,14 +271,14 @@ const InstallSoftwareModal = ({
         <div className={`${baseClass}__no-software`}>
           <b>No software available for install</b>
           <div>
-            Go to{" "}
             <CustomLink
-              url={getPathWithQueryParams(paths.SOFTWARE_TITLES, {
+              url={getPathWithQueryParams(paths.SOFTWARE_ADD_FLEET_MAINTAINED, {
                 fleet_id: teamId,
               })}
-              text="Software"
+              text="Add software"
+              emphasized
             />{" "}
-            to add software to this fleet.
+            to this fleet.
           </div>
         </div>
       );
