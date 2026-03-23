@@ -1,0 +1,12 @@
+<Replace>
+  <!-- CIS 18.10.9.1.1 (L1) Ensure 'Configure enhanced anti-spoofing' is set to 'Enabled' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Biometrics/FacialFeaturesUseEnhancedAntiSpoofing</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>

@@ -1,0 +1,48 @@
+<Replace>
+  <!-- ES-003: Application Guard - Allow Persistence -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsDefenderApplicationGuard/AllowPersistence</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- ES-003: Application Guard - Clipboard Settings -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsDefenderApplicationGuard/ClipboardSettings</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- ES-003: Application Guard - Save Files to Host -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsDefenderApplicationGuard/SaveFilesToHost</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- ES-003: Application Guard - Allow Camera and Microphone -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsDefenderApplicationGuard/AllowCameraMicrophoneRedirection</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>

@@ -1,0 +1,12 @@
+<Replace>
+  <!-- CIS 18.10.59.5 (L1) Ensure 'Allow indexing of encrypted files' is set to 'Disabled' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Search/PreventIndexingEncryptedStoresOrItems</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
