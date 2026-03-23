@@ -1,0 +1,6 @@
+- name: macOS - Santa installed and configured
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.northpolesec.santa') AND EXISTS (SELECT 1 FROM macos_profiles WHERE identifier = 'com.fleetdm.santa.configuration') AND EXISTS (SELECT 1 FROM macos_profiles WHERE identifier = 'com.fleetdm.santa.rules');
+  critical: false
+  description: This policy checks that Santa is installed and the Santa configuration and rules profiles are applied.
+  resolution: "Santa should be installed automatically during setup. If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  platform: darwin
