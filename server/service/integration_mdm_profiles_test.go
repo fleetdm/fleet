@@ -5926,9 +5926,12 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
-	// W2 was previously marked for removal and is now remove+verifying (filtered out)
+	// W2 was re-installed (flipped from remove to install) and is now
+	// install+pending after the reconciler sent the command.
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {},
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
 	})
 
 	// break the A1 profile by deleting labels [1]
@@ -5944,8 +5947,11 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
+	// W2 is still install+pending from the re-install triggered earlier.
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {},
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
 	})
 
 	// it also doesn't get installed to a new host not a member of any labels
@@ -5964,7 +5970,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 		},
 	})
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {},
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
 	})
 
 	// delete labels [2] and [4], breaking D3 and W2, they don't get removed
@@ -5987,8 +5995,12 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
+	// W2 has broken labels now so it stays in its current state (install+pending).
+	// Broken label-based profiles are excluded from both install and remove lists.
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {},
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
 	})
 }
 
