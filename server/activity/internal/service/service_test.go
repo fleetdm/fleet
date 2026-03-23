@@ -208,8 +208,8 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: new(johnUser.ID)},
-			{ID: 2, Type: "another_activity", ActorID: new(janeUser.ID)},
+			{ID: 1, Type: "test_activity", ActorID: &johnUser.ID},
+			{ID: 2, Type: "another_activity", ActorID: &janeUser.ID},
 			{ID: 3, Type: "system_activity"}, // No actor
 		}),
 		withUsers([]*activity.User{johnUser, janeUser}),
@@ -288,7 +288,7 @@ func TestListActivitiesWithMatchQuery(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: new(johnUser.ID)},
+			{ID: 1, Type: "test_activity", ActorID: &johnUser.ID},
 		}),
 		withSearchUserIDs([]uint{100, 200, 300}), // 3 users match "john", but only user 100 has activities
 		withUsers([]*activity.User{johnUser}),
@@ -346,9 +346,9 @@ func TestListActivitiesWithDuplicateUserIDs(t *testing.T) {
 	// Multiple activities by the same user
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "created_policy", ActorID: new(johnUser.ID)},
-			{ID: 2, Type: "deleted_policy", ActorID: new(johnUser.ID)},
-			{ID: 3, Type: "edited_policy", ActorID: new(johnUser.ID)},
+			{ID: 1, Type: "created_policy", ActorID: &johnUser.ID},
+			{ID: 2, Type: "deleted_policy", ActorID: &johnUser.ID},
+			{ID: 3, Type: "edited_policy", ActorID: &johnUser.ID},
 		}),
 		withUsers([]*activity.User{johnUser}),
 	)
