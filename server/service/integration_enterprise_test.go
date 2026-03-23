@@ -3334,7 +3334,51 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 	  }`), http.StatusOK)
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "https://a.b.cc", config.UIGitOpsMode.RepositoryURL)
+	assert.Equal(t, "https://a.b.cc", config.GitOpsConfig.RepositoryURL)
+}
+
+func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
+	t := s.T()
+
+	// Enable GitOps mode first
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
+	}`), http.StatusOK)
+
+	// Set exceptions
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "exceptions": { "labels": true, "software": true, "secrets": false } }
+	}`), http.StatusOK)
+
+	config, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	assert.True(t, config.GitOpsConfig.Exceptions.Labels)
+	assert.True(t, config.GitOpsConfig.Exceptions.Software)
+	assert.False(t, config.GitOpsConfig.Exceptions.Secrets)
+	assert.True(t, config.GitOpsConfig.GitopsModeEnabled)
+	assert.Equal(t, "https://example.com/repo", config.GitOpsConfig.RepositoryURL)
+
+	// Partial update — only change one exception, others should persist
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "exceptions": { "software": false } }
+	}`), http.StatusOK)
+
+	config, err = s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	assert.True(t, config.GitOpsConfig.Exceptions.Labels, "labels should persist")
+	assert.False(t, config.GitOpsConfig.Exceptions.Software, "software should be updated")
+	assert.False(t, config.GitOpsConfig.Exceptions.Secrets, "secrets should persist")
+	assert.True(t, config.GitOpsConfig.GitopsModeEnabled)
+	assert.Equal(t, "https://example.com/repo", config.GitOpsConfig.RepositoryURL)
+
+	// Verify exceptions appear in GET response
+	var getResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &getResp)
+	assert.True(t, getResp.GitOpsConfig.Exceptions.Labels)
+	assert.False(t, getResp.GitOpsConfig.Exceptions.Software)
+	assert.False(t, getResp.GitOpsConfig.Exceptions.Secrets)
+	assert.True(t, getResp.GitOpsConfig.GitopsModeEnabled)
+	assert.Equal(t, "https://example.com/repo", getResp.GitOpsConfig.RepositoryURL)
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -12363,7 +12407,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		for _, tc := range testCases {
 			t.Run(tc.desc, func(t *testing.T) {
-
 				payload := &fleet.UploadSoftwareInstallerPayload{
 					InstallScript:     "some install script",
 					PreInstallQuery:   "some pre install query",
@@ -12381,7 +12424,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 				}
 
 				s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
-
 			})
 		}
 
@@ -13786,7 +13828,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 			}
 			res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
 			assert.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
-
 		})
 	}
 
