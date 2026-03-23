@@ -42,7 +42,7 @@ type BaseClient struct {
 
 // ParseResponse processes the status code and parses the response body.
 // It does not close the response body (should be closed by the caller).
-func (bc *BaseClient) ParseResponse(verb, path string, response *http.Response, responseDest interface{}) error {
+func (bc *BaseClient) ParseResponse(verb, path string, response *http.Response, responseDest any) error {
 	switch response.StatusCode {
 	case http.StatusNotFound:
 		return &NotFoundErr{

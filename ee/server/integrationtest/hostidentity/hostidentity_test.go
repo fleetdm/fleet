@@ -29,10 +29,10 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	orbitscep "github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
+	hostidentitypkg "github.com/fleetdm/fleet/v4/pkg/hostidentity"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -564,7 +564,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 	signature, err := ecdsa.SignASN1(rand.Reader, eccPrivateKey, hash[:])
 	require.NoError(t, err)
 
-	renewalData := types.RenewalData{
+	renewalData := hostidentitypkg.RenewalData{
 		SerialNumber: serialHex,
 		Signature:    base64.StdEncoding.EncodeToString(signature),
 	}
@@ -581,7 +581,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 			SignatureAlgorithm: x509.ECDSAWithSHA256,
 			ExtraExtensions: []pkix.Extension{
 				{
-					Id:    types.RenewalExtensionOID,
+					Id:    hostidentitypkg.RenewalExtensionOID,
 					Value: renewalDataJSON,
 				},
 			},
@@ -747,7 +747,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 				SignatureAlgorithm: x509.ECDSAWithSHA256,
 				ExtraExtensions: []pkix.Extension{
 					{
-						Id:    types.RenewalExtensionOID,
+						Id:    hostidentitypkg.RenewalExtensionOID,
 						Value: renewalDataJSON, // Reuse the same renewal data
 					},
 				},

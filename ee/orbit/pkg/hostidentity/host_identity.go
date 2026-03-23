@@ -19,8 +19,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	hostidentitypkg "github.com/fleetdm/fleet/v4/pkg/hostidentity"
 	"github.com/rs/zerolog"
 )
 
@@ -286,7 +286,7 @@ func RenewCertificate(
 		return nil, fmt.Errorf("failed to sign renewal data: %w", err)
 	}
 
-	renewalData := types.RenewalData{
+	renewalData := hostidentitypkg.RenewalData{
 		SerialNumber: serialHex,
 		Signature:    base64.StdEncoding.EncodeToString(signature),
 	}
@@ -333,7 +333,7 @@ func fetchCertWithRenewal(
 ) (*x509.Certificate, error) {
 	// Create the renewal extension
 	renewalExtension := pkix.Extension{
-		Id:    types.RenewalExtensionOID,
+		Id:    hostidentitypkg.RenewalExtensionOID,
 		Value: renewalDataJSON,
 	}
 

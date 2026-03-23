@@ -7,16 +7,17 @@ import (
 )
 
 // Type aliases for base client types (backward compat)
-type baseClient = client.BaseClient
-type HTTPClient = client.HTTPClient
-type httpClient = client.HTTPClient
-type bodyHandler = client.BodyHandler
-type BodyHandler = client.BodyHandler
-type FileResponse = client.FileResponse
+type (
+	baseClient   = client.BaseClient
+	HTTPClient   = client.HTTPClient
+	BodyHandler  = client.BodyHandler
+	FileResponse = client.FileResponse
+)
 
-var NewBaseClient = client.NewBaseClient
-var newBaseClient = client.NewBaseClient
-var errInvalidScheme = client.ErrInvalidScheme
+var (
+	NewBaseClient = client.NewBaseClient
+	newBaseClient = client.NewBaseClient
+)
 
 // Error variable aliases
 var (
@@ -27,12 +28,13 @@ var (
 )
 
 // Error type aliases
-type SetupAlreadyErr = client.SetupAlreadyErr
-type NotFoundErr = client.NotFoundErrIface
-type ConflictErr = client.ConflictErr
-type notFoundErr = client.NotFoundErr
-type statusCodeErr = client.StatusCodeErr
-type StatusCodeErr = client.StatusCodeErr
+type (
+	SetupAlreadyErr = client.SetupAlreadyErr
+	NotFoundErr     = client.NotFoundErrIface
+	ConflictErr     = client.ConflictErr
+	notFoundErr     = client.NotFoundErr
+	StatusCodeErr   = client.StatusCodeErr
+)
 
 func isNotFoundErr(err error) bool { return client.IsNotFoundErr(err) }
 func IsNotFoundErr(err error) bool { return client.IsNotFoundErr(err) }
@@ -49,14 +51,12 @@ func extractServerErrorNameReasons(body io.Reader) ([]string, []string) {
 	return client.ExtractServerErrorNameReasons(body)
 }
 
-func truncateAndDetectHTML(body []byte, maxLen int) ([]byte, bool) {
-	return client.TruncateAndDetectHTML(body, maxLen)
-}
-
 // setupAlreadyErr and notSetupErr
-type setupAlreadyErr = client.SetupAlreadyError
-type notSetupErr = client.NotSetupError
-type NotSetupErr = client.NotSetupErr
+type (
+	setupAlreadyErr = client.SetupAlreadyError
+	notSetupErr     = client.NotSetupError
+	NotSetupErr     = client.NotSetupErr
+)
 
 // conflictErr
 type conflictErr = client.ConflictError
