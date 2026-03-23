@@ -89,11 +89,3 @@ func GetScriptRef(script string) string {
 	_, _ = io.Copy(h, strings.NewReader(script)) // writes to a Hash can never fail
 	return hex.EncodeToString(h.Sum(nil))[:8]
 }
-
-type PatchPolicy struct {
-	Name        string `json:"name"`
-	Query       string `json:"query"`
-	Platform    string `json:"platform"`
-	Description string `json:"description"`
-	Resolution  string `json:"resolution"`
-}
