@@ -168,19 +168,6 @@ $max-width: 2560px;
   }
 }
 
-@mixin table-link {
-  display: inline-flex;
-  align-items: center;
-  padding: $pad-small $pad-xxsmall; // larger clickable area
-  gap: $pad-small;
-  white-space: nowrap;
-  @include link;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 @mixin cell-with-link {
   display: inline-flex;
   align-items: center;
