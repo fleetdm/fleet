@@ -538,10 +538,12 @@ func MakeDecoder(
 
 		buf := bufio.NewReader(r.Body)
 		var body io.Reader = buf
+		gzipped := false
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
 			if r.Header.Get("content-encoding") == "gzip" {
+				gzipped = true
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
 					return nil, BadRequestErr("gzip decoder error", err)
@@ -581,7 +583,7 @@ func MakeDecoder(
 
 					var maxBytesErr *http.MaxBytesError
 					if errors.As(err, &maxBytesErr) {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize, Gzipped: gzipped}
 					}
 
 					return nil, BadRequestErr("json decoder error", err)
@@ -653,7 +655,7 @@ func MakeDecoder(
 
 				var maxBytesErr *http.MaxBytesError
 				if errors.As(err, &maxBytesErr) {
-					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize, Gzipped: gzipped}
 				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
 					return nil, BadRequestErr("json decoder error", err)

@@ -342,6 +342,7 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 		require.Error(t, err)
 		var ple platform_http.PayloadTooLargeError
 		require.True(t, errors.As(err, &ple), "gzip bomb must produce PayloadTooLargeError, got: %v", err)
+		assert.True(t, ple.Gzipped, "PayloadTooLargeError from gzip bomb must have Gzipped set")
 	})
 
 	t.Run("valid gzip body within limit is decoded successfully", func(t *testing.T) {
