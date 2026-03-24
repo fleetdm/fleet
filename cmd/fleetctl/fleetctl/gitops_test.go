@@ -1245,6 +1245,7 @@ controls:
 policies:
 agent_options:
 `)
+	require.NoError(t, err)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 	// Check that secrets is empty on the saved team
