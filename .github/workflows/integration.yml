@@ -115,7 +115,7 @@ jobs:
         echo "Fleet server is responding"
         
         # Wait for all hosts to enroll, then keep the server alive until the summary job completes.
-        EXPECTED=48 # This needs to be updated when the matrix strategies are updated.
+        EXPECTED=96 # This needs to be updated when the matrix strategies are updated.
         START=$(date +%s)
         TIMEOUT=900 # 15 minutes
         ENROLLED_ALL=false
@@ -237,6 +237,7 @@ jobs:
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
+        disable-updates: [ true, false ]
     runs-on: ${{ matrix.runner }}
     needs: [gen, login]
     steps:
@@ -259,14 +260,14 @@ jobs:
     - name: Install fleetd
       run: |
         ARCH=$(uname -m)
-        sudo hostname macos-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}
+        sudo hostname macos-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-${{ matrix.disable-updates }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
         # Instance identifier is needed because macOS runners share UUIDs
-        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance
+        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }}
         sudo installer -pkg fleet-osquery.pkg -target /
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s);
@@ -314,6 +315,7 @@ jobs:
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
+        disable-updates: [ true, false ]
     runs-on: ${{ matrix.runner }}
     needs: [gen, login]
     steps:
@@ -340,13 +342,13 @@ jobs:
       run: |
         ARCH=$(uname -m)
         if [ "$ARCH" = "x86_64" ]; then FLEET_ARCH="amd64"; else FLEET_ARCH="arm64"; fi
-        sudo hostnamectl set-hostname ubuntu-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}
+        sudo hostnamectl set-hostname ubuntu-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-${{ matrix.disable-updates }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --arch=$FLEET_ARCH
+        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --arch=$FLEET_ARCH --disable-updates=${{ matrix.disable-updates }}
         sudo dpkg -i fleet-osquery*
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s); do
@@ -387,6 +389,7 @@ jobs:
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
+        disable-updates: [ true, false ]
     needs: [gen, login]
     runs-on: ${{ matrix.runner }}
     steps:
@@ -398,7 +401,8 @@ jobs:
         $osqueryd = "${{ matrix.osqueryd-channel }}"
         $desktop = "${{ matrix.desktop-channel }}"
         $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'a' } else { 'x' }
-        $ComputerName = "win-$arch-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
+        $disableUpdates = if ("${{ matrix.disable-updates }}" -eq "true") { "t" } else { "f" }
+        $ComputerName = "win-$arch-$($orbit[0])-$($osqueryd[0])-$($desktop[0])-$disableUpdates"
         echo "Setting computer name to $ComputerName"
         
         Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" 
@@ -447,7 +451,7 @@ jobs:
         echo "Secret: $SECRET"
         ARCH=$(echo "$PROCESSOR_ARCHITECTURE" | tr '[:upper:]' '[:lower:]')
         # WIX env var points to the WiX Toolset install dir (pre-installed on windows-11 runner, installed above on windows-11-arm)
-        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin" --arch=$ARCH
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin" --arch=$ARCH --disable-updates=${{ matrix.disable-updates }}
 
     - name: Install Orbit
       shell: cmd
@@ -461,7 +465,8 @@ jobs:
         $osqueryd = "${{ matrix.osqueryd-channel }}"
         $desktop = "${{ matrix.desktop-channel }}"
         $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'a' } else { 'x' }
-        $ComputerName = "win-$arch-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
+        $disableUpdates = if ("${{ matrix.disable-updates }}" -eq "true") { "t" } else { "f" }
+        $ComputerName = "win-$arch-$($orbit[0])-$($osqueryd[0])-$($desktop[0])-$disableUpdates"
         
         $StartTime = Get-Date
         do {
