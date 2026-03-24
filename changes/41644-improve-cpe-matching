@@ -1,0 +1,1 @@
+* Added software source to ecosystem matching to help prevent non-deterministic CPE selection when multiple vendors exist for the same product
