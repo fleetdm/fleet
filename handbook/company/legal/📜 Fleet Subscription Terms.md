@@ -70,7 +70,7 @@ The Software and Other Fleet Materials are collectively referred to herein as th
 
 6.3 Either party may terminate this Agreement, without notice, (i) upon the institution by or against the other party of insolvency, receivership or bankruptcy proceedings (provided such proceedings are not dismissed within one hundred twenty (120) days of such institution), (ii) upon the other party's making an assignment for the benefit of creditors, or (iii) upon the other party's dissolution or ceasing to do business without a successor.
 
-6.4 Customer’s rights to the Licensed Materials, and any licenses granted hereunder, shall terminate upon any termination of this Agreement. In the event that Customer terminates this Agreement pursuant to the second sentence of Section 6.2 above, Fleet will refund to Customer a pro-rated portion of pre-paid Fees for Services not actually received by Customer as of the date of such termination. The following Sections will survive any termination of this Agreement: 2 through 6 (except for Section 4.3), and 8 through 11\.
+6.4  Customer’s rights to the Licensed Materials, and any licenses granted hereunder, shall terminate upon any termination of this Agreement. The following Sections will survive any termination of this Agreement: 2 through 6 (except for Section 4.3), and 8 through 11.
 
 ## 7\. WARRANTY; CUSTOMER SOFTWARE SECURITY
 
