@@ -33,9 +33,9 @@ const OSSettingsTable = ({
         canResendProfiles,
         resendRequest,
         onProfileResent,
+        resendCertificateRequest,
         canRotateRecoveryLockPassword,
-        rotateRecoveryLockPassword,
-        resendCertificateRequest
+        rotateRecoveryLockPassword
       ),
     [
       canResendProfiles,
