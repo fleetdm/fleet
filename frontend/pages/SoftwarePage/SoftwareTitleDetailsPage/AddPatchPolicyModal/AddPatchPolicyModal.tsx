@@ -59,8 +59,8 @@ const AddPatchPolicyModal = ({
     >
       <>
         <p>
-          This creates a read-only policy. Later, to enforce remediation,
-          head to this policy's page.
+          This creates a read-only policy. Later, to enforce remediation, head
+          to this policy&apos;s page.
         </p>
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
