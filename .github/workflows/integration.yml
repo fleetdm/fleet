@@ -221,11 +221,6 @@ jobs:
     runs-on: macos-latest
     needs: [gen, login]
     steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-      with:
-        egress-policy: audit
-
     - name: Install fleetctl
       run: |
         npm install -g fleetctl
@@ -402,11 +397,6 @@ jobs:
     needs: [gen, login]
     runs-on: windows-latest
     steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-      with:
-        egress-policy: audit
-
     # We need to use some shenanigans to rename the Windows computer without restarting. Note: Windows computers should not get names longer than 15 characters (confirmed this breaks networking).
     - name: Rename computer
       shell: powershell
@@ -456,8 +446,10 @@ jobs:
       shell: bash
       run: |
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
-        echo $SECRET_JSON
-        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
+        echo "$SECRET_JSON"
+        # Strip any prefix before the JSON (e.g. "Installing fleetctl... Install completed. ") in case
+        # fleetctl auto-updates and writes an install message to stdout on the same line as the JSON.
+        SECRET=$(echo "$SECRET_JSON" | sed 's/^[^{]*//' | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         # WIX env var points to the WiX Toolset install dir (pre-installed on windows-latest runners)
         fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin"
