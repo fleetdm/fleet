@@ -478,6 +478,7 @@ jobs:
     - name: Check processes
       shell: powershell
       run: |
+        Start-Sleep -Seconds 30
         Write-Host "Checking if osqueryd is running..."
         if (-not (Get-Process -Name "osqueryd" -ErrorAction SilentlyContinue)) {
           Write-Host "ERROR: osqueryd is not running"
