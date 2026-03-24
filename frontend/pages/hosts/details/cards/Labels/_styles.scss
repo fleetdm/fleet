@@ -1,5 +1,16 @@
 .host-labels-card {
   @include vertical-card-layout;
+
+  .list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-small;
+
+    .list__item {
+      margin-bottom: 0;
+    }
+  }
+
   .button,
   .children-wrapper {
     max-width: 100%;

@@ -444,17 +444,17 @@ describe("getStatusMessage helper function", () => {
 });
 
 describe("VPP Install Details Modal - ModalButtons component", () => {
-  it("renders Done button by default", async () => {
+  it("renders Close button by default", async () => {
     const onCancel = jest.fn();
 
     const { user } = renderWithSetup(
       <ModalButtons displayStatus="installed" onCancel={onCancel} />
     );
 
-    const doneButton = screen.getByRole("button", { name: /done/i });
-    expect(doneButton).toBeInTheDocument();
+    const closeButton = screen.getByRole("button", { name: /close/i });
+    expect(closeButton).toBeInTheDocument();
 
-    await user.click(doneButton);
+    await user.click(closeButton);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
