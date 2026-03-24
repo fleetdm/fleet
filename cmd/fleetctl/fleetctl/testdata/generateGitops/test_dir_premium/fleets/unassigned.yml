@@ -53,7 +53,7 @@ policies:
   resolution: Do a team thing
   type: patch
   webhooks_and_tickets_enabled: true
- calendar_events_enabled: false
+- calendar_events_enabled: false
   conditional_access_enabled: true
   critical: false
   description: This is a team install FMA policy

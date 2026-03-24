@@ -326,7 +326,7 @@ func (MockClient) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
 
 func (c MockClient) ListFleetMaintainedApps(teamID *uint, query string) ([]fleet.MaintainedApp, error) {
 	if teamID == nil {
-		return nil, fmt.Errorf("unexpected nil team ID")
+		return nil, errors.New("unexpected nil team ID")
 	}
 	if *teamID != 1 {
 		return []fleet.MaintainedApp{}, nil
