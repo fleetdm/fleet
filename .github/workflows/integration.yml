@@ -401,7 +401,7 @@ jobs:
         $osqueryd = "${{ matrix.osqueryd-channel }}"
         $desktop = "${{ matrix.desktop-channel }}"
         $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'a' } else { 'x' }
-        $ComputerName = "win--$arch-$($orbit[0])-$($osqueryd[0])-$($desktop[0])
+        $ComputerName = "win-$arch-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
         echo "Setting computer name to $ComputerName"
         
         Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" 
@@ -454,7 +454,8 @@ jobs:
         $orbit = "${{ matrix.orbit-channel }}"
         $osqueryd = "${{ matrix.osqueryd-channel }}"
         $desktop = "${{ matrix.desktop-channel }}"
-        $ComputerName = "win-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
+        $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'a' } else { 'x' }
+        $ComputerName = "win-$arch-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
         
         $StartTime = Get-Date
         do {
