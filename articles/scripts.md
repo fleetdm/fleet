@@ -9,8 +9,6 @@ Note: To run a shell script in `/bin/zsh` or `/bin/bash`, add a shebang as the f
 
 Python scripts must start with a python shebang as the first line (for example, `#!/usr/bin/env python3` or `#!/usr/bin/python3`).
 
-Python scripts must start with a python shebang as the first line (for example, `#!/usr/bin/env python3` or `#!/usr/bin/python3`).
-
 PowerShell scripts are supported on Windows. Other types of scripts are not supported yet.
 
 Script execution is disabled by default. Continue reading to learn how to enable scripts.
