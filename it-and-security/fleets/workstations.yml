@@ -132,6 +132,7 @@ policies:
   - path: ../lib/macos/policies/install-nudge.yml
   - path: ../lib/macos/policies/update-claude.yml
   - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/macos/policies/battery-health-check.yml
   # Windows policies
   - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml

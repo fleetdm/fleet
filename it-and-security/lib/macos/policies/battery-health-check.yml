@@ -1,0 +1,19 @@
+- name: macOS - Battery health check
+  query: >-
+    SELECT 1 WHERE
+      NOT EXISTS (SELECT 1 FROM battery LIMIT 1)
+      OR EXISTS (SELECT 1 FROM battery WHERE health = 'Good');
+  critical: false
+  description: >-
+    This policy checks whether the host's battery is in good condition.
+    Hosts with a battery health status other than "Good" (e.g., "Check Battery") will fail this policy.
+    Desktop Macs without a battery (e.g., Mac mini, Mac Pro, Mac Studio) will automatically pass.
+    A degraded battery can lead to unexpected shutdowns, reduced performance, and potential safety concerns.
+    Proactively identifying hosts with poor battery health helps ensure timely hardware service or replacement.
+  resolution: |-
+    Open System Settings > Battery and review the battery condition.
+    If the battery health is degraded, contact IT to arrange a battery replacement or hardware service.
+
+    If the issue persists, please reach out in #help-it.
+  platform: darwin
+  calendar_events_enabled: false
