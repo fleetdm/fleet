@@ -106,12 +106,20 @@ type CreateNewOrderRequest struct {
 
 type CreateNewOrderResponse struct {
 	// TODO(mna): must return the JSON order
-	Nonce string
-	Err   error `json:"error,omitempty"`
+	Err    error                                `json:"error,omitempty"`
+	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
+}
+
+func (r *CreateNewOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
+	// TODO(mna): do not generate a nonce on 500s?
+	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
+		r.Err = err
+		return
+	}
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r CreateNewOrderResponse) Error() error { return r.Err }
+func (r *CreateNewOrderResponse) Error() error { return r.Err }
 
 // JWS Request container is a container for doing basic decoding and validation operations common to all
 // authenticated ACME requests, which come in the form of a JWS in flattened serialization syntax. This is

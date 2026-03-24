@@ -85,14 +85,15 @@ func createAccountEndpoint(ctx context.Context, request any, svc api.Service) pl
 	newAccountRequest := &api_http.CreateNewAccountRequest{}
 	err := svc.AuthenticateNewAccountMessage(ctx, req, newAccountRequest)
 	if err != nil {
-		return &api_http.CreateNewAccountResponse{Err: err}
+		return &api_http.CreateNewAccountResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
 
 	accountResp, err := svc.CreateAccount(ctx, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
 	if err != nil {
-		return &api_http.CreateNewAccountResponse{Err: err}
+		return &api_http.CreateNewAccountResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
 	return &api_http.CreateNewAccountResponse{
+		Nonces:          svc.NoncesStore(),
 		AccountResponse: accountResp,
 	}
 }
@@ -100,9 +101,11 @@ func createAccountEndpoint(ctx context.Context, request any, svc api.Service) pl
 // createAccountEndpoint handles POST /api/mdm/acme/{identifier}/new_account requests.
 func createOrderEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.JWSRequestContainer)
-	newOrderRequest := api_http.CreateNewOrderRequest{}
-	err := svc.AuthenticateMessageFromAccount(ctx, req, &newOrderRequest)
-	// req := request.(*api_http.CreateNewAccountRequest)
-	_, _ = newOrderRequest, err
+	newOrderRequest := &api_http.CreateNewOrderRequest{}
+	err := svc.AuthenticateMessageFromAccount(ctx, req, newOrderRequest)
+	if err != nil {
+		return &api_http.CreateNewOrderResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+	_ = newOrderRequest
 	panic("unimplemented")
 }

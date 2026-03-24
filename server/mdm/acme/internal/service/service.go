@@ -46,14 +46,15 @@ func (s *Service) NoncesStore() *redis_nonces_store.RedisNoncesStore {
 	return s.nonces
 }
 
-func (s *Service) getACMEURL(ctx context.Context, pathIdentifier string, suffixes ...string) (string, error) {
-	appConfig, err := s.providers.AppConfig(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	return s.getACMEURLWithBaseURL(ctx, appConfig.MDMUrl(), pathIdentifier, suffixes...)
-}
+// TODO(mna): I'm assuming we'll need this at some point (when we need to resolve only 1 URL), but not used for now.
+// func (s *Service) getACMEURL(ctx context.Context, pathIdentifier string, suffixes ...string) (string, error) {
+// 	appConfig, err := s.providers.AppConfig(ctx)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	return s.getACMEURLWithBaseURL(ctx, appConfig.MDMUrl(), pathIdentifier, suffixes...)
+// }
 
 func (s *Service) getACMEURLWithBaseURL(_ context.Context, baseURL, pathIdentifier string, suffixes ...string) (string, error) {
 	return commonmdm.ResolveURL(baseURL, fmt.Sprintf("/api/mdm/acme/%s/%s", pathIdentifier, strings.Join(suffixes, "/")), true)
