@@ -671,7 +671,7 @@ If the action fails, please complete the following steps:
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
-### Enable Merge commits to allow large features branches with multiple contributors to retain git history
+### Enable merge commits to allow large features branches with multiple contributors to retain git history
 
 1. A github admin must go to Settings -> General -> Enable the `allow merge commits` checkbox near the bottom
 2. A github admin must go to the branch settings for main and uncheck `require linear history`
