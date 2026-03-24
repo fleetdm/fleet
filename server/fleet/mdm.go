@@ -78,6 +78,7 @@ const (
 	FleetVarCustomSCEPProxyURLPrefix     FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
 	FleetVarSmallstepSCEPChallengePrefix FleetVarName = "SMALLSTEP_SCEP_CHALLENGE_"
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
+	FleetVarACMEDirectoryURLPrefix       FleetVarName = "ACME_DIRECTORY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
@@ -93,7 +94,8 @@ func HasCAVariables(fleetVars []string) bool {
 			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
-			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
+			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarACMEDirectoryURLPrefix)) {
 			return true
 		}
 	}

@@ -206,7 +206,8 @@ func preprocessProfileContents(
 				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) || fleetVar == string(fleet.FleetVarHostUUID) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) ||
-				strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
+				strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) ||
+				strings.HasPrefix(fleetVar, string(fleet.FleetVarACMEDirectoryURLPrefix)) {
 				// Give a few minutes leeway to account for clock skew
 				variablesUpdatedAt = ptr.Time(time.Now().UTC().Add(-3 * time.Minute))
 				break
@@ -288,6 +289,20 @@ func preprocessProfileContents(
 					return ctxerr.Wrap(ctx, err, "checking Smallstep SCEP configuration")
 				}
 				if !configured {
+					valid = false
+					break initialFleetVarLoop
+				}
+
+			case strings.HasPrefix(fleetVar, string(fleet.FleetVarACMEDirectoryURLPrefix)):
+				// ACME directory URL variable — just validate the CA name exists.
+				// The actual URL substitution happens in the per-host loop.
+				caName, _ := strings.CutPrefix(fleetVar, string(fleet.FleetVarACMEDirectoryURLPrefix))
+				if caName == "" {
+					detail := "ACME directory URL variable requires a CA name suffix (e.g., $FLEET_VAR_ACME_DIRECTORY_URL_myca)"
+					_, err := fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, detail, variablesUpdatedAt)
+					if err != nil {
+						return err
+					}
 					valid = false
 					break initialFleetVarLoop
 				}
@@ -471,6 +486,16 @@ func preprocessProfileContents(
 					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPProxyURLPrefix), caName, hostContents, proxyURL)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP URL variable")
+					}
+
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarACMEDirectoryURLPrefix)):
+					// Insert the ACME directory URL into the profile contents.
+					// The URL points to Fleet's ACME server, which relays to the upstream CA.
+					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarACMEDirectoryURLPrefix))
+					acmeDirectoryURL := fmt.Sprintf("%s/api/acme/%s/directory", appConfig.ServerSettings.ServerURL, caName)
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarACMEDirectoryURLPrefix), caName, hostContents, acmeDirectoryURL)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing ACME directory URL variable")
 					}
 
 				case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):

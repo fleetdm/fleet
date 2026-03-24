@@ -504,7 +504,8 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) &&
-			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) {
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarACMEDirectoryURLPrefix)) {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", fleetVar)}
 		}
 	}

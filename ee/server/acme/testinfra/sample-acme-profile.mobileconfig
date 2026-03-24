@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.acme</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.acme-cert</string>
+			<key>PayloadUUID</key>
+			<string>A1B2C3D4-E5F6-7890-ABCD-EF1234567890</string>
+			<key>PayloadDisplayName</key>
+			<string>ACME Certificate</string>
+			<!--
+				DirectoryURL: Points to Fleet's ACME server.
+				Replace ACME_CA_NAME with the name of your ACME CA configured in Fleet.
+				Fleet will substitute this variable with the actual URL at deployment time.
+			-->
+			<key>DirectoryURL</key>
+			<string>$FLEET_VAR_ACME_DIRECTORY_URL_ACME_CA_NAME</string>
+			<!--
+				ClientIdentifier: Device serial number for correlation.
+				Fleet substitutes this per-device.
+			-->
+			<key>ClientIdentifier</key>
+			<string>$FLEET_VAR_HOST_HARDWARE_SERIAL</string>
+			<key>KeyType</key>
+			<string>ECSECPrimeRandom</string>
+			<key>KeySize</key>
+			<integer>256</integer>
+			<key>Subject</key>
+			<array>
+				<array>
+					<array>
+						<string>CN</string>
+						<string>$FLEET_VAR_HOST_HARDWARE_SERIAL</string>
+					</array>
+				</array>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Fleet ACME Certificate Profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.acme</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F1E2D3C4-B5A6-0987-FEDC-BA9876543210</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
