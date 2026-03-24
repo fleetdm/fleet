@@ -117,8 +117,6 @@ jobs:
         # Wait for all hosts to enroll, then keep the server alive until the summary job completes.
         EXPECTED=96 # This needs to be updated when the matrix strategies are updated.
         START=$(date +%s)
-        TIMEOUT=900 # 15 minutes
-        ENROLLED_ALL=false
         while true; do
           ELAPSED=$(( $(date +%s) - START ))
 
@@ -126,10 +124,6 @@ jobs:
           fleetctl get hosts || true
           HOST_COUNT=$(fleetctl get hosts --json | (grep -v "No hosts found" || true) | wc -l | tr -d ' ')
           echo "Hosts enrolled: ${HOST_COUNT} / $EXPECTED (${ELAPSED}s)"
-          if [ "$HOST_COUNT" -ge "$EXPECTED" ] && [ "$ENROLLED_ALL" = "false" ]; then
-            echo "All $EXPECTED hosts enrolled!"
-            ENROLLED_ALL=true
-          fi
 
           # Check summary job status
           JOBS_JSON=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100")
@@ -137,10 +131,6 @@ jobs:
           echo "Summary job status: $SUMMARY_STATUS"
           if [ "$SUMMARY_STATUS" = "completed" ]; then
             echo "Summary job completed, exiting."
-            break
-          fi
-          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-            echo "Timed out after ${TIMEOUT}s waiting for summary job. Exiting."
             break
           fi
 
