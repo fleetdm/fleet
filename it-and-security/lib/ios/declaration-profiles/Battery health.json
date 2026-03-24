@@ -1,0 +1,11 @@
+{
+  "Type": "com.apple.configuration.management.status-subscriptions",
+  "Identifier": "com.fleetdm.config.battery-health",
+  "Payload": {
+    "StatusItems": [
+      {
+        "Name": "device.power.battery-health"
+      }
+    ]
+  }
+}
