@@ -56,7 +56,7 @@ const PreviewTicketModal = ({
       </p>
       <div className={`${baseClass}__example`}>{screenshot}</div>
       <div className="modal-cta-wrap">
-        <Button onClick={onCancel}>Done</Button>
+        <Button onClick={onCancel}>Close</Button>
       </div>
     </Modal>
   );

@@ -16,6 +16,13 @@
     labels: [ ":help-marketing" ]
     repo: fleet
 -
+  task: "Review CTRs of recently boosted posts"
+  startedOn: "2026-03-23"
+  frequency: "Weekly"
+  description: "Review CTR for recently boosted posts to understand performance and inform future content decisions. The CEO will attend the first few monthly sessions to help understand what ads are working. After that, the Content Specialist and the CMO will continue running the ritual."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing/socialmedia"
+  dri: "irenareedy"
+-
   task: "Settle event strategy"
   startedOn: "2024-01-02"
   frequency: "Quarterly (first Tuesday)"
@@ -24,11 +31,11 @@
   dri: "irenareedy"
 -
   task: "Optimize ads"
-  startedOn: "2024-02-26"
+  startedOn: "2026-03-26"
   frequency: "Weekly"
-  description: "Remove all but the top 5 perfoming ads in each evergreen campaign. Make sure ABM campaigns are using top performing evergreen ads."
+  description: "Remove all but the top 5 performing ads in each evergreen campaign. Make sure ABM campaigns are using top-performing evergreen (named Awareness (reach) in Campaign Manager) ads."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#optimize-ads-through-experimentation"
-  dri: "mikermcneil"
+  dri: "irenareedy"
 -
   task: "Process pending swag requests" # Title that will actually show in rituals table
   startedOn: "2025-04-02" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
@@ -124,4 +131,12 @@
   frequency: "Weekly"
   description: "Every week, go through Fleet's tagged posts on LinkedIn and through the Slack channels and add them to the testimonial.yml file. Ensure it's commented out & has all required fields in testimonial.yml file. Assign PR to website team."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing/marketing-assets-new"
+  dri: "irenareedy"
+
+-
+  task: "Review CTRs of recently boosted posts"
+  startedOn: "2026-03-17"
+  frequency: "Weekly"
+  description: "Review click-through rates (CTRs) of recently boosted posts on LinkedIn. The CEO will attend the first few sessions, then Irena and the CMO will continue running this ritual going forward."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#review-ctrs-of-recently-boosted-posts"
   dri: "irenareedy"

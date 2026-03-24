@@ -28,6 +28,7 @@ type MDMAppleCommandIssuer interface {
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -1144,4 +1145,14 @@ type HostRecoveryLockPassword struct {
 type HostRecoveryLockPasswordPayload struct {
 	HostUUID string
 	Password string
+}
+
+// HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
+type HostRecoveryLockRotationStatus struct {
+	HostUUID            string  // Host UUID
+	HasPassword         bool    // encrypted_password is not null and deleted=0
+	Status              *string // current status (verified, failed, pending, NULL)
+	OperationType       string  // install or remove
+	HasPendingRotation  bool    // pending_encrypted_password is not null
+	PendingErrorMessage *string // error from failed rotation
 }

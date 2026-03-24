@@ -94,7 +94,7 @@ const ProfileLabelsModal = ({
         <>{renderlabelDescription()}</>
         <LabelsList labels={labels} />
         <div className="modal-cta-wrap">
-          <Button onClick={() => setModalData(null)}>Done</Button>
+          <Button onClick={() => setModalData(null)}>Close</Button>
         </div>
       </>
     </Modal>

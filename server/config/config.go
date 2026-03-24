@@ -804,6 +804,7 @@ type MDMConfig struct {
 	microsoftWSTEPKeyPEM  []byte
 
 	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
+	CertificateProfilesLimit          int  `yaml:"certificate_profiles_limit"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
@@ -1239,7 +1240,7 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
-	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
+	man.addConfigDuration("auth.sso_session_validity_period", 15*time.Minute,
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
@@ -1594,6 +1595,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
+	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Experimental feature: allows usage of specific Apple MDM profiles for OS updates and FileVault")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Experimental feature: Allows all MDM declaration types to be sent")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
@@ -1919,6 +1921,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
+			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AndroidAgent: AndroidAgentConfig{
