@@ -125,7 +125,7 @@ jobs:
           ELAPSED=$(( $(date +%s) - START ))
 
           # Check and display enrollment status
-          HOST_COUNT=$(fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tr -d ' ')
+          HOST_COUNT=$(fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tr -d ' ' || echo 0)
           echo "Hosts enrolled: ${HOST_COUNT} / $EXPECTED (${ELAPSED}s)"
           fleetctl get hosts || true
           if [ "$HOST_COUNT" -ge "$EXPECTED" ] && [ "$ENROLLED_ALL" = "false" ]; then
