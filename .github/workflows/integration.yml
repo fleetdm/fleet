@@ -388,64 +388,6 @@ jobs:
       run: |
         sudo apt remove fleet-osquery -y
 
-  fleetd-windows-build:
-    timeout-minutes: 10
-    strategy:
-      matrix:
-        orbit-channel: [ 'stable', 'edge' ]
-        osqueryd-channel: [ 'stable', 'edge' ]
-        desktop-channel: [ 'stable', 'edge' ]
-    runs-on: ubuntu-latest
-    needs: [gen, login]
-    steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-      with:
-        egress-policy: audit
-
-    - name: Install dependencies
-      run: |
-        docker pull fleetdm/wix:latest &
-        npm install -g fleetctl
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
-
-    - name: Wait until fleet address is reachable and fleet responds
-      run: |
-        # Wait for DNS to propagate by querying Cloudflare's DoH endpoint over HTTPS.
-        # This avoids relying on UDP/53 to 1.1.1.1, which may be blocked on runners.
-        HOSTNAME=$(echo "${{ needs.gen.outputs.address }}" | sed 's|https://||')
-        echo "Waiting for DNS propagation..."
-        DNS_START=$(date +%s)
-        until curl -sf "https://1.1.1.1/dns-query?name=${HOSTNAME}&type=A" \
-            -H 'accept: application/dns-json' | jq -e '.Status == 0' > /dev/null; do
-          ELAPSED=$(( $(date +%s) - DNS_START ))
-          echo "DNS not yet propagated... (${ELAPSED}s)"
-          sleep 2
-        done
-        echo "DNS propagated."
-
-        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
-        do
-          echo "Waiting until fleet server responds..."
-          sleep 1
-        done
-
-    - name: Build Orbit
-      run: |
-        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
-        echo $SECRET_JSON
-        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
-        echo "Secret: $SECRET"
-        echo "Hostname: $(hostname -s)"
-        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug
-        mv fleet-osquery.msi fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
-
-    - name: Upload MSI
-      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
-      with:
-        name: fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
-        path: fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
-
   fleetd-windows:
     timeout-minutes: 10
     strategy:
@@ -457,7 +399,7 @@ jobs:
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
-    needs: [gen, login, fleetd-windows-build]
+    needs: [gen, login]
     runs-on: windows-latest
     steps:
     - name: Harden Runner
@@ -495,23 +437,35 @@ jobs:
         Get-NetAdapter | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses "1.1.1.1" -ErrorAction SilentlyContinue }
         Clear-DnsClientCache
 
-    - name: Download MSI
-      id: download
-      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-      with:
-        name: fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
-
-    - name: Install Orbit
-      shell: cmd
-      run: |
-        msiexec /i ${{steps.download.outputs.download-path}}\fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
-
     - name: Install fleetctl
       shell: bash
       # On Windows we need to set rootca or tls-skip verify. Since this is a test environment we can skip TLS verification.
       run: |
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
+
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
+          echo "Waiting until fleet server responds..."
+          sleep 1
+        done
+
+    - name: Build MSI
+      shell: bash
+      run: |
+        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
+        echo "Secret: $SECRET"
+        # WIX env var points to the WiX Toolset install dir (pre-installed on windows-latest runners)
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin"
+
+    - name: Install Orbit
+      shell: cmd
+      run: |
+        msiexec /i fleet-osquery.msi /quiet /passive /lv log.txt
 
     - name: Wait for enrollment
       shell: powershell
