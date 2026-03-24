@@ -243,6 +243,11 @@ async function processComment({ prNumber, commentBody, commentId, event, mention
   const replyBody = `🤖 **Fleet:** Updated this PR based on your comment.\n\n**Summary:** ${proposal.summary}\n\n**Files changed:**\n${fileList}`;
 
   await github.addPullRequestComment(prNumber, replyBody);
+
+  if (warnings.length > 0) {
+    await github.addPullRequestComment(prNumber, `⚠️ **Validation warnings:**\n${warnings.map((w) => `- ${w}`).join("\n")}`);
+  }
+
   console.log(`[webhook] PR #${prNumber} updated and reply posted. Done.`);
 }
 
@@ -382,6 +387,11 @@ async function handleCheckRun(payload, config, github, claude) {
   const replyBody = `🤖 **Fleet:** CI check \`${config.ci.checkName}\` failed. I pushed a fix.\n\n**Errors:**\n\`\`\`\n${errorLines}\n\`\`\`\n\n**Summary:** ${proposal.summary}\n\n**Files changed:**\n${fileList}`;
 
   await github.addPullRequestComment(prNumber, replyBody);
+
+  if (ciWarnings.length > 0) {
+    await github.addPullRequestComment(prNumber, `⚠️ **Validation warnings:**\n${ciWarnings.map((w) => `- ${w}`).join("\n")}`);
+  }
+
   console.log(`[ci-fix] PR #${prNumber} fix committed and comment posted. Done.`);
 }
 

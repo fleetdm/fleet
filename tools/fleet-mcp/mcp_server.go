@@ -23,7 +23,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 	// 1. Get Endpoints Tool
 	// ==========================================
 	getEndpointsTool := mcp.NewTool("get_endpoints",
-		mcp.WithDescription("Get a list of hosts/endpoints enrolled in Fleet. Returns summary info (no labels). Use get_host for full details on a specific host. Use get_total_system_count for total counts and get_aggregate_platforms for platform breakdowns — do NOT call this tool repeatedly with per_page=1 just to count hosts."),
+		mcp.WithDescription("Get a list of hosts/endpoints enrolled in Fleet, including labels. Use get_host for full details on a specific host. Use get_total_system_count for total counts and get_aggregate_platforms for platform breakdowns — do NOT call this tool repeatedly with per_page=1 just to count hosts."),
 		mcp.WithString("fleet", mcp.Description("Optional fleet name to filter by (e.g. '💻 Workstations')")),
 		mcp.WithString("platform", mcp.Description("Optional platform to filter by (e.g. 'macos', 'windows', 'linux')")),
 		mcp.WithString("status", mcp.Description("Optional host status filter (e.g. 'online', 'offline', 'new', 'mia')")),

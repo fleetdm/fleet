@@ -63,7 +63,7 @@ Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps) with:
 
 ### 3. Fleet MCP server
 
-Run the [Fleet MCP server](https://github.com/fleetdm/fleet-mcp) and note its URL (default: `http://localhost:8080/sse`).
+Run the [Fleet MCP server](https://github.com/fleetdm/fleet-mcp) and note its URL (default: `http://localhost:8181/sse`).
 
 ### 4. Environment variables
 
@@ -83,7 +83,7 @@ GITOPS_BASE_PATH=it-and-security                # path within the repo to the Gi
 ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_MODEL=claude-opus-4-6                  # optional, this is the default
 
-FLEET_MCP_URL=http://localhost:8080/sse
+FLEET_MCP_URL=http://localhost:8181/sse
 PORT=3000                                        # port for the GitHub webhook listener
 
 GITOPS_CI_CHECK_NAME=fleet-gitops               # name of the CI check to watch for auto-fix

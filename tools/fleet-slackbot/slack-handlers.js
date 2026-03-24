@@ -303,47 +303,8 @@ async function getThreadContext(client, channelId, threadTs) {
  * Register all Slack event handlers on the Bolt app.
  */
 function registerHandlers(app, config, github, claude) {
-  // Cache of threads the bot has participated in.
-  const botThreadCache = new Set();
-
   // Track messages already being processed to prevent duplicates (e.g., message edits)
   const processingMessages = new Set();
-
-  // Bot's own user ID, resolved once at first use.
-  let botUserId = null;
-
-  /**
-   * Check if the bot has posted in a thread. Uses cache first,
-   * falls back to API call so it survives restarts.
-   */
-  async function isBotThread(client, channelId, threadTs) {
-    if (botThreadCache.has(threadTs)) return true;
-
-    try {
-      if (!botUserId) {
-        const auth = await client.auth.test();
-        botUserId = auth.user_id;
-      }
-
-      const replies = await client.conversations.replies({
-        channel: channelId,
-        ts: threadTs,
-        limit: 30,
-      });
-
-      const botParticipated = (replies.messages || []).some(
-        (m) => m.user === botUserId || m.bot_id
-      );
-
-      if (botParticipated) {
-        botThreadCache.add(threadTs);
-      }
-      return botParticipated;
-    } catch (err) {
-      console.warn(`[thread] Could not check thread membership: ${err.message}`);
-      return false;
-    }
-  }
 
   /**
    * Check if a channel ID is a DM (starts with D).
@@ -370,9 +331,6 @@ function registerHandlers(app, config, github, claude) {
 
     try {
       console.log(`[mention] @mention in ${channelId}: "${userText.slice(0, 100)}"`);
-
-      // Track this thread for follow-ups
-      botThreadCache.add(threadTs);
 
       const threadContext = event.thread_ts
         ? await getThreadContext(client, channelId, event.thread_ts)
@@ -428,9 +386,6 @@ function registerHandlers(app, config, github, claude) {
       const threadTs = event.thread_ts || event.ts;
 
       console.log(`[dm] Message from ${event.user}: "${userText.slice(0, 100)}"`);
-
-      // Track for follow-ups
-      botThreadCache.add(threadTs);
 
       const threadContext = event.thread_ts
         ? await getThreadContext(client, channelId, event.thread_ts)

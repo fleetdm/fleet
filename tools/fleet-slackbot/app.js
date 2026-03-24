@@ -46,7 +46,7 @@ mcpClient.addLocalTool(
         !ALLOWED.some((p) => normalized === p || normalized.startsWith(p))) {
       return `Error: Invalid path (must be under default.yml, fleets/, or lib/): ${args.path}`;
     }
-    const filePath = `${config.github.gitopsBasePath}/${args.path}`;
+    const filePath = `${config.github.gitopsBasePath}/${normalized}`;
     const content = await github.getFileContent(filePath);
     if (content === null) {
       return `Error: File not found: ${args.path}`;
