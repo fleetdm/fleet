@@ -2630,14 +2630,6 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	return policies, nil
 }
 
-type patchPolicy struct {
-	Name        string
-	Query       string
-	Platform    string
-	Description string
-	Resolution  string
-}
-
 func (ds *Datastore) getPatchPolicyInstaller(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 	installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
 	if err != nil {
