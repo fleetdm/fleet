@@ -156,6 +156,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-13 12:30:33
 
+### [GHSA-479m-364c-43vc](https://nvd.nist.gov/vuln/detail/GHSA-479m-364c-43vc)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not validate any XML signatures.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/russellhaering/goxmldsig`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-23 16:44:57
+
+### [CVE-2026-33186](https://nvd.nist.gov/vuln/detail/CVE-2026-33186)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl uses admin controlled URLs to manage Fleet. The primary attack vector is social engineering an admin into using a crafted URL.
+- **Products:**: `fleetctl`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-23 19:20:41
+
 ### [CVE-2026-27465](https://nvd.nist.gov/vuln/detail/CVE-2026-27465)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -163,6 +179,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-13 12:33:34
+
+### [CVE-2026-25679](https://nvd.nist.gov/vuln/detail/CVE-2026-25679)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl uses admin controlled URLs to manage Fleet. The primary attack vector is social engineering an admin into using a crafted URL.
+- **Products:**: `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-23 19:12:15
 
 ### [CVE-2026-24515](https://nvd.nist.gov/vuln/detail/CVE-2026-24515)
 - **Author:** @lucasmrod
