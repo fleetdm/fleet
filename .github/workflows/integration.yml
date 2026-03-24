@@ -573,7 +573,7 @@ jobs:
     - name: Retry workflow on failure
       if: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3 }}
       run: |
-        gh workflow run integration.yml --repo ${{ github.repository }} --ref ${{ github.ref }} -f retry=${{ steps.next-retry.outputs.value }}
+        gh workflow run integration.yml --repo ${{ github.repository }} --ref ${{ github.head_ref || github.ref_name }} -f retry=${{ steps.next-retry.outputs.value }}
       env:
         GH_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
 
