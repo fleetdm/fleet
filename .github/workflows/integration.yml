@@ -339,13 +339,14 @@ jobs:
     - name: Install Orbit
       run: |
         ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then FLEET_ARCH="amd64"; else FLEET_ARCH="arm64"; fi
         sudo hostnamectl set-hostname ubuntu-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug
+        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --arch=$FLEET_ARCH
         sudo dpkg -i fleet-osquery*
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s); do
@@ -427,6 +428,14 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
 
+    - name: Install WiX toolset (arm runner only)
+      if: matrix.runner == 'windows-11-arm'
+      shell: powershell
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314.exe" -OutFile wix314.exe
+        Start-Process -Wait -FilePath .\wix314.exe -ArgumentList "/quiet"
+        "WIX=C:\Program Files (x86)\WiX Toolset v3.14\" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
     - name: Build MSI
       shell: bash
       run: |
@@ -436,8 +445,9 @@ jobs:
         # fleetctl auto-updates and writes an install message to stdout on the same line as the JSON.
         SECRET=$(echo "$SECRET_JSON" | sed 's/^[^{]*//' | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
-        # WIX env var points to the WiX Toolset install dir (pre-installed on windows-latest runners)
-        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin"
+        ARCH=$(echo "$PROCESSOR_ARCHITECTURE" | tr '[:upper:]' '[:lower:]')
+        # WIX env var points to the WiX Toolset install dir (pre-installed on windows-11 runner, installed above on windows-11-arm)
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin" --arch=$ARCH
 
     - name: Install Orbit
       shell: cmd
