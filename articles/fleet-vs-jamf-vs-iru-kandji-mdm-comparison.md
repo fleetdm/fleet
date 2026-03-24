@@ -55,88 +55,14 @@ Iru (Kandji) offers direct support focused on implementing pre-built features. T
 ## Key differences at a glance
 
 The architectural differences between Jamf and Iru (Kandji) translate into practical trade-offs that affect daily operations.
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Dimension
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Jamf Pro
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Iru (Kandji)
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Team technical depth
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Teams comfortable with shell scripting, API integration, and custom automation development
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-IT generalists managing multiple responsibilities beyond Mac administration
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Customization needs
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Complex regulatory requirements; custom integrations via API workflows and scripts
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Standard compliance frameworks with no need for highly customized workflows
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Compliance approach
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Framework templates from CIS, NIST, STIG standards; audit trails with control citation mapping
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-One-click compliance templates for SOC 2, HIPAA; automated controls with continuous remediation
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Security tooling
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Optional Jamf Protect for EDR; Jamf Connect for identity. 'Jamf for Mac' bundles Pro + Connect + Protect; documented SIEM integrations
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-EDR and vulnerability management as add-ons (priced per device) via single agent; consolidates endpoint tools when purchased
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Device ecosystem
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Apple and Android support
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Cross-platform solution with support for Apple, Windows, and Android
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Implementation timeline
-
-<table><tbody><tr><td></td></tr></tbody></table>
-
-Longer time-to-productivity; often requires consultants
-
-<table><tbody><tr><td></td></tr></tbody></table>
+| Dimension | Jamf Pro | Iru (Kandji) |
+|---|---|---|
+| Team technical depth | Teams comfortable with shell scripting, API integration, and custom automation development | IT generalists managing multiple responsibilities beyond Mac administration |
+| Customization needs | Complex regulatory requirements; custom integrations via API workflows and scripts | Standard compliance frameworks with no need for highly customized workflows |
+| Compliance approach | Framework templates from CIS, NIST, STIG standards; audit trails with control citation mapping | One-click compliance templates for SOC 2, HIPAA; automated controls with continuous remediation |
+| Security tooling | Optional Jamf Protect for EDR; Jamf Connect for identity. 'Jamf for Mac' bundles Pro + Connect + Protect; documented SIEM integrations | EDR and vulnerability management as add-ons (priced per device) via single agent; consolidates endpoint tools when purchased |
+| Device ecosystem | Apple and Android support | Cross-platform solution with support for Apple, Windows, and Android |
+| Implementation timeline | Longer time-to-productivity; often requires consultants | Faster deployment through pre-built automations and Liftoff onboarding |
 
 Faster deployment through pre-built automations and Liftoff onboarding
 
