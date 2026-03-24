@@ -2,7 +2,7 @@ This guide compares Fleet, JumpCloud, and Omnissa Workspace ONE UEM as multi-pla
 
 ## Overview
 
-Fleet provides feature parity with Jamf for Apple device management while adding support for Windows, Linux, ChromeOS, and Android. Fleet includes Apple Business Manager integration, Declarative Device Management, and configuration profiles, plus GitOps integration via fleetctl, an API-first architecture, near real-time device reporting through osquery, and self-hosting capability. Fleet's entire codebase is open source, and it integrates with identity providers including Okta, Microsoft Entra ID, and Google Workspace.
+Fleet provides Apple device management including ABM integration, Declarative Device Management, and configuration profiles. Fleet also adds capabilities Jamf doesn't offer: multi-platform support for Windows, Linux, ChromeOS, and Android, GitOps integration via fleetctl, near real-time reporting through osquery, and self-hosting. Fleet's codebase is open source, and it integrates with identity providers including Okta, Microsoft Entra ID, and Google Workspace.
 
 JumpCloud combines cloud directory services with multi-platform device management, unifying identity and device control in a single console. JumpCloud supports Windows, macOS, Linux, iOS, iPadOS, and Android, with MDM capabilities alongside SSO, LDAP, and RADIUS services.
 
