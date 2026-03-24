@@ -389,6 +389,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/wix` docker image
 
+### [CVE-2026-2921](https://nvd.nist.gov/vuln/detail/CVE-2026-2921)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process media files when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libgstreamer-plugins-base1.0-0`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:23:52
+
+### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** No attacker-controlled allocation arguments. The fleetdm/wix container runs WiX toolset commands (heat.exe, candle.exe, light.exe) via Wine to compile .wxs files into an MSI. The only input is a volume-mounted temp directory containing Fleet-generated files (main.wxs, heat.wxs, the orbit root directory). None of this feeds attacker-controlled size/alignment values to memalign.
+- **Products:**: `wix`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:18:16
+
 ### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
