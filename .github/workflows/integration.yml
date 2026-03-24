@@ -175,8 +175,13 @@ jobs:
         # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
         # by Cloudflare — their resolver sees the new record immediately, whereas the
         # default Ubuntu runner resolver can lag by minutes before the record propagates.
-        sudo resolvectl dns eth0 1.1.1.1
+        # Apply to all non-loopback interfaces in case traffic routes through one other than eth0.
+        for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
+          sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+        done
         sudo resolvectl flush-caches
+        # Also overwrite /etc/resolv.conf for tools that bypass systemd-resolved.
+        echo 'nameserver 1.1.1.1' | sudo tee /etc/resolv.conf
 
         # Wait for Fleet server to be reachable
         echo "Waiting for Fleet server to pass health check..."
@@ -316,8 +321,13 @@ jobs:
       run: |
         # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
         # by Cloudflare — their resolver sees the new record immediately.
-        sudo resolvectl dns eth0 1.1.1.1
+        # Apply to all non-loopback interfaces in case traffic routes through one other than eth0.
+        for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
+          sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+        done
         sudo resolvectl flush-caches
+        # Also overwrite /etc/resolv.conf for tools that bypass systemd-resolved.
+        echo 'nameserver 1.1.1.1' | sudo tee /etc/resolv.conf
 
         until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
           echo "Waiting until fleet server responds..."
@@ -398,8 +408,13 @@ jobs:
       run: |
         # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
         # by Cloudflare — their resolver sees the new record immediately.
-        sudo resolvectl dns eth0 1.1.1.1
+        # Apply to all non-loopback interfaces in case traffic routes through one other than eth0.
+        for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
+          sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+        done
         sudo resolvectl flush-caches
+        # Also overwrite /etc/resolv.conf for tools that bypass systemd-resolved.
+        echo 'nameserver 1.1.1.1' | sudo tee /etc/resolv.conf
 
         until curl -v -fail ${{ needs.gen.outputs.address }}/version;
         do
