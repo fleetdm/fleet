@@ -168,6 +168,12 @@ jobs:
         name: cloudflared.log
         path: cloudflared.log
 
+    - name: Cancel workflow if run-server fails
+      if: failure()
+      run: gh run cancel ${{ github.run_id }} --repo fleetdm/fleet
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   login:
    timeout-minutes: 15
    runs-on: ubuntu-latest
