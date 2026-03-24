@@ -34,6 +34,7 @@ func (r GetNewNonceResponse) HijackRender(ctx context.Context, w http.ResponseWr
 		w.WriteHeader(http.StatusOK)
 		return
 	}
+	// for GET/POST-as-GET, return 204
 	w.WriteHeader(http.StatusNoContent)
 }
 

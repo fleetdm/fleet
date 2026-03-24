@@ -7,25 +7,33 @@ import (
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
 // GetRoutes returns a function that registers ACME routes on the router using the provided
 // authMiddleware.
-func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
+func GetRoutes(svc api.Service) eu.HandlerRoutesFunc {
 	return func(r *mux.Router, opts []kithttp.ServerOption) {
-		attachFleetAPIRoutes(r, svc, authMiddleware, opts)
+		attachFleetAPIRoutes(r, svc, opts)
 	}
 }
 
-func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
-	ae := newEndpointerWithAuth(svc, authMiddleware, opts, r)
+func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerOption) {
+	ae := newEndpointerWithNoAuth(svc, opts, r)
 
-	// TODO(mna): double-check that it works with HEAD (I think we handle it automatically for GET)
+	// must support HEAD, GET and POST-as-GET for new_nonce as per
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.3 and
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-7.2
 	ae.GET("/api/mdm/acme/{identifier}/new_nonce", getNewNonceEndpoint, api_http.GetNewNonceRequest{})
+	ae.HEAD("/api/mdm/acme/{identifier}/new_nonce", getNewNonceEndpoint, api_http.GetNewNonceRequest{})
+	ae.POST("/api/mdm/acme/{identifier}/new_nonce", getNewNonceEndpoint, api_http.GetNewNonceRequest{})
+
+	// must support GET and POST-as-GET for directory as per
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.3 and
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-7.1.1
 	ae.GET("/api/mdm/acme/{identifier}/directory", getDirectoryEndpoint, api_http.GetDirectoryRequest{})
+	ae.POST("/api/mdm/acme/{identifier}/directory", getDirectoryEndpoint, api_http.GetDirectoryRequest{})
 }
 
 // getNewNonceEndpoint handles HEAD/GET /api/mdm/acme/{identifier}/new_nonce requests.
