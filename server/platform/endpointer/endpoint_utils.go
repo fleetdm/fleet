@@ -490,7 +490,7 @@ type requestValidator interface {
 // The customQueryDecoder parameter allows services to inject domain-specific
 // query parameter decoding logic.
 //
-// If adding a new way to parse/decode the requset, make sure to wrap the body with http.MaxBytesReader using the maxRequestBodySize
+// If adding a new way to parse/decode the request, make sure to wrap the body with http.MaxBytesReader using the maxRequestBodySize
 
 func MakeDecoder(
 	iface interface{},
