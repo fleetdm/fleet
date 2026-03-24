@@ -20,6 +20,7 @@ import {
 } from "interfaces/software";
 import { ICommandResult } from "interfaces/command";
 import { isAppleDevice, isMacOS } from "interfaces/platform";
+import { secondsToDhms } from "utilities/helpers";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
@@ -51,6 +52,7 @@ interface IGetStatusMessageProps {
   hostDisplayName: string;
   commandUpdatedAt: string;
   platform?: string;
+  vppVerifyTimeoutSeconds?: number;
   /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
    - From Host -> Software: override based on inventory.
    - From Activity feed: never override (always show the failure).
@@ -70,10 +72,12 @@ export const getStatusMessage = ({
   hostDisplayName,
   commandUpdatedAt,
   platform,
+  vppVerifyTimeoutSeconds,
   canOverrideFailureWithInstalled = false,
   hasInstalledVersionsOnHost = false,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
+  const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
     commandUpdatedAt
@@ -149,8 +153,9 @@ export const getStatusMessage = ({
           <>
             <div>
               The host acknowledged the MDM command to install <b>{appName}</b>
-              {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed
-              to install.
+              {!isMyDevicePage && <> on {formattedHost}</>}, but the install
+              hasn&apos;t been verified. Fleet marks as failed if the install
+              isn&apos;t verified within {formattedVerifyTimeout}.
             </div>
             {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
               <div className="vpp-install-details-modal__update-tip">
@@ -261,7 +266,7 @@ export const ModalButtons = ({
     );
   }
   return (
-    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Close</Button>} />
   );
 };
 
@@ -404,6 +409,14 @@ export const VppInstallDetailsModal = ({
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
   const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
+  const platform = hostSoftware?.app_store_app?.platform || detailsPlatform;
+  const vppVerifyTimeoutSeconds = Number(
+    vppCommandResult?.results_metadata?.vpp_verify_timeout_seconds
+  );
+  const isVerificationTimedOut =
+    displayStatus === "failed_install" &&
+    isMDMStatusAcknowledged &&
+    isAppleDevice(platform);
 
   // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
   const shouldShowInventoryVersions =
@@ -429,17 +442,13 @@ export const VppInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
-    platform: hostSoftware?.app_store_app?.platform || detailsPlatform,
+    platform,
+    vppVerifyTimeoutSeconds: Number.isFinite(vppVerifyTimeoutSeconds)
+      ? vppVerifyTimeoutSeconds
+      : undefined,
     canOverrideFailureWithInstalled,
     hasInstalledVersionsOnHost,
   });
-
-  const renderInventoryVersionsSection = () => {
-    if (hostSoftware?.installed_versions?.length) {
-      return <InventoryVersions hostSoftware={hostSoftware} />;
-    }
-    return "If you uninstalled it outside of Fleet it will still show as installed.";
-  };
 
   const renderInstallDetailsSection = () => {
     // Hide section if there's no details to display
@@ -521,7 +530,16 @@ export const VppInstallDetailsModal = ({
           iconName={iconName}
           message={<span>{statusMessage}</span>}
         />
-        {shouldShowInventoryVersions && renderInventoryVersionsSection()}
+        {isVerificationTimedOut && (
+          <p>
+            If the app is installed later, Fleet will update the status when the
+            host is refetched.
+          </p>
+        )}
+        {shouldShowInventoryVersions &&
+        hostSoftware?.installed_versions?.length ? (
+          <InventoryVersions hostSoftware={hostSoftware} />
+        ) : null}
         {!isPendingInstall &&
           isInstalledByFleet &&
           !excludeInstallDetails &&

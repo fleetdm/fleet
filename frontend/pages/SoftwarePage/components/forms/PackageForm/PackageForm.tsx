@@ -102,7 +102,7 @@ const renderFileTypeMessage = () => {
       <br />
       Windows (.msi, .exe,{" "}
       <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
-      or Linux (.deb, .rpm,{" "}
+      or Linux (.deb, .rpm, .tar.gz,{" "}
       <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
