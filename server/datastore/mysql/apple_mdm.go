@@ -2036,6 +2036,20 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 	return &res, nil
 }
 
+func (ds *Datastore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+	var res []*fleet.HostDEPAssignment
+	// TODO: update this query to rely on the new hardware_serial column to be added to
+	// host_dep_assignments and remove the subselect to hosts
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, `
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed 
+		FROM host_dep_assignments hdep
+		WHERE hdep.host_id IN (SELECT id FROM hosts WHERE hardware_serial = ?) AND hdep.deleted_at IS NULL`, serial)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments by serial")
+	}
+	return res, nil
+}
+
 func (ds *Datastore) SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_dep_assignments

@@ -2048,35 +2048,24 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 
 	var requireACME bool
 	if appConfig.MDM.AppleRequireHardwareAttestation {
-		requireACME, err = fleet.IsMacAppleSilicon(machineInfo.Product)
+		requireACME, err = svc.isMDMAppleACMERequired(ctx, appConfig, machineInfo)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if device is Apple Silicon")
+			return nil, ctxerr.Wrap(ctx, err, "checking if ACME enrollment is required")
 		}
-		svc.logger.InfoContext(ctx, "require ACME enrollment profile", "require_acme", requireACME, "product", machineInfo.Product)
+
+		svc.logger.InfoContext(ctx, "hardware attestastion required", "require_acme", requireACME, "product", machineInfo.Product, "serial", machineInfo.Serial)
+
 	}
 
 	var enrollProf []byte
 	if requireACME {
-		enrollProf, err = svc.stubGetACMEEnrollProfile(ctx, appConfig, machineInfo, mdmURL, topic)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting ACME enroll profile")
-		}
+		enrollProf, err = svc.generateMDMAppleACMEEnrollProfile(ctx, machineInfo.Serial, appConfig.OrgInfo.OrgName, mdmURL, topic)
 	} else {
-		assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-			fleet.MDMAssetSCEPChallenge,
-		}, nil)
-		if err != nil {
-			return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
-		}
-		enrollProf, err = apple_mdm.GenerateEnrollmentProfileMobileconfig(
-			appConfig.OrgInfo.OrgName,
-			mdmURL,
-			string(assets[fleet.MDMAssetSCEPChallenge].Value),
-			topic,
-		)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "generating enrollment profile")
-		}
+		enrollProf, err = svc.generateMDMAppleSCEPEnrollProfile(ctx, appConfig.OrgInfo.OrgName, mdmURL, topic)
+	}
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating enrollment profile")
 	}
 
 	signed, err := mdmcrypto.Sign(ctx, enrollProf, svc.ds)
@@ -2087,108 +2076,64 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	return signed, nil
 }
 
-func (svc *Service) stubGetACMEEnrollProfile(ctx context.Context, appConfig *fleet.AppConfig, machineInfo *fleet.MDMAppleMachineInfo, mdmURL string, topic string) ([]byte, error) {
-	if appConfig == nil {
-		return nil, ctxerr.New(ctx, "app config is nil")
-	}
+func (svc *Service) isMDMAppleACMERequired(ctx context.Context, appConfig *fleet.AppConfig, machineInfo *fleet.MDMAppleMachineInfo) (bool, error) {
 	if machineInfo == nil {
-		return nil, ctxerr.New(ctx, "machine info is nil")
+		return false, ctxerr.New(ctx, "machine info is nil")
 	}
 
-	hostIdents, err := svc.GetHostMDMIdentifiersFromMachineInfo(ctx, machineInfo)
+	// we only require ACME for Apple Silicon Macs, so check the product to see if it's an Apple Silicon Mac before doing any further checks
+	if isMacAppleSilicon, err := fleet.IsMacAppleSilicon(machineInfo.Product); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if device is Apple Silicon")
+	} else if !isMacAppleSilicon {
+		return false, nil
+	}
+
+	// check dep assignment status, we only require ACME if the serial is DEP-assigned to Fleet
+	assignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host MDM identifiers")
+		return false, ctxerr.Wrap(ctx, err, "checking DEP assignment status")
 	}
+	svc.logger.InfoContext(ctx, "device is Apple Silicon, checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(assignments))
 
+	return len(assignments) > 0, nil
+}
+
+func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardwareSerial string, orgName string, mdmURL string, topic string) ([]byte, error) {
 	acmeIdent := "foobar" // TODO: replace this with call to upsert acme enrollments
 
 	b, err := apple_mdm.GenerateACMEEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
+		orgName,
 		mdmURL,
 		acmeIdent,
-		hostIdents.HardwareSerial,
+		hardwareSerial,
 		topic,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating ACME enrollment profile")
+		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleACMEEnrollProfile: generating ACME enrollment profile")
 	}
 
 	return b, nil
 }
 
-func (svc *Service) GetHostMDMIdentifiersFromMachineInfo(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo) (*fleet.HostMDMIdentifiers, error) {
-	if machineInfo == nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "machine info is required",
-			InternalErr: ctxerr.New(ctx, "machine info is nil"),
-		}
-	}
-	if machineInfo.Serial == "" {
-		return nil, &fleet.BadRequestError{
-			Message:     "machine info is required",
-			InternalErr: ctxerr.New(ctx, "serial number is required in machine info"),
-		}
+func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgName string, mdmURL string, topic string) ([]byte, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetSCEPChallenge,
+	}, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: loading SCEP challenge from the database")
 	}
 
-	// TODO: make this datastore call plus switch into a service method that can be mocked and tested more easily; we want to be able to test various scenarios around the returned idents and how we handle them in the enrollment flow
-	idents, err := svc.ds.GetHostMDMIdentifiers(ctx, machineInfo.Serial, fleet.TeamFilter{
-		// TODO: do we have specific team filter for system users (e.g., cron, MDM enroll handlers, ACME
-		// webhook, etc.)
-		User: &fleet.User{
-			Name:       "dummy", // TODO: figure this out, we just need to pass something here to satisfy the authz checks in the datastore method but it would be good to have a more robust solution for system users
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-		},
-	})
-	switch {
-	case err != nil:
-		return nil, &fleet.BadRequestError{
-			Message:     "machine info is required",
-			InternalErr: ctxerr.Wrap(ctx, err, "getting host MDM identifiers from the database"),
-		}
-	case len(idents) != 1:
-		return nil, &fleet.BadRequestError{
-			Message:     "machine info is required",
-			InternalErr: ctxerr.New(ctx, fmt.Sprintf("expected to find exactly 1 host with the given serial number, but found %d", len(idents))),
-		}
-	case idents[0] == nil:
-		// this should never happen, but sanity check just in case
-		return nil, &fleet.BadRequestError{
-			Message:     "machine info is required",
-			InternalErr: ctxerr.New(ctx, "host found with the given serial number has nil MDM identifiers"),
-		}
-	case idents[0].HardwareSerial != machineInfo.Serial:
-		// this should never happen since we're querying by the serial number, but we check just to
-		// be safe and to avoid any potential shenanigans like matching on a different identifier
-		// and then having a mismatch on the serial number
-		return nil, &fleet.BadRequestError{
-			Message:     "machine info is required",
-			InternalErr: ctxerr.New(ctx, "host found with the given serial number has a different serial number than the one provided in the machine info"),
-		}
-	case idents[0].UUID != "" && idents[0].UUID != machineInfo.UDID:
-		// Similar to the hardware serial check above, this is a sanity check to ensure that if we
-		// have stored a UDID for the host (i.e., not a pending DEP host), it matches the UDID provided in the machine info
-		return nil, &fleet.BadRequestError{
-			Message:     "machine info is required",
-			InternalErr: ctxerr.New(ctx, "host found with the given serial number has a different UDID than the one provided in the machine info"),
-		}
-	case idents[0].Platform != "darwin":
-		// TODO: expand this to work for iOS/iPadOS as well
-		return nil, &fleet.BadRequestError{
-			Message:     "machine info is required",
-			InternalErr: ctxerr.New(ctx, "host found with the given serial number is not a darwin device"),
-		}
+	enrollProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		orgName,
+		mdmURL,
+		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		topic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: generating enrollment profile")
 	}
 
-	// TODO: add check that host is dep assigned to Fleet (and deleted_at is null)
-
-	// TODO: if mdm idp enabled, add check that host_mdm_idp_accounts has a record for the host uuid
-	// (and confirm account_uuid exists, not empty, additional validation of account details?)
-
-	// TODO: we can add other checks here as well to potentially validate other information we have
-	// from fleetd, DEP sync, any prior MDM enrollments (in case of renewal or return to service?),
-	// or other device inventory sources (e.g., maybe allow admin to upload list?)
-
-	return idents[0], nil
+	return enrollProf, nil
 }
 
 func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
