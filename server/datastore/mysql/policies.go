@@ -1069,7 +1069,6 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting patch policy installer")
 		}
-		// what if there's an override patch policy?
 		generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
 			Name:        args.Name,
 			Description: args.Description,
@@ -1474,7 +1473,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
 
-				// generate new up-to-date query and other fields for patch policy
+				// generate new up-to-date patch policy
 				if spec.Type == fleet.PolicyTypePatch {
 					installer, err := ds.getPatchPolicyInstaller(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
 					if err != nil {

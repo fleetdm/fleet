@@ -26,9 +26,6 @@ var (
 
 // GenerateFromManifest replaces the $FMA_VERSION variable and checks platform
 func GenerateFromManifest(p PolicyData) (string, error) {
-	// TODO: generate default query here so it will be in all manifests? if so we
-	// need to add an empty query check serverside in case an old manifest with no patch query
-	// is available
 	if p.Query == "" {
 		return "", ErrEmptyQuery
 	}
@@ -64,7 +61,6 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 			p.Name = fmt.Sprintf("macOS - %s up to date", installer.SoftwareTitle)
 		}
 		if installer.PatchQuery == "" {
-			// TODO: what if there's an override query? Whoever calls this will have to find out
 			query = fmt.Sprintf(
 				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
 				installer.BundleIdentifier,

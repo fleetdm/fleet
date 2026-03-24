@@ -27327,7 +27327,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.NoError(t, err)
 		require.Equal(t, uint(0), listPolResp.Policies[0].FailingHostCount)
 
-		// Test 3: FMA Version is pinned back after update to newer version (query should use old version)
+		// Test 3: FMA Version is pinned back after update to a newer version (query should use old version)
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 				{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},

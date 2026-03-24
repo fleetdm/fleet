@@ -2342,8 +2342,7 @@ SET
 	install_script_content_id = ?,
 	uninstall_script_content_id = ?,
 	post_install_script_content_id = ?,
-	pre_install_query = ? 
-	-- TODO(JK): need to update patch query?
+	pre_install_query = ?
 WHERE id = ?
 `
 
@@ -2796,7 +2795,6 @@ WHERE
 					postInstallScriptID,
 					installer.PreInstallQuery,
 					existingID,
-					// TODO(JK): update patch query?
 				}
 				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {
 					return ctxerr.Wrapf(ctx, err, "updating existing installer with name %q", installer.Filename)
