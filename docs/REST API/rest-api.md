@@ -12962,6 +12962,7 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 - [Delete invite](#delete-invite)
 - [Verify invite](#verify-invite)
 - [Update invite](#update-invite)
+- [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
 
@@ -13823,6 +13824,123 @@ Verify the specified invite.
   }
 }
 ```
+
+### Create API-only user
+
+Creates an API-only user that does not have access to the UI.
+
+`POST /api/v1/fleet/users/api_only`
+
+| Name                    | Type    | In    | Description |
+| :---------------------- | :------ | :---- | :---------- |
+| password    | string  | body | The user's password (required for non-SSO users).                                        
+| global_role | string | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| fleets      | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| api_endpoints | array   | body | _Available in Fleet Premium_. A list of `id`s of API endpoints this user will have access to. For available endpoints, see [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). |
+
+If `api_endpoints` is specified, these do not grant additional permissions otherwise forbidden by the user's `role`.
+
+
+#### Example
+
+`POST /api/v1/fleet/users/admin`
+
+##### Request body
+
+```json
+{
+  "name": "Jane Doe",
+  "fleets": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ], 
+  "api_endpoints": [1,5,7,32]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "janedoe+randomlygeneratedstring@example.com",
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "api_only": true,
+    "global_role": null,
+    "fleets": [
+      {
+        "id": 2,
+        "role": "observer"
+      },
+      {
+        "id": 3,
+        "role": "maintainer"
+      }
+    ], 
+    "api_endpoints": [1,5,7,32]
+  },
+  "token": "{API key}"
+}
+```
+
+
+### List API endpoints for API-only user permissions
+
+Lists Fleet REST API endpoints that an API-only user can be granted access to.
+
+`GET /api/v1/fleet/rest_api`
+
+| Name                    | Type    | In    | Description |
+| :---------------------- | :------ | :---- | :---------- |
+| query                   | string  | query | Search query keywords. Searchable fields include `display_name` and `path`. |
+
+Searching by path ignores the naming of path parameters that are specified with `:` , e.g. `:id`. So searching `/hosts/:id/report` is the same as searching `/hosts/:host_id/report`.
+
+Experimental endpoints are excluded from the results, since they are not for use in automated workflows.
+
+#### Example
+
+`?query=get%20host%20by%20identifier`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "api_endpoints": [
+    {
+      "id": 123,
+      "display_name": "Get host by identifier",
+      "protocol": "GET",
+      "path": ""
+    }
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
+  "count": 1
+}
+```
+
+---
 
 ## Debug
 
