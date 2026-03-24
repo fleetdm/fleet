@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 
-import UploadList from "pages/ManageControlsPage/components/UploadList";
+import UploadList from "components/UploadList";
 import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -71,7 +71,7 @@ const Certificates = ({
     [
       {
         scope: "certificates",
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         page: currentPage,
         per_page: 10,
       },

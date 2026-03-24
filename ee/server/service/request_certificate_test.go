@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
@@ -150,7 +150,7 @@ func TestRequestCertificate(t *testing.T) {
 		authorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 
-		logger := logging.NewLogfmtLogger(os.Stdout)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 		svc := &Service{
 			logger: logger,
 			ds:     ds,
@@ -191,7 +191,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP", func(t *testing.T) {
@@ -203,7 +203,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP, http sig auth", func(t *testing.T) {
@@ -223,7 +223,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP, UPN does not match IDP info(should pass)", func(t *testing.T) {
@@ -235,7 +235,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request a certificate - CA returns error", func(t *testing.T) {
@@ -310,7 +310,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request certificate - non-Hydrant and non-EST CA", func(t *testing.T) {

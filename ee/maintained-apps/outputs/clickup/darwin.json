@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.5.176",
+      "version": "3.5.185",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app';"
       },
-      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp%203.5.176%20-%20Build%20260210al7vspjfr-arm64.dmg",
+      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp%203.5.185%20-%20Build%202603135dev5rzzi-arm64.dmg",
       "install_script_ref": "7417ffe7",
       "uninstall_script_ref": "6752f038",
-      "sha256": "c762a7c44314abd4674705ddef1d51a8a4d6c4e908b0ebe3da445f699abdce63",
+      "sha256": "ce6ea48fb1b0461e66f833de1526dcc780362ecaf09e9566eb4055f71096c7ac",
       "default_categories": [
         "Productivity"
       ]

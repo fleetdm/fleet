@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,12 +18,10 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
-	level.Info(logger).Log("msg", "starting homebrew app data ingestion")
+func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
+	logger.InfoContext(ctx, "starting homebrew app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
 	if err != nil {
@@ -73,7 +72,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilte
 			continue
 		}
 
-		level.Info(i.logger).Log("msg", "ingesting homebrew app", "name", input.Name)
+		i.logger.InfoContext(ctx, "ingesting homebrew app", "name", input.Name)
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
@@ -91,7 +90,7 @@ const baseBrewAPIURL = "https://formulae.brew.sh/api/"
 
 type brewIngester struct {
 	baseURL string
-	logger  kitlog.Logger
+	logger  *slog.Logger
 	client  *http.Client
 }
 

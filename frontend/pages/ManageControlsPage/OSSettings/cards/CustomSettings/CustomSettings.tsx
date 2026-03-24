@@ -20,7 +20,7 @@ import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 
 import Pagination from "components/Pagination";
 
-import UploadList from "../../../components/UploadList";
+import UploadList from "../../../../../components/UploadList";
 
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
@@ -96,7 +96,7 @@ const CustomSettings = ({
     ],
     () =>
       mdmAPI.getProfiles({
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         page: currentPage,
         per_page: PROFILES_PER_PAGE,
       }),

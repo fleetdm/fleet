@@ -169,8 +169,8 @@ const Advanced = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       server_settings: {
-        live_query_disabled: disableLiveQuery,
-        query_reports_disabled: disableQueryReports,
+        live_reporting_disabled: disableLiveQuery,
+        discard_reports_data: disableQueryReports,
         scripts_disabled: disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: disableAIFeatures,
@@ -429,6 +429,41 @@ const Advanced = ({
               <Checkbox
                 disabled={disableChildren}
                 onChange={onInputChange}
+                name="disableQueryReports"
+                value={disableQueryReports}
+                parseTarget
+                labelTooltipContent={
+                  !disableChildren && (
+                    <>
+                      <>
+                        Disabling stored results will decrease database usage,{" "}
+                        <br />
+                        but will prevent you from accessing report results in
+                        <br />
+                        Fleet and will delete existing results. This can also be{" "}
+                        <br />
+                        disabled on a per-report basis by enabling &quot;Discard{" "}
+                        <br />
+                        data&quot;.{" "}
+                        <em>
+                          (Default: <b>Off</b>)
+                        </em>
+                      </>
+                    </>
+                  )
+                }
+                helpText="Enabling this setting will delete all existing report results in Fleet."
+              >
+                Disable stored results
+              </Checkbox>
+            )}
+          />
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                onChange={onInputChange}
                 name="disableScripts"
                 value={disableScripts}
                 parseTarget
@@ -479,40 +514,6 @@ const Advanced = ({
                 helpText="If enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
               >
                 Disable generative AI features
-              </Checkbox>
-            )}
-          />
-          <GitOpsModeTooltipWrapper
-            position="left"
-            renderChildren={(disableChildren) => (
-              <Checkbox
-                disabled={disableChildren}
-                onChange={onInputChange}
-                name="disableQueryReports"
-                value={disableQueryReports}
-                parseTarget
-                labelTooltipContent={
-                  !disableChildren && (
-                    <>
-                      <>
-                        Disabling reports will decrease database usage, <br />
-                        but will prevent you from accessing report results in
-                        <br />
-                        Fleet and will delete existing reports. This can also be{" "}
-                        <br />
-                        disabled on a per-report basis by enabling &quot;Discard{" "}
-                        <br />
-                        data&quot;.{" "}
-                        <em>
-                          (Default: <b>Off</b>)
-                        </em>
-                      </>
-                    </>
-                  )
-                }
-                helpText="Enabling this setting will delete all existing reports in Fleet."
-              >
-                Disable reports
               </Checkbox>
             )}
           />

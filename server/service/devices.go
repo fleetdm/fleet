@@ -18,7 +18,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -196,7 +195,12 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	if resp.TeamID != nil {
 		// load the team to get the device's team's software inventory config.
 		tm, err := svc.GetTeam(ctx, *resp.TeamID)
-		if err != nil && !fleet.IsNotFound(err) {
+		if errors.Is(err, fleet.ErrMissingLicense) {
+			// Fleet Free does not support teams, so team-specific config
+			// (software inventory, conditional access, etc.) falls back to
+			// the global defaults set above.
+			tm = nil
+		} else if err != nil && !fleet.IsNotFound(err) {
 			return getDeviceHostResponse{Err: err}, nil
 		}
 		if tm != nil {
@@ -788,12 +792,7 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 	}
 
 	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
-	level.Warn(svc.logger).Log(
-		"msg",
-		"fleetd error",
-		"error",
-		err,
-	)
+	svc.logger.WarnContext(ctx, "fleetd error", "error", err)
 	// Send to Redis/telemetry (if enabled)
 	ctxerr.Handle(ctx, err)
 

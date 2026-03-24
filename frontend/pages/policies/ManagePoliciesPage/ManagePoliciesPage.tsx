@@ -1,6 +1,6 @@
 // TODO: make 'queryParams', 'router', and 'tableQueryData' dependencies stable (aka, memoized)
 import React, { useCallback, useContext, useEffect, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { isEqual } from "lodash";
@@ -29,18 +29,19 @@ import {
   API_ALL_TEAMS_ID,
   API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
-  ITeamConfig,
 } from "interfaces/team";
 import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
+  GlobalPoliciesAutomationType,
   IPoliciesCountQueryKey,
   IPoliciesQueryKey,
 } from "services/entities/global_policies";
 import teamPoliciesAPI, {
   ITeamPoliciesCountQueryKey,
   ITeamPoliciesQueryKey,
+  AutomationType,
 } from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
@@ -89,6 +90,7 @@ interface IManagePoliciesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       page?: string;
+      automation_type?: AutomationType;
     };
     search: string;
   };
@@ -104,6 +106,16 @@ const [
   "Successfully updated policy automations.",
   "Could not update policy automations.",
 ];
+
+const AUTOMATION_TYPES: AutomationType[] = [
+  "software",
+  "scripts",
+  "calendar",
+  "conditional_access",
+  "other",
+];
+
+const GLOBAL_AUTOMATION_TYPES: GlobalPoliciesAutomationType[] = ["other"];
 
 const baseClass = "manage-policies-page";
 
@@ -130,6 +142,7 @@ const ManagePolicyPage = ({
     ? "Okta or Microsoft Entra"
     : "Okta";
 
+  const queryClient = useQueryClient();
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const {
@@ -194,6 +207,21 @@ const ManagePolicyPage = ({
     DEFAULT_SORT_DIRECTION)();
   const page =
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
+  const initialAutomationFilter = (() => {
+    const automationQueryParam = queryParams.automation_type;
+
+    if (!automationQueryParam) {
+      return null;
+    }
+
+    const validValues = isAllTeamsSelected
+      ? GLOBAL_AUTOMATION_TYPES
+      : AUTOMATION_TYPES;
+
+    return (validValues as string[]).includes(automationQueryParam)
+      ? automationQueryParam
+      : null;
+  })();
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
@@ -205,6 +233,9 @@ const ManagePolicyPage = ({
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(initialSortDirection);
+  const [automationFilter, setAutomationFilter] = useState<
+    AutomationType | GlobalPoliciesAutomationType | null
+  >(initialAutomationFilter);
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -217,12 +248,14 @@ const ManagePolicyPage = ({
     setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
+    setAutomationFilter(initialAutomationFilter);
   }, [
     location,
     isRouteOk,
     initialSearchQuery,
     initialSortHeader,
     initialSortDirection,
+    initialAutomationFilter,
   ]);
 
   useEffect(() => {
@@ -261,6 +294,7 @@ const ManagePolicyPage = ({
         query: searchQuery,
         orderDirection: sortDirection,
         orderKey: sortHeader,
+        automationType: automationFilter as GlobalPoliciesAutomationType,
       },
     ],
     ({ queryKey }) => {
@@ -282,6 +316,7 @@ const ManagePolicyPage = ({
       {
         scope: "policiesCount",
         query: !isAllTeamsSelected ? "" : searchQuery,
+        automationType: automationFilter as GlobalPoliciesAutomationType,
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
@@ -317,6 +352,7 @@ const ManagePolicyPage = ({
         teamId: teamIdForApi || 0,
         // no teams does inherit
         mergeInherited: true,
+        automationType: automationFilter as AutomationType,
       },
     ],
     ({ queryKey }) => {
@@ -344,6 +380,7 @@ const ManagePolicyPage = ({
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
         mergeInherited: true,
+        automationType: automationFilter as AutomationType,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -361,11 +398,10 @@ const ManagePolicyPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations = canAddOrDeletePolicies;
 
-  const {
-    data: globalConfig,
-    isFetching: isFetchingGlobalConfig,
-    refetch: refetchGlobalConfig,
-  } = useQuery<IConfig, Error>(
+  const { data: globalConfig, isFetching: isFetchingGlobalConfig } = useQuery<
+    IConfig,
+    Error
+  >(
     ["config"],
     () => {
       return configAPI.loadAll();
@@ -379,20 +415,26 @@ const ManagePolicyPage = ({
     }
   );
 
-  const {
-    data: teamConfig,
-    isFetching: isFetchingTeamConfig,
-    refetch: refetchTeamConfig,
-  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
-    ["teams", teamIdForApi],
-    () => teamsAPI.load(teamIdForApi),
-    {
-      // Enable for all teams including "No team" (teamIdForApi === 0)
-      enabled:
-        isRouteOk && teamIdForApi !== undefined && canAddOrDeletePolicies,
-      select: (data) => data.team,
-    }
-  );
+  const { data: teamData, isFetching: isFetchingTeamConfig } = useQuery<
+    ILoadTeamResponse,
+    Error
+  >(["teams", teamIdForApi], () => teamsAPI.load(teamIdForApi), {
+    // Enable for all teams including "No team" (teamIdForApi === 0)
+    enabled: isRouteOk && teamIdForApi !== undefined && canAddOrDeletePolicies,
+    staleTime: 5000,
+  });
+  const teamConfig = teamData?.team;
+
+  const automationsConfig = isAllTeamsSelected ? globalConfig : teamConfig;
+
+  const updateGlobalConfig = (updatedConfig: IConfig) => {
+    queryClient.setQueryData(["config"], updatedConfig);
+    setConfig(updatedConfig);
+  };
+
+  const updateTeamConfig = (updatedTeamResponse: ILoadTeamResponse) => {
+    queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
+  };
 
   const refetchPolicies = (teamId?: number) => {
     if (teamId !== undefined) {
@@ -518,10 +560,15 @@ const ManagePolicyPage = ({
     setIsUpdatingPolicies(true);
     try {
       if (isAllTeamsSelected) {
-        await configAPI.update(requestBody);
+        const updatedConfig = await configAPI.update(requestBody);
+        updateGlobalConfig(updatedConfig);
       } else {
         // For any team including "No team" (team ID 0), use the teams API
-        await teamsAPI.update(requestBody, teamIdForApi);
+        const updatedTeamResponse = await teamsAPI.update(
+          requestBody,
+          teamIdForApi
+        );
+        updateTeamConfig(updatedTeamResponse);
       }
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
@@ -529,7 +576,6 @@ const ManagePolicyPage = ({
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
-      isAllTeamsSelected ? refetchGlobalConfig() : refetchTeamConfig();
     }
   };
 
@@ -681,34 +727,33 @@ const ManagePolicyPage = ({
 
     try {
       // update team config if either field has been changed
-      const responses: Promise<any>[] = [];
+      let teamConfigPromise: Promise<ILoadTeamResponse> | undefined;
+      const policyPromises = [];
       if (
         formData.enabled !==
           teamConfig?.integrations.google_calendar?.enable_calendar_events ||
         formData.url !== teamConfig?.integrations.google_calendar?.webhook_url
       ) {
-        responses.push(
-          teamsAPI.update(
-            {
-              integrations: {
-                google_calendar: {
-                  enable_calendar_events: formData.enabled,
-                  webhook_url: formData.url,
-                },
-                // These fields will never actually be changed here. See comment above
-                // IGlobalIntegrations definition.
-                zendesk: teamConfig?.integrations.zendesk || [],
-                jira: teamConfig?.integrations.jira || [],
+        teamConfigPromise = teamsAPI.update(
+          {
+            integrations: {
+              google_calendar: {
+                enable_calendar_events: formData.enabled,
+                webhook_url: formData.url,
               },
+              // These fields will never actually be changed here. See comment above
+              // IGlobalIntegrations definition.
+              zendesk: teamConfig?.integrations.zendesk || [],
+              jira: teamConfig?.integrations.jira || [],
             },
-            teamIdForApi
-          )
+          },
+          teamIdForApi
         );
       }
 
       // update changed policies calendar events enabled
-      responses.concat(
-        formData.changedPolicies.map((changedPolicy) => {
+      policyPromises.push(
+        ...formData.changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
             calendar_events_enabled: changedPolicy.calendar_events_enabled,
             team_id: teamIdForApi,
@@ -716,10 +761,17 @@ const ManagePolicyPage = ({
         })
       );
 
-      await Promise.all(responses);
+      const [teamConfigResult] = await Promise.all([
+        teamConfigPromise,
+        ...policyPromises,
+      ]);
+
+      if (teamConfigResult) {
+        updateTeamConfig(teamConfigResult);
+      }
+
       await wait(100); // Wait 100ms to avoid race conditions with refetch
       await refetchTeamPolicies();
-      await refetchTeamConfig();
 
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
@@ -737,9 +789,8 @@ const ManagePolicyPage = ({
     setIsUpdatingPolicies(true);
 
     try {
-      // TODO - narrow type for update policy responses
-      const responses: (Promise<ITeamConfig> | Promise<any>)[] = [];
-      let refetchConfig: any;
+      let globalConfigPromise: Promise<IConfig> | undefined;
+      let teamConfigPromise: Promise<ILoadTeamResponse> | undefined;
 
       // If enabling/disabling the feature, update appropriate config
       if (teamIdForApi === API_NO_TEAM_ID) {
@@ -752,8 +803,7 @@ const ManagePolicyPage = ({
               conditional_access_enabled: enableConditionalAccess,
             },
           };
-          responses.push(configAPI.update(payload));
-          refetchConfig = refetchGlobalConfig;
+          globalConfigPromise = configAPI.update(payload);
         }
       } else if (
         enableConditionalAccess !==
@@ -769,26 +819,28 @@ const ManagePolicyPage = ({
             conditional_access_enabled: enableConditionalAccess,
           },
         };
-        responses.push(teamsAPI.update(payload, teamIdForApi));
-        refetchConfig = refetchTeamConfig;
+        teamConfigPromise = teamsAPI.update(payload, teamIdForApi);
       }
 
       // handle any changed policies for no team or a team
-      responses.concat(
-        changedPolicies.map((changedPolicy) => {
-          return teamPoliciesAPI.update(changedPolicy.id, {
-            conditional_access_enabled:
-              changedPolicy.conditional_access_enabled,
-            conditional_access_bypass_enabled:
-              changedPolicy.conditional_access_bypass_enabled,
-            team_id: teamIdForApi,
-          });
-        })
-      );
-      await Promise.all(responses);
-      await wait(100); // helps avoid refetch race conditions
-      if (refetchConfig) {
-        await refetchConfig();
+      const policyPromises = changedPolicies.map((changedPolicy) => {
+        return teamPoliciesAPI.update(changedPolicy.id, {
+          conditional_access_enabled: changedPolicy.conditional_access_enabled,
+          team_id: teamIdForApi,
+        });
+      });
+
+      const [globalConfigResult, teamConfigResult] = await Promise.all([
+        globalConfigPromise,
+        teamConfigPromise,
+        ...policyPromises,
+      ]);
+
+      if (globalConfigResult) {
+        updateGlobalConfig(globalConfigResult);
+      }
+      if (teamConfigResult) {
+        updateTeamConfig(teamConfigResult);
       }
       renderFlash(
         "success",
@@ -901,6 +953,21 @@ const ManagePolicyPage = ({
     toggleDeletePoliciesModal,
   ]);
 
+  const onChangeAutomationFilter = (val: SingleValue<CustomOptionType>) => {
+    const automationType = val?.value;
+
+    const locationPath = getNextLocationPath({
+      pathPrefix: PATHS.MANAGE_POLICIES,
+      queryParams: {
+        ...queryParams,
+        page: "0",
+        automation_type: automationType === "all" ? undefined : automationType,
+      },
+    });
+
+    router?.push(locationPath);
+  };
+
   const policiesErrors = !isAllTeamsSelected
     ? teamPoliciesError
     : globalPoliciesError;
@@ -911,19 +978,6 @@ const ManagePolicyPage = ({
 
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
-
-  /**
-  all teams? -> globalConfig
-  any team (including "No team")? -> teamConfig
-   */
-
-  let automationsConfig;
-  if (isAllTeamsSelected) {
-    automationsConfig = globalConfig;
-  } else {
-    // For any team including "No team" (team ID 0), use the team config
-    automationsConfig = teamConfig;
-  }
 
   const hasPoliciesToAutomate = isAllTeamsSelected
     ? (globalPoliciesCount ?? 0) > 0
@@ -959,7 +1013,7 @@ const ManagePolicyPage = ({
     count?: number,
     policies?: IPolicyStats[]
   ) => {
-    // Hide count if fetching count || there are errors OR there are no policy results with no a search filter
+    // Hide count if fetching count || there are errors OR there are no policy results with no filters (search or automation dropdown)
     const isFetchingCount = !isAllTeamsSelected
       ? isFetchingTeamCountMergeInherited
       : isFetchingGlobalCount;
@@ -967,7 +1021,7 @@ const ManagePolicyPage = ({
     const hide =
       isFetchingCount ||
       policiesErrors ||
-      (!policyResults && searchQuery === "");
+      (!policyResults && searchQuery === "" && !automationFilter);
 
     if (hide) {
       return null;
@@ -993,6 +1047,82 @@ const ManagePolicyPage = ({
       </>
     );
   };
+
+  const automationFilterOptions: CustomOptionType[] = [
+    {
+      label: "All policies",
+      value: "all",
+      helpText: "All policies added to Fleet.",
+    },
+    {
+      label: "Software",
+      value: "software",
+      helpText: "Policies with software automation enabled.",
+    },
+    {
+      label: "Scripts",
+      value: "scripts",
+      helpText: "Policies with script automation enabled.",
+    },
+    {
+      label: "Calendar",
+      value: "calendar",
+      helpText: "Policies with calendar event automation enabled.",
+    },
+    {
+      label: "Conditional access",
+      value: "conditional_access",
+      helpText: "Policies with conditional access automation enabled.",
+    },
+    {
+      label: "Other",
+      value: "other",
+      helpText: "Policies with other automation enabled.",
+    },
+  ];
+
+  const allPoliciesOption = automationFilterOptions[0]; // value: "all"
+
+  const getSelectedFilterOption = () => {
+    if (!automationFilter) {
+      return allPoliciesOption; // Default to all policies option
+    }
+    return automationFilterOptions.find(
+      (opt) => opt.value === automationFilter
+    );
+  };
+
+  const renderAutomationFilter = isPremiumTier
+    ? () => {
+        // Hide dropdown if there are errors OR there are no policy results with no filters (search or automation dropdown)
+        const hide =
+          policiesErrors ||
+          (!policyResults && searchQuery === "" && !automationFilter);
+
+        if (hide) {
+          return null;
+        }
+
+        // No team ID = All fleets → only show "all" and "other" options
+        const optionsForTeam = teamIdForApi
+          ? automationFilterOptions
+          : automationFilterOptions.filter((opt) =>
+              ["all", "other"].includes(opt.value as string)
+            );
+
+        return (
+          <DropdownWrapper
+            className={`${baseClass}__filter-automation-dropdown`}
+            name="filter-by-automation"
+            value={getSelectedFilterOption()}
+            onChange={onChangeAutomationFilter}
+            placeholder="Filter by automation"
+            options={optionsForTeam}
+            variant="table-filter"
+          />
+        );
+      }
+    : undefined;
 
   const renderMainTable = () => {
     if (!isRouteOk || (isPremiumTier && !userTeams)) {
@@ -1026,6 +1156,8 @@ const ManagePolicyPage = ({
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
+          customControl={renderAutomationFilter}
+          isFiltered={!!automationFilter}
         />
       );
     }
@@ -1034,10 +1166,12 @@ const ManagePolicyPage = ({
     if (teamPoliciesError) {
       return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
+    const displayedTeamPolicies = teamPolicies || [];
+
     return (
       <div>
         <PoliciesTable
-          policiesList={teamPolicies || []}
+          policiesList={displayedTeamPolicies}
           isLoading={
             isFetchingTeamPolicies ||
             isFetchingTeamConfig ||
@@ -1051,7 +1185,7 @@ const ManagePolicyPage = ({
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
               teamPoliciesCountMergeInherited,
-              teamPolicies
+              displayedTeamPolicies
             )
           }
           isPremiumTier={isPremiumTier}
@@ -1061,6 +1195,8 @@ const ManagePolicyPage = ({
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
+          customControl={renderAutomationFilter}
+          isFiltered={!!automationFilter}
         />
       </div>
     );
@@ -1123,7 +1259,7 @@ const ManagePolicyPage = ({
     } else if (teamIdForApi === API_NO_TEAM_ID) {
       disabledCalendarTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           calendar events.
         </>
@@ -1144,13 +1280,6 @@ const ManagePolicyPage = ({
 
     const options: CustomOptionType[] = [
       {
-        label: "Calendar",
-        value: "calendar_events",
-        isDisabled: !!disabledCalendarTooltipContent,
-        helpText: "Automatically reserve time to resolve failing policies.",
-        tooltipContent: disabledCalendarTooltipContent,
-      },
-      {
         label: "Software",
         value: "install_software",
         isDisabled: !!disabledInstallTooltipContent,
@@ -1163,6 +1292,13 @@ const ManagePolicyPage = ({
         isDisabled: !!disabledRunScriptTooltipContent,
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
+      },
+      {
+        label: "Calendar",
+        value: "calendar_events",
+        isDisabled: !!disabledCalendarTooltipContent,
+        helpText: "Automatically reserve time to resolve failing policies.",
+        tooltipContent: disabledCalendarTooltipContent,
       },
       {
         label: "Conditional access",

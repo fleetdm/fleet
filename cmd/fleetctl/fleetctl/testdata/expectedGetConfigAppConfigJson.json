@@ -11,8 +11,11 @@
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
+      "live_reporting_disabled": false,
       "query_report_cap": 0,
       "query_reports_disabled": false,
+      "report_cap": 0,
+      "discard_reports_data": false,
       "enable_analytics": false,
       "deferred_save_host": false,
       "scripts_disabled": false,
@@ -114,6 +117,7 @@
       "volume_purchasing_program": null,
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
+      "enable_recovery_lock_password": false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
@@ -142,12 +146,16 @@
         "mode": "",
         "webhook_url": ""
       },
+      "apple_settings": {
+        "configuration_profiles": null
+      },
       "macos_settings": {
         "custom_settings": null
       },
       "macos_setup": {
         "bootstrap_package": null,
         "enable_end_user_authentication": false,
+        "lock_end_user_info": false,
         "macos_setup_assistant": null,
         "enable_release_device_manually": false,
         "script": null,
@@ -155,12 +163,25 @@
         "manual_agent_install": null,
         "require_all_software_macos": false
       },
+      "setup_experience": {
+        "macos_bootstrap_package": null,
+        "enable_end_user_authentication": false,
+        "lock_end_user_info": false,
+        "apple_setup_assistant": null,
+        "apple_enable_release_device_manually": false,
+        "macos_script": null,
+        "software": null,
+        "macos_manual_agent_install": null,
+        "require_all_software_macos": false
+      },
       "windows_settings": {
-        "custom_settings": null
+        "custom_settings": null,
+        "configuration_profiles": null
       },
       "android_settings": {
         "certificates": null,
-        "custom_settings": null
+        "custom_settings": null,
+        "configuration_profiles": null
       },
       "end_user_authentication": {
         "entity_id": "",

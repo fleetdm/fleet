@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -154,7 +155,8 @@ func TestAuthenticate(t *testing.T) {
 
 func TestMFA(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 
 	user := &fleet.User{MFAEnabled: true, Name: "Bob Smith", Email: "foo@example.com"}
 	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
@@ -192,7 +194,7 @@ func TestMFA(t *testing.T) {
 		if token == mfaToken {
 			return session, mfaUser, nil
 		}
-		return nil, nil, notFoundErr{}
+		return nil, nil, &notFoundErr{}
 	}
 	resp, err := sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: "foo"}, svc)
 	require.NoError(t, err)
@@ -200,15 +202,15 @@ func TestMFA(t *testing.T) {
 
 	session = &fleet.Session{}
 	mfaUser = user
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		require.Equal(t, mfaUser, user)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, activity activity_api.ActivityDetails) error {
+		require.Equal(t, mfaUser.Email, user.Email)
 		require.Equal(t, fleet.ActivityTypeUserLoggedIn{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
 	resp, err = sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: mfaToken}, svc)
 	require.NoError(t, err)
 	require.Nil(t, resp.Error())
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestGetSessionByKey(t *testing.T) {
@@ -299,12 +301,6 @@ func TestGetSSOUser(t *testing.T) {
 			Tier: fleet.TierPremium,
 		},
 	})
-
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -453,6 +449,71 @@ func TestGetSSOUser(t *testing.T) {
 
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.Error(t, err)
+
+	// (5) Test JIT provisioning with global technician role.
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO:             true,
+				EnableSSOIdPLogin:     true,
+				EnableJITProvisioning: true,
+			},
+		}, nil
+	}
+
+	newUser = nil
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+	ds.NewUserFuncInvoked = false
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "technician"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.NotNil(t, newUser.GlobalRole)
+	require.Equal(t, fleet.RoleTechnician, *newUser.GlobalRole)
+	require.Empty(t, newUser.Teams)
+
+	// (6) Test JIT provisioning with team technician role.
+
+	newUser = nil
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+	ds.NewUserFuncInvoked = false
+
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid}, nil
+	}
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "technician"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.Nil(t, newUser.GlobalRole)
+	require.Len(t, newUser.Teams, 1)
+	require.Equal(t, uint(1), newUser.Teams[0].ID)
+	require.Equal(t, fleet.RoleTechnician, newUser.Teams[0].Role)
 }
 
 func TestInitiateSSOWithSSOServerURL(t *testing.T) {

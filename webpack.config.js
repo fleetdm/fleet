@@ -107,6 +107,14 @@ const config = {
               sassOptions: {
                 includePaths: bourbon,
                 importer: globImporter(),
+                silenceDeprecations: [
+                  "import",
+                  "global-builtin",
+                  "slash-div",
+                  "color-functions",
+                  "mixed-decls",
+                  "legacy-js-api",
+                ],
               },
             },
           },
@@ -129,6 +137,9 @@ const config = {
         use: { loader: "babel-loader", options: { cacheDirectory: true } },
       },
     ],
+  },
+  performance: {
+    hints: false,
   },
   resolve: {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],

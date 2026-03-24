@@ -9,7 +9,8 @@ import (
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
-	"github.com/scjalliance/comshim"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/sys/windows/registry"
 )
 
 // Encryption Methods
@@ -32,7 +33,8 @@ const (
 type EncryptionFlag int32
 
 const (
-	EncryptDataOnly    EncryptionFlag = 0x00000001
+	EncryptDataOnly EncryptionFlag = 0x00000001
+	// EncryptDemandWipe encrypts the entire disk, including (wiping) free space.
 	EncryptDemandWipe  EncryptionFlag = 0x00000002
 	EncryptSynchronous EncryptionFlag = 0x00010000
 )
@@ -67,6 +69,8 @@ func encryptErrHandler(val int32) error {
 	var msg string
 
 	switch val {
+	case ErrorCodeInvalidArg:
+		msg = "the encryption flags conflict with the current Group Policy settings (check HKLM\\SOFTWARE\\Policies\\Microsoft\\FVE)"
 	case ErrorCodeIODevice:
 		msg = "an I/O error has occurred during encryption; the device may need to be reset"
 	case ErrorCodeDriveIncompatibleVolume:
@@ -117,7 +121,6 @@ func (v *Volume) bitlockerClose() {
 		v.wmiSvc.Release()
 	}
 
-	comshim.Done()
 }
 
 // encrypt encrypts the volume
@@ -212,6 +215,18 @@ func (v *Volume) protectWithTPM(platformValidationProfile *[]uint8) error {
 	return nil
 }
 
+// deleteKeyProtectors removes all key protectors from the volume.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/deletekeyprotectors-win32-encryptablevolume
+func (v *Volume) deleteKeyProtectors() error {
+	resultRaw, err := oleutil.CallMethod(v.handle, "DeleteKeyProtectors")
+	if err != nil {
+		return fmt.Errorf("deleteKeyProtectors(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("deleteKeyProtectors(%s): %w", v.letter, encryptErrHandler(val))
+	}
+	return nil
+}
+
 // getBitlockerStatus returns the current status of the volume
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
 func (v *Volume) getBitlockerStatus() (*EncryptionStatus, error) {
@@ -252,49 +267,22 @@ func (v *Volume) getBitlockerStatus() (*EncryptionStatus, error) {
 	return encStatus, nil
 }
 
-// getProtectorsKeys returns the recovery keys for the volume
-// https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectornumericalpassword-win32-encryptablevolume
-func (v *Volume) getProtectorsKeys() (map[string]string, error) {
-	keys, err := getKeyProtectors(v.handle)
-	if err != nil {
-		return nil, fmt.Errorf("getKeyProtectors: %w", err)
-	}
-
-	recoveryKeys := make(map[string]string)
-	for _, k := range keys {
-		var recoveryKey ole.VARIANT
-		_ = ole.VariantInit(&recoveryKey)
-		recoveryKeyResultRaw, err := oleutil.CallMethod(v.handle, "GetKeyProtectorNumericalPassword", k, &recoveryKey)
-		if err != nil {
-			continue // No recovery key for this protector
-		} else if val, ok := recoveryKeyResultRaw.Value().(int32); val != 0 || !ok {
-			continue // No recovery key for this protector
-		}
-		recoveryKeys[k] = recoveryKey.ToString()
-	}
-
-	return recoveryKeys, nil
-}
-
 /////////////////////////////////////////////////////
 // Helper functions
 /////////////////////////////////////////////////////
 
 // bitlockerConnect connects to an encryptable volume in order to manage it.
 func bitlockerConnect(driveLetter string) (Volume, error) {
-	comshim.Add(1)
 	v := Volume{letter: driveLetter}
 
 	unknown, err := oleutil.CreateObject("WbemScripting.SWbemLocator")
 	if err != nil {
-		comshim.Done()
 		return v, fmt.Errorf("createObject: %w", err)
 	}
 	defer unknown.Release()
 
 	v.wmiIntf, err = unknown.QueryInterface(ole.IID_IDispatch)
 	if err != nil {
-		comshim.Done()
 		return v, fmt.Errorf("queryInterface: %w", err)
 	}
 	serviceRaw, err := oleutil.CallMethod(v.wmiIntf, "ConnectServer", nil, `\\.\ROOT\CIMV2\Security\MicrosoftVolumeEncryption`)
@@ -326,32 +314,6 @@ func bitlockerConnect(driveLetter string) (Volume, error) {
 func intToPercentage(num int32) string {
 	percentage := float64(num) / 10000.0
 	return fmt.Sprintf("%.2f%%", percentage)
-}
-
-// getKeyProtectors returns the key protectors for the volume
-// https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
-func getKeyProtectors(item *ole.IDispatch) ([]string, error) {
-	kp := []string{}
-	var keyProtectorResults ole.VARIANT
-	_ = ole.VariantInit(&keyProtectorResults)
-
-	keyIDResultRaw, err := oleutil.CallMethod(item, "GetKeyProtectors", 3, &keyProtectorResults)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get Key Protectors while getting BitLocker info. %s", err.Error())
-	} else if val, ok := keyIDResultRaw.Value().(int32); val != 0 || !ok {
-		return nil, fmt.Errorf("unable to get Key Protectors while getting BitLocker info. Return code %d", val)
-	}
-
-	keyProtectorValues := keyProtectorResults.ToArray().ToValueArray()
-	for _, keyIDItemRaw := range keyProtectorValues {
-		keyIDItem, ok := keyIDItemRaw.(string)
-		if !ok {
-			return nil, errors.New("keyProtectorID wasn't a string")
-		}
-		kp = append(kp, keyIDItem)
-	}
-
-	return kp, nil
 }
 
 // bitsToDrives converts a bit map to a list of drives
@@ -411,24 +373,54 @@ func getBitlockerStatus(targetVolume string) (*EncryptionStatus, error) {
 // Bitlocker Management interface implementation
 /////////////////////////////////////////////////////
 
-func GetRecoveryKeys(targetVolume string) (map[string]string, error) {
-	// Connect to the volume
-	vol, err := bitlockerConnect(targetVolume)
+// encryptionFlagFromRegistry reads the OSEncryptionType Group Policy registry value to determine
+// the encryption flag. Other MDM solutions may set this key to require full disk
+// encryption, and the key persists after unenrolling. If the policy requires full disk encryption,
+// we honor it; otherwise we default to used-space-only.
+//
+// Registry values for OSEncryptionType (under HKLM\SOFTWARE\Policies\Microsoft\FVE):
+//   - 0: allow user to choose (default to used-space-only)
+//   - 1: full disk encryption required
+//   - 2: used-space-only encryption
+//
+// See https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/configure
+func encryptionFlagFromRegistry() EncryptionFlag {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Policies\Microsoft\FVE`, registry.QUERY_VALUE)
 	if err != nil {
-		return nil, fmt.Errorf("connecting to the volume: %w", err)
+		return EncryptDataOnly
 	}
-	defer vol.bitlockerClose()
+	defer k.Close()
 
-	// Get recovery keys
-	keys, err := vol.getProtectorsKeys()
+	val, _, err := k.GetIntegerValue("OSEncryptionType")
 	if err != nil {
-		return nil, fmt.Errorf("retreving protection keys: %w", err)
+		return EncryptDataOnly
 	}
 
-	return keys, nil
+	if val == 1 {
+		log.Info().Msg("OSEncryptionType registry policy requires full disk encryption, using full encryption mode")
+		return EncryptDemandWipe
+	}
+
+	return EncryptDataOnly
 }
 
-func EncryptVolume(targetVolume string) (string, error) {
+// deleteOSEncryptionTypeRegistry removes the OSEncryptionType value from the FVE policy registry
+// key. This cleans up orphaned policy keys left by other MDM solutions after unenrolling.
+func deleteOSEncryptionTypeRegistry() {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Policies\Microsoft\FVE`, registry.SET_VALUE)
+	if err != nil {
+		return
+	}
+	defer k.Close()
+
+	if err := k.DeleteValue("OSEncryptionType"); err != nil {
+		log.Debug().Err(err).Msg("could not delete OSEncryptionType registry value")
+	} else {
+		log.Info().Msg("deleted orphaned OSEncryptionType registry policy value")
+	}
+}
+
+func encryptVolumeOnCOMThread(targetVolume string) (string, error) {
 	// Connect to the volume
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
@@ -436,9 +428,41 @@ func EncryptVolume(targetVolume string) (string, error) {
 	}
 	defer vol.bitlockerClose()
 
+	// Clean up stale key protectors (recovery passwords, TPM, etc.) that may be left over from
+	// a previous failed encryption attempt or from another MDM solution. Without this, leftover
+	// protectors cause prepareVolume to return ErrorCodeNotDecrypted and subsequent encryption
+	// attempts to silently fail. Failures are logged but not fatal since a fresh volume won't
+	// have any protectors to delete.
+	if err := vol.deleteKeyProtectors(); err != nil {
+		log.Debug().Err(err).Msg("could not delete existing key protectors (may not have any), continuing anyway")
+	}
+
+	// Read the OSEncryptionType registry policy to determine the encryption flag. If a GPO or
+	// another MDM set this to require full disk encryption (value 1), passing the wrong flag
+	// to Encrypt() would fail with E_INVALIDARG. We honor the policy to avoid this conflict.
+	// If the key is absent or any other value, we default to used-space-only (EncryptDataOnly).
+	encFlag := encryptionFlagFromRegistry()
+
+	// Delete the registry key now that we've read it. If it was orphaned from a previous MDM,
+	// this cleans it up permanently. In practice, customers should not use GPO for BitLocker
+	// policy alongside Fleet MDM since the two will conflict. However, if an active GPO is present,
+	// it will re-apply the key on its next refresh (~90 minutes). Orbit retries every ~30
+	// seconds on failure, so interim retries before the GPO re-applies the key will default to
+	// EncryptDataOnly and fail with E_INVALIDARG. That's expected and the error is reported to
+	// Fleet. Once the GPO restores the key, the next retry reads it and succeeds.
+	deleteOSEncryptionTypeRegistry()
+
 	// Prepare for encryption
 	if err := vol.prepareVolume(VolumeTypeDefault, EncryptionTypeSoftware); err != nil {
-		return "", fmt.Errorf("preparing volume for encryption: %w", err)
+		// A previous failed encryption attempt may have already called PrepareVolume, which sets
+		// BitLocker metadata on the volume. Calling it again returns ErrorCodeNotDecrypted
+		// (FVE_E_NOT_DECRYPTED). This is safe to ignore because the volume is already prepared
+		// and we can proceed with adding protectors and encrypting.
+		var encErr *EncryptionError
+		if !errors.As(err, &encErr) || encErr.Code() != ErrorCodeNotDecrypted {
+			return "", fmt.Errorf("preparing volume for encryption: %w", err)
+		}
+		log.Debug().Msg("volume already prepared from previous attempt, continuing")
 	}
 
 	// Add a recovery protector
@@ -452,15 +476,15 @@ func EncryptVolume(targetVolume string) (string, error) {
 		return "", fmt.Errorf("protecting with TPM: %w", err)
 	}
 
-	// Start encryption
-	if err := vol.encrypt(XtsAES256, EncryptDataOnly); err != nil {
+	// Start encryption using the flag determined from the registry policy
+	if err := vol.encrypt(XtsAES256, encFlag); err != nil {
 		return "", fmt.Errorf("starting encryption: %w", err)
 	}
 
 	return recoveryKey, nil
 }
 
-func DecryptVolume(targetVolume string) error {
+func decryptVolumeOnCOMThread(targetVolume string) error {
 	// Connect to the volume
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
@@ -476,7 +500,7 @@ func DecryptVolume(targetVolume string) error {
 	return nil
 }
 
-func GetEncryptionStatus() ([]VolumeStatus, error) {
+func getEncryptionStatusOnCOMThread() ([]VolumeStatus, error) {
 	drives, err := getLogicalVolumes()
 	if err != nil {
 		return nil, fmt.Errorf("logical volumen enumeration %w", err)

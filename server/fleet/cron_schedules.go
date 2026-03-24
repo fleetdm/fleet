@@ -49,6 +49,10 @@ const (
 	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
 	// Runs every 1 minute.
 	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
+	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
+	// Runs every 5 minutes.
+	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
+	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
 )
 
 type CronSchedulesService interface {
@@ -148,6 +152,10 @@ func (e triggerConflictError) IsConflict() bool {
 	return true
 }
 
+func (e triggerConflictError) IsClientError() bool {
+	return true
+}
+
 func (e triggerConflictError) StatusCode() int {
 	return http.StatusConflict
 }
@@ -162,6 +170,10 @@ func (e triggerNotFoundError) Error() string {
 }
 
 func (e triggerNotFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e triggerNotFoundError) IsClientError() bool {
 	return true
 }
 

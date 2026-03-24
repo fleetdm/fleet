@@ -3138,8 +3138,8 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, atomicCmd.C
 SELECT status FROM host_mdm_windows_profiles
 WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.CommandUUID)
 			})
-			assert.Equal(t, "verifying", atomicProfileStatus)
-			assert.Equal(t, "verifying", replaceProfileStatus)
+			assert.Equal(t, "verified", atomicProfileStatus)
+			assert.Equal(t, "verified", replaceProfileStatus)
 		})
 
 		t.Run("fails only for the failed profile", func(t *testing.T) {
@@ -3199,7 +3199,7 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, atomicCmd.C
 SELECT status FROM host_mdm_windows_profiles
 WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.CommandUUID)
 			})
-			assert.Equal(t, "verifying", *atomicProfileStatus)
+			assert.Equal(t, "verified", *atomicProfileStatus)
 			assert.Nil(t, replaceProfileStatus) // We want nil here, as the retry kicks in on failures
 		})
 	})
@@ -3702,27 +3702,29 @@ func testGetWindowsMDMCommandsForResending(t *testing.T, ds *Datastore) {
 	dev := createMDMWindowsEnrollment(ctx, t, ds)
 
 	// No commands in windows_mdm_commands so doesn't matter what we put in
-	commands, err := ds.GetWindowsMDMCommandsForResending(ctx, []string{cmdUUID})
+	commands, err := ds.GetWindowsMDMCommandsForResending(ctx, dev.MDMDeviceID, []string{cmdUUID})
 	require.NoError(t, err)
 	require.Empty(t, commands)
 
 	// Insert a command
-	rawCommand := []byte(cmdUUID)
+	rawCommand := fmt.Appendf(nil, "<CmdID>%s</CmdID>", cmdUUID)
 	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.writer(ctx), []string{dev.HostUUID}, &fleet.MDMWindowsCommand{
 		CommandUUID: topLevelCmdUUID,
 		RawCommand:  rawCommand,
 	})
 	require.NoError(t, err)
 
+	//
+
 	// Fetch command for resending
-	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, []string{cmdUUID})
+	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, dev.MDMDeviceID, []string{cmdUUID})
 	require.NoError(t, err)
 	require.Len(t, commands, 1)
 	assert.Equal(t, topLevelCmdUUID, commands[0].CommandUUID)
 	assert.Equal(t, rawCommand, commands[0].RawCommand)
 
 	// Check that we search raw body and not match on command_uuid
-	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, []string{topLevelCmdUUID})
+	commands, err = ds.GetWindowsMDMCommandsForResending(ctx, dev.MDMDeviceID, []string{topLevelCmdUUID})
 	require.NoError(t, err)
 	require.Empty(t, commands)
 }

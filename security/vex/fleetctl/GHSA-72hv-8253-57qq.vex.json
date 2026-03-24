@@ -1,0 +1,26 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://openvex.dev/docs/public/vex-147152e5526205759cd1f30c116079bbce176be2d6b7c31b09ff9ce21d2c68ec",
+  "author": "@lucasmrod",
+  "timestamp": "2026-03-13T12:30:33.367195-03:00",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "GHSA-72hv-8253-57qq"
+      },
+      "timestamp": "2026-03-13T12:30:33.367196-03:00",
+      "products": [
+        {
+          "@id": "fleetctl"
+        },
+        {
+          "@id": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.0"
+        }
+      ],
+      "status": "not_affected",
+      "status_notes": "Vulnerability only affects Java/JVM web applications that use Jackson's asynchronous (non-blocking) JSON parser",
+      "justification": "vulnerable_code_not_in_execute_path"
+    }
+  ]
+}

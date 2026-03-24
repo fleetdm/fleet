@@ -290,10 +290,8 @@ const ScriptDetailsModal = ({
       onExit={onClose ?? onCancel}
       isHidden={isHidden}
     >
-      <>
-        {renderContent()}
-        {shouldShowFooter && renderFooter()}
-      </>
+      {renderContent()}
+      {shouldShowFooter && renderFooter()}
     </Modal>
   );
 };

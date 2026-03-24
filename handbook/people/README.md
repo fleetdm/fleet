@@ -98,7 +98,8 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
-4. Schedule the Slack message to go out at 6pm CT (18:00).
+4. Convert the "All hands" Keynote file to a PDF and save in the [Drive](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY). 
+5. Schedule the Slack message to go out at 6pm CT (18:00).
 
 
 ### Update personnel details
@@ -264,6 +265,14 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 
 1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
 2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
+
+
+### Offboard a consultant
+
+When a consultant's engagement with Fleet is ending, the following steps are taken to offboard them:
+1. The Head of People gets notified by the [consultant's DRI](https://fleetdm.com/handbook/company/leadership#consultants) that a consultant's engagement is ending.
+2. [Retire the consultant's column](https://fleetdm.com/handbook/people#retire-a-kpi) in the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+3. Open an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/offboarding.md) on the People board and work with IT to ensure the consultant's access to all Fleet systems is removed.
 
 
 ### Add an advisor

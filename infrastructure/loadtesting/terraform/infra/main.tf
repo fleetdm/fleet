@@ -52,6 +52,9 @@ module "loadtest" {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
     }
+    db_cluster_parameters = {
+      require_secure_transport = "ON"
+    }
   }
   redis_config = {
     name                          = local.customer

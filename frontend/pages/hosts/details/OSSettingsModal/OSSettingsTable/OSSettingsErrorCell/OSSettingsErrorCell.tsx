@@ -2,9 +2,12 @@ import React, { useContext, useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
 
+import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { IHostMdmProfile } from "interfaces/mdm";
+import { getErrorReason } from "interfaces/errors";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Button from "components/buttons/Button";
@@ -27,7 +30,7 @@ const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
 
   const buttonText = isFetching ? "Resending..." : "Resend";
 
-  // add additonal props when we need to display a tooltip for the button
+  // add additional props when we need to display a tooltip for the button
 
   return (
     <Button
@@ -232,21 +235,52 @@ const generateErrorTooltip = (
   return cellValue;
 };
 
+interface IRotateButtonProps {
+  isRotating: boolean;
+  onClick: () => void;
+}
+
+const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
+  const classNames = classnames(`${baseClass}__rotate-button`, "rotate-link", {
+    [`${baseClass}__rotating`]: isRotating,
+  });
+
+  const buttonText = isRotating ? "Rotating..." : "Rotate";
+
+  return (
+    <Button
+      disabled={isRotating}
+      onClick={onClick}
+      variant="inverse"
+      className={classNames}
+      size="small"
+    >
+      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
+      {buttonText}
+    </Button>
+  );
+};
+
 interface IOSSettingsErrorCellProps {
   canResendProfiles: boolean;
+  canRotateRecoveryLockPassword?: boolean;
   profile: IHostMdmProfileWithAddedStatus;
   resendRequest: (profileUUID: string) => Promise<void>;
+  rotateRecoveryLockPassword?: () => Promise<void>;
   onProfileResent?: () => void;
 }
 
 const OSSettingsErrorCell = ({
   canResendProfiles,
+  canRotateRecoveryLockPassword = false,
   profile,
   resendRequest,
+  rotateRecoveryLockPassword,
   onProfileResent = noop,
 }: IOSSettingsErrorCellProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
 
   const onResendProfile = async () => {
     setIsLoading(true);
@@ -259,9 +293,33 @@ const OSSettingsErrorCell = ({
     setIsLoading(false);
   };
 
+  const onRotatePassword = async () => {
+    if (!rotateRecoveryLockPassword) return;
+    setIsRotating(true);
+    try {
+      await rotateRecoveryLockPassword();
+      renderFlash(
+        "success",
+        "Successfully sent request to rotate Recovery Lock password."
+      );
+    } catch (e) {
+      const msg = getErrorReason(e).includes("already in progress")
+        ? "Recovery lock password rotation is already in progress for this host."
+        : "Couldn't send request to rotate Recovery Lock password. Please try again.";
+
+      renderFlash("error", msg);
+    }
+    setIsRotating(false);
+  };
+
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
-  const showRefetchButton = canResendProfiles && (isFailed || isVerified);
+  const showRefetchButton =
+    canResendProfiles &&
+    (isFailed || isVerified) &&
+    profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
+  const showRotateButton =
+    canRotateRecoveryLockPassword && (isFailed || isVerified);
   const value = (isFailed && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
 
   const tooltip = generateErrorTooltip(value, profile);
@@ -272,16 +330,17 @@ const OSSettingsErrorCell = ({
         tooltipBreakOnWord
         tooltip={tooltip}
         value={value}
-        // we dont want the default "w250" class so we pass in empty string
-        classes=""
         className={
-          isFailed || showRefetchButton
+          isFailed || showRefetchButton || showRotateButton
             ? `${baseClass}__failed-message`
             : undefined
         }
       />
       {showRefetchButton && (
         <RefetchButton isFetching={isLoading} onClick={onResendProfile} />
+      )}
+      {showRotateButton && (
+        <RotateButton isRotating={isRotating} onClick={onRotatePassword} />
       )}
     </div>
   );

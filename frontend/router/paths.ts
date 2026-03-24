@@ -14,6 +14,7 @@ export default {
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/custom-settings`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
+  CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
@@ -68,7 +69,7 @@ export default {
   ADMIN_INTEGRATIONS_SSO_END_USERS: `${INTEGRATIONS_PREFIX}/sso/end-users`,
   ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK: `${INTEGRATIONS_PREFIX}/host-status-webhook`,
 
-  ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
+  ADMIN_FLEETS: `${URL_PREFIX}/settings/fleets`,
   ADMIN_ORGANIZATION: `${URL_PREFIX}/settings/organization`,
   ADMIN_ORGANIZATION_INFO: `${URL_PREFIX}/settings/organization/info`,
   ADMIN_ORGANIZATION_WEBADDRESS: `${URL_PREFIX}/settings/organization/webaddress`,
@@ -117,12 +118,12 @@ export default {
   },
   PACK: (packId: number): string => `${URL_PREFIX}/packs/${packId}`,
   EDIT_LABEL: (labelId: number): string => `${URL_PREFIX}/labels/${labelId}`,
-  EDIT_QUERY: (queryId: number): string =>
-    `${URL_PREFIX}/queries/${queryId}/edit`,
-  LIVE_QUERY: (queryId: number | null): string =>
-    `${URL_PREFIX}/queries/${queryId || "new"}/live`,
-  QUERY_DETAILS: (queryId: number): string =>
-    `${URL_PREFIX}/queries/${queryId}`,
+  EDIT_REPORT: (queryId: number): string =>
+    `${URL_PREFIX}/reports/${queryId}/edit`,
+  LIVE_REPORT: (queryId: number | null): string =>
+    `${URL_PREFIX}/reports/${queryId || "new"}/live`,
+  REPORT_DETAILS: (queryId: number): string =>
+    `${URL_PREFIX}/reports/${queryId}`,
   EDIT_POLICY: (policyId: number): string =>
     `${URL_PREFIX}/policies/${policyId}`,
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
@@ -142,7 +143,7 @@ export default {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
   HOST_DETAILS: (id: number, teamId?: number): string => {
-    if (teamId) {
+    if (typeof teamId === "number") {
       return `${URL_PREFIX}/hosts/${id}/details?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/hosts/${id}/details`;
@@ -159,14 +160,14 @@ export default {
   HOST_LIBRARY: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software/library`;
   },
-  HOST_QUERIES: (id: number): string => {
-    return `${URL_PREFIX}/hosts/${id}/queries`;
+  HOST_REPORTS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/reports`;
   },
   HOST_POLICIES: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/policies`;
   },
-  HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>
-    `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
+  HOST_REPORT_RESULTS: (hostId: number, queryId: number): string =>
+    `${URL_PREFIX}/hosts/${hostId}/reports/${queryId}`,
   DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
@@ -179,32 +180,35 @@ export default {
   DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
+  DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
+  },
 
-  TEAM_DETAILS_USERS: (teamId?: number): string => {
+  FLEET_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/users?fleet_id=${teamId}`;
+      return `${URL_PREFIX}/settings/fleets/users?fleet_id=${teamId}`;
     }
-    return `${URL_PREFIX}/settings/teams`;
+    return `${URL_PREFIX}/settings/fleets`;
   },
-  TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
+  FLEET_DETAILS_OPTIONS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/options?fleet_id=${teamId}`;
+      return `${URL_PREFIX}/settings/fleets/options?fleet_id=${teamId}`;
     }
-    return `${URL_PREFIX}/settings/teams`;
+    return `${URL_PREFIX}/settings/fleets`;
   },
-  TEAM_DETAILS_SETTINGS: (teamId?: number) => {
+  FLEET_DETAILS_SETTINGS: (teamId?: number) => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/settings?fleet_id=${teamId}`;
+      return `${URL_PREFIX}/settings/fleets/settings?fleet_id=${teamId}`;
     }
-    return `${URL_PREFIX}/settings/teams`;
+    return `${URL_PREFIX}/settings/fleets`;
   },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,
-  MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
+  MANAGE_REPORTS: `${URL_PREFIX}/reports/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
-  NEW_QUERY: `${URL_PREFIX}/queries/new`,
+  NEW_REPORT: `${URL_PREFIX}/reports/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
   ACCOUNT: `${URL_PREFIX}/account`,

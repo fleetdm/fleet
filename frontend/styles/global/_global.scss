@@ -101,10 +101,17 @@ form,
     margin: 0;
     display: flex;
     gap: $pad-medium;
+
+    &--center {
+      margin: 0;
+      display: flex;
+      gap: $pad-medium;
+      justify-content: center;
+    }
   }
 
-  // Override button width to auto unless icon-only which has fixed widths
-  .button:not(.button--icon):not(.button--icon__small) {
+  // Override button width to auto unless icon-only or wide buttons which has fixed widths
+  .button:not(.button--icon):not(.button--icon__small):not(.button__wide) {
     width: auto;
   }
 

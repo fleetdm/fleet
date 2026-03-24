@@ -54,10 +54,11 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		},
 		{
 			"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml",
-			`only one of "labels_exclude_any" or "labels_include_any" can be specified`,
+			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified`,
 		},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
+		{"testdata/gitops/team_software_installer_valid_include_all.yml", ""},
 		{
 			"testdata/gitops/team_software_installer_invalid_unknown_label.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.",
@@ -72,8 +73,8 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
 		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
-		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
-		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that fleet"},
+		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that fleet"},
 		{"testdata/gitops/team_software_installer_valid_ipa.yml", ""},
 		{"testdata/gitops/team_software_installer_subdir_ipa.yml", ""},
 	}
@@ -360,10 +361,11 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
-			`only one of "labels_exclude_any" or "labels_include_any" can be specified`,
+			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified`,
 		},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
+		{"testdata/gitops/no_team_software_installer_valid_include_all.yml", ""},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.",
@@ -371,8 +373,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		// No team tests for setup experience software/script
 		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
-		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
-		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that fleet"},
+		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that fleet"},
 		{"testdata/gitops/no_team_software_installer_valid_ipa.yml", ""},
 		{"testdata/gitops/no_team_software_installer_subdir_ipa.yml", ""},
 	}
@@ -506,6 +508,10 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			map[string]uint{"label 1": 1, "label 2": 2},
 		},
 		{
+			"testdata/gitops/team_vpp_valid_app_labels_include_all.yml", "", time.Now().Add(24 * time.Hour),
+			map[string]uint{"label 1": 1, "label 2": 2},
+		},
+		{
 			"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
 			map[string]uint{"label 1": 1, "label 2": 2},
@@ -517,7 +523,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_both.yml",
-			`only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour),
+			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour),
 			map[string]uint{},
 		},
 	}
