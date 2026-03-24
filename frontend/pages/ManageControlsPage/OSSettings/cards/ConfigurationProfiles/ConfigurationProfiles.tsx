@@ -36,16 +36,16 @@ const PROFILES_PER_PAGE = 10;
 
 const baseClass = "configuration-profiles";
 
-export type ICustomSettingsProps = IOSSettingsCommonProps & {
+export type IConfigurationProfilesProps = IOSSettingsCommonProps & {
   currentPage?: number;
 };
 
-const CustomSettings = ({
+const ConfigurationProfiles = ({
   currentTeamId,
   router,
   currentPage = 0,
   onMutation,
-}: ICustomSettingsProps) => {
+}: IConfigurationProfilesProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
     config,
@@ -307,4 +307,4 @@ const CustomSettings = ({
   );
 };
 
-export default CustomSettings;
+export default ConfigurationProfiles;
