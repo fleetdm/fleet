@@ -194,7 +194,7 @@ func cpeVendorMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) bo
 	return matched
 }
 
-// cpeTargetSWMatchesSoftware returns a score (0-2) indicating how well the CPE's vendor
+// cpeTargetSWMatchesSoftware returns a score (0-3) indicating how well the CPE's vendor
 // and target_sw fields match the expected ecosystem for the software's source.
 func cpeTargetSWMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) int {
 	expectedTargetSW := targetSW(software)
@@ -205,7 +205,7 @@ func cpeTargetSWMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) 
 		// software.source="npm_packages" (expectedTargetSW="node.js")
 		// item.TargetSW="node.js"
 		if item.TargetSW != "" && strings.EqualFold(item.TargetSW, expectedTargetSW) {
-			return 2
+			return 3
 		}
 
 		// Good match: CPE vendor contains the ecosystem name
@@ -222,7 +222,7 @@ func cpeTargetSWMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) 
 		}
 
 		if strings.Contains(vendorLower, ecosystemName) {
-			return 1
+			return 2
 		}
 	}
 
@@ -235,14 +235,14 @@ func cpeTargetSWMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) 
 			// software.source="deb_packages" (expectedTargetSW="*")
 			// item.Vendor="debian"
 			if strings.Contains(vendorLower, "debian") {
-				return 1
+				return 2
 			}
 		case "rpm_packages":
 			// Example:
 			// software.source="rpm_packages" (expectedTargetSW="*")
 			// item.Vendor="redhat"
 			if strings.Contains(vendorLower, "redhat") || strings.Contains(vendorLower, "fedora") {
-				return 1
+				return 2
 			}
 		}
 	}

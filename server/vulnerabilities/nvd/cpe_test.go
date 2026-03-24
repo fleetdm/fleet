@@ -1148,7 +1148,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "0.8.21",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:debian:duplicity:0.8.21:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:duplicity_project:duplicity:0.8.21:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "duplicity",
+				Source:           "deb_packages",
+				Version:          "0.8.21",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:debian:duplicity:0.8.21:*:*:*:*:*:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1382,7 +1391,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.25.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:jenkins:requests:2.25.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:python:requests:2.25.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
