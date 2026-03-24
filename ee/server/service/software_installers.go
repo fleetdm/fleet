@@ -54,7 +54,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// validate labels before we do anything else
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.TeamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.TeamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels")
 	}
@@ -148,7 +148,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		teamName = &t.Name
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:    payload.Title,
 		SoftwarePackage:  payload.Filename,
@@ -156,8 +156,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		TeamID:           payload.TeamID,
 		SelfService:      payload.SelfService,
 		SoftwareTitleID:  titleID,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
+		LabelsIncludeAny: actLabelsInclAny,
+		LabelsExcludeAny: actLabelsExclAny,
+		LabelsIncludeAll: actLabelsInclAll,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
@@ -195,24 +196,35 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	return addedInstaller, nil
 }
 
-func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIdentsWithScope, error) {
+func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll []string) (*fleet.LabelIdentsWithScope, error) {
 	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
 		return nil, fleet.NewAuthRequiredError("validate software labels: missing authorization context")
 	} else if !authctx.Checked() {
 		return nil, fleet.NewAuthRequiredError("validate software labels: method requires previous authorization")
 	}
 
+	var count int
+	for _, set := range [][]string{labelsIncludeAny, labelsExcludeAny, labelsIncludeAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`}
+	}
+
 	var names []string
 	var scope fleet.LabelScope
 	switch {
-	case len(labelsIncludeAny) > 0 && len(labelsExcludeAny) > 0:
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
 	case len(labelsIncludeAny) > 0:
 		names = labelsIncludeAny
 		scope = fleet.LabelScopeIncludeAny
 	case len(labelsExcludeAny) > 0:
 		names = labelsExcludeAny
 		scope = fleet.LabelScopeExcludeAny
+	case len(labelsIncludeAll) > 0:
+		names = labelsIncludeAll
+		scope = fleet.LabelScopeIncludeAll
 	}
 
 	if len(names) == 0 {
@@ -404,7 +416,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		dirty["SelfService"] = true
 	}
 
-	shouldUpdateLabels, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	shouldUpdateLabels, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
 	}
@@ -671,13 +683,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 		// now that the payload has been updated with any patches, we can set the
 		// final fields of the activity
-		actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
-			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(
+			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll)
 		if payload.ValidatedLabels != nil {
-			actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+			actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 		}
-		activity.LabelsIncludeAny = actLabelsIncl
-		activity.LabelsExcludeAny = actLabelsExcl
+		activity.LabelsIncludeAny = actLabelsInclAny
+		activity.LabelsExcludeAny = actLabelsExclAny
+		activity.LabelsIncludeAll = actLabelsInclAll
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
 		}
@@ -719,7 +732,7 @@ func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptN
 	return argErr
 }
 
-func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
+func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny, includeAll []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
 	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
 		return false, nil, fleet.NewAuthRequiredError("batch validate labels: missing authorization context")
 	} else if !authctx.Checked() {
@@ -730,16 +743,12 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 		return false, nil, errors.New("existing installer must be provided")
 	}
 
-	if len(existingInstaller.LabelsIncludeAny) > 0 && len(existingInstaller.LabelsExcludeAny) > 0 {
-		return false, nil, errors.New("existing installer must have only one label scope")
-	}
-
-	if includeAny == nil && excludeAny == nil {
+	if includeAny == nil && excludeAny == nil && includeAll == nil {
 		// nothing to do
 		return false, nil, nil
 	}
 
-	incoming, err := ValidateSoftwareLabels(ctx, svc, existingInstaller.TeamID, includeAny, excludeAny)
+	incoming, err := ValidateSoftwareLabels(ctx, svc, existingInstaller.TeamID, includeAny, excludeAny, includeAll)
 	if err != nil {
 		return false, nil, err
 	}
@@ -753,6 +762,9 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	case len(existingInstaller.LabelsExcludeAny) > 0:
 		prevScope = fleet.LabelScopeExcludeAny
 		prevLabels = existingInstaller.LabelsExcludeAny
+	case len(existingInstaller.LabelsIncludeAll) > 0:
+		prevScope = fleet.LabelScopeIncludeAll
+		prevLabels = existingInstaller.LabelsIncludeAll
 	}
 
 	prevByName := make(map[string]fleet.LabelIdent, len(prevLabels))
@@ -862,7 +874,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		teamName = &t.Name
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
 
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
 		AppStoreID:       meta.AdamID,
@@ -870,8 +882,9 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		TeamName:         teamName,
 		TeamID:           teamID,
 		Platform:         meta.Platform,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
+		LabelsIncludeAny: actLabelsInclAny,
+		LabelsExcludeAny: actLabelsExclAny,
+		LabelsIncludeAll: actLabelsInclAll,
 		SoftwareIconURL:  meta.IconURL,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
@@ -935,15 +948,16 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		teamName = &t.Name
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
 		SoftwareTitle:    meta.SoftwareTitle,
 		SoftwarePackage:  meta.Name,
 		TeamName:         teamName,
 		TeamID:           meta.TeamID,
 		SelfService:      meta.SelfService,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
+		LabelsIncludeAny: actLabelsInclAny,
+		LabelsExcludeAny: actLabelsExclAny,
+		LabelsIncludeAll: actLabelsInclAll,
 		SoftwareIconURL:  meta.IconUrl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
@@ -1894,6 +1908,41 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		}
 	}
 
+	// Validate that the shebang matches the file extension
+	kind, directExecute, err := fleet.ShebangInfo(scriptContents)
+	if err != nil {
+		return &fleet.BadRequestError{
+			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
+			InternalErr: ctxerr.Wrap(ctx, err, "validating script shebang"),
+		}
+	}
+	switch extension {
+	case "sh":
+		// allow no shebang (defaults to /bin/sh), or a supported shell shebang.
+		if directExecute && kind != fleet.ShebangShell {
+			return &fleet.BadRequestError{
+				Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", fleet.ErrUnsupportedInterpreter.Error()),
+				InternalErr: ctxerr.New(ctx, "shell script with non-shell shebang"),
+			}
+		}
+	case "py":
+		// python scripts must be directly executable (via a python shebang).
+		if !directExecute || kind != fleet.ShebangPython {
+			return &fleet.BadRequestError{
+				Message:     "Couldn't add. Script validation failed: Python scripts must start with a python shebang (for example, \"#!/usr/bin/env python3\").",
+				InternalErr: ctxerr.New(ctx, "python script without python shebang"),
+			}
+		}
+	case "ps1":
+		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
+		if directExecute {
+			return &fleet.BadRequestError{
+				Message:     "Couldn't add. Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
+				InternalErr: ctxerr.New(ctx, "powershell script with shebang"),
+			}
+		}
+	}
+
 	shaSum, err := file.SHA256FromTempFileReader(payload.InstallerFile)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "calculating script SHA256")
@@ -2037,7 +2086,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			}
 		}
 		if !dryRun {
-			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 			if err != nil {
 				return "", err
 			}
@@ -2295,6 +2344,7 @@ func (svc *Service) softwareBatchUpload(
 				InstallDuringSetup: p.InstallDuringSetup,
 				LabelsIncludeAny:   p.LabelsIncludeAny,
 				LabelsExcludeAny:   p.LabelsExcludeAny,
+				LabelsIncludeAll:   p.LabelsIncludeAll,
 				ValidatedLabels:    p.ValidatedLabels,
 				Categories:         p.Categories,
 				DisplayName:        p.DisplayName,
@@ -3081,12 +3131,11 @@ func UninstallSoftwareMigration(
 	return nil
 }
 
-func activitySoftwareLabelsFromValidatedLabels(validatedLabels *fleet.LabelIdentsWithScope) (include, exclude []fleet.ActivitySoftwareLabel) {
+func activitySoftwareLabelsFromValidatedLabels(validatedLabels *fleet.LabelIdentsWithScope) (includeAny, excludeAny, includeAll []fleet.ActivitySoftwareLabel) {
 	if validatedLabels == nil || len(validatedLabels.ByName) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	excludeAny := validatedLabels.LabelScope == fleet.LabelScopeExcludeAny
 	labels := make([]fleet.ActivitySoftwareLabel, 0, len(validatedLabels.ByName))
 	for _, lbl := range validatedLabels.ByName {
 		labels = append(labels, fleet.ActivitySoftwareLabel{
@@ -3094,26 +3143,35 @@ func activitySoftwareLabelsFromValidatedLabels(validatedLabels *fleet.LabelIdent
 			Name: lbl.LabelName,
 		})
 	}
-	if excludeAny {
-		exclude = labels
-	} else {
-		include = labels
+	switch validatedLabels.LabelScope {
+	case fleet.LabelScopeIncludeAny:
+		includeAny = labels
+	case fleet.LabelScopeExcludeAny:
+		excludeAny = labels
+	case fleet.LabelScopeIncludeAll:
+		includeAll = labels
 	}
-	return include, exclude
+	return includeAny, excludeAny, includeAll
 }
 
-func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeScopeLabels []fleet.SoftwareScopeLabel) (include, exclude []fleet.ActivitySoftwareLabel) {
-	for _, label := range includeScopeLabels {
-		include = append(include, fleet.ActivitySoftwareLabel{
+func activitySoftwareLabelsFromSoftwareScopeLabels(includeAnyScopeLabels, excludeAnyScopeLabels, includeAllScopeLabels []fleet.SoftwareScopeLabel) (includeAny, excludeAny, includeAll []fleet.ActivitySoftwareLabel) {
+	for _, label := range includeAnyScopeLabels {
+		includeAny = append(includeAny, fleet.ActivitySoftwareLabel{
 			ID:   label.LabelID,
 			Name: label.LabelName,
 		})
 	}
-	for _, label := range excludeScopeLabels {
-		exclude = append(exclude, fleet.ActivitySoftwareLabel{
+	for _, label := range excludeAnyScopeLabels {
+		excludeAny = append(excludeAny, fleet.ActivitySoftwareLabel{
 			ID:   label.LabelID,
 			Name: label.LabelName,
 		})
 	}
-	return include, exclude
+	for _, label := range includeAllScopeLabels {
+		includeAll = append(includeAll, fleet.ActivitySoftwareLabel{
+			ID:   label.LabelID,
+			Name: label.LabelName,
+		})
+	}
+	return includeAny, excludeAny, includeAll
 }

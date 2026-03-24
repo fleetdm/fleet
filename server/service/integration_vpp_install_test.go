@@ -672,6 +672,16 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstallFailed)
 	checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
 
+	var commandResultsResp getMDMCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &commandResultsResp, "command_uuid", installCmdUUID)
+	require.Len(t, commandResultsResp.Results, 1)
+	require.Equal(t, false, commandResultsResp.Results[0].ResultsMetadata["software_installed"])
+	require.Equal(
+		t,
+		float64(int(fleet.DefaultVPPInstallVerifyTimeout.Seconds())),
+		commandResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
+	)
+
 	// ========================================================
 	// Mark installs as failed when MDM turned off on host
 	// ========================================================

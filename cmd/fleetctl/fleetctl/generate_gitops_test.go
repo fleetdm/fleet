@@ -473,9 +473,15 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 6,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
-				LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
-				SelfService:      true,
+				VPPAppID: fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label C",
+					}, {
+						LabelName: "Label D",
+					},
+				},
+				SelfService: true,
 			},
 			IconUrl: ptr.String("/api/icon3.png"),
 		}, nil
@@ -488,6 +494,13 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			AppStoreApp: &fleet.VPPAppStoreApp{
 				VPPAppID:    fleet.VPPAppID{AdamID: "com.example.ios-auto-update", Platform: fleet.IOSPlatform},
 				SelfService: false,
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label C",
+					}, {
+						LabelName: "Label D",
+					},
+				},
 			},
 			IconUrl: ptr.String("/api/icon4.png"),
 			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
@@ -524,6 +537,14 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			ID:   9,
 			Name: "My Windows FMA",
 			SoftwarePackage: &fleet.SoftwareInstaller{
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label A",
+					},
+					{
+						LabelName: "Label B",
+					},
+				},
 				InstallScript:        "install",
 				UninstallScript:      "uninstall",
 				SelfService:          true,

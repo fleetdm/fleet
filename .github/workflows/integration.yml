@@ -320,7 +320,7 @@ jobs:
         sudo resolvectl flush-caches
 
         until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
-          echo "Awaiting until fleet server responds..."
+          echo "Waiting until fleet server responds..."
           sleep 1
         done
 
@@ -338,7 +338,7 @@ jobs:
         until fleetctl get hosts | grep -iF $(hostname -s); do
           CURRENT_TIME=$(date +%s)
           ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
-          echo "Awaiting enrollment... (${ELAPSED}s)"
+          echo "Waiting for enrollment... (${ELAPSED}s)"
           sudo systemctl status orbit.service || true
           sleep 1
         done
@@ -506,7 +506,7 @@ jobs:
                 break
             }
             $Elapsed = [math]::Round(((Get-Date) - $StartTime).TotalSeconds)
-            Write-Host "Awaiting enrollment... (${Elapsed}s)"
+            Write-Host "Waiting for enrollment... (${Elapsed}s)"
             Start-Sleep -Seconds 1
         } while ($true)
 

@@ -625,9 +625,9 @@ type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Pol
 
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
-type CountPoliciesFunc func(ctx context.Context, teamID *uint, matchQuery string) (int, error)
+type CountPoliciesFunc func(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error)
 
-type CountMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string) (int, error)
+type CountMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error)
 
 type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
@@ -697,9 +697,9 @@ type ListOutOfDateCalendarEventsFunc func(ctx context.Context, t time.Time) ([]*
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
-type ListMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, error)
+type ListMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType string) ([]*fleet.Policy, error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -1796,6 +1796,8 @@ type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTe
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) error
+
+type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
 
 type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
 
@@ -4493,6 +4495,9 @@ type DataStore struct {
 	DeleteHostCertificateTemplateFunc        DeleteHostCertificateTemplateFunc
 	DeleteHostCertificateTemplateFuncInvoked bool
 
+	ResendHostCertificateTemplateFunc        ResendHostCertificateTemplateFunc
+	ResendHostCertificateTemplateFuncInvoked bool
+
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc        ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc
 	ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked bool
 
@@ -6654,18 +6659,18 @@ func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uin
 	return s.DeleteGlobalPoliciesFunc(ctx, ids)
 }
 
-func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error) {
+func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error) {
 	s.mu.Lock()
 	s.CountPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountPoliciesFunc(ctx, teamID, matchQuery)
+	return s.CountPoliciesFunc(ctx, teamID, matchQuery, automationType)
 }
 
-func (s *DataStore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
+func (s *DataStore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error) {
 	s.mu.Lock()
 	s.CountMergedTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountMergedTeamPoliciesFunc(ctx, teamID, matchQuery)
+	return s.CountMergedTeamPoliciesFunc(ctx, teamID, matchQuery, automationType)
 }
 
 func (s *DataStore) UpdateHostPolicyCounts(ctx context.Context) error {
@@ -6906,18 +6911,18 @@ func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *ui
 	return s.NewTeamPolicyFunc(ctx, teamID, authorID, args)
 }
 
-func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.mu.Lock()
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts, automationFilter)
+	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts, automationType)
 }
 
-func (s *DataStore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, error) {
+func (s *DataStore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType string) ([]*fleet.Policy, error) {
 	s.mu.Lock()
 	s.ListMergedTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMergedTeamPoliciesFunc(ctx, teamID, opts, automationFilter)
+	return s.ListMergedTeamPoliciesFunc(ctx, teamID, opts, automationType)
 }
 
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
@@ -10754,6 +10759,13 @@ func (s *DataStore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID 
 	s.DeleteHostCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID)
+}
+
+func (s *DataStore) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
+	s.mu.Lock()
+	s.ResendHostCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendHostCertificateTemplateFunc(ctx, hostID, templateID)
 }
 
 func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {

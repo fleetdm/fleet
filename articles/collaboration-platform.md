@@ -79,3 +79,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-03">
 <meta name="description" value="A global collaboration platform uses Fleet and osquery to simplify device management and improve visibility across tens of thousands of devices.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Global collaboration platform">

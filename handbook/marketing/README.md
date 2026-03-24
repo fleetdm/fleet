@@ -9,7 +9,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Chief  Marketing Officer           | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation          | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
-| Product Education Manager          | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
 | Marketing Campaign Manager         | [Michael Buck](https://www.linkedin.com/in/michael-buck-chi312/ ) _([@mb-chigoose312](https://github.com/mb-chigoose312))_
 
 
@@ -97,9 +96,14 @@ To propose an ad, or a change to an ad:
 4. Launch campaign once approved.
 
 
+### Manage LinkedIn ad creatives
+
+LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
+
+
 ### Settle content strategy
 
-The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
+The CMO is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
 
 1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
   - Release date: The date by which the content will be complete and finalized.
@@ -108,8 +112,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
 
 
-
-
+[Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
 
 
 

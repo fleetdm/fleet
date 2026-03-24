@@ -834,8 +834,8 @@ type Datastore interface {
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
-	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -911,8 +911,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationFilter string) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationFilter string) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -2744,6 +2744,8 @@ type Datastore interface {
 	// DeleteHostCertificateTemplate deletes a single host_certificate_template record
 	// identified by host_uuid and certificate_template_id.
 	DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error
+	// ResendHostCertificateTemplate queues a certificate template to be resent to a device
+	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
 	// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
 	// certificate templates in 'pending' status ready for delivery.

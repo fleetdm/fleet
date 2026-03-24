@@ -224,10 +224,12 @@ func TestValidGitOpsYaml(t *testing.T) {
 							assert.Contains(t, pkg.LabelsIncludeAny, "a")
 							assert.Contains(t, pkg.Categories, "Communication")
 							assert.Empty(t, pkg.LabelsExcludeAny)
+							assert.Empty(t, pkg.LabelsIncludeAll)
 						} else {
 							assert.Empty(t, pkg.UninstallScript.Path)
 							assert.Contains(t, pkg.LabelsExcludeAny, "a")
 							assert.Empty(t, pkg.LabelsIncludeAny)
+							assert.Empty(t, pkg.LabelsIncludeAll)
 						}
 					}
 					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
@@ -426,12 +428,32 @@ func TestManualLabelEmptyHostList(t *testing.T) {
 labels:
   - name: TestLabel
     description: Label for testing
+    hosts: []
+    label_membership_type: manual`
+
+	gitops, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	require.NotNil(t, gitops.Labels[0].Hosts)
+	assert.Empty(t, gitops.Labels[0].Hosts)
+}
+
+func TestManualLabelNullHostsKey(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
     hosts:
     label_membership_type: manual`
 
 	gitops, err := gitOpsFromString(t, config)
 	require.NoError(t, err)
-	assert.NotNil(t, gitops.Labels[0].Hosts)
+	// hosts key present with null value should produce a non-nil empty slice
+	// (meaning "clear all hosts"), distinct from a nil slice (key omitted,
+	// meaning "preserve existing membership").
+	require.NotNil(t, gitops.Labels[0].Hosts)
+	assert.Empty(t, gitops.Labels[0].Hosts)
 }
 
 func TestDuplicateQueryNames(t *testing.T) {
@@ -624,7 +646,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+					assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"settings"})
@@ -796,7 +818,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "org_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+					assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"org_settings"})
@@ -851,7 +873,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"agent_options"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "agent_options", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+				assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 				// Invalid controls
 				config = getConfig([]string{"controls"})
@@ -1771,7 +1793,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.txt"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1789,7 +1811,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1804,9 +1826,9 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.yaml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.yaml"), []byte(""), 0o644))
 
-		items := []BaseItem{
-			{Path: ptr.String("single.yml")},
-			{Paths: ptr.String("*.yaml")},
+		items := []fleet.BaseItem{
+			{Path: ptr.String("single.yml")}, //nolint:modernize
+			{Paths: ptr.String("*.yaml")},    //nolint:modernize
 		}
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
@@ -1818,28 +1840,28 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("paths_without_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Paths: ptr.String("foo.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("foo.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `does not contain glob characters`)
 	})
 
 	t.Run("path_with_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
 	})
 
 	t.Run("inline_items_passed_through", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		result, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
@@ -1849,7 +1871,7 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("require_file_reference_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{
 			RequireFileReference: true,
 		})
@@ -1863,7 +1885,7 @@ func TestExpandBaseItems(t *testing.T) {
 		logFn := func(format string, args ...any) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
 		require.Empty(t, errs)
 		assert.Empty(t, result)
@@ -1881,7 +1903,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			RequireUniqueBasenames: true,
 		})
@@ -1896,9 +1918,9 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "item.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sub, "item.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{
-			{Path: ptr.String("item.yml")},
-			{Paths: ptr.String("sub/*.yml")},
+		items := []fleet.BaseItem{
+			{Path: ptr.String("item.yml")},   //nolint:modernize
+			{Paths: ptr.String("sub/*.yml")}, //nolint:modernize
 		}
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			RequireUniqueBasenames: true,
@@ -1919,7 +1941,7 @@ func TestExpandBaseItems(t *testing.T) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
 
-		items := []BaseItem{{Paths: ptr.String("*")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			AllowedExtensions: map[string]bool{".sh": true},
 			LogFn:             logFn,
@@ -1937,7 +1959,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
@@ -1948,7 +1970,7 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("multiple_errors_collected", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "", "test", GlobExpandOptions{})
 		require.Len(t, errs, 2)
 		assert.Contains(t, errs[0].Error(), `contains glob characters`)
@@ -1964,7 +1986,7 @@ func TestResolveScriptPaths(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Path: ptr.String("script.sh")}}
+		items := []fleet.BaseItem{{Path: ptr.String("script.sh")}} //nolint:modernize
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
@@ -1977,7 +1999,7 @@ func TestResolveScriptPaths(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.sh")}} //nolint:modernize
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1985,7 +2007,7 @@ func TestResolveScriptPaths(t *testing.T) {
 
 	t.Run("inline_not_allowed", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
 		require.NotEmpty(t, errs)
 		assert.Contains(t, errs[0].Error(), `no "path" or "paths" field`)
@@ -2169,6 +2191,127 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
+}
+
+func TestGitOpsGlobProfiles(t *testing.T) {
+	t.Parallel()
+
+	t.Run("macos_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte("<plist></plist>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - paths: profiles/*.mobileconfig
+      - path: profiles/beta.json
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok)
+		require.Len(t, macSettings.CustomSettings, 3)
+
+		// Glob results come first (sorted), then the explicit path
+		assert.Contains(t, macSettings.CustomSettings[0].Path, "alpha.mobileconfig")
+		assert.Contains(t, macSettings.CustomSettings[1].Path, "gamma.mobileconfig")
+		assert.Contains(t, macSettings.CustomSettings[2].Path, "beta.json")
+	})
+
+	t.Run("windows_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.xml"), []byte("<xml/>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  windows_settings:
+    configuration_profiles:
+      - paths: profiles/*.xml
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		winSettings, ok := result.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok)
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 2)
+
+		assert.Contains(t, winSettings.CustomSettings.Value[0].Path, "alpha.xml")
+		assert.Contains(t, winSettings.CustomSettings.Value[1].Path, "beta.xml")
+	})
+
+	t.Run("android_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.txt"), []byte("nope"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  android_settings:
+    configuration_profiles:
+      - paths: profiles/*
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		androidSettings, ok := result.Controls.AndroidSettings.(fleet.AndroidSettings)
+		require.True(t, ok)
+		require.True(t, androidSettings.CustomSettings.Valid)
+		require.Len(t, androidSettings.CustomSettings.Value, 1)
+
+		// Sorted alphabetically by path
+		assert.Contains(t, androidSettings.CustomSettings.Value[0].Path, "beta.json")
+	})
+
+	t.Run("macos_profiles_with_labels", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte("<plist></plist>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - paths: profiles/*.mobileconfig
+        labels_include_all:
+          - MyLabel
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok)
+		require.Len(t, macSettings.CustomSettings, 2)
+		for _, p := range macSettings.CustomSettings {
+			assert.Equal(t, []string{"MyLabel"}, p.LabelsIncludeAll)
+		}
+	})
 }
 
 func TestUnknownKeyDetection(t *testing.T) {
@@ -2803,7 +2946,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   apple_settings:
     configuration_profiles:
@@ -2831,7 +2974,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   apple_settings:
     configuration_profiles:
@@ -2860,7 +3003,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   windows_settings:
     configuration_profiles:
@@ -2889,7 +3032,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   android_settings:
     configuration_profiles:
@@ -2918,10 +3061,10 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   setup_experience:
-  macos_setup:    
+  macos_setup:
 `
 		yamlPath := filepath.Join(dir, "gitops.yml")
 		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
