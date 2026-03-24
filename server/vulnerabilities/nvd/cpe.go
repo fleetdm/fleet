@@ -247,6 +247,16 @@ func cpeTargetSWMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) 
 		}
 	}
 
+	// Partial match: CPE vendor matches software name with common _project suffix
+	// Example:
+	// software.name="duplicity", source="python_packages"
+	// item.Vendor="duplicity_project", item.Product="duplicity"
+	productLower := strings.ToLower(item.Product)
+	vendorLower := strings.ToLower(item.Vendor)
+	if vendorLower == productLower+"_project" {
+		return 1
+	}
+
 	return 0
 }
 

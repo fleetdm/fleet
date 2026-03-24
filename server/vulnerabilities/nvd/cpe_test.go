@@ -119,19 +119,15 @@ func TestCPEFromSoftware(t *testing.T) {
 	require.Equal(t, "cpe:2.3:a:openjsf:express:4.18.0:*:*:*:*:node.js:*:*", cpe,
 		"npm_packages should prefer openjsf:express with target_sw=node.js")
 
-	// Target_SW scoring: when no vendor field is present and no CPE has matching target_sw,
-	// prefer the vendor name that relates to the ecosystem.
-	// duplicity from python_packages should prefer duplicity_project over debian.
+	// Target_SW scoring with <product>_project fallback pattern.
+	// For duplicity from python_packages, neither vendor relates to Python ecosystem, but
+	// duplicity_project:duplicity follows the NVD "<product>_project" pattern for upstream CPEs.
 	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
 		Name: "duplicity", Version: "0.8.0", Source: "python_packages",
 	}, nil, reCache)
 	require.NoError(t, err)
-	// Note: Since neither CPE has target_sw="python" and neither vendor contains "python",
-	// the result will be deterministic based on ORDER BY (vendor, product).
-	// "debian" comes before "duplicity_project" alphabetically.
-	// This test verifies stable ordering when target_sw scoring doesn't help.
-	require.Equal(t, "cpe:2.3:a:debian:duplicity:0.8.0:*:*:*:*:python:*:*", cpe,
-		"should be deterministic when neither CPE vendor relates to python")
+	require.Equal(t, "cpe:2.3:a:duplicity_project:duplicity:0.8.0:*:*:*:*:python:*:*", cpe,
+		"should prefer duplicity_project (upstream) over debian (distro-specific) using _project pattern")
 
 	// Target_SW scoring: deb_packages source should prefer debian vendor for duplicity
 	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
