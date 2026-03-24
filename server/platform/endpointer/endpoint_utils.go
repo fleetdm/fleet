@@ -513,12 +513,34 @@ func MakeDecoder(
 			if maxRequestBodySize != -1 {
 				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 			}
+			//
+			// We take care of gzip encoding here to prevent any future DecodeRequest
+			// implementations from missing gzip bomb checks.
+			//
+			gzipped := false
+			if r.Header.Get("content-encoding") == "gzip" {
+				gzipped = true
+				gzr, err := gzip.NewReader(r.Body)
+				if err != nil {
+					return nil, BadRequestErr("gzip decoder error", err)
+				}
+				defer gzr.Close()
+				if maxRequestBodySize != -1 {
+					// Limit decompressed bytes to prevent gzip bombs from bypassing
+					// the raw body size limit applied above.
+					r.Body = http.MaxBytesReader(nil, gzr, maxRequestBodySize)
+				} else {
+					r.Body = io.NopCloser(gzr)
+				}
+				// Clear so implementations don't try to decompress again.
+				r.Header.Del("Content-Encoding")
+			}
 			ret, err := rd.DecodeRequest(ctx, r)
 			if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 				return nil, platform_http.PayloadTooLargeError{
 					ContentLength:  r.Header.Get("Content-Length"),
 					MaxRequestSize: maxRequestBodySize,
-					Gzipped:        false,
+					Gzipped:        gzipped,
 				}
 			}
 			return ret, err

@@ -314,6 +314,52 @@ func TestMakeDecoderRequestDecoderFalsePositive(t *testing.T) {
 	})
 }
 
+func TestMakeDecoderRequestDecoderGzipBomb(t *testing.T) {
+	const limit = 100
+
+	makeDecoder := func() kithttp.DecodeRequestFunc {
+		return MakeDecoder(&testRequestDecoderType{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)
+	}
+
+	gzipBody := func(data string) *bytes.Buffer {
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		_, err := gw.Write([]byte(data))
+		require.NoError(t, err)
+		require.NoError(t, gw.Close())
+		return &buf
+	}
+
+	t.Run("gzip bomb exceeding decompressed limit returns 413", func(t *testing.T) {
+		big := `{"data":"` + strings.Repeat("x", limit*10) + `"}`
+		r := httptest.NewRequest("POST", "/", gzipBody(big))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makeDecoder()(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "gzip bomb via RequestDecoder must produce PayloadTooLargeError, got: %v", err)
+		assert.True(t, ple.Gzipped, "PayloadTooLargeError from gzip bomb must have Gzipped set")
+	})
+
+	t.Run("valid gzip body within limit is decoded successfully", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		result, err := makeDecoder()(context.Background(), r)
+		require.NoError(t, err)
+		rd, ok := result.(*testRequestDecoderType)
+		require.True(t, ok)
+		assert.Equal(t, "hi", rd.Data)
+	})
+
+	t.Run("Content-Encoding header is cleared after decompression", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makeDecoder()(context.Background(), r)
+		require.NoError(t, err)
+		assert.Empty(t, r.Header.Get("Content-Encoding"), "Content-Encoding should be cleared after framework decompression")
+	})
+}
+
 type testGzipRequestType struct {
 	Data string `json:"data"`
 }
