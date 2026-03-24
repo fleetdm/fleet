@@ -399,5 +399,11 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/bomutils` docker image
 
-No vulnerabilities tracked at the moment.
+### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Use of mkbom and xar from fleetdm/bomutils have admin controlled inputs.
+- **Products:**: `bomutils`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 08:41:27
 
