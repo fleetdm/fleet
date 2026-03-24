@@ -5,23 +5,10 @@ import (
 	"fmt"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
-	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
-
-func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier string) error {
-	enrollment, err := s.store.GetACMEEnrollment(ctx, identifier)
-	if err != nil {
-		return err
-	}
-	if !enrollment.IsValid() {
-		return ctxerr.Wrap(ctx, common_mysql.NotFound("ACME enrollment").WithName(identifier))
-	}
-	return nil
-}
 
 func (s *Service) NewNonce(ctx context.Context, identifier string) (string, error) {
 	// skipauth: No authorization check needed, it is done via path identifier.
@@ -57,7 +44,7 @@ func (s *Service) GetDirectory(ctx context.Context, identifier string) (*types.D
 		return nil, err
 	}
 
-	baseURL := types.AppleACMEBaseURL(appConfig.ServerSettings.ServerURL)
+	baseURL := appConfig.ServerSettings.ServerURL
 	suffixes := []string{"new_nonce", "new_account", "new_order"}
 	urls := make(map[string]string, len(suffixes))
 	for _, suffix := range suffixes {

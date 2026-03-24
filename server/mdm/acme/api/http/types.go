@@ -56,8 +56,8 @@ type GetDirectoryResponse struct {
 func (r GetDirectoryResponse) Error() error { return r.Err }
 
 type CreateNewAccountRequest struct {
-	Enrollment *types.Enrollment `json:"-"`
-	JSONWebKey *jose.JSONWebKey  `json:"-"`
+	Enrollment *types.ACMEEnrollment `json:"-"`
+	JSONWebKey *jose.JSONWebKey      `json:"-"`
 
 	// OnlyReturnExisting indicates that no new account should be created but the
 	// existing account for this key should be returned if it exists. This is the
@@ -66,6 +66,7 @@ type CreateNewAccountRequest struct {
 }
 
 type CreateNewAccountResponse struct {
+	// TODO(mna): must return the JSON account status and list of orders, 400 if account not found and only return existing
 	Nonce string
 	Err   error `json:"error,omitempty"`
 }
@@ -80,6 +81,7 @@ type CreateNewOrderRequest struct {
 }
 
 type CreateNewOrderResponse struct {
+	// TODO(mna): must return the JSON order
 	Nonce string
 	Err   error `json:"error,omitempty"`
 }

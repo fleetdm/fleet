@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"go.step.sm/crypto/jose"
 )
 
@@ -40,16 +39,6 @@ func (a *ACMEEnrollment) IsValid() bool {
 		return false
 	}
 	return !a.Revoked
-}
-
-// AppleACMEBaseURL returns the base URL for the Apple ACME server, which is
-// the Fleet server URL by default, but can be overridden by the FLEET_DEV_STEP_CA_SERVER
-// environment variable for test purposes.
-func AppleACMEBaseURL(serverURL string) string {
-	if base := dev_mode.Env("FLEET_DEV_STEP_CA_SERVER"); base != "" {
-		return base
-	}
-	return serverURL
 }
 
 type Account struct {
@@ -105,18 +94,18 @@ const (
 )
 
 type AccountAuthenticatedRequest interface {
-	SetEnrollmentAndAccount(enrollment *Enrollment, account *Account)
+	SetEnrollmentAndAccount(enrollment *ACMEEnrollment, account *Account)
 }
 
 // The base struct for allowing arbitrary types to implement the interface above. It is important that these
 // members not be serialized to/from JSON as they are meant to be set by the service after authentication and
 // not by the client.
 type AccountAuthenticatedRequestBase struct {
-	Enrollment *Enrollment `json:"-"`
-	Account    *Account    `json:"-"`
+	Enrollment *ACMEEnrollment `json:"-"`
+	Account    *Account        `json:"-"`
 }
 
-func (r *AccountAuthenticatedRequestBase) SetEnrollmentAndAccount(enrollment *Enrollment, account *Account) {
+func (r *AccountAuthenticatedRequestBase) SetEnrollmentAndAccount(enrollment *ACMEEnrollment, account *Account) {
 	r.Enrollment = enrollment
 	r.Account = account
 }
@@ -132,6 +121,5 @@ type Identifier struct {
 type Datastore interface {
 	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*ACMEEnrollment, error)
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
-	GetEnrollmentByIdentifier(ctx context.Context, identifier string) (*Enrollment, error)
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, error)
 }
