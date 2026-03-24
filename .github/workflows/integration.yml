@@ -134,7 +134,29 @@ jobs:
           sleep 1
         done
         echo "Success! $EXPECTED hosts enrolled."
-        sleep 120 # Wait to allow clients to confirm their enrollment
+        # Wait for the summary job to complete.
+        # The summary job runs after all fleetd-* jobs finish, so this keeps the server
+        # (and tunnel) alive for the entire test duration.
+        echo "Waiting for summary job to complete..."
+        JOB_WAIT_START=$(date +%s)
+        JOB_WAIT_TIMEOUT=900 # 15 minutes
+        while true; do
+          JOBS_JSON=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100")
+          SUMMARY_STATUS=$(echo "$JOBS_JSON" | jq -r '[.jobs[] | select(.name == "summary")] | if length > 0 then .[0].status else "not_started" end')
+          ELAPSED=$(( $(date +%s) - JOB_WAIT_START ))
+          echo "summary job status: $SUMMARY_STATUS (${ELAPSED}s)"
+          if [ "$SUMMARY_STATUS" = "completed" ]; then
+            echo "Summary job completed, exiting."
+            break
+          fi
+          if [ "$ELAPSED" -ge "$JOB_WAIT_TIMEOUT" ]; then
+            echo "Timed out after ${JOB_WAIT_TIMEOUT}s waiting for summary job. Exiting."
+            break
+          fi
+          sleep 10
+        done
+      env:
+        GH_TOKEN: ${{ github.token }}
 
     - name: Show enrolled hosts
       if: always()
