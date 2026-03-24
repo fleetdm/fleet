@@ -26,6 +26,14 @@ func TestScriptValidate(t *testing.T) {
 			wantErr: nil,
 		},
 		{
+			name: "valid python script",
+			script: Script{
+				Name:           "test.py",
+				ScriptContents: "#!/usr/bin/env python3\nprint('hi')",
+			},
+			wantErr: nil,
+		},
+		{
 			name: "empty name",
 			script: Script{
 				Name:           "",
@@ -39,7 +47,7 @@ func TestScriptValidate(t *testing.T) {
 				Name:           "test.txt",
 				ScriptContents: "valid",
 			},
-			wantErr: errors.New("File type not supported. Only .sh and .ps1 file type is allowed."),
+			wantErr: errors.New("File type not supported. Only .sh, .py, and .ps1 file types are allowed."),
 		},
 		{
 			name: "invalid script content",
@@ -92,8 +100,23 @@ func TestValidateShebang(t *testing.T) {
 			directExecute: true,
 		},
 		{
+			name:          "python3 env shebang",
+			contents:      "#!/usr/bin/env python3\nprint('hi')",
+			directExecute: true,
+		},
+		{
+			name:          "python3 direct shebang",
+			contents:      "#!/usr/bin/python3\nprint('hi')",
+			directExecute: true,
+		},
+		{
+			name:          "python3 env shebang with args",
+			contents:      "#!/usr/bin/env python3 -u\nprint('hi')",
+			directExecute: true,
+		},
+		{
 			name:          "shebang with unsupported interpreter",
-			contents:      "#!/usr/bin/python\nprint('hi')",
+			contents:      "#!/bin/ksh\necho hi",
 			directExecute: false,
 			err:           ErrUnsupportedInterpreter,
 		},
@@ -174,6 +197,11 @@ func TestValidateHostScriptContents(t *testing.T) {
 		{
 			name:    "valid zsh script",
 			script:  "#!/usr/bin/zsh\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid python script",
+			script:  "#!/usr/bin/env python3\nprint('hello')",
 			wantErr: nil,
 		},
 	}

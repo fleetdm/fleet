@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.3.0.1000",
+      "version": "6.4.2.1000",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemonmojo.RoyalTSX.App';"
       },
-      "installer_url": "https://royaltsx-v6.royalapps.com/updates/royaltsx_6.3.0.1000.dmg",
+      "installer_url": "https://royaltsx-v6.royalapps.com/updates/royaltsx_6.4.2.1000.dmg",
       "install_script_ref": "0f402271",
       "uninstall_script_ref": "3f764c08",
-      "sha256": "934ce7ef770b4fc876c08a50f22b0814ccd66d8c0d2542685ddef61609263bcf",
+      "sha256": "ebb86257e41684f35f8cb2d2d8d779920ae379073e004b1281740a5c465f276b",
       "default_categories": [
         "Productivity"
       ]
