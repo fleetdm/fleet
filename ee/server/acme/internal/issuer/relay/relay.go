@@ -14,6 +14,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -220,15 +221,31 @@ func (b *Backend) ensureAccount(ctx context.Context, upstream *upstreamCA) error
 		return nil
 	}
 
-	acct, err := upstream.acmeClient.Register(ctx, &acme.Account{
+	acct := &acme.Account{
 		Contact: []string{"mailto:fleet-acme-relay@fleet.local"},
-	}, acme.AcceptTOS)
+	}
+
+	// If EAB credentials are configured, include them in the registration.
+	// EAB binds this ACME account to Fleet's pre-authorized identity on the
+	// upstream CA (RFC 8555 §7.3.4).
+	if upstream.config.EABKeyID != "" && upstream.config.EABHMACKey != "" {
+		hmacKey, err := base64.RawURLEncoding.DecodeString(upstream.config.EABHMACKey)
+		if err != nil {
+			return fmt.Errorf("decoding EAB HMAC key: %w", err)
+		}
+		acct.ExternalAccountBinding = &acme.ExternalAccountBinding{
+			KID: upstream.config.EABKeyID,
+			Key: hmacKey,
+		}
+	}
+
+	registered, err := upstream.acmeClient.Register(ctx, acct, acme.AcceptTOS)
 	if err != nil {
 		return fmt.Errorf("registering upstream account: %w", err)
 	}
 
-	upstream.account = acct
-	b.logger.Info("registered upstream account", "ca", upstream.config.Name, "uri", acct.URI)
+	upstream.account = registered
+	b.logger.Info("registered upstream account", "ca", upstream.config.Name, "uri", registered.URI)
 	return nil
 }
 

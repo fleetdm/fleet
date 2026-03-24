@@ -96,6 +96,12 @@ type CAConfig struct {
 	Type string
 	// DirectoryURL is the upstream CA's ACME directory URL (relay only).
 	DirectoryURL string
+	// EABKeyID is the External Account Binding key ID (relay only).
+	// Required when the upstream CA has externalAccountRequired=true.
+	EABKeyID string
+	// EABHMACKey is the EAB HMAC key, base64url-encoded (relay only).
+	// Used to sign the account binding JWS during registration (RFC 8555 §7.3.4).
+	EABHMACKey string
 	// CACert is the PEM-encoded CA certificate for TLS verification (optional, relay only).
 	CACert []byte
 	// ClientCert is the PEM-encoded mTLS client certificate (optional, relay only).
