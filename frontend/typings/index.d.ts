@@ -2,6 +2,12 @@
  * A file that contains the custom typings for fleets own modules and libraries
  */
 
+// SCSS stylesheets
+declare module "*.scss" {
+  const content: { [className: string]: string };
+  export default content;
+}
+
 // PNG assests
 declare module "*.png" {
   const value: string;

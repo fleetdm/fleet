@@ -7,12 +7,13 @@
     "jsx": "react",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "lib": ["ES2021.String", "ES2020.Promise"],
+    "ignoreDeprecations": "6.0",
+    "lib": ["ES2020", "ES2021.String", "DOM", "DOM.Iterable"],
     "paths": {
       "node-sql-parser": ["../node_modules/@sgress454/node-sql-parser"]
-    }
+    },
+    "types": ["node", "jest"]
   },
   "include": ["./frontend/**/*"],
-  "exclude": ["node_modules"],
-  "typeRoots": ["./node_modules/@types", "./typings"]
+  "exclude": ["node_modules"]
 }

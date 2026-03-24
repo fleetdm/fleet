@@ -88,7 +88,9 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
           {iconPosition === "left" && iconSvg && (
             <Icon name={iconSvg} color={iconColor} />
           )}
-          {buttonText}
+          {typeof buttonText === "function"
+            ? buttonText(targetIds)
+            : buttonText}
           {iconPosition !== "left" && iconSvg && (
             <Icon name={iconSvg} color={iconColor} />
           )}

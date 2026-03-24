@@ -330,7 +330,9 @@ const TableContainer = <T,>({
           className={`${baseClass}__table-action-button`}
         >
           <>
-            {actionButton.buttonText}
+            {typeof actionButton.buttonText === "function"
+              ? actionButton.buttonText([])
+              : actionButton.buttonText}
             {actionButton.iconSvg && (
               <Icon
                 name={actionButton.iconSvg}
