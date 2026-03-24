@@ -14,7 +14,6 @@ type PolicyData struct {
 	Platform    string
 	Description string
 	Resolution  string
-	TitleName   string
 	Version     string
 }
 

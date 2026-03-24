@@ -2315,7 +2315,6 @@ func (svc *Service) softwareBatchUpload(
 				Categories:         p.Categories,
 				DisplayName:        p.DisplayName,
 				RollbackVersion:    p.RollbackVersion,
-				PatchQuery:         p.MaintainedApp.PatchQuery,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2567,6 +2566,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
+				installer.PatchQuery = p.MaintainedApp.PatchQuery
 			}
 
 			var ext string
