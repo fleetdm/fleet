@@ -1,6 +1,10 @@
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
 const { SSEClientTransport } = require("@modelcontextprotocol/sdk/client/sse.js");
 
+// Maximum characters to return from any single tool call.
+// Keeps tool results from blowing up the Claude context window.
+const MAX_TOOL_RESULT_CHARS = 20000;
+
 class McpClient {
   constructor({ url, authToken }) {
     this.url = url;
@@ -12,7 +16,7 @@ class McpClient {
   }
 
   /**
-   * Register a local tool handled by fleetbot (not forwarded to MCP server).
+   * Register a local tool handled by fleet-slackbot (not forwarded to MCP server).
    * @param {object} definition - Anthropic-format tool definition { name, description, input_schema }
    * @param {function} handler  - async (args) => string
    */
@@ -36,7 +40,7 @@ class McpClient {
       requestInit: { headers },
     });
 
-    this.client = new Client({ name: "fleetbot", version: "1.0.0" });
+    this.client = new Client({ name: "fleet-slackbot", version: "1.0.0" });
     await this.client.connect(transport);
 
     // Mark disconnected when the transport closes so we can auto-reconnect
@@ -102,7 +106,11 @@ class McpClient {
       .filter((c) => c.type === "text")
       .map((c) => c.text);
 
-    const text = textParts.join("\n");
+    let text = textParts.join("\n");
+    if (text.length > MAX_TOOL_RESULT_CHARS) {
+      console.warn(`[mcp] Tool ${name} returned ${text.length} chars, truncating to ${MAX_TOOL_RESULT_CHARS}`);
+      text = text.slice(0, MAX_TOOL_RESULT_CHARS) + `\n\n[… truncated from ${text.length} chars. Use filters or more specific queries to narrow results.]`;
+    }
     console.log(`[mcp] Tool ${name} returned ${text.length} chars`);
     return text;
   }

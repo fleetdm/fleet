@@ -152,10 +152,10 @@ async function processComment({ prNumber, commentBody, commentId, event, mention
   console.log(`[webhook] Fetching PR #${prNumber} details...`);
   const pr = await github.getPullRequest(prNumber);
 
-  // Process if it's a fleet/ branch OR the bot was @mentioned
-  const isFleetBranch = pr.headBranch.startsWith("fleet/");
-  if (!isFleetBranch && !mentionedBot) {
-    console.log(`[webhook] Ignoring PR #${prNumber} — branch "${pr.headBranch}" is not a fleet branch and bot was not mentioned`);
+  // Only respond when explicitly @mentioned — avoid surprising users
+  // by reacting to comments that weren't directed at the bot.
+  if (!mentionedBot) {
+    console.log(`[webhook] Ignoring PR #${prNumber} comment — bot was not @mentioned`);
     return;
   }
 

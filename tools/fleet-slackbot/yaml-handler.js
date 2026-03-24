@@ -1,6 +1,6 @@
 const path = require("path");
 const yaml = require("js-yaml");
-const { createTwoFilesPatch } = require("diff");
+const { createTwoFilesPatch, applyPatch } = require("diff");
 
 /**
  * Parse YAML content into a JS object.
@@ -131,10 +131,15 @@ const PLACEHOLDER_PATTERNS = [
  */
 function validateProposedChanges(changes) {
   for (const change of changes) {
-    if (change.search && change.replace !== undefined) {
-      const replaceTrimmed = change.replace.trim();
-      if (PLACEHOLDER_PATTERNS.some((p) => p.test(replaceTrimmed))) {
-        throw new Error(`Refusing to commit: "${change.filePath}" replace value is placeholder content. Please try again.`);
+    if (change.patch) {
+      // For patch mode, check that added lines don't contain placeholder content
+      const addedLines = change.patch.split("\n")
+        .filter((l) => l.startsWith("+") && !l.startsWith("+++"))
+        .map((l) => l.slice(1).trim())
+        .join("\n")
+        .trim();
+      if (PLACEHOLDER_PATTERNS.some((p) => p.test(addedLines))) {
+        throw new Error(`Refusing to commit: "${change.filePath}" patch contains placeholder content. Please try again.`);
       }
       continue;
     }
@@ -168,59 +173,39 @@ function validateResolvedChanges(changes) {
 
 /**
  * Resolve the final content for a change object, handling both full-content
- * and search/replace patch modes.
+ * and unified-diff patch modes.
  *
- * @param {object} change - { filePath, content, search, replace }
+ * @param {object} change - { filePath, content, patch }
  * @param {function} getContent - async (fullPath) => string|null, fetches current file content
  * @param {string} fullPath - full repo path for the file
  * @param {string} [logPrefix] - logging prefix
  * @returns {Promise<string>} resolved file content
  */
 async function resolveChangeContent(change, getContent, fullPath, logPrefix = "") {
-  if (change.search && change.replace !== null) {
+  if (change.patch) {
     const currentContent = await getContent(fullPath);
     if (currentContent === null) {
-      console.log(`${logPrefix} File ${change.filePath} not found, creating with replace content`);
-      return change.replace;
+      console.log(`${logPrefix} File ${change.filePath} not found, cannot apply patch to non-existent file`);
+      throw new Error(`Cannot apply patch to "${change.filePath}": file does not exist. Use full content mode for new files.`);
     }
-    if (currentContent.includes(change.search)) {
-      const result = currentContent.replace(change.search, change.replace);
-      console.log(`${logPrefix} Applied patch to ${change.filePath} (${currentContent.length} → ${result.length} chars)`);
-      return result;
+    let result;
+    try {
+      result = applyPatch(currentContent, change.patch, { fuzzFactor: 2 });
+    } catch (err) {
+      console.error(`${logPrefix} Failed to parse/apply unified diff to ${change.filePath}: ${err.message}\n${change.patch}`);
+      throw new Error(`Cannot apply patch to "${change.filePath}": ${err.message}`);
     }
-    // Try whitespace-normalized matching as fallback
-    const normalize = (s) => s.replace(/[ \t]+/g, " ").replace(/\r\n/g, "\n").trim();
-    if (normalize(currentContent).includes(normalize(change.search))) {
-      const searchLines = change.search.split("\n").map((l) => l.trim());
-      const contentLines = currentContent.split("\n");
-      let startIdx = -1;
-      for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
-        let match = true;
-        for (let j = 0; j < searchLines.length; j++) {
-          if (contentLines[i + j].trim() !== searchLines[j]) {
-            match = false;
-            break;
-          }
-        }
-        if (match) {
-          startIdx = i;
-          break;
-        }
-      }
-      if (startIdx !== -1) {
-        const before = contentLines.slice(0, startIdx);
-        const after = contentLines.slice(startIdx + searchLines.length);
-        console.log(`${logPrefix} Applied patch to ${change.filePath} with whitespace-normalized match`);
-        return [...before, change.replace, ...after].join("\n");
-      }
+    if (result === false) {
+      console.error(`${logPrefix} Failed to apply unified diff to ${change.filePath}:\n${change.patch}`);
+      throw new Error(`Cannot apply patch to "${change.filePath}": patch does not match the current file contents. The file may have changed since it was read.`);
     }
-    console.error(`${logPrefix} Search string not found in ${change.filePath}:\n---SEARCH---\n${change.search}\n---END---`);
-    throw new Error(`Cannot apply patch to "${change.filePath}": search string not found in file. The file may have changed since it was read.`);
+    console.log(`${logPrefix} Applied unified diff to ${change.filePath} (${currentContent.length} → ${result.length} chars)`);
+    return result;
   }
   if (change.content) {
     return change.content;
   }
-  throw new Error(`Change for "${change.filePath}" has neither content nor search/replace`);
+  throw new Error(`Change for "${change.filePath}" has neither content nor patch`);
 }
 
 module.exports = {

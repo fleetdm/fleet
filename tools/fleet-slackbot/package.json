@@ -1,7 +1,7 @@
 {
-  "name": "fleet-gitops-bot",
+  "name": "fleet-slackbot",
   "version": "1.0.0",
-  "description": "Slack bot that translates plain English into Fleet GitOps YAML pull requests",
+  "description": "Fleet Slack bot that can query your fleet instance and submit GitOps Pull Requests",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"

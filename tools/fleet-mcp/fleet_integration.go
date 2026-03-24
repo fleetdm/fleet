@@ -529,7 +529,8 @@ func (fc *FleetClient) getTeamHosts(teamID uint) ([]Endpoint, error) {
 	return result.Hosts, nil
 }
 
-// resolveTeamNames resolves comma-separated team names to team IDs.
+// resolveTeamNames resolves team names to team IDs using exact case-insensitive
+// matching. On failure, lists available teams so the caller can retry.
 func (fc *FleetClient) resolveTeamNames(teamNames []string) ([]uint, error) {
 	teams, err := fc.GetTeams()
 	if err != nil {
@@ -537,15 +538,17 @@ func (fc *FleetClient) resolveTeamNames(teamNames []string) ([]uint, error) {
 	}
 
 	teamMap := make(map[string]uint)
+	var availableNames []string
 	for _, t := range teams {
 		teamMap[strings.ToLower(t.Name)] = t.ID
+		availableNames = append(availableNames, t.Name)
 	}
 
 	var ids []uint
 	for _, name := range teamNames {
 		id, ok := teamMap[strings.ToLower(strings.TrimSpace(name))]
 		if !ok {
-			return nil, fmt.Errorf("team not found: %s", name)
+			return nil, fmt.Errorf("fleet not found: %q (available fleets: %s)", name, strings.Join(availableNames, ", "))
 		}
 		ids = append(ids, id)
 	}

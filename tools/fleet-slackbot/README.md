@@ -1,4 +1,4 @@
-# Fleetbot
+# Fleet Slackbot
 
 A Slack bot that lets IT and security teams manage their [Fleet](https://fleetdm.com) deployment using plain English. Ask it questions about your fleet, or request configuration changes — it'll query live Fleet data and open a GitHub pull request with the necessary GitOps YAML changes.
 
