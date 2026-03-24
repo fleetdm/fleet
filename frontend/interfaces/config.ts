@@ -282,9 +282,16 @@ export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 export interface IUserSettings {
   hidden_host_columns: string[];
 }
+export interface IGitOpsExceptions {
+  labels: boolean;
+  software: boolean;
+  secrets: boolean;
+}
+
 export interface IGitOpsModeConfig {
   gitops_mode_enabled: boolean;
   repository_url: string;
+  exceptions: IGitOpsExceptions;
 }
 
 /** Check if Okta conditional access is configured (all 4 fields must be present) */

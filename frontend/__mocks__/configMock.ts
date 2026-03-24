@@ -220,6 +220,11 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   gitops: {
     gitops_mode_enabled: false,
     repository_url: "",
+    exceptions: {
+      labels: false,
+      software: false,
+      secrets: true,
+    },
   },
 };
 
