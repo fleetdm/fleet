@@ -166,8 +166,6 @@ software:
         - Security
     - path: ../lib/macos/software/santa.yml # Santa for macOS
       self_service: true
-      labels_include_any:
-        - Santa test devices
       categories:
         - Security
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
