@@ -383,7 +383,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        runner: [ 'windows-11', 'windows-11-arm' ]
+        runner: [ 'windows-2025', 'windows-11-arm' ]
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
