@@ -83,6 +83,10 @@ func ResolveAppleSCEPURL(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, SCEPPath, true)
 }
 
+func ResolveAppleACMEDirectoryURL(serverURL string, acmeIdent string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, fmt.Sprintf("/api/mdm/acme/%s/directory", acmeIdent), true)
+}
+
 // DEPService is used to encapsulate tasks related to DEP enrollment.
 //
 // This service doesn't perform any authentication checks, so its suitable for
@@ -1269,6 +1273,89 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 </dict>
 </plist>`))
 
+var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>Attest</key>
+			<true/>
+			<key>ClientIdentifier</key>
+			<string>{{ .ClientIdentifier | xml }}</string>
+			<key>DirectoryURL</key>
+			<string>{{ .DirectoryURL | xml }}</string>
+			<key>HardwareBound</key>
+			<true/>
+			<key>KeySize</key>
+			<integer>384</integer>
+			<key>KeyType</key>
+			<string>ECSECPrimeRandom</string>
+			<key>PayloadDisplayName</key>
+			<string>Fleet Identity ACME</string>
+			<key>PayloadIdentifier</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.acme</string>
+			<key>PayloadUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Subject</key>
+			<array>
+				<array>
+					<array>
+						<string>CN</string>
+						<string>{{ .SerialTemplate | xml }}</string>
+					</array>
+				</array>
+			</array>
+		</dict>
+		<dict>
+			<key>AccessRights</key>
+			<integer>8191</integer>
+			<key>CheckOutWhenRemoved</key>
+			<true/>
+			<key>IdentityCertificateUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdm</string>
+			<key>PayloadUUID</key>
+			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>ServerCapabilities</key>
+			<array>
+				<string>com.apple.mdm.per-user-connections</string>
+				<string>com.apple.mdm.bootstraptoken</string>
+			</array>
+			<key>ServerURL</key>
+			<string>{{ .ServerURL | xml }}</string>
+			<key>SignMessage</key>
+			<true/>
+			<key>Topic</key>
+			<string>{{ .Topic | xml }}</string>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>{{ .Organization | xml }} enrollment</string>
+	<key>PayloadIdentifier</key>
+	<string>` + FleetPayloadIdentifier + `</string>
+	<key>PayloadOrganization</key>
+	<string>{{ .Organization | xml }}</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`))
+
 func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
@@ -1342,6 +1429,41 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 	q.Add(mobileconfig.FleetEnrollReferenceKey, reference)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
+}
+
+func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string) ([]byte, error) {
+	serverURL, err := ResolveAppleMDMURL(mdmURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
+
+	acmeURL, err := commonmdm.ResolveURL(mdmURL, fmt.Sprintf("/api/mdm/acme/%s/directory", acmeIdent), true)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if err := acmeEnrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
+		Organization     string
+		DirectoryURL     string
+		Topic            string
+		ServerURL        string
+		ClientIdentifier string
+		SerialTemplate   string
+	}{
+		Organization:     orgName,
+		DirectoryURL:     acmeURL,
+		Topic:            topic,
+		ServerURL:        serverURL,
+		ClientIdentifier: deviceSerial,
+		SerialTemplate:   `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+
+	// TODO: Figure out why the generated profile escaopes the left angle bracket in the opening
+	// `<?xml` tag and remove the need for this replacement.
+	return bytes.Replace(buf.Bytes(), []byte("&lt;"), []byte("<"), 1), nil
 }
 
 // ProfileBimap implements bidirectional mapping for profiles, and utility
