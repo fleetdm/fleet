@@ -40,8 +40,10 @@ func TestGoogleDriveVersionShortener(t *testing.T) {
 			fma := &maintained_apps.FMAManifestApp{
 				Version: tc.Version,
 			}
-			GoogleDriveVersionShortener(fma)
+			fma2, err := GoogleDriveVersionShortener(fma)
 			assert.Equal(t, tc.Expected, fma.Version)
+			assert.Equal(t, tc.Expected, fma2.Version)
+			assert.NoError(t, err)
 		})
 	}
 }
