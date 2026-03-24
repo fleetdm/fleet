@@ -16,6 +16,7 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/google/go-github/v37/github"
@@ -366,7 +367,25 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	external_refs.EnrichManifest(&out)
 
-	// TODO(JK): patch policy
+	// create patch policy
+	if input.PatchPolicyPath != "" {
+		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy path")
+		}
+
+		p := patch_policy.PolicyData{}
+		if err := yaml.Unmarshal(policyBytes, &p); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
+		}
+
+		p.Platform = "windows"
+		p.Version = out.Version
+		out.Queries.Patch, err = patch_policy.GenerateFromManifest(p)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+		}
+	}
 
 	return &out, nil
 }
@@ -435,6 +454,7 @@ type inputApp struct {
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
+	PatchPolicyPath   string   `json:"patch_policy_path"`
 }
 
 type installerManifest struct {

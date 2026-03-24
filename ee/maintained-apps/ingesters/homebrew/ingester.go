@@ -215,6 +215,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	external_refs.EnrichManifest(out)
 
+	// create patch policy
 	if input.PatchPolicyPath != "" {
 		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
 		if err != nil {
@@ -222,18 +223,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		}
 
 		p := patch_policy.PolicyData{}
-		err = yaml.Unmarshal(policyBytes, &p)
-		if err != nil {
+		if err := yaml.Unmarshal(policyBytes, &p); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
 		}
 
 		p.Platform = "darwin"
 		p.Version = out.Version
-		query, err := patch_policy.GenerateFromManifest(p)
+		out.Queries.Patch, err = patch_policy.GenerateFromManifest(p)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "patch policy")
+			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 		}
-		out.Queries.Patch = query
 	}
 
 	return out, nil

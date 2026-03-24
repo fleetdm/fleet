@@ -7006,8 +7006,8 @@ func testPolicyModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	installerID := int64(0)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		res, err := q.ExecContext(ctx, `
-			INSERT INTO software_installers (team_id, global_or_team_id, title_id, storage_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, platform, package_ids)
-			VALUES (?, ?, ?, 'storage', 'test.pkg', 'pkg', '1.0', ?, ?, 'darwin', '')
+			INSERT INTO software_installers (team_id, global_or_team_id, title_id, storage_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, platform, package_ids, patch_query)
+			VALUES (?, ?, ?, 'storage', 'test.pkg', 'pkg', '1.0', ?, ?, 'darwin', '', '')
 		`, team.ID, team.ID, titleID, scriptContentID, scriptContentID)
 		if err != nil {
 			return err

@@ -87,5 +87,5 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 		return nil, ErrWrongPlatform
 	}
 
-	return &PolicyData{Name: p.Name, Query: query, Description: p.Description, Resolution: p.Resolution, Platform: p.Platform}, nil
+	return &PolicyData{Query: query, Platform: installer.Platform, Name: p.Name, Description: p.Description, Resolution: p.Resolution}, nil
 }
