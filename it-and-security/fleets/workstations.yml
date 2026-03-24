@@ -157,6 +157,7 @@ software:
     # macOS apps
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
       self_service: true
+      setup_experience: true
       display_name: "Mozilla Firefox"
       categories:
         - Browsers
