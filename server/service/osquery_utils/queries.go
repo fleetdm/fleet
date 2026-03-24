@@ -1334,6 +1334,18 @@ SELECT
   path AS installed_path,
   '' as upgrade_code
 FROM chocolatey_packages
+UNION
+SELECT
+  'Windows Defender' AS name,
+  product_version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'programs' AS source,
+  'Microsoft Corporation' AS vendor,
+  directory AS installed_path,
+  '' AS upgrade_code
+FROM file
+WHERE path = 'C:\Program Files\Windows Defender\MsMpEng.exe'
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
