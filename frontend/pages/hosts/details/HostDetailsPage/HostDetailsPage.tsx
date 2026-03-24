@@ -773,6 +773,16 @@ const HostDetailsPage = ({
     [host?.id]
   );
 
+  const resendCertificate = useCallback(
+    (certificateTemplateId: number): Promise<void> => {
+      if (!host?.id) {
+        return new Promise(() => undefined);
+      }
+      return hostAPI.resendCertificate(host.id, certificateTemplateId);
+    },
+    [host?.id]
+  );
+
   const rotateRecoveryLockPassword = useCallback((): Promise<void> => {
     if (!host?.id) {
       return new Promise(() => undefined);
@@ -1159,7 +1169,7 @@ const HostDetailsPage = ({
     !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
-    (isAppleDeviceHost || isWindowsHost) &&
+    (isAppleDeviceHost || isWindowsHost || isAndroidHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalTechnician ||
@@ -1583,6 +1593,7 @@ const HostDetailsPage = ({
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
               resendRequest={resendProfile}
+              resendCertificateRequest={resendCertificate}
               rotateRecoveryLockPassword={rotateRecoveryLockPassword}
               onProfileResent={refetchHostDetails}
             />

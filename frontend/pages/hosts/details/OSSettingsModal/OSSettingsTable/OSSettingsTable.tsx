@@ -12,6 +12,7 @@ interface IOSSettingsTableProps {
   canRotateRecoveryLockPassword?: boolean;
   tableData: IHostMdmProfileWithAddedStatus[];
   resendRequest: (profileUUID: string) => Promise<void>;
+  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
   rotateRecoveryLockPassword?: () => Promise<void>;
   onProfileResent: () => void;
 }
@@ -21,6 +22,7 @@ const OSSettingsTable = ({
   canRotateRecoveryLockPassword = false,
   tableData,
   resendRequest,
+  resendCertificateRequest,
   rotateRecoveryLockPassword,
   onProfileResent,
 }: IOSSettingsTableProps) => {
@@ -32,7 +34,8 @@ const OSSettingsTable = ({
         resendRequest,
         onProfileResent,
         canRotateRecoveryLockPassword,
-        rotateRecoveryLockPassword
+        rotateRecoveryLockPassword,
+        resendCertificateRequest
       ),
     [
       canResendProfiles,
@@ -40,6 +43,7 @@ const OSSettingsTable = ({
       onProfileResent,
       canRotateRecoveryLockPassword,
       rotateRecoveryLockPassword,
+      resendCertificateRequest,
     ]
   );
 

@@ -48,7 +48,7 @@ const generateTableConfig = (
   resendRequest: (profileUUID: string) => Promise<void>,
   onProfileResent: () => void,
   canRotateRecoveryLockPassword?: boolean,
-  rotateRecoveryLockPassword?: () => Promise<void>
+  rotateRecoveryLockPassword?: () => Promise<void>,
 ): ITableColumnConfig[] => {
   return [
     {
