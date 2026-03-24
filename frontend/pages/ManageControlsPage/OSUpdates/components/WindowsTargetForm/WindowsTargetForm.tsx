@@ -130,15 +130,15 @@ const WindowsTargetForm = ({
     }
 
     setIsSaving(true);
-    const updateData = createMdmConfigData(formData.deadlineDays, formData.gracePeriodDays);
+    const updateData = createMdmConfigData(
+      formData.deadlineDays,
+      formData.gracePeriodDays
+    );
     try {
       currentTeamId === APP_CONTEXT_NO_TEAM_ID
         ? await configAPI.update(updateData)
         : await teamsAPI.update(updateData, currentTeamId);
-      renderFlash(
-        "success",
-        "Successfully updated Windows OS update options."
-      );
+      renderFlash("success", "Successfully updated Windows OS update options.");
     } catch {
       renderFlash("error", "Couldn’t update. Please try again.");
     } finally {
@@ -149,7 +149,9 @@ const WindowsTargetForm = ({
     }
   };
 
-  const handleChange = (field: keyof IWindowsTargetFormData) => (val: string) => {
+  const handleChange = (field: keyof IWindowsTargetFormData) => (
+    val: string
+  ) => {
     const newFormData = { ...formData, [field]: val };
     setFormData(newFormData);
     // On change, only update/clear existing errors (optimistic UX)
