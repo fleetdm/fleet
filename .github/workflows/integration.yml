@@ -233,10 +233,10 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
+        runner: [ 'macos-15', 'macos-15-intel' ]
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
-        runner: [ 'macos-15', 'macos-15-intel' ]
     runs-on: ${{ matrix.runner }}
     needs: [gen, login]
     steps:
@@ -259,7 +259,7 @@ jobs:
     - name: Install fleetd
       run: |
         ARCH=$(uname -m)
-        sudo hostname macos-${ARCH}-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
+        sudo hostname macos-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
@@ -310,10 +310,10 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
+        runner: [ 'ubuntu-24.04', 'ubuntu-24.04-arm' ]
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
-        runner: [ 'ubuntu-24.04', 'ubuntu-24.04-arm' ]
     runs-on: ${{ matrix.runner }}
     needs: [gen, login]
     steps:
@@ -339,7 +339,7 @@ jobs:
     - name: Install Orbit
       run: |
         ARCH=$(uname -m)
-        sudo hostname ubuntu-${ARCH}-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
+        sudo hostnamectl set-hostname ubuntu-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
@@ -382,14 +382,10 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        # To run multiple VMs that have the same UUID we need to implement
-        # https://github.com/fleetdm/fleet/issues/8021 (otherwise orbit and osqueryd
-        # in the same host are enrolled as two hosts in Fleet).
-        # Until then we will just test the `stable` channel in all components.
+        runner: [ 'windows-11', 'windows-11-arm' ]
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
-        runner: [ 'windows-11', 'windows-11-arm' ]
     needs: [gen, login]
     runs-on: ${{ matrix.runner }}
     steps:
