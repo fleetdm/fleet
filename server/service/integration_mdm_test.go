@@ -11537,13 +11537,20 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	}))
 
 	// Do additional trigger + command fetching cycles until max retries are exhausted.
+	// Each cycle: cron re-enqueues the profile, device responds with error, HandleHostMDMProfileInstallResult increments retries.
 	for range servermdm.MaxAppleProfileRetries - 1 {
 		s.awaitTriggerProfileSchedule(t)
 		mdmDeviceRespond(mdmDevice)
 	}
 
+	// One more cycle: cron re-enqueues, device responds with error. Since retries == MaxAppleProfileRetries,
+	// HandleHostMDMProfileInstallResult marks the profile as failed.
+	s.awaitTriggerProfileSchedule(t)
+	mdmDeviceRespond(mdmDevice)
+
+	// Verify the non-failing profiles via osquery
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
-		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
+		"I2": {Identifier: "I2", DisplayName: "I2", InstallDate: time.Now()},
 		mobileconfig.FleetdConfigPayloadIdentifier:      {Identifier: mobileconfig.FleetdConfigPayloadIdentifier, DisplayName: "dn1", InstallDate: time.Now()},
 		mobileconfig.FleetCARootConfigPayloadIdentifier: {Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, DisplayName: "dn2", InstallDate: time.Now()},
 	}))

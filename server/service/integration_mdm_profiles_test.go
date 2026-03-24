@@ -736,28 +736,28 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 	})
 
 	t.Run("retry after verification", func(t *testing.T) {
-		// report osquery results with I1 missing, retry until max retries exceeded
-		for retryNum := uint(1); retryNum <= servermdm.MaxAppleProfileRetries; retryNum++ {
+		// I1 already has retries=1 from the previous subtest, continue retrying until max retries exceeded
+		startRetries := expectedRetryCounts["I1"]
+		for retryNum := startRetries + 1; retryNum <= servermdm.MaxAppleProfileRetries; retryNum++ {
 			reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 			expectedRetryCounts["I1"] = retryNum
-			if retryNum < servermdm.MaxAppleProfileRetries {
-				// not yet at max retries, profile should be pending for retry
-				expectedProfileStatuses["I1"] = fleet.MDMDeliveryPending
-				checkProfilesStatus(t)
-				checkRetryCounts(t)
+			// not yet at max retries, profile should be pending for retry
+			expectedProfileStatuses["I1"] = fleet.MDMDeliveryPending
+			checkProfilesStatus(t)
+			checkRetryCounts(t)
 
-				// trigger a profile sync and confirm that the install profile command for I1 was resent
-				s.awaitTriggerProfileSchedule(t)
-				installs, removes := checkNextPayloads(t, mdmDevice, false)
-				s.signedProfilesMatch([][]byte{initialExpectedProfiles[0]}, installs)
-				require.Empty(t, removes)
-			} else {
-				// max retries exceeded, profile should be marked as failed
-				expectedProfileStatuses["I1"] = fleet.MDMDeliveryFailed
-				checkProfilesStatus(t)
-				checkRetryCounts(t)
-			}
+			// trigger a profile sync and confirm that the install profile command for I1 was resent
+			s.awaitTriggerProfileSchedule(t)
+			installs, removes := checkNextPayloads(t, mdmDevice, false)
+			s.signedProfilesMatch([][]byte{initialExpectedProfiles[0]}, installs)
+			require.Empty(t, removes)
 		}
+
+		// report osquery results with I1 missing again, now max retries exceeded
+		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		expectedProfileStatuses["I1"] = fleet.MDMDeliveryFailed
+		checkProfilesStatus(t)
+		checkRetryCounts(t) // unchanged, still at max
 
 		// trigger a profile sync and confirm that the install profile command for I1 was not resent
 		s.awaitTriggerProfileSchedule(t)
@@ -825,28 +825,28 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		setProfileUploadedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3", "I4")
 
-		// trigger a profile sync and confirm that the install profile command for I3 was sent and
-		// simulate a device error
+		// repeatedly simulate device errors until max retries exceeded
+		for retryNum := uint(1); retryNum <= servermdm.MaxAppleProfileRetries; retryNum++ {
+			s.awaitTriggerProfileSchedule(t)
+			installs, removes := checkNextPayloads(t, mdmDevice, true)
+			s.signedProfilesMatch([][]byte{newProfile}, installs)
+			require.Empty(t, removes)
+			expectedProfileStatuses["I4"] = fleet.MDMDeliveryPending
+			expectedRetryCounts["I4"] = retryNum
+			checkProfilesStatus(t)
+			checkRetryCounts(t)
+		}
+
+		// one more device error should mark as failed
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes := checkNextPayloads(t, mdmDevice, true)
-		s.signedProfilesMatch([][]byte{newProfile}, installs)
-		require.Empty(t, removes)
-		expectedProfileStatuses["I4"] = fleet.MDMDeliveryPending
-		checkProfilesStatus(t)
-		expectedRetryCounts["I4"] = 1
-		checkRetryCounts(t)
-
-		// trigger a profile sync and confirm that the install profile command for I4 was sent and
-		// simulate a second device error
-		s.awaitTriggerProfileSchedule(t)
-		installs, removes = checkNextPayloads(t, mdmDevice, true)
 		s.signedProfilesMatch([][]byte{newProfile}, installs)
 		require.Empty(t, removes)
 		expectedProfileStatuses["I4"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
 
-		// trigger a profile sync and confirm that the install profile command for I3 was not resent
+		// trigger a profile sync and confirm that the install profile command for I4 was not resent
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes = checkNextPayloads(t, mdmDevice, false)
 		require.Empty(t, installs)
@@ -894,8 +894,23 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		require.Empty(t, installs)
 		require.Empty(t, removes)
 
-		// report osquery results again, this time I5 is missing and confirm that the I5 marked as
-		// failed (max retries exceeded)
+		// report osquery results again with I5 missing, retry until max retries exceeded.
+		// Each iteration: report missing (increments retries, sets status=NULL) -> cron re-enqueues -> ack (verifying).
+		// When retries reaches MaxAppleProfileRetries, the next missing report marks it as failed.
+		for expectedRetryCounts["I5"] < servermdm.MaxAppleProfileRetries {
+			reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+			expectedRetryCounts["I5"]++
+			expectedProfileStatuses["I5"] = fleet.MDMDeliveryPending
+			checkProfilesStatus(t)
+			checkRetryCounts(t)
+
+			s.awaitTriggerProfileSchedule(t)
+			installs, removes = checkNextPayloads(t, mdmDevice, false)
+			s.signedProfilesMatch([][]byte{newProfile}, installs)
+			require.Empty(t, removes)
+		}
+
+		// one final missing report: retries == MaxAppleProfileRetries, should be failed
 		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I5"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
@@ -7326,7 +7341,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 		test.ToMDMAppleConfigProfile(profNameToPayload["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET retries = ? WHERE host_uuid = ? AND profile_identifier = ?`,
-			servermdm.MaxAppleProfileRetries-1, host.UUID, profNameToPayload["A3"].Identifier)
+			servermdm.MaxAppleProfileRetries, host.UUID, profNameToPayload["A3"].Identifier)
 		return err
 	})
 
@@ -7369,7 +7384,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileName:       profNameToPayload["A3"].Name,
 			Status:            ptr.String(string(fleet.MDMDeliveryFailed)),
 			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
-			Retries:           servermdm.MaxAppleProfileRetries - 1,
+			Retries:           servermdm.MaxAppleProfileRetries,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
 	})
