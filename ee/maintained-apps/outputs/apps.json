@@ -947,6 +947,13 @@
       "description": "Keka is a file archiver."
     },
     {
+      "name": "kitty",
+      "slug": "kitty/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.kovidgoyal.kitty",
+      "description": "kitty is a fast, feature-rich, GPU-based terminal emulator."
+    },
+    {
       "name": "Krita",
       "slug": "krita/darwin",
       "platform": "darwin",
@@ -1344,6 +1351,13 @@
       "platform": "darwin",
       "unique_identifier": "com.initex.proxifier.v3.macos",
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
+    },
+    {
+      "name": "Proxyman",
+      "slug": "proxyman/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.proxyman.NSProxy",
+      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
     },
     {
       "name": "PuTTY",

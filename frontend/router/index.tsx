@@ -283,6 +283,7 @@ const routes = (
                 <Route path="inventory" component={HostDetailsPage} />
                 <Route path="library" component={HostDetailsPage} />
               </Route>
+              <Route path="reports" component={HostDetailsPage} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 

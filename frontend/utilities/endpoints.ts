@@ -76,6 +76,8 @@ export default {
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
   HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/reports/${queryId}`,
+  HOST_REPORTS: (hostId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/reports`,
   HOSTS: `/${API_VERSION}/fleet/hosts`,
   HOSTS_COUNT: `/${API_VERSION}/fleet/hosts/count`,
   HOSTS_DELETE: `/${API_VERSION}/fleet/hosts/delete`,

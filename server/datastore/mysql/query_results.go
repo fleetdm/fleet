@@ -466,7 +466,7 @@ func (ds *Datastore) ListHostReports(
 	reports := make([]*fleet.HostReport, 0, len(queryRows))
 	for _, qr := range queryRows {
 		r := &fleet.HostReport{
-			QueryID:      qr.QueryID,
+			ReportID:     qr.QueryID,
 			Name:         qr.Name,
 			Description:  qr.Description,
 			StoreResults: !qr.DiscardData && qr.LoggingType == fleet.LoggingSnapshot,

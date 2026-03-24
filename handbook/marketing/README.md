@@ -9,7 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Chief  Marketing Officer           | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation          | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
-| Marketing Campaign Manager         | [Michael D Buck](https://www.linkedin.com/in/michael-buck-chi312/ ) _([@mb-chigoose312](https://github.com/mb-chigoose312))_
+| Marketing Campaign Manager         | [Michael Buck](https://www.linkedin.com/in/michael-buck-chi312/ ) _([@mb-chigoose312](https://github.com/mb-chigoose312))_
 
 
 ## Contact us
@@ -94,6 +94,11 @@ To propose an ad, or a change to an ad:
 2. Choose the appropriate audience according to the buying situation and disable audience expansion and the LinkedIn audience network. 
 3. When creating the ad for the new campaign, select "browse existing content" and find the post under the employee tab.
 4. Launch campaign once approved.
+
+
+### Manage LinkedIn ad creatives
+
+LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
 
 
 ### Settle content strategy
