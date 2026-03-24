@@ -199,7 +199,7 @@ These are generic "buckets" for continuous inbound channels that don't have a st
 - **Full example:** Default-OS (for all Organic Search)
 
 
-## SFDC Campaign Hierarchy
+## SFDC campaign hierarchy
 
 ### Campaign hierarchy
 
@@ -283,10 +283,10 @@ The workshop's pipeline will automatically roll up into the GitOps Workshops tot
 
 To accurately measure marketing ROI and attribution, we must standardize how we track prospect progression through our campaigns. This framework establishes a *unified status hierarchy* for Salesforce campaigns. 
 
-**Key Objectives:**
+**Key objectives:**
 1. **Standardization:** Use the same language across all campaign types.  
 2. **Attribution:** Ensure only meaningful interactions trigger attribution models.  
-3. **Social Integration:** Capture top-of-funnel social intent without inflating pipeline metrics.
+3. **Social integration:** Capture top-of-funnel social intent without inflating pipeline metrics.
 
 
 ### Unified hierarchy
@@ -353,7 +353,7 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Registered:** Clicked a link and filled out the resulting form.  
 - **Engaged:** Replied to the email directly.
 
-#### Website Chat (Qualified)
+#### Website chat (qualified)
 - **Interacted:** We chatted and learned about the prospect
 - **Engaged:** We chatted long enough to offer a meeting 
 - **Meeting Requested:** The prospect has booked a meeting
@@ -425,4 +425,4 @@ We generally do not manually update these fields. A Salesforce Flow acts as a "T
 - **Debugging:** If a VIP prospect stops receiving emails, the `Status Reason` tells us if it was a system error (Bounce) or human error (Sales marked "Do Not Contact").
 
 <meta name="maintainedBy" value="johnjeremiah">
-<meta name="title" value="🫧 Marketing Ops">
+<meta name="title" value="🫧 Marketing ops">

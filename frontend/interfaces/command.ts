@@ -37,7 +37,8 @@ export interface ICommandResult {
    * InstallProfile/RemoveProfile commands). May be null if not set. */
   name: string | null;
   /** ResultsMetadata contains command-specific metadata.
-   * VPP install commands includes a "software_installed" boolean. */
+   * VPP install commands include a "software_installed" boolean and
+   * "vpp_verify_timeout_seconds" integer. */
   results_metadata?: Record<string, unknown>;
 }
 

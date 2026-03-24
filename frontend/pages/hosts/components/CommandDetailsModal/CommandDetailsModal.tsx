@@ -309,7 +309,7 @@ const CommandResultsModal = ({
       onExit={onDone}
     >
       <ModalContent data={data} isLoading={isLoading} error={error} />
-      <ModalFooter primaryButtons={<Button onClick={onDone}>Done</Button>} />
+      <ModalFooter primaryButtons={<Button onClick={onDone}>Close</Button>} />
     </Modal>
   );
 };

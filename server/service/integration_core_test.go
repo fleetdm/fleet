@@ -3757,13 +3757,16 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
+	sql := "select * from time;"
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
 		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
-		Query: ptr.String("select * from time;"),
+		Query: ptr.String(sql),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
+	assert.Equal(t, query.Query, sql)
+	assert.Equal(t, createQueryResp.Report.Query, sql)
 
 	// listing returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
@@ -3803,6 +3806,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var getQryResp getQueryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
 	assert.Equal(t, query.ID, getQryResp.Query.ID)
+	assert.Equal(t, query.ID, getQryResp.Report.ID)
+	assert.Equal(t, sql, getQryResp.Query.Query)
+	assert.Equal(t, sql, getQryResp.Report.Query)
 
 	// list scheduled queries in pack, none yet
 	var getInPackResp getScheduledQueriesInPackResponse
@@ -3888,6 +3894,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var modQryResp modifyQueryResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
 	assert.Equal(t, "updated", modQryResp.Query.Description)
+	assert.Equal(t, sql, modQryResp.Query.Query)
+	assert.Equal(t, sql, modQryResp.Report.Query)
 
 	// TODO(jahziel): check that the query results were deleted
 
@@ -5496,17 +5504,15 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		&applyResp,
 	)
 
-	// apply an invalid label spec - manual membership without a host specified
+	// apply a valid label spec - manual membership without hosts specified (preserves existing membership)
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
 			{
 				Name:                name,
-				Query:               "select 1",
-				Platform:            "linux",
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 			},
 		},
-	}, http.StatusUnprocessableEntity, &applyResp,
+	}, http.StatusOK, &applyResp,
 	)
 
 	// apply an invalid label spec - builtin label type
@@ -7730,8 +7736,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
-	assert.False(t, acResp.UIGitOpsMode.GitopsModeEnabled)
-	assert.Zero(t, acResp.UIGitOpsMode.RepositoryURL)
+	assert.False(t, acResp.GitOpsConfig.GitopsModeEnabled)
+	assert.Zero(t, acResp.GitOpsConfig.RepositoryURL)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't

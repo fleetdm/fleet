@@ -743,7 +743,7 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 		return nil, ctxerr.Wrap(ctx, err, "bulk upsert host profiles before installation")
 	}
 
-	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(ctx, a.Datastore, a.Log, appConfig, a.Commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{})
+	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(ctx, a.Datastore, a.Log, appConfig, a.Commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{}, nil)
 	if err != nil {
 		return nil, err
 	}

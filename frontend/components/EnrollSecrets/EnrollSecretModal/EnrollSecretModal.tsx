@@ -132,7 +132,7 @@ const EnrollSecretModal = ({
           </Card>
         )}
         <div className="modal-cta-wrap">
-          <Button onClick={onReturnToApp}>Done</Button>
+          <Button onClick={onReturnToApp}>Close</Button>
         </div>
       </div>
     </Modal>
