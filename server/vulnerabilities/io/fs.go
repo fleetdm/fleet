@@ -8,6 +8,7 @@ import (
 
 type FSAPI interface {
 	MSRCBulletins() ([]MetadataFileName, error)
+	MSRCAppBulletin() ([]MetadataFileName, error)
 	MacOfficeReleaseNotes() ([]MetadataFileName, error)
 	Delete(MetadataFileName) error
 }
@@ -31,6 +32,11 @@ func (fs FSClient) Delete(b MetadataFileName) error {
 // MSRCBulletins walks 'dir' returning all security bulletin files.
 func (fs FSClient) MSRCBulletins() ([]MetadataFileName, error) {
 	return fs.list(mSRCFilePrefix, NewMSRCMetadata)
+}
+
+// MSRCAppBulletin walks 'dir' returning all MSRC app bulletin files.
+func (fs FSClient) MSRCAppBulletin() ([]MetadataFileName, error) {
+	return fs.list(mSRCAppFilePrefix, NewMSRCAppMetadata)
 }
 
 // MacOfficeReleaseNotes walks 'dir' returning all mac office release notes
