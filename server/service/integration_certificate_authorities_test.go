@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -1773,44 +1774,75 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	require.Len(t, gotHostProfs, 1)
 	require.Equal(t, expectHostProf, gotHostProfs[0])
 
-	// simulate another failure during SCEP protocol, this time it won't be retried because normal retry limit is 1
-	cmd, err = mdmDevice.Err(prevCommandUUID, []mdm.ErrorChain{})
-	require.NoError(t, err) // error report accepted by server
-	require.Nil(t, cmd)     // no new command
+	// simulate additional failures during SCEP protocol until retry limit is exhausted
+	expectedChallengeCount := int64(3) // starts at 3 from above
+	for retryNum := 2; retryNum <= servermdm.MaxAppleProfileRetries; retryNum++ {
+		cmd, err = mdmDevice.Err(prevCommandUUID, []mdm.ErrorChain{})
+		require.NoError(t, err) // error report accepted by server
+		require.Nil(t, cmd)     // no new command
 
-	// update expectations for host profile DB state after failure
-	expectHostProf.CommandUUID = prevCommandUUID // unchanged
-	expectHostProf.Status = ptr.String("failed") // should now be failed
-	expectHostProf.Retries = 1                   // unchanged
+		if retryNum < servermdm.MaxAppleProfileRetries {
+			// not at max yet, profile should be cleared for retry
+			expectHostProf.CommandUUID = prevCommandUUID
+			expectHostProf.Status = nil
+			expectHostProf.Retries = retryNum
 
-	// check DB state after failure
-	gotHostProfs = listHostProfilesDB(host.UUID)
-	require.Len(t, gotHostProfs, 1)
-	require.Equal(t, expectHostProf, gotHostProfs[0])
+			gotHostProfs = listHostProfilesDB(host.UUID)
+			require.Len(t, gotHostProfs, 1)
+			require.Equal(t, expectHostProf, gotHostProfs[0])
 
-	// MDM checkin should not expect new command
-	cmd, err = mdmDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
+			// trigger profile sync to resend with new challenge
+			s.awaitTriggerProfileSchedule(t)
+			expectedChallengeCount++
+			require.Equal(t, expectedChallengeCount, challengeCounter.Load())
 
-	// trigger another profile sync, which should not resend SCEP profile
-	s.awaitTriggerProfileSchedule(t)
-	require.Equal(t, int64(3), challengeCounter.Load()) // challenge endpoint not called again because no retry should be attempted
+			cmd, err = mdmDevice.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd)
+			require.NotEqual(t, prevCommandUUID, cmd.CommandUUID)
+			prevCommandUUID = cmd.CommandUUID
+			require.Equal(t, "InstallProfile", cmd.Command.RequestType)
 
-	// MDM checkin should not expect new command
-	cmd, err = mdmDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
+			expectHostProf.CommandUUID = cmd.CommandUUID
+			expectHostProf.Status = ptr.String("pending")
+			expectHostProf.Retries = retryNum
 
-	// check DB state to confirm no changes
-	gotHostProfs = listHostProfilesDB(host.UUID)
-	require.Len(t, gotHostProfs, 1)
-	require.Equal(t, expectHostProf, gotHostProfs[0])
+			gotHostProfs = listHostProfilesDB(host.UUID)
+			require.Len(t, gotHostProfs, 1)
+			require.Equal(t, expectHostProf, gotHostProfs[0])
+		} else {
+			// max retries exceeded, profile should be failed
+			expectHostProf.CommandUUID = prevCommandUUID
+			expectHostProf.Status = ptr.String("failed")
+			expectHostProf.Retries = servermdm.MaxAppleProfileRetries
+
+			gotHostProfs = listHostProfilesDB(host.UUID)
+			require.Len(t, gotHostProfs, 1)
+			require.Equal(t, expectHostProf, gotHostProfs[0])
+
+			// no new command
+			cmd, err = mdmDevice.Idle()
+			require.NoError(t, err)
+			require.Nil(t, cmd)
+
+			// trigger profile sync, should not resend
+			s.awaitTriggerProfileSchedule(t)
+			require.Equal(t, expectedChallengeCount, challengeCounter.Load())
+
+			cmd, err = mdmDevice.Idle()
+			require.NoError(t, err)
+			require.Nil(t, cmd)
+
+			gotHostProfs = listHostProfilesDB(host.UUID)
+			require.Len(t, gotHostProfs, 1)
+			require.Equal(t, expectHostProf, gotHostProfs[0])
+		}
+	}
 
 	// manually resend the profile installation, which ignores retry limit
 	// FIXME: manual resend doesn't change retries, but maybe it should reset to 0
 	_ = s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, profUUID), nil, http.StatusAccepted)
-	require.Equal(t, int64(3), challengeCounter.Load()) // challenge endpoint not called until reconcilation runs
+	require.Equal(t, expectedChallengeCount, challengeCounter.Load()) // challenge endpoint not called until reconcilation runs
 
 	// MDM checkin should not expect new command until reconciliation runs
 	cmd, err = mdmDevice.Idle()
@@ -1818,9 +1850,9 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	require.Nil(t, cmd) // no new command should be issued yet
 
 	// update expectations for host profile DB state after manual resend
-	expectHostProf.Status = nil                  // status should be cleared to allow retry
-	expectHostProf.Retries = 1                   // unchanged for manual resend
-	expectHostProf.CommandUUID = prevCommandUUID // unchanged until reconcilation runs
+	expectHostProf.Status = nil                               // status should be cleared to allow retry
+	expectHostProf.Retries = servermdm.MaxAppleProfileRetries // unchanged for manual resend
+	expectHostProf.CommandUUID = prevCommandUUID              // unchanged until reconcilation runs
 
 	// check DB state after manual resend request
 	gotHostProfs = listHostProfilesDB(host.UUID)
