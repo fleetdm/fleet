@@ -152,7 +152,8 @@ const getOptionFontWeight = (
 export const generateCustomDropdownStyles = (
   variant?: DropdownWrapperVariant,
   isDisabled = false,
-  nowrapMenu = false
+  nowrapMenu = false,
+  maxMenuHeight?: number
 ): StylesConfig<CustomOptionType, false> => {
   return {
     container: (provided) => {
@@ -362,7 +363,7 @@ export const generateCustomDropdownStyles = (
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
-      maxHeight: "none",
+      maxHeight: maxMenuHeight != null ? `${maxMenuHeight}px` : "none",
       ...(nowrapMenu && { width: "fit-content" }),
     }),
     valueContainer: (provided) => ({
@@ -450,6 +451,15 @@ const DropdownWrapper = ({
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
 
+  // To prevent excessively long dropdowns, this sets a max menu height for
+  // more than 9 options or more than than 6 options with help text
+  const hasHelpText = options.some((opt) => !!opt.helpText);
+  const enableMaxMenuHeight = hasHelpText
+    ? options.length > 6
+    : options.length > 9;
+
+  const maxMenuHeight = enableMaxMenuHeight ? 305 : undefined;
+
   const handleChange = (newValue: SingleValue<CustomOptionType>) => {
     onChange(newValue);
   };
@@ -513,7 +523,12 @@ const DropdownWrapper = ({
       <Select<CustomOptionType, false>
         classNamePrefix="react-select"
         isSearchable={isSearchable}
-        styles={generateCustomDropdownStyles(variant, isDisabled, nowrapMenu)}
+        styles={generateCustomDropdownStyles(
+          variant,
+          isDisabled,
+          nowrapMenu,
+          maxMenuHeight
+        )}
         options={options}
         components={{
           Option: CustomOption,
