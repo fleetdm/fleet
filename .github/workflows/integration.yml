@@ -159,12 +159,9 @@ jobs:
       if: always()
       run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }} || true
 
-    - name: Upload cloudflared logs
+    - name: Print cloudflared logs
       if: always()
-      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
-      with:
-        name: cloudflared.log
-        path: cloudflared.log
+      run: cat cloudflared.log || true
 
     - name: Cancel workflow if run-server fails
       if: failure()
@@ -291,19 +288,10 @@ jobs:
         pgrep -x fleet-desktop || (echo "ERROR: fleet-desktop is not running" && exit 1)
         echo "All processes are running."
 
-    - name: Collect orbit logs
+    - name: Print orbit logs
       if: always()
       run: |
-        mkdir orbit-logs
-        sudo cp /var/log/orbit/* orbit-logs/
-
-    - name: Upload Orbit logs
-      if: always()
-      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
-      with:
-        name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
-        path: |
-          orbit-logs
+        sudo cat /var/log/orbit/*
 
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -377,18 +365,10 @@ jobs:
         # Don't check for Fleet Desktop as it doesn't run in the windowless CI environment.
         echo "All processes are running."
 
-    - name: Collect orbit logs
+    - name: Print orbit logs
       if: always()
       run: |
-        sudo journalctl -u orbit.service > orbit-logs
-
-    - name: Upload Orbit logs
-      if: always()
-      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
-      with:
-        name: orbit-ubuntu-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
-        path: |
-          orbit-logs
+        sudo journalctl -u orbit.service --no-pager
 
     - name: Uninstall Orbit
       run: |
@@ -502,19 +482,15 @@ jobs:
         }
         Write-Host "All processes are running."
 
-    - name: Upload orbit install log
+    - name: Print orbit install log
       if: always()
-      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
-      with:
-        name: msiexec-install-log-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}
-        path: log.txt
+      shell: powershell
+      run: Get-Content log.txt -ErrorAction SilentlyContinue
 
-    - name: Upload Orbit logs
+    - name: Print Orbit logs
       if: always()
-      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
-      with:
-        name: fleetd-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
-        path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
+      shell: powershell
+      run: Get-Content "C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -ErrorAction SilentlyContinue
 
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
