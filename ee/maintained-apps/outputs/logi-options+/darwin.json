@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "2.1.854976",
+      "version": "2.0.848900",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.optionsplus';"
       },
