@@ -3757,13 +3757,16 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
+	sql := "select * from time;"
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
 		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
-		Query: ptr.String("select * from time;"),
+		Query: ptr.String(sql),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
+	assert.Equal(t, query.Query, sql)
+	assert.Equal(t, createQueryResp.Report.Query, sql)
 
 	// listing returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
@@ -3803,6 +3806,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var getQryResp getQueryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
 	assert.Equal(t, query.ID, getQryResp.Query.ID)
+	assert.Equal(t, query.ID, getQryResp.Report.ID)
+	assert.Equal(t, sql, getQryResp.Query.Query)
+	assert.Equal(t, sql, getQryResp.Report.Query)
 
 	// list scheduled queries in pack, none yet
 	var getInPackResp getScheduledQueriesInPackResponse
@@ -3888,6 +3894,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var modQryResp modifyQueryResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
 	assert.Equal(t, "updated", modQryResp.Query.Description)
+	assert.Equal(t, sql, modQryResp.Query.Query)
+	assert.Equal(t, sql, modQryResp.Report.Query)
 
 	// TODO(jahziel): check that the query results were deleted
 
@@ -5496,17 +5504,15 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		&applyResp,
 	)
 
-	// apply an invalid label spec - manual membership without a host specified
+	// apply a valid label spec - manual membership without hosts specified (preserves existing membership)
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
 			{
 				Name:                name,
-				Query:               "select 1",
-				Platform:            "linux",
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 			},
 		},
-	}, http.StatusUnprocessableEntity, &applyResp,
+	}, http.StatusOK, &applyResp,
 	)
 
 	// apply an invalid label spec - builtin label type
@@ -7730,8 +7736,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
-	assert.False(t, acResp.UIGitOpsMode.GitopsModeEnabled)
-	assert.Zero(t, acResp.UIGitOpsMode.RepositoryURL)
+	assert.False(t, acResp.GitOpsConfig.GitopsModeEnabled)
+	assert.Zero(t, acResp.GitOpsConfig.RepositoryURL)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -16168,7 +16174,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 		require.Len(t, resp.Reports, 2)
 
 		alpha := resp.Reports[0]
-		assert.Equal(t, qAlpha.ID, alpha.QueryID)
+		assert.Equal(t, qAlpha.ID, alpha.ReportID)
 		assert.Equal(t, qAlpha.Name, alpha.Name)
 		assert.Equal(t, "alpha description", alpha.Description)
 		// first_result is the most recent row.
@@ -16185,7 +16191,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 
 		// qBeta has no results yet.
 		beta := resp.Reports[1]
-		assert.Equal(t, qBeta.ID, beta.QueryID)
+		assert.Equal(t, qBeta.ID, beta.ReportID)
 		assert.Nil(t, beta.FirstResult)
 		assert.Nil(t, beta.LastFetched)
 		assert.Equal(t, 0, beta.NHostResults)
@@ -16202,29 +16208,6 @@ func (s *integrationTestSuite) TestListHostReports() {
 		discard := resp.Reports[2]
 		assert.Equal(t, qDiscard.Name, discard.Name)
 		assert.False(t, discard.StoreResults)
-	})
-
-	t.Run("features.save_reports_disabled reflects app config", func(t *testing.T) {
-		// Default: query reports are enabled.
-		var resp listHostReportsResponse
-		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
-		assert.False(t, resp.Features.SavedReportsDisabled)
-
-		// Save the current value before mutating.
-		var originalConfig fleet.AppConfig
-		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &originalConfig)
-		origDisabled := originalConfig.ServerSettings.QueryReportsDisabled
-
-		// Disable query reports.
-		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"query_reports_disabled":true}}`), http.StatusOK)
-		t.Cleanup(func() {
-			s.DoRaw("PATCH", "/api/latest/fleet/config",
-				fmt.Appendf(nil, `{"server_settings":{"query_reports_disabled":%v}}`, origDisabled),
-				http.StatusOK)
-		})
-
-		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
-		assert.True(t, resp.Features.SavedReportsDisabled)
 	})
 
 	t.Run("report_clipped when total results reach the cap", func(t *testing.T) {
@@ -16346,10 +16329,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
 	})
 
-	t.Run("report_id alias is present in JSON response", func(t *testing.T) {
-		// The HostReport struct uses `renameto:"report_id"` on the QueryID field,
-		// which causes the endpointer to duplicate the key in the response as
-		// both "query_id" (deprecated) and "report_id" (new name).
+	t.Run("report_id is present in JSON response", func(t *testing.T) {
 		rawBody := s.DoRaw("GET", url, nil, http.StatusOK)
 		var raw map[string]any
 		require.NoError(t, json.NewDecoder(rawBody.Body).Decode(&raw))
@@ -16361,11 +16341,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 		firstReport, ok := reports[0].(map[string]any)
 		require.True(t, ok)
 
-		// Both the deprecated key and the new alias must be present.
-		_, hasQueryID := firstReport["query_id"]
 		_, hasReportID := firstReport["report_id"]
-		assert.True(t, hasQueryID, "expected deprecated key 'query_id' in response")
-		assert.True(t, hasReportID, "expected alias key 'report_id' in response")
-		assert.Equal(t, firstReport["query_id"], firstReport["report_id"])
+		assert.True(t, hasReportID, "expected key 'report_id' in response")
 	})
 }
