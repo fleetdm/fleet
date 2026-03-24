@@ -207,7 +207,6 @@ In the JSON below, replace folowing fields:
 
 ## Technical details
 
-grantKeyPairToWifiAuth(String alias) — Added in API level 31 (Android 12)
 
   This is a real method on DevicePolicyManager. The API diff for Android 12 confirms these related methods were added together:
 
