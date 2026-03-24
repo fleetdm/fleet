@@ -15,7 +15,8 @@ import (
 
 const maxAccountsPerEnrollment = 3
 
-func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, onlyReturnExisting bool) (*types.Account, error) {
+func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, onlyReturnExisting bool) (*types.Account, bool, error) {
+	var didCreate bool
 	err := platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
 		lockEnrollmentStmt := `SELECT id FROM acme_enrollments WHERE id = ? FOR UPDATE`
 		var enrollmentID uint
@@ -72,6 +73,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 		}
 		lastInsertID, _ := res.LastInsertId() // can never fail with mysql
 		account.ID = uint(lastInsertID)
+		didCreate = true
 
 		// if the acme_enrollment has a NULL not_valid_after it should be set to a value
 		// 24 hours in the future so that now that this enrollment is being used it will expire
@@ -85,9 +87,9 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 	}, ds.logger)
 
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return account, nil
+	return account, didCreate, nil
 }
 
 type dbAccount struct {

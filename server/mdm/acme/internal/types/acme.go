@@ -51,6 +51,7 @@ type Account struct {
 
 type AccountResponse struct {
 	CreatedAccount *Account `json:"-"`
+	DidCreate      bool     `json:"-"`
 	Status         string   `json:"status"`
 	Contact        []string `json:"contact,omitempty"`
 	Orders         string   `json:"orders"`
@@ -128,5 +129,5 @@ type Identifier struct {
 type Datastore interface {
 	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*Enrollment, error)
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
-	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, error)
+	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)
 }

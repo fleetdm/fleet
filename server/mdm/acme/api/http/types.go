@@ -99,7 +99,12 @@ func (r *CreateNewAccountResponse) BeforeRender(ctx context.Context, w http.Resp
 }
 
 // Status implements the statuser interface.
-func (r *CreateNewAccountResponse) Status() int { return http.StatusCreated }
+func (r *CreateNewAccountResponse) Status() int {
+	if r.DidCreate {
+		return http.StatusCreated
+	}
+	return http.StatusOK
+}
 
 // Error implements the platform_http.Errorer interface.
 func (r *CreateNewAccountResponse) Error() error { return r.Err }
@@ -131,7 +136,8 @@ func (r *CreateNewOrderResponse) Error() error { return r.Err }
 // parsed into a jose.JSONWebSignature with some basic validation done on it and then the downstream
 // handler can use the included JWK or KeyID to do further authentication and authorization as needed.
 type JWSRequestContainer struct {
-	JWS jose.JSONWebSignature
+	JWS          jose.JSONWebSignature
+	JWSHeaderURL string
 
 	Key        *jose.JSONWebKey
 	KeyID      *string
@@ -167,5 +173,14 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	if jws.Signatures[0].Protected.KeyID != "" {
 		req.KeyID = &jws.Signatures[0].Protected.KeyID
 	}
+
+	// JWS must have a url field in the protected header:
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.2
+	headerURL, ok := jws.Signatures[0].Protected.ExtraHeaders["url"].(string)
+	if !ok || headerURL == "" {
+		return ctxerr.New(ctx, "jws must have a url in the protected header")
+	}
+	req.JWSHeaderURL = headerURL
+
 	return nil
 }

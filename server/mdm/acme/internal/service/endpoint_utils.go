@@ -26,7 +26,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 			enc.SetIndent("", "  ")
 			return enc.Encode(response)
 		},
-		nil, // no domain-specific error encoder
+		acmeErrorEncoder,
 	)
 }
 

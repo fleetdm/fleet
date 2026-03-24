@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"go.step.sm/crypto/jose"
 )
@@ -49,25 +48,17 @@ func (s *Service) AuthenticateNewAccountMessage(ctx context.Context, message *ap
 	if !slices.Contains(acceptableSignatureAlgorithms[:], message.JWS.Signatures[0].Protected.Algorithm) {
 		return ctxerr.New(ctx, "unsupported signature algorithm in JWS message")
 	}
+	// TODO(mna): "url" field in protected header validation https://datatracker.ietf.org/doc/html/rfc8555/#section-6.4.1
 
 	// consume the nonce
 	nonce := message.JWS.Signatures[0].Protected.Nonce
 	nonceValid, err := s.nonces.Consume(ctx, nonce)
 	if !nonceValid || err != nil {
-		// TODO(mna): we should return a new nonce here as per:
-		// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.5
-		// When a server rejects a request because its nonce value was
-		// unacceptable (or not present), it MUST provide HTTP status code 400
-		// (Bad Request), and indicate the ACME error type
-		// "urn:ietf:params:acme:error:badNonce".  An error response with the
-		// "badNonce" error type MUST include a Replay-Nonce header field with a
-		// fresh nonce that the server will accept in a retry of the original
-		// query (and possibly in other requests, according to the server's
-		// nonce scoping policy).
-		err = &platform_http.BadRequestError{
-			Message:     "badNonce", // TODO(mna): some ACME-specific errors so we render them as expected by the RFC
-			InternalErr: err,
+		var detail string
+		if err != nil {
+			detail = err.Error()
 		}
+		err = badNonceError(detail)
 		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
 	}
 
@@ -98,25 +89,17 @@ func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message *a
 	if !slices.Contains(acceptableSignatureAlgorithms[:], message.JWS.Signatures[0].Protected.Algorithm) {
 		return ctxerr.New(ctx, "unsupported signature algorithm in JWS message")
 	}
+	// TODO(mna): "url" field in protected header validation https://datatracker.ietf.org/doc/html/rfc8555/#section-6.4.1
 
 	// consume the nonce
 	nonce := message.JWS.Signatures[0].Protected.Nonce
 	nonceValid, err := s.nonces.Consume(ctx, nonce)
 	if !nonceValid || err != nil {
-		// TODO(mna): we should return a new nonce here as per:
-		// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.5
-		// When a server rejects a request because its nonce value was
-		// unacceptable (or not present), it MUST provide HTTP status code 400
-		// (Bad Request), and indicate the ACME error type
-		// "urn:ietf:params:acme:error:badNonce".  An error response with the
-		// "badNonce" error type MUST include a Replay-Nonce header field with a
-		// fresh nonce that the server will accept in a retry of the original
-		// query (and possibly in other requests, according to the server's
-		// nonce scoping policy).
-		err = &platform_http.BadRequestError{
-			Message:     "badNonce", // TODO(mna): some ACME-specific errors so we render them as expected by the RFC
-			InternalErr: err,
+		var detail string
+		if err != nil {
+			detail = err.Error()
 		}
+		err = badNonceError(detail)
 		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
 	}
 

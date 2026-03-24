@@ -55,10 +55,11 @@ func testCreateNewAccount(t *testing.T, env *testEnv) {
 		JSONWebKey:   jwk1,
 	}
 
-	result1, err := env.ds.CreateAccount(t.Context(), account1, false)
+	result1, didCreate, err := env.ds.CreateAccount(t.Context(), account1, false)
 	require.NoError(t, err)
 	require.NotZero(t, result1.ID)
 	require.Equal(t, enrollment.ID, result1.EnrollmentID)
+	require.True(t, didCreate)
 
 	// verify enrollment's not_valid_after was set
 	updatedEnrollment1, err := env.ds.GetACMEEnrollment(t.Context(), enrollment.PathIdentifier)
@@ -75,11 +76,12 @@ func testCreateNewAccount(t *testing.T, env *testEnv) {
 		JSONWebKey:   jwk2,
 	}
 
-	result2, err := env.ds.CreateAccount(t.Context(), account2, false)
+	result2, didCreate, err := env.ds.CreateAccount(t.Context(), account2, false)
 	require.NoError(t, err)
 	require.NotZero(t, result2.ID)
 	require.Equal(t, enrollment.ID, result2.EnrollmentID)
 	require.NotEqual(t, result1.ID, result2.ID)
+	require.True(t, didCreate)
 
 	// verify enrollment's not_valid_after was not updated as it was already set
 	updatedEnrollment2, err := env.ds.GetACMEEnrollment(t.Context(), enrollment.PathIdentifier)
@@ -99,19 +101,21 @@ func testReturnExistingSameJWK(t *testing.T, env *testEnv) {
 		EnrollmentID: enrollment.ID,
 		JSONWebKey:   jwk,
 	}
-	result1, err := env.ds.CreateAccount(t.Context(), account1, false)
+	result1, didCreate, err := env.ds.CreateAccount(t.Context(), account1, false)
 	require.NoError(t, err)
 	require.NotNil(t, result1)
+	require.True(t, didCreate)
 
 	// create again with same JWK
 	account2 := &types.Account{
 		EnrollmentID: enrollment.ID,
 		JSONWebKey:   jwk,
 	}
-	result2, err := env.ds.CreateAccount(t.Context(), account2, false)
+	result2, didCreate, err := env.ds.CreateAccount(t.Context(), account2, false)
 	require.NoError(t, err)
 	require.NotNil(t, result2)
 	require.Equal(t, result1.ID, result2.ID)
+	require.False(t, didCreate)
 }
 
 func testOnlyReturnExistingFound(t *testing.T, env *testEnv) {
@@ -125,18 +129,20 @@ func testOnlyReturnExistingFound(t *testing.T, env *testEnv) {
 		EnrollmentID: enrollment.ID,
 		JSONWebKey:   jwk,
 	}
-	created, err := env.ds.CreateAccount(t.Context(), account, false)
+	created, didCreate, err := env.ds.CreateAccount(t.Context(), account, false)
 	require.NoError(t, err)
+	require.True(t, didCreate)
 
 	// now look it up with onlyReturnExisting=true
 	lookup := &types.Account{
 		EnrollmentID: enrollment.ID,
 		JSONWebKey:   jwk,
 	}
-	found, err := env.ds.CreateAccount(t.Context(), lookup, true)
+	found, didCreate, err := env.ds.CreateAccount(t.Context(), lookup, true)
 	require.NoError(t, err)
 	require.NotNil(t, found)
 	require.Equal(t, created.ID, found.ID)
+	require.False(t, didCreate)
 }
 
 func testOnlyReturnExistingNotFound(t *testing.T, env *testEnv) {
@@ -149,10 +155,11 @@ func testOnlyReturnExistingNotFound(t *testing.T, env *testEnv) {
 		JSONWebKey:   jwk,
 	}
 
-	result, err := env.ds.CreateAccount(t.Context(), account, true)
+	result, didCreate, err := env.ds.CreateAccount(t.Context(), account, true)
 	require.Nil(t, result)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+	require.False(t, didCreate)
 }
 
 func testAccountCreationLimit(t *testing.T, env *testEnv) {
@@ -166,7 +173,7 @@ func testAccountCreationLimit(t *testing.T, env *testEnv) {
 			EnrollmentID: enrollment.ID,
 			JSONWebKey:   jwk,
 		}
-		_, err := env.ds.CreateAccount(t.Context(), account, false)
+		_, _, err := env.ds.CreateAccount(t.Context(), account, false)
 		require.NoError(t, err)
 	}
 
@@ -176,7 +183,7 @@ func testAccountCreationLimit(t *testing.T, env *testEnv) {
 		EnrollmentID: enrollment.ID,
 		JSONWebKey:   jwk,
 	}
-	result, err := env.ds.CreateAccount(t.Context(), account, false)
+	result, _, err := env.ds.CreateAccount(t.Context(), account, false)
 	require.Nil(t, result)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "account creation limit reached")
@@ -189,7 +196,7 @@ func testInvalidEnrollmentID(t *testing.T, env *testEnv) {
 		JSONWebKey:   jwk,
 	}
 
-	result, err := env.ds.CreateAccount(t.Context(), account, false)
+	result, _, err := env.ds.CreateAccount(t.Context(), account, false)
 	require.Nil(t, result)
 	require.Error(t, err)
 }
