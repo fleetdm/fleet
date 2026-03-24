@@ -315,6 +315,19 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.Vendor == "git" && cpeMeta.Product == "git"
 			},
 		},
+		// CVE-2019-17201 and CVE-2019-17202 are Windows-only privilege escalation vulnerabilities
+		// in Admin By Request (named pipe bypass and PIN challenge-response bypass).
+		// The NVD CPE data uses target_sw=* with no platform differentiation, causing false positives
+		// on macOS and Linux where the software uses independent version numbering. See #41586.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2019-17201": {},
+				"CVE-2019-17202": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "windows"
+			},
+		},
 		// CVE-2023-28205 WebKit vulnerability
 		// Apple released fixes via:
 		// - Safari 16.4.1 standalone update for Big Sur/Monterey (HT213722)

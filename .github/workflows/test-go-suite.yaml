@@ -111,7 +111,7 @@ jobs:
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
     - name: Install Go
-      uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+      uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
       with:
         go-version-file: 'go.mod'
 
@@ -227,6 +227,13 @@ jobs:
           attempt=$((attempt + 1))
         done
 
+    - name: Wait for LocalStack
+      if: ${{ env.NEED_DOCKER && contains(env.DOCKER_COMMAND, 'localstack') }}
+      run: |
+        echo "Waiting for LocalStack..."
+        timeout 60 bash -c 'until curl -sf http://localhost:4566/_localstack/health; do sleep 2; done'
+        echo "LocalStack is ready"
+        
     - name: Generate test schema
       if: ${{ env.GENERATE_TEST_SCHEMA }}
       run: make test-schema
@@ -245,7 +252,7 @@ jobs:
           S3_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
-          AWS_ENDPOINT_URL="http://localhost:4566" \
+          AWS_ENDPOINT_URL="http://127.0.0.1:4566" \
           AWS_REGION=us-east-1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \

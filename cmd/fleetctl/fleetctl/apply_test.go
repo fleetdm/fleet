@@ -40,6 +40,15 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var testSAMLIDPMetadataURL = getTestSAMLIDPMetadataURL()
+
+func getTestSAMLIDPMetadataURL() string {
+	if port := os.Getenv("FLEET_SAML_IDP_HTTP_PORT"); port != "" {
+		return "http://localhost:" + port + "/simplesaml/saml2/idp/metadata.php"
+	}
+	return "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+}
+
 var userRoleSpecList = []*fleet.User{
 	{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -1236,7 +1245,16 @@ spec:
 apiVersion: v1
 kind: label
 spec:
-  name: invalid_nohost_manual_label
+  name: nohost_manual_label
+  label_membership_type: manual
+  platforms:
+    - darwin
+`
+	nullHostsManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: nullhost_manual_label
   label_membership_type: manual
   hosts:
   platforms:
@@ -1940,9 +1958,26 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, nohostsManualLabelSpec)
 
-	_, err := RunAppNoChecks([]string{"apply", "-f", name})
-	require.Error(t, err)
-	require.ErrorContains(t, err, "declared as manual but contains no `hosts key`")
+	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "nohost_manual_label", appliedLabels[0].Name)
+	assert.Nil(t, appliedLabels[0].Hosts)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
+
+	name = writeTmpYml(t, nullHostsManualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "nullhost_manual_label", appliedLabels[0].Name)
+	require.NotNil(t, appliedLabels[0].Hosts)
+	assert.Empty(t, appliedLabels[0].Hosts)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
 
 	// Apply built-in label (no changes)
 	// The label values below should match the spec.
@@ -1962,7 +1997,7 @@ func TestApplyLabels(t *testing.T) {
 	}
 
 	name = writeTmpYml(t, builtinLabelSpec)
-	_, err = RunAppNoChecks([]string{"apply", "-f", name})
+	_, err := RunAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
 	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
@@ -3619,7 +3654,7 @@ spec:
 		},
 		{
 			desc: "missing required sso entity_id",
-			spec: `
+			spec: fmt.Sprintf(`
 apiVersion: v1
 kind: config
 spec:
@@ -3628,13 +3663,13 @@ spec:
     entity_id: ""
     issuer_uri: "http://localhost:8080/simplesaml/saml2/idp/SSOService.php"
     idp_name: "SimpleSAML"
-    metadata_url: "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
-`,
+    metadata_url: "%s"
+`, testSAMLIDPMetadataURL),
 			wantErr: `422 Validation Failed: required`,
 		},
 		{
 			desc: "missing required sso idp_name",
-			spec: `
+			spec: fmt.Sprintf(`
 apiVersion: v1
 kind: config
 spec:
@@ -3643,8 +3678,8 @@ spec:
     entity_id: "https://localhost:8080"
     issuer_uri: "http://localhost:8080/simplesaml/saml2/idp/SSOService.php"
     idp_name: ""
-    metadata_url: "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
-`,
+    metadata_url: "%s"
+`, testSAMLIDPMetadataURL),
 			wantErr: `422 Validation Failed: required`,
 		},
 		{

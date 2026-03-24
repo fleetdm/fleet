@@ -177,7 +177,22 @@ linters:
         - G104 # Errors unhandled. We are using errcheck linter instead of this rule.
         - G204 # Subprocess launched with variable. Some consider this rule to be too noisy.
         - G301 # Directory permissions 0750 as opposed to standard 0755. Consider enabling stricter permission in the future.
-        - G304 # File path provided as taint input
+        - G304 # File path provided as taint input.
+        - G702 # Command injection via taint analysis (taint version of excluded G204).
+        - G703 # Path traversal via taint analysis (taint version of excluded G304).
+        # The following rules are excluded from the full lint but enabled in the incremental
+        # linter (.golangci-incremental.yml) so they only apply to new/changed code.
+        # Existing violations were audited during the v2.7.1 -> v2.11.3 upgrade.
+        - G101 # Potential hardcoded credentials.
+        - G115 # Integer overflow conversion.
+        - G117 # Marshaled struct field matches secret pattern.
+        - G118 # Goroutine uses context.Background/TODO while request-scoped context is available.
+        - G122 # Filesystem race in filepath.Walk/WalkDir callback.
+        - G202 # SQL string concatenation.
+        - G602 # Slice index out of range.
+        - G704 # SSRF via taint analysis.
+        - G705 # XSS via taint analysis.
+        - G706 # Log injection via taint analysis.
       config:
         G306: "0644"
 

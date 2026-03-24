@@ -74,6 +74,7 @@ func CreateApp(
 		runScriptCommand(),
 		gitopsCommand(),
 		generateGitopsCommand(),
+		newCommand(),
 	}
 	return app
 }

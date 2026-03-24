@@ -1,0 +1,8 @@
+{
+  "name": "Proxyman",
+  "slug": "proxyman/darwin",
+  "unique_identifier": "com.proxyman.NSProxy",
+  "token": "proxyman",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}
