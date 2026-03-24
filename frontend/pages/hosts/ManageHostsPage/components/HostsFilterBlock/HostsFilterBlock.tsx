@@ -38,6 +38,7 @@ import {
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
@@ -92,6 +93,7 @@ interface IHostsFilterBlockProps {
     scriptBatchExecutionId?: string;
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
+    depProfileError: string; // string "true" as we don't handle booleans
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -153,6 +155,7 @@ const HostsFilterBlock = ({
     scriptBatchExecutionId,
     scriptBatchRanAt,
     scriptBatchScriptName,
+    depProfileError,
   },
   selectedLabel,
   isOnlyObserver,
@@ -604,6 +607,17 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderDepProfileError = () => {
+    return (
+      <FilterPill
+        className={`${baseClass}__abm-issue-filter-pill`}
+        label="Apple Business Manager (ABM) issues"
+        tooltipDescription={abmIssueTooltip()}
+        onClear={() => handleClearFilter(["dep_profile_error"])}
+      />
+    );
+  };
+
   const showSelectedLabel =
     selectedLabel &&
     selectedLabel.type !== "all" &&
@@ -628,7 +642,8 @@ const HostsFilterBlock = ({
     bootstrapPackageStatus ||
     vulnerability ||
     (configProfileStatus && configProfileUUID && configProfile) ||
-    (scriptBatchExecutionStatus && scriptBatchExecutionId)
+    (scriptBatchExecutionStatus && scriptBatchExecutionId) ||
+    depProfileError
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -702,6 +717,8 @@ const HostsFilterBlock = ({
           return renderConfigProfileStatusBlock();
         case !!scriptBatchExecutionStatus && !!scriptBatchExecutionId:
           return renderScriptBatchExecutionBlock();
+        case !!depProfileError:
+          return renderDepProfileError();
         default:
           return null;
       }

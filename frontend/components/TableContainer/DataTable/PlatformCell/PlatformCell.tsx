@@ -1,31 +1,38 @@
 import React from "react";
 import Icon from "components/Icon";
-import { ScheduledQueryablePlatform } from "interfaces/platform";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { QueryablePlatform } from "interfaces/platform";
 
 interface IPlatformCellProps {
-  platforms: ScheduledQueryablePlatform[];
+  platforms: QueryablePlatform[];
 }
 
 const baseClass = "platform-cell";
 
-const ICONS: Record<string, ScheduledQueryablePlatform> = {
+const ICONS: Record<string, QueryablePlatform> = {
   darwin: "darwin",
   windows: "windows",
   linux: "linux",
+  chrome: "chrome",
 };
 
-const DISPLAY_ORDER: ScheduledQueryablePlatform[] = [
+const DISPLAY_ORDER: QueryablePlatform[] = [
   "darwin",
   "windows",
   "linux",
+  // Chrome is supported for queries, but unsupported for scheduled queries
+  // which are currently not supported in ChromeOS.
+  "chrome",
 ];
 
 const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
-  let orderedList: ScheduledQueryablePlatform[] = [];
-  orderedList = platforms.length
-    ? // if no platforms, interpret as targeting all schedule-targetable platforms
-      DISPLAY_ORDER.filter((platform) => platforms.includes(platform))
-    : DISPLAY_ORDER;
+  let orderedList: QueryablePlatform[] = [];
+  if (!platforms.length) {
+    return <TextCell value="---" grey />;
+  }
+  orderedList = DISPLAY_ORDER.filter((platform) =>
+    platforms.includes(platform)
+  );
   return (
     <span className={`${baseClass}__wrapper`} data-testid="icons">
       {orderedList.map((platform) => {

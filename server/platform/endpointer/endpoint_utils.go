@@ -620,25 +620,6 @@ func MakeDecoder(
 				v = reflect.ValueOf(req)
 			}
 
-			// Log deprecation warnings when deprecated field names are used.
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					newNames := make([]string, len(deprecated))
-					for i, old := range deprecated {
-						for _, rule := range aliasRules {
-							if rule.OldKey == old {
-								newNames[i] = rule.NewKey
-								break
-							}
-						}
-					}
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
-					)
-				}
-			}
 		}
 
 		fields := allFields(v)
@@ -710,16 +691,25 @@ func MakeDecoder(
 				return nil, err
 			}
 
-			// Log deprecation warnings when deprecated field names are used
-			// (bodyDecoder path).
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", "use the updated field names instead",
-					)
+		}
+
+		// Log deprecation warnings when deprecated field names are used.
+		if rewriter != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+				newNames := make([]string, len(deprecated))
+				for i, old := range deprecated {
+					for _, rule := range aliasRules {
+						if rule.OldKey == old {
+							newNames[i] = rule.NewKey
+							break
+						}
+					}
 				}
+				logging.WithLevel(ctx, slog.LevelWarn)
+				logging.WithExtras(ctx,
+					"deprecated_fields", fmt.Sprintf("%v", deprecated),
+					"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
+				)
 			}
 		}
 

@@ -103,6 +103,7 @@ export interface ILoadHostsOptions {
   configProfileUUID?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
 }
 
 export interface IExportHostsOptions {
@@ -139,6 +140,7 @@ export interface IExportHostsOptions {
   configProfileStatus?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
 }
 
 export interface IActionByFilter {
@@ -167,6 +169,7 @@ export interface IActionByFilter {
   vulnerability?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -360,11 +363,11 @@ export default {
     const configProfileStatus = options?.configProfileStatus;
     const scriptBatchExecutionStatus = options?.scriptBatchExecutionStatus;
     const scriptBatchExecutionId = options?.scriptBatchExecutionId;
+    const depProfileError = options?.depProfileError;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
     }
-
     const queryParams = {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
@@ -399,6 +402,7 @@ export default {
         configProfileStatus,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
       }),
       status,
       label_id: label,
@@ -444,6 +448,7 @@ export default {
     configProfileUUID,
     scriptBatchExecutionStatus,
     scriptBatchExecutionId,
+    depProfileError,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -486,6 +491,7 @@ export default {
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
       }),
     };
 
@@ -556,6 +562,7 @@ export default {
     osSettings,
     diskEncryptionStatus,
     vulnerability,
+    depProfileError,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
@@ -583,6 +590,7 @@ export default {
         os_settings: osSettings,
         os_settings_disk_encryption: diskEncryptionStatus,
         vulnerability,
+        dep_profile_error: depProfileError,
       },
     });
   },

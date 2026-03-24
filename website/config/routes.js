@@ -525,7 +525,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
-      disableAnalyticsScriptsAndIndexing: true,
+      disableChatbotAndIndexing: true,
     }
   },
 
@@ -533,7 +533,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
-      disableAnalyticsScriptsAndIndexing: true,
+      disableChatbotAndIndexing: true,
     }
   },
 
@@ -548,7 +548,7 @@ module.exports.routes = {
     action: 'view-okta-conditional-access-error',
     locals: {
       showConfigurationProfileLayout: true,
-      disableAnalyticsScriptsAndIndexing: true,
+      disableChatbotAndIndexing: true,
     }
   },
 
@@ -928,8 +928,12 @@ module.exports.routes = {
   'GET /announcements/cloud-based-data-leader-choosed-fleet-for-orchestration': '/case-study/cloud-data-platform',
   'GET /announcements/large-gaming-company-enhances-server-observability-with-fleet': '/case-study/online-gaming-platform',
   'GET /case-study/financial-data-company-scales-endpoint-visibility-with-fleet': '/case-study/financial-data-company',
-  'GET /articles/fleet-management-software': '/compare/fleet-vs-jamf-vs-intune',
-  'GET /articles/mdm-providers-compared': '/compare/fleet-vs-workspace-one',
+  'GET /articles/fleet-management-software': '/compare/jamf-vs-intune-vs-fleet',
+  'GET /articles/mdm-providers-compared': '/compare/workspace-one-vs-fleet',
+  'GET /articles/fleet-vs-jamf-pro-ninjaone-mdm-comparison': '/compare/jamf-vs-ninjaone-vs-fleet',
+  'GET /compare/jamf': '/compare/jamf-vs-fleet',
+  'GET /compare/fleet-vs-workspace-one': '/compare/workspace-one-vs-fleet',
+  'GET /compare/fleet-vs-jamf-vs-intune': '/compare/jamf-vs-intune-vs-fleet',
 
   // Software catalog redirects
   'GET /software-catalog/abstract': '/software-catalog/abstract-darwin',
@@ -1093,6 +1097,7 @@ module.exports.routes = {
   'GET /vulnerability-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/software-management' + originalQueryString); },
   'GET /endpoint-ops': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
   'GET /observability': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
+  'GET /signup': '/login#register',
 
   'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
   'GET /announcements/global-cloud-platform-simplifies-device-management-with-fleet': '/case-study/fastly',
@@ -1229,6 +1234,7 @@ module.exports.routes = {
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
+  'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
 
   // Sitemap
   // =============================================================================================================

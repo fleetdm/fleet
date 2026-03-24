@@ -83,6 +83,9 @@
       .data-table__table {
         tbody {
           tr {
+            .name__cell {
+              max-width: 250px;
+            }
             .status__cell {
               display: table-cell;
               min-width: 140px; // Fixed width when status changes after clicking install/uninstall
