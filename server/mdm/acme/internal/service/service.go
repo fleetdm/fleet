@@ -9,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	"github.com/go-jose/go-jose/v3"
 )
 
 // Service is the activity bounded context service implementation.
@@ -18,14 +17,6 @@ type Service struct {
 	nonces    *redis_nonces_store.RedisNoncesStore
 	providers acme.DataProviders
 	logger    *slog.Logger
-}
-
-func getAcceptableSignatureAlgorithms() []string {
-	return []string{
-		string(jose.ES256),
-		string(jose.ES384),
-		string(jose.ES512),
-	}
 }
 
 // NewService creates a new activity service.
