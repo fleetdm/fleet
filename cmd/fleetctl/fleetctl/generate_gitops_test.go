@@ -31,6 +31,7 @@ type MockClient struct {
 	IsFree           bool
 	TeamNameOverride string
 	WithoutMDM       bool
+	WithoutFMASlugs  bool
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -323,6 +324,37 @@ func (MockClient) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
 	return &fleet.MaintainedApp{Slug: "foo/darwin"}, nil
 }
 
+func (c MockClient) ListFleetMaintainedApps(teamID *uint, query string) ([]fleet.MaintainedApp, error) {
+	if teamID == nil {
+		return nil, fmt.Errorf("unexpected nil team ID")
+	}
+	if *teamID != 1 {
+		return []fleet.MaintainedApp{}, nil
+	}
+	if query != "team_id=1&per_page=10000" {
+		return nil, fmt.Errorf("unexpected query: %s", query)
+	}
+	if c.WithoutFMASlugs {
+		return []fleet.MaintainedApp{}, nil
+	}
+	return []fleet.MaintainedApp{
+		{
+			ID:       1,
+			Name:     "My FMA",
+			Slug:     "foo/darwin",
+			Platform: "darwin",
+			TitleID:  ptr.Uint(8),
+		},
+		{
+			ID:       2,
+			Name:     "My Windows FMA",
+			Slug:     "fma2/windows",
+			Platform: "windows",
+			TitleID:  ptr.Uint(9),
+		},
+	}, nil
+}
+
 func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	if teamID == nil {
 		return []*fleet.Policy{
@@ -377,6 +409,21 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Type:                     fleet.PolicyTypePatch,
 			},
 			PatchSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 8,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:                       3,
+				Name:                     "Team install FMA policy",
+				Query:                    "SELECT * FROM team_install_fma_policy WHERE id = 1",
+				Resolution:               ptr.String("Install the team FMA"),
+				Description:              "This is a team install FMA policy",
+				Platform:                 "darwin",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 8,
 			},
 		},
@@ -1462,6 +1509,7 @@ func TestGenerateSoftware(t *testing.T) {
 		FilesToWrite: make(map[string]interface{}),
 		AppConfig:    appConfig,
 		SoftwareList: make(map[uint]Software),
+		FMASlugMap:   make(map[uint]string),
 	}
 
 	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
@@ -1759,9 +1807,17 @@ func TestGeneratePolicies(t *testing.T) {
 				Hash:    "team-software-hash",
 				Comment: "__TEAM_SOFTWARE_COMMENT_TOKEN__",
 			},
+			8: {
+				Hash:            "fma-package-hash",
+				Comment:         "__TEAM_FMA_COMMENT_TOKEN__",
+				MaintainedAppID: 1,
+			},
 		},
 		ScriptList: map[uint]string{
 			1: "/path/to/script1.sh",
+		},
+		FMASlugMap: map[uint]string{
+			8: "foo/darwin",
 		},
 	}
 
@@ -1807,7 +1863,36 @@ func TestGeneratePolicies(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, generatedPolicies)
+	require.Equal(t, expectedTeamPolicies, generatedTeamPolicies)
+}
+
+func TestGeneratePoliciesFailsWhenFMASlugMissing(t *testing.T) {
+	fleetClient := &MockClient{WithoutFMASlugs: true}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: map[uint]Software{
+			8: {
+				Hash:            "fma-package-hash",
+				Comment:         "__TEAM_FMA_COMMENT_TOKEN__",
+				MaintainedAppID: 1,
+			},
+		},
+		ScriptList: map[uint]string{
+			1: "/path/to/script1.sh",
+		},
+		FMASlugMap: map[uint]string{},
+	}
+
+	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	require.ErrorContains(t, err, "Team install FMA policy")
+	require.ErrorContains(t, err, "no slug was found for export")
 }
 
 func TestGenerateQueries(t *testing.T) {
