@@ -4175,7 +4175,7 @@ org_settings:
 	require.NoError(t, err)
 	require.Len(t, globalSecrets, 0)
 
-	// Verify labels are cleared..
+	// Verify labels are cleared.
 	labels, err = s.DS.LabelsByName(ctx, []string{"Test Global Label"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labels, 0)
