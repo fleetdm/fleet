@@ -116,43 +116,36 @@ jobs:
         done
         echo "Fleet server is responding"
         
-        # Wait for all of the hosts to be enrolled
+        # Wait for all hosts to enroll, then keep the server alive until the summary job completes.
         EXPECTED=24 # This needs to be updated when the matrix strategies are updated.
-        ENROLLMENT_START=$(date +%s)
-        until [ $(fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tee hostcount) -ge $EXPECTED ]; do
-          CURRENT_TIME=$(date +%s)
-          ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
-          echo -n "Waiting for hosts to enroll (${ELAPSED}s): "
-          cat hostcount | xargs echo -n
-          echo " / $EXPECTED"
-          
-          # Show diagnostic info every 10 seconds
-          if [ $((ELAPSED % 10)) -lt 1 ]; then
-            fleetctl get hosts || true
-          fi
-          
-          sleep 1
-        done
-        echo "Success! $EXPECTED hosts enrolled."
-        # Wait for the summary job to complete.
-        # The summary job runs after all fleetd-* jobs finish, so this keeps the server
-        # (and tunnel) alive for the entire test duration.
-        echo "Waiting for summary job to complete..."
-        JOB_WAIT_START=$(date +%s)
-        JOB_WAIT_TIMEOUT=900 # 15 minutes
+        START=$(date +%s)
+        TIMEOUT=900 # 15 minutes
+        ENROLLED_ALL=false
         while true; do
+          ELAPSED=$(( $(date +%s) - START ))
+
+          # Check and display enrollment status
+          HOST_COUNT=$(fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tr -d ' ')
+          echo "Hosts enrolled: ${HOST_COUNT} / $EXPECTED (${ELAPSED}s)"
+          fleetctl get hosts || true
+          if [ "$HOST_COUNT" -ge "$EXPECTED" ] && [ "$ENROLLED_ALL" = "false" ]; then
+            echo "All $EXPECTED hosts enrolled!"
+            ENROLLED_ALL=true
+          fi
+
+          # Check summary job status
           JOBS_JSON=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100")
           SUMMARY_STATUS=$(echo "$JOBS_JSON" | jq -r '[.jobs[] | select(.name == "summary")] | if length > 0 then .[0].status else "not_started" end')
-          ELAPSED=$(( $(date +%s) - JOB_WAIT_START ))
-          echo "summary job status: $SUMMARY_STATUS (${ELAPSED}s)"
+          echo "Summary job status: $SUMMARY_STATUS"
           if [ "$SUMMARY_STATUS" = "completed" ]; then
             echo "Summary job completed, exiting."
             break
           fi
-          if [ "$ELAPSED" -ge "$JOB_WAIT_TIMEOUT" ]; then
-            echo "Timed out after ${JOB_WAIT_TIMEOUT}s waiting for summary job. Exiting."
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "Timed out after ${TIMEOUT}s waiting for summary job. Exiting."
             break
           fi
+
           sleep 10
         done
       env:
