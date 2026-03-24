@@ -66,9 +66,12 @@ type CreateNewAccountRequest struct {
 }
 
 type CreateNewAccountResponse struct {
-	// TODO(mna): must return the JSON account status and list of orders, 400 if account not found and only return existing
-	Nonce string
-	Err   error `json:"error,omitempty"`
+	Status string `json:"status"`
+	Orders string `json:"orders"`
+	// TODO(mna): maybe no Nonce field, always create it in the response? (unless 500, maybe)
+	Nonce    string `json:"-"`
+	Location string `json:"-"`
+	Err      error  `json:"error,omitempty"`
 }
 
 // Error implements the platform_http.Errorer interface.

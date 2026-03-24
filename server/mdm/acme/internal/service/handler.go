@@ -82,16 +82,23 @@ func getDirectoryEndpoint(ctx context.Context, request any, svc api.Service) pla
 // createAccountEndpoint handles POST /api/mdm/acme/{identifier}/new_account requests.
 func createAccountEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.JWSRequestContainer)
-	newAccountRequest := api_http.CreateNewAccountRequest{}
-	err := svc.AuthenticateNewAccountMessage(ctx, req, &newAccountRequest)
+	newAccountRequest := &api_http.CreateNewAccountRequest{}
+	err := svc.AuthenticateNewAccountMessage(ctx, req, newAccountRequest)
 	if err != nil {
 		return api_http.CreateNewAccountResponse{Err: err}
 	}
 
 	account, err := svc.CreateAccount(ctx, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
+	if err != nil {
+		return api_http.CreateNewAccountResponse{Err: err}
+	}
+	_ = account
 	// TODO(mna) Fill out the returned object with the proper URL here or in the svc so it can be returned in the Location header as per ACME spec
-	_, _ = account, err
-	panic("unimplemented")
+	return api_http.CreateNewAccountResponse{
+		Status:   "pending", // TODO(mna): proper status tracking
+		Orders:   "",
+		Location: "",
+	}
 }
 
 // createAccountEndpoint handles POST /api/mdm/acme/{identifier}/new_account requests.

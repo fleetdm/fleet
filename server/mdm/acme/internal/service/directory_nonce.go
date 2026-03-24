@@ -33,7 +33,7 @@ func (s *Service) GetDirectory(ctx context.Context, identifier string) (*types.D
 		return nil, err
 	}
 
-	baseURL := appConfig.ServerSettings.ServerURL
+	baseURL := appConfig.MDMUrl()
 	suffixes := []string{"new_nonce", "new_account", "new_order"}
 	urls := make(map[string]string, len(suffixes))
 	for _, suffix := range suffixes {

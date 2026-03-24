@@ -14,6 +14,8 @@ import (
 )
 
 func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, onlyReturnExisting bool) (*types.Account, error) {
+	const maxAccountsPerEnrollment = 3
+
 	err := platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
 		lockEnrollmentStmt := `SELECT id FROM acme_enrollments WHERE id = ? FOR UPDATE`
 		var enrollmentID uint
@@ -24,6 +26,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 			return ctxerr.Wrap(ctx, err, "lock acme enrollment")
 		}
 
+		// if the account already exists, we return it
 		findExistingAccountStmt := `SELECT id FROM acme_accounts WHERE enrollment_id = ? AND json_web_key_thumbprint = ?`
 		thumbprint, err := jose.Thumbprint(&account.JSONWebKey)
 		if err != nil {
@@ -44,16 +47,18 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 			return platform_mysql.NotFound("acme account").WithName(thumbprint)
 		}
 
+		// check if maximum number of accounts for this enrollment has been reached before creating a new one
 		countAccountsStmt := `SELECT COUNT(*) FROM acme_accounts WHERE enrollment_id = ?`
 		var accountCount int
 		err = tx.QueryRowxContext(ctx, countAccountsStmt, enrollmentID).Scan(&accountCount)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "count acme accounts for enrollment")
 		}
-		if accountCount >= 3 {
+		if accountCount >= maxAccountsPerEnrollment {
 			return ctxerr.Errorf(ctx, "account creation limit reached for enrollment id %d", enrollmentID)
 		}
 
+		// create the new account
 		jwkSerialized, err := account.JSONWebKey.MarshalJSON()
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marshal new account jwk")
@@ -64,13 +69,13 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme account")
 		}
-		lastInsertID, err := res.LastInsertId()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get last insert id")
-		}
+		lastInsertID, _ := res.LastInsertId() // can never fail with mysql
 		account.ID = uint(lastInsertID)
+
+		// TODO(mna): if the acme_enrollment has a NULL not_valid_after it should be set to a value 24 hours in the future so that now that this enrollment is being used it will expire
 		return nil
 	}, ds.logger)
+
 	if err != nil {
 		return nil, err
 	}

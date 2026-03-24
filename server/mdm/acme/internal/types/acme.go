@@ -42,12 +42,11 @@ func (a *ACMEEnrollment) IsValid() bool {
 }
 
 type Account struct {
-	ID                   uint            `db:"id" json:"-"`
-	EnrollmentID         uint            `db:"enrollment_id" json:"-"`
-	JSONWebKey           jose.JSONWebKey `db:"-"  json:"-"`
-	JSONWebKeyThumbprint string          `db:"json_web_key_thumbprint" json:"-"`
-	Status               string          `db:"-" json:"status"`
-	Revoked              bool            `db:"revoked" json:"-"`
+	ID                   uint            `db:"id"`
+	EnrollmentID         uint            `db:"enrollment_id"`
+	JSONWebKey           jose.JSONWebKey `db:"-"`
+	JSONWebKeyThumbprint string          `db:"json_web_key_thumbprint"`
+	Revoked              bool            `db:"revoked"`
 }
 
 type Order struct {

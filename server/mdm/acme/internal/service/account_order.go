@@ -9,6 +9,8 @@ import (
 )
 
 func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose.JSONWebKey, onlyReturnExisting bool) (*types.Account, error) {
+	// authorization is checked in the endpoint implementation for JWS-protected endpoints
+
 	account := &types.Account{
 		EnrollmentID: enrollmentID,
 		JSONWebKey:   jwk,
