@@ -49,6 +49,14 @@ type Account struct {
 	Revoked              bool            `db:"revoked"`
 }
 
+type AccountResponse struct {
+	CreatedAccount *Account `json:"-"`
+	Status         string   `json:"status"`
+	Contact        []string `json:"contact,omitempty"`
+	Orders         string   `json:"orders"`
+	Location       string   `json:"-"`
+}
+
 type Order struct {
 	ID                        uint         `db:"id" json:"-"`
 	AccountID                 uint         `db:"account_id" json:"-"`

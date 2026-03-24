@@ -26,6 +26,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 			return ctxerr.Wrap(ctx, err, "lock acme enrollment")
 		}
 
+		// TODO: what if it's revoked? do not return it but do not create it either?
 		// if the account already exists, we return it
 		findExistingAccountStmt := `SELECT id FROM acme_accounts WHERE enrollment_id = ? AND json_web_key_thumbprint = ?`
 		thumbprint, err := jose.Thumbprint(&account.JSONWebKey)
@@ -72,7 +73,14 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 		lastInsertID, _ := res.LastInsertId() // can never fail with mysql
 		account.ID = uint(lastInsertID)
 
-		// TODO(mna): if the acme_enrollment has a NULL not_valid_after it should be set to a value 24 hours in the future so that now that this enrollment is being used it will expire
+		// if the acme_enrollment has a NULL not_valid_after it should be set to a value
+		// 24 hours in the future so that now that this enrollment is being used it will expire
+		const updateEnrollmentStmt = `UPDATE acme_enrollments SET not_valid_after = COALESCE(not_valid_after, DATE_ADD(NOW(), INTERVAL 24 HOUR)) WHERE id = ?`
+		_, err = tx.ExecContext(ctx, updateEnrollmentStmt, enrollmentID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update acme enrollment not_valid_after")
+		}
+
 		return nil
 	}, ds.logger)
 

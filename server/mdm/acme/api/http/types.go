@@ -66,12 +66,11 @@ type CreateNewAccountRequest struct {
 }
 
 type CreateNewAccountResponse struct {
-	Status string `json:"status"`
-	Orders string `json:"orders"`
+	*types.AccountResponse
 	// TODO(mna): maybe no Nonce field, always create it in the response? (unless 500, maybe)
-	Nonce    string `json:"-"`
-	Location string `json:"-"`
-	Err      error  `json:"error,omitempty"`
+	// Find a way to automate that (generation and rendering in the headers)
+	Nonce string `json:"-"`
+	Err   error  `json:"error,omitempty"`
 }
 
 // Error implements the platform_http.Errorer interface.
@@ -79,7 +78,6 @@ func (r CreateNewAccountResponse) Error() error { return r.Err }
 
 type CreateNewOrderRequest struct {
 	types.AccountAuthenticatedRequestBase
-
 	Identifiers []types.Identifier `json:"identifiers"`
 }
 

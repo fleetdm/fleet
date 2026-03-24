@@ -8,7 +8,7 @@ import (
 	"go.step.sm/crypto/jose"
 )
 
-func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose.JSONWebKey, onlyReturnExisting bool) (*types.Account, error) {
+func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose.JSONWebKey, onlyReturnExisting bool) (*types.AccountResponse, error) {
 	// authorization is checked in the endpoint implementation for JWS-protected endpoints
 
 	account := &types.Account{
@@ -19,7 +19,13 @@ func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating account in datastore")
 	}
-	return account, nil
+
+	return &types.AccountResponse{
+		CreatedAccount: account,
+		Status:         "valid", // for now, in our implementation, always valid
+		Orders:         "",      // TODO: url to orders list
+		Location:       "",      // TODO: url to this account, which becomes the kid in subsequent requests
+	}, nil
 }
 
 func (s *Service) CreateOrder(ctx context.Context, order *types.Order) (*types.Order, error) {

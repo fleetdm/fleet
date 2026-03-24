@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
@@ -32,7 +34,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
 	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
 		return json.NewDecoder(body).Decode(req)
-	}, parseCustomTags, nil, nil, nil, requestBodySizeLimit)
+	}, parseCustomTags, isBodyDecoder, decodeBody, nil, requestBodySizeLimit)
 }
 
 // parseCustomTags handles custom URL tag values for activity requests.
@@ -42,6 +44,28 @@ func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (
 		return true, nil
 	}
 	return false, nil
+}
+
+func isBodyDecoder(v reflect.Value) bool {
+	_, ok := v.Interface().(bodyDecoder)
+	return ok
+}
+
+type bodyDecoder interface {
+	DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error
+}
+
+func decodeBody(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error {
+	bd := v.Interface().(bodyDecoder)
+	var certs []*x509.Certificate
+	if (r.TLS != nil) && (r.TLS.PeerCertificates != nil) {
+		certs = r.TLS.PeerCertificates
+	}
+
+	if err := bd.DecodeBody(ctx, body, r.URL.Query(), certs); err != nil {
+		return err
+	}
+	return nil
 }
 
 // handlerFunc is the handler function type for Activity service endpoints.

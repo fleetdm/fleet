@@ -56,7 +56,7 @@ func skipStandardFleetAuth() endpoint.Middleware {
 	}
 }
 
-// getNewNonceEndpoint handles HEAD/GET /api/mdm/acme/{identifier}/new_nonce requests.
+// getNewNonceEndpoint handles HEAD/GET/POST /api/mdm/acme/{identifier}/new_nonce requests.
 func getNewNonceEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.GetNewNonceRequest)
 	nonce, err := svc.NewNonce(ctx, req.Identifier)
@@ -69,7 +69,7 @@ func getNewNonceEndpoint(ctx context.Context, request any, svc api.Service) plat
 	}
 }
 
-// getDirectoryEndpoint handles GET /api/mdm/acme/{identifier}/directory requests.
+// getDirectoryEndpoint handles GET/POST /api/mdm/acme/{identifier}/directory requests.
 func getDirectoryEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.GetDirectoryRequest)
 	dir, err := svc.GetDirectory(ctx, req.Identifier)
@@ -88,16 +88,12 @@ func createAccountEndpoint(ctx context.Context, request any, svc api.Service) pl
 		return api_http.CreateNewAccountResponse{Err: err}
 	}
 
-	account, err := svc.CreateAccount(ctx, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
+	accountResp, err := svc.CreateAccount(ctx, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
 	if err != nil {
 		return api_http.CreateNewAccountResponse{Err: err}
 	}
-	_ = account
-	// TODO(mna) Fill out the returned object with the proper URL here or in the svc so it can be returned in the Location header as per ACME spec
 	return api_http.CreateNewAccountResponse{
-		Status:   "pending", // TODO(mna): proper status tracking
-		Orders:   "",
-		Location: "",
+		AccountResponse: accountResp,
 	}
 }
 
