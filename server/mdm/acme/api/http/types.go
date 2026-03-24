@@ -42,22 +42,23 @@ type GetNewNonceResponse struct {
 // Error implements the platform_http.Errorer interface.
 func (r *GetNewNonceResponse) Error() error { return r.Err }
 
-func (r *GetNewNonceResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	// only generate a nonce on success for this endpoint, as it's the whole
-	// point of the call - if it failed, no new nonce.
+// BeforeRender implements the beforeRenderer interface.
+func (r *GetNewNonceResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
+	// only generate a new nonce if there are no error for this endpoint.
 	if r.Err == nil {
 		if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
 			r.Err = err
 			return
 		}
 	}
+}
 
+func (r *GetNewNonceResponse) Status() int {
 	if r.HTTPMethod == http.MethodHead {
-		w.WriteHeader(http.StatusOK)
-		return
+		return http.StatusOK
 	}
 	// for GET/POST-as-GET, return 204
-	w.WriteHeader(http.StatusNoContent)
+	return http.StatusNoContent
 }
 
 type GetDirectoryRequest struct {
@@ -88,6 +89,7 @@ type CreateNewAccountResponse struct {
 	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
 }
 
+// BeforeRender implements the beforeRenderer interface.
 func (r *CreateNewAccountResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
 	// TODO(mna): do not generate a nonce on 500s?
 	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
@@ -95,6 +97,9 @@ func (r *CreateNewAccountResponse) BeforeRender(ctx context.Context, w http.Resp
 		return
 	}
 }
+
+// Status implements the statuser interface.
+func (r *CreateNewAccountResponse) Status() int { return http.StatusCreated }
 
 // Error implements the platform_http.Errorer interface.
 func (r *CreateNewAccountResponse) Error() error { return r.Err }
