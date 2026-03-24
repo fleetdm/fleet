@@ -66,7 +66,7 @@ func TestListHostReports(t *testing.T) {
 	}
 
 	var capturedTeamID *uint
-	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 		capturedTeamID = tID
 		return sampleReports, len(sampleReports), nil, nil
 	}
@@ -173,7 +173,7 @@ func TestListHostReportsDatastorePassthrough(t *testing.T) {
 	capturedTeamID := (*uint)(nil)
 	capturedOpts := fleet.ListHostReportsOptions{}
 
-	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 		capturedHostID = hostID
 		capturedTeamID = tID
 		capturedOpts = opts
