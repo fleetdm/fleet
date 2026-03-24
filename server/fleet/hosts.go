@@ -1089,6 +1089,8 @@ var HostLinuxOSs = []string{
 	"tuxedo",
 	"neon",
 	"archarm",
+	"flatcar",
+	"coreos",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1101,6 +1103,8 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"endeavouros": {},
 	"manjaro":     {},
 	"manjaro-arm": {},
+	"flatcar":     {},
+	"coreos":      {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages

@@ -13,6 +13,7 @@ parasails.registerPage('basic-whitepaper', {
       firstName: {required: true},
       lastName: {required: true},
     },
+    formDataToPrefillForLoggedInUsers: {},
     formErrors: {},
     syncing: false,
     cloudError: '',
@@ -43,6 +44,14 @@ parasails.registerPage('basic-whitepaper', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     submittedDownloadForm: async function () {
+      if(typeof qualified !== 'undefined') {
+        qualified('saveFormData',
+        {
+          email: this.formData.emailAddress,
+          name: this.formData.firstName+' '+this.formData.lastName,
+        });
+        qualified('showFormExperience', 'experience-1772126772950');
+      }
       let pdfDownloadLink = document.createElement('a');
       pdfDownloadLink.href = `/pdfs/${this.thisPage.meta.whitepaperFilename}`;
       pdfDownloadLink.download = this.thisPage.meta.whitepaperFilename;
