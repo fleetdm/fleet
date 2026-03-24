@@ -514,9 +514,12 @@ func MakeDecoder(
 				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			var maxBytesErr *http.MaxBytesError
-			if err != nil && errors.As(err, &maxBytesErr) {
-				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+			if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+				return nil, platform_http.PayloadTooLargeError{
+					ContentLength:  r.Header.Get("Content-Length"),
+					MaxRequestSize: maxRequestBodySize,
+					Gzipped:        false,
+				}
 			}
 			return ret, err
 		}
@@ -580,12 +583,13 @@ func MakeDecoder(
 							InternalErr: ace,
 						}
 					}
-
-					var maxBytesErr *http.MaxBytesError
-					if errors.As(err, &maxBytesErr) {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize, Gzipped: gzipped}
+					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+						return nil, platform_http.PayloadTooLargeError{
+							ContentLength:  r.Header.Get("Content-Length"),
+							MaxRequestSize: maxRequestBodySize,
+							Gzipped:        gzipped,
+						}
 					}
-
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
@@ -653,9 +657,12 @@ func MakeDecoder(
 					}
 				}
 
-				var maxBytesErr *http.MaxBytesError
-				if errors.As(err, &maxBytesErr) {
-					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize, Gzipped: gzipped}
+				if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+					return nil, platform_http.PayloadTooLargeError{
+						ContentLength:  r.Header.Get("Content-Length"),
+						MaxRequestSize: maxRequestBodySize,
+						Gzipped:        gzipped,
+					}
 				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
 					return nil, BadRequestErr("json decoder error", err)
