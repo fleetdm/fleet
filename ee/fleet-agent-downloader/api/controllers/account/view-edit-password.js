@@ -18,7 +18,9 @@ module.exports = {
 
   fn: async function () {
 
-    return {};
+    return {
+      replaceBuiltInAuthWithOkta: (sails.config.custom.oktaClientSecret !== undefined),
+    };
 
   }
 

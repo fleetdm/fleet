@@ -16,6 +16,11 @@ module.exports = async function (req, res, proceed) {
   // > For more about where `req.me` comes from, check out this app's
   // > custom hook (`api/hooks/custom/index.js`).
   if (req.me) {
+    if(sails.config.custom.oktaClientSecret){
+      if(req.isUnauthenticated()){
+        return res.unauthorized();
+      }
+    }
     return proceed();
   }
 

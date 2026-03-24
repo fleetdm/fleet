@@ -1,5 +1,69 @@
 #welcome {
 
-  //…
+  h1 {
+    color: var(--Core-Fleet-Black, #192147);
+
+    /* large */
+    font-family: var(--font-family-title, Inter);
+    font-size: var(--font-size-l, 24px);
+    font-style: normal;
+    font-weight: 600;
+    line-height: var(--font-line-height-l, 36px); /* 150% */
+    margin-bottom: 24px;
+  }
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    display: flex;
+    width: 1400px;
+    // min-height: 1100px;
+    padding: 48px 32px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  p {
+    color: var(--UI-Fleet-Black-75, #515774);
+
+    /* small */
+    font-family: var(--font-family-body, Inter);
+    font-size: var(--font-size-s, 14px);
+    font-style: normal;
+    font-weight: 400;
+    line-height: var(--font-line-height-s, 21px); /* 150% */
+    margin-bottom: 0px;
+  }
+  [purpose='download-button'] {
+    margin-top: 8px;
+    width: 100px;
+    display: flex;
+    padding: var(--pad-small, 8px) var(--pad-medium, 16px);
+    justify-content: center;
+    align-items: center;
+    gap: var(--pad-small, 8px);
+    border-radius: var(--xs, 4px);
+    background: var(--Core-Fleet-Green, #009A7D);
+    color: var(--Core-White, #FFF);
+    text-align: center;
+
+    /* small-bold */
+    font-family: var(--font-family-body, Inter);
+    font-size: var(--font-size-s, 14px);
+    font-style: normal;
+    font-weight: 600;
+    line-height: var(--font-line-height-s, 21px); /* 150% */
+    cursor: pointer;
+  }
+
+  [purpose='logo'] {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    img {
+      width: 69px;
+      height: 24px;
+
+    }
+  }
 
 }

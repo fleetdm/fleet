@@ -36,6 +36,10 @@ actually logged in.  (If they weren't, then this action is just a no-op.)`,
 
     // Clear the `userId` property from this session.
     delete this.req.session.userId;
+    if(sails.config.custom.oktaClientSecret){
+      // If the Okta SSO hook is enabled, we'll call the req.logOut() method before redirecting them to the homepage.;
+      this.req.logOut();
+    }
 
     // Broadcast a message that we can display in other open tabs.
     if (sails.hooks.sockets) {

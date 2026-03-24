@@ -7,7 +7,7 @@ let replaceBuiltInAuthWithOkta = (sails.config.custom.oktaClientSecret !== undef
 if(typeof replaceBuiltInAuthWithOkta === 'undefined') {
 // In case we're displaying the 404 or 500 page and relevant code in the "custom" hook was not able to run,
 // we make sure `me` exists.  This ensures we don't have to do `typeof` checks below.
-
+}
 %><!DOCTYPE html>
 <html>
   <head>
@@ -21,7 +21,9 @@ if(typeof replaceBuiltInAuthWithOkta === 'undefined') {
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
     load.) */ %>
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
@@ -44,10 +46,14 @@ if(typeof replaceBuiltInAuthWithOkta === 'undefined') {
 
     <% /* Auto-injected «link» tags: */ %>
     <!--STYLES-->
+    <link rel="stylesheet" href="/dependencies/bootstrap-4/bootstrap-4.css">
+    <link rel="stylesheet" href="/dependencies/fontawesome.css">
+    <link rel="stylesheet" href="/styles/importer.css">
     <!--STYLES END-->
   </head>
   <body>
     <div purpose="page-wrap">
+      <% if(false) {%>
       <header class="navbar navbar-expand-sm navbar-dark bg-dark flex-column flex-md-row justify-content-between" purpose="page-header">
         <a style="cursor: pointer;" class="navbar-brand mr-0" href="/"><img style="height: 20px;" class="logo" alt="NEW_APP_NAME logo" src="/images/logo.png"/></a>
         <div class="navbar-nav flex-row">
@@ -63,7 +69,7 @@ if(typeof replaceBuiltInAuthWithOkta === 'undefined') {
           <% } %>
         </div>
       </header>
-
+      <% } %>
       <%- body %>
 
       <footer class="navbar navbar-light justify-content-between flex-row-reverse" purpose="page-footer">
@@ -98,6 +104,25 @@ if(typeof replaceBuiltInAuthWithOkta === 'undefined') {
 
     <% /* Auto-injected «script» tags: */ %>
     <!--SCRIPTS-->
+    <script src="/dependencies/sails.io.js"></script>
+    <script src="/dependencies/lodash.js"></script>
+    <script src="/dependencies/jquery.min.js"></script>
+    <script src="/dependencies/vue.js"></script>
+    <script src="/dependencies/vue-router.js"></script>
+    <script src="/dependencies/bootstrap-4/bootstrap-4.bundle.js"></script>
+    <script src="/dependencies/cloud.js"></script>
+    <script src="/dependencies/parasails.js"></script>
+    <script src="/js/cloud.setup.js"></script>
+    <script src="/js/components/account-notification-banner.component.js"></script>
+    <script src="/js/components/ajax-button.component.js"></script>
+    <script src="/js/components/ajax-form.component.js"></script>
+    <script src="/js/components/cloud-error.component.js"></script>
+    <script src="/js/utilities/open-stripe-checkout.js"></script>
+    <script src="/js/pages/account/account-overview.page.js"></script>
+    <script src="/js/pages/account/edit-password.page.js"></script>
+    <script src="/js/pages/account/edit-profile.page.js"></script>
+    <script src="/js/pages/dashboard/welcome.page.js"></script>
+    <script src="/js/pages/homepage.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
