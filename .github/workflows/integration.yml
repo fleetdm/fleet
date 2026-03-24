@@ -134,7 +134,7 @@ jobs:
           sleep 1
         done
         echo "Success! $EXPECTED hosts enrolled."
-        sleep 60 # Wait to allow clients to confirm their enrollment
+        sleep 120 # Wait to allow clients to confirm their enrollment
 
     - name: Show enrolled hosts
       if: always()
