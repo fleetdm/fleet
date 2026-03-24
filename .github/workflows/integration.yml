@@ -15,8 +15,6 @@ on:
         default: 0
   schedule:
   - cron: '0 5 * * *' # Nightly 5AM UTC
-  - cron: '0 6 * * *' # Nightly 6AM UTC
-  - cron: '0 7 * * *' # Nightly 7AM UTC
   pull_request:
     paths:
       - '.github/workflows/integration.yml'
