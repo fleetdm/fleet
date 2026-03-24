@@ -46,7 +46,9 @@ func TestUp_20260324161944(t *testing.T) {
 
 	var patchQuery string
 	require.NoError(t, db.Get(&patchQuery, `SELECT patch_query FROM software_installers WHERE id = ?`, installer1))
+	require.Equal(t, "", patchQuery)
 	require.NoError(t, db.Get(&patchQuery, `SELECT patch_query FROM software_installers WHERE id = ?`, installer2))
+	require.Equal(t, "", patchQuery)
 	require.NoError(t, db.Get(&timestamp2, `SELECT updated_at FROM software_installers WHERE id = ?`, installer1))
 	require.Equal(t, timestamp, timestamp2)
 

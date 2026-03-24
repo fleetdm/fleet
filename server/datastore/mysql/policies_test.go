@@ -7638,6 +7638,42 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 
 	_, err = ds.GetPatchPolicy(ctx, &team1.ID, titleID2)
 	require.True(t, fleet.IsNotFound(err))
+
+	maintainedApp2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained2",
+		Slug:             "maintained2",
+		Platform:         "windows",
+		UniqueIdentifier: "fleet.maintained2",
+	})
+	require.NoError(t, err)
+
+	payload3 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage2",
+		Filename:             "maintained2",
+		Title:                "Maintained2",
+		Version:              "1.0",
+		Source:               "programs",
+		Platform:             "windows",
+		BundleIdentifier:     "fleet.maintained2",
+		UserID:               user1.ID,
+		TeamID:               &team1.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp2.ID,
+	}
+	_, titleID3, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), payload3)
+	require.NoError(t, err)
+
+	p5, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Type:                 fleet.PolicyTypePatch,
+		PatchSoftwareTitleID: &titleID3,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Windows - Maintained2 up to date", p5.Name)
+	require.Equal(t, "windows", p5.Platform)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Maintained2' AND version_compare(version, '1.0') < 0);", p5.Query)
 }
 
 func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {

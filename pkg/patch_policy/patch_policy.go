@@ -74,7 +74,7 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 		if installer.PatchQuery == "" {
 			// TODO: use upgrade code to improve accuracy?
 			query = fmt.Sprintf(
-				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);",
 				installer.SoftwareTitle,
 				installer.Version,
 			)
