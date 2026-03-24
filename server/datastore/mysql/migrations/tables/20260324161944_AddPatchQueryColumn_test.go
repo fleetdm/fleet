@@ -2,6 +2,7 @@ package tables
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -37,10 +38,16 @@ func TestUp_20260324161944(t *testing.T) {
 	installer1 := execNoErrLastID(t, db, insertInstallerStmt, title1, "app1.pkg", scriptID, scriptID)
 	installer2 := execNoErrLastID(t, db, insertInstallerStmt, title2, "app2.pkg", scriptID, scriptID)
 
+	var timestamp, timestamp2 time.Time
+	require.NoError(t, db.Get(&timestamp, `SELECT updated_at FROM software_installers WHERE id = ?`, installer1))
+
 	// Apply current migration.
 	applyNext(t, db)
 
 	var patchQuery string
 	require.NoError(t, db.Get(&patchQuery, `SELECT patch_query FROM software_installers WHERE id = ?`, installer1))
 	require.NoError(t, db.Get(&patchQuery, `SELECT patch_query FROM software_installers WHERE id = ?`, installer2))
+	require.NoError(t, db.Get(&timestamp2, `SELECT updated_at FROM software_installers WHERE id = ?`, installer1))
+	require.Equal(t, timestamp, timestamp2)
+
 }
