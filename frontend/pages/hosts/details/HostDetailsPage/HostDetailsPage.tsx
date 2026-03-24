@@ -766,7 +766,7 @@ const HostDetailsPage = ({
   const resendProfile = useCallback(
     (profileUUID: string): Promise<void> => {
       if (!host?.id) {
-        return new Promise(() => undefined);
+        return Promise.resolve();
       }
       return hostAPI.resendProfile(host.id, profileUUID);
     },
@@ -776,7 +776,7 @@ const HostDetailsPage = ({
   const resendCertificate = useCallback(
     (certificateTemplateId: number): Promise<void> => {
       if (!host?.id) {
-        return new Promise(() => undefined);
+        return Promise.resolve();
       }
       return hostAPI.resendCertificate(host.id, certificateTemplateId);
     },
