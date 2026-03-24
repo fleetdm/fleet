@@ -107,7 +107,7 @@ describe("FleetDesktop", () => {
         gitops: {
           gitops_mode_enabled: true,
           repository_url: "",
-          exceptions: { labels: false, software: false, secrets: true },
+          exceptions: { labels: false, software: false, secrets: false },
         },
       });
 
