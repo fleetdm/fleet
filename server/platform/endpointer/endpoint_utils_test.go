@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -317,6 +318,10 @@ type testGzipRequestType struct {
 	Data string `json:"data"`
 }
 
+type testGzipBodyDecoderType struct {
+	Data string `json:"data"`
+}
+
 func TestMakeDecoderGzipBomb(t *testing.T) {
 	const limit = 100
 
@@ -351,6 +356,41 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 		result, err := makeDecoder()(context.Background(), r)
 		require.NoError(t, err)
 		rd, ok := result.(*testGzipRequestType)
+		require.True(t, ok)
+		assert.Equal(t, "hi", rd.Data)
+	})
+
+	// Sub-tests for the bodyDecoder (DecodeBody) code path, where isBodyDecoder
+	// returns true and decodeBody is called instead of jsonUnmarshal.
+	isBodyDecoder := func(v reflect.Value) bool {
+		_, ok := v.Interface().(*testGzipBodyDecoderType)
+		return ok
+	}
+	decodeBodyFn := func(_ context.Context, _ *http.Request, v reflect.Value, body io.Reader) error {
+		bd := v.Interface().(*testGzipBodyDecoderType)
+		return json.NewDecoder(body).Decode(bd)
+	}
+	makeBodyDecoder := func() kithttp.DecodeRequestFunc {
+		return MakeDecoder(testGzipBodyDecoderType{}, defaultJSONUnmarshal, nil, isBodyDecoder, decodeBodyFn, nil, limit)
+	}
+
+	t.Run("DecodeBody gzip bomb exceeding decompressed limit returns 413", func(t *testing.T) {
+		big := `{"data":"` + strings.Repeat("x", limit*10) + `"}`
+		r := httptest.NewRequest("POST", "/", gzipBody(big))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makeBodyDecoder()(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "gzip bomb via DecodeBody must produce PayloadTooLargeError, got: %v", err)
+		assert.True(t, ple.Gzipped, "PayloadTooLargeError from gzip bomb must have Gzipped set")
+	})
+
+	t.Run("DecodeBody valid gzip body within limit is decoded successfully", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		result, err := makeBodyDecoder()(context.Background(), r)
+		require.NoError(t, err)
+		rd, ok := result.(*testGzipBodyDecoderType)
 		require.True(t, ok)
 		assert.Equal(t, "hi", rd.Data)
 	})
