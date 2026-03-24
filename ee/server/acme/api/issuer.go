@@ -66,10 +66,4 @@ type CertificateIssuer interface {
 	//   EAB-authenticated clients, no upstream challenges are needed.
 	// For local CA: Fleet signs the CSR with its embedded CA key.
 	IssueCertificate(ctx context.Context, csr *x509.CertificateRequest, order *Order) (*IssuedCertificate, error)
-
-	// RevokeCertificate revokes a previously issued certificate.
-	//
-	// For relay: Fleet revokes on the upstream CA.
-	// For local CA: Fleet marks the certificate as revoked locally.
-	RevokeCertificate(ctx context.Context, cert *x509.Certificate, reason int) error
 }

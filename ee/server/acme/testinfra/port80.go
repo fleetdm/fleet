@@ -2,7 +2,9 @@
 package testinfra
 
 import (
+	"errors"
 	"net"
+	"os"
 	"testing"
 	"time"
 )
@@ -42,8 +44,5 @@ func ListenPort80(t *testing.T) (net.Listener, bool) {
 }
 
 func isPermissionError(err error) bool {
-	if opErr, ok := err.(*net.OpError); ok {
-		return opErr.Err.Error() == "bind: permission denied"
-	}
-	return false
+	return errors.Is(err, os.ErrPermission)
 }

@@ -2,6 +2,7 @@ package testinfra
 
 import (
 	"net/http"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/ee/server/acme/testinfra/acmeclient"
@@ -50,8 +51,9 @@ func TestACMEEndToEnd(t *testing.T) {
 	_, err = client.RegisterAccount("mailto:test@example.com")
 	require.NoError(t, err)
 
+	var mu sync.Mutex
 	challengeResponses := make(map[string]string)
-	challengeServer := startChallengeServer(t, challengeResponses)
+	challengeServer := startChallengeServer(t, &mu, challengeResponses)
 	defer challengeServer.Close()
 
 	domain := "localhost"
@@ -62,7 +64,9 @@ func TestACMEEndToEnd(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		mu.Lock()
 		challengeResponses[path] = resp
+		mu.Unlock()
 		return nil
 	})
 	require.NoError(t, err, "full ACME flow failed")
@@ -79,7 +83,7 @@ func TestACMEEndToEnd(t *testing.T) {
 		leaf.Subject.CommonName, leaf.SerialNumber, len(certs), len(pemData))
 }
 
-func startChallengeServer(t *testing.T, responses map[string]string) *http.Server {
+func startChallengeServer(t *testing.T, mu *sync.Mutex, responses map[string]string) *http.Server {
 	t.Helper()
 
 	listener, ok := ListenPort80(t)
@@ -89,7 +93,10 @@ func startChallengeServer(t *testing.T, responses map[string]string) *http.Serve
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/acme-challenge/", func(w http.ResponseWriter, r *http.Request) {
-		if resp, ok := responses[r.URL.Path]; ok {
+		mu.Lock()
+		resp, ok := responses[r.URL.Path]
+		mu.Unlock()
+		if ok {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Write([]byte(resp))
 		} else {

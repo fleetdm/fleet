@@ -126,8 +126,6 @@ func (s *Server) handleDirectory(w http.ResponseWriter, _ *http.Request, caName 
 		"newNonce":   base + "/new-nonce",
 		"newAccount": base + "/new-account",
 		"newOrder":   base + "/new-order",
-		"revokeCert": base + "/revoke-cert",
-		"keyChange":  base + "/key-change",
 	}
 	s.writeJSON(w, http.StatusOK, dir)
 }
@@ -154,7 +152,10 @@ func (s *Server) handleNewAccount(w http.ResponseWriter, r *http.Request, caName
 		Contact []string `json:"contact"`
 	}
 	if len(payload) > 0 {
-		json.Unmarshal(payload, &req)
+		if err := json.Unmarshal(payload, &req); err != nil {
+			s.writeACMEError(w, http.StatusBadRequest, "urn:ietf:params:acme:error:malformed", "invalid account request")
+			return
+		}
 	}
 
 	acct := s.store.CreateAccount(req.Contact)
@@ -244,7 +245,11 @@ func (s *Server) handleChallenge(w http.ResponseWriter, r *http.Request, caName,
 
 	// If POST with payload, this is a challenge response from the device
 	if r.Method == "POST" {
-		payload, _ := s.readPayload(r)
+		payload, err := s.readPayload(r)
+		if err != nil {
+			s.writeACMEError(w, http.StatusBadRequest, "urn:ietf:params:acme:error:malformed", err.Error())
+			return
+		}
 		ch.Payload = payload
 
 		issuer := s.issuers[caName]

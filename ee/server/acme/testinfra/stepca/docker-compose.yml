@@ -1,7 +1,7 @@
 ---
-# Local step-ca instance for ACME proxy testing.
+# Local step-ca instance for ACME testing.
 # Usage:
-#   docker compose -f server/mdm/acmeproxy/internal/testinfra/stepca/docker-compose.yml up -d
+#   docker compose -f ee/server/acme/testinfra/stepca/docker-compose.yml up -d
 #
 # The CA is initialized on first run with an ACME provisioner.
 # Directory URL: https://localhost:${STEP_CA_PORT:-9443}/acme/acme/directory
@@ -16,12 +16,14 @@ services:
       - |
         # Only initialize if not already done
         if [ ! -f /home/step/config/ca.json ]; then
+          mkdir -p /home/step/secrets
+          echo "testpassword" > /home/step/secrets/password
           step ca init \
             --name="Fleet ACME Test CA" \
             --provisioner="admin" \
             --dns="localhost" \
             --address=":9443" \
-            --password-file=/dev/stdin <<< "testpassword"
+            --password-file=/home/step/secrets/password
 
           # Add an ACME provisioner
           step ca provisioner add acme --type ACME

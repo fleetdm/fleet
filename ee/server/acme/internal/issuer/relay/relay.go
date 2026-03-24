@@ -37,6 +37,7 @@ type upstreamCA struct {
 	config     *api.CAConfig
 	acmeClient *acme.Client
 	account    *acme.Account // lazily registered
+	accountMu  sync.Mutex    // serializes account registration
 }
 
 // New creates a new relay backend.
@@ -166,12 +167,6 @@ func (b *Backend) IssueCertificate(ctx context.Context, csr *x509.CertificateReq
 	return result, nil
 }
 
-// RevokeCertificate revokes a certificate on the upstream CA.
-func (b *Backend) RevokeCertificate(ctx context.Context, cert *x509.Certificate, reason int) error {
-	// TODO: Determine which upstream CA issued this cert and revoke it.
-	return fmt.Errorf("revocation not yet implemented")
-}
-
 // HTTP01ChallengeResponse returns the key authorization for an http-01 challenge
 // token for the given CA. This is needed for http-01 challenge validation where
 // the relay must serve the correct response at /.well-known/acme-challenge/<token>.
@@ -217,6 +212,9 @@ func (b *Backend) completeAuthorization(ctx context.Context, upstream *upstreamC
 }
 
 func (b *Backend) ensureAccount(ctx context.Context, upstream *upstreamCA) error {
+	upstream.accountMu.Lock()
+	defer upstream.accountMu.Unlock()
+
 	if upstream.account != nil {
 		return nil
 	}
@@ -250,16 +248,13 @@ func (b *Backend) ensureAccount(ctx context.Context, upstream *upstreamCA) error
 }
 
 func selectChallenge(challenges []*acme.Challenge) (*acme.Challenge, error) {
-	// Prefer http-01 for testing
+	// Only accept challenge types we can complete.
 	for _, ch := range challenges {
 		if ch.Type == "http-01" {
 			return ch, nil
 		}
 	}
-	if len(challenges) > 0 {
-		return challenges[0], nil
-	}
-	return nil, fmt.Errorf("no challenges available")
+	return nil, fmt.Errorf("no supported challenge type found (need http-01)")
 }
 
 func buildHTTPClient(cfg *api.CAConfig) (*http.Client, error) {

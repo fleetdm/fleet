@@ -288,8 +288,10 @@ func (s *Store) CheckOrderReady(orderID string) {
 	}
 }
 
-func randomID(bytes int) string {
-	b := make([]byte, bytes)
-	rand.Read(b)
+func randomID(n int) string {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand.Read failed: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }

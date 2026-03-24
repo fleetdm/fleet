@@ -264,9 +264,6 @@ func (n *noopIssuer) ValidateChallenge(_ gocontext.Context, _ *api.Challenge, _ 
 func (n *noopIssuer) IssueCertificate(_ gocontext.Context, _ *x509.CertificateRequest, _ *api.Order) (*api.IssuedCertificate, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (n *noopIssuer) RevokeCertificate(_ gocontext.Context, _ *x509.Certificate, _ int) error {
-	return nil
-}
 
 // startTestServer creates an ACME server with TLS, wired to the given issuer.
 // If issuer is nil, a noop issuer is used.

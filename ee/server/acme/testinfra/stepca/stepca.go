@@ -33,7 +33,7 @@ type Server struct {
 func New(t *testing.T) *Server {
 	t.Helper()
 
-	if _, ok := os.LookupEnv("ACME_TEST"); !ok {
+	if os.Getenv("ACME_TEST") != "1" {
 		t.Skip("set ACME_TEST=1 to run ACME integration tests")
 	}
 
@@ -50,11 +50,12 @@ func New(t *testing.T) *Server {
 		containerName: containerName,
 	}
 
-	s.start(t)
-
+	// Register cleanup before start so containers are removed even if start fails.
 	t.Cleanup(func() {
 		s.stop(t)
 	})
+
+	s.start(t)
 
 	return s
 }
@@ -170,6 +171,7 @@ func (s *Server) waitReady(t *testing.T, ctx context.Context) {
 
 	client := s.HTTPClient()
 	deadline := time.Now().Add(60 * time.Second)
+	var lastErr error
 
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(s.DirectoryURL())
@@ -179,16 +181,16 @@ func (s *Server) waitReady(t *testing.T, ctx context.Context) {
 				return
 			}
 		}
+		lastErr = err
 		select {
 		case <-ctx.Done():
-			// Grab container logs for debugging
 			logs, _ := exec.Command("docker", "logs", s.containerName).CombinedOutput()
-			t.Fatalf("step-ca failed to start (context deadline): %s\nlogs: %s", err, string(logs))
+			t.Fatalf("step-ca failed to start (context deadline): %v\nlogs: %s", lastErr, string(logs))
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
 	logs, _ := exec.Command("docker", "logs", s.containerName).CombinedOutput()
-	t.Fatalf("step-ca failed to become ready within 60s\nlogs: %s", string(logs))
+	t.Fatalf("step-ca failed to become ready within 60s: %v\nlogs: %s", lastErr, string(logs))
 }
 
 func (s *Server) stop(t *testing.T) {

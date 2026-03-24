@@ -68,10 +68,6 @@ type Challenge struct {
 	// Payload is the device's challenge response (e.g., attestation statement).
 	// Set when the device responds to the challenge.
 	Payload []byte
-	// ValidatedAt is when the challenge was successfully validated.
-	ValidatedAt *time.Time
-	// Error is set if the challenge validation failed.
-	Error string
 }
 
 // IssuedCertificate contains the result of certificate issuance.
