@@ -149,7 +149,8 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
 	}
-	req.Identifier = u.Get("identifier")
+	// Note: req.Identifier is set from the mux path variable by the framework
+	// (via the `url:"identifier"` struct tag), so we don't set it here.
 	jws, err := jose.ParseJWS(string(jwsBytes))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing jws")
@@ -165,6 +166,8 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	if jws.Signatures[0].Protected.JSONWebKey == nil && jws.Signatures[0].Protected.KeyID == "" {
 		return ctxerr.New(ctx, "jws must have a key or key ID in the protected header")
 	}
+
+	req.JWS = *jws
 
 	if jws.Signatures[0].Protected.JSONWebKey != nil {
 		req.Key = jws.Signatures[0].Protected.JSONWebKey
