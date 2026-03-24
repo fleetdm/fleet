@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	acmepkg "github.com/fleetdm/fleet/v4/ee/server/acme"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
@@ -1310,6 +1311,57 @@ func RegisterSCEPProxy(
 	// Not using OTEL dynamic wrapper so as not to expose {identifier} in the span name
 	scepHandler = otel.WrapHandler(scepHandler, apple_mdm.SCEPProxyPath, *fleetConfig)
 	rootMux.Handle(apple_mdm.SCEPProxyPath, scepHandler)
+	return nil
+}
+
+// RegisterACMEProxy sets up the ACME proxy/relay endpoints on the root mux.
+// It loads ACME CA configurations from the datastore and creates relay backends
+// for each. The ACME server handles the device-facing ACME protocol and
+// delegates certificate issuance to the relay backends.
+func RegisterACMEProxy(
+	rootMux *http.ServeMux,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	serverURL string,
+) error {
+	acmeLogger := logger.With("component", "acme-proxy")
+
+	acmeServer := acmepkg.NewServer(serverURL, acmeLogger)
+	relayBackend := acmepkg.NewRelayBackend(acmeLogger)
+
+	// Load ACME CA configurations from the datastore.
+	cas, err := ds.GetAllCertificateAuthorities(context.Background(), true)
+	if err != nil {
+		acmeLogger.Error("failed to load certificate authorities", "err", err)
+	} else {
+		for _, ca := range cas {
+			if ca.Type != string(fleet.CATypeACMEProxy) {
+				continue
+			}
+			if ca.Name == nil || ca.URL == nil {
+				continue
+			}
+			cfg := &acmepkg.CAConfig{
+				Name:         *ca.Name,
+				Type:         "relay",
+				DirectoryURL: *ca.URL,
+			}
+			if ca.Username != nil {
+				cfg.EABKeyID = *ca.Username
+			}
+			if ca.Password != nil {
+				cfg.EABHMACKey = *ca.Password
+			}
+			if err := relayBackend.AddCA(cfg); err != nil {
+				acmeLogger.Error("failed to add ACME CA", "ca", *ca.Name, "err", err)
+				continue
+			}
+			acmeServer.RegisterIssuer(*ca.Name, relayBackend)
+		}
+	}
+
+	rootMux.Handle(acmepkg.PathPrefix, acmeServer)
+	acmeLogger.Info("ACME proxy registered", "path", acmepkg.PathPrefix)
 	return nil
 }
 

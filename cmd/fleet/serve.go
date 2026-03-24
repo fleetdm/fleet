@@ -1599,6 +1599,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
 			initFatal(err, "setup SCIM")
 		}
+		// ACME proxy/relay for external CA certificate issuance
+		if err = service.RegisterACMEProxy(rootMux, ds, logger, appCfg.ServerSettings.ServerURL); err != nil {
+			initFatal(err, "setup ACME proxy")
+		}
 		// Host identify and conditional access SCEP feature only works if a private key has been set up
 		if len(config.Server.PrivateKey) > 0 {
 			hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(logger.With("component", "host-id-scep-depot"), &config)
