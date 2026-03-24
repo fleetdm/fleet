@@ -115,7 +115,7 @@ jobs:
         echo "Fleet server is responding"
         
         # Wait for all hosts to enroll, then keep the server alive until the summary job completes.
-        EXPECTED=32 # This needs to be updated when the matrix strategies are updated.
+        EXPECTED=48 # This needs to be updated when the matrix strategies are updated.
         START=$(date +%s)
         TIMEOUT=900 # 15 minutes
         ENROLLED_ALL=false
@@ -236,7 +236,8 @@ jobs:
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
-    runs-on: macos-latest
+        runner: [ 'macos-15', 'macos-15-intel' ]
+    runs-on: ${{ matrix.runner }}
     needs: [gen, login]
     steps:
     - name: Install fleetctl
@@ -257,7 +258,8 @@ jobs:
 
     - name: Install fleetd
       run: |
-        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
+        ARCH=$(uname -m)
+        sudo hostname macos-${ARCH}-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
@@ -337,7 +339,7 @@ jobs:
     - name: Install Orbit
       run: |
         ARCH=$(uname -m)
-        sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}-${ARCH}
+        sudo hostname ubuntu-${ARCH}-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
@@ -387,8 +389,9 @@ jobs:
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
+        runner: [ 'windows-11', 'windows-11-arm' ]
     needs: [gen, login]
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
     steps:
     # We need to use some shenanigans to rename the Windows computer without restarting. Note: Windows computers should not get names longer than 15 characters (confirmed this breaks networking).
     - name: Rename computer
@@ -397,7 +400,8 @@ jobs:
         $orbit = "${{ matrix.orbit-channel }}"
         $osqueryd = "${{ matrix.osqueryd-channel }}"
         $desktop = "${{ matrix.desktop-channel }}"
-        $ComputerName = "win-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
+        $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'a' } else { 'x' }
+        $ComputerName = "win--$arch-$($orbit[0])-$($osqueryd[0])-$($desktop[0])
         echo "Setting computer name to $ComputerName"
         
         Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" 
