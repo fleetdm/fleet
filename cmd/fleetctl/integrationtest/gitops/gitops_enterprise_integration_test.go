@@ -931,7 +931,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabe
 agent_options:
 labels:
   - name: Label1
-	query: select 1
+    query: select 1
 controls:
   macos_settings:
     custom_settings:
@@ -1047,7 +1047,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabels(
 	const (
 		globalTemplate = `
 agent_options:
-label:
+labels:
   - name: Label1
     query: select 1
 controls:
