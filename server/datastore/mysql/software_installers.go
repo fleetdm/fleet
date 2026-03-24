@@ -3473,7 +3473,7 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.storage_id = ? %s
+	si.storage_id = ? AND si.is_active = 1 %s
 
 UNION ALL
 
