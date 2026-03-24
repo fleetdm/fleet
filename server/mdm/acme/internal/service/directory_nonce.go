@@ -17,7 +17,7 @@ func (s *Service) NewNonce(ctx context.Context, identifier string) (string, erro
 	}
 
 	// authentication is via the identifier, that must exist as a valid ACME enrollment
-	if err := s.authenticateWithACMEEnrollment(ctx, identifier); err != nil {
+	if _, err := s.authenticateWithACMEEnrollment(ctx, identifier); err != nil {
 		return "", err
 	}
 
@@ -35,7 +35,7 @@ func (s *Service) GetDirectory(ctx context.Context, identifier string) (*types.D
 	}
 
 	// authentication is via the identifier, that must exist as a valid ACME enrollment
-	if err := s.authenticateWithACMEEnrollment(ctx, identifier); err != nil {
+	if _, err := s.authenticateWithACMEEnrollment(ctx, identifier); err != nil {
 		return nil, err
 	}
 

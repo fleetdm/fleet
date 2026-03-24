@@ -43,6 +43,11 @@ func (r *RedisNoncesStore) Store(ctx context.Context, nonce string, expireTime t
 // Consume validates and consumes the nonce, ensuring it does exist, and then removing
 // it from the store so it can't be used again.
 func (r *RedisNoncesStore) Consume(ctx context.Context, nonce string) (ok bool, err error) {
+	// fast path if the nonce is missing
+	if nonce == "" {
+		return false, nil
+	}
+
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 

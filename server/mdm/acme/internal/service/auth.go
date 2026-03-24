@@ -8,26 +8,27 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-jose/go-jose/v3"
 )
 
-func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier string) error {
+func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier string) (*types.ACMEEnrollment, error) {
 	enrollment, err := s.store.GetACMEEnrollment(ctx, identifier)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !enrollment.IsValid() {
-		return ctxerr.Wrap(ctx, common_mysql.NotFound("ACME enrollment").WithName(identifier))
+		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("ACME enrollment").WithName(identifier))
 	}
-	return nil
+	return enrollment, nil
 }
 
-func (s *Service) authenticateNewAccountMessage(ctx context.Context, message api_http.JWSRequestContainer, request *api_http.CreateNewAccountRequest) error {
+func (s *Service) AuthenticateNewAccountMessage(ctx context.Context, message *api_http.JWSRequestContainer, request *api_http.CreateNewAccountRequest) error {
 	// Validate the JWS message includes a JWK
 	if message.Key == nil {
 		// TODO: we should always get a key here
@@ -48,22 +49,34 @@ func (s *Service) authenticateNewAccountMessage(ctx context.Context, message api
 	if message.JWS.Signatures[0].Protected.Nonce == "" {
 		return ctxerr.New(ctx, "missing nonce in JWS message")
 	}
-	// First fetch the enrollment associated with the identifier, 404 if not exists.
-	enrollment, err := s.store.GetEnrollmentByIdentifier(ctx, message.Identifier)
+
+	// authenticate the enrollment identifier from the path
+	enrollment, err := s.authenticateWithACMEEnrollment(ctx, message.Identifier)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching enrollment for identifier")
+		return err
 	}
-	if enrollment.Revoked {
-		// TODO err
+
+	// consume the nonce
+	nonce := message.JWS.Signatures[0].Protected.Nonce
+	nonceValid, err := s.nonces.Consume(ctx, nonce)
+	if !nonceValid || err != nil {
+		// TODO(mna): we should return a new nonce here as per:
+		// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.5
+		// When a server rejects a request because its nonce value was
+		// unacceptable (or not present), it MUST provide HTTP status code 400
+		// (Bad Request), and indicate the ACME error type
+		// "urn:ietf:params:acme:error:badNonce".  An error response with the
+		// "badNonce" error type MUST include a Replay-Nonce header field with a
+		// fresh nonce that the server will accept in a retry of the original
+		// query (and possibly in other requests, according to the server's
+		// nonce scoping policy).
+		err = &platform_http.BadRequestError{
+			Message:     "badNonce", // TODO(mna): some ACME-specific errors so we render them as expected by the RFC
+			InternalErr: err,
+		}
+		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
 	}
-	if enrollment.NotValidAfter.Before(time.Now()) {
-		// TODO err
-	}
-	err = s.validateAndConsumeNonce(ctx, message)
-	if err != nil {
-		// TODO make sure to return a new nonce
-		return ctxerr.Wrap(ctx, err, "invalid nonce in JWS message", "identifier", message.Identifier)
-	}
+
 	payload, err := message.JWS.Verify(message.Key)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "verifying JWS message", "identifier", message.Identifier)
@@ -72,12 +85,13 @@ func (s *Service) authenticateNewAccountMessage(ctx context.Context, message api
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling JWS payload into CreateNewAccountRequest", "identifier", message.Identifier)
 	}
+
 	request.JSONWebKey = message.Key
 	request.Enrollment = enrollment
 	return nil
 }
 
-func (s *Service) authenticateMessageFromAccount(ctx context.Context, message api_http.JWSRequestContainer, request types.AccountAuthenticatedRequest) error {
+func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message *api_http.JWSRequestContainer, request types.AccountAuthenticatedRequest) error {
 	if message.KeyID == nil || *message.KeyID == "" {
 		// TODO: we should always get a key ID here
 		return ctxerr.New(ctx, "missing JWK in JWS message")
@@ -91,22 +105,34 @@ func (s *Service) authenticateMessageFromAccount(ctx context.Context, message ap
 	default:
 		return ctxerr.New(ctx, "unsupported signature algorithm in JWS message")
 	}
-	// First fetch the enrollment associated with the identifier, 404 if not exists.
-	enrollment, err := s.store.GetEnrollmentByIdentifier(ctx, message.Identifier)
+
+	// authenticate the enrollment identifier from the path
+	enrollment, err := s.authenticateWithACMEEnrollment(ctx, message.Identifier)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching enrollment for identifier", "identifier", message.Identifier)
+		return err
 	}
-	if enrollment.Revoked {
-		// TODO err
+
+	// consume the nonce
+	nonce := message.JWS.Signatures[0].Protected.Nonce
+	nonceValid, err := s.nonces.Consume(ctx, nonce)
+	if !nonceValid || err != nil {
+		// TODO(mna): we should return a new nonce here as per:
+		// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.5
+		// When a server rejects a request because its nonce value was
+		// unacceptable (or not present), it MUST provide HTTP status code 400
+		// (Bad Request), and indicate the ACME error type
+		// "urn:ietf:params:acme:error:badNonce".  An error response with the
+		// "badNonce" error type MUST include a Replay-Nonce header field with a
+		// fresh nonce that the server will accept in a retry of the original
+		// query (and possibly in other requests, according to the server's
+		// nonce scoping policy).
+		err = &platform_http.BadRequestError{
+			Message:     "badNonce", // TODO(mna): some ACME-specific errors so we render them as expected by the RFC
+			InternalErr: err,
+		}
+		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
 	}
-	if enrollment.NotValidAfter.Before(time.Now()) {
-		// TODO err
-	}
-	err = s.validateAndConsumeNonce(ctx, message)
-	if err != nil {
-		// TODO make sure to return a new nonce
-		return ctxerr.Wrap(ctx, err, "invalid nonce in JWS message", "identifier", message.Identifier)
-	}
+
 	accountID, err := accountIDFromKeyID(ctx, *message.KeyID, message.Identifier)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing account ID from key ID")
@@ -116,6 +142,7 @@ func (s *Service) authenticateMessageFromAccount(ctx context.Context, message ap
 		// TODO not found vs other errors
 		return ctxerr.Wrap(ctx, err, "fetching account by ID")
 	}
+
 	payload, err := message.JWS.Verify(account.JSONWebKey)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "verifying JWS message", "identifier", message.Identifier)
@@ -124,6 +151,7 @@ func (s *Service) authenticateMessageFromAccount(ctx context.Context, message ap
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling JWS payload into request", "identifier", message.Identifier)
 	}
+
 	return nil
 }
 
