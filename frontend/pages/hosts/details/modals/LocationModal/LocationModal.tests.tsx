@@ -160,6 +160,6 @@ describe("LocationModal", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
   });
 });
