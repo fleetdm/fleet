@@ -188,19 +188,21 @@ jobs:
         egress-policy: audit
 
     # Login only here and share the token because otherwise we could hit rate limits.
-    - id: login
-      name: Attempt login
+    - name: Set Cloudflare DNS
       run: |
-        npm install -g fleetctl
-        fleetctl config set --address ${{ needs.gen.outputs.address }}
-
         # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
         # by Cloudflare. Apply to all non-loopback interfaces in case traffic routes
         # through one other than eth0.
         for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
           sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
         done
-        
+
+    - id: login
+      name: Attempt login
+      run: |
+        npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }}
+
         # Wait for DNS to propagate by querying Cloudflare's DoH endpoint over HTTPS.
         # This avoids relying on UDP/53 to 1.1.1.1, which may be blocked on runners.
         HOSTNAME=$(echo "${{ needs.gen.outputs.address }}" | sed 's|https://||')
@@ -248,7 +250,7 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
-    - name: Wait until fleet address is reachable and fleet responds
+    - name: Set Cloudflare DNS
       run: |
         # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
         # by Cloudflare — their resolver sees the new record immediately.
@@ -258,13 +260,8 @@ jobs:
         sudo dscacheutil -flushcache
         sudo killall -HUP mDNSResponder || true
 
-        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
-        do
-          echo "Awaiting until fleet server responds..."
-          sleep 1
-        done
 
-    - name: Install Orbit
+    - name: Install fleetd
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
@@ -342,18 +339,13 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
-    - name: Wait until fleet address is reachable and fleet responds
+    - name: Set Cloudflare DNS
       run: |
         # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
         # by Cloudflare. Apply to all non-loopback interfaces in case traffic routes
         # through one other than eth0.
         for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
           sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
-        done
-
-        until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
-          echo "Waiting until fleet server responds..."
-          sleep 1
         done
 
     - name: Install Orbit
@@ -455,14 +447,6 @@ jobs:
       run: |
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
-
-    - name: Wait until fleet address is reachable and fleet responds
-      shell: bash
-      run: |
-        until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
-          echo "Waiting until fleet server responds..."
-          sleep 1
-        done
 
     - name: Build MSI
       shell: bash
