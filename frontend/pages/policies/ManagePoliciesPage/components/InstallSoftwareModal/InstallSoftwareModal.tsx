@@ -336,7 +336,6 @@ const InstallSoftwareModal = ({
                       className={`${baseClass}__software-dropdown`}
                       name={formPolicy.name}
                       isSearchable
-                      maxMenuHeight={300}
                     />
                   </span>
                 ) : null;
