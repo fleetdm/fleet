@@ -11,6 +11,7 @@ import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Iina from "./Iina";
+import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
 import Nextcloud from "./Nextcloud";
@@ -312,6 +313,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
   iina: Iina,
+  kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
   "microsoft.companyportal": IntuneCompanyPortal,
