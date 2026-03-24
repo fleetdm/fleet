@@ -150,16 +150,11 @@ team_settings:
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabelsDeprecated() {
 	t := s.T()
 	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
-	s.exceptLabels(t)
 
 	ctx := context.Background()
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
-	lbl, err := s.DS.NewLabel(ctx, &fleet.Label{Name: "Label1", Query: "SELECT 1"})
-	require.NoError(t, err)
-	require.NotZero(t, lbl.ID)
-
 	profileFile, err := os.CreateTemp(t.TempDir(), "*.mobileconfig")
 	require.NoError(t, err)
 	_, err = profileFile.WriteString(test.GenerateMDMAppleProfile("test", "test", uuid.NewString()))
@@ -170,6 +165,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabe
 	const (
 		globalTemplate = `
 agent_options:
+labels:
+  - name: Label1
+    query: select 1
 controls:
   macos_settings:
     custom_settings:
@@ -276,19 +274,18 @@ team_settings:
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabelsDeprecated() {
 	t := s.T()
 	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
-	s.exceptLabels(t)
 
 	ctx := context.Background()
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
-	lbl, err := s.DS.NewLabel(ctx, &fleet.Label{Name: "Label1", Query: "SELECT 1"})
-	require.NoError(t, err)
-	require.NotZero(t, lbl.ID)
 
 	const (
 		globalTemplate = `
 agent_options:
+labels:
+  - name: Label1
+    query: select 1
 controls:
 org_settings:
   server_settings:
