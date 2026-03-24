@@ -518,7 +518,7 @@ func MakeDecoder(
 			// implementations from missing gzip bomb checks.
 			//
 			gzipped := false
-			if r.Header.Get("content-encoding") == "gzip" {
+			if strings.EqualFold(r.Header.Get("content-encoding"), "gzip") {
 				gzipped = true
 				gzr, err := gzip.NewReader(r.Body)
 				if err != nil {
@@ -536,7 +536,11 @@ func MakeDecoder(
 				r.Header.Del("Content-Encoding")
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			_, isMaxBytesError := errors.AsType[*http.MaxBytesError](err)
+			// Some DecodeRequest implementations (like getHostSoftwareRequest)
+			// themselves return platform_http.PayloadTooLargeError.
+			_, isPayloadTooLargeError := errors.AsType[platform_http.PayloadTooLargeError](err)
+			if isMaxBytesError || isPayloadTooLargeError {
 				return nil, platform_http.PayloadTooLargeError{
 					ContentLength:  r.Header.Get("Content-Length"),
 					MaxRequestSize: maxRequestBodySize,
@@ -567,7 +571,7 @@ func MakeDecoder(
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
-			if r.Header.Get("content-encoding") == "gzip" {
+			if strings.EqualFold(r.Header.Get("content-encoding"), "gzip") {
 				gzipped = true
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
