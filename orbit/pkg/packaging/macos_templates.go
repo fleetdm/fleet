@@ -61,44 +61,44 @@ if [ -f /opt/orbit/.inband_upgrade ]; then
 	rm -f /opt/orbit/.inband_upgrade
 	# In-band upgrade: orbit is installing an update to itself.
 	# We must not stop orbit now because it is managing this installation.
-	# Instead, schedule a delayed restart so the package install can finish first.
+	# Instead, schedule a delayed bootout/bootstrap so the package install
+	# can finish first. A full bootout+bootstrap (not just kickstart) ensures
+	# any plist changes from the upgrade are picked up.
 	echo "Detected in-band upgrade (orbit upgrading orbit). Delaying service"
 	echo "restart to prevent orbit from being stopped mid-install."
-	nohup bash -c "sleep 30 && pkill fleet-desktop; launchctl kickstart -k system/${DAEMON_LABEL}" &>/dev/null &
-	disown
-else
-	# Normal install (not initiated by orbit itself).
-
-	# Stop the previous desktop agent
-	pkill fleet-desktop || true
-	# Remove any pre-existing version of the config
-	launchctl bootout "system/${DAEMON_LABEL}"
-
-	# Make sure the launch daemon is enabled before we try to bootstrap it
-	launchctl enable "system/${DAEMON_LABEL}"
-
-	# Add the daemon to the launchd system.
-	#
-	# We add retries because we've seen "launchctl bootstrap" fail
-	# if the service is still running after bootout (in case the
-	# service takes a bit longer to terminate gracefully).
-	# We've seen this when deploying the package via an MDM server.
-	#
-	count=0
-	while ! launchctl bootstrap system "${DAEMON_PLIST}"; do
-		sleep 1
-		((count++))
-		if [[ $count -eq 30 ]]; then
-			echo "Failed to bootstrap system ${DAEMON_PLIST}"
-			exit 1
-		fi
-		echo "Retrying launchctl bootstrap..."
-	done
-	echo "Successfully bootstrap system ${DAEMON_PLIST}"
-
-	# Force the daemon to start
-	launchctl kickstart "system/${DAEMON_LABEL}"
+	nohup bash -c 'sleep 30; pkill fleet-desktop || true; launchctl bootout "system/'"${DAEMON_LABEL}"'" || true; launchctl enable "system/'"${DAEMON_LABEL}"'"; count=0; while ! launchctl bootstrap system "'"${DAEMON_PLIST}"'"; do sleep 1; count=$((count+1)); if [ "$count" -eq 30 ]; then echo "Failed to bootstrap system '"${DAEMON_PLIST}"'"; exit 1; fi; echo "Retrying launchctl bootstrap..."; done; launchctl kickstart "system/'"${DAEMON_LABEL}"'"' &>/dev/null &
+	exit 0
 fi
+
+# Stop the previous desktop agent
+pkill fleet-desktop || true
+# Remove any pre-existing version of the config
+launchctl bootout "system/${DAEMON_LABEL}"
+
+# Make sure the launch daemon is enabled before we try to bootstrap it
+launchctl enable "system/${DAEMON_LABEL}"
+
+# Add the daemon to the launchd system.
+#
+# We add retries because we've seen "launchctl bootstrap" fail
+# if the service is still running after bootout (in case the
+# service takes a bit longer to terminate gracefully).
+# We've seen this when deploying the package via an MDM server.
+#
+count=0
+while ! launchctl bootstrap system "${DAEMON_PLIST}"; do
+	sleep 1
+	((count++))
+	if [[ $count -eq 30 ]]; then
+		echo "Failed to bootstrap system ${DAEMON_PLIST}"
+		exit 1
+	fi
+	echo "Retrying launchctl bootstrap..."
+done
+echo "Successfully bootstrap system ${DAEMON_PLIST}"
+
+# Force the daemon to start
+launchctl kickstart "system/${DAEMON_LABEL}"
 {{- end }}
 `))
 
