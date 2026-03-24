@@ -27403,7 +27403,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			version:        "1.0",
 			installerBytes: []byte("xyz"),
 			installerPath:  "/1password.pkg",
-			patchQuery:     "SELECT 1; -- custom query 1.0",
+			patchQuery:     "SELECT 1; --custom query 1.0",
 		}
 		startFMAServers(t, s.ds, states)
 
@@ -27419,7 +27419,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		checkPolicies := func(policies []*fleet.Policy, version string) {
 			require.Len(t, policies, 2)
 			require.Equal(t, fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(version, '%s') < 0);`, version), policies[0].Query)
-			require.Equal(t, fmt.Sprintf(`SELECT 1; -- custom query %s`, version), policies[1].Query)
+			require.Equal(t, fmt.Sprintf(`SELECT 1; --custom query %s`, version), policies[1].Query)
 		}
 
 		specs := []*fleet.PolicySpec{
@@ -27451,7 +27451,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		// Pin FMA versions to 1.2, queries should update
 		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"), "")
-		resetFMAState(states["/1password/darwin.json"], "1.2", []byte("abc"), "SELECT 1; -- custom query 1.2")
+		resetFMAState(states["/1password/darwin.json"], "1.2", []byte("abc"), "SELECT 1; --custom query 1.2")
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}, {Slug: ptr.String("1password/darwin")}}, TeamName: team2.Name},

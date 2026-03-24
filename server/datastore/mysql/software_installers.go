@@ -2342,7 +2342,8 @@ SET
 	install_script_content_id = ?,
 	uninstall_script_content_id = ?,
 	post_install_script_content_id = ?,
-	pre_install_query = ?
+	pre_install_query = ?,
+	patch_query = ?
 WHERE id = ?
 `
 
@@ -2794,6 +2795,7 @@ WHERE
 					uninstallScriptID,
 					postInstallScriptID,
 					installer.PreInstallQuery,
+					installer.PatchQuery,
 					existingID,
 				}
 				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {
