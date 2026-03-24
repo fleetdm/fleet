@@ -1,16 +1,27 @@
 {
   "extends": "@tsconfig/recommended/tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "./frontend",
     "target": "ES2019",
     "sourceMap": true,
     "jsx": "react",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "ignoreDeprecations": "6.0",
     "lib": ["ES2020", "ES2021.String", "DOM", "DOM.Iterable"],
     "paths": {
-      "node-sql-parser": ["../node_modules/@sgress454/node-sql-parser"]
+      "__mocks__/*": ["./frontend/__mocks__/*"],
+      "components/*": ["./frontend/components/*"],
+      "context/*": ["./frontend/context/*"],
+      "hooks/*": ["./frontend/hooks/*"],
+      "interfaces/*": ["./frontend/interfaces/*"],
+      "layouts/*": ["./frontend/layouts/*"],
+      "pages/*": ["./frontend/pages/*"],
+      "router/*": ["./frontend/router/*"],
+      "services": ["./frontend/services/index.ts"],
+      "services/*": ["./frontend/services/*"],
+      "styles/*": ["./frontend/styles/*"],
+      "test/*": ["./frontend/test/*"],
+      "utilities/*": ["./frontend/utilities/*"],
+      "node-sql-parser": ["./node_modules/@sgress454/node-sql-parser"]
     },
     "types": ["node", "jest"]
   },
