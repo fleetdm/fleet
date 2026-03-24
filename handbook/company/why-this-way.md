@@ -443,7 +443,7 @@ While Fleet aims to normalize across platforms where possible, there are inevita
 
 ## Why no project management function?
 
-At Fleet, every functional manager is responsible for managing the flow of work for their team.  The best managers think about their department's output like a factory, taking direct responsibility over results instead of delegating that responsibility to a separate project management function.  This is inspired by Andy Grove's [High Output Management](https://www.audible.com/pd/High-Output-Management-Audiobook/B015WXKRIS) and Eliyahu Goldratt's [The Goal](https://www.audible.com/pd/The-Goal-Audiobook/B00IFGGDA2).
+At Fleet, every functional manager is responsible for managing the flow of work for their team.  The best managers think about their department's output like a factory, taking direct responsibility over results instead of delegating that responsibility to a separate project management function.  This is inspired by Andy Grove's [High Output Management](https://www.audible.com/pd/High-Output-Management-Audiobook/B015WXKRIS), Eliyahu Goldratt's [The Goal](https://www.audible.com/pd/The-Goal-Audiobook/B00IFGGDA2) and [The Phoenix Project](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32), and Sid Sijbrandij's [writings on management](https://handbook.gitlab.com) during his time as CEO of GitLab.
 
 
 #### Stubs
