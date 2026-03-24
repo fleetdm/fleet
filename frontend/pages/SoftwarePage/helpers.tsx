@@ -15,6 +15,9 @@ import {
   ISoftwarePackage,
   IAppStoreApp,
   ISoftwareTitle,
+  ISoftwareInstallPolicyUI,
+  ISoftwareInstallPolicy,
+  SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -293,3 +296,50 @@ export const getDisplayedSoftwareName = (
 export const isAndroidWebApp = (androidPlayStoreId?: string) =>
   !!androidPlayStoreId &&
   androidPlayStoreId.startsWith("com.google.enterprise.webapp");
+export interface MergePoliciesParams {
+  automaticInstallPolicies:
+    | ISoftwarePackage["automatic_install_policies"]
+    | null
+    | undefined;
+  patchPolicy: ISoftwarePackage["patch_policy"] | null | undefined;
+}
+
+// const mergePolicies(params: MergePoliciesParams): ISoftwareInstallerPolicyUI[] = function (...) { ... }
+export const mergePolicies = ({
+  automaticInstallPolicies,
+  patchPolicy,
+}: MergePoliciesParams): ISoftwareInstallPolicyUI[] => {
+  // Map keyed by policy id so we can merge dynamic and patch info for the same id.
+  const byId = new Map<number, ISoftwareInstallPolicyUI>();
+
+  // 1. Seed the map with automatic install ("dynamic") policies.
+  (automaticInstallPolicies ?? []).forEach((installPolicy) => {
+    // Type Set with "dynamic" for automatic install policies
+    const type: SoftwareInstallPolicyTypeSet = new Set(["dynamic"]);
+    byId.set(installPolicy.id, {
+      ...installPolicy,
+      type,
+    });
+  });
+
+  // 2. Merge in the patch policy by its id, updating type if there's a match.
+  if (patchPolicy) {
+    const existing = byId.get(patchPolicy.id);
+
+    if (existing) {
+      // If there is already a dynamic policy with this id, just add "patch"
+      // to the existing Set so type becomes Set(["dynamic", "patch"]).
+      existing.type.add("patch");
+    } else {
+      // If there is no dynamic policy with this id, create a new entry that
+      // has only "patch" in the Set.
+      const type: SoftwareInstallPolicyTypeSet = new Set(["patch"]);
+      byId.set(patchPolicy.id, {
+        ...((patchPolicy as unknown) as ISoftwareInstallPolicy),
+        type,
+      });
+    }
+  }
+
+  return Array.from(byId.values());
+};

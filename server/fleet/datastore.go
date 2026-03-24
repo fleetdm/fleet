@@ -849,6 +849,8 @@ type Datastore interface {
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
+	// GetPatchPolicy returns the patch policy associated with the title id
+	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
 
 	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
 	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
@@ -903,8 +905,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationFilter string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationFilter string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -1492,6 +1494,33 @@ type Datastore interface {
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM Recovery Lock Password
+
+	// SetHostsRecoveryLockPasswords encrypts and stores recovery lock passwords for the given hosts.
+	SetHostsRecoveryLockPasswords(ctx context.Context, passwords []HostRecoveryLockPasswordPayload) error
+
+	// GetHostRecoveryLockPassword retrieves and decrypts the recovery lock password
+	// for the given host UUID.
+	GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*HostRecoveryLockPassword, error)
+
+	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action:
+	// - Teams with enable_recovery_lock_password = true
+	// - macOS Apple Silicon hosts that are MDM enrolled
+	// - No password saved or status is NULL (ready for command)
+	GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error)
+
+	// SetRecoveryLockVerified marks the recovery lock as verified.
+	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
+
+	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
+	SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error
+
+	// ClearRecoveryLockPendingStatus resets the recovery lock status to NULL for hosts
+	// that failed to have their SetRecoveryLock commands enqueued. This allows them to
+	// be picked up again on the next cron run.
+	ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
@@ -2407,6 +2436,11 @@ type Datastore interface {
 	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
 	// returns the latest updated_at time of the secrets used in the expansion.
 	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
+
+	// ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
+	// The enrollmentID (typically UDID) is used to look up host-specific secrets
+	// like recovery lock passwords.
+	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Android

@@ -66,10 +66,8 @@ const InventoryVersionsModal = ({
       onExit={onExit}
       width="large"
     >
-      <>
-        {renderScrollableContent()}
-        {renderFooter()}
-      </>
+      {renderScrollableContent()}
+      {renderFooter()}
     </Modal>
   );
 };

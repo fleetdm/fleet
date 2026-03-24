@@ -554,7 +554,7 @@ How does this work? Fleet installs the "Fleet" Android app on each host. Every 1
 <details>
 <summary>Windows configuration profile</summary>
 
-All options in the example profile are required. To get the [CAThumbprint of your SCEP server] follow [these steps](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
+All options in the example profile are required. To get the CAThumbprint of your SCEP server follow [these steps](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
 
 You can add any other options listed under Device/SCEP in the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp).
 
@@ -823,7 +823,7 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
 * The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's custom SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
 * On **Windows** hosts, Fleet will not verify the SCEP profile via osquery. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
-* On **Windows** hosts, Fleet will not remove deployed certificate, when respective configuration profile is removed from Fleet, or when host is transfered to another team.
+* On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another team.
 
 ### How the SCEP proxy works
 
@@ -852,8 +852,6 @@ Custom SCEP proxy:
 ### How to get the CAThumbprint for Windows SCEP profiles
 
 An example CAThumprint looks like this: `2133EC6A3CFB8418837BB395188D1A62CA2B96A6`
-
-Steps to get CAThumbrint from your SCEP server:
 
 1. In your browser, open the following URL to download a certificate: https://<your-scep-server-url>/scep?operation=GetCACert
 2. Run the following command to get the SHA1 Thumbprint:

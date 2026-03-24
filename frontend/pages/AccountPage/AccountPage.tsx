@@ -177,40 +177,38 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         onExit={onToggleApiTokenModal}
         onEnter={onToggleApiTokenModal}
       >
-        <>
-          <InfoBanner>
-            <p>
-              <strong>This token expires.</strong> If you want an API key for a
-              permanent integration, create an&nbsp;
+        <InfoBanner>
+          <p>
+            <strong>This token expires.</strong> If you want an API key for a
+            permanent integration, create an&nbsp;
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
+              text="API-only user"
+              newTab
+              variant="banner-link"
+            />
+            &nbsp;instead.
+          </p>
+        </InfoBanner>
+        <InputFieldHiddenContent
+          value={authToken.get() || ""}
+          helpText={
+            <>
+              This token is intended for SSO users to authenticate in the
+              fleetctl CLI. It expires based on the{" "}
               <CustomLink
-                url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
-                text="API-only user"
+                url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
+                text="session duration configuration"
                 newTab
-                variant="banner-link"
               />
-              &nbsp;instead.
-            </p>
-          </InfoBanner>
-          <InputFieldHiddenContent
-            value={authToken.get() || ""}
-            helpText={
-              <>
-                This token is intended for SSO users to authenticate in the
-                fleetctl CLI. It expires based on the{" "}
-                <CustomLink
-                  url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
-                  text="session duration configuration"
-                  newTab
-                />
-              </>
-            }
-          />
-          <div className="modal-cta-wrap">
-            <Button onClick={onToggleApiTokenModal} type="button">
-              Done
-            </Button>
-          </div>
-        </>
+            </>
+          }
+        />
+        <div className="modal-cta-wrap">
+          <Button onClick={onToggleApiTokenModal} type="button">
+            Done
+          </Button>
+        </div>
       </Modal>
     );
   };
