@@ -125,8 +125,6 @@ export interface IDropdownWrapper {
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
   customNoOptionsMessage?: string;
-  /** Maximum height for the dropdown menu in pixels e.g. 300 */
-  maxMenuHeight?: number;
 }
 
 const getOptionBackgroundColor = (
@@ -447,12 +445,20 @@ const DropdownWrapper = ({
   variant,
   nowrapMenu,
   customNoOptionsMessage,
-  maxMenuHeight,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
+
+  // To prevent excessively long dropdowns, this sets a max menu height for
+  // more than 9 options or more than than 6 options with help text
+  const hasHelpText = options.some((opt) => !!opt.helpText);
+  const enableMaxMenuHeight = hasHelpText
+    ? options.length > 6
+    : options.length > 9;
+
+  const maxMenuHeight = enableMaxMenuHeight ? 305 : undefined;
 
   const handleChange = (newValue: SingleValue<CustomOptionType>) => {
     onChange(newValue);
