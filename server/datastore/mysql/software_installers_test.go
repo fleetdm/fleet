@@ -3450,6 +3450,32 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 		foundPlatforms = append(foundPlatforms, inst.Platform)
 	}
 	require.ElementsMatch(t, []string{"ios", "ipados"}, foundPlatforms)
+
+	// Simulate the scenario from issue #42260: an FMA version update creates
+	// a second row with the same storage_id but different version and is_active = 0.
+	// GetTeamsWithInstallerByHash must only return the active row.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
+				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids)
+			SELECT team_id, global_or_team_id, storage_id, filename, extension, 'old_version', platform, title_id,
+				install_script_content_id, uninstall_script_content_id, 0, url, package_ids
+			FROM software_installers WHERE id = ?
+		`, installer1NoTeam)
+		return err
+	})
+
+	// Should still return only the active installer per team, not the inactive duplicate
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash1, "https://example.com/1")
+	require.NoError(t, err)
+	require.Len(t, installers, 2) // No team + Team 1, each with 1 active installer
+
+	require.Len(t, installers[0], 1)
+	require.Equal(t, installer1NoTeam, installers[0][0].InstallerID)
+
+	require.Len(t, installers[1], 1)
+	require.Equal(t, installer1Team1, installers[1][0].InstallerID)
 }
 
 func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
