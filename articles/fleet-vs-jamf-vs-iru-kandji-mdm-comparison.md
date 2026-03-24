@@ -1,3 +1,5 @@
+This guide covers how Jamf Pro and Iru (formerly Kandji) differ in architecture, compliance workflows, and day-to-day management, and when multi-platform alternatives become worth evaluating.
+
 ## How Jamf approaches Apple device management
 
 Jamf Pro targets large, complex Apple environments where customization requirements outweigh ease-of-use considerations. The solution extends Apple's native MDM protocol through a binary framework requiring root privileges, giving it capabilities beyond pure MDM: custom script execution, advanced policy enforcement, and granular inventory collection through extension attributes (custom inventory fields beyond standard system information).
@@ -190,8 +192,8 @@ Note: Jamf supports Apple and Android, and Iru (Kandji) supports Apple, Windows,
 You can maintain Jamf or Iru (Kandji) for core device management while adding multi-platform solutions for unified querying, automated compliance evidence collection, and near real-time visibility across all platforms. This layered approach works when your teams have expertise with the existing MDM solution and need multi-platform capabilities without disrupting established workflows. Multi-platform solutions complement rather than conflict with existing MDM infrastructure. [Try Fleet](https://fleetdm.com/demo) to see how it integrates with your current device management setup.
 
 <meta name="articleTitle" value="Fleet vs. Jamf vs. Iru: How to Choose the Right MDM">
-<meta name="authorFullName" value="Brock Walters">
-<meta name="authorGitHubUsername" value="nonpunctual">
+<meta name="authorFullName" value="Ashish Kuthiala">
+<meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-03-20">
+<meta name="publishedOn" value="2026-03-24">
 <meta name="description" value="Compare Fleet, Jamf, and Iru (formerly Kandji) across platform support, pricing, GitOps, security, and API capabilities to find the right MDM for your team.">
