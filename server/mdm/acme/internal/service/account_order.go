@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
@@ -20,11 +21,26 @@ func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose
 		return nil, ctxerr.Wrap(ctx, err, "creating account in datastore")
 	}
 
+	appCfg, err := s.providers.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	baseURL := appCfg.MDMUrl()
+
+	ordersURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, "accounts", fmt.Sprint(account.ID), "orders")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "constructing orders URL for account")
+	}
+	acctURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, "accounts", fmt.Sprint(account.ID))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "constructing account URL for account")
+	}
+
 	return &types.AccountResponse{
 		CreatedAccount: account,
 		Status:         "valid", // for now, in our implementation, always valid
-		Orders:         "",      // TODO: url to orders list
-		Location:       "",      // TODO: url to this account, which becomes the kid in subsequent requests
+		Orders:         ordersURL,
+		Location:       acctURL,
 	}, nil
 }
 

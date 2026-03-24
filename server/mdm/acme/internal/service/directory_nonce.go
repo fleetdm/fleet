@@ -2,11 +2,9 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 )
 
 func (s *Service) NewNonce(ctx context.Context, identifier string) (string, error) {
@@ -37,7 +35,7 @@ func (s *Service) GetDirectory(ctx context.Context, identifier string) (*types.D
 	suffixes := []string{"new_nonce", "new_account", "new_order"}
 	urls := make(map[string]string, len(suffixes))
 	for _, suffix := range suffixes {
-		u, err := commonmdm.ResolveURL(baseURL, fmt.Sprintf("/api/mdm/acme/%s/%s", identifier, suffix), true)
+		u, err := s.getACMEURLWithBaseURL(ctx, baseURL, identifier, suffix)
 		if err != nil {
 			return nil, err
 		}
