@@ -676,10 +676,7 @@ func (c *Client) ApplyGroup(
 
 		// Keep any existing GitOps mode config rather than attempting to set via GitOps.
 		if appconfig != nil {
-			specs.AppConfig.(map[string]interface{})["gitops"] = fleet.UIGitOpsModeConfig{
-				GitopsModeEnabled: appconfig.UIGitOpsMode.GitopsModeEnabled,
-				RepositoryURL:     appconfig.UIGitOpsMode.RepositoryURL,
-			}
+			specs.AppConfig.(map[string]any)["gitops"] = appconfig.GitOpsConfig
 		}
 
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
