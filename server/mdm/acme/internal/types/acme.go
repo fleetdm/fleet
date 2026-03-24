@@ -43,7 +43,7 @@ func (a *Enrollment) IsValid() bool {
 
 type Account struct {
 	ID                   uint            `db:"id"`
-	EnrollmentID         uint            `db:"enrollment_id"`
+	EnrollmentID         uint            `db:"acme_enrollment_id"`
 	JSONWebKey           jose.JSONWebKey `db:"-"`
 	JSONWebKeyThumbprint string          `db:"json_web_key_thumbprint"`
 	Revoked              bool            `db:"revoked"`

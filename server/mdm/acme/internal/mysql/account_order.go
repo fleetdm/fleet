@@ -13,9 +13,9 @@ import (
 	"go.step.sm/crypto/jose"
 )
 
-func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, onlyReturnExisting bool) (*types.Account, error) {
-	const maxAccountsPerEnrollment = 3
+const maxAccountsPerEnrollment = 3
 
+func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, onlyReturnExisting bool) (*types.Account, error) {
 	err := platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
 		lockEnrollmentStmt := `SELECT id FROM acme_enrollments WHERE id = ? FOR UPDATE`
 		var enrollmentID uint
@@ -28,7 +28,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 
 		// TODO: what if it's revoked? do not return it but do not create it either?
 		// if the account already exists, we return it
-		findExistingAccountStmt := `SELECT id FROM acme_accounts WHERE enrollment_id = ? AND json_web_key_thumbprint = ?`
+		findExistingAccountStmt := `SELECT id FROM acme_accounts WHERE acme_enrollment_id = ? AND json_web_key_thumbprint = ?`
 		thumbprint, err := jose.Thumbprint(&account.JSONWebKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "compute jwk thumbprint for new account")
@@ -49,7 +49,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 		}
 
 		// check if maximum number of accounts for this enrollment has been reached before creating a new one
-		countAccountsStmt := `SELECT COUNT(*) FROM acme_accounts WHERE enrollment_id = ?`
+		countAccountsStmt := `SELECT COUNT(*) FROM acme_accounts WHERE acme_enrollment_id = ?`
 		var accountCount int
 		err = tx.QueryRowxContext(ctx, countAccountsStmt, enrollmentID).Scan(&accountCount)
 		if err != nil {
@@ -65,8 +65,8 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 			return ctxerr.Wrap(ctx, err, "marshal new account jwk")
 		}
 
-		insertStmt := `INSERT INTO acme_accounts (enrollment_id, json_web_key) VALUES (?, ?)`
-		res, err := tx.ExecContext(ctx, insertStmt, account.EnrollmentID, jwkSerialized)
+		insertStmt := `INSERT INTO acme_accounts (acme_enrollment_id, json_web_key, json_web_key_thumbprint) VALUES (?, ?, ?)`
+		res, err := tx.ExecContext(ctx, insertStmt, account.EnrollmentID, jwkSerialized, thumbprint)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme account")
 		}
@@ -97,7 +97,7 @@ type dbAccount struct {
 
 // This method specifically requires an enrollment ID because the caller should know it and have verified it
 func (ds *Datastore) GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*types.Account, error) {
-	stmt := `SELECT id, enrollment_id, json_web_key FROM acme_accounts WHERE enrollment_id = ? AND id = ?`
+	stmt := `SELECT id, acme_enrollment_id, json_web_key FROM acme_accounts WHERE acme_enrollment_id = ? AND id = ?`
 	var dbAcc dbAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dbAcc, stmt, enrollmentID, accountID)
 	if err != nil {
@@ -127,7 +127,7 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 			return ctxerr.Wrap(ctx, err, "lock acme account")
 		}
 
-		countOrdersStmt := `SELECT COUNT(*) FROM acme_orders WHERE account_id = ?`
+		countOrdersStmt := `SELECT COUNT(*) FROM acme_orders WHERE acme_account_id = ?`
 		var orderCount int
 		err = tx.QueryRowxContext(ctx, countOrdersStmt, order.AccountID).Scan(&orderCount)
 		if err != nil {
@@ -142,7 +142,7 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 			return ctxerr.Wrap(ctx, err, "marshal order identifiers")
 		}
 
-		insertOrderStmt := `INSERT INTO acme_orders (account_id, status, identifiers) VALUES (?, ?, ?)`
+		insertOrderStmt := `INSERT INTO acme_orders (acme_account_id, status, identifiers) VALUES (?, ?, ?)`
 		res, err := tx.ExecContext(ctx, insertOrderStmt, order.AccountID, order.Status, identifiersSerialized)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme order")
@@ -153,7 +153,7 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 		}
 		order.ID = uint(lastInsertID)
 
-		insertAuthorizationStmt := `INSERT INTO acme_authorizations (order_id, identifier_type, identifier_value, status) VALUES (?, ?, ?, ?)`
+		insertAuthorizationStmt := `INSERT INTO acme_authorizations (acme_order_id, identifier_type, identifier_value, status) VALUES (?, ?, ?, ?)`
 
 		res, err = tx.ExecContext(ctx, insertAuthorizationStmt, order.ID, authorization.Identifier.Type, authorization.Identifier.Value, authorization.Status)
 		if err != nil {
