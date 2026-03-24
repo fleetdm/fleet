@@ -97,6 +97,6 @@ If you're evaluating a MacBook Neo rollout, [connect Fleet to Apple Business Man
 <meta name="articleTitle" value="Enroll MacBook Neo at scale with Fleet zero-touch enrollment">
 <meta name="authorFullName" value="Fleet">
 <meta name="authorGitHubUsername" value="fleetdm">
-<meta name="category" value="guides">
+<meta name="category" value="article">
 <meta name="publishedOn" value="2026-03-21">
 <meta name="description" value="Use Fleet and Apple Business Manager to enroll MacBook Neos at scale with zero-touch enrollment. A guide for IT teams planning a Mac refresh.">
