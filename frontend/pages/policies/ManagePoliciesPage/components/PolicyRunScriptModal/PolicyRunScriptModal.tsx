@@ -215,6 +215,7 @@ const PolicyRunScriptModal = ({
                       className={`${baseClass}__script-dropdown`}
                       name={formPolicy.name}
                       isSearchable
+                      maxMenuHeight={300}
                     />
                   </span>
                 ) : null;

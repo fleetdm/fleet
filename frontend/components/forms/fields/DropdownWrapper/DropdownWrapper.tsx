@@ -125,6 +125,8 @@ export interface IDropdownWrapper {
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
   customNoOptionsMessage?: string;
+  /** Maximum height for the dropdown menu in pixels e.g. 300 */
+  maxMenuHeight?: number;
 }
 
 const getOptionBackgroundColor = (
@@ -152,7 +154,8 @@ const getOptionFontWeight = (
 export const generateCustomDropdownStyles = (
   variant?: DropdownWrapperVariant,
   isDisabled = false,
-  nowrapMenu = false
+  nowrapMenu = false,
+  maxMenuHeight?: number
 ): StylesConfig<CustomOptionType, false> => {
   return {
     container: (provided) => {
@@ -362,7 +365,7 @@ export const generateCustomDropdownStyles = (
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
-      maxHeight: "none",
+      maxHeight: maxMenuHeight != null ? `${maxMenuHeight}px` : "none",
       ...(nowrapMenu && { width: "fit-content" }),
     }),
     valueContainer: (provided) => ({
@@ -444,6 +447,7 @@ const DropdownWrapper = ({
   variant,
   nowrapMenu,
   customNoOptionsMessage,
+  maxMenuHeight,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
@@ -513,7 +517,12 @@ const DropdownWrapper = ({
       <Select<CustomOptionType, false>
         classNamePrefix="react-select"
         isSearchable={isSearchable}
-        styles={generateCustomDropdownStyles(variant, isDisabled, nowrapMenu)}
+        styles={generateCustomDropdownStyles(
+          variant,
+          isDisabled,
+          nowrapMenu,
+          maxMenuHeight
+        )}
         options={options}
         components={{
           Option: CustomOption,
