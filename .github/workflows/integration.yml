@@ -172,25 +172,25 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         
-        # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
-        # by Cloudflare — their resolver sees the new record immediately, whereas the
-        # default Ubuntu runner resolver can lag by minutes before the record propagates.
-        # Apply to all non-loopback interfaces in case traffic routes through one other than eth0.
-        for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
-          sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+        # Wait for DNS to propagate by querying Cloudflare's DoH endpoint over HTTPS.
+        # This avoids relying on UDP/53 to 1.1.1.1, which may be blocked on runners.
+        HOSTNAME=$(echo "${{ needs.gen.outputs.address }}" | sed 's|https://||')
+        echo "Waiting for DNS propagation..."
+        DNS_START=$(date +%s)
+        until curl -sf "https://1.1.1.1/dns-query?name=${HOSTNAME}&type=A" \
+            -H 'accept: application/dns-json' | jq -e '.Status == 0' > /dev/null; do
+          ELAPSED=$(( $(date +%s) - DNS_START ))
+          echo "DNS not yet propagated... (${ELAPSED}s)"
+          sleep 2
         done
-        sudo resolvectl flush-caches
-        # Also overwrite /etc/resolv.conf for tools that bypass systemd-resolved.
-        echo 'nameserver 1.1.1.1' | sudo tee /etc/resolv.conf
+        echo "DNS propagated."
 
         # Wait for Fleet server to be reachable
         echo "Waiting for Fleet server to pass health check..."
         HEALTH_CHECK_START=$(date +%s)
         until curl -s -o /dev/null -w "%{http_code}" ${{ needs.gen.outputs.address }}/healthz | grep -q "200"; do
-          nslookup ${{ needs.gen.outputs.address }} || true
           ELAPSED=$(( $(date +%s) - HEALTH_CHECK_START ))
           echo "Health check failed... (${ELAPSED}s)"
-          sudo resolvectl flush-caches
           sleep 1
         done
         echo "Fleet server is responding, attempting login..."
@@ -319,15 +319,18 @@ jobs:
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
     - name: Wait until fleet address is reachable and fleet responds
       run: |
-        # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
-        # by Cloudflare — their resolver sees the new record immediately.
-        # Apply to all non-loopback interfaces in case traffic routes through one other than eth0.
-        for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
-          sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+        # Wait for DNS to propagate by querying Cloudflare's DoH endpoint over HTTPS.
+        # This avoids relying on UDP/53 to 1.1.1.1, which may be blocked on runners.
+        HOSTNAME=$(echo "${{ needs.gen.outputs.address }}" | sed 's|https://||')
+        echo "Waiting for DNS propagation..."
+        DNS_START=$(date +%s)
+        until curl -sf "https://1.1.1.1/dns-query?name=${HOSTNAME}&type=A" \
+            -H 'accept: application/dns-json' | jq -e '.Status == 0' > /dev/null; do
+          ELAPSED=$(( $(date +%s) - DNS_START ))
+          echo "DNS not yet propagated... (${ELAPSED}s)"
+          sleep 2
         done
-        sudo resolvectl flush-caches
-        # Also overwrite /etc/resolv.conf for tools that bypass systemd-resolved.
-        echo 'nameserver 1.1.1.1' | sudo tee /etc/resolv.conf
+        echo "DNS propagated."
 
         until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
           echo "Waiting until fleet server responds..."
@@ -406,15 +409,18 @@ jobs:
 
     - name: Wait until fleet address is reachable and fleet responds
       run: |
-        # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
-        # by Cloudflare — their resolver sees the new record immediately.
-        # Apply to all non-loopback interfaces in case traffic routes through one other than eth0.
-        for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
-          sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+        # Wait for DNS to propagate by querying Cloudflare's DoH endpoint over HTTPS.
+        # This avoids relying on UDP/53 to 1.1.1.1, which may be blocked on runners.
+        HOSTNAME=$(echo "${{ needs.gen.outputs.address }}" | sed 's|https://||')
+        echo "Waiting for DNS propagation..."
+        DNS_START=$(date +%s)
+        until curl -sf "https://1.1.1.1/dns-query?name=${HOSTNAME}&type=A" \
+            -H 'accept: application/dns-json' | jq -e '.Status == 0' > /dev/null; do
+          ELAPSED=$(( $(date +%s) - DNS_START ))
+          echo "DNS not yet propagated... (${ELAPSED}s)"
+          sleep 2
         done
-        sudo resolvectl flush-caches
-        # Also overwrite /etc/resolv.conf for tools that bypass systemd-resolved.
-        echo 'nameserver 1.1.1.1' | sudo tee /etc/resolv.conf
+        echo "DNS propagated."
 
         until curl -v -fail ${{ needs.gen.outputs.address }}/version;
         do
