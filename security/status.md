@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-33186](https://nvd.nist.gov/vuln/detail/CVE-2026-33186)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** There are no path-based authorization interceptors. The only interceptors are grpc_recovery (panic handlers). CVE-2026-33186 specifically requires path-based authz rules (like grpc/authz RBAC policies) that compare against info.FullMethod — Fleet doesn't use any.
+- **Products:**: `fleet`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:38:53
+
 ### [CVE-2026-22184](https://nvd.nist.gov/vuln/detail/CVE-2026-22184)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
