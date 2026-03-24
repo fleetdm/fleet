@@ -157,6 +157,7 @@ software:
     # macOS apps
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
       self_service: true
+      display_name: "Mozilla Firefox"
       categories:
         - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
@@ -340,6 +341,7 @@ software:
         - Productivity
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
+      display_name: "Mozilla Firefox"
       categories:
         - Browsers
       labels_include_any:
