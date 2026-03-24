@@ -467,7 +467,9 @@ jobs:
       run: |
         # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
         # by Cloudflare — their resolver sees the new record immediately.
-        Get-NetAdapter | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses "1.1.1.1" }
+        # -ErrorAction SilentlyContinue skips adapters (e.g. Hyper-V virtual/internal)
+        # that have no associated DNS client address object.
+        Get-NetAdapter | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses "1.1.1.1" -ErrorAction SilentlyContinue }
         Clear-DnsClientCache
 
     - name: Download MSI
