@@ -3,21 +3,17 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 )
 
-func (s *Service) NewNonce(ctx context.Context, identifier string) (string, error) {
+func (s *Service) NewNonce(ctx context.Context, identifier string) error {
 	// authentication is via the identifier, that must exist as a valid ACME enrollment
 	if _, err := s.authenticateWithACMEEnrollment(ctx, identifier); err != nil {
-		return "", err
+		return err
 	}
 
-	nonce := types.CreateNonceEncodedForHeader()
-	if err := s.nonces.Store(ctx, nonce, redis_nonces_store.DefaultNonceExpiration); err != nil {
-		return "", err
-	}
-	return nonce, nil
+	// actual nonce generation happens in the rendering of the response
+	return nil
 }
 
 func (s *Service) GetDirectory(ctx context.Context, identifier string) (*types.Directory, error) {

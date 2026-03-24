@@ -86,7 +86,6 @@ func (s *integrationTestSuite) newNonce(t *testing.T, httpMethod, pathIdentifier
 
 	result := &api_http.GetNewNonceResponse{
 		HTTPMethod: resp.Request.Method,
-		Nonce:      resp.Header.Get("Replay-Nonce"),
 	}
 	return result, resp
 }

@@ -59,13 +59,13 @@ func skipStandardFleetAuth() endpoint.Middleware {
 // getNewNonceEndpoint handles HEAD/GET/POST /api/mdm/acme/{identifier}/new_nonce requests.
 func getNewNonceEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.GetNewNonceRequest)
-	nonce, err := svc.NewNonce(ctx, req.Identifier)
+	err := svc.NewNonce(ctx, req.Identifier)
 	if err != nil {
-		return api_http.GetNewNonceResponse{Err: err}
+		return &api_http.GetNewNonceResponse{Err: err}
 	}
-	return api_http.GetNewNonceResponse{
+	return &api_http.GetNewNonceResponse{
 		HTTPMethod: req.HTTPMethod,
-		Nonce:      nonce,
+		Nonces:     svc.NoncesStore(),
 	}
 }
 
@@ -85,14 +85,14 @@ func createAccountEndpoint(ctx context.Context, request any, svc api.Service) pl
 	newAccountRequest := &api_http.CreateNewAccountRequest{}
 	err := svc.AuthenticateNewAccountMessage(ctx, req, newAccountRequest)
 	if err != nil {
-		return api_http.CreateNewAccountResponse{Err: err}
+		return &api_http.CreateNewAccountResponse{Err: err}
 	}
 
 	accountResp, err := svc.CreateAccount(ctx, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
 	if err != nil {
-		return api_http.CreateNewAccountResponse{Err: err}
+		return &api_http.CreateNewAccountResponse{Err: err}
 	}
-	return api_http.CreateNewAccountResponse{
+	return &api_http.CreateNewAccountResponse{
 		AccountResponse: accountResp,
 	}
 }

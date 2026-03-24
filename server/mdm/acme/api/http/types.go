@@ -10,9 +10,20 @@ import (
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"go.step.sm/crypto/jose"
 )
+
+func generateAndRenderNonce(ctx context.Context, nonces *redis_nonces_store.RedisNoncesStore, w http.ResponseWriter) error {
+	nonce := types.CreateNonceEncodedForHeader()
+	if err := nonces.Store(ctx, nonce, redis_nonces_store.DefaultNonceExpiration); err != nil {
+		return err
+	}
+	w.Header().Set("Replay-Nonce", nonce)
+	w.Header().Set("Cache-Control", "no-store")
+	return nil
+}
 
 type GetNewNonceRequest struct {
 	// HTTPMethod used to make this request, populated by the parse custom URL
@@ -23,17 +34,23 @@ type GetNewNonceRequest struct {
 }
 
 type GetNewNonceResponse struct {
-	HTTPMethod string
-	Nonce      string
-	Err        error `json:"error,omitempty"`
+	HTTPMethod string                               `json:"-"`
+	Err        error                                `json:"error,omitempty"`
+	Nonces     *redis_nonces_store.RedisNoncesStore `json:"-"`
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r GetNewNonceResponse) Error() error { return r.Err }
+func (r *GetNewNonceResponse) Error() error { return r.Err }
 
-func (r GetNewNonceResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Replay-Nonce", r.Nonce)
-	w.Header().Set("Cache-Control", "no-store")
+func (r *GetNewNonceResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	// only generate a nonce on success for this endpoint, as it's the whole
+	// point of the call - if it failed, no new nonce.
+	if r.Err == nil {
+		if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
+			r.Err = err
+			return
+		}
+	}
 
 	if r.HTTPMethod == http.MethodHead {
 		w.WriteHeader(http.StatusOK)
@@ -67,14 +84,20 @@ type CreateNewAccountRequest struct {
 
 type CreateNewAccountResponse struct {
 	*types.AccountResponse
-	// TODO(mna): maybe no Nonce field, always create it in the response? (unless 500, maybe)
-	// Find a way to automate that (generation and rendering in the headers)
-	Nonce string `json:"-"`
-	Err   error  `json:"error,omitempty"`
+	Err    error                                `json:"error,omitempty"`
+	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
+}
+
+func (r *CreateNewAccountResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
+	// TODO(mna): do not generate a nonce on 500s?
+	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
+		r.Err = err
+		return
+	}
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r CreateNewAccountResponse) Error() error { return r.Err }
+func (r *CreateNewAccountResponse) Error() error { return r.Err }
 
 type CreateNewOrderRequest struct {
 	types.AccountAuthenticatedRequestBase

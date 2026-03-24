@@ -1142,6 +1142,9 @@ func EncodeCommonResponse(
 ) error {
 	// Infer alias rules from `renameto` struct tags on the response type.
 	aliasRules := ExtractAliasRules(response)
+	if br, ok := response.(beforeRenderer); ok {
+		br.BeforeRender(ctx, w)
+	}
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
 	}
@@ -1214,6 +1217,21 @@ type renderHijacker interface {
 // cookieSetter can be implemented by response values to set cookies on the response.
 type cookieSetter interface {
 	SetCookies(ctx context.Context, w http.ResponseWriter)
+}
+
+// beforeRenderer can be implemented by response values that need to hook into the
+// raw rendering process, with access to the ResponseWriter before any response is
+// written, while continuing with the normal rendering process after the call.
+// It can be used to set headers, for example, and since the processing happens before
+// any Errorer check, it can also be used to fail the request by storing an error on
+// the Errorer. It should not set the status code of the response, as the standard
+// approach of implementing the statuser interface should be used for that.
+//
+// Unlike renderHijacker and the htmlPage interfaces, this interface does not stop
+// processing, and while it behaves similarly to cookieSetter, it is more generally-named
+// and does not have the specific connotation of setting cookies.
+type beforeRenderer interface {
+	BeforeRender(ctx context.Context, w http.ResponseWriter)
 }
 
 // bufferedResponseWriter wraps an http.ResponseWriter but redirects Write

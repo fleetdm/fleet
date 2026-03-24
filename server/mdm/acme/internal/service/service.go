@@ -42,6 +42,10 @@ func NewService(
 // Ensure Service implements api.Service
 var _ api.Service = (*Service)(nil)
 
+func (s *Service) NoncesStore() *redis_nonces_store.RedisNoncesStore {
+	return s.nonces
+}
+
 func (s *Service) getACMEURL(ctx context.Context, pathIdentifier string, suffixes ...string) (string, error) {
 	appConfig, err := s.providers.AppConfig(ctx)
 	if err != nil {

@@ -137,12 +137,14 @@ func testNewNonce(t *testing.T, s *integrationTestSuite) {
 		t.Run(c.desc, func(t *testing.T) {
 			result, resp := s.newNonce(t, c.method, c.identifier)
 			require.Equal(t, c.wantStatus, resp.StatusCode)
+			require.Equal(t, c.method, result.HTTPMethod)
+			nonce := resp.Header.Get("Replay-Nonce")
 			if c.wantNonce {
-				t.Logf("Received nonce: %s", result.Nonce)
-				require.NotEmpty(t, result.Nonce)
+				t.Logf("Received nonce: %s", nonce)
+				require.NotEmpty(t, nonce)
 				require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 			} else {
-				require.Empty(t, result.Nonce)
+				require.Empty(t, nonce)
 				require.Empty(t, resp.Header.Get("Cache-Control"))
 			}
 		})
