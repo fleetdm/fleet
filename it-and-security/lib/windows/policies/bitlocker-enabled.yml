@@ -1,0 +1,9 @@
+- name: Windows - BitLocker enabled
+  query: SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;
+  critical: false
+  description: "This policy checks whether BitLocker disk encryption is enabled on the C: drive of Windows devices. BitLocker encrypts the entire drive and helps protect data at rest."
+  resolution: |-
+    To enable BitLocker, go to Settings > Privacy & Security > Device encryption and turn it on. You may need to restart your device to complete the process.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows
