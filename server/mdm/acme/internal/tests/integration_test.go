@@ -30,15 +30,15 @@ func TestIntegration(t *testing.T) {
 
 func testNewNonce(t *testing.T, s *integrationTestSuite) {
 	// create a valid enrollment
-	enrollValid := &types.ACMEEnrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollValid)
 
 	// create a revoked enrollment
-	enrollRevoked := &types.ACMEEnrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
 	// create an expired enrollment
-	enrollExpired := &types.ACMEEnrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	cases := []struct {
@@ -151,15 +151,15 @@ func testNewNonce(t *testing.T, s *integrationTestSuite) {
 
 func testGetDirectory(t *testing.T, s *integrationTestSuite) {
 	// create a valid enrollment
-	enrollValid := &types.ACMEEnrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollValid)
 
 	// create a revoked enrollment
-	enrollRevoked := &types.ACMEEnrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
 	// create an expired enrollment
-	enrollExpired := &types.ACMEEnrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	cases := []struct {

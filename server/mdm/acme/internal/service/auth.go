@@ -24,7 +24,7 @@ var acceptableSignatureAlgorithms = [...]string{
 	string(jose.ES512),
 }
 
-func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier string) (*types.ACMEEnrollment, error) {
+func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier string) (*types.Enrollment, error) {
 	enrollment, err := s.store.GetACMEEnrollment(ctx, identifier)
 	if err != nil {
 		return nil, err

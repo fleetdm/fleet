@@ -11,7 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*types.ACMEEnrollment, error) {
+func (ds *Datastore) GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*types.Enrollment, error) {
 	ctx, span := tracer.Start(ctx, "acme.mysql.GetACMEEnrollment")
 	defer span.End()
 
@@ -28,7 +28,7 @@ WHERE
 	path_identifier = ?
 LIMIT 1
 `
-	var enrollment types.ACMEEnrollment
+	var enrollment types.Enrollment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enrollment, stmt, pathIdentifier)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

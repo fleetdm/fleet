@@ -38,7 +38,7 @@ func testGetACMEEnrollment(t *testing.T, env *testEnv) {
 	require.True(t, fleet.IsNotFound(err))
 
 	// existing and valid
-	enrollValid := &types.ACMEEnrollment{}
+	enrollValid := &types.Enrollment{}
 	env.InsertACMEEnrollment(t, enrollValid)
 	enrollment, err = env.ds.GetACMEEnrollment(t.Context(), enrollValid.PathIdentifier)
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func testGetACMEEnrollment(t *testing.T, env *testEnv) {
 	require.True(t, enrollment.IsValid())
 
 	// existing and revoked
-	enrollRevoked := &types.ACMEEnrollment{Revoked: true}
+	enrollRevoked := &types.Enrollment{Revoked: true}
 	env.InsertACMEEnrollment(t, enrollRevoked)
 	enrollment, err = env.ds.GetACMEEnrollment(t.Context(), enrollRevoked.PathIdentifier)
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func testGetACMEEnrollment(t *testing.T, env *testEnv) {
 	require.False(t, enrollment.IsValid())
 
 	// existing and not-valid-after in the future
-	enrollFuture := &types.ACMEEnrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollFuture := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 	env.InsertACMEEnrollment(t, enrollFuture)
 	enrollment, err = env.ds.GetACMEEnrollment(t.Context(), enrollFuture.PathIdentifier)
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func testGetACMEEnrollment(t *testing.T, env *testEnv) {
 	require.True(t, enrollment.IsValid())
 
 	// existing and not-valid-after in the past
-	enrollPast := &types.ACMEEnrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollPast := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
 	env.InsertACMEEnrollment(t, enrollPast)
 	enrollment, err = env.ds.GetACMEEnrollment(t.Context(), enrollPast.PathIdentifier)
 	require.NoError(t, err)

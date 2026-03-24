@@ -24,7 +24,7 @@ type Meta struct {
 	ExternalAccountRequired bool     `json:"externalAccountRequired,omitempty"`
 }
 
-type ACMEEnrollment struct {
+type Enrollment struct {
 	ID             uint       `db:"id"`
 	PathIdentifier string     `db:"path_identifier"`
 	HostIdentifier string     `db:"host_identifier"`
@@ -34,7 +34,7 @@ type ACMEEnrollment struct {
 
 // IsValid returns true if the enrollment is still valid
 // (not revoked and not expired).
-func (a *ACMEEnrollment) IsValid() bool {
+func (a *Enrollment) IsValid() bool {
 	if a.NotValidAfter != nil && !a.NotValidAfter.IsZero() && time.Now().After(*a.NotValidAfter) {
 		return false
 	}
@@ -93,18 +93,18 @@ const (
 )
 
 type AccountAuthenticatedRequest interface {
-	SetEnrollmentAndAccount(enrollment *ACMEEnrollment, account *Account)
+	SetEnrollmentAndAccount(enrollment *Enrollment, account *Account)
 }
 
 // The base struct for allowing arbitrary types to implement the interface above. It is important that these
 // members not be serialized to/from JSON as they are meant to be set by the service after authentication and
 // not by the client.
 type AccountAuthenticatedRequestBase struct {
-	Enrollment *ACMEEnrollment `json:"-"`
-	Account    *Account        `json:"-"`
+	Enrollment *Enrollment `json:"-"`
+	Account    *Account    `json:"-"`
 }
 
-func (r *AccountAuthenticatedRequestBase) SetEnrollmentAndAccount(enrollment *ACMEEnrollment, account *Account) {
+func (r *AccountAuthenticatedRequestBase) SetEnrollmentAndAccount(enrollment *Enrollment, account *Account) {
 	r.Enrollment = enrollment
 	r.Account = account
 }
@@ -118,7 +118,7 @@ type Identifier struct {
 
 // Datastore is the datastore interface for the ACME bounded context.
 type Datastore interface {
-	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*ACMEEnrollment, error)
+	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*Enrollment, error)
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, error)
 }

@@ -56,8 +56,8 @@ type GetDirectoryResponse struct {
 func (r GetDirectoryResponse) Error() error { return r.Err }
 
 type CreateNewAccountRequest struct {
-	Enrollment *types.ACMEEnrollment `json:"-"`
-	JSONWebKey *jose.JSONWebKey      `json:"-"`
+	Enrollment *types.Enrollment `json:"-"`
+	JSONWebKey *jose.JSONWebKey  `json:"-"`
 
 	// OnlyReturnExisting indicates that no new account should be created but the
 	// existing account for this key should be returned if it exists. This is the
