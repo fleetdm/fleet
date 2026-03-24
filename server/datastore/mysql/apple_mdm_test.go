@@ -4618,7 +4618,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// after the grace period and max retry attempts, status changes to "failed" if a profile is missing (i.e. not installed)
-	for missingRetry := uint(0); missingRetry < fleetmdm.MaxAppleProfileRetries; missingRetry++ {
+	for missingRetry := range fleetmdm.MaxAppleProfileRetries {
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 			{
 				Identifier:  cp1.Identifier,
@@ -4660,7 +4660,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 
 	// after the grace period and max retry attempts, status changes to "failed" if a profile is outdated (i.e. installed
 	// before the updated at timestamp of the profile)
-	for outdatedRetry := uint(0); outdatedRetry < fleetmdm.MaxAppleProfileRetries; outdatedRetry++ {
+	for range fleetmdm.MaxAppleProfileRetries {
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 			{
 				Identifier:  cp1.Identifier,
