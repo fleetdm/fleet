@@ -536,11 +536,17 @@ func MakeDecoder(
 				r.Header.Del("Content-Encoding")
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			_, isMaxBytesError := errors.AsType[*http.MaxBytesError](err)
+
 			// Some DecodeRequest implementations (like getHostSoftwareRequest)
 			// themselves return platform_http.PayloadTooLargeError.
-			_, isPayloadTooLargeError := errors.AsType[platform_http.PayloadTooLargeError](err)
-			if isMaxBytesError || isPayloadTooLargeError {
+			if inner, isPayloadTooLargeError := errors.AsType[platform_http.PayloadTooLargeError](err); isPayloadTooLargeError {
+				// Preserve the inner error's MaxRequestSize and ContentLength
+				// (it knows the actual limit that was hit), only add Gzipped.
+				inner.Gzipped = gzipped
+				return nil, inner
+			}
+
+			if _, isMaxBytesError := errors.AsType[*http.MaxBytesError](err); isMaxBytesError {
 				return nil, platform_http.PayloadTooLargeError{
 					ContentLength:  r.Header.Get("Content-Length"),
 					MaxRequestSize: maxRequestBodySize,

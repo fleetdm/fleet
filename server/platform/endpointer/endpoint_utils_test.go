@@ -364,6 +364,20 @@ type testGzipRequestType struct {
 	Data string `json:"data"`
 }
 
+// testRequestDecoderPayloadTooLargeType implements RequestDecoder and returns
+// a PayloadTooLargeError directly from DecodeRequest (simulating implementations
+// like getHostSoftwareRequest that enforce their own size limits).
+type testRequestDecoderPayloadTooLargeType struct {
+	Data string `json:"data"`
+}
+
+func (d *testRequestDecoderPayloadTooLargeType) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
+	return nil, platform_http.PayloadTooLargeError{
+		ContentLength:  r.Header.Get("Content-Length"),
+		MaxRequestSize: 42,
+	}
+}
+
 type testGzipBodyDecoderType struct {
 	Data string `json:"data"`
 }
@@ -439,5 +453,21 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 		rd, ok := result.(*testGzipBodyDecoderType)
 		require.True(t, ok)
 		assert.Equal(t, "hi", rd.Data)
+	})
+
+	// Sub-test for the RequestDecoder code path where DecodeRequest itself
+	// returns a PayloadTooLargeError (covers lines 545-546).
+	t.Run("DecodeRequest returning PayloadTooLargeError preserves inner fields and sets Gzipped", func(t *testing.T) {
+		makePayloadDecoder := func() kithttp.DecodeRequestFunc {
+			return MakeDecoder(&testRequestDecoderPayloadTooLargeType{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)
+		}
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makePayloadDecoder()(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "DecodeRequest returning PayloadTooLargeError must propagate, got: %v", err)
+		assert.True(t, ple.Gzipped, "Gzipped must be set when the request was gzip-encoded")
+		assert.Equal(t, int64(42), ple.MaxRequestSize, "MaxRequestSize from inner error must be preserved")
 	})
 }
