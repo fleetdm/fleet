@@ -4,18 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 )
 
 func (s *Service) NewNonce(ctx context.Context, identifier string) (string, error) {
-	// skipauth: No authorization check needed, it is done via path identifier.
-	if az, ok := authz_ctx.FromContext(ctx); ok {
-		az.SetChecked()
-	}
-
 	// authentication is via the identifier, that must exist as a valid ACME enrollment
 	if _, err := s.authenticateWithACMEEnrollment(ctx, identifier); err != nil {
 		return "", err
@@ -29,11 +23,6 @@ func (s *Service) NewNonce(ctx context.Context, identifier string) (string, erro
 }
 
 func (s *Service) GetDirectory(ctx context.Context, identifier string) (*types.Directory, error) {
-	// skipauth: No authorization check needed, it is done via path identifier.
-	if az, ok := authz_ctx.FromContext(ctx); ok {
-		az.SetChecked()
-	}
-
 	// authentication is via the identifier, that must exist as a valid ACME enrollment
 	if _, err := s.authenticateWithACMEEnrollment(ctx, identifier); err != nil {
 		return nil, err

@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
@@ -21,6 +23,10 @@ func GetRoutes(svc api.Service) eu.HandlerRoutesFunc {
 
 func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerOption) {
 	ae := newEndpointerWithNoAuth(svc, opts, r)
+	// ACME endpoints use path identifier and JWS authn/z, so we use a middleware to mark
+	// the standard Fleet auth as skipped/done so the endpoints don't return a Forbidden
+	// error due to no standard auth done.
+	ae = ae.WithCustomMiddlewareAfterAuth(skipStandardFleetAuth())
 
 	// must support HEAD, GET and POST-as-GET for new_nonce as per
 	// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.3 and
@@ -37,6 +43,17 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 
 	ae.POST("/api/mdm/acme/{identifier}/new_account", createAccountEndpoint, api_http.JWSRequestContainer{})
 	ae.POST("/api/mdm/acme/{identifier}/new_order", createOrderEndpoint, api_http.JWSRequestContainer{})
+}
+
+func skipStandardFleetAuth() endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req any) (any, error) {
+			if az, ok := authz_ctx.FromContext(ctx); ok {
+				az.SetChecked()
+			}
+			return next(ctx, req)
+		}
+	}
 }
 
 // getNewNonceEndpoint handles HEAD/GET /api/mdm/acme/{identifier}/new_nonce requests.
