@@ -115,7 +115,7 @@ jobs:
         echo "Fleet server is responding"
         
         # Wait for all hosts to enroll, then keep the server alive until the summary job completes.
-        EXPECTED=24 # This needs to be updated when the matrix strategies are updated.
+        EXPECTED=32 # This needs to be updated when the matrix strategies are updated.
         START=$(date +%s)
         TIMEOUT=900 # 15 minutes
         ENROLLED_ALL=false
@@ -311,7 +311,8 @@ jobs:
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
-    runs-on: ubuntu-latest
+        runner: [ 'ubuntu-24.04', 'ubuntu-24.04-arm' ]
+    runs-on: ${{ matrix.runner }}
     needs: [gen, login]
     steps:
     - name: Harden Runner
@@ -335,7 +336,8 @@ jobs:
 
     - name: Install Orbit
       run: |
-        sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
+        ARCH=$(uname -m)
+        sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}-${ARCH}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
