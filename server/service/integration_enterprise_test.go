@@ -11989,9 +11989,17 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		return err
 	})
 
-	// available installer is returned by user-authenticated endpoint
+	// default (no include_available_for_install param) should only return installed software, not library items (#41631)
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 2) // foo and bar only — ruby is not installed, just available
+	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
+
+	// user authenticated endpoint, explicitly request to include available for install software
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
@@ -12005,7 +12013,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 	require.Nil(t, getHostSw.Software[2].Status)
 
-	// user authenticated endpoint, but explicitly request to not include available for install software
+	// user authenticated endpoint, explicitly request to not include available for install software
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=false", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 2) // foo and bar
@@ -12110,9 +12118,16 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
 		host.ID, titleID), nil, http.StatusAccepted, &installResp)
 
-	// still returned by user-authenticated endpoint, now pending
+	// default (no param) should still only return installed software, even after install is requested (#41631)
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 2) // foo and bar — ruby has a pending install but is not yet installed
+	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Equal(t, getHostSw.Software[1].Name, "foo")
+
+	// with include_available_for_install=true, the pending install is visible
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
@@ -20724,8 +20739,9 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 		http.StatusNoContent)
 
 	// Software is now installed on the host. We should see it in the host software list
+	// (need include_available_for_install=true since the install was tracked via an installer, not osquery inventory)
 	getHostSw := getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 1)
 	require.Equal(t, getHostSw.Software[0].Name, "ruby")
 
@@ -20770,7 +20786,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	updateInstallerLabel(installerID, lbl2.ID, true)
 
 	// We should still see the software at this point, because we haven't uninstalled it yet
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 1)
 
 	// installer should be out of scope since the label is "exclude any"
@@ -20785,7 +20801,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 
 	// uninstall the software
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", host.ID, titleID), nil, http.StatusAccepted, &resp)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 1)
 	// TODO this is a corner case where we have visibility on a descoped uninstall, but this will disappear
 	// once we complete the uninstall because at that point we'll be relying solely on inventory to determine software
