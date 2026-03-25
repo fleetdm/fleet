@@ -85,6 +85,16 @@ software:
       auto_update_window_end: "05:00"
       categories:
         - "Security"
+    - app_store_id: "6473753684" # Claude by Anthropic
+      display_name: "Claude"
+      self_service: true
+      setup_experience: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     # iPadOS apps
     - app_store_id: "618783545" # Slack
       display_name: "Slack"
