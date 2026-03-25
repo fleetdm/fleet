@@ -265,7 +265,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   2,
 				Name: "My App Store App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "com.example.team-software",
+					AppStoreID: "1234567890",
 					Platform:   string(fleet.MacOSPlatform),
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
@@ -274,7 +274,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   6,
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID:         "com.example.setup-experience-software",
+					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
@@ -487,7 +487,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 6,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID: fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
+				VPPAppID: fleet.VPPAppID{AdamID: "55566677778", Platform: fleet.AndroidPlatform},
 				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
 					{
 						LabelName: "Label C",
@@ -638,7 +638,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:   6,
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID:         "com.example.setup-experience-software",
+					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
@@ -1775,7 +1775,7 @@ func TestGeneratePolicies(t *testing.T) {
 				Comment: "__TEAM_SOFTWARE_COMMENT_TOKEN__",
 			},
 			2: {
-				AppStoreId: "com.example.team-software",
+				AppStoreId: "1234567890",
 			},
 		},
 		ScriptList: map[uint]string{

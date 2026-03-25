@@ -75,7 +75,7 @@ policies:
   critical: false
   description: This is a team policy with VPP app automation
   install_software:
-    app_store_id: com.example.team-software
+    app_store_id: 1234567890
   name: Team VPP policy
   platform: darwin
   query: SELECT * FROM team_policy WHERE id = 3
@@ -119,7 +119,7 @@ settings:
       host_percentage: 2
 software:
   app_store_apps:
-  - app_store_id: com.example.team-software
+  - app_store_id: 1234567890
     categories:
     - Productivity
     - Utilities
@@ -130,7 +130,7 @@ software:
     - Label D
     platform: darwin
     self_service: true
-  - app_store_id: com.example.setup-experience-software
+  - app_store_id: 55566677778
     icon:
       path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
     labels_include_all:
