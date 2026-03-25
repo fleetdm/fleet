@@ -210,8 +210,8 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// When software is excepted from GitOps, pre-fetch server-side software
-			// for all existing teams so the parser can validate policy references,
-			// and DoGitOps can resolve policy title IDs.
+			// for all existing teams (including "No team") so the parser can validate
+			// policy references, and DoGitOps can resolve policy title IDs.
 			if appConfig.GitOpsConfig.Exceptions.Software {
 				syntheticSoftwareByTeam := make(map[string]json.RawMessage)
 				for teamName, teamID := range teamIDLookup {
@@ -232,6 +232,22 @@ func gitopsCommand() *cli.Command {
 					syntheticSoftwareByTeam[teamName] = raw
 					teamsSoftwareInstallers[teamName] = installers
 					teamsVPPApps[teamName] = vppApps
+				}
+				// Also pre-fetch for "No team" (unassigned hosts, teamID=0) if present.
+				if noTeamPresent {
+					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, 0)
+					if err != nil {
+						return fmt.Errorf("getting software for unassigned hosts: %w", err)
+					}
+					if softwareMap != nil {
+						raw, err := json.Marshal(softwareMap)
+						if err != nil {
+							return fmt.Errorf("marshaling software for unassigned hosts: %w", err)
+						}
+						syntheticSoftwareByTeam[fleet.TeamNameNoTeam] = raw
+						teamsSoftwareInstallers[fleet.TeamNameNoTeam] = installers
+						teamsVPPApps[fleet.TeamNameNoTeam] = vppApps
+					}
 				}
 				gitOpsOpts.SyntheticSoftwareByTeam = syntheticSoftwareByTeam
 			}
