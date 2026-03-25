@@ -117,11 +117,11 @@ function validatePolicyYaml(content) {
 }
 
 const PLACEHOLDER_PATTERNS = [
-  /^UNABLE_TO_GENERATE/i,
-  /^CONTENT_TOO_LONG/i,
-  /^PLACEHOLDER/i,
-  /^\[.*content.*\]$/i,
-  /^TODO/i,
+  /^UNABLE_TO_GENERATE/im,
+  /^CONTENT_TOO_LONG/im,
+  /^PLACEHOLDER/im,
+  /^\[.*content.*\]$/im,
+  /^TODO/im,
 ];
 
 /**

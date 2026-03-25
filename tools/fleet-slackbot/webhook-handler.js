@@ -61,8 +61,19 @@ function createWebhookHandler(config, github, claude) {
       res.end(JSON.stringify({ ok: true, message: "processing" }));
 
       if (config.ci.autoFix) {
-        handleCheckRun(payload, config, github, claude).catch((err) => {
+        handleCheckRun(payload, config, github, claude).catch(async (err) => {
           console.error("[webhook] Error handling check_run:", err);
+          const prNumber = payload.check_run?.pull_requests?.[0]?.number;
+          if (prNumber) {
+            const safeMessage = err.message?.includes("Claude returned")
+              ? "Failed to process the AI response. Please try rephrasing your request."
+              : err.message?.replace(/Raw response.*$/s, "").trim() || "An unexpected error occurred.";
+            try {
+              await github.addPullRequestComment(prNumber, `🤖 **Fleet:** CI auto-fix failed: ${safeMessage}`);
+            } catch (replyErr) {
+              console.error("[webhook] Failed to post CI error comment:", replyErr);
+            }
+          }
         });
       }
       return;

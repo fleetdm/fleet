@@ -57,18 +57,15 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 		var endpoints []Endpoint
 		var err error
 		if fleet != "" || platform != "" || status != "" {
-			endpoints, err = fleetClient.GetEndpointsWithFilters(fleet, platform, status)
+			endpoints, err = fleetClient.GetEndpointsWithFilters(fleet, platform, status, perPage)
 		} else {
-			endpoints, err = fleetClient.GetEndpoints()
+			endpoints, err = fleetClient.GetEndpoints(perPage)
 		}
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get endpoints: %v", err)), nil
 		}
 
-		totalCount := len(endpoints)
-		if len(endpoints) > perPage {
-			endpoints = endpoints[:perPage]
-		}
+		totalCount, _ := fleetClient.GetHostCount()
 
 		result := struct {
 			Total     int        `json:"total"`
@@ -105,7 +102,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 		host, err := fleetClient.GetHostByIdentifier(identifier)
 		if err != nil {
 			// If lookup by identifier fails, try searching by display_name from the endpoints list
-			endpoints, epErr := fleetClient.GetEndpoints()
+			endpoints, epErr := fleetClient.GetEndpoints(0)
 			if epErr == nil {
 				lowerID := strings.ToLower(identifier)
 				for _, ep := range endpoints {
