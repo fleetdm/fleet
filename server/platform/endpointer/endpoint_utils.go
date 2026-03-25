@@ -539,14 +539,16 @@ func MakeDecoder(
 
 			// Some DecodeRequest implementations (like getHostSoftwareRequest)
 			// themselves return platform_http.PayloadTooLargeError.
-			if inner, isPayloadTooLargeError := errors.AsType[platform_http.PayloadTooLargeError](err); isPayloadTooLargeError {
+			var inner platform_http.PayloadTooLargeError
+			if errors.As(err, &inner) {
 				// Preserve the inner error's MaxRequestSize and ContentLength
 				// (it knows the actual limit that was hit), only add Gzipped.
 				inner.Gzipped = gzipped
 				return nil, inner
 			}
 
-			if _, isMaxBytesError := errors.AsType[*http.MaxBytesError](err); isMaxBytesError {
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
 				return nil, platform_http.PayloadTooLargeError{
 					ContentLength:  r.Header.Get("Content-Length"),
 					MaxRequestSize: maxRequestBodySize,
@@ -615,7 +617,8 @@ func MakeDecoder(
 							InternalErr: ace,
 						}
 					}
-					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+					var maxBytesErr *http.MaxBytesError
+					if errors.As(err, &maxBytesErr) {
 						return nil, platform_http.PayloadTooLargeError{
 							ContentLength:  r.Header.Get("Content-Length"),
 							MaxRequestSize: maxRequestBodySize,
@@ -689,7 +692,8 @@ func MakeDecoder(
 					}
 				}
 
-				if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+				var maxBytesErr *http.MaxBytesError
+				if errors.As(err, &maxBytesErr) {
 					return nil, platform_http.PayloadTooLargeError{
 						ContentLength:  r.Header.Get("Content-Length"),
 						MaxRequestSize: maxRequestBodySize,
