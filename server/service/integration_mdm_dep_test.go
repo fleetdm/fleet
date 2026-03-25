@@ -3266,6 +3266,12 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 		_, err := q.ExecContext(context.Background(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', true)`)
 		return err
 	})
+	t.Cleanup(func() {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', true)`)
+			return err
+		})
+	})
 
 	// Apple Silicon Mac enrolls via ACME, should contain ACME directory URL in the profile
 	appleSiliconDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, mdmtest.WithSkipParseEnrollProf(true))
