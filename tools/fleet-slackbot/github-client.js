@@ -41,16 +41,35 @@ class GitHubClient {
       ref: `heads/${this.baseBranch}`,
     });
 
-    const { data: tree } = await this.octokit.git.getTree({
+    // Fetch the root tree (non-recursive) to find the gitops subtree SHA
+    const { data: rootTree } = await this.octokit.git.getTree({
       owner: this.owner,
       repo: this.repo,
       tree_sha: refData.object.sha,
+    });
+
+    const subtreeEntry = rootTree.tree.find(
+      (item) => item.type === "tree" && item.path === this.gitopsBasePath
+    );
+    if (!subtreeEntry) {
+      throw new Error(`GitOps directory "${this.gitopsBasePath}" not found in repo`);
+    }
+
+    // Fetch only the gitops subtree recursively
+    const { data: subtree } = await this.octokit.git.getTree({
+      owner: this.owner,
+      repo: this.repo,
+      tree_sha: subtreeEntry.sha,
       recursive: "true",
     });
 
-    return tree.tree
-      .filter((item) => item.type === "blob" && item.path.startsWith(this.gitopsBasePath + "/"))
-      .map((item) => item.path.replace(this.gitopsBasePath + "/", ""));
+    if (subtree.truncated) {
+      throw new Error(`GitOps directory tree was truncated by GitHub API; too many files`);
+    }
+
+    return subtree.tree
+      .filter((item) => item.type === "blob")
+      .map((item) => item.path);
   }
 
   /**
