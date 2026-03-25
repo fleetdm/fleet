@@ -405,7 +405,7 @@ func gitopsCommand() *cli.Command {
 				validLabelNames := make(map[string]struct{})
 				if globalLabelChanges, ok := labelChanges[spec.LabelAPIGlobalTeamName]; ok {
 					for _, label := range globalLabelChanges {
-						if label.Op == "+" || label.Op == "=" {
+						if label.Op == "+" || label.Op == "=" || label.Op == "~" {
 							validLabelNames[label.Name] = struct{}{}
 						}
 					}
@@ -420,7 +420,7 @@ func gitopsCommand() *cli.Command {
 				}
 				if config.CoercedTeamName() != spec.LabelAPIGlobalTeamName {
 					for _, label := range labelChanges[config.CoercedTeamName()] {
-						if label.Op == "+" || label.Op == "=" {
+						if label.Op == "+" || label.Op == "=" || label.Op == "~" {
 							validLabelNames[label.Name] = struct{}{}
 						}
 					}
@@ -773,7 +773,7 @@ func computeLabelChanges(
 	// If no labels are specified: either no-op if labels are exempted from GitOps,
 	// or else delete them all.
 	if len(specifiedLabels) == 0 {
-		op := "="
+		op := "~" // preserved (excepted from GitOps, no action needed)
 		if processMissingLabels {
 			op = "-"
 		}

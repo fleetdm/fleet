@@ -5849,7 +5849,7 @@ func TestComputeLabelChanges(t *testing.T) {
 			specifiedLabels:      nil,
 			processMissingLabels: false,
 			expected: []spec.LabelChange{
-				{Name: "label1", Op: "=", TeamName: "team1", FileName: "config.yml"},
+				{Name: "label1", Op: "~", TeamName: "team1", FileName: "config.yml"},
 			},
 		},
 		{
