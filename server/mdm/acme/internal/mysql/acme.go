@@ -35,7 +35,6 @@ func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
 	return ds.replica
 }
 
-// TODO(mna): will eventually be needed. No writes for now.
 // func (ds *Datastore) writer(_ context.Context) *sqlx.DB {
 // 	return ds.primary
 // }

@@ -2,13 +2,17 @@
 package service
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 )
 
 // Service is the activity bounded context service implementation.
@@ -37,3 +41,21 @@ func NewService(
 
 // Ensure Service implements api.Service
 var _ api.Service = (*Service)(nil)
+
+func (s *Service) NoncesStore() *redis_nonces_store.RedisNoncesStore {
+	return s.nonces
+}
+
+// TODO(mna): I'm assuming we'll need this at some point (when we need to resolve only 1 URL), but not used for now.
+// func (s *Service) getACMEURL(ctx context.Context, pathIdentifier string, suffixes ...string) (string, error) {
+// 	appConfig, err := s.providers.AppConfig(ctx)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	return s.getACMEURLWithBaseURL(ctx, appConfig.MDMUrl(), pathIdentifier, suffixes...)
+// }
+
+func (s *Service) getACMEURLWithBaseURL(_ context.Context, baseURL, pathIdentifier string, suffixes ...string) (string, error) {
+	return commonmdm.ResolveURL(baseURL, fmt.Sprintf("/api/mdm/acme/%s/%s", pathIdentifier, strings.Join(suffixes, "/")), true)
+}

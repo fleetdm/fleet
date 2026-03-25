@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"go.step.sm/crypto/jose"
 )
 
 type Directory struct {
@@ -24,7 +24,7 @@ type Meta struct {
 	ExternalAccountRequired bool     `json:"externalAccountRequired,omitempty"`
 }
 
-type ACMEEnrollment struct {
+type Enrollment struct {
 	ID             uint       `db:"id"`
 	PathIdentifier string     `db:"path_identifier"`
 	HostIdentifier string     `db:"host_identifier"`
@@ -34,24 +34,100 @@ type ACMEEnrollment struct {
 
 // IsValid returns true if the enrollment is still valid
 // (not revoked and not expired).
-func (a *ACMEEnrollment) IsValid() bool {
+func (a *Enrollment) IsValid() bool {
 	if a.NotValidAfter != nil && !a.NotValidAfter.IsZero() && time.Now().After(*a.NotValidAfter) {
 		return false
 	}
 	return !a.Revoked
 }
 
-// AppleACMEBaseURL returns the base URL for the Apple ACME server, which is
-// the Fleet server URL by default, but can be overridden by the FLEET_DEV_STEP_CA_SERVER
-// environment variable for test purposes.
-func AppleACMEBaseURL(serverURL string) string {
-	if base := dev_mode.Env("FLEET_DEV_STEP_CA_SERVER"); base != "" {
-		return base
-	}
-	return serverURL
+type Account struct {
+	ID                   uint            `db:"id"`
+	EnrollmentID         uint            `db:"acme_enrollment_id"`
+	JSONWebKey           jose.JSONWebKey `db:"-"`
+	JSONWebKeyThumbprint string          `db:"json_web_key_thumbprint"`
+	Revoked              bool            `db:"revoked"`
+}
+
+type AccountResponse struct {
+	CreatedAccount *Account `json:"-"`
+	DidCreate      bool     `json:"-"`
+	Status         string   `json:"status"`
+	Contact        []string `json:"contact,omitempty"`
+	Orders         string   `json:"orders"`
+	Location       string   `json:"-"`
+}
+
+type Order struct {
+	ID                        uint         `db:"id" json:"-"`
+	AccountID                 uint         `db:"account_id" json:"-"`
+	IssuedCertificateSerial   *int64       `db:"issued_certificate_serial" json:"-"`
+	CertificateSigningRequest string       `db:"certificate_signing_request" json:"-"`
+	Expires                   time.Time    `db:"-" json:"expires"`
+	Status                    string       `db:"status" json:"status"`
+	Identifiers               []Identifier `db:"-" json:"identifiers"`
+	Authorizations            []string     `db:"-" json:"authorizations"`
+	Finalize                  string       `db:"-" json:"finalize"`
+	Certificate               string       `db:"-" json:"certificate,omitempty"`
+}
+
+type Authorization struct {
+	ID         uint       `db:"id" json:"-"`
+	OrderID    uint       `db:"order_id" json:"-"`
+	Identifier Identifier `db:"-" json:"identifier"`
+	// TODO: We should just set this to the overall Enrollment's expires value for now, I think.
+	// we can always revisit later
+	Expires    time.Time   `db:"-" json:"expires"`
+	Status     string      `db:"status" json:"status"`
+	Challenges []Challenge `db:"-" json:"challenges"`
+}
+
+type Challenge struct {
+	ID              uint `db:"id" json:"-"`
+	AuthorizationID uint `db:"authorization_id" json:"-"`
+
+	Type   string `db:"challenge_type" json:"type"`
+	Token  string `db:"token" json:"token"`
+	Status string `db:"status" json:"status"`
+	URL    string `db:"-" json:"url"`
+
+	// TODO: We may need to add this to the db or we can use the challenge's updated_at. It
+	// only needs to be returned if the challenge is status=valid, so we can set it in the
+	// service when the challenge is validated.
+	Validated *time.Time `db:"-" json:"validated,omitempty"`
+}
+
+const (
+	IdentifierTypePermanentIdentifier = "permanent-identifier"
+)
+
+type AccountAuthenticatedRequest interface {
+	SetEnrollmentAndAccount(enrollment *Enrollment, account *Account)
+}
+
+// The base struct for allowing arbitrary types to implement the interface above. It is important that these
+// members not be serialized to/from JSON as they are meant to be set by the service after authentication and
+// not by the client.
+type AccountAuthenticatedRequestBase struct {
+	Enrollment *Enrollment `json:"-"`
+	Account    *Account    `json:"-"`
+}
+
+func (r *AccountAuthenticatedRequestBase) SetEnrollmentAndAccount(enrollment *Enrollment, account *Account) {
+	r.Enrollment = enrollment
+	r.Account = account
+}
+
+// Represents acme identifiers(not to be confused with enrollment identifiers) which, in our usecase, represent identifiers(e.g. serials)
+// that hosts control.
+type Identifier struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
 }
 
 // Datastore is the datastore interface for the ACME bounded context.
 type Datastore interface {
-	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*ACMEEnrollment, error)
+	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*Enrollment, error)
+	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
+	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)
 }

@@ -55,11 +55,13 @@ func Up_20260317132040(tx *sql.Tx) error {
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   acme_enrollment_id INT UNSIGNED NOT NULL,
   json_web_key json NOT NULL,
+  json_web_key_thumbprint VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   revoked TINYINT(1) NOT NULL DEFAULT '0',
   created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  FOREIGN KEY (acme_enrollment_id) REFERENCES acme_enrollments(id) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (acme_enrollment_id) REFERENCES acme_enrollments(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  UNIQUE KEY idx_enrollment_id_thumbprint (acme_enrollment_id, json_web_key_thumbprint)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
 	if err != nil {

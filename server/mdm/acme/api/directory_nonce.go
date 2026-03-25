@@ -7,6 +7,6 @@ import (
 )
 
 type DirectoryNonceService interface {
-	NewNonce(ctx context.Context, identifier string) (string, error)
+	NewNonce(ctx context.Context, identifier string) error
 	GetDirectory(ctx context.Context, identifier string) (*types.Directory, error)
 }

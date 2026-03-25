@@ -28,11 +28,12 @@ CREATE TABLE `acme_accounts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `acme_enrollment_id` int unsigned NOT NULL,
   `json_web_key` json NOT NULL,
+  `json_web_key_thumbprint` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `revoked` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `acme_enrollment_id` (`acme_enrollment_id`),
+  UNIQUE KEY `idx_enrollment_id_thumbprint` (`acme_enrollment_id`,`json_web_key_thumbprint`),
   CONSTRAINT `acme_accounts_ibfk_1` FOREIGN KEY (`acme_enrollment_id`) REFERENCES `acme_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -53,7 +53,7 @@ func (tdb *TestDB) TruncateTables(t *testing.T) {
 
 // InsertACMEEnrollment creates an enrollment in the database and updates the enrollment struct
 // with the generated identifiers (if they were empty) and unique id.
-func (tdb *TestDB) InsertACMEEnrollment(t *testing.T, enrollment *types.ACMEEnrollment) {
+func (tdb *TestDB) InsertACMEEnrollment(t *testing.T, enrollment *types.Enrollment) {
 	t.Helper()
 	ctx := t.Context()
 
