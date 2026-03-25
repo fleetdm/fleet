@@ -367,7 +367,7 @@ func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 
 	// TODO: simulate ACME enrollment instead of SCEP enrollment for now just do some basic checks
 	// on the profile content.
-	if c.EnrollInfo.SCEPURL == "" || !bytes.Contains(c.EnrollInfo.RawProfile, []byte("com.apple.security.scep")) {
+	if c.EnrollInfo.SCEPURL == "" && !bytes.Contains(c.EnrollInfo.RawProfile, []byte("com.apple.security.scep")) {
 		if !bytes.Contains(c.EnrollInfo.RawProfile, []byte("com.apple.security.acme")) {
 			return fmt.Errorf("enrollment profile should contain either SCEP or ACME payload")
 		}
