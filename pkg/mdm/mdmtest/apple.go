@@ -121,6 +121,10 @@ type TestAppleMDMClient struct {
 	// is not a full simulation of legacy enrollments (especially, as it related to IdP). Rather it
 	// is enough to test certain SCEP renewal scenarios for iOS/IPadOS devices
 	legacyIDeviceEnrollRef string
+
+	// skipParseEnrollProf, when set to true, will skip parsing the enrollment profile after
+	// fetching it. Instead, the raw profile bytes will still be stored in enrollProfBytes.
+	skipParseEnrollProf bool
 }
 
 // TestMDMAppleClientOption allows configuring a TestMDMClient.
@@ -147,6 +151,12 @@ func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
 	}
 }
 
+func WithSkipParseEnrollProf(skip bool) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.skipParseEnrollProf = skip
+	}
+}
+
 // Will add the specified reference as a query parameter to the MDMURL after the
 // client fetches the enrollment profile but prior to attempting SCEP enrollment. Note that this
 // is not a full simulation of legacy enrollments (especially, as it relates to IdP). Rather it
@@ -168,6 +178,17 @@ type AppleEnrollInfo struct {
 	// AssignedManagedAppleID is the Assigned Managed Apple account for the device. Only used for
 	// account driven enrollment flows, so it will not always be available.
 	AssignedManagedAppleID string
+	// ACMEURL is the optional URL that will be used for ACME enrollment instead of the SCEP.
+	// Currently, this is only used for certain enrollment scenarios when
+	// config.mdm.apple_require_hardware_attestation is true.
+	//
+	// TODO: use this when we have full ACME auth flow implemented
+	ACMEURL string
+
+	// RawProfile contains the raw bytes of the enrollment profile. This is useful for tests that
+	// want to inspect the actual profile content. This field is populated regardless of the value
+	// of skipParseEnrollProf.
+	RawProfile []byte
 }
 
 // NewTestMDMClientAppleDesktopManual will create a simulated device that will fetch
@@ -344,6 +365,15 @@ func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 		c.EnrollInfo.MDMURL = parsedMDMURL.String()
 	}
 
+	// TODO: simulate ACME enrollment instead of SCEP enrollment for now just do some basic checks
+	// on the profile content.
+	if !bytes.Contains(c.EnrollInfo.RawProfile, []byte("com.apple.security.scep")) {
+		if !bytes.Contains(c.EnrollInfo.RawProfile, []byte("com.apple.security.acme")) {
+			return fmt.Errorf("enrollment profile should contain either SCEP or ACME payload")
+		}
+		return nil
+	}
+
 	if err := c.SCEPEnroll(); err != nil {
 		return fmt.Errorf("scep enroll: %w", err)
 	}
@@ -419,8 +449,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
-		Serial: c.SerialNumber,
-		UDID:   c.UUID,
+		Serial:  c.SerialNumber,
+		UDID:    c.UUID,
+		Product: c.Model,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -432,8 +463,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 	buf, err := MachineInfoAsPKCS7(fleet.MDMAppleMachineInfo{
-		Serial: c.SerialNumber,
-		UDID:   c.UUID,
+		Serial:  c.SerialNumber,
+		UDID:    c.UUID,
+		Product: c.Model,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -619,10 +651,15 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	if err != nil {
 		return fmt.Errorf("verifying enrollment profile: %w", err)
 	}
+	if c.skipParseEnrollProf {
+		c.EnrollInfo.RawProfile = p7.Content
+		return nil
+	}
 	enrollInfo, err := ParseEnrollmentProfile(p7.Content)
 	if err != nil {
 		return fmt.Errorf("parse OTA SCEP profile: %w", err)
 	}
+	enrollInfo.RawProfile = p7.Content
 	c.EnrollInfo = *enrollInfo
 	return nil
 }
@@ -678,11 +715,15 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 
 		rawProfile = p7.Content
 	}
-
+	if c.skipParseEnrollProf {
+		c.EnrollInfo.RawProfile = rawProfile
+		return nil
+	}
 	enrollInfo, err := ParseEnrollmentProfile(rawProfile)
 	if err != nil {
 		return fmt.Errorf("parse enrollment profile: %w", err)
 	}
+	enrollInfo.RawProfile = rawProfile
 	c.EnrollInfo = *enrollInfo
 
 	return nil
