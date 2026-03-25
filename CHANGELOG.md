@@ -104,13 +104,20 @@
 - Fixed stale software titles list after deleting a software installer.
 - Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
 
+## Fleet 4.81.3 (Mar 20, 2026)
+
+### Bug fixes
+
+- Added configurable body size limits for the `/api/osquery/log` and `/api/osquery/distributed/write` endpoints.
+- Fixed false positive `PayloadTooLargeError` errors.
+
 ## Fleet 4.81.2 (Mar 06, 2026)
 
 ### Bug fixes
 
 - Fixed a bug where macOS systems previous enrolled in fleet wouldn't always go through setup experience after a wipe.
 - Fixed issue where policy automation retries were potentially reading stale data from replica database.
-- Updated the DEP syncer to properly reassign a profile when ABM unilaterally removes it
+- Updated the DEP syncer to properly reassign a profile when ABM unilaterally removes it.
 
 ## Fleet 4.81.1 (Mar 2, 2026)
 
