@@ -33,6 +33,7 @@ func TestSetupExperience(t *testing.T) {
 		{"TestGetSetupExperienceScriptByID", testGetSetupExperienceScriptByID},
 		{"TestUpdateSetupExperienceScriptWhileEnqueued", testUpdateSetupExperienceScriptWhileEnqueued},
 		{"TestEnqueueSetupExperienceItemsWindows", testEnqueueSetupExperienceItemsWindows},
+		{"EnqueueSetupExperienceItemsWithDisplayName", testEnqueueSetupExperienceItemsWithDisplayName},
 	}
 
 	for _, c := range cases {
@@ -664,6 +665,220 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			t.Errorf("team %d shouldn't have any any entries", team)
 		}
 	}
+}
+
+// testEnqueueSetupExperienceItemsWithDisplayName verifies that when a custom
+// display name is set for a software title, the enqueue function uses it for
+// both the stored name and the alphabetical install order (instead of the
+// default software_titles.name).
+func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_display_name_test"})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "DisplayNameUser", "displaynameuser@example.com", true)
+
+	// Create two software installers with titles that sort in a known order:
+	//   "AAA_Software" < "ZZZ_Software"  (alphabetically)
+	// We will then assign custom display names that invert this order:
+	//   "AAA_Software" → "Zulu Custom"
+	//   "ZZZ_Software" → "Alpha Custom"
+	// After enqueue, the rows should be ordered by display name:
+	//   "Alpha Custom" (was ZZZ_Software), "Zulu Custom" (was AAA_Software)
+
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello1"), t.TempDir)
+	require.NoError(t, err)
+	installerID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install1",
+		UninstallScript: "uninstall1",
+		InstallerFile:   tfr1,
+		StorageID:       "storage_dn_1",
+		Filename:        "file_dn_1",
+		Title:           "AAA_Software",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello2"), t.TempDir)
+	require.NoError(t, err)
+	installerID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install2",
+		UninstallScript: "uninstall2",
+		InstallerFile:   tfr2,
+		StorageID:       "storage_dn_2",
+		Filename:        "file_dn_2",
+		Title:           "ZZZ_Software",
+		Version:         "2.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Mark both installers for setup experience
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?)", installerID1, installerID2)
+		return err
+	})
+
+	// Set custom display names that invert the alphabetical order
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?), (?, ?, ?)",
+			team.ID, titleID1, "Zulu Custom",
+			team.ID, titleID2, "Alpha Custom",
+		)
+		return err
+	})
+
+	// Create two VPP apps with titles that sort in a known order, then invert with display names.
+	vppApp1 := &fleet.VPPApp{
+		Name:             "AAA_VPP_App",
+		BundleIdentifier: "com.aaa.vpp",
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_1", Platform: fleet.MacOSPlatform}},
+	}
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, vppApp1, &team.ID)
+	require.NoError(t, err)
+
+	vppApp2 := &fleet.VPPApp{
+		Name:             "ZZZ_VPP_App",
+		BundleIdentifier: "com.zzz.vpp",
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_2", Platform: fleet.MacOSPlatform}},
+	}
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, vppApp2, &team.ID)
+	require.NoError(t, err)
+
+	// Mark both VPP apps for setup experience
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE adam_id IN (?, ?)", vpp1.AdamID, vpp2.AdamID)
+		return err
+	})
+
+	// Set custom display names for VPP apps (invert order)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?), (?, ?, ?) ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)",
+			team.ID, vppApp1.TitleID, "Zulu VPP Custom",
+			team.ID, vppApp2.TitleID, "Alpha VPP Custom",
+		)
+		return err
+	})
+
+	// Create a host and enqueue setup experience
+	hostUUID := "host-display-name-test-" + uuid.NewString()
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-dn-test",
+		OsqueryHostID:  ptr.String("osquery-dn-test"),
+		NodeKey:        ptr.String("node-key-dn-test"),
+		UUID:           hostUUID,
+		Platform:       "darwin",
+		HardwareSerial: "dn-serial-1",
+	})
+	require.NoError(t, err)
+
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID, team.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	// --- Verify software installer rows ---
+	var installerRows []setupExperienceInsertTestRows
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &installerRows,
+			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
+			 FROM setup_experience_status_results
+			 WHERE host_uuid = ? AND software_installer_id IS NOT NULL
+			 ORDER BY name ASC`, hostUUID)
+	})
+	require.Len(t, installerRows, 2, "expected 2 software installer rows")
+
+	// The custom display names should be used as the stored name.
+	// "Alpha Custom" (originally ZZZ_Software) should come first alphabetically.
+	assert.Equal(t, "Alpha Custom", installerRows[0].Name, "first installer should use custom display name 'Alpha Custom'")
+	assert.Equal(t, installerID2, uint(installerRows[0].SoftwareInstallerID.Int64), "first installer should be ZZZ_Software (id=%d) because its display name 'Alpha Custom' sorts first", installerID2)
+
+	assert.Equal(t, "Zulu Custom", installerRows[1].Name, "second installer should use custom display name 'Zulu Custom'")
+	assert.Equal(t, installerID1, uint(installerRows[1].SoftwareInstallerID.Int64), "second installer should be AAA_Software (id=%d) because its display name 'Zulu Custom' sorts second", installerID1)
+
+	// --- Verify VPP app rows ---
+	var vppRows []setupExperienceInsertTestRows
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &vppRows,
+			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
+			 FROM setup_experience_status_results
+			 WHERE host_uuid = ? AND vpp_app_team_id IS NOT NULL
+			 ORDER BY name ASC`, hostUUID)
+	})
+	require.Len(t, vppRows, 2, "expected 2 VPP app rows")
+
+	// "Alpha VPP Custom" (originally ZZZ_VPP_App) should come first alphabetically.
+	assert.Equal(t, "Alpha VPP Custom", vppRows[0].Name, "first VPP app should use custom display name 'Alpha VPP Custom'")
+	assert.Equal(t, "Zulu VPP Custom", vppRows[1].Name, "second VPP app should use custom display name 'Zulu VPP Custom'")
+
+	// --- Verify fallback: no display name → use st.name ---
+	// Create a third installer with no custom display name
+	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
+	require.NoError(t, err)
+	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install3",
+		UninstallScript: "uninstall3",
+		InstallerFile:   tfr3,
+		StorageID:       "storage_dn_3",
+		Filename:        "file_dn_3",
+		Title:           "MMM_NoDisplayName",
+		Version:         "3.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	_ = installerID3
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id = ?", installerID3)
+		return err
+	})
+
+	// Re-enqueue for a new host
+	hostUUID2 := "host-display-name-fallback-" + uuid.NewString()
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-dn-test-2",
+		OsqueryHostID:  ptr.String("osquery-dn-test-2"),
+		NodeKey:        ptr.String("node-key-dn-test-2"),
+		UUID:           hostUUID2,
+		Platform:       "darwin",
+		HardwareSerial: "dn-serial-2",
+	})
+	require.NoError(t, err)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID2, team.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	var allInstallerRows []setupExperienceInsertTestRows
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &allInstallerRows,
+			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
+			 FROM setup_experience_status_results
+			 WHERE host_uuid = ? AND software_installer_id IS NOT NULL
+			 ORDER BY name ASC`, hostUUID2)
+	})
+	require.Len(t, allInstallerRows, 3, "expected 3 software installer rows")
+
+	// Order should be: "Alpha Custom" (ZZZ_Software), "MMM_NoDisplayName" (no display name, uses st.name), "Zulu Custom" (AAA_Software)
+	assert.Equal(t, "Alpha Custom", allInstallerRows[0].Name, "first should be 'Alpha Custom'")
+	assert.Equal(t, "MMM_NoDisplayName", allInstallerRows[1].Name, "second should be 'MMM_NoDisplayName' (fallback to st.name)")
+	assert.Equal(t, "Zulu Custom", allInstallerRows[2].Name, "third should be 'Zulu Custom'")
 }
 
 type setupExperienceInsertTestRows struct {

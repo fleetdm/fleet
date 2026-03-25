@@ -106,12 +106,14 @@ INSERT INTO setup_experience_status_results (
 	software_installer_id
 ) SELECT
 	?,
-	st.name,
+	COALESCE(stdn.display_name, st.name),
 	'pending',
 	si.id
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
+LEFT JOIN software_title_display_names stdn
+	ON stdn.software_title_id = st.id AND stdn.team_id = ?
 WHERE install_during_setup = true
 AND global_or_team_id = ?
 AND si.is_active = TRUE
@@ -138,7 +140,7 @@ AND (
 		)
 	)
 )
-AND %s ORDER BY st.name ASC
+AND %s ORDER BY COALESCE(stdn.display_name, st.name) ASC
 `
 	if resetFailedSetupSteps {
 		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
@@ -154,7 +156,7 @@ INSERT INTO setup_experience_status_results (
 	vpp_app_team_id
 ) SELECT
 	?,
-	st.name,
+	COALESCE(stdn.display_name, st.name),
 	'pending',
 	vat.id
 FROM vpp_apps va
@@ -163,11 +165,13 @@ INNER JOIN vpp_apps_teams vat
 	AND vat.platform = va.platform
 INNER JOIN software_titles st
 	ON va.title_id = st.id
+LEFT JOIN software_title_display_names stdn
+	ON stdn.software_title_id = st.id AND stdn.team_id = ?
 WHERE vat.install_during_setup = true
 AND vat.global_or_team_id = ?
 AND va.platform = ?
 AND %s
-ORDER BY st.name ASC
+ORDER BY COALESCE(stdn.display_name, st.name) ASC
 `
 	if resetFailedSetupSteps {
 		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
@@ -200,7 +204,7 @@ WHERE global_or_team_id = ?`
 
 		// Software installers
 		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
-		args := []any{hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike}
+		args := []any{hostUUID, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike}
 		if resetFailedSetupSteps {
 			args = append(args, hostUUID)
 		}
@@ -218,7 +222,7 @@ WHERE global_or_team_id = ?`
 
 		// VPP apps
 		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
-			args := []any{hostUUID, teamID, fleetPlatform}
+			args := []any{hostUUID, teamID, teamID, fleetPlatform}
 			if resetFailedSetupSteps {
 				args = append(args, hostUUID)
 			}
