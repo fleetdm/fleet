@@ -13930,7 +13930,7 @@ Experimental endpoints are excluded from the results, since they are not for use
       "id": 123,
       "display_name": "Get host by identifier",
       "protocol": "GET",
-      "path": "",
+      "path": "/api/v1/fleet/hosts/identifier/:identifier",
       "deprecated": false
     }
   ],
