@@ -61,7 +61,7 @@ func (r *RedisKeyValue) MGet(ctx context.Context, keys []string) (map[string]*st
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	redisKeys := make([]interface{}, len(keys))
+	redisKeys := make([]any, len(keys))
 	for i, key := range keys {
 		redisKeys[i] = r.testPrefix + prefix + key
 	}
