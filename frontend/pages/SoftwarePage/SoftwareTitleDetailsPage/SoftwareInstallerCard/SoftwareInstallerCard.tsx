@@ -51,7 +51,6 @@ interface IActionsDropdownProps {
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   gitOpsModeEnabled?: boolean;
-  softwareExcepted?: boolean;
   repoURL?: string;
   isFMA?: boolean;
   isAndroidPlayStoreApp?: boolean;
@@ -63,7 +62,6 @@ export const SoftwareActionButtons = ({
   onDownloadClick,
   onDeleteClick,
   gitOpsModeEnabled,
-  softwareExcepted,
   repoURL,
   isFMA,
   isAndroidPlayStoreApp,
@@ -77,7 +75,7 @@ export const SoftwareActionButtons = ({
       : [...APP_STORE_APP_ACTION_OPTIONS];
   }
 
-  if (gitOpsModeEnabled && !softwareExcepted) {
+  if (gitOpsModeEnabled) {
     const tooltipContent = (
       <>
         {repoURL && (
@@ -219,7 +217,6 @@ const SoftwareInstallerCard = ({
     patchPolicy,
     automaticInstallPolicies,
     gitOpsModeEnabled,
-    softwareExcepted,
     repoURL,
   } = softwareInstallerMeta;
 
@@ -331,7 +328,6 @@ const SoftwareInstallerCard = ({
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
               gitOpsModeEnabled={gitOpsModeEnabled}
-              softwareExcepted={softwareExcepted}
               repoURL={repoURL}
               isFMA={isFleetMaintainedApp}
               isAndroidPlayStoreApp={isAndroidPlayStoreApp}
@@ -368,7 +364,7 @@ const SoftwareInstallerCard = ({
       )}
       {showDeleteModal && (
         <DeleteSoftwareModal
-          gitOpsModeEnabled={gitOpsModeEnabled && !softwareExcepted}
+          gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}

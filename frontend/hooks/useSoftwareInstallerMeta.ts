@@ -33,8 +33,6 @@ export interface SoftwareInstallerMeta {
     | ISoftwarePackage["automatic_install_policies"]
     | IAppStoreApp["automatic_install_policies"];
   gitOpsModeEnabled: boolean;
-  /** True when software is excepted from GitOps management */
-  softwareExcepted: boolean;
   repoURL?: string;
   canManageSoftware: boolean;
   /** Raw ISoftwarePackage | IAppStoreApp data */
@@ -132,8 +130,8 @@ export const useSoftwareInstaller = (
       repository_url: repoURL,
     } = config?.gitops || {};
 
-    const gitOpsModeEnabled = !!configGitOpsModeEnabled;
     const softwareExcepted = !!config?.gitops.exceptions?.software;
+    const gitOpsModeEnabled = !!configGitOpsModeEnabled && !softwareExcepted;
 
     const canManageSoftware = !!(
       isGlobalAdmin ||
@@ -158,7 +156,6 @@ export const useSoftwareInstaller = (
         patchPolicy,
         automaticInstallPolicies,
         gitOpsModeEnabled,
-        softwareExcepted,
         repoURL,
         canManageSoftware,
         softwareInstaller,
