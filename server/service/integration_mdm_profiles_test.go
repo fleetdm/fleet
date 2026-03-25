@@ -4238,8 +4238,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
-	// trigger a profile sync, device gets the team profile (+ delete commands for old global + OS updates profiles)
-	verifyProfiles(mdmDevice, 2, false, 4)
+	// trigger a profile sync, device gets the team profile (+ delete commands for old global + OS updates profiles).
+	// Delete commands are individual <Delete> per LocURI: 3 global profiles × 1 LocURI + 1 OS updates × 6 LocURIs = 9.
+	verifyProfiles(mdmDevice, 2, false, 9)
 	checkHostsProfilesMatch(host, teamProfiles)
 	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerified)
 
