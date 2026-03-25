@@ -1531,11 +1531,11 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
 				if software.Hash != "" {
-					policySpec["install_software"] = map[string]interface{}{
+					policySpec["install_software"] = map[string]any{
 						"hash_sha256": software.Hash + " " + software.Comment,
 					}
 				} else if software.AppStoreId != "" {
-					policySpec["install_software"] = map[string]interface{}{
+					policySpec["install_software"] = map[string]any{
 						"app_store_id": software.AppStoreId,
 					}
 				}
