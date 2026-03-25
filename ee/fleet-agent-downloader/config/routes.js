@@ -54,6 +54,6 @@ module.exports.routes = {
   '/api/v1/account/logout':                           { action: 'account/logout' },
   // 'PUT   /api/v1/entrance/login':                        { action: 'entrance/login' },
   'GET  /entrance/signup-okta-user-or-redirect':    { action: 'entrance/signup-okta-user-or-redirect' },
-  'GET /download-fleet-installer': { action: 'download-fleet-installer' },
+  'GET /download': { action: 'download-fleet-installer' },
 
 };
