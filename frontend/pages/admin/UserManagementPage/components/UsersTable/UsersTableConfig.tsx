@@ -56,7 +56,10 @@ export interface IUserTableData {
   teams: string;
   role: UserRole;
   actions: IDropdownOption[];
+  /** Prefixed ID used as a unique react-table row key (e.g. "user-3", "invite-1") */
   id: string;
+  /** Numeric ID used for API calls */
+  apiId: number;
   type: string;
   api_only: boolean;
 }
@@ -277,6 +280,7 @@ const enhanceUserData = (
         user.sso_enabled
       ),
       id: `user-${user.id}`,
+      apiId: user.id,
       type: "user",
       api_only: user.api_only,
     };
@@ -293,6 +297,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       role: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(false, true, invite.sso_enabled),
       id: `invite-${invite.id}`,
+      apiId: invite.id,
       type: "invite",
       api_only: false, // api only users are created through fleetctl and not invites
     };

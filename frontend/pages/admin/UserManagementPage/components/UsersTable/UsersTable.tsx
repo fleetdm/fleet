@@ -290,7 +290,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   };
 
   const onEditUser = (formData: IUserFormData) => {
-    const userData = getUser(userEditing.type, userEditing.id);
+    const userData = getUser(userEditing.type, userEditing.apiId);
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
     if (userData?.email !== formData.email) {
@@ -373,7 +373,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     setIsUpdatingUsers(true);
     if (userEditing.type === "invite") {
       invitesAPI
-        .destroy(userEditing.id)
+        .destroy(userEditing.apiId)
         .then(() => {
           renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
         })
@@ -390,7 +390,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         });
     } else {
       usersAPI
-        .destroy(userEditing.id)
+        .destroy(userEditing.apiId)
         .then(() => {
           renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
         })
@@ -409,10 +409,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   };
 
   const onResetSessions = () => {
-    const isResettingCurrentUser = currentUser?.id === userEditing.id;
+    const isResettingCurrentUser = currentUser?.id === userEditing.apiId;
 
     usersAPI
-      .deleteSessions(userEditing.id)
+      .deleteSessions(userEditing.apiId)
       .then(() => {
         if (isResettingCurrentUser) {
           authToken.remove();
@@ -449,7 +449,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   };
 
   const renderEditUserModal = () => {
-    const userData = getUser(userEditing.type, userEditing.id);
+    const userData = getUser(userEditing.type, userEditing.apiId);
 
     return (
       <EditUserModal
