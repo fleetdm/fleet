@@ -1278,12 +1278,12 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 // ParseEnrollmentProfile parses the enrollment profile and returns the parsed information as EnrollInfo.
 func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 	var enrollmentProfile struct {
-		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+		PayloadContent []map[string]any `plist:"PayloadContent"`
 	}
 	if err := plist.Unmarshal(mobileConfig, &enrollmentProfile); err != nil {
 		return nil, fmt.Errorf("unmarshal enrollment profile: %w", err)
 	}
-	payloadContent, ok := enrollmentProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})
+	payloadContent, ok := enrollmentProfile.PayloadContent[0]["PayloadContent"].(map[string]any)
 	if !ok {
 		return nil, errors.New("PayloadContent field not found")
 	}
