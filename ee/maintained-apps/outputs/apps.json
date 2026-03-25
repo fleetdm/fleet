@@ -982,6 +982,13 @@
       "description": "Maccy is a clipboard manager."
     },
     {
+      "name": "Marvel",
+      "slug": "marvel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.marvelprototyping.marvelmacos",
+      "description": "Marvel is a design and prototyping platform for creating interactive app and web mockups."
+    },
+    {
       "name": "Mattermost",
       "slug": "mattermost/darwin",
       "platform": "darwin",

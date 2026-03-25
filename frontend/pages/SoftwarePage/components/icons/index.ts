@@ -11,6 +11,7 @@ import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Iina from "./Iina";
 import LastPass from "./LastPass";
+import Marvel from "./Marvel";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
@@ -306,6 +307,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crashplan: CrashPlan,
   iina: Iina,
   lastpass: LastPass,
+  marvel: Marvel,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
