@@ -1,4 +1,4 @@
-// Package mysql provides the MySQL datastore implementation for the ACME service modiule.
+// Package mysql provides the MySQL datastore implementation for the ACME service module.
 package mysql
 
 import (

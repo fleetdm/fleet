@@ -650,7 +650,7 @@ type Service interface {
 	// This should be called after service creation to inject the activity service dependency.
 	SetActivityService(activitySvc ActivityWriteService)
 
-	// SetACMEService sets the ACME bounded context service for write operations.
+	// SetACMEService sets the ACME service module for write operations.
 	// This should be called after service creation to inject the ACME service dependency.
 	SetACMEService(acmeSvc ACMEWriteService)
 

@@ -204,7 +204,7 @@ func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	svc.activitySvc = activitySvc
 }
 
-// SetACMEService sets the ACME service modiule service for write operations.
+// SetACMEService sets the ACME service module service for write operations.
 // This should be called after NewService to inject the ACME service dependency.
 func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
 	svc.acmeSvc = acmeSvc

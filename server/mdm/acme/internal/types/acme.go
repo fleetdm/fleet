@@ -125,7 +125,7 @@ type Identifier struct {
 	Value string `json:"value"`
 }
 
-// Datastore is the datastore interface for the ACME service modiule.
+// Datastore is the datastore interface for the ACME service module.
 type Datastore interface {
 	UpsertACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
 	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*Enrollment, error)

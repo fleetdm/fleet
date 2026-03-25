@@ -525,7 +525,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		redisPool = redistest.SetupRedis(t, t.Name(), false, false, false) // We are good to initalize a redis pool here as it is only called by integration tests
 	}
 
-	// Wire real ACME service modiule if DBConns is provided (overrides the mock set in newTestServiceWithConfig).
+	// Wire real ACME service module if DBConns is provided (overrides the mock set in newTestServiceWithConfig).
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		acmeSvc, _ := acme_bootstrap.New(opts[0].DBConns, redisPool, ds, logger)
 		svc.SetACMEService(acmeSvc)
