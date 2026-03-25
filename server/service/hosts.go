@@ -29,9 +29,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
@@ -1954,16 +1956,11 @@ type listHostReportsRequest struct {
 	IncludeReportsDontStoreResults *bool `query:"include_reports_dont_store_results,optional"`
 }
 
-type listHostReportsFeatures struct {
-	SavedReportsDisabled bool `json:"save_reports_disabled"`
-}
-
 type listHostReportsResponse struct {
-	Reports  []*fleet.HostReport       `json:"reports"`
-	Count    int                       `json:"count"`
-	Meta     *fleet.PaginationMetadata `json:"meta,omitempty"`
-	Features listHostReportsFeatures   `json:"features"`
-	Err      error                     `json:"error,omitempty"`
+	Reports []*fleet.HostReport       `json:"reports"`
+	Count   int                       `json:"count"`
+	Meta    *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r listHostReportsResponse) Error() error { return r.Err }
@@ -1981,7 +1978,7 @@ func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service
 		IncludeReportsDontStoreResults: includeReportsDontStoreResults,
 	}
 
-	reports, count, meta, savedReportsDisabled, err := svc.ListHostReports(ctx, req.ID, opts)
+	reports, count, meta, err := svc.ListHostReports(ctx, req.ID, opts)
 	if err != nil {
 		return listHostReportsResponse{Err: err}, nil
 	}
@@ -1990,9 +1987,6 @@ func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service
 		Reports: reports,
 		Count:   count,
 		Meta:    meta,
-		Features: listHostReportsFeatures{
-			SavedReportsDisabled: savedReportsDisabled,
-		},
 	}, nil
 }
 
@@ -2004,34 +1998,32 @@ func (svc *Service) ListHostReports(
 	[]*fleet.HostReport,
 	int,
 	*fleet.PaginationMetadata,
-	bool,
 	error,
 ) {
 	// Load host to get team ID and authorize.
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get host")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get host")
 	}
 
 	// Verify the caller can read this specific host.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{ID: host.ID, TeamID: host.TeamID}, fleet.ActionRead); err != nil {
-		return nil, 0, nil, false, err
+		return nil, 0, nil, err
 	}
 
 	// Authorize against the host's team. Global queries (team_id IS NULL) are
 	// intentionally visible to all users who can read queries in this context —
 	// team-scoped users see global queries in addition to their own team's queries.
 	if err := svc.authz.Authorize(ctx, &fleet.Query{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
-		return nil, 0, nil, false, err
+		return nil, 0, nil, err
 	}
 
 	appConfig, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
-		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get app config")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 	maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
-	savedReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
 
 	// This end-point is always paginated; metadata is required for HasNextResults.
 	opts.ListOptions.IncludeMetadata = true
@@ -2045,7 +2037,7 @@ func (svc *Service) ListHostReports(
 	case "", "name", "last_fetched":
 		// valid
 	default:
-		return nil, 0, nil, false, fleet.NewInvalidArgumentError("order_key", "must be one of: name, last_fetched")
+		return nil, 0, nil, fleet.NewInvalidArgumentError("order_key", "must be one of: name, last_fetched")
 	}
 
 	// Default: sort by newest results first. Applies only when the caller has
@@ -2058,10 +2050,10 @@ func (svc *Service) ListHostReports(
 
 	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, opts, maxQueryReportRows)
 	if err != nil {
-		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "list host reports from datastore")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
 	}
 
-	return reports, total, meta, savedReportsDisabled, nil
+	return reports, total, meta, nil
 }
 
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, []*fleet.Host, error) {
@@ -2348,6 +2340,96 @@ func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
 	}
 
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get host DEP assignment
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostDEPAssignmentRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostDEPAssignmentResponse struct {
+	ID                uint                     `json:"id"`
+	HostDEPAssignment *fleet.HostDEPAssignment `json:"host_dep_assignment"`
+	DEPDevice         *godep.Device            `json:"dep_device"`
+	Err               error                    `json:"error,omitempty"`
+}
+
+func (r getHostDEPAssignmentResponse) Error() error { return r.Err }
+
+func getHostDEPAssignmentEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostDEPAssignmentRequest)
+	depAssignment, depDevice, err := svc.GetHostDEPAssignmentDetails(ctx, req.ID)
+	if err != nil {
+		return getHostDEPAssignmentResponse{Err: err}, nil
+	}
+
+	return getHostDEPAssignmentResponse{
+		ID:                req.ID,
+		HostDEPAssignment: depAssignment,
+		DEPDevice:         depDevice,
+	}, nil
+}
+
+func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+	// Load the host first so we can do a team-aware authorization check,
+	// mirroring what GET /hosts/:id does.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host for dep assignment")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	// Fetch Fleet's DEP assignment record. A not-found error means the host is
+	// not a DEP host; return all nils so the response contains JSON nulls.
+	depAssignment, err := svc.ds.GetHostDEPAssignment(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host dep assignment")
+	}
+
+	// Without an ABM token ID we can't resolve which org name to use for the
+	// Apple API call, so return what we have from Fleet's DB.
+	if depAssignment.ABMTokenID == nil {
+		return depAssignment, nil, nil
+	}
+
+	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get ABM token for dep assignment")
+	}
+
+	// If Apple MDM is not configured (e.g. free tier), depStorage will be nil
+	// and NewDEPClient would panic. Return what we have from Fleet's DB.
+	if svc.depStorage == nil {
+		return depAssignment, nil, nil
+	}
+
+	// Call Apple's "Get Device Details" API. Per the issue spec: on error, log
+	// and return dep_device as nil rather than surfacing the error to the caller.
+	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	depDevice, err := depClient.GetDeviceDetails(ctx, abmToken.OrganizationName, host.HardwareSerial)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "get DEP device details from ABM",
+			"host_id", hostID,
+			"org_name", abmToken.OrganizationName,
+			"err", err,
+		)
+		return depAssignment, nil, nil
+	}
+
+	return depAssignment, depDevice, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3653,19 +3735,15 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// When accessed via "My device", we default to only showing inventory (excluding software available for install
-	// but not in inventory), unless we're asked to filter to self-service software only.
-	//
-	// Otherwise (e.g. host software UI within Fleet's admin interface), the default is to show both installed and
-	// available-for-install software, to maintain existing API behavior. This behavior can be explicitly overridden
-	// if needed (see opts.IncludeAvailableForInstallExplicitlySet).
+	// Default to only showing inventory (excluding software available for install but not in
+	// inventory). Callers can explicitly set include_available_for_install=true to also see
+	// library items. See #41631.
 	var includeAvailableForInstall bool
 
 	var host *fleet.Host
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
-		includeAvailableForInstall = true
 
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, nil, err

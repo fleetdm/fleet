@@ -6753,6 +6753,46 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.ID, assignment.HostID)
 	require.Nil(t, assignment.DeletedAt)
+	// profile fields are nil before any assignment response has been recorded
+	require.Nil(t, assignment.ProfileUUID)
+	require.Nil(t, assignment.AssignProfileResponse)
+	require.Nil(t, assignment.ResponseUpdatedAt)
+
+	// simulate a successful profile assignment response from Apple
+	profileUUID := uuid.NewString()
+	err = ds.UpdateHostDEPAssignProfileResponses(ctx, &godep.ProfileResponse{
+		ProfileUUID: profileUUID,
+		Devices:     map[string]string{h.HardwareSerial: string(fleet.DEPAssignProfileResponseSuccess)},
+	}, abmToken.ID)
+	require.NoError(t, err)
+
+	beforeDelete, err := ds.GetHostDEPAssignment(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, beforeDelete.HostID)
+	require.Nil(t, beforeDelete.DeletedAt)
+	// profile fields are now populated
+	require.NotNil(t, beforeDelete.ProfileUUID)
+	require.Equal(t, profileUUID, *beforeDelete.ProfileUUID)
+	require.NotNil(t, beforeDelete.AssignProfileResponse)
+	require.Equal(t, fleet.DEPAssignProfileResponseSuccess, *beforeDelete.AssignProfileResponse)
+	require.NotNil(t, beforeDelete.ResponseUpdatedAt)
+	require.WithinDuration(t, time.Now(), *beforeDelete.ResponseUpdatedAt, 5*time.Second)
+
+	// simulate a failed profile assignment response — fields should be updated
+	profileUUID2 := uuid.NewString()
+	err = ds.UpdateHostDEPAssignProfileResponses(ctx, &godep.ProfileResponse{
+		ProfileUUID: profileUUID2,
+		Devices:     map[string]string{h.HardwareSerial: string(fleet.DEPAssignProfileResponseFailed)},
+	}, abmToken.ID)
+	require.NoError(t, err)
+
+	afterFail, err := ds.GetHostDEPAssignment(ctx, h.ID)
+	require.NoError(t, err)
+	require.NotNil(t, afterFail.ProfileUUID)
+	require.Equal(t, profileUUID2, *afterFail.ProfileUUID)
+	require.NotNil(t, afterFail.AssignProfileResponse)
+	require.Equal(t, fleet.DEPAssignProfileResponseFailed, *afterFail.AssignProfileResponse)
+	require.NotNil(t, afterFail.ResponseUpdatedAt)
 
 	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{h.HardwareSerial})
 	require.NoError(t, err)
@@ -6768,6 +6808,11 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.ID, assignment.HostID)
 	require.Nil(t, assignment.DeletedAt)
+	// profile fields survive an upsert (the upsert only resets added_at/deleted_at)
+	require.NotNil(t, assignment.ProfileUUID)
+	require.Equal(t, profileUUID2, *assignment.ProfileUUID)
+	require.NotNil(t, assignment.AssignProfileResponse)
+	require.Equal(t, fleet.DEPAssignProfileResponseFailed, *assignment.AssignProfileResponse)
 }
 
 func createRawAppleCmd(reqType, cmdUUID string) string {

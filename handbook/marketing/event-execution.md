@@ -797,11 +797,17 @@ This creates a clean 1:1 relationship:
 
 #### **Campaign fields**
 
-Add the following field to **Campaign**:
+Add the following fields to **Campaign**:
 
-* **Event Key** (Text) \= composite key of the platform and event id:  
-  * `eventbrite:{event_id}`  
-  * `luma:{event_id}`
+* **Event platform** (Picklist) – identifies the source platform
+  * Options: `Eventbrite`, `Luma`, etc.
+
+* **External event ID** (Text) – stores the platform-specific event identifier
+  * Example: Eventbrite event ID `123456789`
+
+* **Event key** (Formula) – composite key for matching integrations
+  * Formula: `"Event platform"&"-"&"External event ID"`
+  * Example output: `Eventbrite-123456789`
 
 The composite key pattern lets us use one matching field across platforms and avoid collisions if we ever want to use [Lu.ma](http://Lu.ma) or others.
 
@@ -820,22 +826,24 @@ The Event ID can be sourced from:
 
 ##### **2\) Create the Salesforce Campaign**
 
-* Create a Campaign for the event.  
-* Set:  
-  * **Event Key** `eventbrite:{event_id}`
+* Create a Campaign for the event.
+* Set:
+  * **Event platform**: `Eventbrite` (or the appropriate platform)
+  * **External event ID**: `{event_id}` (e.g., `123456789`)
+  * **Event key**: Auto-populated by formula (no manual entry needed)
 
 ##### **3\) Integration logic (Clay)**
 
 When Clay receives a new Eventbrite registration/attendee record:
 
-1. **Extract** `event_id` from the Eventbrite payload  
-   * Clay knows it’s coming from Eventbrite, so it looks up the event\_id and then is able to create the composite key “eventbrite:{event\_id}”  
-2. **Find Campaign** in Salesforce where:  
-   * *`Event Key = eventbrite:{event_id}`*  
-3. **Create/update Person Record**  
-   * Match/Create the Contact  
-4. **Create/Update Campaign Member**  
-   * Add the person as a Campaign Member on the matched Campaign  
+1. **Extract** `event_id` from the Eventbrite payload
+   * Clay matches the `Event key` from Zapier to the corresponding campaign.
+2. **Find Campaign** in Salesforce where:
+   * *`Event key = Eventbrite-{event_id}`*
+3. **Create/update Person Record**
+   * Match/Create the Contact
+4. **Create/Update Campaign Member**
+   * Add the person as a Campaign Member on the matched Campaign
    * Optionally set Campaign Member Status (e.g., `Registered`, `Attended`, `No Show`) if we later sync those states
 
 
@@ -852,10 +860,13 @@ To keep the system clean and prevent broken mappings:
 * **Monitoring:** Have a Clay/Salesforce report for “registrations received with no matching Campaign” to catch missing IDs early.
 
 ### **(FUTURE) Extending this to Lu.ma (future)**
+
 If we adopt Lu.ma later, we can follow the same model:
 
-* Store Lu.ma’s stable event identifier (ID or slug) on the Salesforce Campaign.  
-* Use `Event Key` to map inbound registrations to the correct Campaign.  
+* Set **Event platform** to `Luma`
+* Set **External event ID** to Lu.ma’s stable event identifier (ID or slug)
+* **Event key** formula automatically generates the composite key: `Luma-{external_event_id}`
+* Clay uses this Event key to map inbound registrations to the correct Campaign
 * No attendee-visible fields required.
 
 ### **Summary**
