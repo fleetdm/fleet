@@ -16,7 +16,7 @@ You can read more about the anatomy of these files and what they do in [Fleet's 
 
 ## Tips
 
-The action (GitHub) or pipeline (GitLab) runs will fail until you add `FLEET_URL` and `FLEET_API_TOKEN` as secrets (GitHub) or CI/CD variables (GitLab).
+The action (GitHub) or pipeline (GitLab) runs will fail until you add `FLEET_URL` and `FLEET_API_TOKEN` as [secrets (GitHub)](#github) or [CI/CD variables (GitLab)](#gitlab).
 
 Set `FLEET_URL` to your Fleet instance's URL (ex. https://organization.fleet.com).
 
@@ -30,11 +30,7 @@ In GitHub, enable the `Apply latest configuration to Fleet` GitHub Actions workf
 
 ### GitLab
 
-Create your own GitLab repository and push the files in this folder to your new repo. Note that a pipeline will run once and fail because the required variables haven't been added (step 2).
-
-To add GitHub CI/CD variables, see [the Gitlab docs](https://docs.gitlab.com/ee/ci/variables/#define-a-cicd-variable-in-the-ui).
-
-Now, when anyone pushes a new commit to the default branch, the pipeline will run and update Fleet. For merge requests, the pipeline will do a dry run only.
+To add GitLab CI/CD variables, see [the Gitlab docs](https://docs.gitlab.com/ee/ci/variables/#define-a-cicd-variable-in-the-ui).
 
 To ensure your Fleet configuration stays up to date even when there are no new commits, set up a scheduled pipeline:
    - In your GitLab project, go to the left sidebar and navigate to **Build > Pipeline schedules**. (In some GitLab versions, this may appear as **CI/CD > Schedules**.)
