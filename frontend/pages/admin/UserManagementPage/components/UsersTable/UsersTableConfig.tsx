@@ -22,7 +22,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IUser | IInvite;
+    original: IUserTableData;
   };
 }
 
@@ -67,7 +67,7 @@ export interface IUserTableData {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, user: IUser | IInvite) => void,
+  actionSelectHandler: (value: string, user: IUserTableData) => void,
   isPremiumTier: boolean | undefined
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
