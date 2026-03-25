@@ -276,8 +276,6 @@ This workflow lets QA Wolf focus on test implementation while Fleet QA stays acc
 
 See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md).
 
-
-
 ### Prepare fleetd agent release
 
 Fleetd is an agent composed of several components. The latest released versions available in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
