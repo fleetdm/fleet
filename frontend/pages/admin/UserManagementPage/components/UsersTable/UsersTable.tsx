@@ -432,9 +432,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       });
   };
 
-  const resetPassword = (user: IUser) => {
+  const resetPassword = () => {
     return usersAPI
-      .requirePasswordReset(user.id, { require: true })
+      .requirePasswordReset(userEditing.apiId, { require: true })
       .then(() => {
         renderFlash("success", "Successfully required a password reset.");
       })
@@ -509,7 +509,6 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const renderResetPasswordModal = () => {
     return (
       <ResetPasswordModal
-        user={userEditing}
         onResetConfirm={resetPassword}
         onResetCancel={toggleResetPasswordUserModal}
       />
@@ -519,7 +518,6 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const renderResetSessionsModal = () => {
     return (
       <ResetSessionsModal
-        user={userEditing}
         onResetConfirm={onResetSessions}
         onResetCancel={toggleResetSessionsUserModal}
       />
