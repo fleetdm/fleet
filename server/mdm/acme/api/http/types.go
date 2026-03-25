@@ -157,6 +157,7 @@ type JWSRequestContainer struct {
 	Key        *jose.JSONWebKey
 	KeyID      *string
 	Identifier string `url:"identifier"`
+	HTTPPath   string `url:"http_path"`
 }
 
 func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {

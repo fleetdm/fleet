@@ -59,8 +59,12 @@ func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFun
 
 // parseCustomTags handles custom URL tag values for activity requests.
 func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (bool, error) {
-	if urlTagValue == "http_method" {
+	switch urlTagValue {
+	case "http_method":
 		field.Set(reflect.ValueOf(r.Method))
+		return true, nil
+	case "http_path":
+		field.Set(reflect.ValueOf(r.URL.Path))
 		return true, nil
 	}
 	return false, nil

@@ -21,11 +21,10 @@ func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose
 		return nil, ctxerr.Wrap(ctx, err, "creating account in datastore")
 	}
 
-	appCfg, err := s.providers.AppConfig(ctx)
+	baseURL, err := s.getACMEBaseURL(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
 	}
-	baseURL := appCfg.MDMUrl()
 
 	ordersURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, "accounts", fmt.Sprint(account.ID), "orders")
 	if err != nil {
