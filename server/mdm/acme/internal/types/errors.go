@@ -4,7 +4,12 @@ import (
 	"net/http"
 )
 
-const acmeErrorsURN = "urn:ietf:params:acme:error:"
+const (
+	acmeErrorsURN = "urn:ietf:params:acme:error:"
+	// NOTE: ideally this would be a valid, dereferenceable link to human-readable documentation,
+	// but it's ok if it's not too. See https://datatracker.ietf.org/doc/html/rfc8555/#section-6.7
+	fleetCustomErrorsURI = "https://fleetdm.com/acme/error/"
+)
 
 // ACMEError represents an error related to the ACME protocol,
 // see https://datatracker.ietf.org/doc/html/rfc8555/#section-6.7
@@ -29,6 +34,24 @@ func AccountDoesNotExistError(detail string) *ACMEError {
 		Title:      "The request specified an account that does not exist",
 		Detail:     detail,
 		StatusCode: http.StatusBadRequest, // as per RFC https://datatracker.ietf.org/doc/html/rfc8555/#section-7.3.1
+	}
+}
+
+func AccountRevokedError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "accountRevoked",
+		Title:      "The request specified an account that is revoked",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func TooManyAccountsError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "tooManyAccounts",
+		Title:      "Too many accounts already exist for this enrollment",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
 	}
 }
 

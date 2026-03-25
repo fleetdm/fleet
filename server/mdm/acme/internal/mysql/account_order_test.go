@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/stretchr/testify/require"
@@ -158,7 +157,9 @@ func testOnlyReturnExistingNotFound(t *testing.T, env *testEnv) {
 	result, didCreate, err := env.ds.CreateAccount(t.Context(), account, true)
 	require.Nil(t, result)
 	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "error:accountDoesNotExist")
 	require.False(t, didCreate)
 }
 
@@ -186,7 +187,9 @@ func testAccountCreationLimit(t *testing.T, env *testEnv) {
 	result, _, err := env.ds.CreateAccount(t.Context(), account, false)
 	require.Nil(t, result)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "account creation limit reached")
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "error/tooManyAccounts")
 }
 
 func testInvalidEnrollmentID(t *testing.T, env *testEnv) {

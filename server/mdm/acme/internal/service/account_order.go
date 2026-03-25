@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"go.step.sm/crypto/jose"
 )
 
@@ -20,10 +18,6 @@ func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose
 	}
 	account, didCreate, err := s.store.CreateAccount(ctx, account, onlyReturnExisting)
 	if err != nil {
-		var notFoundErr *platform_mysql.NotFoundError
-		if errors.As(err, &notFoundErr) {
-			err = types.AccountDoesNotExistError(err.Error())
-		}
 		return nil, ctxerr.Wrap(ctx, err, "creating account in datastore")
 	}
 
