@@ -1352,6 +1352,10 @@ func RegisterACMEProxy(
 			if ca.Password != nil {
 				cfg.EABHMACKey = *ca.Password
 			}
+			// POC: root cert PEM stored in AdminURL field
+			if ca.AdminURL != nil && *ca.AdminURL != "" {
+				cfg.CACert = []byte(*ca.AdminURL)
+			}
 			if err := relayBackend.AddCA(cfg); err != nil {
 				acmeLogger.Error("failed to add ACME CA", "ca", *ca.Name, "err", err)
 				continue

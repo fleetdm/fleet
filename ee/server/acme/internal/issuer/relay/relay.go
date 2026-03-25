@@ -113,11 +113,11 @@ func (b *Backend) IssueCertificate(ctx context.Context, csr *x509.CertificateReq
 		return nil, fmt.Errorf("ensuring upstream account: %w", err)
 	}
 
-	// Convert identifiers to ACME AuthzIDs
-	var authzIDs []acme.AuthzID
-	for _, id := range order.Identifiers {
-		authzIDs = append(authzIDs, acme.AuthzID{Type: id.Type, Value: id.Value})
-	}
+	// The upstream order uses "dns:localhost" as the identifier because
+	// the relay completes http-01 challenges on localhost. The device's
+	// actual identifiers (e.g., serial number) are validated by Fleet
+	// in the device-facing ACME session, not by the upstream CA.
+	authzIDs := []acme.AuthzID{{Type: "dns", Value: "localhost"}}
 
 	// 1. Create order on upstream CA
 	upstreamOrder, err := upstream.acmeClient.AuthorizeOrder(ctx, authzIDs)
@@ -193,6 +193,12 @@ func (b *Backend) completeAuthorization(ctx context.Context, upstream *upstreamC
 	}
 
 	// Find a challenge to complete
+	var challengeTypes []string
+	for _, ch := range authz.Challenges {
+		challengeTypes = append(challengeTypes, ch.Type)
+	}
+	b.logger.Info("upstream challenges offered", "types", challengeTypes)
+
 	challenge, err := selectChallenge(authz.Challenges)
 	if err != nil {
 		return err
