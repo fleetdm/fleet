@@ -1420,6 +1420,17 @@ func (ds *Datastore) applyHostFilters(
 		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
 	}
 
+	var depStatusFilter string
+	wantFailedDEP := ptr.ValOrZero(opt.DEPProfileErrorFilter)
+	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
+	switch {
+	case wantFailedDEP:
+		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
+	case wantDepResp != "":
+		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response = ?`
+		whereParams = append(whereParams, wantDepResp)
+	}
+
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -1440,7 +1451,7 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
 	%s
-		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
+		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
 
 		// JOINs
@@ -1465,6 +1476,7 @@ func (ds *Datastore) applyHostFilters(
 		munkiFilter,
 		lowDiskSpaceFilter,
 		batchScriptExecutionFilter,
+		depStatusFilter,
 	)
 
 	now := ds.clock.Now()
@@ -2140,6 +2152,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 		args = append(args, fleet.ExpandPlatform(*platform))
 	}
 
+	depFailed := fmt.Sprintf("'%s'", string(fleet.DEPAssignProfileResponseFailed))
+	depThrottled := fmt.Sprintf("'%s'", string(fleet.DEPAssignProfileResponseThrottled))
+
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
@@ -2148,14 +2163,16 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
+				COALESCE(SUM(CASE WHEN hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 			%s
 			%s
-			WHERE %s
+			WHERE %s AND hdep.deleted_at IS NULL
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
 	stmt, args, err := sqlx.In(sqlStatement, args...)
 	if err != nil {

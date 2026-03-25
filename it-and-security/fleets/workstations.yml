@@ -20,7 +20,7 @@ settings:
   integrations:
     conditional_access_enabled: true
     google_calendar:
-      enable_calendar_events: false
+      enable_calendar_events: true
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
@@ -76,11 +76,7 @@ controls:
         labels_include_any:
           - "Macs with 1Password installed"
       - path: ../lib/macos/configuration-profiles/santa-configuration.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
@@ -154,12 +150,14 @@ policies:
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
+  - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
   - path: ../lib/all/reports/dex-queries.yml
 software:
   packages:
     # macOS apps
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
       self_service: true
+      display_name: "Mozilla Firefox"
       categories:
         - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
@@ -169,8 +167,6 @@ software:
         - Security
     - path: ../lib/macos/software/santa.yml # Santa for macOS
       self_service: true
-      labels_include_any:
-        - Santa test devices
       categories:
         - Security
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
@@ -345,6 +341,7 @@ software:
         - Productivity
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
+      display_name: "Mozilla Firefox"
       categories:
         - Browsers
       labels_include_any:

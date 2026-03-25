@@ -3334,7 +3334,51 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 	  }`), http.StatusOK)
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "https://a.b.cc", config.UIGitOpsMode.RepositoryURL)
+	assert.Equal(t, "https://a.b.cc", config.GitOpsConfig.RepositoryURL)
+}
+
+func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
+	t := s.T()
+
+	// Enable GitOps mode first
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
+	}`), http.StatusOK)
+
+	// Set exceptions
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "exceptions": { "labels": true, "software": true, "secrets": false } }
+	}`), http.StatusOK)
+
+	config, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	assert.True(t, config.GitOpsConfig.Exceptions.Labels)
+	assert.True(t, config.GitOpsConfig.Exceptions.Software)
+	assert.False(t, config.GitOpsConfig.Exceptions.Secrets)
+	assert.True(t, config.GitOpsConfig.GitopsModeEnabled)
+	assert.Equal(t, "https://example.com/repo", config.GitOpsConfig.RepositoryURL)
+
+	// Partial update — only change one exception, others should persist
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "exceptions": { "software": false } }
+	}`), http.StatusOK)
+
+	config, err = s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	assert.True(t, config.GitOpsConfig.Exceptions.Labels, "labels should persist")
+	assert.False(t, config.GitOpsConfig.Exceptions.Software, "software should be updated")
+	assert.False(t, config.GitOpsConfig.Exceptions.Secrets, "secrets should persist")
+	assert.True(t, config.GitOpsConfig.GitopsModeEnabled)
+	assert.Equal(t, "https://example.com/repo", config.GitOpsConfig.RepositoryURL)
+
+	// Verify exceptions appear in GET response
+	var getResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &getResp)
+	assert.True(t, getResp.GitOpsConfig.Exceptions.Labels)
+	assert.False(t, getResp.GitOpsConfig.Exceptions.Software)
+	assert.False(t, getResp.GitOpsConfig.Exceptions.Secrets)
+	assert.True(t, getResp.GitOpsConfig.GitopsModeEnabled)
+	assert.Equal(t, "https://example.com/repo", getResp.GitOpsConfig.RepositoryURL)
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -8509,12 +8553,12 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
 
-	// file name is not .sh
+	// file name is not a supported script type
 	body, headers = generateNewScriptMultipartRequest(t,
 		"not_sh.txt", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Validation Failed: File type not supported. Only .sh and .ps1 file type is allowed.")
+	require.Contains(t, errMsg, "Validation Failed: File type not supported. Only .sh, .py, and .ps1 file types are allowed.")
 
 	// file content is empty
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -8530,12 +8574,12 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script is too large. It's limited to 500,000 characters")
 
-	// invalid hashbang
+	// python shebang in .sh script should be rejected
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script2.sh", []byte(`#!/bin/python`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Interpreter not supported.")
+	require.Contains(t, errMsg, "Shell scripts must use a shell shebang")
 
 	// script already exists with this name for this no-team
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -12363,7 +12407,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		for _, tc := range testCases {
 			t.Run(tc.desc, func(t *testing.T) {
-
 				payload := &fleet.UploadSoftwareInstallerPayload{
 					InstallScript:     "some install script",
 					PreInstallQuery:   "some pre install query",
@@ -12381,7 +12424,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 				}
 
 				s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
-
 			})
 		}
 
@@ -13786,7 +13828,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 			}
 			res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
 			assert.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
-
 		})
 	}
 
@@ -19898,12 +19939,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
-	slices.SortFunc(listMAResp.FleetMaintainedApps, func(a, b fleet.MaintainedApp) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-	slices.SortFunc(expectedApps, func(a, b fleet.MaintainedApp) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
+	sortFMAs := func(a, b fleet.MaintainedApp) int {
+		if c := cmp.Compare(a.Name, b.Name); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Slug, b.Slug)
+	}
+	slices.SortFunc(listMAResp.FleetMaintainedApps, sortFMAs)
+	slices.SortFunc(expectedApps, sortFMAs)
 	require.Equal(t, expectedApps, listMAResp.FleetMaintainedApps)
 
 	var listMAResp2 listFleetMaintainedAppsResponse
@@ -21878,6 +21921,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
+		Platform:                 "darwin,windows",
 		ConditionalAccessEnabled: true,
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
@@ -21886,12 +21930,14 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		Query:                    "SELECT 2;",
 		Name:                     "Compliance check 2",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 	pr = teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
 		Query:                    "SELECT 3;",
 		Name:                     "Other policy",
+		Platform:                 "darwin,windows",
 		ConditionalAccessEnabled: false,
 	}, http.StatusOK, &pr)
 	p3 := pr.Policy
@@ -22242,6 +22288,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp1 = pr.Policy
 	pr = teamPolicyResponse{}
@@ -22375,6 +22422,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
 	pr = teamPolicyResponse{}
@@ -22382,6 +22430,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		Query:                    "SELECT 2;",
 		Name:                     "Compliance check 2",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 
@@ -27338,6 +27387,204 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation() {
+	t := s.T()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team_ca_platform_" + t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	//
+	// 1. Create team policy — invalid platforms
+	//
+
+	// conditional_access_enabled=true with platform="linux" should fail
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), map[string]any{
+		"name":                       "ca-linux",
+		"query":                      "SELECT 1;",
+		"platform":                   "linux",
+		"conditional_access_enabled": true,
+	}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// conditional_access_enabled=true with empty platform (all platforms) should fail
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), map[string]any{
+		"name":                       "ca-all-platforms",
+		"query":                      "SELECT 1;",
+		"platform":                   "",
+		"conditional_access_enabled": true,
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// conditional_access_enabled=true with platform="darwin" should succeed
+	var pr teamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), teamPolicyRequest{
+		Name:                     "ca-darwin",
+		Query:                    "SELECT 1;",
+		Platform:                 "darwin",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+	darwinPolicyID := pr.Policy.ID
+
+	// conditional_access_enabled=true with platform="windows" should succeed
+	pr = teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), teamPolicyRequest{
+		Name:                     "ca-windows",
+		Query:                    "SELECT 2;",
+		Platform:                 "windows",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+	windowsPolicyID := pr.Policy.ID
+
+	// conditional_access_enabled=true with platform="darwin,windows" should succeed
+	pr = teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), teamPolicyRequest{
+		Name:                     "ca-darwin-windows",
+		Query:                    "SELECT 3;",
+		Platform:                 "darwin,windows",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+
+	// conditional_access_enabled=false with platform="linux" should succeed (no restriction when disabled)
+	pr = teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), teamPolicyRequest{
+		Name:                     "no-ca-linux",
+		Query:                    "SELECT 4;",
+		Platform:                 "linux",
+		ConditionalAccessEnabled: false,
+	}, http.StatusOK, &pr)
+	linuxPolicyID := pr.Policy.ID
+
+	//
+	// 2. Modify team policy — platform validation on update
+	//
+
+	// Modify a darwin policy to enable conditional_access_enabled — should succeed (already darwin)
+	patchResp := &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			ConditionalAccessEnabled: new(true),
+		},
+	}, http.StatusOK, patchResp)
+
+	// Modify a linux policy to enable conditional_access_enabled — should fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, linuxPolicyID), map[string]any{
+		"conditional_access_enabled": true,
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// Modify a darwin conditional_access policy to change platform to linux — should fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), map[string]any{
+		"platform": "linux",
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// Modify a windows conditional_access policy to change platform to darwin — should succeed
+	patchResp = &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, windowsPolicyID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Platform: new("darwin"),
+		},
+	}, http.StatusOK, patchResp)
+
+	//
+	// 3. Modify global policy — conditional_access_enabled not allowed
+	//
+
+	// Create a global policy
+	createGlobal := &globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", &globalPolicyRequest{
+		Name:     "global-policy-ca-test",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	}, http.StatusOK, createGlobal)
+	globalPolicyID := createGlobal.Policy.ID
+
+	// Try to enable conditional_access_enabled on a global policy — should fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), map[string]any{
+		"conditional_access_enabled": true,
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"All fleets" policy cannot have conditional_access_enabled set`)
+	res.Body.Close()
+
+	//
+	// 4. Apply policy specs — platform validation
+	//
+
+	// Team spec with conditional_access_enabled=true and platform="linux" should fail
+	applyResp := applyPolicySpecsResponse{}
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", applyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                     "spec-ca-linux",
+				Query:                    "SELECT 1;",
+				Team:                     team1.Name,
+				Platform:                 "linux",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
+	res.Body.Close()
+
+	// Global spec (no team) with conditional_access_enabled=true should fail
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", applyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                     "spec-ca-global",
+				Query:                    "SELECT 1;",
+				Platform:                 "darwin",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"All fleets" policy cannot have conditional_access_enabled set`)
+	res.Body.Close()
+
+	// Team spec with conditional_access_enabled=true and platform="darwin" should succeed
+	s.DoJSON("POST", "/api/latest/fleet/spec/policies", applyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                     "spec-ca-darwin",
+				Query:                    "SELECT 1;",
+				Team:                     team1.Name,
+				Platform:                 "darwin",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// Team spec with conditional_access_enabled=true and platform="windows" should succeed
+	s.DoJSON("POST", "/api/latest/fleet/spec/policies", applyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                     "spec-ca-windows",
+				Query:                    "SELECT 2;",
+				Team:                     team1.Name,
+				Platform:                 "windows",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
+			},
+		},
+	}, http.StatusOK, &applyResp)
 }
 
 func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uint {
