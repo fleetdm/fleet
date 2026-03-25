@@ -108,7 +108,6 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 		}
 		account, err = s.store.GetAccountByID(ctx, enrollment.ID, accountID)
 		if err != nil {
-			// TODO not found vs other errors, see RFC for how we should respond
 			return ctxerr.Wrap(ctx, err, "fetching account by ID")
 		}
 		webKeyToVerify = &account.JSONWebKey
@@ -150,30 +149,35 @@ func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message *a
 }
 
 func (s *Service) accountIDFromKeyID(ctx context.Context, keyID, pathIdentifier string) (uint, error) {
-	// The key ID is the account URL, which should be in the format /api/mdm/acme/{identifier}/account/{accountID}
+	// The key ID is the account URL, which should be in the format /api/mdm/acme/{identifier}/accounts/{accountID}
 	// We can parse the account ID out of the URL to look up the account in the database
 	urlParsed, err := url.Parse(keyID)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "parsing key ID URL")
+		err = types.UnauthorizedError("Invalid key ID URL")
+		return 0, ctxerr.Wrap(ctx, err)
 	}
 
 	expectedURL, err := s.getACMEURL(ctx, pathIdentifier, "accounts")
 	if err != nil {
+		// this is not an ACME error, it's a server error
 		return 0, ctxerr.Wrap(ctx, err, "getting expected account URL")
 	}
 	expectedParsed, err := url.Parse(expectedURL)
 	if err != nil {
+		// same here, not an error for a client-provided value
 		return 0, ctxerr.Wrap(ctx, err, "parsing expected account URL")
 	}
 
 	prefix := expectedParsed.Path + "/"
 	if !strings.HasPrefix(urlParsed.Path, prefix) {
-		return 0, ctxerr.New(ctx, "invalid key ID URL format")
+		err = types.UnauthorizedError("Invalid key ID URL")
+		return 0, ctxerr.Wrap(ctx, err)
 	}
 	accountIDStr := strings.TrimPrefix(urlParsed.Path, prefix)
 	accountID, err := strconv.ParseUint(accountIDStr, 10, 64)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "parsing account ID from key ID URL")
+		err = types.UnauthorizedError("Invalid key ID URL")
+		return 0, ctxerr.Wrap(ctx, err)
 	}
 	return uint(accountID), nil
 }

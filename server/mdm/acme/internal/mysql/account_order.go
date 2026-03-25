@@ -102,29 +102,32 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 	return account, didCreate, nil
 }
 
-type dbAccount struct {
-	types.Account
-	JSONWebKeyRaw []byte `db:"json_web_key"`
-}
-
-// This method specifically requires an enrollment ID because the caller should know it and have verified it
+// This method specifically requires an enrollment ID because
+// the caller should know it and have verified it.
 func (ds *Datastore) GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*types.Account, error) {
-	stmt := `SELECT id, acme_enrollment_id, json_web_key FROM acme_accounts WHERE acme_enrollment_id = ? AND id = ?`
-	var dbAcc dbAccount
+	const stmt = `SELECT id, acme_enrollment_id, json_web_key, json_web_key_thumbprint 
+		FROM acme_accounts 
+		WHERE acme_enrollment_id = ? AND id = ? AND revoked = false`
+
+	var dbAcc struct {
+		types.Account
+		JSONWebKeyRaw []byte `db:"json_web_key"`
+	}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dbAcc, stmt, enrollmentID, accountID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// TODO: use an ACME error probably
-			return nil, platform_mysql.NotFound("acme account").WithID(accountID)
+			err = types.AccountDoesNotExistError(fmt.Sprintf("No account exists with id %d", accountID))
+			return nil, ctxerr.Wrap(ctx, err)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select acme account")
 	}
+
 	var jwk jose.JSONWebKey
-	err = jwk.UnmarshalJSON(dbAcc.JSONWebKeyRaw)
-	if err != nil {
+	if err := jwk.UnmarshalJSON(dbAcc.JSONWebKeyRaw); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshal acme account jwk")
 	}
 	dbAcc.JSONWebKey = jwk
+
 	return &dbAcc.Account, nil
 }
 
