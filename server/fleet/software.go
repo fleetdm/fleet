@@ -243,6 +243,13 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
+// SoftwareLite is a lightweight subset of Software, useful for exposing minimal information from a full Software record
+type SoftwareLite struct {
+	ID      uint   `json:"id" db:"id"`
+	Name    string `json:"name" db:"name"`
+	Version string `json:"version" db:"version"`
+}
+
 type VulnerableSoftware struct {
 	ID                uint    `json:"id" db:"id"`
 	Name              string  `json:"name" db:"name"`
