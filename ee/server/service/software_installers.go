@@ -89,6 +89,26 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
+	// Validate install/post-install/uninstall script contents for non-script
+	// packages. Script packages (.sh/.ps1) are already validated in
+	// addScriptPackageMetadata.
+	if !fleet.IsScriptPackage(payload.Extension) {
+		for _, scriptVal := range []struct {
+			name    string
+			content string
+		}{
+			{"install script", payload.InstallScript},
+			{"post-install script", payload.PostInstallScript},
+			{"uninstall script", payload.UninstallScript},
+		} {
+			if err := fleet.ValidateSoftwareInstallerScript(scriptVal.content, payload.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", scriptVal.name, err.Error()),
+				}
+			}
+		}
+	}
+
 	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
 		switch {
 		//
@@ -527,6 +547,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 
+			if err := fleet.ValidateSoftwareInstallerScript(installScript, existingInstaller.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. install script validation failed: %s", err.Error()),
+				}
+			}
+
 			if installScript != existingInstaller.InstallScript {
 				dirty["InstallScript"] = true
 			}
@@ -540,6 +566,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.PostInstallScript = &emptyScript
 		} else {
 			postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
+
+			if err := fleet.ValidateSoftwareInstallerScript(postInstallScript, existingInstaller.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. post-install script validation failed: %s", err.Error()),
+				}
+			}
+
 			if postInstallScript != existingInstaller.PostInstallScript {
 				dirty["PostInstallScript"] = true
 			}
@@ -562,6 +595,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if uninstallScript == "" {
 				return nil, &fleet.BadRequestError{
 					Message: fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+				}
+			}
+
+			if err := fleet.ValidateSoftwareInstallerScript(uninstallScript, existingInstaller.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. uninstall script validation failed: %s", err.Error()),
 				}
 			}
 
@@ -2651,6 +2690,24 @@ func (svc *Service) softwareBatchUpload(
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 			if err := preProcessUninstallScript(installer); err != nil {
 				return fmt.Errorf("processing uninstall script: %w", err)
+			}
+
+			// Validate install/post-install/uninstall script contents for
+			// non-script packages. Script packages are already validated in
+			// addScriptPackageMetadata.
+			if !fleet.IsScriptPackage(installer.Extension) {
+				for _, sv := range []struct {
+					name    string
+					content string
+				}{
+					{"install script", installer.InstallScript},
+					{"post-install script", installer.PostInstallScript},
+					{"uninstall script", installer.UninstallScript},
+				} {
+					if err := fleet.ValidateSoftwareInstallerScript(sv.content, installer.Platform); err != nil {
+						return fmt.Errorf("Couldn't edit software. %s validation failed: %s", sv.name, err.Error())
+					}
+				}
 			}
 
 			// if filename was empty, try to extract it from the URL with the

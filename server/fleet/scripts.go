@@ -546,6 +546,44 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	return nil
 }
 
+// ValidateSoftwareInstallerScript validates the content of a software installer
+// script (install, post-install, or uninstall). Unlike ValidateHostScriptContents,
+// empty scripts are valid (meaning "no script"). The platform parameter determines
+// whether shebang validation is applied (only for "darwin" and "linux"; skipped
+// for "windows" since those use PowerShell).
+func ValidateSoftwareInstallerScript(s, platform string) error {
+	// Empty scripts are valid — they mean "no script provided".
+	if s == "" {
+		return nil
+	}
+
+	// Size check: use the saved-script limit (500,000 runes).
+	maxLen := SavedScriptMaxRuneLen
+	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+
+	if len(s) > utf8.UTFMax*maxLen {
+		return errors.New(maxLenErrMsg)
+	}
+	if utf8.RuneCountInString(s) > maxLen {
+		return errors.New(maxLenErrMsg)
+	}
+
+	// Binary check: must be valid UTF-8.
+	if !utf8.ValidString(s) {
+		return errors.New("Wrong data format. Only plain text allowed.")
+	}
+
+	// Shebang/interpreter check: only for darwin and linux (shell scripts).
+	// Windows uses PowerShell, which doesn't use shebangs.
+	if platform != "windows" {
+		if _, err := ValidateShebang(s); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 type ScriptPayload struct {
 	Name           string `json:"name"`
 	ScriptContents []byte `json:"script_contents"`
