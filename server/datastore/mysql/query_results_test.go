@@ -1222,7 +1222,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		assert.NotContains(t, names, qLabeled.Name, "host without label must not see label-scoped query")
 
 		// Add host to the label.
-		err = ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false)
+		err = ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{label.ID: new(true)}, time.Now(), false)
 		require.NoError(t, err)
 
 		// host IS now a member of the label — labeled query must be included.
@@ -1297,7 +1297,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			return err
 		})
 		// Add the host to labelA only.
-		err = ds.RecordLabelQueryExecutions(ctx, linuxHost, map[uint]*bool{labelA.ID: ptr.Bool(true)}, time.Now(), false)
+		err = ds.RecordLabelQueryExecutions(ctx, linuxHost, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false)
 		require.NoError(t, err)
 
 		opts := fleet.ListHostReportsOptions{
