@@ -51,7 +51,9 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., ⁠400 or ⁠0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging). Also, local accounts can be locked.
 
-These issues are caused by residual enrollment data or third-party management agents from the previous MDM solution. To fix this, [run script](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details.
+These issues are caused by residual enrollment data or third-party management agents from the previous MDM solution. To fix this, [run this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-windows-mdm-migration.ps1) on the affected hosts, select **Reboot the device** on the host, and in Fleet select **Refetch** on the **Host details** page.
+
+Learn how to [run scripts in Fleet](https://fleetdm.com/guides/scripts#manually-run-scripts).
 
 
 **Conflicting RMM or management agents:** Third-party RMM agents (such as N-able/SolarWinds, ConnectWise, or Kaseya) installed alongside the previous MDM solution can interfere with Fleet's MDM enrollment and may cause Windows Update to stop functioning. Check for and remove any RMM agents that are no longer needed before or after migrating to Fleet.
