@@ -98,7 +98,7 @@ func createAccountEndpoint(ctx context.Context, request any, svc api.Service) pl
 	}
 }
 
-// createAccountEndpoint handles POST /api/mdm/acme/{identifier}/new_account requests.
+// createOrderEndpoint handles POST /api/mdm/acme/{identifier}/new_order requests.
 func createOrderEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.JWSRequestContainer)
 	newOrderRequest := &api_http.CreateNewOrderRequest{}
