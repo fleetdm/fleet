@@ -3,7 +3,8 @@
     {
       "version": "2025.3.4",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij';",
+        "patch": ""
       },
       "installer_url": "https://download.jetbrains.com/idea/ideaIU-2025.3.4-aarch64.dmg",
       "install_script_ref": "2aaa2896",

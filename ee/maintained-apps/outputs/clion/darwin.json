@@ -3,7 +3,8 @@
     {
       "version": "2025.3.4",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion';",
+        "patch": ""
       },
       "installer_url": "https://download.jetbrains.com/cpp/CLion-2025.3.4-aarch64.dmg",
       "install_script_ref": "018e06a7",

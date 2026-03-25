@@ -3,7 +3,8 @@
     {
       "version": "26.2.2",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';",
+        "patch": ""
       },
       "installer_url": "https://download.parallels.com/desktop/v26/26.2.2-57373/ParallelsDesktop-26.2.2-57373.dmg",
       "install_script_ref": "bec9673c",

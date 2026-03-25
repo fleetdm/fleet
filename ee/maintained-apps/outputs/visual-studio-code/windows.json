@@ -3,7 +3,8 @@
     {
       "version": "1.112.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Visual Studio Code' AND publisher = 'Microsoft Corporation';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Visual Studio Code' AND publisher = 'Microsoft Corporation';",
+        "patch": ""
       },
       "installer_url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/07ff9d6178ede9a1bd12ad3399074d726ebe6e43/VSCodeSetup-x64-1.112.0.exe",
       "install_script_ref": "49122823",
