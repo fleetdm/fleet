@@ -18,9 +18,9 @@ import (
 )
 
 var acceptableSignatureAlgorithms = [...]string{
-	string(jose.ES256),
-	string(jose.ES384),
-	string(jose.ES512),
+	jose.ES256,
+	jose.ES384,
+	jose.ES512,
 }
 
 func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier string) (*types.Enrollment, error) {
@@ -38,28 +38,34 @@ func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier
 // common authentication logic for both AuthenticateNewAccountMessage and AuthenticateMessageFromAccount, only
 // one of createNewAccount or otherRequest must be non-nil.
 func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_http.JWSRequestContainer, createNewAccount *api_http.CreateNewAccountRequest, otherRequest types.AccountAuthenticatedRequest) error {
+	var err error
+
 	if createNewAccount != nil {
 		// must have the JWK
 		if message.Key == nil {
-			return ctxerr.New(ctx, "missing JWK in JWS message")
+			err = types.UnauthorizedError("missing JWK in JWS message for new account creation")
+			return ctxerr.Wrap(ctx, err)
 		}
 		// For Apple ACME purposes we only support ECDSA hardware-bound keys so validate the key is of the correct type
 		// and the algorithm is of a proper type for the key (which also ensures it isn't none)
 		_, ok := message.Key.Key.(*ecdsa.PublicKey)
 		if !ok {
-			return ctxerr.New(ctx, "JWK in JWS message is not an ECDSA public key")
+			err = types.BadPublicKeyError("JWK in JWS message for new account creation is not an ECDSA public key")
+			return ctxerr.Wrap(ctx, err)
 		}
 	}
 
 	if otherRequest != nil {
 		// must have the kid
 		if message.KeyID == nil || *message.KeyID == "" {
-			return ctxerr.New(ctx, "missing kid in JWS message")
+			err = types.UnauthorizedError("missing kid in JWS message for account-authenticated request")
+			return ctxerr.Wrap(ctx, err)
 		}
 	}
 
 	if !slices.Contains(acceptableSignatureAlgorithms[:], message.JWS.Signatures[0].Protected.Algorithm) {
-		return ctxerr.New(ctx, "unsupported signature algorithm in JWS message")
+		err = types.BadSignatureAlgorithmError(fmt.Sprintf("unsupported signature algorithm %s in JWS message", message.JWS.Signatures[0].Protected.Algorithm))
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	// "url" field validation: https://datatracker.ietf.org/doc/html/rfc8555/#section-6.4.1
@@ -72,7 +78,8 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 		return ctxerr.New(ctx, "get expected ACME URL")
 	}
 	if message.JWSHeaderURL != expectedURL {
-		return ctxerr.New(ctx, "invalid url in JWS protected header")
+		err = types.UnauthorizedError("invalid url in JWS protected header")
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	// consume the nonce
@@ -109,7 +116,8 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 
 	payload, err := message.JWS.Verify(webKeyToVerify)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "verifying JWS message for identifier: %s", message.Identifier)
+		err = types.UnauthorizedError(err.Error()) // I think it's safe to return the error as details here?
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	var requestPayload any
@@ -133,12 +141,10 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 }
 
 func (s *Service) AuthenticateNewAccountMessage(ctx context.Context, message *api_http.JWSRequestContainer, request *api_http.CreateNewAccountRequest) error {
-	// TODO: return proper ACME errors for those validations...
 	return s.commonAuthenticateMessage(ctx, message, request, nil)
 }
 
 func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message *api_http.JWSRequestContainer, request types.AccountAuthenticatedRequest) error {
-	// TODO: return proper ACME errors for those validations...
 	return s.commonAuthenticateMessage(ctx, message, nil, request)
 }
 

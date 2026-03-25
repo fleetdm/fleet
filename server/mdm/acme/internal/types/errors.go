@@ -99,6 +99,42 @@ func InternalServerError(detail string) *ACMEError {
 	}
 }
 
+func BadPublicKeyError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "badPublicKey",
+		Title:      "The JWS was signed by a public key the server does not support",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func BadSignatureAlgorithmError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "badSignatureAlgorithm",
+		Title:      "The JWS was signed with an algorithm the server does not support",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func UnauthorizedError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "unauthorized",
+		Title:      "The client lacks sufficient authorization",
+		Detail:     detail,
+		StatusCode: http.StatusUnauthorized,
+	}
+}
+
+func MalformedError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "malformed",
+		Title:      "The request message was malformed",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
 func (e *ACMEError) Error() string {
 	s := e.Type
 	if e.Title != "" {
