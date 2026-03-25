@@ -182,6 +182,9 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	if jws.Signatures[0].Protected.JSONWebKey == nil && jws.Signatures[0].Protected.KeyID == "" {
 		return ctxerr.New(ctx, "jws must have a key or key ID in the protected header")
 	}
+	if jws.Signatures[0].Protected.JSONWebKey != nil && jws.Signatures[0].Protected.KeyID != "" {
+		return ctxerr.New(ctx, "jws must have a key or key ID in the protected header")
+	}
 
 	req.JWS = *jws
 
