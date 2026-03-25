@@ -11282,7 +11282,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// enroll the host from orbit, it will NOT match the existing host since MDM
 	// is not configured (it will only look for a match by osquery_host_id with
 	// the provided uuid).
-	var resp EnrollOrbitResponse
+	var resp enrollOrbitResponse
 	hostUUID := uuid.New().String()
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 		EnrollSecret:   secret,

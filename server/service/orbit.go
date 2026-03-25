@@ -26,15 +26,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 )
 
-// EnrollOrbitResponse wraps the fleet type to add HijackRender.
-type EnrollOrbitResponse struct {
+// enrollOrbitResponse wraps the fleet type to add HijackRender.
+type enrollOrbitResponse struct {
 	fleet.EnrollOrbitResponse
 }
 
 // HijackRender so we can add a header with the server capabilities in the
 // response, allowing Orbit to know what features are available without the
 // need to enroll.
-func (r EnrollOrbitResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r enrollOrbitResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -57,9 +57,9 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		HardwareModel:     req.HardwareModel,
 	}, req.EnrollSecret)
 	if err != nil {
-		return EnrollOrbitResponse{fleet.EnrollOrbitResponse{Err: err}}, nil
+		return enrollOrbitResponse{fleet.EnrollOrbitResponse{Err: err}}, nil
 	}
-	return EnrollOrbitResponse{fleet.EnrollOrbitResponse{OrbitNodeKey: nodeKey}}, nil
+	return enrollOrbitResponse{fleet.EnrollOrbitResponse{OrbitNodeKey: nodeKey}}, nil
 }
 
 func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey string) (*fleet.Host, bool, error) {
