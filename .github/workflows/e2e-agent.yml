@@ -526,7 +526,7 @@ jobs:
       run: echo "value=$(( ${{ inputs.retry || 0 }} + 1 ))" >> $GITHUB_OUTPUT
 
     - name: Slack Notification (failure with retries remaining)
-      if: (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3
+      if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.retry || 0) > 0)) && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3
       uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
       with:
         webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
@@ -556,7 +556,7 @@ jobs:
                 text: "*Agent E2E test FAILED all 4 attempts* :rotating_light:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
 
     - name: Slack Notification (retry success)
-      if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (inputs.retry || 0) > 0 }}
+      if: ${{!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (inputs.retry || 0) > 0 }}
       uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
       with:
         webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
@@ -569,7 +569,8 @@ jobs:
                 text: "*Agent E2E test PASSED after ${{ inputs.retry }} retr${{ inputs.retry == 1 && 'y' || 'ies' }}* :white_check_mark:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>\nThe above failure appears to have been transient. No investigation needed unless you see a pattern of repeated failures."
 
     - name: Retry workflow on failure
-      if: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3 }}
+      # Only retry scheduled runs or manual runs that are retries for scheduled runs (inputs.retry > 0)
+      if: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.retry || 0) > 0)) && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3 }}
       run: |
         gh workflow run e2e-agent.yml --repo ${{ github.repository }} --ref ${{ github.head_ref || github.ref_name }} -f retry=${{ steps.next-retry.outputs.value }}
       env:
