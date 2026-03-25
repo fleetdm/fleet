@@ -1742,13 +1742,6 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 
 		switch {
 		case sw.SoftwarePackage != nil:
-			if sw.HashSHA256 != nil {
-				spec["hash_sha256"] = *sw.HashSHA256
-			}
-			if sw.SoftwarePackage.PackageURL != nil {
-				spec["url"] = *sw.SoftwarePackage.PackageURL
-			}
-
 			installer := fleet.SoftwarePackageResponse{TitleID: &titleID}
 			if sw.SoftwarePackage.PackageURL != nil {
 				installer.URL = *sw.SoftwarePackage.PackageURL
@@ -1766,6 +1759,13 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 				installer.Slug = slug
 				fmas = append(fmas, spec)
 			} else {
+				// hash_sha256 and url are only valid for packages, not FMAs.
+				if sw.HashSHA256 != nil {
+					spec["hash_sha256"] = *sw.HashSHA256
+				}
+				if sw.SoftwarePackage.PackageURL != nil {
+					spec["url"] = *sw.SoftwarePackage.PackageURL
+				}
 				packages = append(packages, spec)
 			}
 			installers = append(installers, installer)
