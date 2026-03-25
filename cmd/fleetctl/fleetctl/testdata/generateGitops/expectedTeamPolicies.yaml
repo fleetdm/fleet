@@ -28,7 +28,7 @@
   critical: false
   description: This is a team policy with VPP app automation
   install_software:
-    app_store_id: 1234567890
+    app_store_id: "1234567890"
   name: Team VPP policy
   platform: darwin
   query: SELECT * FROM team_policy WHERE id = 3
