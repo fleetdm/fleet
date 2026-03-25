@@ -129,8 +129,10 @@ const SoftwareVppForm = ({
   onCancel,
   onClickPreviewEndUserExperience,
 }: ISoftwareVppFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const appConfig = useContext(AppContext).config;
+  const softwareExcepted = !!appConfig?.gitops.exceptions?.software;
+  const gitOpsModeEnabled =
+    appConfig?.gitops.gitops_mode_enabled && !softwareExcepted;
 
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
@@ -347,6 +349,7 @@ const SoftwareVppForm = ({
         </div>
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
+            entityType="software"
             position="bottom"
             tipOffset={8}
             renderChildren={(disableChildren) => (

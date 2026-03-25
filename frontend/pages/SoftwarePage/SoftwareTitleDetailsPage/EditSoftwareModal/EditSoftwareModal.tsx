@@ -79,7 +79,9 @@ const EditSoftwareModal = ({
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  const softwareExcepted = !!config?.gitops.exceptions?.software;
+  const gitOpsModeEnabled =
+    (config?.gitops.gitops_mode_enabled && !softwareExcepted) || false;
   // Viewing an FMA in GitOps mode only allows viewing options, not editing
   const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
 

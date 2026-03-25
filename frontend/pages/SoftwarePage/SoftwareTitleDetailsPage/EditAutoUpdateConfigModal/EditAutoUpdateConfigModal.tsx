@@ -69,7 +69,9 @@ const EditAutoUpdateConfigModal = ({
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  const softwareExcepted = !!config?.gitops.exceptions?.software;
+  const gitOpsModeEnabled =
+    (config?.gitops.gitops_mode_enabled && !softwareExcepted) || false;
 
   const formClassNames = classnames(formClass, {
     [`edit-auto-update-config-form--disabled`]: gitOpsModeEnabled,
@@ -304,6 +306,7 @@ const EditAutoUpdateConfigModal = ({
               Cancel
             </Button>
             <GitOpsModeTooltipWrapper
+              entityType="software"
               position="right"
               tipOffset={8}
               renderChildren={(disableChildren) => (

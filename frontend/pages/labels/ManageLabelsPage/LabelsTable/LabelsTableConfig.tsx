@@ -75,7 +75,8 @@ const hasEditPermission = (currentUser: IUser, label: ILabel): boolean => {
 
 const generateActionDropdownOptions = (
   currentUser: IUser,
-  label: ILabel
+  label: ILabel,
+  labelsGitOpsManaged: boolean
 ): IDropdownOption[] => {
   const options: IDropdownOption[] = [
     {
@@ -89,14 +90,14 @@ const generateActionDropdownOptions = (
     if (label.label_membership_type !== "host_vitals") {
       options.push({
         label: "Edit",
-        disabled: false,
+        disabled: labelsGitOpsManaged,
         value: "edit",
       });
     }
 
     options.push({
       label: "Delete",
-      disabled: false,
+      disabled: labelsGitOpsManaged,
       value: "delete",
     });
   }
@@ -106,7 +107,8 @@ const generateActionDropdownOptions = (
 
 const generateTableHeaders = (
   currentUser: IUser,
-  onClickAction: (action: string, label: ILabel) => void
+  onClickAction: (action: string, label: ILabel) => void,
+  labelsGitOpsManaged = false
 ): IDataColumn[] => {
   return [
     {
@@ -159,7 +161,8 @@ const generateTableHeaders = (
         const label = cellProps.row.original;
         const dropdownOptions = generateActionDropdownOptions(
           currentUser,
-          label
+          label,
+          labelsGitOpsManaged
         );
         return (
           <ViewAllHostsLink

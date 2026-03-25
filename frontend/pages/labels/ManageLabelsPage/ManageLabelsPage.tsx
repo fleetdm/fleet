@@ -14,6 +14,7 @@ import { ILabel } from "interfaces/label";
 import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
 
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
@@ -29,6 +30,7 @@ interface IManageLabelsPageProps {
 
 const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
   const {
+    config,
     currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -36,6 +38,9 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     isGlobalTechnician,
     isAnyTeamTechnician,
   } = useContext(AppContext);
+
+  const labelsGitOpsManaged =
+    !!config?.gitops.gitops_mode_enabled && !config?.gitops.exceptions.labels;
   const { renderFlash } = useContext(NotificationContext);
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -109,6 +114,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         currentUser={currentUser}
         labels={labels}
         onClickAction={onClickAction}
+        labelsGitOpsManaged={labelsGitOpsManaged}
       />
     );
   }, [currentUser, error, isLoading, labels, onClickAction]);
@@ -124,12 +130,18 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
           </div>
           {canAddLabel && (
             <div className={`${baseClass}__action-button-container`}>
-              <Button
-                className={`${baseClass}__create-button`}
-                onClick={onCreateLabelClick}
-              >
-                Add label
-              </Button>
+              <GitOpsModeTooltipWrapper
+                entityType="labels"
+                renderChildren={(disableChildren) => (
+                  <Button
+                    className={`${baseClass}__create-button`}
+                    onClick={onCreateLabelClick}
+                    disabled={disableChildren}
+                  >
+                    Add label
+                  </Button>
+                )}
+              />
             </div>
           )}
         </div>

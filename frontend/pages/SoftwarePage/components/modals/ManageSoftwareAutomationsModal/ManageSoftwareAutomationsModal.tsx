@@ -136,7 +136,10 @@ const ManageAutomationsModal = ({
   const { config: globalConfigFromContext, isFreeTier } = useContext(
     AppContext
   );
-  const gitOpsModeEnabled = globalConfigFromContext?.gitops.gitops_mode_enabled;
+  const softwareExcepted =
+    !!globalConfigFromContext?.gitops.exceptions?.software;
+  const gitOpsModeEnabled =
+    globalConfigFromContext?.gitops.gitops_mode_enabled && !softwareExcepted;
 
   const maxAgeInNanoseconds = isGlobalSWConfig(softwareConfig)
     ? softwareConfig.vulnerabilities.recent_vulnerability_max_age
@@ -533,6 +536,7 @@ const ManageAutomationsModal = ({
     );
     return (
       <GitOpsModeTooltipWrapper
+        entityType="software"
         renderChildren={renderRawButton}
         tipOffset={6}
       />

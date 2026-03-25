@@ -43,7 +43,9 @@ const SoftwareCustomPackage = ({
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier, config } = useContext(AppContext);
   const queryClient = useQueryClient();
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const softwareExcepted = !!config?.gitops.exceptions?.software;
+  const gitOpsModeEnabled =
+    config?.gitops.gitops_mode_enabled && !softwareExcepted;
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);

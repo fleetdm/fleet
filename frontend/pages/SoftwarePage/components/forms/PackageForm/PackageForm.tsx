@@ -177,8 +177,11 @@ const PackageForm = ({
   gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
-    useContext(AppContext).config?.gitops || {};
+  const appConfig = useContext(AppContext).config;
+  const softwareExcepted = !!appConfig?.gitops.exceptions?.software;
+  const { gitops_mode_enabled: rawGitOpsModeEnabled, repository_url: repoURL } =
+    appConfig?.gitops || {};
+  const gitOpsModeEnabled = rawGitOpsModeEnabled && !softwareExcepted;
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,

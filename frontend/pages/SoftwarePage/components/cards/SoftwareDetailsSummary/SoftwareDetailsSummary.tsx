@@ -196,7 +196,9 @@ const SoftwareDetailsSummary = ({
 
   const { config } = useContext(AppContext);
 
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const softwareExcepted = !!config?.gitops.exceptions?.software;
+  const gitOpsModeEnabled =
+    config?.gitops.gitops_mode_enabled && !softwareExcepted;
   const repoURL = config?.gitops.repository_url;
   const isRollingArch = ROLLING_ARCH_LINUX_VERSIONS.includes(displayName);
 
