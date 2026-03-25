@@ -17,7 +17,9 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/ghodss/yaml"
 )
 
 func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
@@ -213,6 +215,26 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	external_refs.EnrichManifest(out)
 
+	// create patch policy
+	if input.PatchPolicyPath != "" {
+		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy path")
+		}
+
+		p := patch_policy.PolicyData{}
+		if err := yaml.Unmarshal(policyBytes, &p); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
+		}
+
+		p.Platform = "darwin"
+		p.Version = out.Version
+		out.Queries.Patch, err = patch_policy.GenerateFromManifest(p)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+		}
+	}
+
 	return out, nil
 }
 
@@ -233,6 +255,7 @@ type inputApp struct {
 	Frozen               bool     `json:"frozen"`
 	InstallScriptPath    string   `json:"install_script_path"`
 	UninstallScriptPath  string   `json:"uninstall_script_path"`
+	PatchPolicyPath      string   `json:"patch_policy_path"`
 }
 
 type brewCask struct {

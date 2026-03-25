@@ -62,6 +62,7 @@ module.exports = {
         'Fleet channel member in osquery Slack',
         'Implemented a trial key',
         'Signed up for Fleet event',
+        'Registered for a conference',
         'Engaged with Fleetie at event',
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
@@ -158,3 +159,4 @@ module.exports = {
 
 
 };
+
