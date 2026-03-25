@@ -587,7 +587,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate policies.
-		policies, err := cmd.generatePolicies(teamToProcess.ID, teamFileName, failingPolicyIDs)
+		policies, err := cmd.generatePolicies(teamToProcess.ID, fileName, failingPolicyIDs)
 		if err != nil {
 			teamName := "global"
 			if team != nil {
@@ -1530,8 +1530,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
-				policySpec["install_software"] = map[string]interface{}{
-					"hash_sha256": software.Hash + " " + software.Comment,
+				if software.Hash != "" {
+					policySpec["install_software"] = map[string]any{
+						"hash_sha256": software.Hash + " " + software.Comment,
+					}
+				} else if software.AppStoreId != "" {
+					policySpec["install_software"] = map[string]any{
+						"app_store_id": software.AppStoreId,
+					}
 				}
 			} else {
 				policySpec["install_software"] = map[string]interface{}{
@@ -1725,6 +1731,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		case sw.AppStoreApp != nil:
 			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID
+			cmd.SoftwareList[sw.ID] = Software{
+				AppStoreId: sw.AppStoreApp.AppStoreID,
+			}
 		default:
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)
 			continue
