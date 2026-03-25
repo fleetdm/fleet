@@ -101,20 +101,12 @@ controls:
     deadline_days: 7
     grace_period_days: 2
   scripts:
-    - path: ../lib/macos/scripts/collect-fleetd-logs.sh
-    - path: ../lib/macos/scripts/see-automatic-enrollment-profile.sh
-    - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
-    - path: ../lib/macos/scripts/install-wine.sh
-    - path: ../lib/macos/scripts/set-lock-screen-message.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
-    - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/macos/scripts/uninstall-santa-extension.sh
-    - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
@@ -129,7 +121,6 @@ policies:
   - path: ../lib/macos/policies/filevault-enabled.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
-  - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/install-nudge.yml
   - path: ../lib/macos/policies/update-claude.yml
   - path: ../lib/macos/policies/update-slack.yml
