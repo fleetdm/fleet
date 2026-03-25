@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +19,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
@@ -24,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
@@ -35,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -43,6 +48,7 @@ import (
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -89,7 +95,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage                      nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer                          fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                               clock.Clock                   = clock.C
-		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
+		scepConfigService                                             = scep.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
 		estCAService                                                  = est.NewService(est.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
@@ -524,7 +530,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
-			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger))
+			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
@@ -545,7 +551,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		if opts[0].EnableSCEPProxy {
 			var timeout *time.Duration
 			if opts[0].SCEPConfigService != nil {
-				scepConfig, ok := opts[0].SCEPConfigService.(*eeservice.SCEPConfigService)
+				scepConfig, ok := opts[0].SCEPConfigService.(*scep.SCEPConfigService)
 				if ok {
 					// In tests, we share the same Timeout pointer between SCEPConfigService and SCEPProxy
 					timeout = scepConfig.Timeout
@@ -588,7 +594,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
 		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
-		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg))
+		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg, limitStore))
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
@@ -1414,4 +1420,88 @@ func messageWithAndroidIdentifiers(t *testing.T, notificationType android.Notifi
 		},
 		Data: encodedData,
 	}
+}
+
+type fmaTestState struct {
+	version        string
+	installerBytes []byte
+	sha256         string
+	installerPath  string
+	patchQuery     string
+}
+
+func (s *fmaTestState) ComputeSHA(b []byte) {
+	h := sha256.New()
+	h.Write(b)
+	s.sha256 = hex.EncodeToString(h.Sum(nil))
+}
+
+func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) {
+	if len(states) == 0 {
+		states = make(map[string]*fmaTestState, 1)
+		states["/zoom/windows.json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/zoom.msi",
+		}
+	}
+
+	statesByInstallerPath := make(map[string]*fmaTestState, len(states))
+	for _, state := range states {
+		state.ComputeSHA(state.installerBytes)
+		statesByInstallerPath[state.installerPath] = state
+	}
+	var downloadMu sync.Mutex
+
+	// Mock installer server — routes by path to serve per-FMA bytes.
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloadMu.Lock()
+		defer downloadMu.Unlock()
+
+		state, found := statesByInstallerPath[r.URL.Path]
+		if !found {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write(state.installerBytes)
+	}))
+
+	// call Refresh directly (instead of SyncApps) since we're using the server above and not the file server
+	// created in SyncApps
+	err := maintained_apps.Refresh(t.Context(), ds, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var state *fmaTestState
+		state, found := states[r.URL.Path]
+		if !found {
+			http.NotFound(w, r)
+			return
+		}
+
+		versions := []*ma.FMAManifestApp{
+			{
+				Version: state.version,
+				Queries: ma.FMAQueries{
+					Exists: "SELECT 1 FROM osquery_info;",
+					Patch:  state.patchQuery,
+				},
+				InstallerURL:       installerServer.URL + state.installerPath,
+				InstallScriptRef:   "foobaz",
+				UninstallScriptRef: "foobaz",
+				SHA256:             state.sha256,
+				DefaultCategories:  []string{"Productivity"},
+			},
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs:     map[string]string{"foobaz": "Hello World!"},
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	t.Cleanup(func() {
+		manifestServer.Close()
+		installerServer.Close()
+	})
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 }

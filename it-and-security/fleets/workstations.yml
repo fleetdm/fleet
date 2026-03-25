@@ -20,7 +20,7 @@ settings:
   integrations:
     conditional_access_enabled: true
     google_calendar:
-      enable_calendar_events: false
+      enable_calendar_events: true
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
@@ -76,11 +76,7 @@ controls:
         labels_include_any:
           - "Macs with 1Password installed"
       - path: ../lib/macos/configuration-profiles/santa-configuration.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
@@ -105,20 +101,12 @@ controls:
     deadline_days: 7
     grace_period_days: 2
   scripts:
-    - path: ../lib/macos/scripts/collect-fleetd-logs.sh
-    - path: ../lib/macos/scripts/see-automatic-enrollment-profile.sh
-    - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
-    - path: ../lib/macos/scripts/install-wine.sh
-    - path: ../lib/macos/scripts/set-lock-screen-message.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
-    - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/macos/scripts/uninstall-santa-extension.sh
-    - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
@@ -127,16 +115,16 @@ policies:
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
-  - path: ../lib/macos/policies/update-slack.yml
   - path: ../lib/macos/policies/update-1password.yml
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
-  - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/install-nudge.yml
   - path: ../lib/macos/policies/update-claude.yml
+  - path: ../lib/macos/policies/update-slack.yml
   # Windows policies
+  - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
@@ -144,6 +132,7 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/update-claude.yml
+  - path: ../lib/windows/policies/update-slack.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
@@ -152,12 +141,14 @@ policies:
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
+  - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
   - path: ../lib/all/reports/dex-queries.yml
 software:
   packages:
     # macOS apps
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
       self_service: true
+      display_name: "Mozilla Firefox"
       categories:
         - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
@@ -167,8 +158,6 @@ software:
         - Security
     - path: ../lib/macos/software/santa.yml # Santa for macOS
       self_service: true
-      labels_include_any:
-        - Santa test devices
       categories:
         - Security
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
@@ -228,7 +217,6 @@ software:
       self_service: true
       setup_experience: true
       categories:
-        - Productivity
         - Communication
       labels_include_any:
         - "Debian-based Linux hosts"
@@ -236,7 +224,6 @@ software:
       self_service: true
       setup_experience: true
       categories:
-        - Productivity
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
@@ -284,12 +271,6 @@ software:
         - Productivity
   fleet_maintained_apps:
     # macOS apps
-    - slug: slack/darwin # Slack for macOS
-      self_service: true
-      setup_experience: true
-      categories:
-        - Communication
-        - Productivity
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       setup_experience: true
@@ -321,6 +302,11 @@ software:
       self_service: true
       categories:
         - Communication
+    - slug: slack/darwin # Slack for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
       setup_experience: true
@@ -328,21 +314,29 @@ software:
         - Security
     - slug: claude/darwin # Claude for macOS
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
     # Windows apps
-    - slug: claude/windows # Claude for Windows
-      self_service: true
-      labels_include_any:
-        - "x86-based Windows hosts"
-      categories:
-        - Productivity
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true
       categories:
-        - Productivity
         - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: claude/windows # Claude for Windows
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - "x86-based Windows hosts"
+      categories:
+        - Productivity
+    - slug: firefox/windows # Mozilla Firefox for Windows
+      self_service: true
+      display_name: "Mozilla Firefox"
+      categories:
+        - Browsers
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: google-chrome/windows # Google Chrome for Windows

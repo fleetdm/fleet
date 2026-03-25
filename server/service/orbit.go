@@ -598,13 +598,13 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 	if host.TeamID == nil {
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+			return ctxerr.Wrap(ctx, err, "get AppConfig to read apple_enable_release_device_manually")
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
 		tm, err := svc.ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+			return ctxerr.Wrap(ctx, err, "get Team to read apple_enable_release_device_manually")
 		}
 		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	}

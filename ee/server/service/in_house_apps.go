@@ -35,7 +35,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 
 	payload.InstallerID = existingInstaller.InstallerID
 
-	_, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	_, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
 	}
@@ -127,13 +127,14 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 
 	// now that the payload has been updated with any patches, we can set the
 	// final fields of the activity
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
-		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(
+		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll)
 	if payload.ValidatedLabels != nil {
-		actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	}
-	activity.LabelsIncludeAny = actLabelsIncl
-	activity.LabelsExcludeAny = actLabelsExcl
+	activity.LabelsIncludeAny = actLabelsInclAny
+	activity.LabelsExcludeAny = actLabelsExclAny
+	activity.LabelsIncludeAll = actLabelsInclAll
 	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
 	}
@@ -171,7 +172,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get in house app metadata")
 	}
 
-	downloadURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, ptr.ValOrZero(teamID))
+	downloadURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, ptr.ValOrZero(teamID))
 
 	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
 		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.InHouseAppSignedURLExpiry)
@@ -184,7 +185,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 	}
 
 	// Escape & characters in case of using CloudFront signed URL
-	var funcMap = map[string]any{
+	funcMap := map[string]any{
 		"xml": mobileconfig.XMLEscapeString,
 	}
 
@@ -235,7 +236,6 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		Name     string
 		URL      string
 	}{meta.BundleIdentifier, meta.Version, meta.SoftwareTitle, downloadURL})
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "rendering app manifest")
 	}

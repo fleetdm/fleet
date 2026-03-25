@@ -102,7 +102,7 @@ interface IHostActionConfigOptions {
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
-  recoveryLockPasswordProfileStatus: string | undefined;
+  recoveryLockPasswordAvailable: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -442,7 +442,7 @@ const modifyOptions = (
     hostPlatform,
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
-    recoveryLockPasswordProfileStatus,
+    recoveryLockPasswordAvailable,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -536,10 +536,7 @@ const modifyOptions = (
     }
   }
 
-  if (
-    recoveryLockPasswordProfileStatus === "pending" ||
-    recoveryLockPasswordProfileStatus === "failed"
-  ) {
+  if (!recoveryLockPasswordAvailable) {
     const rlpOption = options.find(
       (option) => option.value === "recoveryLockPassword"
     );

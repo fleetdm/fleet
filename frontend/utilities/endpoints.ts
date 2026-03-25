@@ -76,6 +76,8 @@ export default {
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
   HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/reports/${queryId}`,
+  HOST_REPORTS: (hostId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/reports`,
   HOSTS: `/${API_VERSION}/fleet/hosts`,
   HOSTS_COUNT: `/${API_VERSION}/fleet/hosts/count`,
   HOSTS_DELETE: `/${API_VERSION}/fleet/hosts/delete`,
@@ -302,7 +304,7 @@ export default {
     `/${API_VERSION}/fleet/scripts/batch/${id}`,
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   SCRIPT_BATCH_HOST_RESULTS: (id: string) =>
-    `/${API_VERSION}/fleet/scripts/batch/${id}/host-results`,
+    `/${API_VERSION}/fleet/scripts/batch/${id}/host_results`,
 
   // Command endpoints
   COMMANDS: `/${API_VERSION}/fleet/commands`,

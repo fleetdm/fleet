@@ -109,7 +109,7 @@ func TestForMyDevicePage(t *testing.T) {
 		{
 			name: "matching custom icon url",
 			before: func() {
-				iconUrl = ptr.String("/api/latest/fleet/software/titles/42/icon?team_id=7")
+				iconUrl = ptr.String("/api/latest/fleet/software/titles/42/icon?fleet_id=7")
 				hostSoftwareInstaller = HostSoftwareWithInstaller{
 					IconUrl: iconUrl,
 					ID:      1,

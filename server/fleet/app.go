@@ -273,9 +273,16 @@ type DiskEncryptionConfig struct {
 	BitLockerPINRequired bool
 }
 
-type UIGitOpsModeConfig struct {
-	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
-	RepositoryURL     string `json:"repository_url"`
+type GitOpsExceptions struct {
+	Labels   bool `json:"labels"`
+	Software bool `json:"software"`
+	Secrets  bool `json:"secrets"`
+}
+
+type GitOpsConfig struct {
+	GitopsModeEnabled bool             `json:"gitops_mode_enabled"`
+	RepositoryURL     string           `json:"repository_url"`
+	Exceptions        GitOpsExceptions `json:"exceptions"`
 }
 
 func (c *AppConfig) MDMUrl() string {
@@ -532,14 +539,14 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
+	BootstrapPackage            optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
 	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
 	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
 	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
-	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
-	Script                      optjson.String                     `json:"script"`
+	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	Script                      optjson.String                     `json:"script" renameto:"macos_script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
-	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
+	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 }
 
@@ -549,7 +556,7 @@ func (mos *MacOSSetup) Validate() error {
 	}
 
 	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
-		return NewInvalidArgumentError("macos_setup.manual_agent_install", `Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.`)
+		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
 	return nil
@@ -673,7 +680,7 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
-	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
+	GitOpsConfig GitOpsConfig `json:"gitops"`
 
 	// Scripts is a slice of script file paths.
 	//
@@ -1064,6 +1071,10 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 
 	c.Features.ApplyDefaultsForNewInstalls()
 
+	c.GitOpsConfig.Exceptions.Secrets = true
+	c.GitOpsConfig.Exceptions.Labels = false
+	c.GitOpsConfig.Exceptions.Software = false
+
 	c.ApplyDefaults()
 }
 
@@ -1365,6 +1376,16 @@ type ListQueryOptions struct {
 	// Return queries that are scheduled to run on this platform. One of "macos",
 	// "windows", or "linux"
 	Platform *string
+}
+
+// ListHostReportsOptions defines options for listing reports (queries) associated with a host.
+type ListHostReportsOptions struct {
+	ListOptions
+	// IncludeReportsDontStoreResults controls whether queries that don't store
+	// results (discard_data=1 OR logging_type!='snapshot') are included.
+	// false (default): only queries with discard_data=0 AND logging_type='snapshot' are returned.
+	// true: all queries are returned, including ones that don't store results.
+	IncludeReportsDontStoreResults bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.

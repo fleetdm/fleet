@@ -51,6 +51,7 @@ github.com/fleetdm/fleet/v4/server/fleet/WindowsUpdates	GracePeriodDays	optjson.
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSSettings	fleet.MacOSSettings
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Paths	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
@@ -108,6 +109,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	PostInstallScript	f
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	UninstallScript	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsExcludeAny	[]string
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Icon	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Slug	*string
@@ -129,6 +131,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	PostInstallScript	fle
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	UninstallScript	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsExcludeAny	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Icon	fleet.TeamSpecSoftwareAsset
@@ -140,6 +143,7 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	AppStoreID	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	SelfService	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsExcludeAny	[]string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Icon	fleet.TeamSpecSoftwareAsset

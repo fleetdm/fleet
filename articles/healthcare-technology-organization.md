@@ -34,3 +34,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="Healthcare tech org enforces policies in minutes, not weeks, with self-hosted, multi-OS management and clear compliance visibility.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Healthcare technology organization">

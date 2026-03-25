@@ -578,6 +578,12 @@ type Datastore interface {
 	// Deletes are batched to avoid large binlogs and long lock times. This runs as a cron job.
 	// Returns a map of query IDs to their current row count after cleanup (for syncing Redis counters).
 	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
+	// ListHostReports returns the queries/reports associated with the given host, applying
+	// the provided options for filtering, sorting, and pagination. teamID is the team of the
+	// host (nil for global). maxQueryReportRows is the configured report cap used to determine
+	// whether each query's report has been clipped. It returns the list of reports, the total
+	// count (without pagination), optional pagination metadata, and any error.
+	ListHostReports(ctx context.Context, hostID uint, teamID *uint, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -828,8 +834,8 @@ type Datastore interface {
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
-	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -848,7 +854,9 @@ type Datastore interface {
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
-	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
+	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
+	// GetPatchPolicy returns the patch policy associated with the title id
+	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
 
 	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
 	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
@@ -903,8 +911,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -1503,11 +1511,20 @@ type Datastore interface {
 	// for the given host UUID.
 	GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*HostRecoveryLockPassword, error)
 
+	// GetHostRecoveryLockPasswordStatus returns the recovery lock password status for a given host.
+	GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*HostMDMRecoveryLockPassword, error)
+
 	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action:
 	// - Teams with enable_recovery_lock_password = true
 	// - macOS Apple Silicon hosts that are MDM enrolled
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error)
+
+	// RestoreRecoveryLockForReenabledHosts transitions hosts from "pending remove" back to
+	// "verified install" when the recovery lock feature is re-enabled. This preserves the
+	// existing password instead of trying to set a new one (which would fail).
+	// Returns the number of hosts restored.
+	RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error)
 
 	// SetRecoveryLockVerified marks the recovery lock as verified.
 	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
@@ -1519,6 +1536,45 @@ type Datastore interface {
 	// that failed to have their SetRecoveryLock commands enqueued. This allows them to
 	// be picked up again on the next cron run.
 	ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error
+
+	// ClaimHostsForRecoveryLockClear returns host UUIDs that need their recovery lock
+	// cleared and marks them as pending. Returns hosts where the team/appconfig has
+	// enable_recovery_lock_password=false and either:
+	// - operation_type='install' and status='verified' (new clears), or
+	// - operation_type='remove' and status=NULL (retries after failed enqueue)
+	ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error)
+
+	// DeleteHostRecoveryLockPassword deletes the recovery lock password record for the given host.
+	// Called after a successful clear operation.
+	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string) error
+
+	// GetRecoveryLockOperationType returns the current operation type for the host's recovery lock.
+	// Used by the result handler to determine if this was a set or clear operation.
+	GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (MDMOperationType, error)
+
+	// InitiateRecoveryLockRotation stores a new pending password for rotation.
+	// Validates: has verified/failed install password, no pending rotation, not in remove operation.
+	InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error
+
+	// CompleteRecoveryLockRotation moves pending password to active after MDM acknowledgment.
+	// Sets: encrypted_password = pending_encrypted_password, clears pending columns, status = verified.
+	CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error
+
+	// FailRecoveryLockRotation marks rotation as failed, keeps pending password for potential retry.
+	FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error
+
+	// ClearRecoveryLockRotation removes pending rotation (e.g., if command enqueue fails).
+	ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error
+
+	// GetRecoveryLockRotationStatus returns current rotation state for API validation.
+	GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*HostRecoveryLockRotationStatus, error)
+
+	// HasPendingRecoveryLockRotation returns true if the host has a pending recovery lock rotation.
+	HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error)
+	// ResetRecoveryLockForRetry resets a failed clear operation back to install/verified
+	// so it will be picked up by ClaimHostsForRecoveryLockClear on the next cron cycle.
+	// This is used when a clear command fails with a transient error (not password mismatch).
+	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
@@ -2312,12 +2368,13 @@ type Datastore interface {
 	// It uses hostPlatformLike to cover scenarios where software items are not compatible with the target
 	// platform. E.g. "deb" packages can only be queued for hosts with platform_like = "debian" (Ubuntu, Debian, etc.).
 	// MacOS hosts have hosts.platform_like = 'darwin', Ubuntu and Debian hosts have hosts.platform_like = 'debian'
-	// Fedora hosts have hosts.platform_like = 'rhel'.
-	EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
+	// Fedora hosts have hosts.platform_like = 'rhel'. The hostPlatform argument (e.g. "darwin", "arch", "ubuntu", etc.)
+	// is used for some validations, and to backfill hostPlatformLike if empty.
+	EnqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error)
 
 	// ResetSetupExperienceItemsAfterFailure resets any setup experience items that were canceled after
 	// a software item failed to install on a host whose team was configured to stop setup experience on failure.
-	ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
+	ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error)
 
 	// CancelPendingSetupExperienceSteps cancels any setup experience items for the given host that aren't already completed.
 	CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error
@@ -2687,6 +2744,8 @@ type Datastore interface {
 	// DeleteHostCertificateTemplate deletes a single host_certificate_template record
 	// identified by host_uuid and certificate_template_id.
 	DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error
+	// ResendHostCertificateTemplate queues a certificate template to be resent to a device
+	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
 	// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
 	// certificate templates in 'pending' status ready for delivery.

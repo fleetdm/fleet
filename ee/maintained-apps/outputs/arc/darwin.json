@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.138.1",
+      "version": "1.139.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser';"
       },
-      "installer_url": "https://releases.arc.net/release/Arc-1.138.1-77005.zip",
+      "installer_url": "https://releases.arc.net/release/Arc-1.139.0-77482.zip",
       "install_script_ref": "da46c3be",
       "uninstall_script_ref": "0b3739b1",
-      "sha256": "605bd02954e606b9c10c08134ec17ba507fb448334f90c5abf149e1bfacaf4ff",
+      "sha256": "5c3bc5f288c383b365f307112577ba8b05efc21c42ac0f0d2e4b5efb1985b437",
       "default_categories": [
         "Browsers"
       ]

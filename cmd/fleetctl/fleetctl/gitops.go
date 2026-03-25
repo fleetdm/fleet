@@ -489,6 +489,15 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 
+				// Capture CAs before DoGitOps (which deletes the key from OrgSettings).
+				// DoGitOps processes CA creates/updates inline (with skipDeletes=true).
+				// CA deletions are always deferred to a post-op so that team configs can
+				// clean up certificate templates (which have FK references to CAs) first.
+				var deferredCAs any
+				if isGlobalConfig && !flDryRun {
+					deferredCAs = config.OrgSettings["certificate_authorities"]
+				}
+
 				assumptions, err := fleetClient.DoGitOps(
 					c.Context,
 					config,
@@ -505,6 +514,21 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+
+				// Schedule CA deletions as a post-op after all team configs have been processed.
+				if isGlobalConfig && !flDryRun {
+					allPostOps = append(allPostOps, func() error {
+						groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
+						if caErr != nil {
+							return fmt.Errorf("invalid certificate_authorities: %w", caErr)
+						}
+						if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}, fleet.BatchApplyCertificateAuthoritiesOpts{}); caErr != nil {
+							return fmt.Errorf("applying certificate authorities: %w", caErr)
+						}
+						return nil
+					})
+				}
+
 				if config.TeamName != nil {
 					teamNames = append(teamNames, *config.TeamName)
 				} else {
@@ -777,9 +801,15 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(softwarePackage.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
+				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
 			}
 			labels = softwarePackage.LabelsExcludeAny
+		}
+		if len(softwarePackage.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
+			}
+			labels = softwarePackage.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, softwarePackage.URL, "Software Package", result)
 	}
@@ -792,9 +822,15 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(vppApp.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
 			}
 			labels = vppApp.LabelsExcludeAny
+		}
+		if len(vppApp.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+			}
+			labels = vppApp.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, vppApp.AppStoreID, "App Store App", result)
 	}
@@ -806,9 +842,15 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(maintainedApp.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
+				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
 			}
 			labels = maintainedApp.LabelsExcludeAny
+		}
+		if len(maintainedApp.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
+			}
+			labels = maintainedApp.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, maintainedApp.Slug, "Fleet Maintained App", result)
 	}

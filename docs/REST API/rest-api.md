@@ -11,13 +11,13 @@
 - [Commands](#commands)
 - [Integrations](#integrations-1)
 - [Policies](#policies)
-- [Queries](#queries)
+- [Reports](#reports)
 - [Schedule (deprecated)](#schedule)
 - [Scripts](#scripts)
 - [Sessions](#sessions)
 - [Software](#software)
 - [Targets](#targets)
-- [Teams](#teams)
+- [Fleets](#fleets)
 - [Translator](#translator)
 - [Users](#users)
 - [Custom variables](#custom-variables)
@@ -102,7 +102,8 @@ Authenticates the user with the specified credentials. Use the token returned fr
     "sso_enabled": false,
     "mfa_enabled": false,
     "global_role": "admin",
-    "teams": []
+    "teams": [],
+    "fleets": []
   },
   "token": "{your token}"
 }
@@ -326,7 +327,8 @@ Retrieves the user data for the authenticated user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "teams": []
+    "fleets": [],
+    "fleets": []
   },
   "available_teams" : [
     {
@@ -335,6 +337,13 @@ Retrieves the user data for the authenticated user.
       "description": "Employee workstations"
     }
   ],
+    "available_fleets" : [
+    {
+      "id": 1,
+      "name": "Workstations",
+      "description": "Employee workstations"
+    }
+  ]
 }
 ```
 
@@ -375,7 +384,8 @@ Resets the password of the authenticated user. Requires that `force_password_res
     "gravatar_url": "",
     "sso_enabled": false,
     "global_role": "admin",
-    "teams": []
+    "teams": [],
+    "fleets": []
   }
 }
 ```
@@ -556,10 +566,13 @@ Returns a list of the activities that have been performed in Fleet. For a compre
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "created_team",
+      "type": "created_fleet",
       "fleet_initiated": false,
       "details": {
         "team_id": 2,
-        "team_name": "Apples"
+        "fleet_id": 2,
+        "team_name": "Apples",
+        "fleet_name": "Apples"
       }
     },
     {
@@ -728,7 +741,7 @@ Object with the following structure:
 
 ### Add certificate template
 
-Add a certificate template to deploy a certificate to all hosts on the team. Fleet currently supports adding certificates for Android that are issued from a custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority.
+Add a certificate template to deploy a certificate to all hosts on the fleet. Fleet currently supports adding certificates for Android that are issued from a custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority.
 
 `POST /api/v1/fleet/certificates`
 
@@ -737,7 +750,7 @@ Add a certificate template to deploy a certificate to all hosts on the team. Fle
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
 | name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
-| team_id      | string  | body | _Available in Fleet Premium_. The ID of the team to add profiles to. |
+| fleet_id      | string  | body | _Available in Fleet Premium_. The ID of the fleet to add profiles to. |
 | certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
 | subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
 
@@ -751,6 +764,7 @@ Add a certificate template to deploy a certificate to all hosts on the team. Fle
 {
   "name": "wifi-certificate",
   "team_id": 1,
+  "fleet_id": 1,
   "certificate_authority_id": 1,
   "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
@@ -913,7 +927,7 @@ List certificate added to Fleet. Currently, they can only be added via GitOps.
 
 | Name      | Type    | In   | Description                                                    |
 | ----------| ------- | ---- | -------------------------------------------------------------- |
-| team      | string  | query | _Available in Fleet Premium_. The team ID to filter profiles. |
+| fleet      | string  | query | _Available in Fleet Premium_. The fleet ID to filter profiles. |
 | page      | integer | query | Page number of the results to fetch.                          |
 | per_page  | integer | query | Results per page.                                             |
 
@@ -1377,8 +1391,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Update configuration](#update-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Update global enroll secrets](#update-global-enroll-secrets)
-- [Get team enroll secrets](#get-team-enroll-secrets)
-- [Update team enroll secrets](#update-team-enroll-secrets)
+- [Get fleet enroll secrets](#get-fleet-enroll-secrets)
+- [Update fleet enroll secrets](#update-fleet-enroll-secrets)
 - [Get version](#get-version)
 
 The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
@@ -1414,7 +1428,7 @@ Returns all information about the Fleet's configuration.
 
 The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned for admin and GitOps users with global access (see the [Role-based access guide](https://fleetdm.com/guides/role-based-access)).
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `mdm.macos_setup`, `mdm.volume_purchasing_program`, and `scripts` only include the settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list the settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
 
 `GET /api/v1/fleet/config`
 
@@ -1716,7 +1730,7 @@ Modifies the Fleet's configuration with the supplied information.
 | sso_settings             | object  | body  | See [sso_settings](#sso-settings).                                                                                                   |
 | host_expiry_settings     | object  | body  | See [host_expiry_settings](#host-expiry-settings).                                                                                   |
 | activity_expiry_settings | object  | body  | See [activity_expiry_settings](#activity-expiry-settings).                                                                           |
-| agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
+| agent_options            | objects | body  | The agent_options spec that is applied to all hosts.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
 | integrations             | object  | body  | See [integrations](#integrations).                                                                                           |
@@ -2410,8 +2424,8 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
-| enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
-| windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" will have disk encryption enabled if set to true. |
+| windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -2434,8 +2448,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
+| minimum_version                   | string  | Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. |
+| deadline                          | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
 | update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
@@ -2448,8 +2462,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that belong to no team will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (7PM local time). |
+| minimum_version                   | string  | Hosts that are "Unassigned" will be prompted to update when their OS is below this version. |
+| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). |
 
 <br/>
 
@@ -2461,8 +2475,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that belong to no team will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (7PM local time). |
+| minimum_version                   | string  | Hosts that are "Unassigned" will be prompted to update when their OS is below this version. |
+| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). |
 
 <br/>
 
@@ -2474,8 +2488,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| deadline_days                     | integer | Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows. |
-| grace_period_days                 | integer | Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates. |
+| deadline_days                     | integer | Hosts that are "Unassigned" and have MDM turned on will have this number of days before updates are installed on Windows. |
+| grace_period_days                 | integer | Hosts that are "Unassigned" and have MDM turned on will have this number of days before Windows restarts to install updates. |
 
 <br/>
 
@@ -2722,11 +2736,11 @@ Delete all global enroll secrets.
 {}
 ```
 
-### Get team enroll secrets
+### Get fleet enroll secrets
 
-Returns the valid team enroll secrets.
+Returns the fleet's enroll secrets.
 
-`GET /api/v1/fleet/teams/:id/secrets`
+`GET /api/v1/fleet/fleets/:id/secrets`
 
 #### Parameters
 
@@ -2734,7 +2748,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/teams/1/secrets`
+`GET /api/v1/fleet/fleets/1/secrets`
 
 ##### Default response
 
@@ -2746,31 +2760,32 @@ None.
     {
       "created_at": "2021-06-16T22:05:49Z",
       "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
-      "team_id": 1
+      "team_id": 1,
+      "fleet_id": 1,
     }
   ]
 }
 ```
 
 
-### Update team enroll secrets
+### Update fleet enroll secrets
 
-Replaces all existing team enroll secrets.
+Replaces all existing enroll secrets for a fleet.
 
-`PATCH /api/v1/fleet/teams/:id/secrets`
+`PATCH /api/v1/fleet/fleets/:id/secrets`
 
 #### Parameters
 
 | Name      | Type    | In   | Description                            |
 | --------- | ------- | ---- | -------------------------------------- |
-| id        | integer | path | **Required**. The team's id.           |
+| id        | integer | path | **Required**. The fleet's id.           |
 | secrets   | array   | body | **Required**. A list of enroll secrets |
 
 #### Example
 
-Replace all of a team's existing enroll secrets with a new enroll secret
+Replace all of a fleet's existing enroll secrets with a new enroll secret
 
-`PATCH /api/v1/fleet/teams/2/secrets`
+`PATCH /api/v1/fleet/fleets/2/secrets`
 
 ##### Request body
 
@@ -2801,9 +2816,9 @@ Replace all of a team's existing enroll secrets with a new enroll secret
 
 #### Example
 
-Delete all of a team's existing enroll secrets
+Delete all of a fleet's existing enroll secrets
 
-`PATCH /api/v1/fleet/teams/2/secrets`
+`PATCH /api/v1/fleet/fleets/2/secrets`
 
 ##### Request body
 
@@ -2865,8 +2880,8 @@ None.
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
 - [Refetch host by Fleet Desktop token](#refetch-host-by-fleet-desktop-token)
-- [Update hosts' team](#update-hosts-team)
-- [Update hosts' team by filter](#update-hosts-team-by-filter)
+- [Update hosts' fleet](#update-hosts-fleet)
+- [Update hosts' fleet by filter](#update-hosts-fleet-by-filter)
 - [Turn off host's MDM](#turn-off-hosts-mdm)
 - [Batch-delete hosts](#batch-delete-hosts)
 - [Update human-device mapping](#update-human-device-mapping)
@@ -2908,10 +2923,10 @@ the `software` table.
 
 - `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
 - `updated_at`: the last time the row in the database for the `hosts` table was updated.
-- `detail_updated_at`: the last time Fleet updated host data, based on the results from the detail queries (this includes updates to host associated tables, e.g. `host_users`).
-- `label_updated_at`: the last time Fleet updated the label membership for the host based on the results from the queries ran.
+- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`).
+- `label_updated_at`: the last time Fleet updated the label membership for the host
 - `last_enrolled_at`: the last time the host enrolled to Fleet.
-- `policy_updated_at`: the last time we updated the policy results for the host based on the queries ran.
+- `policy_updated_at`: the last time we updated the policy results for the host
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
 - `last_restarted_at`: the last time that the host was restarted.
@@ -2932,7 +2947,7 @@ the `software` table.
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. This query is populated by the `additional_queries` in the `features` section of the configuration YAML.                                              |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified team. Use `0` to filter by hosts assigned to "No team".                                                                                                                                                                                                                                                |
+| fleet_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified fleet. Use `0` to filter by "Unassigned" hosts.                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
@@ -2947,14 +2962,14 @@ the `software` table.
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet. |
 | connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
-| os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
@@ -3048,7 +3063,9 @@ To filter hosts by platform (macOS, Windows, Linux), use the ["List label's host
       "status": "offline",
       "display_text": "Annas-MacBook-Pro.local",
       "team_id": null,
+      "fleet_id": null,
       "team_name": null,
+      "fleet_name": null,
       "gigs_disk_space_available": 174.98,
       "percent_disk_space_available": 71,
       "gigs_total_disk_space": 246,
@@ -3236,7 +3253,7 @@ Response payload with the `munki_issue_id` filter provided:
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                                                                                                                                    |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
+| fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
@@ -3245,17 +3262,17 @@ Response payload with the `munki_issue_id` filter provided:
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
-| label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
+| label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.   |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
-| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -3295,13 +3312,13 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 | Name            | Type    | In    | Description                                                                     |
 | --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team whose host counts should be included. Defaults to all teams. |
+| fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the fleet whose host counts should be included. Defaults to all fleets. |
 | platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
 | low_disk_space  | integer | query | _Available in Fleet Premium_. Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary?team_id=1&low_disk_space=32`
+`GET /api/v1/fleet/host_summary?fleet_id=1&low_disk_space=32`
 
 ##### Default response
 
@@ -3310,6 +3327,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 ```json
 {
   "team_id": 1,
+  "fleet_id": 1,
   "totals_hosts_count": 2408,
   "online_count": 2267,
   "offline_count": 141,
@@ -3493,8 +3511,10 @@ Returns the information of the specified host.
     "config_tls_refresh": 10,
     "logger_tls_period": 10,
     "team_id": null,
+    "fleet_id": null,
     "pack_stats": null,
     "team_name": null,
+    "fleet_name": null,
     "gigs_disk_space_available": 174.98,
     "percent_disk_space_available": 71,
     "gigs_total_disk_space": 246,
@@ -3783,7 +3803,9 @@ If `hostname` is specified when there is more than one host with the same hostna
     "config_tls_refresh": 60,
     "logger_tls_period": 10,
     "team_id": 2,
+    "fleet_id": 2,
     "team_name": null,
+    "fleet_name": null,
     "gigs_disk_space_available": 19.29,
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 192,
@@ -3858,7 +3880,9 @@ If `hostname` is specified when there is more than one host with the same hostna
         "hosts": null,
         "host_ids": null,
         "teams": null,
-        "team_ids": null
+        "fleet": null,
+        "team_ids": null,
+        "fleet_ids": null
       }
     ],
     "policies": [
@@ -3871,6 +3895,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "author_name": "",
         "author_email": "",
         "team_id": null,
+        "fleet_id": null,
         "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
         "platform": "darwin,linux",
         "created_at": "2022-09-02T18:52:19Z",
@@ -4011,8 +4036,10 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "config_tls_refresh": 10,
     "logger_tls_period": 10,
     "team_id": null,
+    "fleet_id": null,
     "pack_stats": null,
     "team_name": null,
+    "fleet_name": null,
     "additional": {},
     "gigs_disk_space_available": 174.98,
     "percent_disk_space_available": 71,
@@ -4166,7 +4193,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 ### Refetch host
 
-Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
+Flags the host details, labels and policies to be refetched the next time the host checks in. Note that we cannot be certain when the host will actually check in. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
 `POST /api/v1/fleet/hosts/:id/refetch`
 
@@ -4204,7 +4231,7 @@ Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instea
 
 `Status: 200`
 
-### Update hosts' team
+### Update hosts' fleet
 
 _Available in Fleet Premium_
 
@@ -4214,7 +4241,7 @@ _Available in Fleet Premium_
 
 | Name    | Type    | In   | Description                                                             |
 | ------- | ------- | ---- | ----------------------------------------------------------------------- |
-| team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to. |
+| fleet_id | integer | body | **Required**. The ID of the fleet you'd like to assign the host(s) to. |
 | hosts   | array   | body | **Required**. A list of host IDs.                                       |
 
 #### Example
@@ -4226,6 +4253,7 @@ _Available in Fleet Premium_
 ```json
 {
   "team_id": 1,
+  "fleet_id": 1,
   "hosts": [3, 2, 4, 6, 1, 5, 7]
 }
 ```
@@ -4235,7 +4263,7 @@ _Available in Fleet Premium_
 `Status: 200`
 
 
-### Update hosts' team by filter
+### Update hosts' fleet by filter
 
 _Available in Fleet Premium_
 
@@ -4245,7 +4273,7 @@ _Available in Fleet Premium_
 
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to. |
+| fleet_id | integer | body | **Required**. The ID of the fleet you'd like to assign the host(s) to. |
 | filters | object  | body | **Required**. See [filters](#filters)  |
 
 
@@ -4256,7 +4284,7 @@ _Available in Fleet Premium_
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| team_id                           | number  | ID of the team to filter by. |
+| fleet_id                           | number  | ID of the fleet to filter by. |
 
 > Note: `label_id` and `status` filters cannot be used at the same time.
 
@@ -4270,9 +4298,11 @@ _Available in Fleet Premium_
 ```json
 {
   "team_id": 1,
+  "fleet_id": 1,
   "filters": {
     "status": "online",
     "team_id": 2,
+    "fleet_id": 2,
   }
 }
 ```
@@ -4324,7 +4354,7 @@ Delete hosts selected by filter or ids.
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| team_id                           | number  | ID of the team to filter by. |
+| fleet_id                           | number  | ID of the fleet to filter by. |
 
 > Notes: `label_id` and `status` filters cannot be used at the same time.
 
@@ -4344,6 +4374,7 @@ Request (using `filters`):
     "status": "online",
     "label_id": 1,
     "team_id": 1,
+    "fleet_id": 1,
     "query": "abc"
   }
 }
@@ -4366,7 +4397,8 @@ Request (`filters` is specified and empty, to delete all hosts):
 {
   "filters": {
     "status": "online",
-    "team_id": 1
+    "team_id": 1,
+    "fleet_id": 1
   }
 }
 ```
@@ -4528,14 +4560,14 @@ Retrieves MDM enrollment summary. Windows servers are excluded from the aggregat
 
 | Name     | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | -------- | ------- | ----- | -------------------------------------------------------------------------------- |
-| team_id  | integer | query | _Available in Fleet Premium_. Filter by team                                      |
+| fleet_id  | integer | query | _Available in Fleet Premium_. Filter by fleet.                                      |
 | platform | string  | query | Filter by platform ("windows" or "darwin")                                       |
 
-A `team_id` of `0` returns the statistics for hosts that are not part of any team. A `null` or missing `team_id` returns statistics for all hosts regardless of the team.
+A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `null` or missing `fleet_id` returns statistics for all hosts on all fleets.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/summary/mdm?team_id=1&platform=windows`
+`GET /api/v1/fleet/hosts/summary/mdm?fleet_id=1&platform=windows`
 
 ##### Default response
 
@@ -4634,9 +4666,9 @@ Retrieves MDM enrollment status and Munki versions, aggregated across all hosts.
 
 | Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
-| team_id | integer | query | _Available in Fleet Premium_. Filters the aggregate host information to only include hosts in the specified team. |                           |
+| fleet_id | integer | query | _Available in Fleet Premium_. Filters the aggregate host information to only include hosts in the specified fleet. |                           |
 
-A `team_id` of `0` returns the statistics for hosts that are not part of any team. A `null` or missing `team_id` returns statistics for all hosts regardless of the team.
+A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `null` or missing `fleet_id` returns statistics for all hosts on all fleets.
 
 #### Example
 
@@ -4808,7 +4840,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
     {
       "id": 147,
       "name": "Logic Pro",
-      "icon_url": "/api/latest/fleet/software/titles/147/icon?team_id=2",
+      "icon_url": "/api/latest/fleet/software/titles/147/icon?fleet_id=2",
       "software_package": null,
       "app_store_app": {
         "app_store_id": "1091189122",
@@ -4905,7 +4937,7 @@ requested by a web browser.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                               |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                |
+| fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
@@ -4917,11 +4949,11 @@ requested by a web browser.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.  |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
-| label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
-| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                                     |
+| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".** |
 | disable_failing_policies | boolean | query | If `true`, hosts will return failing policies as 0 (returned as the `issues` column) regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
@@ -4935,7 +4967,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_id,team_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_name,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
@@ -5067,6 +5099,7 @@ Retrieves a list of the configuration profiles assigned to a host.
     {
       "profile_uuid": "bc84dae7-396c-4e10-9d45-5768bce8b8bd",
       "team_id": 0,
+      "fleet_id": 0,
       "name": "Example profile",
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
@@ -5620,14 +5653,15 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
     "count": 0,
     "host_ids": null,
     "author_id": 1,
-    "team_id": null
+    "team_id": null,
+    "fleet_id": null
   }
 }
 ```
 
 ### Update label
 
-Updates the specified label. Note: Label queries, platforms, and teams are immutable. To change these, you must delete the label and create a new label.
+Updates the specified label. Note: Label queries, platforms, and fleets are immutable. To change these, you must delete the label and create a new label.
 
 `PATCH /api/v1/fleet/labels/:id`
 
@@ -5676,7 +5710,9 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
     "host_ids": [42, 43],
     "author_id": 1,
     "team_id": null,
-    "team_name": null
+    "fleet_id": null,
+    "team_name": null,
+    "fleet_name": null
   }
 }
 ```
@@ -5717,7 +5753,9 @@ Returns the specified label.
     "host_ids": null,
     "author_id": 1,
     "team_id": null,
-    "team_name": null
+    "fleet_id": null,
+    "team_name": null,
+    "fleet_name": null,
   }
 }
 ```
@@ -5732,7 +5770,7 @@ Returns a list of labels in Fleet, including basic information on each label.
 
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
-| team_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team, plus global labels. Specify `"global"` to show only globally-available labels. If omitted, Fleet returns all global labels, plus all labels for teams to which the requestor has access. |
+| fleet_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified fleet, plus global labels. Specify `"global"` to show only globally-available labels. If omitted, Fleet returns all global labels, plus all labels for fleets to which the requestor has access. |
 
 #### Example
 
@@ -5750,42 +5788,48 @@ Returns a list of labels in Fleet, including basic information on each label.
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
       "label_type": "builtin",
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
       "label_type": "builtin",
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
       "label_type": "builtin",
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
       "label_type": "builtin",
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
       "label_type": "builtin",
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "id": 11,
-      "name": "My team-specific label",
-      "description": "This one goes to eleven, but only on one team",
+      "name": "My fleet-specific label",
+      "description": "This one goes to eleven, but only on one fleet",
       "label_type": "regular",
-      "team_id": 1
+      "team_id": 1,
+      "fleet_id": 1
     }
   ]
 }
@@ -5804,7 +5848,7 @@ Returns a list of labels.
 | include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information. |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| team_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified team, plus global labels. Specify `"global"` to show only globally-available labels. If omitted, Fleet returns all global labels, plus all labels for teams to which the requestor has access. |
+| fleet_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified fleet, plus global labels. Specify `"global"` to show only globally-available labels. If omitted, Fleet returns all global labels, plus all labels for fleets to which the requestor has access. |
 
 When `include_host_counts` is `true` (or omitted), `host_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `host_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
 
@@ -5833,7 +5877,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 7,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5850,7 +5895,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 1,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5867,7 +5913,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 3,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5883,7 +5930,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 3,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5899,14 +5947,15 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 0,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null
+      "team_id": null,
+      "fleet_id": null
     },
     {
       "created_at": "2025-11-13T06:14:20Z",
       "updated_at": "2025-11-13T06:14:20Z",
       "id": 4663,
       "name": "Team: g-software",
-      "description": "Workstations used by team g-software",
+      "description": "Workstations used by g-software",
       "query": "",
       "platform": "",
       "label_type": "regular",
@@ -5915,7 +5964,8 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 0,
       "host_ids": null,
       "author_id": 1,
-      "team_id": 2
+      "team_id": 2,
+      "fleet_id": null
     }
   ]
 }
@@ -5939,17 +5989,17 @@ Returns a list of the hosts that belong to the specified label.
 | after                    | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                   |
 | status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                 |
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`.                                                                                                                         |
-| team_id                  | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified team.                                                                                                                                |
+| fleet_id                  | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
 | mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.  |
-| macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
-| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 
 If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings_disk_encryption` is specified, then Windows Servers are excluded from the results.
 
@@ -6003,8 +6053,10 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "config_tls_refresh": 10,
       "logger_tls_period": 10,
       "team_id": null,
+      "fleet_id": null,
       "pack_stats": null,
       "team_name": null,
+      "fleet_name": null,
       "status": "offline",
       "display_text": "e2e7f8d8983d",
       "mdm": {
@@ -6096,7 +6148,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | Name                      | Type     | In   | Description                                                                                                   |
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | body | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
-| team_id                   | string   | body | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+| fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
 | labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
@@ -6109,7 +6161,7 @@ of duplicate payload display name or duplicate payload identifier (macOS profile
 #### Example
 
 Add a new configuration profile to be applied to macOS hosts
-assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+assigned to a fleet. Note that in this example the form data specifies `fleet_id` in addition to
 `profile`.
 
 `POST /api/v1/fleet/configuration_profiles`
@@ -6118,7 +6170,7 @@ assigned to a team. Note that in this example the form data specifies`team_id` i
 
 ```http
 profile="Foo.mobileconfig"
-team_id="1"
+fleet_id="1"
 labels_include_all="Label name 1"
 ```
 
@@ -6139,8 +6191,8 @@ labels_include_all="Label name 1"
 Get a list of the configuration profiles in Fleet.
 
 For Fleet Premium, the list can
-optionally be filtered by team ID. If no team ID is specified, team profiles are excluded from the
-results (i.e., only profiles that are associated with "No team" are listed).
+optionally be filtered by fleet ID. If no fleet ID is specified, fleet profiles are excluded from the
+results (i.e., only profiles that are associated with "Unassigned" are listed).
 
 `GET /api/v1/fleet/configuration_profiles`
 
@@ -6148,13 +6200,13 @@ results (i.e., only profiles that are associated with "No team" are listed).
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_. The team id to filter profiles.              |
+| fleet_id                   | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.              |
 | page                      | integer | query | Page number of the results to fetch.                                     |
 | per_page                  | integer | query | Results per page.                                                        |
 
 #### Example
 
-List all configuration profiles for macOS and Windows hosts enrolled to Fleet's MDM that are not assigned to any team.
+List all configuration profiles for macOS and Windows hosts enrolled to Fleet's MDM that are "Unassigned".
 
 `GET /api/v1/fleet/configuration_profiles`
 
@@ -6341,7 +6393,7 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 ### Batch-update custom OS settings (configuration profiles)
 
-Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are assigned to "No team" (Fleet Premium).
+Modify configuration profiles for a fleet. The provided list of profiles will be the active profiles for the specified fleet. If no fleet (`fleet_id` or `fleet_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are "Unassigned" (Fleet Premium).
 
 For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list.
 
@@ -6359,8 +6411,8 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 
 | Name      | Type   | In    | Description                                                                                                                       |
 | --------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
-| team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the configuration profiles to. Only one of `team_name` or `team_id` may be included in the request.          |
-| team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name` or `team_id` may be included in the request. |
+| fleet_id   | number | query | _Available in Fleet Premium_ The fleet ID to apply the configuration profiles to. Only one of `fleet_name` or `fleet_id` may be included in the request.          |
+| fleet_name | string | query | _Available in Fleet Premium_ The name of the fleet to apply the custom settings to. Only one of `fleet_name` or `fleet_id` may be included in the request. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
 | configuration_profiles  | object   | body  | **Required**. See [configuration_profiles](#configuration-profiles) |
 
@@ -6378,7 +6430,7 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
 
 #### Example
 
-`POST /api/v1/fleet/configuration_profiles/batch?team_id=1`
+`POST /api/v1/fleet/configuration_profiles/batch?fleet_id=1`
 
 ##### Request body
 
@@ -6471,8 +6523,8 @@ _Available in Fleet Premium_
 
 | Name                   | Type    | In    | Description                                                                                 |
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
-| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+| fleet_id                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
+| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the fleet (or "Unassigned"). |
 | windows_require_bitlocker_pin  | boolean | body | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
 #### Example
@@ -6490,7 +6542,7 @@ _Available in Fleet Premium_
 
 Get aggregate status counts of disk encryption enforced on macOS and Windows hosts.
 
-The summary can optionally be filtered by team ID.
+The summary can optionally be filtered by fleet ID.
 
 `GET /api/v1/fleet/disk_encryption`
 
@@ -6498,7 +6550,7 @@ The summary can optionally be filtered by team ID.
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter the summary.           |
+| fleet_id                   | string | query | _Available in Fleet Premium_. The fleet ID to filter the summary.           |
 
 #### Example
 
@@ -6527,7 +6579,7 @@ The summary can optionally be filtered by team ID.
 Get aggregate status counts of all OS settings (configuration profiles and disk encryption) enforced on hosts.
 
 For Fleet Premium users, the counts can
-optionally be filtered by `team_id`. If no `team_id` is specified, team profiles are excluded from the results (i.e., only profiles that are associated with "No team" are listed).
+optionally be filtered by `fleet_id`. If no `fleet_id` is specified, fleet profiles are excluded from the results (i.e., only profiles that are associated with "Unassigned" are listed).
 
 `GET /api/v1/fleet/configuration_profiles/summary`
 
@@ -6535,11 +6587,11 @@ optionally be filtered by `team_id`. If no `team_id` is specified, team profiles
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter profiles.              |
+| fleet_id                   | string | query | _Available in Fleet Premium_. The fleet ID to filter profiles.              |
 
 #### Example
 
-Get aggregate status counts of profiles for to macOS and Windows hosts that are assigned to "No team".
+Get aggregate status counts of profiles for macOS and Windows hosts that are "Unassigned".
 
 `GET /api/v1/fleet/configuration_profiles/summary`
 
@@ -6616,7 +6668,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 _Available in Fleet Premium_
 
-Sets the custom MDM setup enrollment profile for a team or no team.
+Sets the custom MDM setup enrollment profile for a fleet or "Unassigned".
 
 `POST /api/v1/fleet/enrollment_profiles/automatic`
 
@@ -6624,7 +6676,7 @@ Sets the custom MDM setup enrollment profile for a team or no team.
 
 | Name                      | Type    | In    | Description                                                                   |
 | ------------------------- | ------  | ----- | -------------------------------------------------------------------------     |
-| team_id                   | integer | json  | The team ID this custom enrollment profile applies to, or no team if omitted. |
+| fleet_id                   | integer | json  | The fleet ID this custom enrollment profile applies to, or "Unassigned" if omitted. |
 | name                      | string  | json  | The filename of the uploaded custom enrollment profile.                       |
 | enrollment_profile        | object  | json  | The custom enrollment profile's json, as documented in https://developer.apple.com/documentation/devicemanagement/profile. |
 
@@ -6639,6 +6691,7 @@ Sets the custom MDM setup enrollment profile for a team or no team.
 ```json
 {
   "team_id": 123,
+  "fleet_id": 123,
   "name": "dep_profile.json",
   "uploaded_at": "2023-04-04:00:00Z",
   "enrollment_profile": {
@@ -6654,7 +6707,7 @@ Sets the custom MDM setup enrollment profile for a team or no team.
 
 _Available in Fleet Premium_
 
-Gets the custom MDM setup enrollment profile for a team or no team.
+Gets the custom MDM setup enrollment profile for a fleet or "Unassigned".
 
 `GET /api/v1/fleet/enrollment_profiles/automatic`
 
@@ -6662,11 +6715,11 @@ Gets the custom MDM setup enrollment profile for a team or no team.
 
 | Name                      | Type    | In    | Description                                                                           |
 | ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
-| team_id                   | integer | query | The team ID for which to return the custom enrollment profile, or no team if omitted. |
+| fleet_id                   | integer | query | The fleet ID for which to return the custom enrollment profile, or "Unassigned" if omitted. |
 
 #### Example
 
-`GET /api/v1/fleet/enrollment_profiles/automatic?team_id=123`
+`GET /api/v1/fleet/enrollment_profiles/automatic?fleet_id=123`
 
 ##### Default response
 
@@ -6675,6 +6728,7 @@ Gets the custom MDM setup enrollment profile for a team or no team.
 ```json
 {
   "team_id": 123,
+  "fleet_id": 123,
   "name": "dep_profile.json",
   "uploaded_at": "2023-04-04:00:00Z",
   "enrollment_profile": {
@@ -6688,7 +6742,7 @@ Gets the custom MDM setup enrollment profile for a team or no team.
 
 _Available in Fleet Premium_
 
-Deletes the custom MDM setup enrollment profile assigned to a team or no team.
+Deletes the custom MDM setup enrollment profile assigned to a fleet or "Unassigned".
 
 `DELETE /api/v1/fleet/enrollment_profiles/automatic`
 
@@ -6696,11 +6750,11 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 | Name                      | Type    | In    | Description                                                                           |
 | ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
-| team_id                   | integer | query | The team ID for which to delete the custom enrollment profile, or no team if omitted. |
+| fleet_id                   | integer | query | The fleet ID for which to delete the custom enrollment profile, or "Unassigned" if omitted. |
 
 #### Example
 
-`DELETE /api/v1/fleet/enrollment_profiles/automatic?team_id=123`
+`DELETE /api/v1/fleet/enrollment_profiles/automatic?fleet_id=123`
 
 ##### Default response
 
@@ -6711,9 +6765,9 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 `GET /api/v1/fleet/enrollment_profiles/ota`
 
-The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Apple enrollment profile docs](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html)). Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific team in Fleet and turn on MDM features.
+The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Apple enrollment profile docs](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html)). Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific fleet in Fleet and turn on MDM features.
 
-If the team in Fleet has [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+If the fleet has [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
 To enroll macOS hosts, turn on MDM features, and add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
@@ -6721,7 +6775,7 @@ To enroll macOS hosts, turn on MDM features, and add [human-device mapping](http
 
 | Name              | Type    | In    | Description                                                                      |
 |-------------------|---------|-------|----------------------------------------------------------------------------------|
-| enroll_secret     | string  | query | **Required**. The enroll secret of the team this host will be assigned to.       |
+| enroll_secret     | string  | query | **Required**. The enroll secret of the fleet this host will be assigned to.       |
 
 #### Example
 
@@ -6819,13 +6873,13 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 | Name    | Type   | In   | Description                                                                                                                                                                                                            |
 | ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | package | file   | body | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
-| team_id | string | body | The team ID for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
+| fleet_id | string | body | The fleet ID for the package. If specified, the package will be installed to hosts that are assigned to the specified fleet. If not specified, the package will be installed on "Unassigned" hosts. |
 | manual_agent_install | boolean | body | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
 Upload a bootstrap package that will be installed to macOS hosts enrolled to MDM that are
-assigned to a team. Note that in this example the form data specifies `team_id` in addition to
+assigned to a fleet. Note that in this example the form data specifies `fleet_id` in addition to
 `package`.
 
 `POST /api/v1/fleet/bootstrap`
@@ -6833,7 +6887,7 @@ assigned to a team. Note that in this example the form data specifies `team_id` 
 ##### Request body
 
 ```http
-team_id="1"
+fleet_id="1"
 package="bootstrap-package.pkg"
 ```
 
@@ -6847,13 +6901,13 @@ _Available in Fleet Premium_
 
 Get information about a bootstrap package that was uploaded to Fleet.
 
-`GET /api/v1/fleet/bootstrap/:team_id/metadata`
+`GET /api/v1/fleet/bootstrap/:fleet_id/metadata`
 
 #### Parameters
 
 | Name       | Type    | In    | Description                                                                                                                                                                                                        |
 | -------    | ------  | ---   | ---------------------------------------------------------------------------------------------------------------------------------------------------------                                                          |
-| team_id    | string  | url   | **Required** The team ID for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team.                                                          |
+| fleet_id    | string  | url   | **Required** The fleet ID for the package. Zero (0) can be specified to get information about the bootstrap package for "Unassigned" hosts.                                                          |
 | for_update | boolean | query | If set to `true`, the authorization will be for a `write` action instead of a `read`. Useful for the write-only `gitops` role when requesting the bootstrap metadata to check if the package needs to be replaced. |
 
 #### Example
@@ -6868,6 +6922,7 @@ Get information about a bootstrap package that was uploaded to Fleet.
 {
   "name": "bootstrap-package.pkg",
   "team_id": 0,
+  "fleet_id": 0,
   "sha256": "6bebb4433322fd52837de9e4787de534b4089ac645b0692dfb74d000438da4a3",
   "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
   "created_at": "2023-04-20T13:02:05Z"
@@ -6884,15 +6939,15 @@ In the response above:
 
 _Available in Fleet Premium_
 
-Delete a team's bootstrap package.
+Delete a fleet's bootstrap package.
 
-`DELETE /api/v1/fleet/bootstrap/:team_id`
+`DELETE /api/v1/fleet/bootstrap/:fleet_id`
 
 #### Parameters
 
 | Name    | Type   | In  | Description                                                                                                                                               |
 | ------- | ------ | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| team_id | string | url | **Required** The team ID for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team. |
+| fleet_id | string | url | **Required** The fleet ID for the package. Zero (0) can be specified to get information about the bootstrap package for "Unassigned" hosts. |
 
 
 #### Example
@@ -6940,7 +6995,7 @@ _Available in Fleet Premium_
 
 Get aggregate status counts of bootstrap packages delivered to DEP enrolled hosts.
 
-The summary can optionally be filtered by team ID.
+The summary can optionally be filtered by fleet ID.
 
 `GET /api/v1/fleet/bootstrap/summary`
 
@@ -6948,7 +7003,7 @@ The summary can optionally be filtered by team ID.
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | The team ID to filter the summary.                                        |
+| fleet_id                   | string | query | The fleet ID to filter the summary.                                        |
 
 #### Example
 
@@ -6978,7 +7033,7 @@ _Available in Fleet Premium_
 
 | Name                           | Type    | In    | Description                                                                                 |
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
 | require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
@@ -6993,6 +7048,7 @@ _Available in Fleet Premium_
 ```json
 {
   "team_id": 1,
+  "fleet_id": 1,
   "enable_end_user_authentication": true,
   "enable_release_device_manually": true
 }
@@ -7131,14 +7187,14 @@ List software that can be automatically installed during setup. If `install_duri
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | platform | string  | query | Filters software titles available for install by platforms. Options are `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, and `"android"`. Defaults to `"macos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=macos,ios,android`). |
-| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter software by. If not specified, it will filter only software that's available for "Unassigned" hosts. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
 
 
 #### Example
 
-`GET /api/v1/fleet/setup_experience/software?team_id=3`
+`GET /api/v1/fleet/setup_experience/software?fleet_id=3`
 
 ##### Default response
 
@@ -7150,7 +7206,7 @@ List software that can be automatically installed during setup. If `install_duri
     {
       "id": 12,
       "name": "Firefox.app",
-      "icon_url": "/api/latest/fleet/software/titles/12/icon?team_id=3",
+      "icon_url": "/api/latest/fleet/software/titles/12/icon?fleet_id=3",
       "software_package": {
         "name": "FirefoxInstall.pkg",
         "platform": "darwin",
@@ -7204,7 +7260,7 @@ Set software that will be automatically installed during setup. Software that is
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | platform | string  | query | Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, or `"android"`. Defaults to `"macos"`. |
-| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to set the software for. If not specified, it will set the software for "Unassigned" hosts. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
 #### Example
@@ -7217,6 +7273,7 @@ Set software that will be automatically installed during setup. Software that is
 {
   "platform": "linux",
   "team_id": 1,
+  "fleet_id": 1,
   "software_title_ids": [3000, 3001]
 }
 ```
@@ -7241,7 +7298,7 @@ Add a script that will automatically run during macOS setup.
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the fleet to add the script to. If not specified, a script will be added for "Unassigned" hosts. |
 | script | file | body | The contents of the script to run during setup. |
 
 #### Example
@@ -7251,7 +7308,7 @@ Add a script that will automatically run during macOS setup.
 ##### Request body
 
 ```http
-team_id="1"
+fleet_id="1"
 script="myscript.sh"
 ```
 
@@ -7263,7 +7320,7 @@ script="myscript.sh"
 
 _Available in Fleet Premium_
 
-Changes the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
+Changes the script that will automatically run during macOS setup. Updates the existing script for the fleet, or for "Unassigned" hosts, if one already exists.
 
 > You need to send a request of type `multipart/form-data`.
 
@@ -7271,7 +7328,7 @@ Changes the script that will automatically run during macOS setup. Updates the e
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the fleet to add the script to. If not specified, a script will be added for "Unassigned" hosts. |
 | script | file | body | The contents of the script to run during setup. |
 
 #### Example
@@ -7281,7 +7338,7 @@ Changes the script that will automatically run during macOS setup. Updates the e
 ##### Request body
 
 ```http
-team_id="1"
+fleet_id="1"
 script="myscript.sh"
 ```
 
@@ -7299,13 +7356,13 @@ Get a script that will automatically run during macOS setup.
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to get the script for. If not specified, script will be returned for "Unassigned" hosts. |
 | alt  | string | query | If specified and set to "media", downloads the script's contents. |
 
 
 #### Example (get script)
 
-`GET /api/v1/fleet/setup_experience/script?team_id=3`
+`GET /api/v1/fleet/setup_experience/script?fleet_id=3`
 
 ##### Default response
 
@@ -7315,6 +7372,7 @@ Get a script that will automatically run during macOS setup.
 {
   "id": 1,
   "team_id": 3,
+  "fleet_id": 3,
   "name": "setup-experience-script.sh",
   "created_at": "2023-07-30T13:41:07Z",
   "updated_at": "2023-07-30T13:41:07Z"
@@ -7323,7 +7381,7 @@ Get a script that will automatically run during macOS setup.
 
 #### Example (download script)
 
-`GET /api/v1/fleet/setup_experience/script?team_id=3?alt=media`
+`GET /api/v1/fleet/setup_experience/script?fleet_id=3?alt=media`
 
 ##### Example response headers
 
@@ -7351,11 +7409,11 @@ Delete a script that will automatically run during macOS setup.
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to get the script for. If not specified, script will be returned for "Unassigned" hosts. |
 
 #### Example
 
-`DELETE /api/v1/fleet/setup_experience/script?team_id=3`
+`DELETE /api/v1/fleet/setup_experience/script?fleet_id=3`
 
 ##### Default response
 
@@ -7581,11 +7639,23 @@ None.
       "name": "💻 Workstations",
       "id": 1
     },
+    "macos_fleet": {
+      "name": "💻 Workstations",
+      "id": 1
+    },
     "ios_team": {
       "name": "📱🏢 Company-owned iPhones",
       "id": 2
     },
+    "ios_fleet": {
+      "name": "📱🏢 Company-owned iPhones",
+      "id": 2
+    },
     "ipados_team": {
+      "name": "🔳🏢 Company-owned iPads",
+      "id": 3
+    },
+    "ipados_fleet": {
       "name": "🔳🏢 Company-owned iPads",
       "id": 3
     }
@@ -7618,7 +7688,7 @@ None.
     "org_name": "Fleet Device Management Inc.",
     "location": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
-    "teams": [
+    "fleets": [
       {
         "name": "💻 Workstations",
         "id": 1
@@ -7706,17 +7776,17 @@ None.
 ## Policies
 
 - [List policies](#list-policies)
-- [List team policies](#list-team-policies)
+- [List fleet policies](#list-fleet-policies)
 - [Get policies count](#get-policies-count)
-- [Get team policies count](#get-team-policies-count)
+- [Get fleet policies count](#get-fleet-policies-count)
 - [Get policy](#get-policy)
-- [Get team policy](#get-team-policy)
+- [Get fleet policy](#get-fleet-policy)
 - [Create policy](#create-policy)
-- [Create team policy](#create-team-policy)
+- [Create fleet policy](#create-fleet-policy)
 - [Delete policies](#delete-policies)
-- [Delete team policies](#delete-team-policies)
+- [Delete fleet policies](#delete-fleet-policies)
 - [Update policy](#update-policy)
-- [Update team policy](#update-team-policy)
+- [Update fleet policy](#update-fleet-policy)
 - [Reset policy automations](#reset-policy-automations)
 
 Policies are yes or no questions you can ask about your hosts.
@@ -7795,18 +7865,18 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ---
 
-### List team policies
+### List fleet policies
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/teams/:id/policies`
+`GET /api/v1/fleet/fleets/:id/policies`
 
 #### Parameters
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id                 | integer | path  | **Required.** Defines what team ID to operate on                                                                            |
-| merge_inherited  | boolean | query | If `true`, will return both team policies **and** inherited ("All teams") policies the `policies` list, and will not return a separate `inherited_policies` list. |
+| id                 | integer | path  | **Required.** Defines what fleet ID to operate on                                                                            |
+| merge_inherited  | boolean | query | If `true`, will return both fleet policies **and** inherited ("All fleets") policies in the `policies` list, and will not return a separate `inherited_policies` list. |
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
@@ -7814,7 +7884,7 @@ _Available in Fleet Premium_
 
 #### Example (default usage)
 
-`GET /api/v1/fleet/teams/1/policies`
+`GET /api/v1/fleet/fleets/1/policies`
 
 ##### Default response
 
@@ -7897,7 +7967,7 @@ _Available in Fleet Premium_
   "inherited_policies": [
     {
       "id": 136,
-      "name": "Arbitrary Test Policy (all platforms) (all teams)",
+      "name": "Arbitrary Test Policy (all platforms) (all fleets)",
       "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
       "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
       "critical": true,
@@ -7919,7 +7989,7 @@ _Available in Fleet Premium_
 
 #### Example (returns single list)
 
-`GET /api/v1/fleet/teams/1/policies?merge_inherited=true`
+`GET /api/v1/fleet/fleets/1/policies?merge_inherited=true`
 
 ##### Default response
 
@@ -7973,7 +8043,7 @@ _Available in Fleet Premium_
     },
     {
       "id": 136,
-      "name": "Arbitrary Test Policy (all platforms) (all teams)",
+      "name": "Arbitrary Test Policy (all platforms) (all fleets)",
       "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
       "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
       "critical": true,
@@ -8022,22 +8092,22 @@ _Available in Fleet Premium_
 
 ---
 
-### Get team policies count
+### Get fleet policies count
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/team/:team_id/policies/count`
+`GET /api/v1/fleet/fleets/:fleet_id/policies/count`
 
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id                 | integer | path  | **Required.** Defines what team ID to operate on
+| fleet_id                 | integer | path  | **Required.** Defines what fleet ID to operate on
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
-| merge_inherited     | boolean | query | If `true`, will include inherited ("All teams") policies in the count. |
+| merge_inherited     | boolean | query | If `true`, will include inherited ("All fleets") policies in the count. |
 
 #### Example
 
-`GET /api/v1/fleet/team/1/policies/count`
+`GET /api/v1/fleet/fleets/1/policies/count`
 
 ##### Default response
 
@@ -8094,22 +8164,22 @@ _Available in Fleet Premium_
 
 ---
 
-### Get team policy
+### Get fleet policy
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/teams/:team_id/policies/:policy_id`
+`GET /api/v1/fleet/fleets/:fleet_id/policies/:policy_id`
 
 #### Parameters
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id            | integer | path  | **Required.** Defines what team ID to operate on                                                                            |
+| fleet_id            | integer | path  | **Required.** Defines what fleet ID to operate on                                                                            |
 | policy_id                 | integer | path | **Required.** The policy's ID.                                                                                |
 
 #### Example
 
-`GET /api/v1/fleet/teams/1/policies/43`
+`GET /api/v1/fleet/fleets/1/policies/43`
 
 ##### Default response
 
@@ -8220,21 +8290,21 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Create team policy
+### Create fleet policy
 
 _Available in Fleet Premium_
 
 > **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-The semantics for creating a team policy are the same as for global policies, see [Create policy](#create-policy).
+The semantics for creating a fleet policy are the same as for global policies, see [Create policy](#create-policy).
 
-`POST /api/v1/fleet/teams/:id/policies`
+`POST /api/v1/fleet/fleets/:id/policies`
 
 #### Parameters
 
 | Name              | Type    | In   | Description                                                                                                                                            |
 |-------------------| ------- | ---- |--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                | integer | path | Defines what team ID to operate on.                                                                                                                    |
+| id                | integer | path | Defines what fleet ID to operate on.                                                                                                                    |
 | name              | string  | body | The policy's name.                                                                                                                                     |
 | query             | string  | body | The policy's query in SQL.                                                                                                                             |
 | description       | string  | body | The policy's description.                                                                                                                              |
@@ -8252,7 +8322,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 #### Example
 
-`POST /api/v1/fleet/teams/1/policies`
+`POST /api/v1/fleet/fleets/1/policies`
 
 ##### Request body
 
@@ -8283,6 +8353,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "author_name": "John",
     "author_email": "john@example.com",
     "team_id": 1,
+    "fleet_id": 1,
     "resolution": "Resolution steps",
     "platform": "darwin",
     "created_at": "2021-12-16T14:37:37Z",
@@ -8340,22 +8411,22 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Delete team policies
+### Delete fleet policies
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/teams/:team_id/policies/delete`
+`POST /api/v1/fleet/fleets/:fleet_id/policies/delete`
 
 #### Parameters
 
 | Name     | Type    | In   | Description                                       |
 | -------- | ------- | ---- | ------------------------------------------------- |
-| team_id  | integer | path  | **Required.** Defines what team ID to operate on                |
+| fleet_id  | integer | path  | **Required.** Defines what fleet ID to operate on                |
 | ids      | array   | body | **Required.** The IDs of the policies to delete.  |
 
 #### Example
 
-`POST /api/v1/fleet/teams/1/policies/delete`
+`POST /api/v1/fleet/fleets/1/policies/delete`
 
 ##### Request body
 
@@ -8443,7 +8514,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Update team policy
+### Update fleet policy
 
 _Available in Fleet Premium_
 
@@ -8451,13 +8522,13 @@ _Available in Fleet Premium_
 > + The `conditional_access_bypass_enabled` setting is experimental, and will be replaced with a reference to the policy's `critical` setting in Fleet 4.83.0. To ensure a seamless upgrade, please avoid enabling bypass for policies marked `critical`.
 > + Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-`PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
+`PATCH /api/v1/fleet/fleets/:fleet_id/policies/:policy_id`
 
 #### Parameters
 
 | Name                    | Type    | In   | Description                                                                                                                                             |
 |-------------------------| ------- | ---- |---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id                 | integer | path | The team's ID.                                                                                                                                          |
+| fleet_id                 | integer | path | The fleet's ID.                                                                                                                                          |
 | policy_id               | integer | path | The policy's ID.                                                                                                                                        |
 | name                    | string  | body | The query's name.                                                                                                                                       |
 | query                   | string  | body | The query in SQL.                                                                                                                                       |
@@ -8477,7 +8548,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 #### Example
 
-`PATCH /api/v1/fleet/teams/2/policies/42`
+`PATCH /api/v1/fleet/fleets/2/policies/42`
 
 ##### Request body
 
@@ -8543,7 +8614,7 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 | Name        | Type     | In   | Description                                              |
 | ----------  | -------- | ---- | -------------------------------------------------------- |
 | policy_ids  | array    | body | Filters to only run policy automations for the specified policies. |
-| team_ids    | array    | body | _Available in Fleet Premium_. Filters to only run policy automations for hosts in the specified teams. |
+| fleet_ids    | array    | body | _Available in Fleet Premium_. Filters to only run policy automations for hosts in the specified fleets. |
 
 
 #### Example
@@ -8555,6 +8626,7 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 ```json
 {
     "team_ids": [1],
+    "fleet_ids": [1],
     "policy_ids": [1, 2, 3]
 }
 ```
@@ -8569,41 +8641,41 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 
 ---
 
-## Queries
+## Reports
 
-- [List queries](#list-queries)
-- [Get query](#get-query)
-- [Get query report](#get-query-report)
-- [Get host's query report](#get-hosts-query-report)
-- [Create query](#create-query)
-- [Update query](#update-query)
-- [Delete query by name](#delete-query-by-name)
-- [Delete query by ID](#delete-query-by-id)
-- [Delete queries](#delete-queries)
-- [Run live query](#run-live-query)
+- [List reports](#list-reports)
+- [Get report](#get-report)
+- [Get report data](#get-report-data)
+- [Get host's report data](#get-hosts-report-data)
+- [Create report](#create-report)
+- [Update report](#update-report)
+- [Delete report by name](#delete-report-by-name)
+- [Delete report by ID](#delete-report-by-id)
+- [Delete reports](#delete-reports)
+- [Run live report](#run-live-report)
 
-### List queries
+### List reports
 
-Returns a list of global queries or team queries.
+Returns a list of reports. To see each report's data, use the [get report data](#get-report-data) endpoint.
 
-`GET /api/v1/fleet/queries`
+`GET /api/v1/fleet/reports`
 
 #### Parameters
 
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_key       | string  | query | What to order results by. Can be any column in the reports table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
+| fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the fleet for the reports to be listed. When omitted, returns global reports.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
-| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
-| platform        | string  | query | Return queries that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since queries cannot be scheduled to run on `"chrome"` hosts, it's not a valid value here) |
+| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global reports in addition to fleet-level reports when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) |
+| platform        | string  | query | Return reports that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since reports cannot be scheduled to run on `"chrome"` hosts, it's not a valid value here) |
 | page                    | integer | query | Page number of the results to fetch. |
 | per_page                | integer | query | Results per page. |
 
 #### Example
 
-`GET /api/v1/fleet/queries`
+`GET /api/v1/fleet/reports`
 
 ##### Default response
 
@@ -8616,8 +8688,49 @@ Returns a list of global queries or team queries.
       "created_at": "2021-01-04T21:19:57Z",
       "updated_at": "2021-01-04T21:19:57Z",
       "id": 1,
-      "name": "query1",
-      "description": "query",
+      "name": "report1",
+      "description": "report",
+      "query": "SELECT * FROM osquery_info",
+      "team_id": null,
+      "interval": 3600,
+      "platform": "darwin,windows,linux",
+      "min_osquery_version": "",
+      "automations_enabled": true,
+      "logging": "snapshot",
+      "saved": true,
+      "observer_can_run": true,
+      "discard_data": false,
+      "author_id": 1,
+      "author_name": "noah",
+      "author_email": "noah@example.com",
+      "labels_include_any": [],
+      "packs": [
+        {
+          "created_at": "2021-01-05T21:13:04Z",
+          "updated_at": "2021-01-07T19:12:54Z",
+          "id": 1,
+          "name": "Pack",
+          "description": "Pack",
+          "platform": "",
+          "disabled": true
+        }
+      ],
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
+    }
+  ],
+  "reports": [
+    {
+      "created_at": "2021-01-04T21:19:57Z",
+      "updated_at": "2021-01-04T21:19:57Z",
+      "id": 1,
+      "name": "report1",
+      "description": "report",
       "query": "SELECT * FROM osquery_info",
       "team_id": null,
       "interval": 3600,
@@ -8699,21 +8812,21 @@ Returns a list of global queries or team queries.
 }
 ```
 
-### Get query
+### Get report
 
-Returns the query specified by ID.
+Returns the report specified by ID.
 
-`GET /api/v1/fleet/queries/:id`
+`GET /api/v1/fleet/reports/:id`
 
 #### Parameters
 
 | Name | Type    | In   | Description                                |
 | ---- | ------- | ---- | ------------------------------------------ |
-| id   | integer | path | **Required**. The id of the desired query. |
+| id   | integer | path | **Required**. The id of the desired report. |
 
 #### Example
 
-`GET /api/v1/fleet/queries/31`
+`GET /api/v1/fleet/reports/31`
 
 ##### Default response
 
@@ -8763,22 +8876,22 @@ Returns the query specified by ID.
 }
 ```
 
-### Get query report
+### Get report data
 
-Returns the query report specified by ID.
+Returns a specific report's data.
 
-`GET /api/v1/fleet/queries/:id/report`
+`GET /api/v1/fleet/report/:id/report`
 
 #### Parameters
 
 | Name      | Type    | In    | Description                                                                               |
 | --------- | ------- | ----- | ----------------------------------------------------------------------------------------- |
 | id        | integer | path  | **Required**. The ID of the desired query.                                                |
-| team_id   | integer | query | Filter the query report to only include hosts that are associated with the team specified |
+| fleet_id   | integer | query | Filter the query report to only include hosts that are associated with the fleet specified |
 
 #### Example
 
-`GET /api/v1/fleet/queries/31/report`
+`GET /api/v1/fleet/reports/31/report`
 
 ##### Default response
 
@@ -8787,6 +8900,7 @@ Returns the query report specified by ID.
 ```json
 {
   "query_id": 31,
+  "report_id": 31,
   "report_clipped": false,
   "results": [
     {
@@ -8847,24 +8961,24 @@ If a query has no results stored, then `results` will be an empty array:
 }
 ```
 
-> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+> Scheduled reports do not return errors, so only non-error results are included. If you suspect a report may be running into errors, you can use the [live report](#run-live-report) endpoint to get diagnostics.
 
-### Get host's query report
+### Get host's report data
 
-Returns a query report for a single host.
+Returns a specific report's data for a single host.
 
-`GET /api/v1/fleet/hosts/:id/queries/:query_id`
+`GET /api/v1/fleet/hosts/:id/reports/:report_id`
 
 #### Parameters
 
 | Name      | Type    | In    | Description                                |
 | --------- | ------- | ----- | ------------------------------------------ |
 | id        | integer | path  | **Required**. The ID of the desired host.          |
-| query_id  | integer | path  | **Required**. The ID of the desired query.         |
+| report_id  | integer | path  | **Required**. The ID of the desired report.         |
 
 #### Example
 
-`GET /api/v1/fleet/hosts/123/queries/31`
+`GET /api/v1/fleet/hosts/123/reports/31`
 
 ##### Default response
 
@@ -8873,6 +8987,7 @@ Returns a query report for a single host.
 ```json
 {
   "query_id": 31,
+  "report_id": 31,
   "host_id": 1,
   "host_name": "foo",
   "last_fetched": "2021-01-19T17:08:31Z",
@@ -8900,11 +9015,12 @@ Returns a query report for a single host.
 }
 ```
 
-If a query has no results stored for the specified host, then `results` will be an empty array:
+If a report has no results stored for the specified host, then `results` will be an empty array:
 
 ```json
 {
   "query_id": 31,
+  "report_id": 31,
   "host_id": 1,
   "host_name": "foo",
   "last_fetched": "2021-01-19T17:08:31Z",
@@ -8913,42 +9029,42 @@ If a query has no results stored for the specified host, then `results` will be 
 }
 ```
 
-> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+> Scheduled reports do not return errors, so only non-error results are included in the report. If you suspect a report may be running into errors, you can use the [live report](#run-live-report) endpoint to get diagnostics.
 
-### Create query
+### Create report
 
-Creates a global query or team query.
+Creates a global report or fleet report.
 
-`POST /api/v1/fleet/queries`
+`POST /api/v1/fleet/reports`
 
 #### Parameters
 
 | Name                            | Type    | In   | Description                                                                                                                                            |
 | ------------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| name                            | string  | body | **Required**. The name of the query.                                                                                                                   |
-| query                           | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
+| name                            | string  | body | **Required**. The name of the report.                                                                                                                   |
+| query                           | string  | body | **Required**. The SQL query for collecting report data.                                                                                                             |
 | description                     | string  | body | The query's description.                                                                                                                               |
-| observer_can_run                | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| team_id                         | integer | body | _Available in Fleet Premium_. The parent team to which the new query should be added. If omitted, the query will be global.                                           |
-| interval                        | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
-| platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
-| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
+| observer_can_run                | boolean | body | Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any report and is not limited by this flag. |
+| fleet_id                         | integer | body | _Available in Fleet Premium_. The fleet to which the new report should be added. If omitted, the report will be global.                                           |
+| interval                        | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
+| platform                        | string  | body | The OS platforms where this report will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
+| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
-| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
-| logging                         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
-| discard_data                    | boolean | body | Whether to skip saving the latest query results for each host. Default: `false`. |
+| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
+| logging                         | string  | body | The type of log output for this report. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
+| discard_data                    | boolean | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. Default: `false`. |
 
 
 #### Example
 
-`POST /api/v1/fleet/queries`
+`POST /api/v1/fleet/reports`
 
 ##### Request body
 
 ```json
 {
-  "name": "new_query",
-  "description": "This is a new query.",
+  "name": "new_report",
+  "description": "This is a new report.",
   "query": "SELECT * FROM osquery_info",
   "interval": 3600, // Once per hour
   "platform": "darwin,windows,linux",
@@ -8991,34 +9107,58 @@ Creates a global query or team query.
     "labels_include_any": [
       "Hosts with Docker installed"
     ]
+  },
+  "report": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 288,
+    "name": "new_query",
+    "query": "SELECT * FROM osquery_info",
+    "description": "This is a new query.",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "darwin,windows,linux",
+    "min_osquery_version": "",
+    "automations_enabled": true,
+    "logging": "snapshot",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "",
+    "author_email": "",
+    "observer_can_run": true,
+    "discard_data": false,
+    "packs": [],
+    "labels_include_any": [
+      "Hosts with Docker installed"
+    ]
   }
 }
 ```
 
-### Update query
+### Update report
 
-Modifies the query specified by ID.
+Modifies the report specified by ID.
 
-`PATCH /api/v1/fleet/queries/:id`
+`PATCH /api/v1/fleet/reports/:id`
 
 #### Parameters
 
 | Name                        | Type    | In   | Description                                                                                                                                            |
 | --------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| id                          | integer | path | **Required.** The ID of the query.                                                                                                                     |
-| name                        | string  | body | The name of the query.                                                                                                                                 |
-| query                       | string  | body | The query in SQL syntax.                                                                                                                               |
-| description                 | string  | body | The query's description.                                                                                                                               |
-| observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| interval                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
-| platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
-| labels_include_any          | list    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
+| id                          | integer | path | **Required.** The ID of the report.                                                                                                                     |
+| name                        | string  | body | The name of the report.                                                                                                                                 |
+| query                       | string  | body | The report's SQL query.                                                                                                                               |
+| description                 | string  | body | The report's description.                                                                                                                               |
+| observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag. |
+| interval                   | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
+| platform                    | string  | body | The OS platforms where this report will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
+| labels_include_any          | list    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
-| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
+| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
-| discard_data        | boolean  | body | Whether to skip saving the latest query results for each host. |
+| discard_data        | boolean  | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. |
 
-> Note that any of the following conditions will cause the existing query report to be deleted:
+> Note that any of the following conditions will cause the existing report's data to be discarded:
 > - Updating the `query` (SQL) field
 > - Updating the filters for targeted hosts (`platform`, `min_osquery_version`, `labels_include_any`)
 > - Changing `discard_data` from `false` to `true`
@@ -9026,13 +9166,13 @@ Modifies the query specified by ID.
 
 #### Example
 
-`PATCH /api/v1/fleet/queries/2`
+`PATCH /api/v1/fleet/reports/2`
 
 ##### Request body
 
 ```json
 {
-  "name": "new_title_for_my_query",
+  "name": "new_title_for_my_report",
   "interval": 3600, // Once per hour,
   "platform": "",
   "min_osquery_version": "",
@@ -9074,68 +9214,92 @@ Modifies the query specified by ID.
       "Hosts with Docker installed",
       "macOS 13+"
     ]
+  },
+  "report": {
+    "created_at": "2021-01-22T17:23:27Z",
+    "updated_at": "2021-01-22T17:23:27Z",
+    "id": 288,
+    "name": "new_title_for_my_query",
+    "description": "This is a new query.",
+    "query": "SELECT * FROM osquery_info",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "",
+    "min_osquery_version": "",
+    "automations_enabled": false,
+    "logging": "snapshot",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "observer_can_run": true,
+    "discard_data": true,
+    "packs": [],
+    "labels_include_any": [
+      "Hosts with Docker installed",
+      "macOS 13+"
+    ]
   }
 }
 ```
 
-### Delete query by name
+### Delete report by name
 
-Deletes the query specified by name.
+Deletes the report specified by name.
 
-`DELETE /api/v1/fleet/queries/:name`
+`DELETE /api/v1/fleet/reports/:name`
 
 #### Parameters
 
 | Name | Type       | In   | Description                          |
 | ---- | ---------- | ---- | ------------------------------------ |
-| name | string     | path | **Required.** The name of the query. |
-| team_id | integer | body | _Available in Fleet Premium_. The ID of the parent team of the query to be deleted. If omitted, Fleet will search among queries in the global context. |
+| name | string     | path | **Required.** The name of the report. |
+| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the report's fleet. If omitted, Fleet will search among only global reports. |
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/foo`
+`DELETE /api/v1/fleet/reports/foo`
 
 ##### Default response
 
 `Status: 200`
 
 
-### Delete query by ID
+### Delete report by ID
 
-Deletes the query specified by ID.
+Deletes the report specified by ID.
 
-`DELETE /api/v1/fleet/queries/id/:id`
+`DELETE /api/v1/fleet/reports/id/:id`
 
 #### Parameters
 
 | Name | Type    | In   | Description                        |
 | ---- | ------- | ---- | ---------------------------------- |
-| id   | integer | path | **Required.** The ID of the query. |
+| id   | integer | path | **Required.** The ID of the report. |
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/id/28`
+`DELETE /api/v1/fleet/reports/id/28`
 
 ##### Default response
 
 `Status: 200`
 
 
-### Delete queries
+### Delete reports
 
-Deletes the queries specified by ID. Returns the count of queries successfully deleted.
+Deletes the reports specified by ID. Returns the count of reports successfully deleted.
 
-`POST /api/v1/fleet/queries/delete`
+`POST /api/v1/fleet/reports/delete`
 
 #### Parameters
 
 | Name | Type  | In   | Description                           |
 | ---- | ----- | ---- | ------------------------------------- |
-| ids  | array | body | **Required.** The IDs of the queries. |
+| ids  | array | body | **Required.** The IDs of the reports. |
 
 #### Example
 
-`POST /api/v1/fleet/queries/delete`
+`POST /api/v1/fleet/reports/delete`
 
 ##### Request body
 
@@ -9157,27 +9321,27 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 }
 ```
 
-### Run live query
+### Run live report
 
 > This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
-Runs a live query against the specified hosts and responds with the results.
+Runs a live report against the specified hosts and responds with the results.
 
-The live query will stop if the request times out. Timeouts happen if targeted hosts haven't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
+The live report will stop if the request times out. Timeouts happen if targeted hosts haven't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
 
-`POST /api/v1/fleet/queries/:id/run`
+`POST /api/v1/fleet/reports/:id/run`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| query_id | integer | path | **Required**. The ID of the saved query to run. |
+| report_id | integer | path | **Required**. The ID of the saved report to run. |
 | host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
 
 #### Example
 
-`POST /api/v1/fleet/queries/123/run`
+`POST /api/v1/fleet/reports/123/run`
 
 ##### Request body
 
@@ -9192,6 +9356,7 @@ The live query will stop if the request times out. Timeouts happen if targeted h
 ```json
 {
   "query_id": 123,
+  "report_id": 123,
   "targeted_host_count": 4,
   "responded_host_count": 2,
   "results": [
@@ -9230,7 +9395,7 @@ The live query will stop if the request times out. Timeouts happen if targeted h
 
 The [schedule API endpoints](https://github.com/fleetdm/fleet/blob/f6631e27f56b6704c555adfb7a3bb8c6d1a74d98/docs/REST%20API/rest-api.md#schedule) are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 
-Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+Please use the [reports](#reports) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 ---
 
@@ -9268,9 +9433,9 @@ By default, script runs time out after 5 minutes. You can modify this default in
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
 | script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. Scripts must be less than 10,000 characters. To run scripts with more than 10k characters, save the script and use `script_id` or `script_name` and `team_id` instead. |
-| script_name       | integer | body | The name of the existing saved script to run. If specified, requires `team_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.   |
-| team_id       | integer | body | The ID of the existing saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. Scripts must be less than 10,000 characters. To run scripts with more than 10k characters, save the script and use `script_id` or `script_name` and `fleet_id` instead. |
+| script_name       | integer | body | The name of the existing saved script to run. If specified, requires `fleet_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.   |
+| fleet_id       | integer | body | The ID of the fleet the existing saved script belongs to. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
 
 > Note that if any combination of `script_id`, `script_contents`, and `script_name` are included in the request, this endpoint will respond with an error.
 
@@ -9352,7 +9517,7 @@ The script will be added to each host's list of upcoming activities.
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| team_id                           | number  | ID of the team to filter by. |
+| fleet_id                           | number  | ID of the fleet to filter by. |
 
 > Note that if a batch script is scheduled for the future using `not_before`, and hosts are targeted using `filters`, the script will run on any hosts matching the filters _at the time the batch script was added_. To see all targeted hosts, use the [List hosts targeted in batch script](#list-hosts-targeted-in-batch-script) endpoint.
 
@@ -9405,7 +9570,7 @@ Returns a list of batch script executions.
 
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
-| team_id         | integer | query | _Available in Fleet Premium_. Filters to batch script runs for the specified team. |
+| fleet_id         | integer | query | _Available in Fleet Premium_. Filters to batch script runs for the specified fleet. |
 | status          | string  | query | Filters to batch script runs with this status. Either `"started"`, `"scheduled"`, or `"finished"`. |
 | page            | integer | query | Page number of the results to fetch. |
 | per_page        | integer | query | Results per page. |
@@ -9420,6 +9585,7 @@ Returns a list of batch script executions.
 ```json
 {
   "team_id": 123,
+  "fleet_id": 123,
   "status": "completed"
 }
 ```
@@ -9436,6 +9602,7 @@ Returns a list of batch script executions.
       "script_name": "my-script.sh",
       "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
       "team_id": 123,
+      "fleet_id": 123,
       "not_before": "2025-07-01T15:00:00Z",
       "finished_at": "2025-07-06T15:00:00Z",
       "started_at": "2025-07-06T14:00:00Z",
@@ -9489,6 +9656,7 @@ Returns a summary of a batch-run script, including host counts and current statu
   "script_id": 555,
   "script_name": "my-script.sh",
   "team_id": 123,
+  "fleet_id": 123,
   "not_before": "2025-07-01T15:00:00Z",
   "finished_at": "2025-07-06T15:00:00Z",
   "started_at": "2025-07-06T14:00:00Z",
@@ -9508,7 +9676,7 @@ Returns a summary of a batch-run script, including host counts and current statu
 
 Returns a list hosts targeted in a batch script run, along with their script execution status.
 
-`GET /api/v1/fleet/scripts/batch/:batch_execution_id/host-results`
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id/host_results`
 
 #### Parameters
 
@@ -9555,7 +9723,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 ### Create script
 
-Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
+Uploads a script, making it available to run on hosts assigned to the specified fleet (or "Unassigned").
 
 > You need to send a request of type `multipart/form-data`.
 
@@ -9568,7 +9736,7 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | body | **Required**. The file containing the script.    |
-| team_id         | integer | body | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+| fleet_id         | integer | body | _Available in Fleet Premium_. The fleet ID. If specified, the script will only be available to hosts assigned to this fleet. If not specified, the script will only be available for "Unassigned" hosts.  |
 
 Script line endings are automatically converted from [CRLF to LF](https://en.wikipedia.org/wiki/Newline) for compatibility with both non-Windows shells and PowerShell.
 
@@ -9579,7 +9747,7 @@ Script line endings are automatically converted from [CRLF to LF](https://en.wik
 ##### Request body
 
 ```http
-team_id="1"
+fleet_id="1"
 script="myscript.sh"
 ```
 
@@ -9661,7 +9829,7 @@ Deletes an existing script.
 
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team to filter scripts by. If not specified, it will filter only scripts that are available to hosts with no team. |
+| fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter scripts by. If not specified, it will filter only scripts that are available for "Unassigned" hosts. |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 
@@ -9904,7 +10072,7 @@ Get a list of all software.
 | order_key               | string  | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending).                                                              |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                                        |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use `0` to filter by hosts assigned to "No team".                            |
+| fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified fleet. Use `0` to filter by "Unassigned" hosts.                            |
 | vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
@@ -9912,15 +10080,15 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| platform | string | query | Filters software titles available for install by platforms. `team_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
-| hash_sha256 | string | query | Filters to only include custom software packages (uploaded installers) with the specified SHA-256 hash. `team_id` must be specified to filter by hash. This allows checking if a specific package already exists before uploading. |
-| package_name | string | query | Filters to only include custom software packages (uploaded installers) with the specified package filename. `team_id` must be specified to filter by package name. This allows checking if a specific package already exists before uploading. |
+| platform | string | query | Filters software titles available for install by platforms. `fleet_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
+| hash_sha256 | string | query | Filters to only include custom software packages (uploaded installers) with the specified SHA-256 hash. `fleet_id` must be specified to filter by hash. This allows checking if a specific package already exists before uploading. |
+| package_name | string | query | Filters to only include custom software packages (uploaded installers) with the specified package filename. `fleet_id` must be specified to filter by package name. This allows checking if a specific package already exists before uploading. |
 | exclude_fleet_maintained_apps | boolean | query | If `true` or `1`, Fleet maintained apps will not be included in the list of `software_titles`. Default is `false` |
 
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?team_id=3&platform=darwin,windows`
+`GET /api/v1/fleet/software/titles?fleet_id=3&platform=darwin,windows`
 
 ##### Default response
 
@@ -9935,7 +10103,7 @@ Get a list of all software.
       "id": 12,
       "name": "Firefox.app",
       "display_name": "Firefox",
-      "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
+      "icon_url":"/api/latest/fleet/software/titles/12/icon?fleet_id=3",
       "display_name": "",
       "software_package": {
         "platform": "darwin",
@@ -9971,7 +10139,8 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
       ],
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9"
+      "bundle_identifier": "org.mozilla.firefox",
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
     },
     {
       "id": 22,
@@ -10005,6 +10174,7 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
         },
       ],
+      "bundle_identifier": "com.google.Chrome",
       "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f"
     },
     {
@@ -10100,7 +10270,7 @@ Get a list of all software versions.
 | order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cve_published`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team. Use `0` to filter by hosts assigned to "No team".                             |
+| fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified fleet. Use `0` to filter by "Unassigned" hosts.                             |
 | vulnerable              | boolean    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
@@ -10189,7 +10359,7 @@ Returns a list of all operating systems.
 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| fleet_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
@@ -10254,11 +10424,11 @@ Returns information about the specified software. By default, `versions` are sor
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software title's ID. |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| fleet_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/12?team_id=3`
+`GET /api/v1/fleet/software/titles/12?fleet_id=3`
 
 ##### Default response
 
@@ -10350,7 +10520,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 #### Example (app store app)
 
-`GET /api/v1/fleet/software/titles/15?team_id=3`
+`GET /api/v1/fleet/software/titles/15?fleet_id=3`
 
 ##### Default response
 
@@ -10362,7 +10532,7 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 15,
     "name": "Logic Pro",
     "display_name": "",
-    "icon_url": "/api/latest/fleet/software/titles/15/icon?team_id=3",
+    "icon_url": "/api/latest/fleet/software/titles/15/icon?fleet_id=3",
     "display_name": "",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
@@ -10403,7 +10573,7 @@ Returns information about the specified software. By default, `versions` are sor
 }
 ```
 
-`auto_update_enabled`, `auto_update_window_start` and `auto_update_window_end` will only be returned for iOS/iPadOS apps, and only when a `team_id` is specified in the request.
+`auto_update_enabled`, `auto_update_window_start` and `auto_update_window_end` will only be returned for iOS/iPadOS apps, and only when a `fleet_id` is specified in the request.
 
 #### Example (Play Store app)
 
@@ -10458,7 +10628,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 #### Example (in-house iOS app)
 
-`GET /api/v1/fleet/software/titles/24?team_id=3`
+`GET /api/v1/fleet/software/titles/24?fleet_id=3`
 
 ##### Default response
 
@@ -10521,7 +10691,7 @@ Returns information about the specified software version.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software version's ID. |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| fleet_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
 
 #### Example
 
@@ -10581,7 +10751,7 @@ Retrieves information about the specified operating system (OS) version.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The OS version's ID. |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| fleet_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
 | max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned. (If omitted, returns all vulnerabilities.) For Linux OS's, doesn't limit the number of vulnerabilities returned in the `kernels` array. |
 
 ##### Default response
@@ -10699,7 +10869,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
-| team_id         | integer | body | The team ID. Adds a software package to the specified team. If not specified, it will add the software for hosts with no team. |
+| fleet_id         | integer | body | The fleet ID. Adds a software package to the specified fleet. If not specified, it will add the software for "Unassigned" hosts. |
 | install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
 | uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
@@ -10722,7 +10892,7 @@ POST /api/v1/fleet/software/package
 ##### Request body
 
 ```
-team_id="1"
+fleet_id="1"
 self_service="true"
 install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
 pre_install_query"SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
@@ -10788,7 +10958,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
-| team_id         | integer | body | **Required**. The team ID. Updates a software package in the specified team. |
+| fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
@@ -10811,7 +10981,7 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 ##### Request body
 
 ```http
-team_id="1"
+fleet_id="1"
 software="FalconSensor-6.44.pkg"
 self_service="true"
 display_name="CrowdStrike agent"
@@ -10868,7 +11038,7 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 | Name        | Type    | In   | Description                                      |
 | ----        | ------- | ---- | --------------------------------------------     |
 | id          | integer | path | ID of the software title being updated. |
-| team_id     | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
+| fleet_id     | integer | query | **Required**. The fleet ID. Updates a software icon in the specified fleet. |
 | icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
 | hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
 | filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
@@ -10906,7 +11076,7 @@ Download the icon added via [Update software icon](#update-software-icon) or ico
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id              | integer | path | ID of the software title to get icon for. |
-| team_id         | integer | query | **Required**. The team ID. |
+| fleet_id         | integer | query | **Required**. The fleet ID. |
 
 This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
 
@@ -10956,7 +11126,7 @@ Delete a custom icon added via [Update software icon](#update-software-icon). Th
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-Returns the list of Apple App Store (VPP) apps that can be added to the specified team. If an app is already added to the team, it's excluded from the list.
+Returns the list of Apple App Store (VPP) apps that can be added to the specified fleet. If an app is already added to the fleet, it's excluded from the list.
 
 `GET /api/v1/fleet/software/app_store_apps`
 
@@ -10964,11 +11134,11 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 
 | Name    | Type | In | Description |
 | ------- | ---- | -- | ----------- |
-| team_id | integer | query | **Required**. The team ID. |
+| fleet_id | integer | query | **Required**. The fleet ID. |
 
 #### Example
 
-`GET /api/v1/fleet/software/app_store_apps/?team_id=3`
+`GET /api/v1/fleet/software/app_store_apps/?fleet_id=3`
 
 ##### Default response
 
@@ -11020,7 +11190,7 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | app_store_id   | string | body | **Required.** The ID of the Apple App Store app or Google Play app. |
-| team_id       | integer | body | **Required**. The team ID. Adds app from the store to the specified team.  |
+| fleet_id       | integer | body | **Required**. The fleet ID. Adds app from the store to the specified fleet.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
@@ -11082,7 +11252,7 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store app from the specified team.  |
+| fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
@@ -11167,13 +11337,13 @@ List available Fleet-maintained apps.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id  | integer | query | If specified, each app includes the `software_title_id` if the software has already been added to that team.  |
+| fleet_id  | integer | query | If specified, each app includes the `software_title_id` if the software has already been added to that fleet.  |
 | page     | integer | query | Page number of the results to fetch.  |
 | per_page | integer | query | Results per page.  |
 
 #### Example
 
-`GET /api/v1/fleet/software/fleet_maintained_apps?team_id=3`
+`GET /api/v1/fleet/software/fleet_maintained_apps?fleet_id=3`
 
 ##### Default response
 
@@ -11228,7 +11398,7 @@ Returns information about the specified Fleet-maintained app.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The Fleet-maintained app's ID. |
-| team_id  | integer | query | If supplied, set `software_title_id` on the response when an installer or VPP app has already been added to that team for that software.  |
+| fleet_id  | integer | query | If supplied, set `software_title_id` on the response when an installer or VPP app has already been added to that fleet for that software.  |
 
 #### Example
 
@@ -11271,7 +11441,7 @@ Add Fleet-maintained app so it's available for install.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | fleet_maintained_app_id   | integer | body | **Required.** The ID of Fleet-maintained app. |
-| team_id       | integer | body | **Required**. The team ID. Adds Fleet-maintained app to the specified team.  |
+| fleet_id       | integer | body | **Required**. The fleet ID. Adds Fleet-maintained app to the specified fleet.  |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
@@ -11321,7 +11491,7 @@ _Available in Fleet Premium._
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id   | integer | path | **Required**. The ID of the software title to download software package.|
-| team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
+| fleet_id | integer | query | **Required**. The fleet ID. Downloads a software package added to the specified fleet. |
 | alt             | string | query | **Required**. If specified and set to `"media"`, downloads the specified software package. |
 
 #### Example
@@ -11443,7 +11613,7 @@ _Available in Fleet Premium._
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
-| team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
+| fleet_id | integer | query | **Required**. The fleet ID. Downloads a software package added to the specified fleet. |
 | alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
 
 #### Example
@@ -11477,7 +11647,7 @@ Deletes software that's available for install. This won't uninstall the software
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
-| team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
+| fleet_id | integer | query | **Required**. The fleet ID. Deletes a software package added to the specified fleet. |
 
 #### Example
 
@@ -11502,7 +11672,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified team. Use `0` to filter by hosts assigned to "No team".  |
+| fleet_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
 | order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
@@ -11552,7 +11722,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 | Name    | Type    | In    | Description                                                                                                                  |
 |---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
 | cve     | string  | path  | The cve to get information about (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
-| team_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team". |
+| fleet_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts. |
 
 `GET /api/v1/fleet/vulnerabilities/:cve`
 
@@ -11611,7 +11781,7 @@ The `extension_for` field is included when set and when empty, at the same level
 
 ## Targets
 
-In Fleet, targets are used to run queries against specific hosts or groups of hosts. Labels are used to create groups in Fleet.
+In Fleet, targets are used to run reports against specific hosts or groups of hosts. Labels are used to create groups in Fleet.
 
 ### Search targets
 
@@ -11627,7 +11797,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 | -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                                   |
 | query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.                            |
-| selected | object  | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs, a `labels` with label IDs and/or a `teams` property with team IDs. |
+| selected | object  | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs, a `labels` with label IDs and/or a `fleets` property with fleet IDs. |
 
 #### Example
 
@@ -11750,7 +11920,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "count": 5
       }
     ],
-    "teams": [
+    "fleets": [
       {
         "id": 1,
         "created_at": "2021-05-27T20:02:20Z",
@@ -11773,21 +11943,21 @@ The returned lists are filtered based on the hosts the requesting user has acces
 
 ---
 
-## Teams
+## Fleets
 
-- [List teams](#list-teams)
-- [Get team](#get-team)
-- [Create team](#create-team)
-- [Update team](#update-team)
-- [Add users to team](#add-users-to-team)
-- [Update team's agent options](#update-teams-agent-options)
-- [Delete team](#delete-team)
+- [List fleets](#list-fleets)
+- [Get fleet](#get-fleet)
+- [Create fleet](#create-fleet)
+- [Update fleet](#update-fleet)
+- [Add users to fleet](#add-users-to-fleet)
+- [Update fleet's agent options](#update-fleets-agent-options)
+- [Delete fleet](#delete-fleet)
 
-### List teams
+### List fleets
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/teams`
+`GET /api/v1/fleet/fleets`
 
 #### Parameters
 
@@ -11795,13 +11965,13 @@ _Available in Fleet Premium_
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `teams` table.                                                             |
+| order_key       | string  | query | What to order results by. Can be any column in the `fleets` table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 
 #### Example
 
-`GET /api/v1/fleet/teams`
+`GET /api/v1/fleet/fleets`
 
 ##### Default response
 
@@ -11809,7 +11979,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "created_at": "2021-07-28T15:58:21Z",
@@ -11888,25 +12058,25 @@ _Available in Fleet Premium_
 }
 ```
 
-### Get team
+### Get fleet
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/teams/:id`
+`GET /api/v1/fleet/fleets/:id`
 
 `mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
-"No team" will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
+"Unassigned" (id 0) will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
 
 #### Parameters
 
 | Name | Type    | In   | Description                                                                                  |
 |------|---------|------|----------------------------------------------------------------------------------------------|
-| id   | integer | path | **Required.** The desired team's ID. Use `0` for "No team" (hosts not assigned to any team). |
+| id   | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. |
 
 #### Example
 
-`GET /api/v1/fleet/teams/1`
+`GET /api/v1/fleet/fleets/1`
 
 ##### Default response
 
@@ -11994,21 +12164,21 @@ _Available in Fleet Premium_
 }
 ```
 
-### Create team
+### Create fleet
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/teams`
+`POST /api/v1/fleet/fleets`
 
 #### Parameters
 
 | Name | Type   | In   | Description                    |
 | ---- | ------ | ---- | ------------------------------ |
-| name | string | body | **Required.** The team's name. |
+| name | string | body | **Required.** The fleet's name. |
 
 #### Example
 
-`POST /api/v1/fleet/teams`
+`POST /api/v1/fleet/fleets`
 
 ##### Request body
 
@@ -12062,28 +12232,28 @@ _Available in Fleet Premium_
 }
 ```
 
-### Update team
+### Update fleet
 
 _Available in Fleet Premium_
 
-`PATCH /api/v1/fleet/teams/:id`
+`PATCH /api/v1/fleet/fleets/:id`
 
 #### Parameters
 
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id                                                      | integer | path | **Required.** The desired team's ID. Use `0` for "No team" (hosts not assigned to any team). **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
-| name                                                    | string  | body | The team's name.                                                                                                                                                                                          |
-| host_ids                                                | array    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
-| user_ids                                                | array    | body | A list of users on the team.                                                                                                                                                             |
-| webhook_settings                                        | object  | body | Webhook settings for the team. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
-| integrations                                            | object  | body | Integrations settings for the team. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
-| mdm                                                     | object  | body | MDM settings for the team. See [mdm](#mdm2) for details.                                                                                                                                                                                |
-| host_expiry_settings                                    | object  | body | Host expiry settings for the team. See [host_expiry_settings](#host-expiry-settings2) for details.   |
+| id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
+| name                                                    | string  | body | The fleet's name.                                                                                                                                                                                          |
+| host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
+| user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
+| webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
+| integrations                                            | object  | body | Integrations settings for the fleet. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
+| mdm                                                     | object  | body | MDM settings for the fleet. See [mdm](#mdm2) for details.                                                                                                                                                                                |
+| host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
 
-#### Example (transfer hosts to a team)
+#### Example (transfer hosts to a fleet)
 
-`PATCH /api/v1/fleet/teams/1`
+`PATCH /api/v1/fleet/fleets/1`
 
 ##### Request body
 
@@ -12235,7 +12405,7 @@ _Available in Fleet Premium_
 
 | Name                                                    | Type    | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_calendar_events          | boolean | Whether or not calendar events are enabled for this team.                                                                                                                                                  |
+| enable_calendar_events          | boolean | Whether or not calendar events are enabled for this fleet.                                                                                                                                                  |
 | webhook_url                     | string | The URL to send a request to during calendar events, to trigger auto-remediation.                |
 
 ##### Example request body
@@ -12286,8 +12456,8 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                 | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version.                                                                           |
-| deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
+| minimum_version                 | string  | Hosts that belong to this fleet and have MDM turned on will be prompted to update when their OS is below this version.                                                                           |
+| deadline                        | string  | Hosts that belong to this fleet and have MDM turned on will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
 | update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
@@ -12298,8 +12468,8 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                 | string  | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
-| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (7PM local time).                                                                    |
+| minimum_version                 | string  | Hosts that belong to this fleet will be prompted to update when their OS is below this version.                                                                            |
+| deadline                        | string  | Hosts that belong to this fleet will be forced to update their OS after this deadline (7PM local time).                                                                    |
 
 
 <br/>
@@ -12310,8 +12480,8 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                 | string  | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
-| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (7PM local time).                                                                    |
+| minimum_version                 | string  | Hosts that belong to this fleet will be prompted to update when their OS is below this version.                                                                            |
+| deadline                        | string  | Hosts that belong to this fleet will be forced to update their OS after this deadline (7PM local time).                                                                    |
 
 
 <br/>
@@ -12322,8 +12492,8 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| deadline_days                   | integer | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
-| grace_period_days               | integer | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
+| deadline_days                   | integer | Hosts that belong to this fleet and have MDM turned on will have this number of days before updates are installed on Windows.                                                                   |
+| grace_period_days               | integer | Hosts that belong to this fleet and have MDM turned on will have this number of days before Windows restarts to install updates.                                                                    |
 
 
 <br/>
@@ -12334,7 +12504,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
+| enable_disk_encryption          | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true.                                                                                        |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead.                                                                                                                                      |
 
 <br/>
@@ -12428,24 +12598,24 @@ _Available in Fleet Premium_
 }
 ```
 
-### Add users to team
+### Add users to fleet
 
 _Available in Fleet Premium_
 
-`PATCH /api/v1/fleet/teams/:id/users`
+`PATCH /api/v1/fleet/fleets/:id/users`
 
 #### Parameters
 
 | Name             | Type    | In   | Description                                  |
 |------------------|---------|------|----------------------------------------------|
-| id               | integer | path | **Required.** The desired team's ID.         |
+| id               | integer | path | **Required.** The desired fleet's ID.         |
 | users            | string  | body | Array of users to add.                       |
 | &nbsp;&nbsp;id   | integer | body | The id of the user.                          |
-| &nbsp;&nbsp;role | string  | body | The team role that the user will be granted. Options are: "admin", "maintainer", "observer", "observer_plus", and "gitops". |
+| &nbsp;&nbsp;role | string  | body | The fleet role that the user will be granted. Options are: "admin", "maintainer", "observer", "observer_plus", and "gitops". |
 
 #### Example
 
-`PATCH /api/v1/fleet/teams/1/users`
+`PATCH /api/v1/fleet/fleets/1/users`
 
 ##### Request body
 
@@ -12572,24 +12742,24 @@ _Available in Fleet Premium_
 }
 ```
 
-### Update team's agent options
+### Update fleet's agent options
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/teams/:id/agent_options`
+`POST /api/v1/fleet/fleets/:id/agent_options`
 
 #### Parameters
 
 | Name                             | Type    | In    | Description                                                                                                                                                  |
 | ---                              | ---     | ---   | ---                                                                                                                                                          |
-| id                               | integer | path  | **Required.** The desired team's ID.                                                                                                                         |
+| id                               | integer | path  | **Required.** The desired fleet's ID.                                                                                                                         |
 | force                            | boolean | query | Force apply the options even if there are validation errors.                                                                                                 |
 | dry_run                          | boolean | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
-| _JSON data_                      | object  | body  | The JSON to use as agent options for this team. See [Agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options) for details.                              |
+| _JSON data_                      | object  | body  | The JSON to use as agent options for this fleet. See [Agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options) for details.                              |
 
 #### Example
 
-`POST /api/v1/fleet/teams/1/agent_options`
+`POST /api/v1/fleet/fleets/1/agent_options`
 
 ##### Request body
 
@@ -12661,21 +12831,21 @@ _Available in Fleet Premium_
 }
 ```
 
-### Delete team
+### Delete fleet
 
 _Available in Fleet Premium_
 
-`DELETE /api/v1/fleet/teams/:id`
+`DELETE /api/v1/fleet/fleets/:id`
 
 #### Parameters
 
 | Name | Type    | In   | Description                          |
 | ---- | ------  | ---- | ------------------------------------ |
-| id   | integer | path | **Required.** The desired team's ID. |
+| id   | integer | path | **Required.** The desired fleet's ID. |
 
 #### Example
 
-`DELETE /api/v1/fleet/teams/1`
+`DELETE /api/v1/fleet/fleets/1`
 
 #### Default response
 
@@ -12689,7 +12859,7 @@ _Available in Fleet Premium_
 
 ### Translate IDs
 
-Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
+Transforms a host name into a host id. For example, the Fleet UI uses this endpoint when sending live reports to a set of hosts.
 
 `POST /api/v1/fleet/translate`
 
@@ -12811,7 +12981,7 @@ Returns a list of all enabled users
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| team_id         | integer | query | _Available in Fleet Premium_. Filters the users to only include users in the specified team.                                   |
+| fleet_id         | integer | query | _Available in Fleet Premium_. Filters the users to only include users in the specified fleet.                                   |
 
 #### Example
 
@@ -12840,7 +13010,7 @@ None.
       "mfa_enabled": false,
       "global_role": null,
       "api_only": false,
-      "teams": [
+      "fleets": [
         {
           "id": 1,
           "created_at": "0001-01-01T00:00:00Z",
@@ -12887,9 +13057,9 @@ By default, the user will be forced to reset its password upon first login.
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the user must click a magic link emailed to them to log in, after they successfully enter their username and password. Incompatible with SSO and API-only users. |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
-| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
+| global_role | string | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
-| teams                          | array   | body | _Available in Fleet Premium_. The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| fleets                          | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
 
 #### Example
 
@@ -12903,7 +13073,7 @@ By default, the user will be forced to reset its password upon first login.
   "email": "janedoe@example.com",
   "password": "test-123",
   "api_only": true,
-  "teams": [
+  "fleets": [
     {
       "id": 2,
       "role": "observer"
@@ -12935,7 +13105,7 @@ By default, the user will be forced to reset its password upon first login.
     "mfa_enabled": false,
     "api_only": true,
     "global_role": null,
-    "teams": [
+    "fleets": [
       {
         "id": 2,
         "role": "observer"
@@ -13018,7 +13188,7 @@ Creates a user account after an invited user provides registration information a
     "sso_enabled": false,
     "mfa_enabled": false,
     "global_role": "admin",
-    "teams": []
+    "fleets": []
   }
 }
 ```
@@ -13108,7 +13278,7 @@ Returns all information about a specific user.
     "mfa_enabled": false,
     "global_role": "admin",
     "api_only": false,
-    "teams": []
+    "fleets": []
   }
 }
 ```
@@ -13146,8 +13316,8 @@ Returns all information about a specific user.
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | password    | string  | body | The user's current password, required to change the user's own email or password (not required for an admin to modify another user).                                                                                                                                                                                                                     |
 | new_password| string  | body | The user's new password. |
-| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
-| teams       | array   | body | _Available in Fleet Premium_. The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| global_role | string  | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified.                                                                                                                                                                         |
+| fleets       | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `fleets` is specified, `global_role` cannot be specified. |
 
 #### Example
 
@@ -13180,12 +13350,12 @@ Returns all information about a specific user.
     "sso_enabled": false,
     "mfa_enabled": false,
     "api_only": false,
-    "teams": []
+    "fleets": []
   }
 }
 ```
 
-#### Example (modify a user's teams)
+#### Example (modify a user's fleets)
 
 `PATCH /api/v1/fleet/users/2`
 
@@ -13193,7 +13363,7 @@ Returns all information about a specific user.
 
 ```json
 {
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "observer"
@@ -13224,7 +13394,7 @@ Returns all information about a specific user.
     "sso_enabled": false,
     "mfa_enabled": false,
     "global_role": "admin",
-    "teams": [
+    "fleets": [
       {
         "id": 2,
         "role": "observer"
@@ -13301,7 +13471,7 @@ The selected user is logged out of Fleet and required to reset their password du
     "mfa_enabled": false,
     "sso_enabled": false,
     "global_role": "observer",
-    "teams": []
+    "fleets": []
   }
 }
 ```
@@ -13374,12 +13544,12 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 | Name        | Type    | In   | Description                                                                                                                                           |
 | ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a fleet role.                                                                        |
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
 | mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
-| teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+| fleets       | array   | body | _Available in Fleet Premium_. A list of the fleets the user is a member of. Each item includes the fleet's ID and the user's role in the specified fleet. |
 
 #### Example
 
@@ -13394,7 +13564,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
   "sso_enabled": false,
   "mfa_enabled": false,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 2,
       "role": "observer"
@@ -13422,7 +13592,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
     "name": "John",
     "sso_enabled": false,
     "mfa_enabled": false,
-    "teams": [
+    "fleets": [
       {
         "id": 10,
         "created_at": "0001-01-01T00:00:00Z",
@@ -13482,7 +13652,7 @@ Returns a list of the active invitations in Fleet.
       "sso_enabled": false,
       "mfa_enabled": false,
       "global_role": "admin",
-      "teams": []
+      "fleets": []
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -13493,7 +13663,7 @@ Returns a list of the active invitations in Fleet.
       "sso_enabled": false,
       "mfa_enabled": false,
       "global_role": "admin",
-      "teams": []
+      "fleets": []
     }
   ]
 }
@@ -13551,7 +13721,7 @@ Verify the specified invite.
     "sso_enabled": false,
     "mfa_enabled": false,
     "global_role": "admin",
-    "teams": []
+    "fleets": []
   }
 }
 ```
@@ -13580,12 +13750,12 @@ Verify the specified invite.
 
 | Name        | Type    | In   | Description                                                                                                                                           |
 | ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a fleet role.                                                                        |
 | email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
 | name        | string  | body | The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
 | mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
-| teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+| fleets       | array   | body | _Available in Fleet Premium_. A list of the fleets the user is a member of. Each item includes the fleet's ID and the user's role in the specified fleet. |
 
 #### Example
 
@@ -13600,7 +13770,7 @@ Verify the specified invite.
   "sso_enabled": false,
   "mfa_enabled": false,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 2,
       "role": "observer"
@@ -13628,7 +13798,7 @@ Verify the specified invite.
     "name": "John",
     "sso_enabled": false,
     "mfa_enabled": false,
-    "teams": [
+    "fleets": [
       {
         "id": 10,
         "created_at": "0001-01-01T00:00:00Z",

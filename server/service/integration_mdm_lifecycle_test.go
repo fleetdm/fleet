@@ -866,6 +866,13 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
+			if cmd.Command.RequestType == "DeclarativeManagement" {
+				// skip declarative management commands
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+				continue
+			}
+
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			count++
@@ -1042,11 +1049,11 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Nil(t, cmd)
 
 	// devices renew their SCEP cert by re-enrolling.
-	require.NoError(t, manualEnrolledDevice.Enroll())
-	require.NoError(t, automaticEnrolledDevice.Enroll())
-	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
-	require.NoError(t, migratedDevice.Enroll())
-	require.NoError(t, iPhoneMdmDevice.Enroll())
+	require.NoError(t, manualEnrolledDevice.Reenroll())
+	require.NoError(t, automaticEnrolledDevice.Reenroll())
+	require.NoError(t, automaticEnrolledDeviceWithRef.Reenroll())
+	require.NoError(t, migratedDevice.Reenroll())
+	require.NoError(t, iPhoneMdmDevice.Reenroll())
 
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()

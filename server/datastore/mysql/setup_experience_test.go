@@ -131,7 +131,7 @@ func testEnqueueSetupExperienceLinuxScriptPackages(t *testing.T, ds *Datastore) 
 			return err
 		})
 
-		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "debian", hostDebianShOnly, team1.ID)
+		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "ubuntu", "debian", hostDebianShOnly, team1.ID)
 		require.NoError(t, err)
 		require.True(t, anythingEnqueued, "BUG #34654: .sh package alone should trigger setup experience")
 
@@ -165,7 +165,7 @@ func testEnqueueSetupExperienceLinuxScriptPackages(t *testing.T, ds *Datastore) 
 			return err
 		})
 
-		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "rhel", hostRhelShOnly, team1.ID)
+		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "fedora", "rhel", hostRhelShOnly, team1.ID)
 		require.NoError(t, err)
 		require.True(t, anythingEnqueued, "BUG #34654: .sh package should work on RHEL too")
 
@@ -189,7 +189,7 @@ func testEnqueueSetupExperienceLinuxScriptPackages(t *testing.T, ds *Datastore) 
 	t.Run("mixed_sh_deb_debian", func(t *testing.T) {
 		hostDebianMixed := "debian-mixed-" + uuid.NewString()
 
-		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "debian", hostDebianMixed, team1.ID)
+		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "ubuntu", "debian", hostDebianMixed, team1.ID)
 		require.NoError(t, err)
 		require.True(t, anythingEnqueued)
 
@@ -212,7 +212,7 @@ func testEnqueueSetupExperienceLinuxScriptPackages(t *testing.T, ds *Datastore) 
 	t.Run("mixed_sh_deb_rhel", func(t *testing.T) {
 		hostRhelMixed := "rhel-mixed-" + uuid.NewString()
 
-		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "rhel", hostRhelMixed, team1.ID)
+		anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "fedora", "rhel", hostRhelMixed, team1.ID)
 		require.NoError(t, err)
 		require.True(t, anythingEnqueued)
 
@@ -319,11 +319,11 @@ func testEnqueueSetupExperienceItemsWindows(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "windows", host1UUID, team1.ID)
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host1UUID, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", host2UUID, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host2UUID, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 }
@@ -480,35 +480,35 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1, team1.ID)
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, hostTeam1)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1New, team1.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam1New, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam1New)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2Missing, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam2Missing, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2Missing)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 	// Nothing is configured for setup experience in team 3, so we do not set
@@ -518,7 +518,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 	require.False(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1Old, team1.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam1Old, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	// This host enrolled > 24 hours ago, but it's darwin, so we should enqueue items for it.
@@ -602,19 +602,19 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team2.ID, []uint{})
 	require.NoError(t, err)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1, team1.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
 	// team2 now has nothing enqueued
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2Missing, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam2Missing, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 
@@ -1431,11 +1431,11 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	hostTeam1UUID := "123"
 	hostTeam2UUID := "456"
 
-	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1UUID, team1.ID)
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2UUID, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
@@ -1495,7 +1495,7 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
 
 	// re-enqueue items for host 1, should enqueue the updated script
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1UUID, team1.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
