@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -306,5 +307,262 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 			err := svc.SetSetupExperienceSoftware(ctx, platform, 0, []uint{1, 2})
 			require.NoError(t, err)
 		}
+	})
+}
+
+func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+	svc.logger = slog.Default()
+
+	ds.UpdateSetupExperienceStatusResultFunc = func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+		return nil
+	}
+
+	t.Run("cancelled VPP app creates failed activity", func(t *testing.T) {
+		var activities []fleet.ActivityDetails
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activities = append(activities, activity)
+			return nil
+		}
+
+		vppTeamID := uint(1)
+		adamID := "12345"
+		cmdUUID := "cmd-uuid-1"
+		titleID := uint(10)
+		results := []*fleet.SetupExperienceStatusResult{
+			{
+				HostUUID:        "host-uuid",
+				Name:            "VPP App",
+				Status:          fleet.SetupExperienceStatusCancelled,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    &adamID,
+				NanoCommandUUID: &cmdUUID,
+				SoftwareTitleID: &titleID,
+			},
+		}
+
+		err := svc.failCancelledSetupExperienceInstalls(ctx, 1, "host-uuid", "Test Host", "darwin", results)
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+
+		act, ok := activities[0].(*fleet.ActivityInstalledAppStoreApp)
+		require.True(t, ok)
+		assert.Equal(t, uint(1), act.HostID)
+		assert.Equal(t, "Test Host", act.HostDisplayName)
+		assert.Equal(t, "VPP App", act.SoftwareTitle)
+		assert.Equal(t, "12345", act.AppStoreID)
+		assert.Equal(t, "cmd-uuid-1", act.CommandUUID)
+		assert.Equal(t, "failed", act.Status)
+		assert.Equal(t, "darwin", act.HostPlatform)
+
+		// Verify the status was changed to failure
+		assert.Equal(t, fleet.SetupExperienceStatusFailure, results[0].Status)
+	})
+
+	t.Run("non-cancelled VPP app is skipped", func(t *testing.T) {
+		var activities []fleet.ActivityDetails
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activities = append(activities, activity)
+			return nil
+		}
+
+		vppTeamID := uint(1)
+		adamID := "12345"
+		cmdUUID := "cmd-uuid-1"
+		titleID := uint(10)
+		results := []*fleet.SetupExperienceStatusResult{
+			{
+				HostUUID:        "host-uuid",
+				Name:            "VPP App Pending",
+				Status:          fleet.SetupExperienceStatusPending,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    &adamID,
+				NanoCommandUUID: &cmdUUID,
+				SoftwareTitleID: &titleID,
+			},
+			{
+				HostUUID:        "host-uuid",
+				Name:            "VPP App Success",
+				Status:          fleet.SetupExperienceStatusSuccess,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    &adamID,
+				NanoCommandUUID: &cmdUUID,
+				SoftwareTitleID: &titleID,
+			},
+			{
+				HostUUID:        "host-uuid",
+				Name:            "VPP App Running",
+				Status:          fleet.SetupExperienceStatusRunning,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    &adamID,
+				NanoCommandUUID: &cmdUUID,
+				SoftwareTitleID: &titleID,
+			},
+			{
+				HostUUID:        "host-uuid",
+				Name:            "VPP App Failed",
+				Status:          fleet.SetupExperienceStatusFailure,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    &adamID,
+				NanoCommandUUID: &cmdUUID,
+				SoftwareTitleID: &titleID,
+			},
+		}
+
+		err := svc.failCancelledSetupExperienceInstalls(ctx, 1, "host-uuid", "Test Host", "darwin", results)
+		require.NoError(t, err)
+		assert.Empty(t, activities)
+
+		// Statuses should be unchanged
+		assert.Equal(t, fleet.SetupExperienceStatusPending, results[0].Status)
+		assert.Equal(t, fleet.SetupExperienceStatusSuccess, results[1].Status)
+		assert.Equal(t, fleet.SetupExperienceStatusRunning, results[2].Status)
+		assert.Equal(t, fleet.SetupExperienceStatusFailure, results[3].Status)
+	})
+
+	t.Run("cancelled software package and VPP app both create activities", func(t *testing.T) {
+		var activities []fleet.ActivityDetails
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activities = append(activities, activity)
+			return nil
+		}
+
+		installerID := uint(5)
+		executionID := "exec-uuid-1"
+		vppTeamID := uint(1)
+		adamID := "67890"
+		cmdUUID := "cmd-uuid-2"
+		titleID := uint(20)
+
+		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{
+				Name:    "installer.pkg",
+				TitleID: ptr.Uint(30),
+			}, nil
+		}
+		ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+			source := "apps"
+			return &fleet.SoftwareTitle{Source: source}, nil
+		}
+
+		results := []*fleet.SetupExperienceStatusResult{
+			{
+				HostUUID:                        "host-uuid",
+				Name:                            "Software Package",
+				Status:                          fleet.SetupExperienceStatusCancelled,
+				SoftwareInstallerID:             &installerID,
+				HostSoftwareInstallsExecutionID: &executionID,
+			},
+			{
+				HostUUID:        "host-uuid",
+				Name:            "VPP App",
+				Status:          fleet.SetupExperienceStatusCancelled,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    &adamID,
+				NanoCommandUUID: &cmdUUID,
+				SoftwareTitleID: &titleID,
+			},
+		}
+
+		err := svc.failCancelledSetupExperienceInstalls(ctx, 1, "host-uuid", "Test Host", "darwin", results)
+		require.NoError(t, err)
+		require.Len(t, activities, 2)
+
+		// First activity should be the software package install
+		swAct, ok := activities[0].(fleet.ActivityTypeInstalledSoftware)
+		require.True(t, ok)
+		assert.Equal(t, "failed", swAct.Status)
+		assert.Equal(t, "Software Package", swAct.SoftwareTitle)
+		assert.Equal(t, "installer.pkg", swAct.SoftwarePackage)
+		assert.True(t, swAct.FromSetupExperience)
+		assert.False(t, swAct.SelfService)
+
+		// Second activity should be the VPP app install
+		vppAct, ok := activities[1].(*fleet.ActivityInstalledAppStoreApp)
+		require.True(t, ok)
+		assert.Equal(t, "failed", vppAct.Status)
+		assert.Equal(t, "VPP App", vppAct.SoftwareTitle)
+		assert.Equal(t, "67890", vppAct.AppStoreID)
+		assert.Equal(t, "cmd-uuid-2", vppAct.CommandUUID)
+		assert.Equal(t, "darwin", vppAct.HostPlatform)
+		assert.Equal(t, uint(1), vppAct.HostID)
+		assert.Equal(t, "Test Host", vppAct.HostDisplayName)
+	})
+
+	t.Run("hostPlatform is propagated to VPP activity", func(t *testing.T) {
+		var activities []fleet.ActivityDetails
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activities = append(activities, activity)
+			return nil
+		}
+
+		vppTeamID := uint(1)
+		adamID := "99999"
+		cmdUUID := "cmd-uuid-3"
+		titleID := uint(30)
+		results := []*fleet.SetupExperienceStatusResult{
+			{
+				HostUUID:        "host-uuid-2",
+				Name:            "iOS VPP App",
+				Status:          fleet.SetupExperienceStatusCancelled,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    &adamID,
+				NanoCommandUUID: &cmdUUID,
+				SoftwareTitleID: &titleID,
+			},
+		}
+
+		err := svc.failCancelledSetupExperienceInstalls(ctx, 2, "host-uuid-2", "iOS Host", "ios", results)
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+
+		act, ok := activities[0].(*fleet.ActivityInstalledAppStoreApp)
+		require.True(t, ok)
+		assert.Equal(t, "ios", act.HostPlatform)
+		assert.Equal(t, uint(2), act.HostID)
+		assert.Equal(t, "iOS Host", act.HostDisplayName)
+		assert.Equal(t, "iOS VPP App", act.SoftwareTitle)
+	})
+
+	t.Run("empty results is a no-op", func(t *testing.T) {
+		var activities []fleet.ActivityDetails
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activities = append(activities, activity)
+			return nil
+		}
+
+		err := svc.failCancelledSetupExperienceInstalls(ctx, 1, "host-uuid", "Test Host", "darwin", []*fleet.SetupExperienceStatusResult{})
+		require.NoError(t, err)
+		assert.Empty(t, activities)
+	})
+
+	t.Run("user is nil for VPP activity", func(t *testing.T) {
+		var capturedUser *fleet.User
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			capturedUser = user
+			return nil
+		}
+
+		vppTeamID := uint(1)
+		adamID := "12345"
+		cmdUUID := "cmd-uuid-1"
+		titleID := uint(10)
+		results := []*fleet.SetupExperienceStatusResult{
+			{
+				HostUUID:        "host-uuid",
+				Name:            "VPP App",
+				Status:          fleet.SetupExperienceStatusCancelled,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    &adamID,
+				NanoCommandUUID: &cmdUUID,
+				SoftwareTitleID: &titleID,
+			},
+		}
+
+		err := svc.failCancelledSetupExperienceInstalls(ctx, 1, "host-uuid", "Test Host", "darwin", results)
+		require.NoError(t, err)
+		assert.Nil(t, capturedUser)
 	})
 }
