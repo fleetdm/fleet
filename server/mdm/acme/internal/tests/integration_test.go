@@ -268,9 +268,9 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	t.Run("create new account", func(t *testing.T) {
-		privateKey, jwk := generateTestKey(t)
+		privateKey, _ := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -283,18 +283,18 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("return existing account with same JWK", func(t *testing.T) {
-		privateKey, jwk := generateTestKey(t)
+		privateKey, _ := generateTestKey(t)
 
 		// create account
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody1 := buildJWS(t, privateKey, jwk, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody1 := buildJWS(t, privateKey, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
 
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
 
 		// create again with same key - should return existing (use the valid returned nonce)
 		nonce2 := resp1.Header.Get("Replay-Nonce")
-		jwsBody2 := buildJWS(t, privateKey, jwk, nonce2, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody2 := buildJWS(t, privateKey, nonce2, s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp2, _, resp2 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody2)
 
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
@@ -305,18 +305,18 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("onlyReturnExisting account exists", func(t *testing.T) {
-		privateKey, jwk := generateTestKey(t)
+		privateKey, _ := generateTestKey(t)
 
 		// create account first
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody1 := buildJWS(t, privateKey, jwk, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody1 := buildJWS(t, privateKey, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
 
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
 
 		// lookup with onlyReturnExisting (use the valid returned nonce)
 		nonce2 := resp1.Header.Get("Replay-Nonce")
-		jwsBody2 := buildJWS(t, privateKey, jwk, nonce2, s.newAccountURL(enrollValid.PathIdentifier), map[string]any{"onlyReturnExisting": true})
+		jwsBody2 := buildJWS(t, privateKey, nonce2, s.newAccountURL(enrollValid.PathIdentifier), map[string]any{"onlyReturnExisting": true})
 		acctResp2, _, resp2 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody2)
 
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
@@ -326,10 +326,10 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("onlyReturnExisting account does not exist", func(t *testing.T) {
-		privateKey, jwk := generateTestKey(t)
+		privateKey, _ := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		payload := map[string]any{"onlyReturnExisting": true}
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollValid.PathIdentifier), payload)
+		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollValid.PathIdentifier), payload)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -339,10 +339,10 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 	t.Run("unknown identifier", func(t *testing.T) {
 		// we need a valid enrollment to get a nonce, then use a bad identifier for the account request
-		privateKey, jwk := generateTestKey(t)
+		privateKey, _ := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		badIdentifier := "no-such-identifier"
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(badIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(badIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, badIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -354,9 +354,9 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 	t.Run("revoked enrollment", func(t *testing.T) {
 		// get nonce from valid enrollment, then try to create account on revoked
-		privateKey, jwk := generateTestKey(t)
+		privateKey, _ := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollRevoked.PathIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollRevoked.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollRevoked.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -367,9 +367,9 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
-		privateKey, jwk := generateTestKey(t)
+		privateKey, _ := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollExpired.PathIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollExpired.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollExpired.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -380,8 +380,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
-		privateKey, jwk := generateTestKey(t)
-		jwsBody := buildJWS(t, privateKey, jwk, "bad-nonce-value", s.newAccountURL(enrollValid.PathIdentifier), nil)
+		privateKey, _ := generateTestKey(t)
+		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)

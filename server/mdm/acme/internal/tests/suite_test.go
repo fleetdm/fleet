@@ -145,7 +145,7 @@ func (s *integrationTestSuite) getNonce(t *testing.T, pathIdentifier string) str
 }
 
 // buildJWS constructs a JWS in flattened JSON serialization with the given parameters.
-func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, jwk jose.JSONWebKey, nonce, endpointURL string, payload any) []byte {
+func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, nonce, endpointURL string, payload any) []byte {
 	t.Helper()
 	signer, err := jose.NewSigner(
 		jose.SigningKey{Algorithm: jose.ES256, Key: privateKey},
