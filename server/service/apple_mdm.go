@@ -5260,10 +5260,10 @@ func ReconcileAppleProfiles(
 		end := min(i+isBeingSetupBatchSize, len(hostProfiles))
 		batch := hostProfiles[i:end]
 		hostUUIDs := make([]string, len(batch))
-		hostUUIDToHostProfile := make(map[string]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(batch))
+		hostUUIDToHostProfiles := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(batch))
 		for j, hp := range batch {
 			hostUUIDs[j] = fleet.MDMProfileProcessingKeyPrefix + ":" + hp.HostUUID
-			hostUUIDToHostProfile[hp.HostUUID] = hp
+			hostUUIDToHostProfiles[hp.HostUUID] = append(hostUUIDToHostProfiles[hp.HostUUID], hp)
 		}
 
 		setupHostUUIDs, err := redisKeyValue.MGet(ctx, hostUUIDs)
@@ -5274,16 +5274,18 @@ func ReconcileAppleProfiles(
 			if exists != nil {
 				hostUUID := strings.TrimPrefix(keyedHostUUID, fleet.MDMProfileProcessingKeyPrefix+":")
 				logger.DebugContext(ctx, "skipping profile reconciliation for host being set up", "host_uuid", hostUUID)
-				hp, ok := hostUUIDToHostProfile[hostUUID]
+				hps, ok := hostUUIDToHostProfiles[hostUUID]
 				if !ok {
 					logger.DebugContext(ctx, "expected host uuid to be present but was not, do not skip profile reconciliation", "host_uuid", hostUUID)
 					continue
 				}
-				// Clear out host profile status and installTargets to avoid iterating over them in ProcessAndEnqueueProfiles
-				hp.Status = nil
-				hp.CommandUUID = ""
-				hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}] = hp
-				delete(installTargets, hp.ProfileUUID)
+				for _, hp := range hps {
+					// Clear out host profile status and installTargets to avoid iterating over them in ProcessAndEnqueueProfiles
+					hp.Status = nil
+					hp.CommandUUID = ""
+					hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}] = hp
+					delete(installTargets, hp.ProfileUUID)
+				}
 			}
 		}
 	}

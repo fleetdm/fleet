@@ -6339,8 +6339,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		return err
 	})
 
-	// trigger a profile sync
-	s.awaitTriggerProfileSchedule(t)
 	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
 	s.signedProfilesMatch(

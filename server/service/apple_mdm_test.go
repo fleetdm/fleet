@@ -2862,6 +2862,10 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return baseProfilesToInstall, baseProfilesToRemove, nil
 	}
 
+	kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+		return map[string]*string{}, nil
+	}
+
 	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
 		require.ElementsMatch(t, []string{p1, p2, p4, p5, p7}, profileUUIDs)
 		// only those profiles that are to be installed
@@ -3617,6 +3621,10 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 			caProfileUUID:    caContent,
 			nonCAProfileUUID: nonCAContent,
 		}, nil
+	}
+
+	kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+		return make(map[string]*string), nil
 	}
 
 	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
