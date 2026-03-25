@@ -138,18 +138,18 @@ describe("SoftwareScriptDetailsModal - ModalButtons component", () => {
     expect(onCancel).toHaveBeenCalledTimes(2);
   });
 
-  it("shows Done button for pending run", () => {
+  it("shows Close button for pending run", () => {
     const onCancel = jest.fn();
     render(
       <ModalButtons installResultStatus="pending_script" onCancel={onCancel} />
     );
-    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Rerun" })
     ).not.toBeInTheDocument();
   });
 
-  it("on device user page, shows Done button for ran script-only software script", () => {
+  it("on device user page, shows Close button for ran script-only software script", () => {
     const onCancel = jest.fn();
     render(
       <ModalButtons
@@ -158,6 +158,6 @@ describe("SoftwareScriptDetailsModal - ModalButtons component", () => {
         onCancel={onCancel}
       />
     );
-    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 });

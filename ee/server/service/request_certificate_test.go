@@ -191,7 +191,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP", func(t *testing.T) {
@@ -203,7 +203,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP, http sig auth", func(t *testing.T) {
@@ -223,7 +223,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP, UPN does not match IDP info(should pass)", func(t *testing.T) {
@@ -235,7 +235,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request a certificate - CA returns error", func(t *testing.T) {
@@ -310,7 +310,7 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
 	t.Run("Request certificate - non-Hydrant and non-EST CA", func(t *testing.T) {

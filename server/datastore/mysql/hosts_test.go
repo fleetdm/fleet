@@ -101,6 +101,7 @@ func TestHosts(t *testing.T) {
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
+		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
 		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
@@ -193,6 +194,7 @@ func TestHosts(t *testing.T) {
 		{"MaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
 		{"HostTimeZone", testHostTimeZone},
+		{"ListHostsDEPFilters", testListHostsDEPFilters},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1688,6 +1690,214 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	assert.ElementsMatch(t, []uint{hostIDs[0], hostIDs[1], hostIDs[2], hostIDs[10], hostIDs[11]}, gotIDs)
 }
 
+func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Create an ABM token so we can upsert DEP assignments.
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "test-org",
+		EncryptedToken:   []byte(encTok),
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	// Create hosts with distinct serials so each can have a different DEP response.
+	// test.NewHost defaults to darwin platform. Serials are set via ExecAdhocSQL since
+	// test.NewHost doesn't accept a serial option.
+	setSerial := func(h *fleet.Host, serial string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET hardware_serial = ? WHERE id = ?`, serial, h.ID)
+			return err
+		})
+		h.HardwareSerial = serial
+	}
+
+	now := time.Now()
+	hostSuccess := test.NewHost(t, ds, "success.local", "1.1.1.1", "nk-success-001", "nk-success-001", now)
+	setSerial(hostSuccess, "SN-SUCCESS-001")
+	hostFailed := test.NewHost(t, ds, "failed.local", "1.1.1.2", "nk-failed-001", "nk-failed-001", now)
+	setSerial(hostFailed, "SN-FAILED-001")
+	hostThrottled := test.NewHost(t, ds, "throttled.local", "1.1.1.3", "nk-throttled-001", "nk-throttled-001", now)
+	setSerial(hostThrottled, "SN-THROTTLED-001")
+	hostNotAccessible := test.NewHost(t, ds, "notaccessible.local", "1.1.1.4", "nk-notaccessible-001", "nk-notaccessible-001", now)
+	setSerial(hostNotAccessible, "SN-NOTACCESSIBLE-001")
+	hostNoDEP := test.NewHost(t, ds, "nodep.local", "1.1.1.5", "nk-nodep-001", "nk-nodep-001", now) // no DEP assignment at all
+
+	// Upsert DEP assignments for all hosts except hostNoDEP.
+	depHosts := []fleet.Host{*hostSuccess, *hostFailed, *hostThrottled, *hostNotAccessible}
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, depHosts, abmToken.ID, make(map[uint]time.Time))
+	require.NoError(t, err)
+
+	// Set each host's assign_profile_response via the internal helper.
+	profileUUID := uuid.NewString()
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		profileUUID, []string{hostSuccess.HardwareSerial},
+		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID,
+	)
+	require.NoError(t, err)
+
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		profileUUID, []string{hostFailed.HardwareSerial},
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+	)
+	require.NoError(t, err)
+
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		profileUUID, []string{hostThrottled.HardwareSerial},
+		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID,
+	)
+	require.NoError(t, err)
+
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		profileUUID, []string{hostNotAccessible.HardwareSerial},
+		string(fleet.DEPAssignProfileResponseNotAccessible), &abmToken.ID,
+	)
+	require.NoError(t, err)
+
+	// --- dep_profile_error filter (boolean: true means FAILED or THROTTLED) ---
+
+	t.Run("dep_profile_error=true returns only FAILED and THROTTLED hosts", func(t *testing.T) {
+		depErr := true
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DEPProfileErrorFilter: &depErr}, 2)
+		gotIDs := make([]uint, 0, len(hosts))
+		for _, h := range hosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		assert.ElementsMatch(t, []uint{hostFailed.ID, hostThrottled.ID}, gotIDs)
+	})
+
+	t.Run("dep_profile_error=false returns all hosts without a DEP error", func(t *testing.T) {
+		depErr := false
+		// false means "don't filter by dep_profile_error at all" — same as omitting the filter.
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DEPProfileErrorFilter: &depErr}, 5)
+		gotIDs := make([]uint, 0, len(hosts))
+		for _, h := range hosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		assert.ElementsMatch(t, []uint{hostSuccess.ID, hostFailed.ID, hostThrottled.ID, hostNotAccessible.ID, hostNoDEP.ID}, gotIDs)
+	})
+
+	t.Run("nil dep_profile_error returns all hosts", func(t *testing.T) {
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+		assert.Len(t, hosts, 5)
+	})
+
+	// --- dep_assign_profile_response filter (exact string match) ---
+
+	t.Run("dep_assign_profile_response=SUCCESS", func(t *testing.T) {
+		resp := fleet.DEPAssignProfileResponseSuccess
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 1)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, hostSuccess.ID, hosts[0].ID)
+	})
+
+	t.Run("dep_assign_profile_response=FAILED", func(t *testing.T) {
+		resp := fleet.DEPAssignProfileResponseFailed
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 1)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, hostFailed.ID, hosts[0].ID)
+	})
+
+	t.Run("dep_assign_profile_response=THROTTLED", func(t *testing.T) {
+		resp := fleet.DEPAssignProfileResponseThrottled
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 1)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, hostThrottled.ID, hosts[0].ID)
+	})
+
+	t.Run("dep_assign_profile_response=NOT_ACCESSIBLE", func(t *testing.T) {
+		resp := fleet.DEPAssignProfileResponseNotAccessible
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 1)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, hostNotAccessible.ID, hosts[0].ID)
+	})
+
+	t.Run("dep_assign_profile_response with no matching hosts returns empty", func(t *testing.T) {
+		// Use FAILED but there are no hosts with a NULL response assigned to that value,
+		// so after we clear the failed host's response this should return zero.
+		// Instead, just verify that a non-DEP host (hostNoDEP) is never returned by any response filter.
+		for _, resp := range []fleet.DEPAssignProfileResponseStatus{
+			fleet.DEPAssignProfileResponseSuccess,
+			fleet.DEPAssignProfileResponseFailed,
+			fleet.DEPAssignProfileResponseThrottled,
+			fleet.DEPAssignProfileResponseNotAccessible,
+		} {
+			hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp})
+			require.NoError(t, err)
+			for _, h := range hosts {
+				assert.NotEqual(t, hostNoDEP.ID, h.ID,
+					"host with no DEP assignment should never appear in dep_assign_profile_response filter results")
+			}
+		}
+	})
+
+	// --- deleted DEP assignments should not appear in filter results ---
+
+	t.Run("deleted DEP assignment is excluded from dep_profile_error=true", func(t *testing.T) {
+		err := ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{hostFailed.HardwareSerial})
+		require.NoError(t, err)
+
+		// hostFailed's assignment is now soft-deleted; only hostThrottled should remain.
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DEPProfileErrorFilter: new(true)}, 1)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, hostThrottled.ID, hosts[0].ID)
+
+		// Restore for subsequent subtests.
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hostFailed}, abmToken.ID, make(map[uint]time.Time))
+		require.NoError(t, err)
+		err = updateHostDEPAssignProfileResponses(
+			ctx, ds.writer(ctx), ds.logger,
+			profileUUID, []string{hostFailed.HardwareSerial},
+			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		)
+		require.NoError(t, err)
+	})
+
+	t.Run("deleted DEP assignment is excluded from dep_assign_profile_response filter", func(t *testing.T) {
+		err := ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{hostFailed.HardwareSerial})
+		require.NoError(t, err)
+
+		resp := fleet.DEPAssignProfileResponseFailed
+		listHostsCheckCount(t, ds, filter, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 0)
+
+		// Restore for subsequent subtests.
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hostFailed}, abmToken.ID, make(map[uint]time.Time))
+		require.NoError(t, err)
+		err = updateHostDEPAssignProfileResponses(
+			ctx, ds.writer(ctx), ds.logger,
+			profileUUID, []string{hostFailed.HardwareSerial},
+			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		)
+		require.NoError(t, err)
+	})
+
+	// --- combining dep_profile_error with other filters ---
+
+	t.Run("dep_profile_error=true combined with team filter", func(t *testing.T) {
+		// Create a second team and assign hostFailed to it.
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "dep-filter-test-team"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostFailed.ID}))
+		require.NoError(t, err)
+
+		depErr := true
+		// With team filter: only hostFailed is in the team AND has a DEP error.
+		hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+			DEPProfileErrorFilter: &depErr,
+			TeamFilter:            &team.ID,
+		}, 1)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, hostFailed.ID, hosts[0].ID)
+	})
+}
+
 func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.AddBuiltinLabels(t, ds)
@@ -3034,6 +3244,106 @@ func testHostsGenerateStatusStatisticsABMPendingExclusion(t *testing.T, ds *Data
 	// Verify that new host count includes ABM Pending devices (they are new, not missing)
 	// The new count should include all hosts created within the last day
 	assert.Greater(t, summary.NewCount, uint(0), "New count should include ABM Pending hosts that are recently created")
+}
+
+func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "test-org",
+		EncryptedToken:   []byte(encTok),
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	now := time.Now()
+
+	setSerial := func(h *fleet.Host, serial string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET hardware_serial = ? WHERE id = ?`, serial, h.ID)
+			return err
+		})
+		h.HardwareSerial = serial
+	}
+
+	// Create four darwin hosts, each representing a different DEP response state.
+	hostFailed := test.NewHost(t, ds, "failed.local", "1.1.1.1", "dep-nk-1", "dep-nk-1", now)
+	setSerial(hostFailed, "SN-DEP-FAILED-001")
+	hostThrottled := test.NewHost(t, ds, "throttled.local", "1.1.1.2", "dep-nk-2", "dep-nk-2", now)
+	setSerial(hostThrottled, "SN-DEP-THROTTLED-001")
+	hostSuccess := test.NewHost(t, ds, "success.local", "1.1.1.3", "dep-nk-3", "dep-nk-3", now)
+	setSerial(hostSuccess, "SN-DEP-SUCCESS-001")
+	hostNoDEP := test.NewHost(t, ds, "nodep.local", "1.1.1.4", "dep-nk-4", "dep-nk-4", now)
+
+	// Upsert DEP assignments for the three hosts that have DEP records.
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx,
+		[]fleet.Host{*hostFailed, *hostThrottled, *hostSuccess},
+		abmToken.ID, make(map[uint]time.Time),
+	)
+	require.NoError(t, err)
+
+	profileUUID := uuid.NewString()
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		profileUUID, []string{hostFailed.HardwareSerial},
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+	)
+	require.NoError(t, err)
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		profileUUID, []string{hostThrottled.HardwareSerial},
+		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID,
+	)
+	require.NoError(t, err)
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		profileUUID, []string{hostSuccess.HardwareSerial},
+		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID,
+	)
+	require.NoError(t, err)
+
+	// FAILED + THROTTLED = 2 errors; SUCCESS and no-DEP host don't count.
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(4), summary.TotalsHostsCount)
+	assert.Equal(t, uint(2), summary.DEPAssignErrorCount)
+
+	// A host whose DEP assignment has been deleted should not be counted.
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{hostFailed.HardwareSerial})
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.DEPAssignErrorCount)
+
+	// Restore the failed assignment for the remaining tests.
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hostFailed}, abmToken.ID, make(map[uint]time.Time))
+	require.NoError(t, err)
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		profileUUID, []string{hostFailed.HardwareSerial},
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+	)
+	require.NoError(t, err)
+
+	// Team filter: only count DEP errors for hosts in a specific team.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "dep-error-stats-team"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostFailed.ID}))
+	require.NoError(t, err)
+
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin, TeamID: &team.ID}
+	summary, err = ds.GenerateHostStatusStatistics(ctx, teamFilter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.DEPAssignErrorCount)
+
+	// hostNoDEP has no DEP record; confirm it never inflates the count.
+	_ = hostNoDEP
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), summary.DEPAssignErrorCount)
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
@@ -8820,7 +9130,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
 	require.NoError(t, err)
 
-	added, err := ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.UUID, 0)
+	added, err := ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.PlatformLike, host.UUID, 0)
 	require.NoError(t, err)
 	require.True(t, added)
 

@@ -14,6 +14,7 @@ type IndexedCPEItem struct {
 	Product    string `json:"product" db:"product"`
 	Vendor     string `json:"vendor" db:"vendor"`
 	SWEdition  string `json:"sw_edition" db:"sw_edition"`
+	TargetSW   string `json:"target_sw" db:"target_sw"`
 	Deprecated bool   `json:"deprecated" db:"deprecated"`
 	Weight     int    `db:"weight"`
 }

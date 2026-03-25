@@ -676,10 +676,7 @@ func (c *Client) ApplyGroup(
 
 		// Keep any existing GitOps mode config rather than attempting to set via GitOps.
 		if appconfig != nil {
-			specs.AppConfig.(map[string]interface{})["gitops"] = fleet.UIGitOpsModeConfig{
-				GitopsModeEnabled: appconfig.UIGitOpsMode.GitopsModeEnabled,
-				RepositoryURL:     appconfig.UIGitOpsMode.RepositoryURL,
-			}
+			specs.AppConfig.(map[string]any)["gitops"] = appconfig.GitOpsConfig
 		}
 
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
@@ -900,6 +897,7 @@ func (c *Client) ApplyGroup(
 					InstallDuringSetup:  installDuringSetup,
 					LabelsExcludeAny:    app.LabelsExcludeAny,
 					LabelsIncludeAny:    app.LabelsIncludeAny,
+					LabelsIncludeAll:    app.LabelsIncludeAll,
 					Categories:          app.Categories,
 					DisplayName:         app.DisplayName,
 					IconPath:            app.Icon.Path,
@@ -1281,6 +1279,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			InstallDuringSetup: installDuringSetup,
 			LabelsIncludeAny:   si.LabelsIncludeAny,
 			LabelsExcludeAny:   si.LabelsExcludeAny,
+			LabelsIncludeAll:   si.LabelsIncludeAll,
 			SHA256:             sha256Value,
 			Categories:         si.Categories,
 			DisplayName:        si.DisplayName,

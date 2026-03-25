@@ -349,7 +349,7 @@ const RunScriptBatchModal = ({
         {!selectedScript && !scriptForDetails && (
           <div className="modal-cta-wrap">
             <Button disabled={isUpdating} onClick={onCancel}>
-              Done
+              Close
             </Button>
           </div>
         )}
