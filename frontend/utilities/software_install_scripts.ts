@@ -11,16 +11,28 @@ import installDeb from "../../pkg/file/scripts/install_deb.sh";
 // @ts-ignore
 import installRPM from "../../pkg/file/scripts/install_rpm.sh";
 
+// isFleetdPkg checks the binary contents of a .pkg file for the
+// com.fleetdm.orbit identifier (embedded in the Distribution XML).
+const isFleetdPkg = async (file: File): Promise<boolean> => {
+  try {
+    const buffer = await file.arrayBuffer();
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+    return text.includes("com.fleetdm.orbit");
+  } catch {
+    return false;
+  }
+};
+
 /*
- * getInstallScript returns a string with a script to install the
- * provided software.
+ * getDefaultInstallScript returns a string with a default script to install
+ * the provided software.
  * */
-const getDefaultInstallScript = (fileName: string): string => {
-  const extension = getExtensionFromFileName(fileName);
+const getDefaultInstallScript = async (file: File): Promise<string> => {
+  const extension = getExtensionFromFileName(file.name);
 
   switch (extension) {
     case "pkg":
-      if (fileName.toLowerCase().includes("fleet-osquery")) {
+      if (await isFleetdPkg(file)) {
         return installPkgFleetd;
       }
       return installPkg;
