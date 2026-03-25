@@ -458,7 +458,7 @@
     },
     {
       "name": "Codex CLI",
-      "slug": "codex/windows",
+      "slug": "codex-cli/windows",
       "platform": "windows",
       "unique_identifier": "Codex CLI",
       "description": "Codex CLI is OpenAI’s coding agent that you can run locally from your terminal."
