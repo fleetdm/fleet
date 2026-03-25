@@ -29,13 +29,12 @@ const GitOpsModeTooltipWrapper = ({
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
   const repoURL = config?.gitops.repository_url;
 
-  // If GitOps mode is off, always render children enabled
-  if (!gitOpsModeEnabled) {
-    return <>{renderChildren()}</>;
-  }
-
-  // If an entity type is specified and it's excepted, render children enabled
-  if (entityType && config?.gitops.exceptions[entityType]) {
+  // If GitOps mode is off, or the specified entity type is excepted,
+  // render children without the tooltip and with no disabled state.
+  if (
+    !gitOpsModeEnabled ||
+    (entityType && config?.gitops.exceptions[entityType])
+  ) {
     return <>{renderChildren()}</>;
   }
 
