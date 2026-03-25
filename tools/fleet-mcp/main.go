@@ -43,14 +43,13 @@ func main() {
 	}
 
 	logrus.Infof("transport: SSE — listening on :%s", config.Port)
+	if strings.TrimSpace(config.MCPAuthToken) == "" {
+		logrus.Fatalf("MCP_AUTH_TOKEN is required for SSE transport but is not set")
+	}
 	sseServer := server.NewSSEServer(mcpServer)
 	var handler http.Handler = sseServer
-	if config.MCPAuthToken != "" {
-		logrus.Info("authentication enabled")
-		handler = bearerAuthMiddleware(config.MCPAuthToken, handler)
-	} else {
-		logrus.Warn("MCP_AUTH_TOKEN is not set — server is unauthenticated")
-	}
+	logrus.Info("authentication enabled")
+	handler = bearerAuthMiddleware(config.MCPAuthToken, handler)
 	handler = mcpRouteGuard(handler)
 	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
 		logrus.Fatalf("server error: %v", err)

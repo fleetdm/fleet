@@ -11,7 +11,7 @@ interface IPillBadge {
 
 const PillBadge = ({ text, tipContent }: IPillBadge) => {
   return (
-    <div className={`${baseClass}__`}>
+    <div className={baseClass}>
       <TooltipWrapper
         tipContent={tipContent}
         showArrow

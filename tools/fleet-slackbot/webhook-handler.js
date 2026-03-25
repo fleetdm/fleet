@@ -17,11 +17,21 @@ function verifySignature(rawBody, signatureHeader, secret) {
   }
 }
 
+const MAX_BODY_SIZE = 1024 * 1024; // 1 MB
+
 function createWebhookHandler(config, github, claude) {
   return async function handleWebhook(req, res) {
-    // Collect raw body from the IncomingMessage stream
+    // Collect raw body from the IncomingMessage stream with a size limit
+    // to prevent memory exhaustion from oversized payloads.
     const buffers = [];
+    let totalSize = 0;
     for await (const chunk of req) {
+      totalSize += chunk.length;
+      if (totalSize > MAX_BODY_SIZE) {
+        res.writeHead(413);
+        res.end("Payload too large");
+        return;
+      }
       buffers.push(chunk);
     }
     const rawBody = Buffer.concat(buffers).toString("utf-8");
@@ -65,9 +75,8 @@ function createWebhookHandler(config, github, claude) {
           console.error("[webhook] Error handling check_run:", err);
           const prNumber = payload.check_run?.pull_requests?.[0]?.number;
           if (prNumber) {
-            const safeMessage = err.message?.includes("Claude returned")
-              ? "Failed to process the AI response. Please try rephrasing your request."
-              : err.message?.replace(/Raw response.*$/s, "").trim() || "An unexpected error occurred.";
+            const safeMessage = "An unexpected error occurred while attempting the CI auto-fix.";
+          console.error("[webhook] CI auto-fix error detail:", err.message);
             try {
               await github.addPullRequestComment(prNumber, `🤖 **Fleet:** CI auto-fix failed: ${safeMessage}`);
             } catch (replyErr) {
@@ -142,10 +151,10 @@ function createWebhookHandler(config, github, claude) {
       async (err) => {
         console.error("[webhook] Error processing comment:", err);
         try {
-          // Sanitize: don't leak raw Claude responses or internal details in public comments
-          const safeMessage = err.message.includes("Claude returned")
-            ? "Failed to process the AI response. Please try rephrasing your request."
-            : err.message.replace(/Raw response.*$/s, "").trim();
+          // Never expose raw error messages in public PR comments — they may
+          // contain internal URLs, tokens, or file paths from Octokit/MCP/Node.
+          const safeMessage = "An unexpected error occurred. Please try rephrasing your request.";
+          console.error("[webhook] PR comment handler error detail:", err.message);
           await github.addPullRequestComment(
             prNumber,
             `🤖 **Fleet:** Error processing your request: ${safeMessage}`

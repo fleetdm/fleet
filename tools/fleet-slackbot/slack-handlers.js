@@ -256,7 +256,10 @@ async function handleRequest({ userText, userId, channelId, threadTs, messageTs,
     } else if (err.message?.includes("Claude returned invalid JSON")) {
       userMessage = "I had trouble processing that request. Please try rephrasing.";
     } else {
-      userMessage = err.message;
+      // Never expose raw error messages in Slack — they may contain internal
+      // URLs, tokens, or file paths from Octokit/MCP/Node.
+      console.error(`${logPrefix} Unhandled error detail:`, err.message);
+      userMessage = "An unexpected error occurred. Please try again or rephrase your request.";
     }
 
     // Post error as a new reply (triggers notification)
