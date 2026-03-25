@@ -284,11 +284,6 @@ type GenerateGitopsCommand struct {
 	AppConfig    *fleet.EnrichedAppConfig
 	SoftwareList map[uint]Software
 	ScriptList   map[uint]string
-
-	// Populated by generateSoftware in validation-only mode for use by
-	// doGitOpsPolicies to resolve policy title IDs.
-	ValidationInstallers []fleet.SoftwarePackageResponse
-	ValidationVPPApps    []fleet.VPPAppResponse
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -581,7 +576,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				team.ID,
 				teamFileName,
 				!cmd.CLI.Bool("print") && (cmd.CLI.String("key") == "" || cmd.CLI.String("key") == "software"),
-				false,
 			)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for %s: %s\n", teamFileName, err)
@@ -1662,41 +1656,153 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
+// fmaSlugResolver lazily fetches the Fleet Maintained Apps catalog and
+// resolves FMA slugs by bundle identifier or software title name.
+type fmaSlugResolver struct {
+	appsList   *maintained_apps.AppsList
+	byUniqueID map[string]string
+}
+
+func (r *fmaSlugResolver) resolve(bundleIdentifier *string, name string) (string, error) {
+	if r.byUniqueID == nil {
+		if r.appsList == nil {
+			var err error
+			r.appsList, err = maintained_apps.FetchAppsList(context.Background())
+			if err != nil {
+				return "", err
+			}
+		}
+		r.byUniqueID = make(map[string]string, len(r.appsList.Apps))
+		for _, a := range r.appsList.Apps {
+			r.byUniqueID[a.UniqueIdentifier] = a.Slug
+		}
+	}
+	// Look up slug by bundle identifier (macOS) or software title name (Windows).
+	// Windows FMAs don't have a bundle identifier; their unique_identifier
+	// in the manifest is the program name (e.g., "1Password").
+	lookupKey := ptr.ValOrZero(bundleIdentifier)
+	if lookupKey == "" {
+		lookupKey = name
+	}
+	return r.byUniqueID[lookupKey], nil
+}
+
+// isDuplicateInHouseApp returns true if this in-house app (.ipa) has already
+// been seen, tracking by filename. In-house apps generate two software titles
+// (one for iOS, one for iPadOS) so we deduplicate them.
+func isDuplicateInHouseApp(sw fleet.SoftwareTitleListResult, seen map[string]struct{}) bool {
+	if sw.SoftwarePackage == nil {
+		return false
+	}
+	if filepath.Ext(sw.SoftwarePackage.Name) != ".ipa" {
+		return false
+	}
+	if _, ok := seen[sw.SoftwarePackage.Name]; ok {
+		return true
+	}
+	seen[sw.SoftwarePackage.Name] = struct{}{}
+	return false
+}
+
 // generateSoftwareForValidation produces a minimal software spec from
 // server-side data for GitOps validation (policy install_software and patch
-// policy references). It wraps generateSoftware with forValidationOnly=true,
-// skipping expensive per-title API calls, scripts, icons, setup experience, etc.
+// policy references). It only calls ListSoftwareTitles (not GetSoftwareTitleByID
+// per title), skipping scripts, icons, setup experience, labels, etc.
 // It also returns SoftwarePackageResponse/VPPAppResponse slices with title IDs
-// for policy resolution in doGitOpsPolicies.
+// for policy title ID resolution in doGitOpsPolicies.
 func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet.EnrichedAppConfig, teamID uint) (
 	softwareSpec map[string]interface{},
 	installers []fleet.SoftwarePackageResponse,
 	vppApps []fleet.VPPAppResponse,
 	err error,
 ) {
-	cmd := &GenerateGitopsCommand{
-		Client:       client,
-		AppConfig:    appConfig,
-		SoftwareList: make(map[uint]Software),
+	query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=1000", teamID)
+	titles, err := client.ListSoftwareTitles(query)
+	if err != nil {
+		return nil, nil, nil, err
 	}
-	softwareSpec, err = cmd.generateSoftware("", teamID, "", false, true)
-	return softwareSpec, cmd.ValidationInstallers, cmd.ValidationVPPApps, err
+	if len(titles) == 0 {
+		return nil, nil, nil, nil
+	}
+
+	result := make(map[string]any)
+	packages := make([]map[string]any, 0)
+	appStoreApps := make([]map[string]any, 0)
+	fmas := make([]map[string]any, 0)
+	dedupeInHouseApps := make(map[string]struct{})
+	var slugResolver fmaSlugResolver
+
+	for _, sw := range titles {
+		if isDuplicateInHouseApp(sw, dedupeInHouseApps) {
+			continue
+		}
+
+		spec := make(map[string]interface{})
+		titleID := sw.ID
+
+		switch {
+		case sw.SoftwarePackage != nil:
+			if sw.HashSHA256 != nil {
+				spec["hash_sha256"] = *sw.HashSHA256
+			}
+			if sw.SoftwarePackage.PackageURL != nil {
+				spec["url"] = *sw.SoftwarePackage.PackageURL
+			}
+
+			installer := fleet.SoftwarePackageResponse{TitleID: &titleID}
+			if sw.SoftwarePackage.PackageURL != nil {
+				installer.URL = *sw.SoftwarePackage.PackageURL
+			}
+			if sw.HashSHA256 != nil {
+				installer.HashSHA256 = *sw.HashSHA256
+			}
+
+			if sw.SoftwarePackage.FleetMaintainedAppID != nil {
+				slug, err := slugResolver.resolve(sw.BundleIdentifier, sw.Name)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				spec["slug"] = slug
+				installer.Slug = slug
+				fmas = append(fmas, spec)
+			} else {
+				packages = append(packages, spec)
+			}
+			installers = append(installers, installer)
+
+		case sw.AppStoreApp != nil:
+			spec["app_store_id"] = sw.AppStoreApp.AppStoreID
+			appStoreApps = append(appStoreApps, spec)
+			vppApps = append(vppApps, fleet.VPPAppResponse{
+				TitleID:    &titleID,
+				AppStoreID: sw.AppStoreApp.AppStoreID,
+				Platform:   fleet.InstallableDevicePlatform(sw.AppStoreApp.Platform),
+			})
+		}
+	}
+
+	if len(packages) > 0 {
+		result["packages"] = packages
+	}
+	if len(appStoreApps) > 0 {
+		result["app_store_apps"] = appStoreApps
+	}
+	if len(fmas) > 0 {
+		result["fleet_maintained_apps"] = fmas
+	}
+
+	return result, installers, vppApps, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool, validationOnly bool) (map[string]interface{}, error) {
-	if !validationOnly && !cmd.AppConfig.License.IsPremium() {
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool) (map[string]interface{}, error) {
+	if !cmd.AppConfig.License.IsPremium() {
 		return nil, nil // software is premium-only
 	}
 
 	query := fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID)
-	if validationOnly {
-		query += "&per_page=1000"
-	}
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
-		if !validationOnly {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
-		}
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
 		return nil, err
 	}
 	if len(software) == 0 {
@@ -1706,25 +1812,23 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
 	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
 
-	if !validationOnly {
-		// Fill in InstallDuringSetup for software, as that information is only available
-		// from the setup experience endpoint
-		platforms := "macos,windows,linux,ios,ipados,android"
-		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platforms, teamID)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
-			return nil, err
+	// Fill in InstallDuringSetup for software, as that information is only available
+	// from the setup experience endpoint
+	platforms := "macos,windows,linux,ios,ipados,android"
+	setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platforms, teamID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
+		return nil, err
+	}
+	for _, software := range setupSoftware {
+		pkg := software.SoftwarePackage
+		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 		}
-		for _, software := range setupSoftware {
-			pkg := software.SoftwarePackage
-			if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
-			}
-			if software.AppStoreApp != nil {
-				appStoreApp := software.AppStoreApp
-				if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
-					setupSoftwareByPlatformAndAppID[appStoreApp.FullyQualifiedName()] = struct{}{}
-				}
+		if software.AppStoreApp != nil {
+			appStoreApp := software.AppStoreApp
+			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+				setupSoftwareByPlatformAndAppID[appStoreApp.FullyQualifiedName()] = struct{}{}
 			}
 		}
 	}
@@ -1733,53 +1837,38 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	packages := make([]map[string]any, 0)
 	appStoreApps := make([]map[string]any, 0)
 	fmas := make([]map[string]any, 0)
-	var appsList *maintained_apps.AppsList
-
-	// in-house apps generate two software titles for the same gitops entry: one
-	// for iOS and one for iPadOS. Use this set to deduplicate them (by filename,
-	// which is unique for a given team and platform).
-	dedupeInHouseAppsByFilename := make(map[string]struct{})
-	var byUniqueID map[string]string
+	dedupeInHouseApps := make(map[string]struct{})
+	var slugResolver fmaSlugResolver
 	for _, sw := range software {
+		if isDuplicateInHouseApp(sw, dedupeInHouseApps) {
+			continue
+		}
+
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
-			if isInHouseApp := filepath.Ext(sw.SoftwarePackage.Name) == ".ipa"; isInHouseApp {
-				if _, ok := dedupeInHouseAppsByFilename[sw.SoftwarePackage.Name]; ok {
-					// ignore duplicate in-house app
-					continue
-				}
-				dedupeInHouseAppsByFilename[sw.SoftwarePackage.Name] = struct{}{}
+			pkgName := ""
+			if sw.SoftwarePackage.Name != "" {
+				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
 			}
-
-			if validationOnly {
-				if sw.HashSHA256 != nil {
-					softwareSpec["hash_sha256"] = *sw.HashSHA256
-				}
+			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
+			if sw.HashSHA256 == nil {
+				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+					Filename: filePath,
+					Note:     fmt.Sprintf("Warning: software %s has no hash_sha256.  This is required for GitOps to work.  Please add it manually.", sw.Name),
+				})
+				softwareSpec["hash_sha256"] = cmd.AddComment(filePath, "TODO: Add your hash_sha256 here")
 			} else {
-				pkgName := ""
-				if sw.SoftwarePackage.Name != "" {
-					pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
+				softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
+				swEntry := Software{
+					Hash:    *sw.HashSHA256,
+					Comment: comment,
 				}
-				comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
-				if sw.HashSHA256 == nil {
-					cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-						Filename: filePath,
-						Note:     fmt.Sprintf("Warning: software %s has no hash_sha256.  This is required for GitOps to work.  Please add it manually.", sw.Name),
-					})
-					softwareSpec["hash_sha256"] = cmd.AddComment(filePath, "TODO: Add your hash_sha256 here")
-				} else {
-					softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
-					swEntry := Software{
-						Hash:    *sw.HashSHA256,
-						Comment: comment,
-					}
-					if sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil {
-						swEntry.MaintainedAppID = *sw.SoftwarePackage.FleetMaintainedAppID
-					}
+				if sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil {
+					swEntry.MaintainedAppID = *sw.SoftwarePackage.FleetMaintainedAppID
+				}
 
-					cmd.SoftwareList[sw.ID] = swEntry
-				}
+				cmd.SoftwareList[sw.ID] = swEntry
 			}
 		case sw.AppStoreApp != nil:
 			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID
@@ -1787,318 +1876,249 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				AppStoreId: sw.AppStoreApp.AppStoreID,
 			}
 		default:
-			if !validationOnly {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)
-			}
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)
 			continue
+		}
+
+		softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID, &teamID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software title %s: %s\n", sw.Name, err)
+			return nil, err
 		}
 
 		var slug string
 
-		// In validation mode, resolve URL and FMA slug from list result
-		// fields without calling GetSoftwareTitleByID per title. Also build
-		// SoftwarePackageResponse/VPPAppResponse slices with title IDs for
-		// policy resolution in doGitOpsPolicies.
-		if validationOnly {
-			titleID := sw.ID
-			if sw.SoftwarePackage != nil {
-				if sw.SoftwarePackage.PackageURL != nil {
-					softwareSpec["url"] = *sw.SoftwarePackage.PackageURL
+		if softwareTitle.SoftwarePackage != nil {
+			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
+
+			// Detect if this is a script package (.sh or .ps1 file)
+			// Script packages have the file contents as the install script internally,
+			// but these fields should NOT be exposed in GitOps YAML as they are not
+			// user-configurable for script packages.
+			isScriptPackage := sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" &&
+				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
+					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
+
+			var fmaInstallScriptModified, fmaUninstallScriptModified bool
+			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
+				slug, err = slugResolver.resolve(softwareTitle.BundleIdentifier, softwareTitle.Name)
+				if err != nil {
+					return nil, err
 				}
-				installer := fleet.SoftwarePackageResponse{TitleID: &titleID}
-				if sw.SoftwarePackage.PackageURL != nil {
-					installer.URL = *sw.SoftwarePackage.PackageURL
+				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
+					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
+					Slug: slug,
+				}, "", nil, nil)
+				if err != nil {
+					return nil, err
 				}
-				if sw.HashSHA256 != nil {
-					installer.HashSHA256 = *sw.HashSHA256
+
+				fmaInstallScriptModified = fma.InstallScript != softwareTitle.SoftwarePackage.InstallScript
+				fmaUninstallScriptModified = fma.UninstallScript != softwareTitle.SoftwarePackage.UninstallScript
+			}
+
+			shouldWriteScript := func(fmaID *uint, scriptContents string, scriptModified bool) bool {
+				if fmaID != nil {
+					return scriptModified && scriptContents != ""
 				}
-				if sw.SoftwarePackage.FleetMaintainedAppID != nil {
-					if byUniqueID == nil {
-						if appsList == nil {
-							appsList, err = maintained_apps.FetchAppsList(context.Background())
-							if err != nil {
-								return nil, err
-							}
-						}
-						byUniqueID = make(map[string]string, len(appsList.Apps))
-						for _, a := range appsList.Apps {
-							byUniqueID[a.UniqueIdentifier] = a.Slug
-						}
+
+				return scriptContents != ""
+			}
+
+			// Only output install_script, post_install_script, uninstall_script, and
+			// pre_install_query for non-script packages
+			if !isScriptPackage {
+				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
+					script := softwareTitle.SoftwarePackage.InstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["install_script"] = map[string]interface{}{
+						"path": path,
 					}
-					lookupKey := ptr.ValOrZero(sw.BundleIdentifier)
-					if lookupKey == "" {
-						lookupKey = sw.Name
-					}
-					slug = byUniqueID[lookupKey]
-					installer.Slug = slug
+					cmd.FilesToWrite[fileName] = script
 				}
-				cmd.ValidationInstallers = append(cmd.ValidationInstallers, installer)
-			} else if sw.AppStoreApp != nil {
-				cmd.ValidationVPPApps = append(cmd.ValidationVPPApps, fleet.VPPAppResponse{
-					TitleID:    &titleID,
-					AppStoreID: sw.AppStoreApp.AppStoreID,
-					Platform:   fleet.InstallableDevicePlatform(sw.AppStoreApp.Platform),
-				})
+
+				if softwareTitle.SoftwarePackage.PostInstallScript != "" {
+					script := softwareTitle.SoftwarePackage.PostInstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["post_install_script"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = script
+				}
+
+				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
+					script := softwareTitle.SoftwarePackage.UninstallScript
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["uninstall_script"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = script
+				}
+
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
+					query := softwareTitle.SoftwarePackage.PreInstallQuery
+					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["pre_install_query"] = map[string]interface{}{
+						"path": path,
+					}
+					cmd.FilesToWrite[fileName] = []map[string]interface{}{{
+						"query": query,
+					}}
+				}
+			}
+
+			if softwareTitle.SoftwarePackage.SelfService {
+				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
+			}
+
+			if softwareTitle.SoftwarePackage.URL != "" {
+				softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
+			}
+
+			if softwareTitle.SoftwarePackage.Categories != nil {
+				softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
+			}
+
+			if softwareTitle.DisplayName != "" {
+				softwareSpec["display_name"] = softwareTitle.DisplayName
+			}
+
+			// each package is listed once in software, so we can pull icon directly here
+			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
+				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["icon"] = map[string]interface{}{
+					"path": path,
+				}
+				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				// TODO write files immediately rather than queueing them up
+				cmd.FilesToWrite[fileName] = icon
+			}
+		}
+
+		if softwareTitle.AppStoreApp != nil {
+			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
+			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
+			if softwareTitle.AppStoreApp.SelfService {
+				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
+			}
+
+			if softwareTitle.AppStoreApp.Categories != nil {
+				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
+			}
+
+			if softwareTitle.DisplayName != "" {
+				softwareSpec["display_name"] = softwareTitle.DisplayName
+			}
+
+			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
+				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["icon"] = map[string]any{
+					"path": path,
+				}
+				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				// TODO write files immediately rather than queueing them up
+				cmd.FilesToWrite[fileName] = icon
+			}
+
+			config := softwareTitle.AppStoreApp.Configuration
+			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
+				// all per-team software-related artifacts are generated in lib/{team}/software
+				fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["configuration"] = map[string]any{
+					"path": path,
+				}
+
+				// format config because it is received with incorrect indentation
+				var buf bytes.Buffer
+				err := json.Indent(&buf, softwareTitle.AppStoreApp.Configuration, "", "  ")
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				cmd.FilesToWrite[fileName] = buf.Bytes()
+			}
+
+			// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
+			// only VPP apps (those with an AdamID) support auto-update schedules.
+			if softwareTitle.AutoUpdateEnabled != nil || softwareTitle.AutoUpdateStartTime != nil || softwareTitle.AutoUpdateEndTime != nil {
+				platform := softwareTitle.AppStoreApp.Platform
+				adamID := softwareTitle.AppStoreApp.VPPAppID.AdamID
+				if (platform == fleet.IOSPlatform || platform == fleet.IPadOSPlatform) && adamID != "" {
+					if softwareTitle.AutoUpdateEnabled != nil {
+						softwareSpec["auto_update_enabled"] = *softwareTitle.AutoUpdateEnabled
+					}
+					if softwareTitle.AutoUpdateStartTime != nil {
+						softwareSpec["auto_update_window_start"] = *softwareTitle.AutoUpdateStartTime
+					}
+					if softwareTitle.AutoUpdateEndTime != nil {
+						softwareSpec["auto_update_window_end"] = *softwareTitle.AutoUpdateEndTime
+					}
+				}
+			}
+		}
+
+		var labels []fleet.SoftwareScopeLabel
+		var labelKey string
+		if softwareTitle.SoftwarePackage != nil {
+			if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
+				labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
+				labelKey = "labels_include_any"
+			}
+			if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
+				labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
+				labelKey = "labels_exclude_any"
+			}
+			if len(softwareTitle.SoftwarePackage.LabelsIncludeAll) > 0 {
+				labels = softwareTitle.SoftwarePackage.LabelsIncludeAll
+				labelKey = "labels_include_all"
+			}
+			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
+				softwareSpec["setup_experience"] = true
 			}
 		} else {
+			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()
 
-			softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID, &teamID)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software title %s: %s\n", sw.Name, err)
-				return nil, err
+			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
+				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
+				labelKey = "labels_include_any"
 			}
-
-			if softwareTitle.SoftwarePackage != nil {
-				filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
-
-				// Detect if this is a script package (.sh or .ps1 file)
-				// Script packages have the file contents as the install script internally,
-				// but these fields should NOT be exposed in GitOps YAML as they are not
-				// user-configurable for script packages.
-				isScriptPackage := sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" &&
-					(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
-						strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
-
-				var fmaInstallScriptModified, fmaUninstallScriptModified bool
-				if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
-					if byUniqueID == nil {
-						if appsList == nil {
-							var err error
-							appsList, err = maintained_apps.FetchAppsList(context.Background())
-							if err != nil {
-								return nil, err
-							}
-						}
-						byUniqueID = make(map[string]string, len(appsList.Apps))
-						for _, a := range appsList.Apps {
-							byUniqueID[a.UniqueIdentifier] = a.Slug
-						}
-					}
-
-					// Look up slug by bundle identifier (macOS) or software title name (Windows).
-					// Windows FMAs don't have a bundle identifier; their unique_identifier
-					// in the manifest is the program name (e.g., "1Password").
-					lookupKey := ptr.ValOrZero(softwareTitle.BundleIdentifier)
-					if lookupKey == "" {
-						lookupKey = softwareTitle.Name
-					}
-					slug = byUniqueID[lookupKey]
-					fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
-						ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
-						Slug: slug,
-					}, "", nil, nil)
-					if err != nil {
-						return nil, err
-					}
-
-					fmaInstallScriptModified = fma.InstallScript != softwareTitle.SoftwarePackage.InstallScript
-					fmaUninstallScriptModified = fma.UninstallScript != softwareTitle.SoftwarePackage.UninstallScript
-				}
-
-				shouldWriteScript := func(fmaID *uint, scriptContents string, scriptModified bool) bool {
-					if fmaID != nil {
-						return scriptModified && scriptContents != ""
-					}
-
-					return scriptContents != ""
-				}
-
-				// Only output install_script, post_install_script, uninstall_script, and
-				// pre_install_query for non-script packages
-				if !isScriptPackage {
-					if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
-						script := softwareTitle.SoftwarePackage.InstallScript
-						fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
-						path := fmt.Sprintf("../%s", fileName)
-						softwareSpec["install_script"] = map[string]interface{}{
-							"path": path,
-						}
-						cmd.FilesToWrite[fileName] = script
-					}
-
-					if softwareTitle.SoftwarePackage.PostInstallScript != "" {
-						script := softwareTitle.SoftwarePackage.PostInstallScript
-						fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
-						path := fmt.Sprintf("../%s", fileName)
-						softwareSpec["post_install_script"] = map[string]interface{}{
-							"path": path,
-						}
-						cmd.FilesToWrite[fileName] = script
-					}
-
-					if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
-						script := softwareTitle.SoftwarePackage.UninstallScript
-						fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
-						path := fmt.Sprintf("../%s", fileName)
-						softwareSpec["uninstall_script"] = map[string]interface{}{
-							"path": path,
-						}
-						cmd.FilesToWrite[fileName] = script
-					}
-
-					if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
-						query := softwareTitle.SoftwarePackage.PreInstallQuery
-						fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
-						path := fmt.Sprintf("../%s", fileName)
-						softwareSpec["pre_install_query"] = map[string]interface{}{
-							"path": path,
-						}
-						cmd.FilesToWrite[fileName] = []map[string]interface{}{{
-							"query": query,
-						}}
-					}
-				}
-
-				if softwareTitle.SoftwarePackage.SelfService {
-					softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
-				}
-
-				if softwareTitle.SoftwarePackage.URL != "" {
-					softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
-				}
-
-				if softwareTitle.SoftwarePackage.Categories != nil {
-					softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
-				}
-
-				if softwareTitle.DisplayName != "" {
-					softwareSpec["display_name"] = softwareTitle.DisplayName
-				}
-
-				// each package is listed once in software, so we can pull icon directly here
-				if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
-					fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
-					path := fmt.Sprintf("../%s", fileName)
-					softwareSpec["icon"] = map[string]interface{}{
-						"path": path,
-					}
-					icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
-					if err != nil {
-						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
-						return nil, err
-					}
-
-					// TODO write files immediately rather than queueing them up
-					cmd.FilesToWrite[fileName] = icon
-				}
+			if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
+				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
+				labelKey = "labels_exclude_any"
 			}
-
-			if softwareTitle.AppStoreApp != nil {
-				filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
-				softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
-				if softwareTitle.AppStoreApp.SelfService {
-					softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
-				}
-
-				if softwareTitle.AppStoreApp.Categories != nil {
-					softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
-				}
-
-				if softwareTitle.DisplayName != "" {
-					softwareSpec["display_name"] = softwareTitle.DisplayName
-				}
-
-				if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
-					fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
-					path := fmt.Sprintf("../%s", fileName)
-					softwareSpec["icon"] = map[string]any{
-						"path": path,
-					}
-					icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
-					if err != nil {
-						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
-						return nil, err
-					}
-
-					// TODO write files immediately rather than queueing them up
-					cmd.FilesToWrite[fileName] = icon
-				}
-
-				config := softwareTitle.AppStoreApp.Configuration
-				if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
-					// all per-team software-related artifacts are generated in lib/{team}/software
-					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
-					path := fmt.Sprintf("../%s", fileName)
-					softwareSpec["configuration"] = map[string]any{
-						"path": path,
-					}
-
-					// format config because it is received with incorrect indentation
-					var buf bytes.Buffer
-					err := json.Indent(&buf, softwareTitle.AppStoreApp.Configuration, "", "  ")
-					if err != nil {
-						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
-						return nil, err
-					}
-
-					cmd.FilesToWrite[fileName] = buf.Bytes()
-				}
-
-				// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
-				// only VPP apps (those with an AdamID) support auto-update schedules.
-				if softwareTitle.AutoUpdateEnabled != nil || softwareTitle.AutoUpdateStartTime != nil || softwareTitle.AutoUpdateEndTime != nil {
-					platform := softwareTitle.AppStoreApp.Platform
-					adamID := softwareTitle.AppStoreApp.VPPAppID.AdamID
-					if (platform == fleet.IOSPlatform || platform == fleet.IPadOSPlatform) && adamID != "" {
-						if softwareTitle.AutoUpdateEnabled != nil {
-							softwareSpec["auto_update_enabled"] = *softwareTitle.AutoUpdateEnabled
-						}
-						if softwareTitle.AutoUpdateStartTime != nil {
-							softwareSpec["auto_update_window_start"] = *softwareTitle.AutoUpdateStartTime
-						}
-						if softwareTitle.AutoUpdateEndTime != nil {
-							softwareSpec["auto_update_window_end"] = *softwareTitle.AutoUpdateEndTime
-						}
-					}
-				}
+			if len(softwareTitle.AppStoreApp.LabelsIncludeAll) > 0 {
+				labels = softwareTitle.AppStoreApp.LabelsIncludeAll
+				labelKey = "labels_include_all"
 			}
-
-			var labels []fleet.SoftwareScopeLabel
-			var labelKey string
-			if softwareTitle.SoftwarePackage != nil {
-				if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
-					labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
-					labelKey = "labels_include_any"
-				}
-				if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
-					labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
-					labelKey = "labels_exclude_any"
-				}
-				if len(softwareTitle.SoftwarePackage.LabelsIncludeAll) > 0 {
-					labels = softwareTitle.SoftwarePackage.LabelsIncludeAll
-					labelKey = "labels_include_all"
-				}
-				if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
-					softwareSpec["setup_experience"] = true
-				}
-			} else {
-				platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()
-
-				if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
-					labels = softwareTitle.AppStoreApp.LabelsIncludeAny
-					labelKey = "labels_include_any"
-				}
-				if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
-					labels = softwareTitle.AppStoreApp.LabelsExcludeAny
-					labelKey = "labels_exclude_any"
-				}
-				if len(softwareTitle.AppStoreApp.LabelsIncludeAll) > 0 {
-					labels = softwareTitle.AppStoreApp.LabelsIncludeAll
-					labelKey = "labels_include_all"
-				}
-				if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
-					softwareSpec["setup_experience"] = true
-				}
+			if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
+				softwareSpec["setup_experience"] = true
 			}
-			if len(labels) > 0 {
-				labelsList := make([]string, len(labels))
-				for i, label := range labels {
-					labelsList[i] = label.LabelName
-				}
-				softwareSpec[labelKey] = labelsList
+		}
+		if len(labels) > 0 {
+			labelsList := make([]string, len(labels))
+			for i, label := range labels {
+				labelsList[i] = label.LabelName
 			}
-
-		} // end if !validationOnly
+			softwareSpec[labelKey] = labelsList
+		}
 
 		switch {
 		case sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil:

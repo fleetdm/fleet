@@ -1142,6 +1142,3 @@ func applyVPPTokenAssignmentIfNeeded(
 	}
 	return nil
 }
-
-// buildExceptedTeamSoftwareResponses fetches a team's software titles and
-// builds SoftwarePackageResponse/VPPAppResponse slices with title IDs, used by

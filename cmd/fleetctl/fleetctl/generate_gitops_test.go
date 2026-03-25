@@ -1142,7 +1142,7 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 	cmd.FilesToWrite["fleets/test.yml"] = map[string]any{}
 
 	// generate software for team 1
-	res, err := cmd.generateSoftware("fleets/test.yml", 1, "team-a", false, false)
+	res, err := cmd.generateSoftware("fleets/test.yml", 1, "team-a", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -1529,7 +1529,7 @@ func TestGenerateSoftware(t *testing.T) {
 		SoftwareList: make(map[uint]Software),
 	}
 
-	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false, false)
+	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
 	var software map[string]any
@@ -1608,7 +1608,7 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 		SoftwareList: make(map[uint]Software),
 	}
 
-	softwareRaw, err := cmd.generateSoftware("team.yml", 2, "script-team", false, false)
+	softwareRaw, err := cmd.generateSoftware("team.yml", 2, "script-team", false)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
 
