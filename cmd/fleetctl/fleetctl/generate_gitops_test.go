@@ -2058,7 +2058,7 @@ func TestGenerateMDMVPPTokens(t *testing.T) {
 				Client:       wrapper,
 				CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 				Messages:     Messages{},
-				FilesToWrite: make(map[string]interface{}),
+				FilesToWrite: make(map[string]any),
 				AppConfig:    appConfig,
 				ScriptList:   make(map[uint]string),
 			}
