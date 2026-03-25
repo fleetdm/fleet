@@ -1,10 +1,24 @@
 # Codex ships as a .zip of portable binaries (winget NestedInstallerType: portable).
 # INSTALLER_PATH points at the downloaded .zip.
+# Prefer Program Files (matches Fleet validation + managed installs); fall back to %LOCALAPPDATA% without admin.
 
 $ErrorActionPreference = "Stop"
 $zipPath = "${env:INSTALLER_PATH}"
-$installRoot = Join-Path $env:LOCALAPPDATA "Programs\Codex CLI"
+$machineRoot = Join-Path $env:ProgramFiles "Codex CLI"
+$userRoot = Join-Path $env:LOCALAPPDATA "Programs\Codex CLI"
 $extractDir = Join-Path $env:TEMP ("codex-winget-extract-" + [Guid]::NewGuid().ToString())
+
+if (-not (Test-Path -LiteralPath $machineRoot)) {
+    try {
+        New-Item -ItemType Directory -Path $machineRoot -Force -ErrorAction Stop | Out-Null
+        $installRoot = $machineRoot
+    } catch {
+        New-Item -ItemType Directory -Path $userRoot -Force | Out-Null
+        $installRoot = $userRoot
+    }
+} else {
+    $installRoot = $machineRoot
+}
 
 try {
     if (-not (Test-Path -LiteralPath $zipPath)) {

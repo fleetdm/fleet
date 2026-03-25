@@ -355,6 +355,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.Queries = maintained_apps.FMAQueries{
 		Exists: fmt.Sprintf(existsTemplate, name, publisher),
 	}
+	if input.ExistsQuery != "" {
+		out.Queries.Exists = input.ExistsQuery
+	}
 	out.InstallScript = installScript
 	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
 	if err != nil {
@@ -450,6 +453,8 @@ type inputApp struct {
 	ProgramPublisher    string `json:"program_publisher"`
 	UninstallType       string `json:"uninstall_type"`
 	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
+	// ExistsQuery overrides the default programs-table exists query (e.g. portable zip installs).
+	ExistsQuery string `json:"exists_query,omitempty"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
