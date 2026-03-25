@@ -3,7 +3,8 @@
     {
       "version": "0.18.2",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Ollama' AND publisher = 'Ollama';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Ollama' AND publisher = 'Ollama';",
+        "patch": ""
       },
       "installer_url": "https://github.com/ollama/ollama/releases/download/v0.18.2/OllamaSetup.exe",
       "install_script_ref": "e14c71ee",

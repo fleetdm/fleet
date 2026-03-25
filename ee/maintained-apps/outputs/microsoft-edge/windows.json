@@ -3,7 +3,8 @@
     {
       "version": "146.0.3856.78",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation';",
+        "patch": ""
       },
       "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/1bbe93ec-f5ce-4774-8497-e7d2bb412aa8/MicrosoftEdgeEnterpriseX64.msi",
       "install_script_ref": "8959087b",

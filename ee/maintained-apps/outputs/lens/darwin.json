@@ -3,7 +3,8 @@
     {
       "version": "2026.3.160808",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens';",
+        "patch": ""
       },
       "installer_url": "https://api.k8slens.dev/binaries/Lens-2026.3.160808-latest-arm64.dmg",
       "install_script_ref": "c4bea9a4",

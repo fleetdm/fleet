@@ -3,7 +3,8 @@
     {
       "version": "9.59.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.okta.mobile';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.okta.mobile';",
+        "patch": ""
       },
       "installer_url": "https://okta.okta.com/artifacts/OKTA_VERIFY_MACOS/9.59.0/OktaVerify-9.59.0-6053-5038b2d.pkg",
       "install_script_ref": "af62676c",

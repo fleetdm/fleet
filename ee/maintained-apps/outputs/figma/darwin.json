@@ -3,7 +3,8 @@
     {
       "version": "126.2.9",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';",
+        "patch": ""
       },
       "installer_url": "https://desktop.figma.com/mac-arm/Figma-126.2.9.zip",
       "install_script_ref": "3c42d2b3",

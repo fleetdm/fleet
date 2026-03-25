@@ -3,7 +3,8 @@
     {
       "version": "126.2.9",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Figma' AND publisher = 'Figma, Inc.';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Figma' AND publisher = 'Figma, Inc.';",
+        "patch": ""
       },
       "installer_url": "https://desktop.figma.com/win/build/Figma-126.2.9.exe",
       "install_script_ref": "442d71b3",
