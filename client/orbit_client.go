@@ -228,6 +228,13 @@ func (oc *OrbitClient) RestartTriggered() bool {
 }
 
 // closeIdleConnections attempts to close idle connections from the pool every 55 minutes.
+//
+// Some load balancers (e.g. AWS ELB) have a maximum lifetime for a connection
+// (no matter if the connection is active or not) and will forcefully close the
+// connection causing errors in the client (e.g. https://github.com/fleetdm/fleet/issues/18783).
+// To prevent these errors, we will attempt to cleanup idle connections every 55
+// minutes to not let these connection grow too old. (AWS ELB's default value for maximum
+// lifetime of a connection is 3600 seconds.)
 func (oc *OrbitClient) closeIdleConnections() {
 	oc.lastIdleConnectionsCleanupMu.Lock()
 	defer oc.lastIdleConnectionsCleanupMu.Unlock()
@@ -316,10 +323,14 @@ func (oc *OrbitClient) InterruptConfigReceivers(err error) {
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
+// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
+// to reduce traffic to the Fleet server.
+// Upon network errors, this method will retry the get config request (every 30 seconds).
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	oc.configCache.mu.Lock()
 	defer oc.configCache.mu.Unlock()
 
+	// If time-to-live passed, we update the config cache
 	now := time.Now()
 	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
 		verb, path := "POST", "/api/fleet/orbit/config"
@@ -327,6 +338,7 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 			resp fleet.OrbitConfig
 			err  error
 		)
+		// Retry until we don't get a network error or a 5XX error.
 		_ = retry.Do(func() error {
 			err = oc.authenticatedRequest(verb, path, &fleet.OrbitGetConfigRequest{}, &resp)
 			var (
@@ -342,7 +354,7 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 					oc.onGetConfigErrFns.OnNetErrFunc(err)
 					oc.lastNetErrOnGetConfigLogged = now
 				}
-				return err
+				return err // retry on network or server 5XX errors
 			}
 			return nil
 		}, retry.WithInterval(configRetryOnNetworkError))
@@ -468,6 +480,7 @@ func (f *NullFileResponse) Handle(resp *http.Response) error {
 }
 
 // DownloadAndDiscardSoftwareInstaller downloads the software installer and discards it.
+// This method is used during load testing by osquery-perf.
 func (oc *OrbitClient) DownloadAndDiscardSoftwareInstaller(installerID uint) error {
 	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
 	resp := NullFileResponse{}
@@ -481,6 +494,7 @@ func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
 	err := oc.request(verb, path, nil, nil)
 	if err == nil || IsNotFoundErr(err) {
+		// notFound is ok, it means an old server without the capabilities header
 		return nil
 	}
 	return err
@@ -511,6 +525,8 @@ func (oc *OrbitClient) enroll() (string, error) {
 // want to re-enroll at the same time.
 var enrollLock sync.Mutex
 
+// getNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
+// otherwise it enrolls the host with Fleet and saves the node key to disk
 func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	if oc.TestNodeKey != "" {
 		return oc.TestNodeKey, nil
@@ -534,6 +550,9 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			orbitNodeKey_, err = oc.enrollAndWriteNodeKeyFile()
 			return err
 		},
+		// The below configuration means the following retry intervals (exponential backoff):
+		// 10s, 20s, 40s, 80s, 160s and then return the failure (max attempts = 6)
+		// thus executing no more than ~6 enroll request failures every ~5 minutes.
 		retry.WithInterval(orbitEnrollRetryInterval()),
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
 		retry.WithBackoffMultiplier(constant.OrbitEnrollBackoffMultiplier),
@@ -541,8 +560,14 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			log.Info().Err(err).Msg("orbit enroll attempt failed")
 			switch {
 			case IsNotFoundErr(err):
+				// Do not retry if the endpoint does not exist.
 				return retry.ErrorOutcomeDoNotRetry
 			case errors.Is(err, ErrEndUserAuthRequired):
+				// If we get an ErrEndUserAuthRequired error, then the user
+				// needs to authenticate with the identity provider.
+				//
+				// Open a browser window to the sign-on page and
+				// then keep retrying until they authenticate.
 				log.Debug().Msg("enroll unauthenticated, waiting for end-user to authenticate via SSO")
 				if !oc.initiatedIdpAuth {
 					if oc.openSSOWindow == nil {
@@ -557,6 +582,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 					}
 					oc.initiatedIdpAuth = true
 				}
+				// Sleep for 20 seconds, making the total retry interval 30 seconds
 				time.Sleep(20 * time.Second)
 				return retry.ErrorOutcomeResetAttempts
 			default:
@@ -589,14 +615,17 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 	}
 
 	if runtime.GOOS == "windows" {
+		// creating the secret file with empty content
 		if err := os.WriteFile(oc.nodeKeyFilePath, nil, constant.DefaultFileMode); err != nil {
 			return "", fmt.Errorf("create orbit node key file: %w", err)
 		}
+		// restricting file access
 		if err := platform.ChmodRestrictFile(oc.nodeKeyFilePath); err != nil {
 			return "", fmt.Errorf("apply ACLs: %w", err)
 		}
 	}
 
+	// writing raw key material to the acl-ready secret file
 	if err := os.WriteFile(oc.nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("write orbit node key file: %w", err)
 	}

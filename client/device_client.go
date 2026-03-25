@@ -23,6 +23,8 @@ type DeviceClient struct {
 	fleetAlternativeBrowserHostFromServer string
 
 	// fleetAlternativeBrowserHost is an alternative host to use for the Fleet Desktop URLs generated for the browser.
+	//
+	// This is needed when the host that Orbit will connect to is different from the host that will connect via the browser.
 	fleetAlternativeBrowserHost string
 
 	// if set and a request fails with ErrUnauthenticated, the client will call
@@ -51,6 +53,10 @@ func (dc *DeviceClient) WithInvalidTokenRetry(fn func() string) {
 	dc.invalidTokenRetryFunc = fn
 }
 
+// request performs the request, resolving the pathFmt that should contain a %s
+// verb to be replaced with the token, or no verb at all if the token is "-"
+// (the pathFmt is used as-is as path). It will retry if the request fails due
+// to an invalid token and the invalidTokenRetryFunc field is set.
 func (dc *DeviceClient) request(verb, pathFmt, token, query string, params any, responseDest any) error {
 	const maxAttempts = 4
 	var attempt int
@@ -63,6 +69,7 @@ func (dc *DeviceClient) request(verb, pathFmt, token, query string, params any, 
 		}
 		reqErr := dc.requestAttempt(verb, path, query, params, responseDest)
 		if attempt >= maxAttempts || dc.invalidTokenRetryFunc == nil || token == "-" || !errors.Is(reqErr, ErrUnauthenticated) {
+			// no retry possible, return the result
 			if reqErr != nil {
 				log.Debug().Msgf("not retrying API error; attempt=%d, hook set=%t, token unset=%t, error is auth=%t",
 					attempt, dc.invalidTokenRetryFunc != nil, token == "-", errors.Is(reqErr, ErrUnauthenticated))
@@ -109,6 +116,8 @@ func (dc *DeviceClient) requestAttempt(verb string, path string, query string, p
 	return dc.ParseResponse(verb, path, response, responseDest)
 }
 
+// getAlternativeBrowserHostSetting overrides portions of the provided URL based on the values of
+// fleetAlternativeBrowserHostFromServer or fleetAlternativeBrowserHost
 func (dc *DeviceClient) getAlternativeBrowserHostSetting() string {
 	if dc.fleetAlternativeBrowserHostFromServer != "" {
 		return dc.fleetAlternativeBrowserHostFromServer
@@ -177,6 +186,7 @@ func (dc *DeviceClient) Ping() error {
 }
 
 // listDevicePoliciesResponse is a local response type for deserializing the device policies response.
+// Definition duplicated for now (orbit should not depend server/service).
 type listDevicePoliciesResponse struct {
 	Err      error               `json:"error,omitempty"`
 	Policies []*fleet.HostPolicy `json:"policies"`
