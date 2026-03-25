@@ -608,6 +608,7 @@ func TestRun(t *testing.T) {
 		ChangedFilesToday:     "",
 		ChangedFilesYesterday: "",
 		DateStr:               "2024-01-03",
+		YesterdayStr:          "2024-01-02",
 		GeneratedTimestamp:    "2024-01-03T00:00:00Z",
 		RunTime:               time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
 	}
@@ -696,6 +697,7 @@ func TestRunWithDeltaGeneration(t *testing.T) {
 		ChangedFilesToday:     changedTodayFile,
 		ChangedFilesYesterday: changedYesterdayFile,
 		DateStr:               "2024-01-03",
+		YesterdayStr:          "2024-01-02",
 		GeneratedTimestamp:    "2024-01-03T00:00:00Z",
 		RunTime:               time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
 	}
@@ -804,6 +806,7 @@ func TestRunWithVersionFiltering(t *testing.T) {
 				ChangedFilesToday:     "",
 				ChangedFilesYesterday: "",
 				DateStr:               "2024-01-03",
+				YesterdayStr:          "2024-01-02",
 				GeneratedTimestamp:    "2024-01-03T00:00:00Z",
 				RunTime:               time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
 			}

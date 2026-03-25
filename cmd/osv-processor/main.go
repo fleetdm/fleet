@@ -65,6 +65,7 @@ type Config struct {
 	ChangedFilesToday     string
 	ChangedFilesYesterday string
 	DateStr               string
+	YesterdayStr          string
 	GeneratedTimestamp    string
 	RunTime               time.Time
 }
@@ -97,6 +98,7 @@ func main() {
 		ChangedFilesToday:     *changedFilesToday,
 		ChangedFilesYesterday: *changedFilesYesterday,
 		DateStr:               runTime.Format("2006-01-02"),
+		YesterdayStr:          runTime.AddDate(0, 0, -1).Format("2006-01-02"),
 		GeneratedTimestamp:    runTime.Format(time.RFC3339),
 		RunTime:               runTime,
 	}
@@ -322,15 +324,14 @@ func run(cfg Config) error {
 	}
 
 	if generateYesterdayDeltas && len(yesterdayArtifacts) > 0 {
-		yesterdayStr := cfg.RunTime.AddDate(0, 0, -1).Format("2006-01-02")
-		log.Printf("\nWriting yesterday's delta artifacts (%s)...", yesterdayStr)
+		log.Printf("\nWriting yesterday's delta artifacts (%s)...", cfg.YesterdayStr)
 		for ver, artifact := range yesterdayArtifacts {
 			artifact.Generated = cfg.GeneratedTimestamp
 			artifact.TotalCVEs = countTotalCVEs(artifact)
 			artifact.TotalPackages = len(artifact.Vulnerabilities)
 
 			outputFile := filepath.Join(cfg.OutputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
-				strings.ReplaceAll(ver, ".", ""), yesterdayStr))
+				strings.ReplaceAll(ver, ".", ""), cfg.YesterdayStr))
 
 			if err := writeArtifact(outputFile, artifact); err != nil {
 				return fmt.Errorf("failed to write yesterday's delta for Ubuntu %s: %w", ver, err)
