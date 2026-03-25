@@ -409,7 +409,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   };
 
   const onResetSessions = () => {
-    const isResettingCurrentUser = currentUser?.id === userEditing.apiId;
+    const isResettingCurrentUser =
+      userEditing.type === "user" && currentUser?.id === userEditing.apiId;
 
     usersAPI
       .deleteSessions(userEditing.apiId)
