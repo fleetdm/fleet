@@ -160,7 +160,7 @@ func testOnlyReturnExistingNotFound(t *testing.T, env *testEnv) {
 	require.Error(t, err)
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "error:accountDoesNotExist")
+	require.Contains(t, acmeErr.Type, "error:accountDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
 	require.False(t, didCreate)
 }
 
@@ -190,7 +190,7 @@ func testAccountCreationLimit(t *testing.T, env *testEnv) {
 	require.Error(t, err)
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "error/tooManyAccounts")
+	require.Contains(t, acmeErr.Type, "error/tooManyAccounts") // nolint:nilaway // cannot be nil due to previous require
 }
 
 func testAccountRevoked(t *testing.T, env *testEnv) {
@@ -221,7 +221,7 @@ func testAccountRevoked(t *testing.T, env *testEnv) {
 	require.Error(t, err)
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "error/accountRevoked")
+	require.Contains(t, acmeErr.Type, "error/accountRevoked") // nolint:nilaway // cannot be nil due to previous require
 }
 
 func testInvalidEnrollmentID(t *testing.T, env *testEnv) {

@@ -35,7 +35,7 @@ func testGetACMEEnrollment(t *testing.T, env *testEnv) {
 	require.Nil(t, enrollment)
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
+	require.Contains(t, acmeErr.Type, "error/enrollmentNotFound") // nolint:nilaway // cannot be nil due to previous require
 
 	// existing and valid
 	enrollValid := &types.Enrollment{}
