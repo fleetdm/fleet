@@ -1046,9 +1046,9 @@ the way that the Fleet server works.
 			// Inject the activity bounded context into the main service
 			svc.SetActivityService(activitySvc)
 
-			// Bootstrap ACME bounded context
+			// Bootstrap ACME service modiule
 			acmeSvc, acmeRoutes := createACMEServiceModule(ds, dbConns, redisPool, logger)
-			// Inject the ACME bounded context into the main service
+			// Inject the ACME service modiule into the main service
 			svc.SetACMEService(acmeSvc)
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the

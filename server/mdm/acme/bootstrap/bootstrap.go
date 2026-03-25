@@ -1,4 +1,4 @@
-// Package bootstrap provides the public entry point for the ACME bounded context.
+// Package bootstrap provides the public entry point for the ACME service modiule.
 // It wires together internal components and exposes them for use in serve.go.
 package bootstrap
 
@@ -14,7 +14,7 @@ import (
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
-// New creates a new ACME bounded context and returns its service and route handler.
+// New creates a new ACME service modiule and returns its service and route handler.
 func New(
 	dbConns *platform_mysql.DBConnections,
 	redisPool fleet.RedisPool,

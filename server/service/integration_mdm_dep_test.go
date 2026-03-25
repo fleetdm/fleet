@@ -3281,12 +3281,11 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	require.NoError(t, err)
 
 	var expectIdent string
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	stmt := `SELECT path_identifier FROM acme_enrollments WHERE host_identifier = ?`
-	// 	err := sqlx.GetContext(context.Background(), q, &expectIdent, stmt, appleSiliconDevice.SerialNumber)
-	// 	return err
-	// })
-	expectIdent = "foobar" // TODO: delete this and uncoment above
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `SELECT path_identifier FROM acme_enrollments WHERE host_identifier = ?`
+		err := sqlx.GetContext(context.Background(), q, &expectIdent, stmt, appleSiliconDevice.SerialNumber)
+		return err
+	})
 
 	require.Contains(t, string(appleSiliconDevice.EnrollInfo.RawProfile), "/api/mdm/acme/"+expectIdent+"/directory", "enrollment profile should contain the ACME directory URL")
 
