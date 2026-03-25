@@ -144,18 +144,6 @@ func gitopsCommand() *cli.Command {
 				return errors.New("no license struct found in app config")
 			}
 
-			// We need the controls from no-team.yml to apply them when applying the global app config.
-			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
-			if err != nil {
-				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
-			}
-			// Log a deprecation warning if the user is still using no-team.yml
-			if noTeamPresent && noTeamFilename == "no-team.yml" {
-				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-					logf("[!] no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'.\n")
-				}
-			}
-
 			var originalABMConfig []any
 			var originalVPPConfig []any
 			var teamNames []string
@@ -209,9 +197,21 @@ func gitopsCommand() *cli.Command {
 				}
 			}
 
+			// Check if a no-team/unassigned file is present (by filename, before parsing).
+			noTeamPresent := false
+			for _, flFilename := range flFilenames.Value() {
+				fn := filepath.Base(flFilename)
+				if fn == "no-team.yml" || fn == "unassigned.yml" {
+					noTeamPresent = true
+					break
+				}
+			}
+
 			// When software is excepted from GitOps, pre-fetch server-side software
 			// for all existing teams (including "No team") so the parser can validate
-			// policy references, and DoGitOps can resolve policy title IDs.
+			// policy references, and DoGitOps can resolve policy title IDs. This must
+			// happen before extractControlsForNoTeam, which parses the no-team file
+			// and would otherwise fail validating policy software references.
 			if appConfig.GitOpsConfig.Exceptions.Software {
 				syntheticSoftwareByTeam := make(map[string]json.RawMessage)
 				for teamName, teamID := range teamIDLookup {
@@ -250,6 +250,19 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 				gitOpsOpts.SyntheticSoftwareByTeam = syntheticSoftwareByTeam
+			}
+
+			// We need the controls from no-team.yml to apply them when applying the global app config.
+			noTeamControls, noTeamParsed, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
+			if err != nil {
+				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
+			}
+			noTeamPresent = noTeamParsed
+			// Log a deprecation warning if the user is still using no-team.yml
+			if noTeamPresent && noTeamFilename == "no-team.yml" {
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logf("[!] no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'.\n")
+				}
 			}
 
 			// Used for keeping track of all label changes in this run.
