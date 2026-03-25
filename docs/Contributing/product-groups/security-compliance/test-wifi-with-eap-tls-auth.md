@@ -7,7 +7,7 @@ Requirements:
 
 > Instructions are for macOS
 
-These instructions cover end to end setup of WPA Enterprise with EAP TLS and deployment of client certificates with Fleet. FreeRADIUS server comes with built-in certificates so if you don't want to add micromdm/scep CA to Fleet and deploy client certificates, you can skip that step.
+These instructions cover end to end setup of WPA Enterprise with EAP TLS and deployment of client certificates with Fleet on Android hosts. FreeRADIUS server comes with built-in certificates so if you don't want to add micromdm/scep CA to Fleet and deploy client certificates, you can skip that step.
 
 ## 1. Install FreeRADIUS
 
@@ -144,93 +144,6 @@ Runs in foreground with debug output. Look for `Ready to process requests`.
 
 To stop server use: `Ctrl+C`.
 
-## 9. Certificate deployment on Android via Fleet
+## 9. Certificate deployment and Wi-Fi configuration on Android
 
-Follow [these instructions](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#android-deploy-certificate) to deploy the certificate to Android devices via Fleet.
-
-In addition to certificate being installed, it's necessary to add a configuration profile (`openNetworkConfiguration`) to set up WiFi on the device.
-
-Certificates are visible in **Settings** under **Security**, but when adding new WiFi network manually, those certificates won't be visible. Wi-Fi Settings only shows certificates installed to the Wi-Fi credential store. Your SCEP certificate is installed "for VPN and
-apps" (the default store when installed via `DevicePolicyManager.installKeyPair()` - method Fleet's agent uses). That's why it doesn't appear in the Wi-Fi settings in client certificate dropdown.
-
-Open Network Configuration (ONC) via Android Management API (AMAPI) uses a different code path. On Android 12+, when Android Device Policy (built in DPC) processes `ClientCertKeyPairAlias`, it calls `DevicePolicyManager.grantKeyPairToWifiAuth()` programmatically to grant the key pair to the Wi-Fi subsystem. This bypasses the credential store separation — the key pair doesn't need to be in the "Wi-Fi" store, it just needs the system-level grant.
-
-So:
-- Manual UI certificate picker → reads from Wi-Fi credential store only → your cert won't show
-- ONC policy with ClientCertKeyPairAlias → uses programmatic grant → works regardless of store
-
-### WiFi configuration profile
-
-In the JSON below, replace folowing fields:
-
-- `SSID` - must match the router's SSID exactly (case-sensitive). This is how Android knows which network to connect to.
-- `Name` — display label, can be anything you want. It's just for human readability in the policy.
-- `GUID` — unique identifier for the ONC config entry, can be any string. It's used internally to reference the network configuration. Just make sure each network config has a different GUID if you have multiple ONC profiles.
-- `Identity` — the username to use for EAP authentication. It's usually the user's email, but depends on what RADIUS server expects.
-- `ClientCertKeyPairAlias` — replace `<fleet_certificate_name>` with the name of the certificate you added to Fleet.
-- `<CN_of_RADIUS_server_certificate>` — the common name (CN) of the RADIUS server's certificate. This is used to verify the server's identity.
-- `X509` — content of root CA certificate that signs both server and client certificates. (in our case root CA of micromdm/scep server).
-
-```json
-{
-  "openNetworkConfiguration": {
-    "Type": "UnencryptedConfiguration",
-    "NetworkConfigurations": [
-      {
-        "GUID": "enterprise-wifi",
-        "Name": "Enterprise",
-        "Type": "WiFi",
-        "WiFi": {
-          "SSID": "Enterprise",
-          "EAP": {
-            "Outer": "EAP-TLS",
-            "Identity": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
-            "DomainSuffixMatch": ["<CN_of_RADIUS_server_certificate>"],
-            "ClientCertType": "KeyPairAlias",
-            "ClientCertKeyPairAlias": "<fleet_certificate_name>",
-            "ServerCARefs": ["root_ca"]
-          },
-          "Security": "WPA-EAP"
-        }
-      }
-    ],
-    "Certificates": [
-      {
-        "GUID": "root_ca",
-        "Type": "Authority",
-        "X509": "<content_of_root_ca_certificate>"
-      }
-    ]
-  }
-}
-```
-
-## Technical details
-
-
-  This is a real method on DevicePolicyManager. The API diff for Android 12 confirms these related methods were added together:
-
-| Method | Purpose |
-|---|---|
-| `grantKeyPairToWifiAuth`(String) | Grants a key pair to the Wi-Fi subsystem for authentication |
-| `revokeKeyPairFromWifiAuth`(String) | Revokes that grant |
-| `isKeyPairGrantedToWifiAuth`(String) | Checks if a key pair has been granted |
-
-  How the two code paths work
-
-  1. installKeyPair() installs a certificate + private key into the device's keystore, accessible to "VPN and apps." This does not make it
-  visible to the Wi-Fi credential picker in Settings.
-  2. grantKeyPairToWifiAuth(alias) takes a key pair already installed via installKeyPair() and explicitly grants it to the Wi-Fi subsystem.
-  This is what CloudDPC calls when it processes the ClientCertKeyPairAlias field in an ONC policy — it bridges the gap between the app keystore
-   and the Wi-Fi credential store.
-
-  That's why certificates show up under Settings > Security but not in the Wi-Fi manual network setup dropdown. The manual UI only reads from
-  the Wi-Fi credential store, while ONC policy bypasses that by using the programmatic grant.
-
-  Sources
-
-  - API diff showing grantKeyPairToWifiAuth added in API 31
-  - DevicePolicyManager API reference
-  - Security - DPC documentation (installKeyPair)
-  - Secure Wi-Fi Enterprise configuration
-  - AOSP source - DevicePolicyManager.java
+Follow [these instructions](https://fleetdm.com/guides/configure-eap-tls-wifi-android)
