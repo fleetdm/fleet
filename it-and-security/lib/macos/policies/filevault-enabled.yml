@@ -1,0 +1,7 @@
+- name: macOS - FileVault enabled
+  query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+  critical: false
+  description: This policy checks whether FileVault disk encryption is enabled on macOS devices. FileVault encrypts the entire drive and helps protect data at rest.
+  resolution: |-
+    These settings should be automatically applied once MDM is enabled on your device. If you're still failing this policy, please reach out to #help-it for assistance.
+  platform: darwin
