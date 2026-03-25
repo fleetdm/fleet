@@ -548,8 +548,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   );
 
   const renderUsersCount = useCallback(() => {
-    return <TableCount name="users" count={users?.length} />;
-  }, [users?.length]);
+    return <TableCount name="users" count={tableData?.length} />;
+  }, [tableData?.length]);
 
   return (
     <>
