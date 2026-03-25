@@ -538,6 +538,40 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		assert.Empty(t, activities)
 	})
 
+	t.Run("cancelled VPP app with nil NanoCommandUUID and VPPAppAdamID does not panic", func(t *testing.T) {
+		var activities []fleet.ActivityDetails
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activities = append(activities, activity)
+			return nil
+		}
+
+		vppTeamID := uint(1)
+		titleID := uint(10)
+		results := []*fleet.SetupExperienceStatusResult{
+			{
+				HostUUID:        "host-uuid",
+				Name:            "VPP App No Command",
+				Status:          fleet.SetupExperienceStatusCancelled,
+				VPPAppTeamID:    &vppTeamID,
+				VPPAppAdamID:    nil,
+				NanoCommandUUID: nil,
+				SoftwareTitleID: &titleID,
+			},
+		}
+
+		err := svc.failCancelledSetupExperienceInstalls(ctx, 1, "host-uuid", "Test Host", "darwin", results)
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+
+		act, ok := activities[0].(*fleet.ActivityInstalledAppStoreApp)
+		require.True(t, ok)
+		assert.Equal(t, "", act.AppStoreID)
+		assert.Equal(t, "", act.CommandUUID)
+		assert.Equal(t, "failed", act.Status)
+		assert.Equal(t, "VPP App No Command", act.SoftwareTitle)
+		assert.Equal(t, fleet.SetupExperienceStatusFailure, results[0].Status)
+	})
+
 	t.Run("user is nil for VPP activity", func(t *testing.T) {
 		var capturedUser *fleet.User
 		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {

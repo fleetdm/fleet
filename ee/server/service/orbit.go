@@ -289,12 +289,20 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience software install")
 			}
 		} else if r.VPPAppTeamID != nil && r.SoftwareTitleID != nil { // VPP
+			appStoreID := ""
+			if r.VPPAppAdamID != nil {
+				appStoreID = *r.VPPAppAdamID
+			}
+			commandUUID := ""
+			if r.NanoCommandUUID != nil {
+				commandUUID = *r.NanoCommandUUID
+			}
 			activity := &fleet.ActivityInstalledAppStoreApp{
 				HostID:          hostID,
 				HostDisplayName: hostDisplayName,
 				SoftwareTitle:   r.Name,
-				AppStoreID:      *r.VPPAppAdamID,
-				CommandUUID:     *r.NanoCommandUUID,
+				AppStoreID:      appStoreID,
+				CommandUUID:     commandUUID,
 				Status:          "failed",
 				HostPlatform:    hostPlatform, // The only supported VPP platform for setup experience here is darwin
 			}
