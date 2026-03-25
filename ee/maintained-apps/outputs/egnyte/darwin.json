@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.13.0",
+      "version": "1.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp';"
       },
-      "installer_url": "https://egnyte-cdn.egnyte.com/desktopapp/mac/en-us/1.13.0/Egnyte_1.13.0_2310.dmg",
+      "installer_url": "https://egnyte-cdn.egnyte.com/desktopapp/mac/en-us/1.15.0/Egnyte_1.15.0_2329.dmg",
       "install_script_ref": "8aa688dd",
       "uninstall_script_ref": "14159466",
-      "sha256": "d4bfd7780b2c67d28b250b2eab73a0918edf2d0cc17e7285e9e90171aa81a8c0",
+      "sha256": "53029ab1414f4926de8387d83e761c3c7af8d492a355a932d21cbf13f1918e3d",
       "default_categories": [
         "Productivity"
       ]

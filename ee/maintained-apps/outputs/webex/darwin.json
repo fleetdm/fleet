@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "46.3.0.34324",
+      "version": "46.3.1.34493",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'Cisco-Systems.Spark';"
       },
