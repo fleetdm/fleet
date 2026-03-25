@@ -55,14 +55,16 @@ func (s *Service) getACMEBaseURL(ctx context.Context) (string, error) {
 	return appConfig.MDMUrl(), nil
 }
 
-func (s *Service) getACMEURL(ctx context.Context, pathIdentifier string, suffixes ...string) (string, error) {
-	baseURL, err := s.getACMEBaseURL(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	return s.getACMEURLWithBaseURL(ctx, baseURL, pathIdentifier, suffixes...)
-}
+// TODO(mna): currently unused, could be useful if there's just a single ACME URL to resolve.
+// Will remove at the end if it turns out to be unnecessary.
+// func (s *Service) getACMEURL(ctx context.Context, pathIdentifier string, suffixes ...string) (string, error) {
+// 	baseURL, err := s.getACMEBaseURL(ctx)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	return s.getACMEURLWithBaseURL(ctx, baseURL, pathIdentifier, suffixes...)
+// }
 
 func (s *Service) getACMEURLWithBaseURL(_ context.Context, baseURL, pathIdentifier string, suffixes ...string) (string, error) {
 	return commonmdm.ResolveURL(baseURL, fmt.Sprintf("/api/mdm/acme/%s/%s", pathIdentifier, strings.Join(suffixes, "/")), true)
