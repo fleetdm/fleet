@@ -457,11 +457,11 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "name": "Codex",
+      "name": "Codex CLI",
       "slug": "codex/windows",
       "platform": "windows",
       "unique_identifier": "Codex CLI",
-      "description": "Codex is OpenAI’s CLI coding agent that you can run locally from your terminal."
+      "description": "Codex CLI is OpenAI’s coding agent that you can run locally from your terminal."
     },
     {
       "name": "Connect Fonts",
