@@ -803,10 +803,10 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	// The custom display names should be used as the stored name.
 	// "Alpha Custom" (originally ZZZ_Software) should come first alphabetically.
 	assert.Equal(t, "Alpha Custom", installerRows[0].Name, "first installer should use custom display name 'Alpha Custom'")
-	assert.Equal(t, installerID2, uint(installerRows[0].SoftwareInstallerID.Int64), "first installer should be ZZZ_Software (id=%d) because its display name 'Alpha Custom' sorts first", installerID2)
+	assert.Equal(t, int64(installerID2), installerRows[0].SoftwareInstallerID.Int64, "first installer should be ZZZ_Software (id=%d) because its display name 'Alpha Custom' sorts first", installerID2)
 
 	assert.Equal(t, "Zulu Custom", installerRows[1].Name, "second installer should use custom display name 'Zulu Custom'")
-	assert.Equal(t, installerID1, uint(installerRows[1].SoftwareInstallerID.Int64), "second installer should be AAA_Software (id=%d) because its display name 'Zulu Custom' sorts second", installerID1)
+	assert.Equal(t, int64(installerID1), installerRows[1].SoftwareInstallerID.Int64, "second installer should be AAA_Software (id=%d) because its display name 'Zulu Custom' sorts second", installerID1)
 
 	// --- Verify VPP app rows ---
 	var vppRows []setupExperienceInsertTestRows
