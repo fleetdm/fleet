@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1046,4 +1049,48 @@ func TestGitOpsErrors(t *testing.T) {
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestDoGitOpsPoliciesResolvesInstallSoftwareSlug(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/latest/fleet/software/fleet_maintained_apps":
+			require.Equal(t, "team_id=1&per_page=10000", r.URL.RawQuery)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"fleet_maintained_apps":[{"id":1,"name":"Company Portal","slug":"intune-company-portal/darwin","platform":"darwin","software_title_id":42}]}`))
+		case "/api/latest/fleet/fleets/1/policies":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"policies":[]}`))
+		default:
+			t.Fatalf("unexpected request: %s?%s", r.URL.Path, r.URL.RawQuery)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := NewClient(srv.URL, false, "", "")
+	require.NoError(t, err)
+	client.token = "test-token"
+
+	var installSoftware optjson.BoolOr[*spec.PolicyInstallSoftware]
+	installSoftware.Other = &spec.PolicyInstallSoftware{Slug: "intune-company-portal/darwin"}
+	installSoftware.IsOther = true
+
+	cfg := &spec.GitOps{
+		TeamID: ptr.Uint(1),
+		Policies: []*spec.GitOpsPolicySpec{{
+			PolicySpec: fleet.PolicySpec{
+				Name:  "Install Company Portal",
+				Query: "SELECT 1",
+			},
+			InstallSoftware: installSoftware,
+		}},
+	}
+
+	err = client.doGitOpsPolicies(cfg, nil, nil, nil, func(string, ...any) {}, true)
+	require.NoError(t, err)
+	require.Len(t, cfg.Policies, 1)
+	require.NotNil(t, cfg.Policies[0].SoftwareTitleID)
+	assert.Equal(t, uint(42), *cfg.Policies[0].SoftwareTitleID)
 }

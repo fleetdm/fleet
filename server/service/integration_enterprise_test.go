@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -1427,6 +1428,142 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	policyIDs = []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
 	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
 	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+}
+
+func (s *integrationEnterpriseTestSuite) TestGitOpsPolicyInstallSoftwareSlug() {
+	t := s.T()
+	ctx := context.Background()
+
+	installerBytes := []byte("gitops-fma-installer")
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(installerBytes)
+	}))
+	defer installerServer.Close()
+
+	insertedApps := maintained_apps.SyncApps(t, s.ds)
+	require.NotEmpty(t, insertedApps)
+	t.Cleanup(func() {
+		maintained_apps.SyncApps(t, s.ds)
+	})
+
+	var testApp fleet.MaintainedApp
+	for _, app := range insertedApps {
+		if app.Platform == "darwin" {
+			testApp = app
+			break
+		}
+	}
+	require.NotEmpty(t, testApp.Slug)
+
+	h := sha256.New()
+	_, err := h.Write(installerBytes)
+	require.NoError(t, err)
+	installerSHA := hex.EncodeToString(h.Sum(nil))
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		manifest := ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version: "1.0.0",
+				Queries: ma.FMAQueries{
+					Exists: "SELECT 1 FROM apps;",
+				},
+				InstallerURL:       installerServer.URL + "/installer.pkg",
+				InstallScriptRef:   "install",
+				UninstallScriptRef: "uninstall",
+				SHA256:             installerSHA,
+				DefaultCategories:  []string{"Productivity"},
+			}},
+			Refs: map[string]string{
+				"install":   "echo install",
+				"uninstall": "echo uninstall",
+			},
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	defer manifestServer.Close()
+
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
+	cfgYAML := fmt.Sprintf(`
+name: gitops-fma-%s
+policies:
+  - name: Install maintained app when missing
+    query: SELECT 1;
+    install_software:
+      slug: %s
+software:
+  fleet_maintained_apps:
+    - slug: %s
+      self_service: true
+`, t.Name(), testApp.Slug, testApp.Slug)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(cfgYAML)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	enrichedAppConfig := &fleet.EnrichedAppConfig{AppConfig: *appConfig}
+	enrichedAppConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	gitopsCfg, err := spec.GitOpsFromFile(tmpFile.Name(), filepath.Dir(tmpFile.Name()), enrichedAppConfig, func(string, ...any) {})
+	require.NoError(t, err)
+
+	client, err := NewClient(s.server.URL, false, "", "")
+	require.NoError(t, err)
+	client.token = s.getTestAdminToken()
+
+	iconSettings := &fleet.IconGitOpsSettings{ConcurrentUpdates: 1, ConcurrentUploads: 1}
+	_, err = client.DoGitOps(
+		ctx,
+		gitopsCfg,
+		tmpFile.Name(),
+		nil,
+		false,
+		nil,
+		enrichedAppConfig,
+		map[string][]fleet.SoftwarePackageResponse{},
+		map[string][]fleet.VPPAppResponse{},
+		map[string][]fleet.ScriptResponse{},
+		iconSettings,
+	)
+	require.NoError(t, err)
+
+	team, err := s.ds.TeamByName(ctx, *gitopsCfg.TeamName)
+	require.NoError(t, err)
+
+	var policiesResp listTeamPoliciesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &policiesResp)
+	require.Len(t, policiesResp.Policies, 1)
+	require.NotNil(t, policiesResp.Policies[0].InstallSoftware)
+	require.NotNil(t, policiesResp.Policies[0].InstallSoftware.SoftwareTitleID)
+
+	var softwareResp listSoftwareTitlesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &softwareResp,
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.NotZero(t, softwareResp.Count)
+
+	var titleID uint
+	for _, title := range softwareResp.SoftwareTitles {
+		if title.ID == policiesResp.Policies[0].InstallSoftware.SoftwareTitleID {
+			titleID = title.ID
+			break
+		}
+	}
+	require.NotZero(t, titleID, "policy automation should point at a visible team software title")
+
+	var automationResp listTeamPoliciesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &automationResp, "automation_type", "software")
+	require.Len(t, automationResp.Policies, 1)
+	assert.Equal(t, policiesResp.Policies[0].ID, automationResp.Policies[0].ID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
@@ -19971,14 +20108,19 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
-	sortFMAs := func(a, b fleet.MaintainedApp) int {
-		if c := cmp.Compare(a.Name, b.Name); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Slug, b.Slug)
+	sortMaintainedApps := func(apps []fleet.MaintainedApp) {
+		slices.SortFunc(apps, func(a, b fleet.MaintainedApp) int {
+			return cmp.Or(
+				cmp.Compare(a.Name, b.Name),
+				cmp.Compare(a.Platform, b.Platform),
+				cmp.Compare(a.Slug, b.Slug),
+				cmp.Compare(a.Version, b.Version),
+				cmp.Compare(a.ID, b.ID),
+			)
+		})
 	}
-	slices.SortFunc(listMAResp.FleetMaintainedApps, sortFMAs)
-	slices.SortFunc(expectedApps, sortFMAs)
+	sortMaintainedApps(listMAResp.FleetMaintainedApps)
+	sortMaintainedApps(expectedApps)
 	require.Equal(t, expectedApps, listMAResp.FleetMaintainedApps)
 
 	var listMAResp2 listFleetMaintainedAppsResponse

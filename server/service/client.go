@@ -2814,11 +2814,44 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			softwareTitleIDsByAppStoreAppID[vppApp.AppStoreID] = *vppApp.TitleID
 		}
 
+		// Get Fleet-maintained apps for the team to resolve slugs to software_title_id.
+		// The map already contains any slugs present on team software installers.
+		hasSlugPolicies := false
+		for i := range config.Policies {
+			if config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Other != nil && config.Policies[i].InstallSoftware.Other.Slug != "" {
+				hasSlugPolicies = true
+				break
+			}
+		}
+		fmaFetchSucceeded := false
+		if hasSlugPolicies {
+			query := fmt.Sprintf("team_id=%d&per_page=10000", *teamID)
+			fleetMaintainedApps, err := c.ListFleetMaintainedApps(teamID, query)
+			if err != nil {
+				// Check if this is a license/forbidden error - if so, silently skip (Fleet-maintained apps require Premium)
+				errStr := err.Error()
+				isLicenseError := strings.Contains(errStr, "missing or invalid license") ||
+					strings.Contains(errStr, "Requires Fleet Premium license") ||
+					strings.Contains(errStr, "forbidden") ||
+					strings.Contains(errStr, "403")
+				// Only log non-license errors - license errors are expected in non-premium environments
+				if !isLicenseError && !dryRun {
+					logFn("[!] failed to get Fleet-maintained apps for team %d: %v\n", *teamID, err)
+				}
+			} else {
+				fmaFetchSucceeded = true
+				for _, app := range fleetMaintainedApps {
+					if app.TitleID != nil && app.Slug != "" {
+						softwareTitleIDsBySlug[app.Slug] = *app.TitleID
+					}
+				}
+			}
+		}
+
 		for i := range config.Policies {
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
 
 			if !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
-				fmt.Printf("softwareTitleIDsBySlug: %v\n", softwareTitleIDsBySlug)
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
 				if !ok {
 					// Should not happen because FMAs are uploaded first.
@@ -2861,6 +2894,18 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					// Should not happen because software packages are uploaded first.
 					if !dryRun {
 						logFn("[!] software hash without software title ID: %s\n", config.Policies[i].InstallSoftware.Other.HashSHA256)
+					}
+					continue
+				}
+				config.Policies[i].SoftwareTitleID = &softwareTitleID
+			}
+			if config.Policies[i].InstallSoftware.Other.Slug != "" {
+				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].InstallSoftware.Other.Slug]
+				if !ok {
+					// Only log if we successfully fetched the FMA list (meaning Premium is available)
+					// If we didn't fetch due to license errors, skip logging to avoid false warnings
+					if fmaFetchSucceeded && !dryRun {
+						logFn("[!] Fleet-maintained app slug %q not found on team %d (make sure the app is added to the team first)\n", config.Policies[i].InstallSoftware.Other.Slug, *teamID)
 					}
 					continue
 				}
