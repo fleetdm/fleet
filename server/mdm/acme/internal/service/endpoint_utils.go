@@ -4,12 +4,14 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -28,6 +30,21 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 		},
 		acmeErrorEncoder,
 	)
+}
+
+func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *eu.JsonError) (handled bool) {
+	var acmeErr *types.ACMEError
+	if !errors.As(err, &acmeErr) {
+		return false
+	}
+	statusCode := acmeErr.StatusCode
+	if statusCode == 0 {
+		statusCode = http.StatusInternalServerError
+	}
+	w.WriteHeader(statusCode)
+	// ignoring error as response started being written at that point
+	_ = json.NewEncoder(w).Encode(acmeErr)
+	return true
 }
 
 // makeDecoder creates a decoder for the given request type.
@@ -68,7 +85,7 @@ func decodeBody(ctx context.Context, r *http.Request, v reflect.Value, body io.R
 	return nil
 }
 
-// handlerFunc is the handler function type for Activity service endpoints.
+// handlerFunc is the handler function type for ACME service endpoints.
 type handlerFunc func(ctx context.Context, request any, svc api.Service) platform_http.Errorer
 
 type endpointer struct {

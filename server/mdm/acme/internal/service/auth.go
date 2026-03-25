@@ -58,7 +58,7 @@ func (s *Service) AuthenticateNewAccountMessage(ctx context.Context, message *ap
 		if err != nil {
 			detail = err.Error()
 		}
-		err = badNonceError(detail)
+		err = types.BadNonceError(detail)
 		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
 	}
 
@@ -99,7 +99,7 @@ func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message *a
 		if err != nil {
 			detail = err.Error()
 		}
-		err = badNonceError(detail)
+		err = types.BadNonceError(detail)
 		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
 	}
 

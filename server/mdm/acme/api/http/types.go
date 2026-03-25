@@ -5,6 +5,7 @@ package http
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -91,7 +92,13 @@ type CreateNewAccountResponse struct {
 
 // BeforeRender implements the beforeRenderer interface.
 func (r *CreateNewAccountResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// TODO(mna): do not generate a nonce on 500s?
+	// only generate a new nonce if there is no error or the error is an ACME error,
+	// indicating a client issue.
+	var acmeErr *types.ACMEError
+	if r.Err != nil && !errors.As(r.Err, &acmeErr) {
+		return
+	}
+
 	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
 		r.Err = err
 		return
@@ -121,7 +128,12 @@ type CreateNewOrderResponse struct {
 }
 
 func (r *CreateNewOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// TODO(mna): do not generate a nonce on 500s?
+	// only generate a new nonce if there is no error or the error is an ACME error,
+	// indicating a client issue.
+	var acmeErr *types.ACMEError
+	if r.Err != nil && !errors.As(r.Err, &acmeErr) {
+		return
+	}
 	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
 		r.Err = err
 		return

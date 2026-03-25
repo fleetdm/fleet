@@ -22,7 +22,7 @@ func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose
 	if err != nil {
 		var notFoundErr *platform_mysql.NotFoundError
 		if errors.As(err, &notFoundErr) {
-			err = accountDoesNotExistError(err.Error())
+			err = types.AccountDoesNotExistError(err.Error())
 		}
 		return nil, ctxerr.Wrap(ctx, err, "creating account in datastore")
 	}

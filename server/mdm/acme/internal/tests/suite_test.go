@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"go.step.sm/crypto/jose"
@@ -106,7 +107,7 @@ func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdenti
 	require.NoError(t, err)
 	defer drainAndCloseBody(resp)
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= 300 {
 		return nil, resp
 	}
 
@@ -158,8 +159,13 @@ func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, jwk jose.JSONWebKey, n
 	)
 	require.NoError(t, err)
 
-	payloadBytes, err := json.Marshal(payload)
-	require.NoError(t, err)
+	var payloadBytes []byte
+	if payload != nil {
+		payloadBytes, err = json.Marshal(payload)
+		require.NoError(t, err)
+	} else {
+		payloadBytes = []byte("{}")
+	}
 
 	jws, err := signer.Sign(payloadBytes)
 	require.NoError(t, err)
@@ -167,22 +173,9 @@ func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, jwk jose.JSONWebKey, n
 	return []byte(jws.FullSerialize())
 }
 
-// createAccountResponse holds the parsed fields from a CreateAccount response.
-type createAccountResponse struct {
-	Status  string   `json:"status"`
-	Contact []string `json:"contact,omitempty"`
-	Orders  string   `json:"orders"`
-}
-
-// acmeErrorResponse holds the parsed fields from an ACME error response.
-type acmeErrorResponse struct {
-	Type   string `json:"type"`
-	Title  string `json:"title"`
-	Detail string `json:"detail"`
-}
-
-// createAccount POSTs a JWS body to the new_account endpoint and returns the raw response.
-func (s *integrationTestSuite) createAccount(t *testing.T, pathIdentifier string, jwsBody []byte) *http.Response {
+// createAccount POSTs a JWS body to the new_account endpoint and returns the
+// account response or acme error and the raw response.
+func (s *integrationTestSuite) createAccount(t *testing.T, pathIdentifier string, jwsBody []byte) (*types.AccountResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
 	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/new_account", pathIdentifier) //nolint:gosec // test server URL is safe
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody))
@@ -190,5 +183,18 @@ func (s *integrationTestSuite) createAccount(t *testing.T, pathIdentifier string
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
-	return resp
+	defer drainAndCloseBody(resp)
+
+	if resp.StatusCode >= 300 {
+		var acmeErr types.ACMEError
+		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
+			return nil, &acmeErr, resp
+		}
+		return nil, nil, resp
+	}
+
+	var result types.AccountResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+	return &result, nil, resp
 }

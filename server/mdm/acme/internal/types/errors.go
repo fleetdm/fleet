@@ -1,12 +1,7 @@
-package service
+package types
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
 	"net/http"
-
-	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 const acmeErrorsURN = "urn:ietf:params:acme:error:"
@@ -28,7 +23,7 @@ type ACMEError struct {
 	StatusCode int    `json:"-"`
 }
 
-func accountDoesNotExistError(detail string) *ACMEError {
+func AccountDoesNotExistError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "accountDoesNotExist",
 		Title:      "The request specified an account that does not exist",
@@ -37,7 +32,7 @@ func accountDoesNotExistError(detail string) *ACMEError {
 	}
 }
 
-func badNonceError(detail string) *ACMEError {
+func BadNonceError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "badNonce",
 		Title:      "The client sent an unacceptable anti-replay nonce",
@@ -55,19 +50,4 @@ func (e *ACMEError) Error() string {
 		s += ": " + e.Detail
 	}
 	return s
-}
-
-func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *eu.JsonError) (handled bool) {
-	var acmeErr *ACMEError
-	if !errors.As(err, &acmeErr) {
-		return false
-	}
-	statusCode := acmeErr.StatusCode
-	if statusCode == 0 {
-		statusCode = http.StatusInternalServerError
-	}
-	w.WriteHeader(statusCode)
-	// ignoring error as response started being written at that point
-	_ = json.NewEncoder(w).Encode(acmeErr)
-	return true
 }

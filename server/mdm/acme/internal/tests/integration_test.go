@@ -1,9 +1,7 @@
 package tests
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -13,24 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// readBody reads and closes the response body, returning the raw bytes.
-func readBody(t *testing.T, resp *http.Response) []byte {
-	t.Helper()
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	return body
-}
-
 // newAccountURL returns the full URL for the new_account endpoint.
 func (s *integrationTestSuite) newAccountURL(pathIdentifier string) string {
 	return fmt.Sprintf("%s/api/mdm/acme/%s/new_account", s.server.URL, pathIdentifier)
-}
-
-// parseJSON decodes the response body as JSON into dst.
-func parseJSON(t *testing.T, body []byte, dst any) {
-	t.Helper()
-	require.NoError(t, json.Unmarshal(body, dst))
 }
 
 func TestIntegration(t *testing.T) {
@@ -287,19 +270,15 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	t.Run("create new account", func(t *testing.T) {
 		privateKey, jwk := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		payload := map[string]any{}
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollValid.PathIdentifier), payload)
-		resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
-		body := readBody(t, resp)
+		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		acctResp, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
+		require.Nil(t, acmeErr)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 
-		var acctResp createAccountResponse
-		parseJSON(t, body, &acctResp)
 		require.Equal(t, "valid", acctResp.Status)
-		require.NotEmpty(t, acctResp.Orders)
 		require.Contains(t, acctResp.Orders, "/orders")
 	})
 
@@ -308,24 +287,18 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		// create account
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
-		payload := map[string]any{}
-		jwsBody1 := buildJWS(t, privateKey, jwk, nonce1, s.newAccountURL(enrollValid.PathIdentifier), payload)
-		resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
-		body1 := readBody(t, resp1)
+		jwsBody1 := buildJWS(t, privateKey, jwk, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
+
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
 
-		var acctResp1 createAccountResponse
-		parseJSON(t, body1, &acctResp1)
+		// create again with same key - should return existing (use the valid returned nonce)
+		nonce2 := resp1.Header.Get("Replay-Nonce")
+		jwsBody2 := buildJWS(t, privateKey, jwk, nonce2, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		acctResp2, _, resp2 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody2)
 
-		// create again with same key - should return existing
-		nonce2 := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody2 := buildJWS(t, privateKey, jwk, nonce2, s.newAccountURL(enrollValid.PathIdentifier), payload)
-		resp2 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody2)
-		body2 := readBody(t, resp2)
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
 
-		var acctResp2 createAccountResponse
-		parseJSON(t, body2, &acctResp2)
 		require.Equal(t, "valid", acctResp2.Status)
 		// same account, same orders URL
 		require.Equal(t, acctResp1.Orders, acctResp2.Orders)
@@ -336,23 +309,18 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		// create account first
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody1 := buildJWS(t, privateKey, jwk, nonce1, s.newAccountURL(enrollValid.PathIdentifier), map[string]any{})
-		resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
-		body1 := readBody(t, resp1)
+		jwsBody1 := buildJWS(t, privateKey, jwk, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
+
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
 
-		var acctResp1 createAccountResponse
-		parseJSON(t, body1, &acctResp1)
-
-		// lookup with onlyReturnExisting
-		nonce2 := s.getNonce(t, enrollValid.PathIdentifier)
+		// lookup with onlyReturnExisting (use the valid returned nonce)
+		nonce2 := resp1.Header.Get("Replay-Nonce")
 		jwsBody2 := buildJWS(t, privateKey, jwk, nonce2, s.newAccountURL(enrollValid.PathIdentifier), map[string]any{"onlyReturnExisting": true})
-		resp2 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody2)
-		body2 := readBody(t, resp2)
+		acctResp2, _, resp2 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody2)
+
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
 
-		var acctResp2 createAccountResponse
-		parseJSON(t, body2, &acctResp2)
 		require.Equal(t, "valid", acctResp2.Status)
 		require.Equal(t, acctResp1.Orders, acctResp2.Orders)
 	})
@@ -362,15 +330,11 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		payload := map[string]any{"onlyReturnExisting": true}
 		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollValid.PathIdentifier), payload)
-		resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
-		body := readBody(t, resp)
+		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
-
-		var errResp acmeErrorResponse
-		parseJSON(t, body, &errResp)
-		require.Equal(t, "urn:ietf:params:acme:error:accountDoesNotExist", errResp.Type)
+		require.Contains(t, acmeErr.Type, "error:accountDoesNotExist")
 	})
 
 	t.Run("unknown identifier", func(t *testing.T) {
@@ -378,48 +342,51 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		privateKey, jwk := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		badIdentifier := "no-such-identifier"
-		payload := map[string]any{}
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(badIdentifier), payload)
-		resp := s.createAccount(t, badIdentifier, jwsBody)
-		_ = readBody(t, resp)
+		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(badIdentifier), nil)
+		acctResp, acmeErr, resp := s.createAccount(t, badIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Nil(t, acctResp)
+		require.Nil(t, acmeErr)
+		// no nonce generated when the identifier is unknown
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
 	})
 
 	t.Run("revoked enrollment", func(t *testing.T) {
 		// get nonce from valid enrollment, then try to create account on revoked
 		privateKey, jwk := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		payload := map[string]any{}
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollRevoked.PathIdentifier), payload)
-		resp := s.createAccount(t, enrollRevoked.PathIdentifier, jwsBody)
-		_ = readBody(t, resp)
+		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollRevoked.PathIdentifier), nil)
+		acctResp, acmeErr, resp := s.createAccount(t, enrollRevoked.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Nil(t, acctResp)
+		require.Nil(t, acmeErr)
+		// no nonce generated when the identifier is invalid
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
 		privateKey, jwk := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		payload := map[string]any{}
-		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollExpired.PathIdentifier), payload)
-		resp := s.createAccount(t, enrollExpired.PathIdentifier, jwsBody)
-		_ = readBody(t, resp)
+		jwsBody := buildJWS(t, privateKey, jwk, nonce, s.newAccountURL(enrollExpired.PathIdentifier), nil)
+		acctResp, acmeErr, resp := s.createAccount(t, enrollExpired.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Nil(t, acctResp)
+		require.Nil(t, acmeErr)
+		// no nonce generated when the identifier is invalid
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
 		privateKey, jwk := generateTestKey(t)
-		payload := map[string]any{}
-		jwsBody := buildJWS(t, privateKey, jwk, "bad-nonce-value", s.newAccountURL(enrollValid.PathIdentifier), payload)
-		resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
-		body := readBody(t, resp)
+		jwsBody := buildJWS(t, privateKey, jwk, "bad-nonce-value", s.newAccountURL(enrollValid.PathIdentifier), nil)
+		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
-
-		var errResp acmeErrorResponse
-		parseJSON(t, body, &errResp)
-		require.Equal(t, "urn:ietf:params:acme:error:badNonce", errResp.Type)
+		require.Contains(t, acmeErr.Type, "error:badNonce")
+		// it does generate a new valid nonce
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 	})
 }
