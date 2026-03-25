@@ -40,6 +40,17 @@ func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier
 func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_http.JWSRequestContainer, createNewAccount *api_http.CreateNewAccountRequest, otherRequest types.AccountAuthenticatedRequest) error {
 	var err error
 
+	// consume the nonce as first validation
+	nonce := message.JWS.Signatures[0].Protected.Nonce
+	nonceValid, err := s.nonces.Consume(ctx, nonce)
+	if !nonceValid || err != nil {
+		// if there is an error, it is a Redis/network issue, so keep it as a 500
+		if err == nil {
+			err = types.BadNonceError("")
+		}
+		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
+	}
+
 	if createNewAccount != nil {
 		// must have the JWK
 		if message.Key == nil {
@@ -80,17 +91,6 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 	if message.JWSHeaderURL != expectedURL {
 		err = types.UnauthorizedError("invalid url in JWS protected header")
 		return ctxerr.Wrap(ctx, err)
-	}
-
-	// consume the nonce
-	nonce := message.JWS.Signatures[0].Protected.Nonce
-	nonceValid, err := s.nonces.Consume(ctx, nonce)
-	if !nonceValid || err != nil {
-		// if there is an error, it is a Redis/network issue, so keep it as a 500
-		if err == nil {
-			err = types.BadNonceError("")
-		}
-		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
 	}
 
 	// authenticate the enrollment identifier from the path
