@@ -204,6 +204,7 @@ import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
 import SuspiciousPackage from "./SuspiciousPackage";
+import Swiftdialog from "./Swiftdialog";
 import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
@@ -462,6 +463,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "sublime text": SublimeText,
   surfshark: Surfshark,
   "suspicious package": SuspiciousPackage,
+  swiftdialog: Swiftdialog,
   tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
