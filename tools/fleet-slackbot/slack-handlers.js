@@ -247,16 +247,20 @@ async function handleRequest({ userText, userId, channelId, threadTs, messageTs,
     // Swap hourglass → red X
     await setReaction("x");
 
-    // Show a friendly message for common errors
+    // Sanitize error message — don't leak internal details to Slack
+    const SAFE_PREFIXES = ["Cannot apply patch", "Refusing to commit", "Invalid file path"];
     let userMessage;
-    if (err.status === 429 || err.message?.includes("rate_limit")) {
+    const msg = err.message || "";
+    if (err.status === 429 || msg.includes("rate_limit")) {
       userMessage = "I'm being rate-limited by the AI service. Please wait a moment and try again.";
-    } else if (err.status === 529 || err.message?.includes("overloaded")) {
+    } else if (err.status === 529 || msg.includes("overloaded")) {
       userMessage = "The AI service is temporarily overloaded. Please try again in a minute.";
-    } else if (err.message?.includes("Claude returned invalid JSON")) {
+    } else if (msg.includes("Claude returned")) {
       userMessage = "I had trouble processing that request. Please try rephrasing.";
+    } else if (SAFE_PREFIXES.some((p) => msg.startsWith(p))) {
+      userMessage = msg;
     } else {
-      userMessage = err.message;
+      userMessage = "An unexpected error occurred. Please try again.";
     }
 
     // Post error as a new reply (triggers notification)

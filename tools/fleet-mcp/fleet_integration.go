@@ -577,6 +577,10 @@ func (fc *FleetClient) GetEndpointsWithFilters(teamName, platform, status string
 		params.Set("team_id", fmt.Sprintf("%d", teamIDs[0]))
 	}
 
+	if platform != "" {
+		params.Set("platform", normalizePlatform(platform))
+	}
+
 	if status != "" {
 		params.Set("status", status)
 	}
@@ -598,17 +602,6 @@ func (fc *FleetClient) GetEndpointsWithFilters(teamName, platform, status string
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode filtered endpoints response: %w", err)
-	}
-
-	if platform != "" {
-		p := normalizePlatform(platform)
-		filtered := result.Hosts[:0]
-		for _, ep := range result.Hosts {
-			if matchesPlatform(ep.Platform, p) {
-				filtered = append(filtered, ep)
-			}
-		}
-		result.Hosts = filtered
 	}
 
 	return result.Hosts, nil

@@ -2,6 +2,31 @@ const crypto = require("crypto");
 const path = require("path");
 const { resolveChangeContent, validateProposedChanges, validateResolvedChanges } = require("./yaml-handler");
 
+// Known safe error prefixes that can be shown to users
+const SAFE_ERROR_PREFIXES = [
+  "Cannot apply patch",
+  "Refusing to commit",
+  "Invalid file path",
+  "CI auto-fix failed",
+];
+
+function sanitizeErrorMessage(err) {
+  const msg = err.message || "";
+  if (msg.includes("Claude returned") || msg.includes("Raw response")) {
+    return "Failed to process the AI response. Please try rephrasing your request.";
+  }
+  if (SAFE_ERROR_PREFIXES.some((p) => msg.startsWith(p))) {
+    return msg;
+  }
+  if (err.status === 429 || msg.includes("rate_limit")) {
+    return "Rate-limited by the AI service. Please wait a moment and try again.";
+  }
+  if (err.status === 529 || msg.includes("overloaded")) {
+    return "The AI service is temporarily overloaded. Please try again in a minute.";
+  }
+  return "An unexpected error occurred. Please try again.";
+}
+
 function verifySignature(rawBody, signatureHeader, secret) {
   if (!signatureHeader) return false;
   const expected =
@@ -19,9 +44,17 @@ function verifySignature(rawBody, signatureHeader, secret) {
 
 function createWebhookHandler(config, github, claude) {
   return async function handleWebhook(req, res) {
-    // Collect raw body from the IncomingMessage stream
+    // Collect raw body from the IncomingMessage stream (capped at 1MB)
+    const MAX_BODY_SIZE = 1024 * 1024;
     const buffers = [];
+    let totalSize = 0;
     for await (const chunk of req) {
+      totalSize += chunk.length;
+      if (totalSize > MAX_BODY_SIZE) {
+        res.writeHead(413);
+        res.end("Request body too large");
+        return;
+      }
       buffers.push(chunk);
     }
     const rawBody = Buffer.concat(buffers).toString("utf-8");
@@ -65,11 +98,8 @@ function createWebhookHandler(config, github, claude) {
           console.error("[webhook] Error handling check_run:", err);
           const prNumber = payload.check_run?.pull_requests?.[0]?.number;
           if (prNumber) {
-            const safeMessage = err.message?.includes("Claude returned")
-              ? "Failed to process the AI response. Please try rephrasing your request."
-              : err.message?.replace(/Raw response.*$/s, "").trim() || "An unexpected error occurred.";
             try {
-              await github.addPullRequestComment(prNumber, `🤖 **Fleet:** CI auto-fix failed: ${safeMessage}`);
+              await github.addPullRequestComment(prNumber, `🤖 **Fleet:** CI auto-fix failed: ${sanitizeErrorMessage(err)}`);
             } catch (replyErr) {
               console.error("[webhook] Failed to post CI error comment:", replyErr);
             }
@@ -142,13 +172,9 @@ function createWebhookHandler(config, github, claude) {
       async (err) => {
         console.error("[webhook] Error processing comment:", err);
         try {
-          // Sanitize: don't leak raw Claude responses or internal details in public comments
-          const safeMessage = err.message.includes("Claude returned")
-            ? "Failed to process the AI response. Please try rephrasing your request."
-            : err.message.replace(/Raw response.*$/s, "").trim();
           await github.addPullRequestComment(
             prNumber,
-            `🤖 **Fleet:** Error processing your request: ${safeMessage}`
+            `🤖 **Fleet:** Error processing your request: ${sanitizeErrorMessage(err)}`
           );
         } catch (replyErr) {
           console.error("[webhook] Failed to post error comment:", replyErr);
