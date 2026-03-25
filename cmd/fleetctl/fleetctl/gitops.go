@@ -218,7 +218,7 @@ func gitopsCommand() *cli.Command {
 					if teamID == nil || *teamID == 0 {
 						continue // skip global
 					}
-					softwareMap, err := generateSoftwareForValidation(fleetClient, *teamID)
+					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, *teamID)
 					if err != nil {
 						return fmt.Errorf("getting software for team %q: %w", teamName, err)
 					}
@@ -230,9 +230,6 @@ func gitopsCommand() *cli.Command {
 						return fmt.Errorf("marshaling software for team %q: %w", teamName, err)
 					}
 					syntheticSoftwareByTeam[teamName] = raw
-
-					// Also build the title ID maps needed by doGitOpsPolicies.
-					installers, vppApps := buildExceptedTeamSoftwareResponses(fleetClient, *teamID)
 					teamsSoftwareInstallers[teamName] = installers
 					teamsVPPApps[teamName] = vppApps
 				}
@@ -1148,45 +1145,3 @@ func applyVPPTokenAssignmentIfNeeded(
 
 // buildExceptedTeamSoftwareResponses fetches a team's software titles and
 // builds SoftwarePackageResponse/VPPAppResponse slices with title IDs, used by
-// doGitOpsPolicies to resolve policy software automation when software is
-// excepted from GitOps.
-func buildExceptedTeamSoftwareResponses(client *service.Client, teamID uint) ([]fleet.SoftwarePackageResponse, []fleet.VPPAppResponse) {
-	query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=1000", teamID)
-	titles, err := client.ListSoftwareTitles(query)
-	if err != nil {
-		return nil, nil
-	}
-
-	var installers []fleet.SoftwarePackageResponse
-	var vppApps []fleet.VPPAppResponse
-
-	for _, title := range titles {
-		titleID := title.ID
-		switch {
-		case title.SoftwarePackage != nil:
-			installer := fleet.SoftwarePackageResponse{TitleID: &titleID}
-			if title.SoftwarePackage.PackageURL != nil {
-				installer.URL = *title.SoftwarePackage.PackageURL
-			}
-			if title.HashSHA256 != nil {
-				installer.HashSHA256 = *title.HashSHA256
-			}
-			// Look up FMA slug for patch policy resolution.
-			if title.SoftwarePackage.FleetMaintainedAppID != nil {
-				fma, err := client.GetFleetMaintainedApp(*title.SoftwarePackage.FleetMaintainedAppID)
-				if err == nil && fma != nil {
-					installer.Slug = fma.Slug
-				}
-			}
-			installers = append(installers, installer)
-		case title.AppStoreApp != nil:
-			vppApps = append(vppApps, fleet.VPPAppResponse{
-				TitleID:    &titleID,
-				AppStoreID: title.AppStoreApp.AppStoreID,
-				Platform:   fleet.InstallableDevicePlatform(title.AppStoreApp.Platform),
-			})
-		}
-	}
-
-	return installers, vppApps
-}
