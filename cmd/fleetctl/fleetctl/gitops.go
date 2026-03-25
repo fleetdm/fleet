@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -206,6 +207,36 @@ func gitopsCommand() *cli.Command {
 				for _, tm := range teams {
 					teamIDLookup[tm.Name] = &tm.ID
 				}
+			}
+
+			// When software is excepted from GitOps, pre-fetch server-side software
+			// for all existing teams so the parser can validate policy references,
+			// and DoGitOps can resolve policy title IDs.
+			if appConfig.GitOpsConfig.Exceptions.Software {
+				syntheticSoftwareByTeam := make(map[string]json.RawMessage)
+				for teamName, teamID := range teamIDLookup {
+					if teamID == nil || *teamID == 0 {
+						continue // skip global
+					}
+					softwareMap, err := generateSoftwareForValidation(fleetClient, *teamID)
+					if err != nil {
+						return fmt.Errorf("getting software for team %q: %w", teamName, err)
+					}
+					if softwareMap == nil {
+						continue
+					}
+					raw, err := json.Marshal(softwareMap)
+					if err != nil {
+						return fmt.Errorf("marshaling software for team %q: %w", teamName, err)
+					}
+					syntheticSoftwareByTeam[teamName] = raw
+
+					// Also build the title ID maps needed by doGitOpsPolicies.
+					installers, vppApps := buildExceptedTeamSoftwareResponses(fleetClient, *teamID)
+					teamsSoftwareInstallers[teamName] = installers
+					teamsVPPApps[teamName] = vppApps
+				}
+				gitOpsOpts.SyntheticSoftwareByTeam = syntheticSoftwareByTeam
 			}
 
 			// Used for keeping track of all label changes in this run.
@@ -1113,4 +1144,49 @@ func applyVPPTokenAssignmentIfNeeded(
 		return fmt.Errorf("applying fleet config for volume_purchasing_program teams: %w", err)
 	}
 	return nil
+}
+
+// buildExceptedTeamSoftwareResponses fetches a team's software titles and
+// builds SoftwarePackageResponse/VPPAppResponse slices with title IDs, used by
+// doGitOpsPolicies to resolve policy software automation when software is
+// excepted from GitOps.
+func buildExceptedTeamSoftwareResponses(client *service.Client, teamID uint) ([]fleet.SoftwarePackageResponse, []fleet.VPPAppResponse) {
+	query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=1000", teamID)
+	titles, err := client.ListSoftwareTitles(query)
+	if err != nil {
+		return nil, nil
+	}
+
+	var installers []fleet.SoftwarePackageResponse
+	var vppApps []fleet.VPPAppResponse
+
+	for _, title := range titles {
+		titleID := title.ID
+		switch {
+		case title.SoftwarePackage != nil:
+			installer := fleet.SoftwarePackageResponse{TitleID: &titleID}
+			if title.SoftwarePackage.PackageURL != nil {
+				installer.URL = *title.SoftwarePackage.PackageURL
+			}
+			if title.HashSHA256 != nil {
+				installer.HashSHA256 = *title.HashSHA256
+			}
+			// Look up FMA slug for patch policy resolution.
+			if title.SoftwarePackage.FleetMaintainedAppID != nil {
+				fma, err := client.GetFleetMaintainedApp(*title.SoftwarePackage.FleetMaintainedAppID)
+				if err == nil && fma != nil {
+					installer.Slug = fma.Slug
+				}
+			}
+			installers = append(installers, installer)
+		case title.AppStoreApp != nil:
+			vppApps = append(vppApps, fleet.VPPAppResponse{
+				TitleID:    &titleID,
+				AppStoreID: title.AppStoreApp.AppStoreID,
+				Platform:   fleet.InstallableDevicePlatform(title.AppStoreApp.Platform),
+			})
+		}
+	}
+
+	return installers, vppApps
 }

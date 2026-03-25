@@ -1656,6 +1656,92 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
+// generateSoftwareForValidation is a lightweight version of generateSoftware
+// that produces a minimal software spec from server-side data for GitOps
+// validation (policy install_software and patch policy references). It skips
+// GetSoftwareTitleByID, scripts, icons, setup experience, labels, etc.
+func generateSoftwareForValidation(client generateGitopsClient, teamID uint) (map[string]interface{}, error) {
+	query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=1000", teamID)
+	software, err := client.ListSoftwareTitles(query)
+	if err != nil {
+		return nil, err
+	}
+	if len(software) == 0 {
+		return nil, nil
+	}
+
+	result := make(map[string]any)
+	packages := make([]map[string]any, 0)
+	appStoreApps := make([]map[string]any, 0)
+	fmas := make([]map[string]any, 0)
+	dedupeInHouseAppsByFilename := make(map[string]struct{})
+
+	var appsList *maintained_apps.AppsList
+	var byUniqueID map[string]string
+
+	for _, sw := range software {
+		softwareSpec := make(map[string]interface{})
+		switch {
+		case sw.SoftwarePackage != nil:
+			// In-house app dedup (same logic as generateSoftware)
+			if isInHouseApp := filepath.Ext(sw.SoftwarePackage.Name) == ".ipa"; isInHouseApp {
+				if _, ok := dedupeInHouseAppsByFilename[sw.SoftwarePackage.Name]; ok {
+					continue
+				}
+				dedupeInHouseAppsByFilename[sw.SoftwarePackage.Name] = struct{}{}
+			}
+
+			if sw.HashSHA256 != nil {
+				softwareSpec["hash_sha256"] = *sw.HashSHA256
+			}
+			if sw.SoftwarePackage.PackageURL != nil {
+				softwareSpec["url"] = *sw.SoftwarePackage.PackageURL
+			}
+
+			if sw.SoftwarePackage.FleetMaintainedAppID != nil {
+				// FMA slug resolution (same logic as generateSoftware)
+				if byUniqueID == nil {
+					if appsList == nil {
+						appsList, err = maintained_apps.FetchAppsList(context.Background())
+						if err != nil {
+							return nil, err
+						}
+					}
+					byUniqueID = make(map[string]string, len(appsList.Apps))
+					for _, a := range appsList.Apps {
+						byUniqueID[a.UniqueIdentifier] = a.Slug
+					}
+				}
+				lookupKey := ptr.ValOrZero(sw.BundleIdentifier)
+				if lookupKey == "" {
+					lookupKey = sw.Name
+				}
+				slug := byUniqueID[lookupKey]
+				softwareSpec["slug"] = slug
+				fmas = append(fmas, softwareSpec)
+			} else {
+				packages = append(packages, softwareSpec)
+			}
+
+		case sw.AppStoreApp != nil:
+			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID
+			appStoreApps = append(appStoreApps, softwareSpec)
+		}
+	}
+
+	if len(packages) > 0 {
+		result["packages"] = packages
+	}
+	if len(appStoreApps) > 0 {
+		result["app_store_apps"] = appStoreApps
+	}
+	if len(fmas) > 0 {
+		result["fleet_maintained_apps"] = fmas
+	}
+
+	return result, nil
+}
+
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool) (map[string]interface{}, error) {
 	if !cmd.AppConfig.License.IsPremium() {
 		return nil, nil // software is premium-only

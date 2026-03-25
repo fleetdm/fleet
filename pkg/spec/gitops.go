@@ -362,6 +362,13 @@ type GitOpsOptions struct {
 	// AllowUnknownKeys causes unknown key errors to be logged as warnings
 	// instead of returned as errors.
 	AllowUnknownKeys bool
+	// SyntheticSoftwareByTeam maps team names to JSON-encoded software specs
+	// from the server. When the software: key is excepted from GitOps and
+	// omitted from the YAML, this data is injected so that parseSoftware can
+	// populate result.Software for policy validation (install_software and
+	// patch policy references). SoftwarePresent remains false so that
+	// downstream exception enforcement still works correctly.
+	SyntheticSoftwareByTeam map[string]json.RawMessage
 }
 
 // GitOpsFromFile parses a GitOps yaml file.
@@ -501,7 +508,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	multiError = parseReports(top, result, baseDir, logFn, filePath, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
-		multiError = parseSoftware(top, result, baseDir, filePath, multiError)
+		multiError = parseSoftware(top, result, baseDir, filePath, options, multiError)
 	}
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
@@ -1731,7 +1738,7 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
 
-func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
+func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, options GitOpsOptions, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if ok {
 		result.SoftwarePresent = true
@@ -1741,9 +1748,19 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			return multierror.Append(multiError, errors.New("'software' cannot be set on global file"))
 		}
 	} else if !ok {
-		// Software key is absent — this is allowed (will be a no-op if excepted,
-		// or will be treated as "delete all" if not excepted).
-		return multiError
+		// Software key is absent. If we have synthetic server-side data for this
+		// team (because software is excepted from GitOps), inject it so that
+		// policy install_software and patch policy references can be validated.
+		// SoftwarePresent remains false so downstream exception enforcement works.
+		if result.TeamName != nil && options.SyntheticSoftwareByTeam != nil {
+			if synthetic, hasSynthetic := options.SyntheticSoftwareByTeam[*result.TeamName]; hasSynthetic {
+				softwareRaw = synthetic
+				ok = true // allow processing below
+			}
+		}
+		if !ok {
+			return multiError
+		}
 	}
 	var software Software
 	if len(softwareRaw) > 0 {
