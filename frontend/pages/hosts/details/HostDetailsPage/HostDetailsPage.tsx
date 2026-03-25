@@ -140,6 +140,7 @@ import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
+import MDMStatusModal from "../modals/MDMStatusModal";
 
 const baseClass = "host-details";
 
@@ -237,6 +238,7 @@ const HostDetailsPage = ({
   const [showLocationModal, setShowLocationModal] = useState<
     boolean | undefined
   >(false);
+  const [showMDMStatusModal, setShowMDMStatusModal] = useState(true);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -683,6 +685,10 @@ const HostDetailsPage = ({
   const toggleLocationModal = useCallback(() => {
     setShowLocationModal(!showLocationModal);
   }, [showLocationModal, setShowLocationModal]);
+
+  const toggleMDMStatusModal = useCallback(() => {
+    setShowMDMStatusModal(!showMDMStatusModal);
+  }, [showMDMStatusModal, setShowMDMStatusModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -1346,6 +1352,7 @@ const HostDetailsPage = ({
                     host.platform
                   )}
                   toggleLocationModal={toggleLocationModal}
+                  toggleMDMStatusModal={toggleMDMStatusModal}
                 />
                 {showActivityCard && (
                   <ActivityCard
@@ -1731,6 +1738,16 @@ const HostDetailsPage = ({
               setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
+          />
+        )}
+        {showMDMStatusModal && host.mdm.enrollment_status && (
+          <MDMStatusModal
+            hostId={host.id}
+            enrollmentStatus={host.mdm.enrollment_status}
+            isPremiumTier={isPremiumTier}
+            isMacOSHost={isMacOSHost}
+            router={router}
+            onExit={toggleMDMStatusModal}
           />
         )}
       </>

@@ -93,6 +93,17 @@
     }
   }
 
+  &__mdm-status,
+  &__location {
+    dd {
+      display: flex;
+      align-items: center;
+      gap: $pad-xsmall;
+      margin-bottom: -$pad-xsmall; // See underline under link
+      padding-bottom: $pad-xsmall; // See underline under link
+    }
+  }
+
   .text-muted {
     color: $ui-fleet-black-50;
   }

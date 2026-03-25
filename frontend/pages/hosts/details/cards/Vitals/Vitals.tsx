@@ -15,11 +15,7 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
-import {
-  DEFAULT_EMPTY_CELL_VALUE,
-  MDM_STATUS_TOOLTIP,
-  BATTERY_TOOLTIP,
-} from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, BATTERY_TOOLTIP } from "utilities/constants";
 import {
   humanHostMemory,
   wrapFleetHelper,
@@ -35,7 +31,7 @@ import DataSet from "components/DataSet";
 import CardHeader from "components/CardHeader";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Icon from "components/Icon/Icon";
-import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
@@ -47,6 +43,7 @@ interface IVitalsProps {
   osVersionRequirement?: IAppleDeviceUpdates;
   className?: string;
   toggleLocationModal?: () => void;
+  toggleMDMStatusModal?: () => void;
 }
 
 type VitalForSort = { sortKey: string; element: React.ReactNode };
@@ -117,6 +114,7 @@ const Vitals = ({
   osVersionRequirement,
   className,
   toggleLocationModal,
+  toggleMDMStatusModal,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
@@ -366,15 +364,24 @@ const Vitals = ({
       isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
 
     if (isAdeIDevice || geolocation) {
+      // Using custom link for underline styling
       const geoLocationButton = (
-        <Button variant="text-link" onClick={toggleLocationModal}>
-          {isAdeIDevice ? "Show location" : getCityCountryLocation(geolocation)}
-        </Button>
+        <CustomLink
+          customClickHandler={toggleLocationModal}
+          text={
+            isAdeIDevice ? "Show location" : getCityCountryLocation(geolocation)
+          }
+        />
       );
       vitals.push({
         sortKey: "Location",
         element: (
-          <DataSet key="location" title="Location" value={geoLocationButton} />
+          <DataSet
+            className={`${baseClass}__location`}
+            key="location"
+            title="Location"
+            value={geoLocationButton}
+          />
         ),
       });
     }
@@ -388,19 +395,18 @@ const Vitals = ({
             <DataSet
               key="mdm-status"
               title="MDM status"
+              className={`${baseClass}__mdm-status`}
               value={
-                <div className={`${baseClass}__mdm-status`}>
+                <>
                   {mdm.dep_profile_error && <Icon name="error" />}
-                  <TooltipWrapper
-                    tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
-                    underline={mdm.enrollment_status !== "Off"}
-                  >
-                    {
+                  <CustomLink
+                    text={
                       MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
                         .displayName
                     }
-                  </TooltipWrapper>
-                </div>
+                    customClickHandler={toggleMDMStatusModal}
+                  />
+                </>
               }
             />
           ),

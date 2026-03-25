@@ -1,0 +1,33 @@
+.mdm-status-modal {
+  .modal__content {
+    @include vertical-modal-layout;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .list__row {
+    button {
+      visibility: hidden;
+    }
+
+    &:hover {
+      button {
+        visibility: visible;
+      }
+    }
+  }
+
+  &__status {
+    display: flex;
+  }
+
+  &__status-title {
+    width: 200px;
+  }
+
+  &__profile-assignment {
+    @include vertical-data-set-layout;
+  }
+}
