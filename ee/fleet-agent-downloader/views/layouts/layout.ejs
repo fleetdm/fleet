@@ -24,16 +24,7 @@ if(typeof replaceBuiltInAuthWithOkta === 'undefined') {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <% /* Certain scripts, normally analytics tools like Google Tag Manager and
-    Google Analytics, should only be included in production: */
-    if (sails.config.environment === 'production') { %>
-    <!-- Google Analytics, Google Tag Manager, etc. -->
-    <% }
-    /* Otherwise, any such scripts are excluded, and we instead inject a
-    robots/noindex meta tag to help prevent any unwanted visits from search engines. */
-    else { %>
     <meta name="robots" content="noindex">
-    <% } %>
 
     <% /*
         Stylesheets
@@ -53,36 +44,7 @@ if(typeof replaceBuiltInAuthWithOkta === 'undefined') {
   </head>
   <body>
     <div purpose="page-wrap">
-      <% if(false) {%>
-      <header class="navbar navbar-expand-sm navbar-dark bg-dark flex-column flex-md-row justify-content-between" purpose="page-header">
-        <a style="cursor: pointer;" class="navbar-brand mr-0" href="/"><img style="height: 20px;" class="logo" alt="NEW_APP_NAME logo" src="/images/logo.png"/></a>
-        <div class="navbar-nav flex-row">
-          <!-- LOGGED-IN NAVIGATION -->
-          <% if(me && replaceBuiltInAuthWithOkta) { %>
-          <form class="nav-item nav-link ml-3 mr-3 d-flex align-items-center" method="POST" action="/okta/logout">
-            <button lass="nav-item nav-link ml-3 mr-3 d-flex align-items-center" type="submit">Sign out</button>
-          </form>
-          <% } else if(me) { %>
-          <a class="nav-item nav-link ml-3 d-flex align-items-center" href="/logout">Sign out</a>
-          <% } else { %>
-          <a class="nav-item nav-link ml-3 d-flex align-items-center mr-2" href="/login">Log in</a>
-          <% } %>
-        </div>
-      </header>
-      <% } %>
       <%- body %>
-
-      <footer class="navbar navbar-light justify-content-between flex-row-reverse" purpose="page-footer">
-        <div class="nav" purpose="footer-nav">
-          <% if(me && replaceBuiltInAuthWithOkta) { %>
-          <form class="nav-item nav-link ml-3 mr-3 d-flex align-items-center" method="POST" action="/okta/logout">
-            <button lass="nav-item nav-link ml-3 mr-3 d-flex align-items-center" type="submit">Sign out</button>
-          </form>
-          <% } else if(me) { %>
-          <small class="nav-item d-inline-block"><a class="nav-link text-info px-1 px-sm-3" href="/logout">Sign out</a></small>
-          <% } %>
-        </div>
-      </footer>
     </div>
 
 
