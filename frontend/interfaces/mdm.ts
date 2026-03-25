@@ -62,7 +62,7 @@ export type MdmEnrollmentFilterValue =
   | "unenrolled"
   | "pending";
 
-export interface IMdmEnrollmentStatusUIData {
+interface IMdmEnrollmentStatusUIData {
   displayName: string;
   filterValue: MdmEnrollmentFilterValue;
 }

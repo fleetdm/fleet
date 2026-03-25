@@ -31,9 +31,9 @@ interface IPaginatedListProps<TItem> {
   /** if the parent is currently loading data */
   isLoading?: boolean;
   /** index of the currently displayed page */
-  currentPage?: number;
+  currentPage: number;
   /** callback when the page index changes */
-  onChangePage?: (pageIndex: number) => void;
+  onChangePage: (pageIndex: number) => void;
   /** UID property in an item. Defaults to `id`. */
   idKey?: string;
   /** Property to use as an item's label. Defaults to `name`. */
@@ -209,15 +209,14 @@ function PaginatedListInner<TItem extends Record<string, any>>(
         })}
       </ul>
       {helpText && <div className="form-field__help-text">{helpText}</div>}
-      {onChangePage && (
-        <Pagination
-          disablePrev={currentPage === 0}
-          disableNext={disableNext}
-          onNextPage={() => onChangePage(currentPage + 1)}
-          onPrevPage={() => onChangePage(currentPage - 1)}
-          hidePagination={currentPage === 0 && disableNext}
-        />
-      )}
+
+      <Pagination
+        disablePrev={currentPage === 0}
+        disableNext={disableNext}
+        onNextPage={() => onChangePage(currentPage + 1)}
+        onPrevPage={() => onChangePage(currentPage - 1)}
+        hidePagination={currentPage === 0 && disableNext}
+      />
     </div>
   );
 }
