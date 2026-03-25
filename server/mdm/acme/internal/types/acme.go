@@ -127,6 +127,7 @@ type Identifier struct {
 
 // Datastore is the datastore interface for the ACME bounded context.
 type Datastore interface {
+	UpsertACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
 	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*Enrollment, error)
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)

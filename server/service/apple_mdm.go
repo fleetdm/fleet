@@ -2099,7 +2099,10 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, appConfig *fleet
 }
 
 func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardwareSerial string, orgName string, mdmURL string, topic string) ([]byte, error) {
-	acmeIdent := "foobar" // TODO: replace this with call to upsert acme enrollments
+	acmeIdent, err := svc.acmeSvc.UpsertEnrollment(ctx, hardwareSerial)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "upserting ACME enrollment")
+	}
 
 	b, err := apple_mdm.GenerateACMEEnrollmentProfileMobileconfig(
 		orgName,

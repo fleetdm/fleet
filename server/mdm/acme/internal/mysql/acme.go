@@ -35,9 +35,9 @@ func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
 	return ds.replica
 }
 
-// func (ds *Datastore) writer(_ context.Context) *sqlx.DB {
-// 	return ds.primary
-// }
+func (ds *Datastore) writer(_ context.Context) *sqlx.DB {
+	return ds.primary
+}
 
 // Ensure Datastore implements types.Datastore
 var _ types.Datastore = (*Datastore)(nil)

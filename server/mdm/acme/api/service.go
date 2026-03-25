@@ -9,5 +9,6 @@ import "github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
 type Service interface {
 	DirectoryNonceService
 	AccountService
+	EnrollmentService
 	NoncesStore() *redis_nonces_store.RedisNoncesStore
 }

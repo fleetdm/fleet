@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -302,6 +303,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		opts[0].ActivityMock = activityMock
 	}
 
+	// Set up mock ACME service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
+	svc.SetACMEService(&fleet_mock.MockACMEService{})
+
 	return svc, ctx
 }
 
@@ -518,6 +523,12 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		}
 	} else {
 		redisPool = redistest.SetupRedis(t, t.Name(), false, false, false) // We are good to initalize a redis pool here as it is only called by integration tests
+	}
+
+	// Wire real ACME bounded context if DBConns is provided (overrides the mock set in newTestServiceWithConfig).
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		acmeSvc, _ := acme_bootstrap.New(opts[0].DBConns, redisPool, ds, logger)
+		svc.SetACMEService(acmeSvc)
 	}
 
 	if len(opts) > 0 {

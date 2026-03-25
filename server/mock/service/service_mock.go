@@ -395,6 +395,8 @@ type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, apply
 
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
 
+type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
@@ -1455,6 +1457,9 @@ type Service struct {
 
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
+
+	SetACMEServiceFunc        SetACMEServiceFunc
+	SetACMEServiceFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -3517,6 +3522,13 @@ func (s *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	s.SetActivityServiceFuncInvoked = true
 	s.mu.Unlock()
 	s.SetActivityServiceFunc(activitySvc)
+}
+
+func (s *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
+	s.mu.Lock()
+	s.SetACMEServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetACMEServiceFunc(acmeSvc)
 }
 
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
