@@ -12962,6 +12962,7 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 - [Delete invite](#delete-invite)
 - [Verify invite](#verify-invite)
 - [Update invite](#update-invite)
+- [Create API-only user](#create-api-only-user)
 - [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
