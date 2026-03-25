@@ -485,4 +485,40 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Empty(t, resp.Header.Get("Location"))
 	})
+
+	t.Run("empty url in JWS header", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
+		privateKey := generateTestKey(t)
+		nonce := s.getNonce(t, enrollValid.PathIdentifier)
+		jwsBody := buildJWS(t, privateKey, nonce, "", nil)
+		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
+
+		// TODO: 500 is returned because errors in DecodeBody do not go through
+		// the domain error encoder, it bypsases this in kithttp framework.
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "malformed")
+		// no nonce generated — decode error bypasses the endpoint handler
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("invalid url in JWS header", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
+		privateKey := generateTestKey(t)
+		nonce := s.getNonce(t, enrollValid.PathIdentifier)
+		jwsBody := buildJWS(t, privateKey, nonce, "http://example.com", nil)
+		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "unauthorized")
+		// nonce is generated because the error occurs in the endpoint handler (not decode)
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
 }

@@ -164,9 +164,6 @@ type JWSRequestContainer struct {
 }
 
 func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
-	// TODO(mna): I'm not totally sure if errors returned here go through the
-	// custom domain error encoding that we set in server.encodeResponse?
-
 	jwsBytes, err := io.ReadAll(r)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading soap mdm request")

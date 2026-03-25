@@ -22,6 +22,7 @@ func GetRoutes(svc api.Service) eu.HandlerRoutesFunc {
 }
 
 func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerOption) {
+	opts = append(opts, kithttp.ServerErrorEncoder(acmeErrorEncoder))
 	ae := newEndpointerWithNoAuth(svc, opts, r)
 	// ACME endpoints use path identifier and JWS authn/z, so we use a middleware to mark
 	// the standard Fleet auth as skipped/done so the endpoints don't return a Forbidden
