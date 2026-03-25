@@ -173,7 +173,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), res)
+	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), host.FleetPlatform(), res)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
 	}
@@ -238,6 +238,7 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 	hostID uint,
 	hostUUID string,
 	hostDisplayName string,
+	hostPlatform string,
 	results []*fleet.SetupExperienceStatusResult,
 ) error {
 	for _, r := range results {
@@ -286,6 +287,20 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 			err = svc.NewActivity(ctx, nil, activity)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience software install")
+			}
+		} else if r.VPPAppTeamID != nil && r.SoftwareTitleID != nil { // VPP
+			activity := &fleet.ActivityInstalledAppStoreApp{
+				HostID:          hostID,
+				HostDisplayName: hostDisplayName,
+				SoftwareTitle:   r.Name,
+				AppStoreID:      *r.VPPAppAdamID,
+				CommandUUID:     *r.NanoCommandUUID,
+				Status:          "failed",
+				HostPlatform:    hostPlatform, // The only supported VPP platform for setup experience here is darwin
+			}
+			err = svc.NewActivity(ctx, nil, activity)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience VPP install")
 			}
 		}
 		continue

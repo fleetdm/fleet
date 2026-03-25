@@ -319,7 +319,7 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 	}
 
 	// Mark canceled items as failed.
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, hostUUID, host.DisplayName(), results)
+	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, hostUUID, host.DisplayName(), host.FleetPlatform(), results)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
 	}
