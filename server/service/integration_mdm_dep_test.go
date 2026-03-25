@@ -2299,8 +2299,8 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	// for our tests, we'll crete two devices: devices[0] will be enrolled with no team and
 	// devices[1] will be enrolled with a team (created later in this test)
 	devices := []godep.Device{
-		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
-		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBookPro16,1", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBookPro16,1", OS: "osx", OpType: "added"},
 	}
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -3200,6 +3200,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	require.Equal(t, installerPayload2.Title, getHostSw.Software[1].Name)
 }
 
+// TODO: expand when full ACME flow is implemented
 func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	t := s.T()
 	s.enableABM(t.Name())
@@ -3249,6 +3250,8 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	}))
 	s.runDEPSchedule()
 
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+
 	// confirm that the devices were created
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
@@ -3264,22 +3267,24 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 		return err
 	})
 
-	// enroll the host
-	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
-	clientOpts := make([]mdmtest.TestMDMAppleClientOption, 0)
-	clientOpts = append(clientOpts, mdmtest.WithSkipParseEnrollProf(true))
-
-	appleSiliconDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, clientOpts...)
+	// Apple Silicon Mac enrolls via ACME, should contain ACME directory URL in the profile
+	appleSiliconDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, mdmtest.WithSkipParseEnrollProf(true))
 	appleSiliconDevice.SerialNumber = devices[0].SerialNumber
 	appleSiliconDevice.Model = devices[0].Model
 	err := appleSiliconDevice.Enroll()
 	require.NoError(t, err)
 
-	expectIdent := "foobar" // TODO: update this once we implement upserts for acme_enrollments
+	var expectIdent string
+	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	stmt := `SELECT path_identifier FROM acme_enrollments WHERE host_identifier = ?`
+	// 	err := sqlx.GetContext(context.Background(), q, &expectIdent, stmt, appleSiliconDevice.SerialNumber)
+	// 	return err
+	// })
+	expectIdent = "foobar" // TODO: delete this and uncoment above
+
 	require.Contains(t, string(appleSiliconDevice.EnrollInfo.RawProfile), "/api/mdm/acme/"+expectIdent+"/directory", "enrollment profile should contain the ACME directory URL")
 
-	// TODO: expand when full ACME flow is implemented
-
+	// Intel Mac enrolls via SCEP, should not contain ACME directory URL in the profile
 	intelDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
 	intelDevice.SerialNumber = devices[1].SerialNumber
 	intelDevice.Model = devices[1].Model
