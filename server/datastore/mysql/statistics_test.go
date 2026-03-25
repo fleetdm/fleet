@@ -686,9 +686,9 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers (
 				team_id, global_or_team_id, filename, version, platform,
 				install_script_content_id, uninstall_script_content_id,
-				storage_id, package_ids, fleet_maintained_app_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, nil, 0, "zoom.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage1", "[]", appDarwin1.ID)
+				storage_id, package_ids, fleet_maintained_app_id, patch_query
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "zoom.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage1", "[]", appDarwin1.ID, "")
 		return err
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -696,9 +696,9 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers (
 				team_id, global_or_team_id, filename, version, platform,
 				install_script_content_id, uninstall_script_content_id,
-				storage_id, package_ids, fleet_maintained_app_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, nil, 0, "slack.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage2", "[]", appDarwin2.ID)
+				storage_id, package_ids, fleet_maintained_app_id, patch_query
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "slack.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage2", "[]", appDarwin2.ID, "")
 		return err
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -706,9 +706,9 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers (
 				team_id, global_or_team_id, filename, version, platform,
 				install_script_content_id, uninstall_script_content_id,
-				storage_id, package_ids, fleet_maintained_app_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, nil, 0, "teams.exe", "1.0", "windows", installScriptID, uninstallScriptID, "storage3", "[]", appWindows1.ID)
+				storage_id, package_ids, fleet_maintained_app_id, patch_query
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "teams.exe", "1.0", "windows", installScriptID, uninstallScriptID, "storage3", "[]", appWindows1.ID, "")
 		return err
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -716,9 +716,9 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers (
 				team_id, global_or_team_id, filename, version, platform,
 				install_script_content_id, uninstall_script_content_id,
-				storage_id, package_ids, fleet_maintained_app_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, nil, 0, "zoom.exe", "1.0", "windows", installScriptID, uninstallScriptID, "storage4", "[]", appWindows2.ID)
+				storage_id, package_ids, fleet_maintained_app_id, patch_query
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "zoom.exe", "1.0", "windows", installScriptID, uninstallScriptID, "storage4", "[]", appWindows2.ID, "")
 		return err
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -726,9 +726,9 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers (
 				team_id, global_or_team_id, filename, version, platform,
 				install_script_content_id, uninstall_script_content_id,
-				storage_id, package_ids, fleet_maintained_app_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, nil, 0, "linux.deb", "1.0", "linux", installScriptID, uninstallScriptID, "storage5", "[]", appLinux.ID)
+				storage_id, package_ids, fleet_maintained_app_id, patch_query
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "linux.deb", "1.0", "linux", installScriptID, uninstallScriptID, "storage5", "[]", appLinux.ID, "")
 		return err
 	})
 
@@ -744,9 +744,9 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers (
 				team_id, global_or_team_id, filename, version, platform,
 				install_script_content_id, uninstall_script_content_id,
-				storage_id, package_ids, fleet_maintained_app_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, nil, 0, "zoom-v2.pkg", "2.0", "darwin", installScriptID, uninstallScriptID, "storage6", "[]", appDarwin1.ID)
+				storage_id, package_ids, fleet_maintained_app_id, patch_query
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "zoom-v2.pkg", "2.0", "darwin", installScriptID, uninstallScriptID, "storage6", "[]", appDarwin1.ID, "")
 		return err
 	})
 	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
@@ -760,9 +760,9 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers (
 				team_id, global_or_team_id, filename, version, platform,
 				install_script_content_id, uninstall_script_content_id,
-				storage_id, package_ids, fleet_maintained_app_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, nil, 0, "custom.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage7", "[]", nil)
+				storage_id, package_ids, fleet_maintained_app_id, patch_query
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "custom.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage7", "[]", nil, "")
 		return err
 	})
 

@@ -815,6 +815,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
   'GET /guides/how-to-uninstall-osquery': (req, res) => { return res.redirect(301, '/guides/how-to-uninstall-fleetd'); },
   'GET /guides/sysadmin-diaries-lost-device': (req, res) => { return res.redirect(301, '/guides/lock-wipe-hosts'); },
+  'GET /guides/teams': (req, res) => { return res.redirect(301, '/guides/fleets'); },
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
@@ -1233,6 +1234,7 @@ module.exports.routes = {
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
+  'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
 

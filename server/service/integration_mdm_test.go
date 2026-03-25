@@ -12272,6 +12272,7 @@ type appStoreApp interface {
 
 func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
 
 	// non-existent team
@@ -14249,7 +14250,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Check list host software
 
 	getHostSw := getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "include_available_for_install", "true")
 	gotSW := getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
 	got1, got2 := gotSW[0], gotSW[1]
@@ -14276,7 +14277,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Check with a query
 	getHostSw = getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "query", "App 1")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "query", "App 1", "include_available_for_install", "true")
 	require.Len(t, getHostSw.Software, 1) // App 1 only
 	got1 = getHostSw.Software[0]
 	require.Equal(t, got1.Name, "App 1")
@@ -14332,7 +14333,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Check list host software
 	getHostSw = getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "include_available_for_install", "true")
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
 	got1 = gotSW[0]
@@ -14507,7 +14508,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 			// Check list host software
 			getHostSw = getHostSoftwareResponse{}
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", installHost.ID), nil, http.StatusOK, &getHostSw)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", installHost.ID), nil, http.StatusOK, &getHostSw, "include_available_for_install", "true")
 			require.Len(t, getHostSw.Software, install.hostCount+install.extraAvailable)
 			var foundInstalledApp bool
 			for index := range getHostSw.Software {
@@ -17956,7 +17957,7 @@ func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", orbitHost.ID), getHostSoftwareRequest{}, http.StatusOK, &resp)
 	assert.Len(t, resp.Software, 0)
 
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), getHostSoftwareRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), getHostSoftwareRequest{}, http.StatusOK, &resp, "include_available_for_install", "true")
 	assert.Len(t, resp.Software, 1)
 }
 
@@ -19759,7 +19760,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		host.ID, titleID), nil, http.StatusAccepted, &installResp)
 
 	getHostSw := getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "include_available_for_install", "true")
 	require.Len(t, getHostSw.Software, 1)
 	require.Equal(t, getHostSw.Software[0].Name, "ruby")
 	require.NotNil(t, getHostSw.Software[0].SoftwarePackage)
@@ -19789,7 +19790,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	require.Equal(t, cat3.Name, getDeviceSw.Software[0].SoftwarePackage.Categories[0])
 
 	getHostSw = getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "include_available_for_install", "true")
 	require.Len(t, getHostSw.Software, 1)
 	require.Equal(t, getHostSw.Software[0].Name, "ruby")
 	require.NotNil(t, getHostSw.Software[0].SoftwarePackage)

@@ -28,5 +28,16 @@ If an AE has identified and started working multiple qualified opportunities in 
 > - In the event the CS team surfaces a real expansion opportunity in a part of the account far removed from the CSM's current customer contacts, that opportunity may be assigned to the original AE at the discretion of the CCO and/or SVP Sales.
 
 
+### Closed Lost opportunity ownership transitional policy
+
+Given the shift to a territory-based model, we're implementing the following effective immediately:
+
+- AEs may retain ownership of up to **5** Closed Lost opportunities.
+- Applies only to deals that were Closed Lost at PoV stage or later.
+- Protection lasts **120 days** from the later of:
+  - Closed Lost date, or
+  - Territory assignment date.
+
+
 <meta name="maintainedBy" value="chazmac6">
 <meta name="title" value="🧑‍🏫 Sales playbook">
