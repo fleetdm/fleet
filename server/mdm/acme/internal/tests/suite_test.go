@@ -127,11 +127,11 @@ func (s staticNonce) Nonce() (string, error) {
 }
 
 // generateTestKey generates an ECDSA P-256 key pair and returns the private key and public JWK.
-func generateTestKey(t *testing.T) (*ecdsa.PrivateKey, jose.JSONWebKey) {
+func generateTestKey(t *testing.T) *ecdsa.PrivateKey {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	return key, jose.JSONWebKey{Key: key.Public()}
+	return key
 }
 
 // getNonce obtains a fresh nonce from the new_nonce endpoint for the given enrollment.

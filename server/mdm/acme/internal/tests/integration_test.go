@@ -268,7 +268,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	t.Run("create new account", func(t *testing.T) {
-		privateKey, _ := generateTestKey(t)
+		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
@@ -283,7 +283,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("return existing account with same JWK", func(t *testing.T) {
-		privateKey, _ := generateTestKey(t)
+		privateKey := generateTestKey(t)
 
 		// create account
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
@@ -305,7 +305,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("onlyReturnExisting account exists", func(t *testing.T) {
-		privateKey, _ := generateTestKey(t)
+		privateKey := generateTestKey(t)
 
 		// create account first
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
@@ -326,7 +326,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("onlyReturnExisting account does not exist", func(t *testing.T) {
-		privateKey, _ := generateTestKey(t)
+		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		payload := map[string]any{"onlyReturnExisting": true}
 		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollValid.PathIdentifier), payload)
@@ -339,7 +339,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 	t.Run("unknown identifier", func(t *testing.T) {
 		// we need a valid enrollment to get a nonce, then use a bad identifier for the account request
-		privateKey, _ := generateTestKey(t)
+		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		badIdentifier := "no-such-identifier"
 		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(badIdentifier), nil)
@@ -354,7 +354,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 	t.Run("revoked enrollment", func(t *testing.T) {
 		// get nonce from valid enrollment, then try to create account on revoked
-		privateKey, _ := generateTestKey(t)
+		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollRevoked.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollRevoked.PathIdentifier, jwsBody)
@@ -367,7 +367,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
-		privateKey, _ := generateTestKey(t)
+		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollExpired.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollExpired.PathIdentifier, jwsBody)
@@ -380,7 +380,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
-		privateKey, _ := generateTestKey(t)
+		privateKey := generateTestKey(t)
 		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
