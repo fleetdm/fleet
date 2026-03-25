@@ -387,12 +387,12 @@ const Vitals = ({
         element: (
           <DataSet
             key="mdm-attestation"
-            title={
+            title="MDM attestation"
+            value={
               <TooltipWrapper tipContent="Host provided a Managed Device Attestation signed by Apple at enrollment.">
-                MDM attestation
+                Yes
               </TooltipWrapper>
             }
-            value="Yes"
           />
         ),
       });
