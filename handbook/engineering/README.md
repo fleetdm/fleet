@@ -278,12 +278,12 @@ See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/b
 
 ### Prepare fleetd agent release
 
-Fleetd is an agent composed of several components. The latest released versions available in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
-Refer to the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md) for the full release steps.
+Fleetd is an agent composed of several components. The latest released versions in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
+For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
 
-Our Android app is managed through Google Play. Follow the process described in the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
+Our Android app is managed through Google Play. Follow the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
 
-The Chrome extension is managed through Google Admin, which is Google’s centralized console for controlling Chrome policies, apps, and extensions across an organization.
+The Chrome extension is released via [Google Admin](https://admin.google.com).
 For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
 For production releases, follow the [Chrome extension README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
