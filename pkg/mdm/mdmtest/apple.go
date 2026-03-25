@@ -369,7 +369,7 @@ func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 	// on the profile content.
 	if c.EnrollInfo.SCEPURL == "" && !bytes.Contains(c.EnrollInfo.RawProfile, []byte("com.apple.security.scep")) {
 		if !bytes.Contains(c.EnrollInfo.RawProfile, []byte("com.apple.security.acme")) {
-			return fmt.Errorf("enrollment profile should contain either SCEP or ACME payload")
+			return errors.New("enrollment profile should contain either SCEP or ACME payload")
 		}
 		return nil
 	}

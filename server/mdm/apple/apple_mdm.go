@@ -1437,7 +1437,7 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
 	}
 
-	acmeURL, err := commonmdm.ResolveURL(mdmURL, fmt.Sprintf("/api/mdm/acme/%s/directory", acmeIdent), true)
+	acmeURL, err := ResolveAppleACMEDirectoryURL(mdmURL, acmeIdent)
 	if err != nil {
 		return nil, err
 	}
