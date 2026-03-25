@@ -1572,7 +1572,7 @@ func (a *agent) orbitEnroll() error {
 	})
 	defer response.Body.Close()
 
-	var parsedResp service.EnrollOrbitResponse
+	var parsedResp fleet.EnrollOrbitResponse
 	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		log.Println("orbit json parse:", err)
 		return err

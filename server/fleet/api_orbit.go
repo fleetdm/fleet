@@ -292,14 +292,6 @@ func (r *OrbitDownloadSoftwareInstallerRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
-// OrbitDownloadSoftwareInstallerResponse is used by the server-side endpoint.
-type OrbitDownloadSoftwareInstallerResponse struct {
-	Err     error `json:"error,omitempty"`
-	Payload *DownloadSoftwareInstallerPayload
-}
-
-func (r OrbitDownloadSoftwareInstallerResponse) Error() error { return r.Err }
-
 /////////////////////////////////////////////////////////////////////////////////
 // Post Orbit software install result
 /////////////////////////////////////////////////////////////////////////////////
