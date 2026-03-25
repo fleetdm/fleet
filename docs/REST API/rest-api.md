@@ -13918,6 +13918,8 @@ Experimental endpoints are excluded from the results, since they are not for use
 #### Example
 
 `GET /api/v1/fleet/rest_api?query=get%20host%20by%20identifier`
+or
+`GET /api/v1/fleet/rest_api?query=%2Fapi%2Fv1%2Ffleet%2Fhosts%2Fidentifier%2F%3Ahost_identifier`
 
 ##### Default response
 
