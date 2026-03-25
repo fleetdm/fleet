@@ -1,4 +1,4 @@
-.custom-settings {
+.configuration-profiles {
   @include vertical-card-layout;
 
   .empty-profiles {
@@ -37,6 +37,7 @@
     margin: px-to-rem(32) 0 0;
     max-width: none;
   }
+
 }
 
 // this is used to format the long error message when uploading invalid keys

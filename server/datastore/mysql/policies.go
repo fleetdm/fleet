@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -1064,20 +1065,22 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Type = fleet.PolicyTypeDynamic
 	}
 	if args.Type == fleet.PolicyTypePatch {
-		generated, err := ds.generatePatchPolicy(ctx, teamID, *args.PatchSoftwareTitleID)
+		installer, err := ds.getPatchPolicyInstaller(ctx, teamID, *args.PatchSoftwareTitleID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting patch policy installer")
+		}
+		generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
+			Name:        args.Name,
+			Description: args.Description,
+			Resolution:  args.Resolution,
+		}, installer)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "generating patch policy fields")
 		}
 
-		if args.Name == "" {
-			args.Name = generated.Name
-		}
-		if args.Description == "" {
-			args.Description = generated.Description
-		}
-		if args.Resolution == "" {
-			args.Resolution = generated.Resolution
-		}
+		args.Name = generated.Name
+		args.Description = generated.Description
+		args.Resolution = generated.Resolution
 		args.Platform = generated.Platform
 		args.Query = generated.Query
 	}
@@ -1470,23 +1473,26 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
 
-				// generate new up-to-date query and other fields for patch policy
+				// generate new up-to-date patch policy
 				if spec.Type == fleet.PolicyTypePatch {
-					patch, err := ds.generatePatchPolicy(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
+					installer, err := ds.getPatchPolicyInstaller(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "getting patch policy installer")
+					}
+					generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
+						Name:        spec.Name,
+						Description: spec.Description,
+						Resolution:  spec.Resolution,
+					}, installer)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "generating patch policy fields")
 					}
-					if spec.Name == "" {
-						spec.Name = patch.Name
-					}
-					if spec.Description == "" {
-						spec.Description = patch.Description
-					}
-					if spec.Resolution == "" {
-						spec.Resolution = patch.Resolution
-					}
-					spec.Platform = patch.Platform
-					spec.Query = patch.Query
+
+					spec.Name = generated.Name
+					spec.Description = generated.Description
+					spec.Resolution = generated.Resolution
+					spec.Platform = generated.Platform
+					spec.Query = generated.Query
 				}
 
 				res, err := tx.ExecContext(
@@ -2624,15 +2630,7 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	return policies, nil
 }
 
-type patchPolicy struct {
-	Name        string
-	Query       string
-	Platform    string
-	Description string
-	Resolution  string
-}
-
-func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, titleID uint) (*patchPolicy, error) {
+func (ds *Datastore) getPatchPolicyInstaller(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 	installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer")
@@ -2642,32 +2640,7 @@ func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, title
 			Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", titleID, teamID),
 		})
 	}
-
-	var policy patchPolicy
-	switch {
-	case installer.Platform == string(fleet.MacOSPlatform):
-		policy.Query = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
-			installer.BundleIdentifier,
-			installer.Version,
-		)
-		policy.Platform = string(fleet.MacOSPlatform)
-		policy.Name = fmt.Sprintf("macOS - %s up to date", installer.SoftwareTitle)
-	case installer.Platform == "windows":
-		// TODO: use upgrade code to improve accuracy?
-		policy.Query = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
-			installer.SoftwareTitle,
-			installer.Version,
-		)
-		policy.Platform = "windows"
-		policy.Name = fmt.Sprintf("Windows - %s up to date", installer.SoftwareTitle)
-	default:
-	}
-	policy.Description = "Outdated software might introduce security vulnerabilities or compatibility issues."
-	policy.Resolution = "Install the latest version from self-service."
-
-	return &policy, nil
+	return installer, nil
 }
 
 func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
