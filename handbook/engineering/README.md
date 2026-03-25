@@ -278,14 +278,20 @@ See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/b
 
 ### Prepare fleetd agent release
 
+#### macOS, Windows, Linux
+
 Fleetd is an agent composed of several components. The latest released versions in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
 For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
 
+#### Android
+
 Our Android app is managed through Google Play. Follow the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
+
+#### ChromeOS
 
 The Chrome extension is released via [Google Admin](https://admin.google.com).
 For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
-For production releases, follow the [Chrome extension README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
+For production releases, follow the [Chrome extension README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).### Deploy a new release to dogfood
 
 ### Deploy a new release to dogfood
 
