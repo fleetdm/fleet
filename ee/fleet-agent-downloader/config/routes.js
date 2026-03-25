@@ -13,8 +13,8 @@ module.exports.routes = {
   //  ╦ ╦╔═╗╔╗ ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║║║║╣ ╠╩╗╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
-  'GET /':                   { action: 'view-homepage-or-redirect' },
-  'GET /welcome/:unused?':   { action: 'dashboard/view-welcome' },
+  // 'GET /':                   { action: 'view-homepage-or-redirect' },
+  'GET /':   { action: 'dashboard/view-welcome' },
 
   // 'GET /faq':                { action:   'view-faq' },
   // 'GET /legal/terms':        { action:   'legal/view-terms' },
@@ -54,5 +54,6 @@ module.exports.routes = {
   '/api/v1/account/logout':                           { action: 'account/logout' },
   // 'PUT   /api/v1/entrance/login':                        { action: 'entrance/login' },
   'GET  /entrance/signup-okta-user-or-redirect':    { action: 'entrance/signup-okta-user-or-redirect' },
+  'GET /download-fleet-installer': { action: 'download-fleet-installer' },
 
 };
