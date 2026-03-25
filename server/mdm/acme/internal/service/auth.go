@@ -127,7 +127,8 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 	}
 	err = json.Unmarshal(payload, requestPayload)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "unmarshalling JWS payload into request for identifier: %s", message.Identifier)
+		err = types.MalformedError(fmt.Sprintf("Failed to unmarshal JWS payload: %v", err))
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	if createNewAccount != nil {
