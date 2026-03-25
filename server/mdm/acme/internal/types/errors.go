@@ -4,7 +4,12 @@ import (
 	"net/http"
 )
 
-const acmeErrorsURN = "urn:ietf:params:acme:error:"
+const (
+	acmeErrorsURN = "urn:ietf:params:acme:error:"
+	// NOTE: ideally this would be a valid, dereferenceable link to human-readable documentation,
+	// but it's ok if it's not too. See https://datatracker.ietf.org/doc/html/rfc8555/#section-6.7
+	fleetCustomErrorsURI = "https://fleetdm.com/acme/error/"
+)
 
 // ACMEError represents an error related to the ACME protocol,
 // see https://datatracker.ietf.org/doc/html/rfc8555/#section-6.7
@@ -23,6 +28,32 @@ type ACMEError struct {
 	StatusCode int    `json:"-"`
 }
 
+var (
+	enrollmentNotFound = EnrollmentNotFoundError("")
+	serverInternal     = InternalServerError("")
+)
+
+func (e *ACMEError) ShouldReturnNonce() bool {
+	if e == nil {
+		return false
+	}
+	switch e.Type {
+	case enrollmentNotFound.Type, serverInternal.Type:
+		return false
+	default:
+		return true
+	}
+}
+
+func EnrollmentNotFoundError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "enrollmentNotFound",
+		Title:      "The specified enrollment does not exist",
+		Detail:     detail,
+		StatusCode: http.StatusNotFound,
+	}
+}
+
 func AccountDoesNotExistError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "accountDoesNotExist",
@@ -32,12 +63,75 @@ func AccountDoesNotExistError(detail string) *ACMEError {
 	}
 }
 
+func AccountRevokedError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "accountRevoked",
+		Title:      "The request specified an account that is revoked",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func TooManyAccountsError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "tooManyAccounts",
+		Title:      "Too many accounts already exist for this enrollment",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
 func BadNonceError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "badNonce",
 		Title:      "The client sent an unacceptable anti-replay nonce",
 		Detail:     detail,
 		StatusCode: http.StatusBadRequest, // as per RFC https://datatracker.ietf.org/doc/html/rfc8555/#section-6.5
+	}
+}
+
+func InternalServerError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "serverInternal",
+		Title:      "The server experienced an internal error",
+		Detail:     detail,
+		StatusCode: http.StatusInternalServerError,
+	}
+}
+
+func BadPublicKeyError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "badPublicKey",
+		Title:      "The JWS was signed by a public key the server does not support",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func BadSignatureAlgorithmError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "badSignatureAlgorithm",
+		Title:      "The JWS was signed with an algorithm the server does not support",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func UnauthorizedError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "unauthorized",
+		Title:      "The client lacks sufficient authorization",
+		Detail:     detail,
+		StatusCode: http.StatusUnauthorized,
+	}
+}
+
+func MalformedError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "malformed",
+		Title:      "The request message was malformed",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
 	}
 }
 

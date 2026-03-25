@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
@@ -18,46 +19,55 @@ const maxAccountsPerEnrollment = 3
 func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, onlyReturnExisting bool) (*types.Account, bool, error) {
 	var didCreate bool
 	err := platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
-		lockEnrollmentStmt := `SELECT id FROM acme_enrollments WHERE id = ? FOR UPDATE`
+		// Mark the enrollment as locked to prevent concurrent account creation for
+		// the same enrollment, so we can enforce limits on account creation
+		const lockEnrollmentStmt = `SELECT id FROM acme_enrollments WHERE id = ? FOR UPDATE`
 		var enrollmentID uint
-
-		// Mark the enrollment as locked to prevent concurrent account creation for the same enrollment, so we can enforce limits on account creation
-		err := tx.QueryRowxContext(ctx, lockEnrollmentStmt, account.EnrollmentID).Scan(&enrollmentID)
+		err := sqlx.GetContext(ctx, tx, &enrollmentID, lockEnrollmentStmt, account.EnrollmentID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock acme enrollment")
 		}
 
-		// TODO: what if it's revoked? do not return it but do not create it either?
-		// if the account already exists, we return it
-		findExistingAccountStmt := `SELECT id FROM acme_accounts WHERE acme_enrollment_id = ? AND json_web_key_thumbprint = ?`
 		thumbprint, err := jose.Thumbprint(&account.JSONWebKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "compute jwk thumbprint for new account")
 		}
-		var existingAccountID uint
-		err = tx.QueryRowxContext(ctx, findExistingAccountStmt, account.EnrollmentID, thumbprint).Scan(&existingAccountID)
+
+		// if the account already exists (and is not revoked), we return it
+		const findExistingAccountStmt = `SELECT id, revoked FROM acme_accounts WHERE acme_enrollment_id = ? AND json_web_key_thumbprint = ?`
+		var existingAccount struct {
+			ID      uint `db:"id"`
+			Revoked bool `db:"revoked"`
+		}
+		err = sqlx.GetContext(ctx, tx, &existingAccount, findExistingAccountStmt, account.EnrollmentID, thumbprint)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return ctxerr.Wrap(ctx, err, "check for existing account with same jwk thumbprint")
 		}
 		if err == nil {
-			account.ID = existingAccountID
+			if existingAccount.Revoked {
+				err = types.AccountRevokedError(fmt.Sprintf("Account %d is revoked", existingAccount.ID))
+				return ctxerr.Wrap(ctx, err)
+			}
+			account.ID = existingAccount.ID
 			return nil
 		}
 
 		// If we got here we didn't find an existing account so, if requested by the caller, return a notFound
 		if onlyReturnExisting {
-			return platform_mysql.NotFound("acme account").WithName(thumbprint)
+			err = types.AccountDoesNotExistError(fmt.Sprintf("No account exists for enrollment id %d with the provided jwk", account.EnrollmentID))
+			return ctxerr.Wrap(ctx, err)
 		}
 
 		// check if maximum number of accounts for this enrollment has been reached before creating a new one
-		countAccountsStmt := `SELECT COUNT(*) FROM acme_accounts WHERE acme_enrollment_id = ?`
+		const countAccountsStmt = `SELECT COUNT(*) FROM acme_accounts WHERE acme_enrollment_id = ?`
 		var accountCount int
-		err = tx.QueryRowxContext(ctx, countAccountsStmt, enrollmentID).Scan(&accountCount)
+		err = sqlx.GetContext(ctx, tx, &accountCount, countAccountsStmt, enrollmentID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "count acme accounts for enrollment")
 		}
 		if accountCount >= maxAccountsPerEnrollment {
-			return ctxerr.Errorf(ctx, "account creation limit reached for enrollment id %d", enrollmentID)
+			err = types.TooManyAccountsError(fmt.Sprintf("Enrollment id %d already has %d accounts, which is the maximum allowed", enrollmentID, accountCount))
+			return ctxerr.Wrap(ctx, err)
 		}
 
 		// create the new account
@@ -66,7 +76,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 			return ctxerr.Wrap(ctx, err, "marshal new account jwk")
 		}
 
-		insertStmt := `INSERT INTO acme_accounts (acme_enrollment_id, json_web_key, json_web_key_thumbprint) VALUES (?, ?, ?)`
+		const insertStmt = `INSERT INTO acme_accounts (acme_enrollment_id, json_web_key, json_web_key_thumbprint) VALUES (?, ?, ?)`
 		res, err := tx.ExecContext(ctx, insertStmt, account.EnrollmentID, jwkSerialized, thumbprint)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme account")
@@ -104,6 +114,7 @@ func (ds *Datastore) GetAccountByID(ctx context.Context, enrollmentID uint, acco
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dbAcc, stmt, enrollmentID, accountID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			// TODO: use an ACME error probably
 			return nil, platform_mysql.NotFound("acme account").WithID(accountID)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select acme account")

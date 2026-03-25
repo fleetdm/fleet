@@ -35,8 +35,11 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *eu.JsonError) (handled bool) {
 	var acmeErr *types.ACMEError
 	if !errors.As(err, &acmeErr) {
-		return false
+		// if it's not already an ACME error, it is because it is an internal server
+		// error (or an dev error, for 4xx we should always return ACMEError).
+		acmeErr = types.InternalServerError("") // not passing err.Error() as we don't want to leak internal details
 	}
+
 	statusCode := acmeErr.StatusCode
 	if statusCode == 0 {
 		statusCode = http.StatusInternalServerError
@@ -56,8 +59,12 @@ func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFun
 
 // parseCustomTags handles custom URL tag values for activity requests.
 func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (bool, error) {
-	if urlTagValue == "http_method" {
+	switch urlTagValue {
+	case "http_method":
 		field.Set(reflect.ValueOf(r.Method))
+		return true, nil
+	case "http_path":
+		field.Set(reflect.ValueOf(r.URL.Path))
 		return true, nil
 	}
 	return false, nil

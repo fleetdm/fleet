@@ -258,9 +258,6 @@ func testGetDirectory(t *testing.T, s *integrationTestSuite) {
 
 func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	// create enrollments for testing
-	enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
-	s.InsertACMEEnrollment(t, enrollValid)
-
 	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
@@ -268,6 +265,9 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	t.Run("create new account", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollValid.PathIdentifier), nil)
@@ -277,20 +277,27 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Nil(t, acmeErr)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+		require.NotEmpty(t, resp.Header.Get("Location"))
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp.Header.Get("Location"))
 
 		require.Equal(t, "valid", acctResp.Status)
-		require.Contains(t, acctResp.Orders, "/orders")
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+/orders$`, acctResp.Orders)
 	})
 
 	t.Run("return existing account with same JWK", func(t *testing.T) {
-		privateKey := generateTestKey(t)
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
 
 		// create account
+		privateKey := generateTestKey(t)
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody1 := buildJWS(t, privateKey, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
 
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
+		require.NotEmpty(t, resp1.Header.Get("Location"))
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp1.Header.Get("Location"))
+		location1 := resp1.Header.Get("Location")
 
 		// create again with same key - should return existing (use the valid returned nonce)
 		nonce2 := resp1.Header.Get("Replay-Nonce")
@@ -302,15 +309,79 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Equal(t, "valid", acctResp2.Status)
 		// same account, same orders URL
 		require.Equal(t, acctResp1.Orders, acctResp2.Orders)
+		require.NotEmpty(t, resp2.Header.Get("Location"))
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp2.Header.Get("Location"))
+		require.Equal(t, location1, resp2.Header.Get("Location"))
+	})
+
+	t.Run("too many accounts", func(t *testing.T) {
+		// use a dedicated enrollment so prior sub-tests don't affect the count
+		enrollForLimit := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollForLimit)
+
+		// create 3 accounts (the maximum allowed per enrollment)
+		nonce := s.getNonce(t, enrollForLimit.PathIdentifier)
+		for range 3 {
+			key := generateTestKey(t)
+			jwsBody := buildJWS(t, key, nonce, s.newAccountURL(enrollForLimit.PathIdentifier), nil)
+			_, _, resp := s.createAccount(t, enrollForLimit.PathIdentifier, jwsBody)
+			require.Equal(t, http.StatusCreated, resp.StatusCode)
+			nonce = resp.Header.Get("Replay-Nonce")
+		}
+
+		// 4th should fail
+		key := generateTestKey(t)
+		jwsBody := buildJWS(t, key, nonce, s.newAccountURL(enrollForLimit.PathIdentifier), nil)
+		_, acmeErr, resp := s.createAccount(t, enrollForLimit.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Contains(t, acmeErr.Type, "error/tooManyAccounts")
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("revoked account", func(t *testing.T) {
+		// use a dedicated enrollment to avoid interference with other sub-tests
+		enrollForRevoke := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollForRevoke)
+
+		privateKey := generateTestKey(t)
+
+		// create an account
+		nonce := s.getNonce(t, enrollForRevoke.PathIdentifier)
+		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollForRevoke.PathIdentifier), nil)
+		_, _, resp1 := s.createAccount(t, enrollForRevoke.PathIdentifier, jwsBody)
+		require.Equal(t, http.StatusCreated, resp1.StatusCode)
+
+		// revoke it directly in the DB
+		var accountID uint
+		err := s.DB.GetContext(t.Context(), &accountID, `SELECT id FROM acme_accounts WHERE acme_enrollment_id = ? ORDER BY id DESC LIMIT 1`, enrollForRevoke.ID)
+		require.NoError(t, err)
+		_, err = s.DB.ExecContext(t.Context(), `UPDATE acme_accounts SET revoked = 1 WHERE id = ?`, accountID)
+		require.NoError(t, err)
+
+		// try to create again with the same key — should get accountRevoked error
+		nonce2 := resp1.Header.Get("Replay-Nonce")
+		jwsBody2 := buildJWS(t, privateKey, nonce2, s.newAccountURL(enrollForRevoke.PathIdentifier), nil)
+		_, acmeErr, resp2 := s.createAccount(t, enrollForRevoke.PathIdentifier, jwsBody2)
+
+		require.Equal(t, http.StatusBadRequest, resp2.StatusCode)
+		require.NotEmpty(t, resp2.Header.Get("Replay-Nonce"))
+		require.Contains(t, acmeErr.Type, "error/accountRevoked")
+		require.Empty(t, resp2.Header.Get("Location"))
 	})
 
 	t.Run("onlyReturnExisting account exists", func(t *testing.T) {
-		privateKey := generateTestKey(t)
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
 
 		// create account first
+		privateKey := generateTestKey(t)
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody1 := buildJWS(t, privateKey, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp1.Header.Get("Location"))
+		location1 := resp1.Header.Get("Location")
 
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
 
@@ -323,9 +394,14 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, "valid", acctResp2.Status)
 		require.Equal(t, acctResp1.Orders, acctResp2.Orders)
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp2.Header.Get("Location"))
+		require.Equal(t, location1, resp2.Header.Get("Location"))
 	})
 
 	t.Run("onlyReturnExisting account does not exist", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		payload := map[string]any{"onlyReturnExisting": true}
@@ -335,9 +411,13 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Contains(t, acmeErr.Type, "error:accountDoesNotExist")
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("unknown identifier", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
 		// we need a valid enrollment to get a nonce, then use a bad identifier for the account request
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
@@ -347,12 +427,17 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.Nil(t, acctResp)
-		require.Nil(t, acmeErr)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is unknown
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("revoked enrollment", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
 		// get nonce from valid enrollment, then try to create account on revoked
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
@@ -361,12 +446,17 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.Nil(t, acctResp)
-		require.Nil(t, acmeErr)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is invalid
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollExpired.PathIdentifier), nil)
@@ -374,12 +464,17 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.Nil(t, acctResp)
-		require.Nil(t, acmeErr)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is invalid
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
 		privateKey := generateTestKey(t)
 		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
@@ -388,5 +483,6 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Contains(t, acmeErr.Type, "error:badNonce")
 		// it does generate a new valid nonce
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 }

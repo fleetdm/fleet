@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/stretchr/testify/require"
@@ -35,6 +34,7 @@ func TestCreateAccount(t *testing.T) {
 		{"OnlyReturnExistingFound", testOnlyReturnExistingFound},
 		{"OnlyReturnExistingNotFound", testOnlyReturnExistingNotFound},
 		{"AccountCreationLimit", testAccountCreationLimit},
+		{"AccountRevoked", testAccountRevoked},
 		{"InvalidEnrollmentID", testInvalidEnrollmentID},
 	}
 	for _, c := range cases {
@@ -158,7 +158,9 @@ func testOnlyReturnExistingNotFound(t *testing.T, env *testEnv) {
 	result, didCreate, err := env.ds.CreateAccount(t.Context(), account, true)
 	require.Nil(t, result)
 	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "error:accountDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
 	require.False(t, didCreate)
 }
 
@@ -186,7 +188,40 @@ func testAccountCreationLimit(t *testing.T, env *testEnv) {
 	result, _, err := env.ds.CreateAccount(t.Context(), account, false)
 	require.Nil(t, result)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "account creation limit reached")
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "error/tooManyAccounts") // nolint:nilaway // cannot be nil due to previous require
+}
+
+func testAccountRevoked(t *testing.T, env *testEnv) {
+	enrollment := &types.Enrollment{}
+	env.InsertACMEEnrollment(t, enrollment)
+
+	jwk := generateTestJWK(t)
+	account := &types.Account{
+		EnrollmentID: enrollment.ID,
+		JSONWebKey:   jwk,
+	}
+
+	created, didCreate, err := env.ds.CreateAccount(t.Context(), account, false)
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	require.True(t, didCreate)
+
+	// revoke the account directly in the DB
+	_, err = env.DB.ExecContext(t.Context(), `UPDATE acme_accounts SET revoked = 1 WHERE id = ?`, created.ID)
+	require.NoError(t, err)
+
+	// try to create again with the same JWK — should get accountRevoked error
+	account2 := &types.Account{
+		EnrollmentID: enrollment.ID,
+		JSONWebKey:   jwk,
+	}
+	_, _, err = env.ds.CreateAccount(t.Context(), account2, false)
+	require.Error(t, err)
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "error/accountRevoked") // nolint:nilaway // cannot be nil due to previous require
 }
 
 func testInvalidEnrollmentID(t *testing.T, env *testEnv) {

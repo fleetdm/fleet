@@ -13,14 +13,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"go.step.sm/crypto/jose"
 )
 
 var acceptableSignatureAlgorithms = [...]string{
-	string(jose.ES256),
-	string(jose.ES384),
-	string(jose.ES512),
+	jose.ES256,
+	jose.ES384,
+	jose.ES512,
 }
 
 func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier string) (*types.Enrollment, error) {
@@ -29,37 +29,68 @@ func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier
 		return nil, err
 	}
 	if !enrollment.IsValid() {
-		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("ACME enrollment").WithName(identifier))
+		err = types.EnrollmentNotFoundError(fmt.Sprintf("ACME enrollment with path identifier %s not found", identifier))
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return enrollment, nil
 }
 
-func (s *Service) AuthenticateNewAccountMessage(ctx context.Context, message *api_http.JWSRequestContainer, request *api_http.CreateNewAccountRequest) error {
-	// Validate the JWS message includes a JWK
-	if message.Key == nil {
-		return ctxerr.New(ctx, "missing JWK in JWS message")
-	}
-	// For Apple ACME purposes we only support ECDSA hardware-bound keys so validate the key is of the correct type
-	// and the algorithm is of a proper type for the key (which also ensures it isn't none)
-	_, ok := message.Key.Key.(*ecdsa.PublicKey)
-	if !ok {
-		return ctxerr.New(ctx, "JWK in JWS message is not an ECDSA public key")
-	}
-	if !slices.Contains(acceptableSignatureAlgorithms[:], message.JWS.Signatures[0].Protected.Algorithm) {
-		return ctxerr.New(ctx, "unsupported signature algorithm in JWS message")
-	}
-	// TODO(mna): "url" field in protected header validation https://datatracker.ietf.org/doc/html/rfc8555/#section-6.4.1
+// common authentication logic for both AuthenticateNewAccountMessage and AuthenticateMessageFromAccount, only
+// one of createNewAccount or otherRequest must be non-nil.
+func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_http.JWSRequestContainer, createNewAccount *api_http.CreateNewAccountRequest, otherRequest types.AccountAuthenticatedRequest) error {
+	var err error
 
-	// consume the nonce
+	// consume the nonce as first validation
 	nonce := message.JWS.Signatures[0].Protected.Nonce
 	nonceValid, err := s.nonces.Consume(ctx, nonce)
 	if !nonceValid || err != nil {
-		var detail string
-		if err != nil {
-			detail = err.Error()
+		// if there is an error, it is a Redis/network issue, so keep it as a 500
+		if err == nil {
+			err = types.BadNonceError("")
 		}
-		err = types.BadNonceError(detail)
 		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
+	}
+
+	if createNewAccount != nil {
+		// must have the JWK
+		if message.Key == nil {
+			err = types.UnauthorizedError("missing JWK in JWS message for new account creation")
+			return ctxerr.Wrap(ctx, err)
+		}
+		// For Apple ACME purposes we only support ECDSA hardware-bound keys so validate the key is of the correct type
+		// and the algorithm is of a proper type for the key (which also ensures it isn't none)
+		_, ok := message.Key.Key.(*ecdsa.PublicKey)
+		if !ok {
+			err = types.BadPublicKeyError("JWK in JWS message for new account creation is not an ECDSA public key")
+			return ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	if otherRequest != nil {
+		// must have the kid
+		if message.KeyID == nil || *message.KeyID == "" {
+			err = types.UnauthorizedError("missing kid in JWS message for account-authenticated request")
+			return ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	if !slices.Contains(acceptableSignatureAlgorithms[:], message.JWS.Signatures[0].Protected.Algorithm) {
+		err = types.BadSignatureAlgorithmError(fmt.Sprintf("unsupported signature algorithm %s in JWS message", message.JWS.Signatures[0].Protected.Algorithm))
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// "url" field validation: https://datatracker.ietf.org/doc/html/rfc8555/#section-6.4.1
+	baseURL, err := s.getACMEBaseURL(ctx)
+	if err != nil {
+		return ctxerr.New(ctx, "get base ACME URL")
+	}
+	expectedURL, err := commonmdm.ResolveURL(baseURL, message.HTTPPath, true)
+	if err != nil {
+		return ctxerr.New(ctx, "get expected ACME URL")
+	}
+	if message.JWSHeaderURL != expectedURL {
+		err = types.UnauthorizedError("invalid url in JWS protected header")
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	// authenticate the enrollment identifier from the path
@@ -68,77 +99,74 @@ func (s *Service) AuthenticateNewAccountMessage(ctx context.Context, message *ap
 		return err
 	}
 
-	payload, err := message.JWS.Verify(message.Key)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "verifying JWS message", "identifier", message.Identifier)
-	}
-	err = json.Unmarshal(payload, request)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "unmarshalling JWS payload into CreateNewAccountRequest with identifier: %s", message.Identifier)
+	webKeyToVerify := message.Key
+	var account *types.Account
+	if otherRequest != nil {
+		accountID, err := s.accountIDFromKeyID(ctx, *message.KeyID, message.Identifier)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing account ID from key ID")
+		}
+		account, err = s.store.GetAccountByID(ctx, enrollment.ID, accountID)
+		if err != nil {
+			// TODO not found vs other errors, see RFC for how we should respond
+			return ctxerr.Wrap(ctx, err, "fetching account by ID")
+		}
+		webKeyToVerify = &account.JSONWebKey
 	}
 
-	request.JSONWebKey = message.Key
-	request.Enrollment = enrollment
+	payload, err := message.JWS.Verify(webKeyToVerify)
+	if err != nil {
+		err = types.UnauthorizedError(err.Error()) // I think it's safe to return the error as details here?
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	var requestPayload any
+	requestPayload = createNewAccount
+	if otherRequest != nil {
+		requestPayload = otherRequest
+	}
+	err = json.Unmarshal(payload, requestPayload)
+	if err != nil {
+		err = types.MalformedError(fmt.Sprintf("Failed to unmarshal JWS payload: %v", err))
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if createNewAccount != nil {
+		createNewAccount.JSONWebKey = message.Key
+		createNewAccount.Enrollment = enrollment
+	}
+	if otherRequest != nil {
+		otherRequest.SetEnrollmentAndAccount(enrollment, account)
+	}
 	return nil
+}
+
+func (s *Service) AuthenticateNewAccountMessage(ctx context.Context, message *api_http.JWSRequestContainer, request *api_http.CreateNewAccountRequest) error {
+	return s.commonAuthenticateMessage(ctx, message, request, nil)
 }
 
 func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message *api_http.JWSRequestContainer, request types.AccountAuthenticatedRequest) error {
-	if message.KeyID == nil || *message.KeyID == "" {
-		return ctxerr.New(ctx, "missing kid in JWS message")
-	}
-	if !slices.Contains(acceptableSignatureAlgorithms[:], message.JWS.Signatures[0].Protected.Algorithm) {
-		return ctxerr.New(ctx, "unsupported signature algorithm in JWS message")
-	}
-	// TODO(mna): "url" field in protected header validation https://datatracker.ietf.org/doc/html/rfc8555/#section-6.4.1
-
-	// consume the nonce
-	nonce := message.JWS.Signatures[0].Protected.Nonce
-	nonceValid, err := s.nonces.Consume(ctx, nonce)
-	if !nonceValid || err != nil {
-		var detail string
-		if err != nil {
-			detail = err.Error()
-		}
-		err = types.BadNonceError(detail)
-		return ctxerr.Wrapf(ctx, err, "invalid nonce in JWS message for identifier %s", message.Identifier)
-	}
-
-	// authenticate the enrollment identifier from the path
-	enrollment, err := s.authenticateWithACMEEnrollment(ctx, message.Identifier)
-	if err != nil {
-		return err
-	}
-
-	accountID, err := accountIDFromKeyID(ctx, *message.KeyID, message.Identifier)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing account ID from key ID")
-	}
-	account, err := s.store.GetAccountByID(ctx, enrollment.ID, accountID)
-	if err != nil {
-		// TODO not found vs other errors, see RFC for how we should respond
-		return ctxerr.Wrap(ctx, err, "fetching account by ID")
-	}
-
-	payload, err := message.JWS.Verify(account.JSONWebKey)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "verifying JWS message for identifier: %s", message.Identifier)
-	}
-	err = json.Unmarshal(payload, request)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "unmarshalling JWS payload into request for identifier: %s", message.Identifier)
-	}
-
-	return nil
+	return s.commonAuthenticateMessage(ctx, message, nil, request)
 }
 
-func accountIDFromKeyID(ctx context.Context, keyID, pathIdentifier string) (uint, error) {
+func (s *Service) accountIDFromKeyID(ctx context.Context, keyID, pathIdentifier string) (uint, error) {
 	// The key ID is the account URL, which should be in the format /api/mdm/acme/{identifier}/account/{accountID}
 	// We can parse the account ID out of the URL to look up the account in the database
 	urlParsed, err := url.Parse(keyID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "parsing key ID URL")
 	}
-	prefix := fmt.Sprintf("/api/mdm/acme/%s/account/", pathIdentifier)
+
+	expectedURL, err := s.getACMEURL(ctx, pathIdentifier, "accounts")
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting expected account URL")
+	}
+	expectedParsed, err := url.Parse(expectedURL)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "parsing expected account URL")
+	}
+
+	prefix := expectedParsed.Path + "/"
 	if !strings.HasPrefix(urlParsed.Path, prefix) {
 		return 0, ctxerr.New(ctx, "invalid key ID URL format")
 	}

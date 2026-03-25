@@ -92,16 +92,20 @@ type CreateNewAccountResponse struct {
 
 // BeforeRender implements the beforeRenderer interface.
 func (r *CreateNewAccountResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// only generate a new nonce if there is no error or the error is an ACME error,
-	// indicating a client issue.
-	var acmeErr *types.ACMEError
-	if r.Err != nil && !errors.As(r.Err, &acmeErr) {
-		return
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
 	}
-
 	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
 		r.Err = err
 		return
+	}
+	if r.AccountResponse != nil && r.AccountResponse.Location != "" {
+		w.Header().Set("Location", r.AccountResponse.Location)
 	}
 }
 
@@ -128,11 +132,13 @@ type CreateNewOrderResponse struct {
 }
 
 func (r *CreateNewOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// only generate a new nonce if there is no error or the error is an ACME error,
-	// indicating a client issue.
-	var acmeErr *types.ACMEError
-	if r.Err != nil && !errors.As(r.Err, &acmeErr) {
-		return
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
 	}
 	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
 		r.Err = err
@@ -154,6 +160,7 @@ type JWSRequestContainer struct {
 	Key        *jose.JSONWebKey
 	KeyID      *string
 	Identifier string `url:"identifier"`
+	HTTPPath   string `url:"http_path"`
 }
 
 func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
@@ -176,6 +183,9 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	}
 	// All ACME requests should have either a JWK in the header or a KeyID that points to an account, but never both
 	if jws.Signatures[0].Protected.JSONWebKey == nil && jws.Signatures[0].Protected.KeyID == "" {
+		return ctxerr.New(ctx, "jws must have a key or key ID in the protected header")
+	}
+	if jws.Signatures[0].Protected.JSONWebKey != nil && jws.Signatures[0].Protected.KeyID != "" {
 		return ctxerr.New(ctx, "jws must have a key or key ID in the protected header")
 	}
 
