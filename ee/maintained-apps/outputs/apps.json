@@ -1598,6 +1598,13 @@
       "description": "Suspicious Package is an application for inspecting installer packages."
     },
     {
+      "name": "swiftDialog",
+      "slug": "swiftdialog/darwin",
+      "platform": "darwin",
+      "unique_identifier": "au.csiro.dialog",
+      "description": ""
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
