@@ -5,7 +5,7 @@ Requirements:
 - [FreeRADIUS server](https://www.freeradius.org/)
 - [micromdm/scep](https://github.com/micromdm/scep) SCEP server
 
-> Instructions are for macOS
+> Instructions cover running FreeRADIUS and micromdm/scep on macOS
 
 These instructions cover end to end setup of WPA Enterprise with EAP TLS and deployment of client certificates with Fleet on Android hosts. FreeRADIUS server comes with built-in certificates so if you don't want to add micromdm/scep CA to Fleet and deploy client certificates, you can skip that step.
 
