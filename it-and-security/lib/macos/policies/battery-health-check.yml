@@ -1,0 +1,13 @@
+- name: macOS - Battery healthy
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM battery WHERE health != 'Good' OR condition != 'Normal');
+  critical: false
+  description: >-
+    This policy checks if the Mac's battery is in a healthy state. Laptops with a battery health status other than "Good" or a condition other than "Normal" will fail this policy.
+    Desktop Macs (no battery) automatically pass.
+    A degraded battery can cause unexpected shutdowns, reduced portability, and decreased productivity.
+    Monitoring battery health helps IT plan for device replacements and ensures employees have reliable hardware.
+  resolution: |-
+    Check your battery health by clicking the Apple menu > System Settings > Battery > Battery Health.
+
+    If your battery condition shows "Service Recommended" or health is "Fair" or "Poor", please reach out in #help-it to arrange a battery replacement or device swap.
+  platform: darwin
