@@ -159,16 +159,16 @@ function createWebhookHandler(config, github, claude) {
 }
 
 async function processComment({ prNumber, commentBody, commentId, event, mentionedBot }, config, github, claude) {
-  // Fetch PR details
-  console.log(`[webhook] Fetching PR #${prNumber} details...`);
-  const pr = await github.getPullRequest(prNumber);
-
   // Only respond when explicitly @mentioned — avoid surprising users
   // by reacting to comments that weren't directed at the bot.
   if (!mentionedBot) {
     console.log(`[webhook] Ignoring PR #${prNumber} comment — bot was not @mentioned`);
     return;
   }
+
+  // Fetch PR details
+  console.log(`[webhook] Fetching PR #${prNumber} details...`);
+  const pr = await github.getPullRequest(prNumber);
 
   if (pr.state !== "open") {
     console.log(`[webhook] Ignoring PR #${prNumber} — state is "${pr.state}"`);
