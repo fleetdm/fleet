@@ -536,7 +536,7 @@ jobs:
             - type: "section"
               text:
                 type: "mrkdwn"
-                text: "Agent E2E test FAILED* (attempt ${{ steps.next-retry.outputs.value }}/4, retrying...)\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>\nThis may not need investigation if it self-resolves on the retry. Look for the next notification of success/failure."
+                text: "*Agent E2E test FAILED* (attempt ${{ steps.next-retry.outputs.value }}/4, retrying...)\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>\nThis may not need investigation if it self-resolves on the retry. Look for the next notification of success/failure."
 
     - name: Slack Notification (all retries exhausted)
       if: (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) >= 3
@@ -553,7 +553,7 @@ jobs:
             - type: "section"
               text:
                 type: "mrkdwn"
-                text: "Agent E2E test FAILED all 4 attempts* :rotating_light:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+                text: "*Agent E2E test FAILED all 4 attempts* :rotating_light:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
 
     - name: Slack Notification (retry success)
       if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (inputs.retry || 0) > 0 }}
@@ -566,7 +566,7 @@ jobs:
             - type: "section"
               text:
                 type: "mrkdwn"
-                text: "Agent E2E test PASSED after ${{ inputs.retry }} retr${{ inputs.retry == 1 && 'y' || 'ies' }}* :white_check_mark:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>\nThe above failure appears to have been transient. No investigation needed unless you see a pattern of repeated failures."
+                text: "*Agent E2E test PASSED after ${{ inputs.retry }} retr${{ inputs.retry == 1 && 'y' || 'ies' }}* :white_check_mark:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>\nThe above failure appears to have been transient. No investigation needed unless you see a pattern of repeated failures."
 
     - name: Retry workflow on failure
       if: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3 }}
