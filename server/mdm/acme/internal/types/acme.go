@@ -59,16 +59,13 @@ type AccountResponse struct {
 }
 
 type Order struct {
-	ID                        uint         `db:"id" json:"-"`
-	AccountID                 uint         `db:"account_id" json:"-"`
-	IssuedCertificateSerial   *int64       `db:"issued_certificate_serial" json:"-"`
-	CertificateSigningRequest string       `db:"certificate_signing_request" json:"-"`
-	Expires                   time.Time    `db:"-" json:"expires"`
-	Status                    string       `db:"status" json:"status"`
-	Identifiers               []Identifier `db:"-" json:"identifiers"`
-	Authorizations            []string     `db:"-" json:"authorizations"`
-	Finalize                  string       `db:"-" json:"finalize"`
-	Certificate               string       `db:"-" json:"certificate,omitempty"`
+	ID             uint         `db:"id" json:"id"`
+	AccountID      uint         `db:"account_id" json:"-"`
+	Expires        time.Time    `db:"-" json:"expires"`
+	Status         string       `db:"status" json:"status"`
+	Identifiers    []Identifier `db:"-" json:"identifiers"`
+	Authorizations []string     `db:"-" json:"authorizations"`
+	Finalize       string       `db:"-" json:"finalize"`
 }
 
 type Authorization struct {
@@ -118,8 +115,8 @@ func (r *AccountAuthenticatedRequestBase) SetEnrollmentAndAccount(enrollment *En
 	r.Account = account
 }
 
-// Represents acme identifiers(not to be confused with enrollment identifiers) which, in our usecase, represent identifiers(e.g. serials)
-// that hosts control.
+// Represents acme identifiers (not to be confused with enrollment identifiers)
+// which, in our usecase, represent identifiers(e.g. serials) that hosts control.
 type Identifier struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`

@@ -107,6 +107,13 @@ func createOrderEndpoint(ctx context.Context, request any, svc api.Service) plat
 	if err != nil {
 		return &api_http.CreateNewOrderResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
-	_ = newOrderRequest
-	panic("unimplemented")
+
+	order, err := svc.CreateOrder(ctx, req.Identifier, newOrderRequest.Identifiers)
+	if err != nil {
+		return &api_http.CreateNewOrderResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+	return &api_http.CreateNewOrderResponse{
+		Nonces: svc.NoncesStore(),
+		Order:  order,
+	}
 }

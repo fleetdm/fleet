@@ -126,7 +126,7 @@ type CreateNewOrderRequest struct {
 }
 
 type CreateNewOrderResponse struct {
-	// TODO(mna): must return the JSON order
+	*types.Order
 	Err    error                                `json:"error,omitempty"`
 	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
 }

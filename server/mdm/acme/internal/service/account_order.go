@@ -44,6 +44,6 @@ func (s *Service) CreateAccount(ctx context.Context, pathIdentifier string, enro
 	}, nil
 }
 
-func (s *Service) CreateOrder(ctx context.Context, order *types.Order) (*types.Order, error) {
+func (s *Service) CreateOrder(ctx context.Context, pathIdentifier string, identifiers []types.Identifier) (*types.Order, error) {
 	panic("unimplemented")
 }
