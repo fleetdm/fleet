@@ -7034,3 +7034,238 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 		require.False(t, newActivityFuncInvoked)
 	})
 }
+
+// decodeSignedEnrollmentProfile parses a PKCS7-signed enrollment profile and
+// returns the inner raw mobileconfig bytes for content assertions.
+func decodeSignedEnrollmentProfile(t *testing.T, signed []byte) []byte {
+	t.Helper()
+	p7, err := pkcs7.Parse(signed)
+	require.NoError(t, err, "parsing PKCS7 signed profile")
+	require.NoError(t, p7.Verify(), "verifying PKCS7 signature")
+	require.NotEmpty(t, p7.Content, "PKCS7 content should not be empty")
+	return p7.Content
+}
+
+// assertSCEPProfile checks that the decoded mobileconfig XML contains a SCEP
+// payload (com.apple.security.scep) and does not contain an ACME payload.
+func assertSCEPProfile(t *testing.T, content []byte) {
+	t.Helper()
+	require.Contains(t, string(content), "com.apple.security.scep", "expected SCEP payload type in profile")
+	require.NotContains(t, string(content), "com.apple.security.acme", "SCEP profile must not contain an ACME payload")
+}
+
+// assertACMEProfile checks that the decoded mobileconfig XML contains an ACME
+// payload (com.apple.security.acme) and does not contain a SCEP payload.
+func assertACMEProfile(t *testing.T, content []byte, deviceSerial string) {
+	t.Helper()
+	require.Contains(t, string(content), "com.apple.security.acme", "expected ACME payload type in profile")
+	require.NotContains(t, string(content), "com.apple.security.scep", "ACME profile must not contain a SCEP payload")
+	require.Contains(t, string(content), deviceSerial, "ACME profile should embed the device serial as ClientIdentifier")
+}
+
+func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	// Extend the existing asset mock to also include the SCEP challenge needed
+	// by generateMDMAppleSCEPEnrollProfile.
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	require.NoError(t, err)
+	crt, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	certPEM := tokenpki.PEMCertificate(crt.Raw)
+	keyPEM := tokenpki.PEMRSAPrivateKey(key)
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetAPNSCert:      {Value: apnsCert},
+			fleet.MDMAssetAPNSKey:       {Value: apnsKey},
+			fleet.MDMAssetCACert:        {Value: certPEM},
+			fleet.MDMAssetCAKey:         {Value: keyPEM},
+			fleet.MDMAssetSCEPChallenge: {Value: []byte("test-scep-challenge")},
+		}, nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Foo Inc."},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://foo.example.com"},
+			MDM:            fleet.MDM{EnabledAndConfigured: true, AppleRequireHardwareAttestation: true},
+		}, nil
+	}
+
+	foundProfileFunc := func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+		require.Equal(t, "valid-token", token)
+		return &fleet.MDMAppleEnrollmentProfile{
+			ID:    1,
+			Token: "valid-token",
+			// Type:  fleet.MDMAppleEnrollmentTypeManual,
+			// other fields are not relevant for this test
+		}, nil
+	}
+	ds.GetMDMAppleEnrollmentProfileByTokenFunc = foundProfileFunc
+
+	t.Run("happy path", func(t *testing.T) {
+		ds.GetMDMAppleEnrollmentProfileByTokenFunc = foundProfileFunc
+
+		testDevices := []struct {
+			name       string
+			mi         fleet.MDMAppleMachineInfo
+			expectACME bool // if true, the profile should contain an ACME payload when hardware attestation is required; if false, it should contain a SCEP payload
+		}{
+			{
+				name: "Apple Silicon Mac", mi: fleet.MDMAppleMachineInfo{
+					Product: "MacBookPro18,3", // major 18 >= threshold of 17 → Apple Silicon
+					Serial:  "MACSILSERIAL",
+					UDID:    "mac-sil-udid",
+				},
+				expectACME: true,
+			},
+			{
+				name: "Intel Mac",
+				mi: fleet.MDMAppleMachineInfo{
+					Product: "MacBookPro16,1", // major 16 < threshold of 17 → Intel
+					Serial:  "INTELSERIAL",
+					UDID:    "intel-udid",
+				},
+				expectACME: false,
+			},
+			{
+				name: "iPhone",
+				mi: fleet.MDMAppleMachineInfo{
+					Product: "iPhone14,3",
+					Serial:  "IPHONESERIAL",
+					UDID:    "iphone-udid",
+				},
+				expectACME: false,
+			},
+		}
+
+		t.Run("hardware attestation enabled", func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Foo Inc."},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://foo.example.com"},
+					MDM:            fleet.MDM{EnabledAndConfigured: true, AppleRequireHardwareAttestation: true},
+				}, nil
+			}
+			for _, device := range testDevices {
+				t.Run(device.name, func(t *testing.T) {
+					t.Run(fmt.Sprintf("not DEP assigned requires ACME %t", device.expectACME), func(t *testing.T) {
+						ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+							return []*fleet.HostDEPAssignment{}, nil
+						}
+						profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &device.mi)
+						require.NoError(t, err)
+						// always expect SCEP if not DEP assigned, even for Apple Silicon, since we currently limit ACME to DEP enrollment
+						assertSCEPProfile(t, decodeSignedEnrollmentProfile(t, profile))
+					})
+					t.Run(fmt.Sprintf("DEP assigned requires ACME %t", device.expectACME), func(t *testing.T) {
+						ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+							return []*fleet.HostDEPAssignment{{HostID: 1}}, nil
+						}
+						profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &device.mi)
+						require.NoError(t, err)
+						if device.expectACME {
+							assertACMEProfile(t, decodeSignedEnrollmentProfile(t, profile), device.mi.Serial)
+						} else {
+							assertSCEPProfile(t, decodeSignedEnrollmentProfile(t, profile))
+						}
+					})
+				})
+			}
+		})
+
+		t.Run("hardware attestation disabled", func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Foo Inc."},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://foo.example.com"},
+					MDM:            fleet.MDM{EnabledAndConfigured: true},
+				}, nil
+			}
+			for _, device := range testDevices {
+				t.Run(device.name, func(t *testing.T) {
+					profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &device.mi)
+					require.NoError(t, err)
+					// always expect SCEP if hardware attestation is disabled; DEP assignment and Apple Silicon do not matter in this case
+					assertSCEPProfile(t, decodeSignedEnrollmentProfile(t, profile))
+				})
+			}
+		})
+	})
+
+	t.Run("miscellaneous error handling", func(t *testing.T) {
+		// For these tests we can just use a single device type since we're not asserting on the
+		// profile content, just that errors are handled and returned properly.
+		machineInfo := fleet.MDMAppleMachineInfo{
+			Product: "MacBookPro18,3",
+			Serial:  "MACSILSERIAL",
+			UDID:    "mac-sil-udid",
+		}
+
+		t.Run("AppConfig error returns error", func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return nil, errors.New("some unexpected error")
+			}
+			_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &machineInfo)
+			require.Error(t, err)
+		})
+
+		// now test the various error cases for both hardware attestation enabled and disabled, since that changes the logic flow and we want to ensure all cases are covered
+		for _, hardwareAttestationRequired := range []bool{true, false} {
+			t.Run(fmt.Sprintf("hardware attestation required %t", hardwareAttestationRequired), func(t *testing.T) {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{
+						OrgInfo:        fleet.OrgInfo{OrgName: "Foo Inc."},
+						ServerSettings: fleet.ServerSettings{ServerURL: "https://foo.example.com"},
+						MDM:            fleet.MDM{EnabledAndConfigured: true, AppleRequireHardwareAttestation: hardwareAttestationRequired},
+					}, nil
+				}
+				t.Run("nil machineInfo returns error", func(t *testing.T) {
+					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "some-token", "", nil)
+					require.Error(t, err)
+					require.Contains(t, err.Error(), "missing machine info")
+				})
+				t.Run("token not found returns auth failed error", func(t *testing.T) {
+					ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+						return nil, newNotFoundError()
+					}
+					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "unknown-token", "", &machineInfo)
+					require.Error(t, err)
+					var authErr *fleet.AuthFailedError
+					require.ErrorAs(t, err, &authErr)
+					// restore the happy path for subsequent tests
+					ds.GetMDMAppleEnrollmentProfileByTokenFunc = foundProfileFunc
+				})
+				t.Run("datastore error returns wrapped error", func(t *testing.T) {
+					ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+						return nil, errors.New("some unexpected error")
+					}
+					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &machineInfo)
+					require.Error(t, err)
+					require.Contains(t, err.Error(), "get enrollment profile")
+					// restore the happy path for subsequent tests
+					ds.GetMDMAppleEnrollmentProfileByTokenFunc = foundProfileFunc
+				})
+
+				t.Run("error fetching DEP assignments returns error", func(t *testing.T) {
+					ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+						return nil, errors.New("some unexpected error")
+					}
+					ds.GetHostDEPAssignmentsBySerialFuncInvoked = false // reset invocation flag
+
+					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &machineInfo)
+					if hardwareAttestationRequired {
+						// when hardware attestation is required, DEP assignment is checked before deciding on ACME vs SCEP, so an error here should be returned
+						require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+						require.Error(t, err)
+						require.Contains(t, err.Error(), "checking DEP assignment")
+					} else {
+						// when hardware attestation is not required, DEP assignment is not relevant since we always return SCEP, so an error here should not be returned
+						require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+						require.NoError(t, err)
+					}
+				})
+			})
+		}
+	})
+}

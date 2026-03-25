@@ -2019,7 +2019,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	svc.authz.SkipAuthorization(ctx)
 
 	if machineInfo == nil {
-		// this should never happen since we check for it in the handler, but adding this check for extra safety
+		// TODO: confirm how we want to handle this case
 		return nil, ctxerr.New(ctx, "get enrollment profile: missing machine info")
 	}
 
