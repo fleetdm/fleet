@@ -1434,6 +1434,7 @@ const ManageHostsPage = ({
   const renderSecretEditorModal = () => (
     <SecretEditorModal
       selectedTeam={teamIdForApi || 0}
+      primoMode={isPrimoMode || false}
       teams={teams || []}
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
