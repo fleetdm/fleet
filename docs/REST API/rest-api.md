@@ -13917,7 +13917,7 @@ Experimental endpoints are excluded from the results, since they are not for use
 
 #### Example
 
-`?query=get%20host%20by%20identifier`
+`GET /api/v1/fleet/rest_api?query=get%20host%20by%20identifier`
 
 ##### Default response
 
@@ -13930,7 +13930,8 @@ Experimental endpoints are excluded from the results, since they are not for use
       "id": 123,
       "display_name": "Get host by identifier",
       "protocol": "GET",
-      "path": ""
+      "path": "",
+      "deprecated": false
     }
   ],
   "meta": {
