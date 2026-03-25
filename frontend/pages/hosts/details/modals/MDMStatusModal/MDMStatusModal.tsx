@@ -144,7 +144,7 @@ const MDMStatusModal = ({
   fleetId,
   hostId,
   enrollmentStatus,
-  depProfileError = true, // return to false after testing
+  depProfileError = false,
   isPremiumTier = false,
   isMacOSHost = false,
   router,
@@ -164,35 +164,6 @@ const MDMStatusModal = ({
     }
   );
 
-  const fakeDepAssignmentData: IDepAssignmentHostResponse = {
-    id: 32,
-    dep_device: {
-      asset_tag: "",
-      color: "MIDNIGHT",
-      description: "IPHONE 13 MIDNIGHT 128GB-USA",
-      device_assigned_by: "fleetie@example.com",
-      device_assigned_date: "2026-01-29T21:17:25Z",
-      device_family: "iPhone",
-      os: "iOS",
-      profile_status: "assigned",
-      profile_assign_time: "2026-01-29T21:17:25Z",
-      profile_push_time: "2026-01-03T00:00:00Z",
-      profile_uuid: "762C4D36550103CCC53AA212A8D31CDD",
-      mdm_migration_deadline: null,
-      serial_number: "ABC1FND0ZX",
-    },
-    host_dep_assignment: {
-      assign_profile_response: "THROTTLED",
-      profile_uuid: "762C4D36550103CCC53AA212A8D31CDD",
-      response_updated_at: "2025-12-04 01:35:27",
-      added_at: "2025-12-04 01:35:27",
-      deleted_at: null,
-      abm_token_id: 1,
-      mdm_migration_deadline: "2025-12-05 00:00:00.000000",
-      mdm_migration_completed: "2025-12-05 00:00:00.000000",
-    },
-  };
-
   const enrollmentFilterValue =
     MDM_ENROLLMENT_STATUS_UI_MAP[enrollmentStatus].filterValue;
 
@@ -210,7 +181,7 @@ const MDMStatusModal = ({
       return;
     }
 
-    const raw = (fakeDepAssignmentData?.host_dep_assignment
+    const raw = (depAssignmentData?.host_dep_assignment
       .assign_profile_response || "") as DepAssignProfileResponseErrors;
 
     let responseParam: string | undefined;
@@ -294,7 +265,7 @@ const MDMStatusModal = ({
           <ViewAllHostsLink
             queryParams={{
               dep_assign_profile_response: (
-                fakeDepAssignmentData?.host_dep_assignment
+                depAssignmentData?.host_dep_assignment
                   .assign_profile_response || ""
               ).toLowerCase(),
             }}
@@ -329,7 +300,7 @@ const MDMStatusModal = ({
       return <Spinner />;
     }
 
-    if (isDepAssignmentError) {
+    if (isDepAssignmentError || !depAssignmentData) {
       return (
         <DataError description="We can't retrieve data from Apple right now. Please try again later." />
       );
@@ -348,7 +319,7 @@ const MDMStatusModal = ({
         ),
         // Follow current pattern of international time formate for dates in UI
         status: internationalTimeFormat(
-          new Date(fakeDepAssignmentData.dep_device.profile_assign_time)
+          new Date(depAssignmentData.dep_device.profile_assign_time)
         ),
       },
       {
@@ -363,30 +334,28 @@ const MDMStatusModal = ({
         ),
         // Follow current pattern of international time formate for dates in UI
         status:
-          fakeDepAssignmentData.dep_device.profile_push_time === ""
+          depAssignmentData.dep_device.profile_push_time === ""
             ? DEFAULT_EMPTY_CELL_VALUE
             : internationalTimeFormat(
-                new Date(fakeDepAssignmentData.dep_device.profile_push_time)
+                new Date(depAssignmentData.dep_device.profile_push_time)
               ),
       },
       {
         id: "profile-status",
         name: "Profile status",
-        status: getProfileStatusUI(
-          fakeDepAssignmentData.dep_device.profile_status
-        ).label,
+        status: getProfileStatusUI(depAssignmentData.dep_device.profile_status)
+          .label,
         statusTooltip:
-          fakeDepAssignmentData.dep_device.profile_status === ""
+          depAssignmentData.dep_device.profile_status === ""
             ? DEFAULT_EMPTY_CELL_VALUE
-            : getProfileStatusUI(
-                fakeDepAssignmentData.dep_device.profile_status
-              ).tooltip,
+            : getProfileStatusUI(depAssignmentData.dep_device.profile_status)
+                .tooltip,
       },
     ];
 
-    if (depProfileError && fakeDepAssignmentData) {
+    if (depProfileError && depAssignmentData) {
       const assignmentError = getProfileAssignmentError(
-        fakeDepAssignmentData.host_dep_assignment
+        depAssignmentData.host_dep_assignment
           .assign_profile_response as DepAssignProfileResponseErrors
       );
 

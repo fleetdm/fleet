@@ -1,11 +1,8 @@
-// MDMStatusModal.test.tsx
 import React from "react";
 
 import { screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
+import { AxiosError } from "axios";
 
 import hostAPI from "services/entities/hosts";
 import paths from "router/paths";
@@ -15,11 +12,6 @@ jest.mock("services/entities/hosts");
 
 const mockRouter = createMockRouter();
 
-const baseUrl = (path: string) => `/api/latest/fleet${path}`;
-
-// You only need these if the component actually calls the API,
-// but you mentioned we want to keep the fakeDepAssignmentData.
-// If/when you hook this up to the backend, you can switch to msw handlers.
 const mockDepAssignmentResponse = {
   id: 32,
   dep_device: {
@@ -52,7 +44,6 @@ const mockDepAssignmentResponse = {
 describe("MDMStatusModal - component", () => {
   const render = createCustomRenderer({
     withBackendMock: true,
-    // No special app/query context needed as of now.
     context: {},
   });
 
@@ -75,7 +66,6 @@ describe("MDMStatusModal - component", () => {
     );
 
     expect(screen.getByText("MDM status")).toBeInTheDocument();
-    // Adjust expected text if your UI map uses a different label
     expect(screen.getByText("On (manual)")).toBeInTheDocument();
   });
 
@@ -111,7 +101,7 @@ describe("MDMStatusModal - component", () => {
     expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
   });
 
-  it("renders profile assignment section when premium macOS host", () => {
+  it("renders profile assignment section when premium macOS host", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
       mockDepAssignmentResponse
     );
@@ -127,20 +117,21 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(screen.getByText("Profile assignment")).toBeInTheDocument();
+    expect(await screen.findByText("Profile assignment")).toBeInTheDocument();
     expect(
       screen.getByText(/Details about automatic enrollment profile from Apple/i)
     ).toBeInTheDocument();
     expect(screen.getByText("Profile assigned")).toBeInTheDocument();
     expect(screen.getByText("Profile pushed")).toBeInTheDocument();
     expect(screen.getByText("Profile status")).toBeInTheDocument();
+    // profile_status "assigned" renders "Assigned"
     expect(screen.getByText("Assigned")).toBeInTheDocument();
   });
 
-  it("shows spinner while DEP assignment is loading", async () => {
+  it("shows spinner while DEP assignment is loading", () => {
     (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
       new Promise(() => {
-        // never resolve: keeps loading
+        // never resolve
       })
     );
 
@@ -155,13 +146,12 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    // Fleet <Spinner /> typically renders role="status"
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
   it("shows DataError if DEP assignment fails", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockRejectedValue(
-      new Error("network error")
+      new AxiosError("network error")
     );
 
     render(
@@ -182,12 +172,12 @@ describe("MDMStatusModal - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("adds profile assignment error row when depProfileError is true and API returns throttled", async () => {
+  it("adds profile assignment error row when depProfileError is true and API returns THROTTLED", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
       ...mockDepAssignmentResponse,
       host_dep_assignment: {
         ...mockDepAssignmentResponse.host_dep_assignment,
-        assign_profile_response: "throttled",
+        assign_profile_response: "THROTTLED",
       },
     });
 
@@ -231,16 +221,16 @@ describe("MDMStatusModal - component", () => {
       expect(router.push).toHaveBeenCalled();
       const firstCall = (router.push as jest.Mock).mock.calls[0][0];
       expect(firstCall).toContain(paths.MANAGE_HOSTS);
-      expect(firstCall).toContain("mdm_enrollment_status");
+      expect(firstCall).toContain("mdm_enrollment_status=");
     });
   });
 
-  it("navigates to hosts with dep_profile_error when profile row is clicked", async () => {
+  it("navigates to hosts with dep_assign_profile_response filter when profile error row is clicked", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
       ...mockDepAssignmentResponse,
       host_dep_assignment: {
         ...mockDepAssignmentResponse.host_dep_assignment,
-        assign_profile_response: "failed",
+        assign_profile_response: "FAILED",
       },
     });
     const router = createMockRouter();
@@ -264,7 +254,8 @@ describe("MDMStatusModal - component", () => {
       expect(router.push).toHaveBeenCalled();
       const firstCall = (router.push as jest.Mock).mock.calls[0][0];
       expect(firstCall).toContain(paths.MANAGE_HOSTS);
-      expect(firstCall).toContain("dep_profile_error=true");
+      // the component sets dep_assign_profile_response to one of "FAILED" | "THROTTLED" | "NOT_ACCESSIBLE"
+      expect(firstCall).toContain("dep_assign_profile_response=FAILED");
     });
   });
 
