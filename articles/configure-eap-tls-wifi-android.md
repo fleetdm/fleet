@@ -35,6 +35,7 @@ Follow steps below to connect your Android hosts to enterprise Wi-Fi:
             "ClientCertKeyPairAlias": "<fleet_certificate_name>",
             "ServerCARefs": ["root_ca"]
           },
+          "AutoConnect": false,
           "Security": "WPA-EAP"
         }
       }
@@ -57,12 +58,13 @@ Follow steps below to connect your Android hosts to enterprise Wi-Fi:
 | `SSID` | Must match the router's SSID exactly (case-sensitive). |
 | `Name` | Display label, can be anything. For human readability only. |
 | `GUID` | Unique identifier for the each network. Use a different GUID for each network if you have multiple networks under `NetworkConfigurations`, or multiple configuration profiles with `openNetworkConfiguration` setting. |
+| `AutoConnect` | Determines if the network is automatically connected. This setting is independent of the auto-connect option per network available to end users in the host's Wi-Fi settings. |
 | `Identity` | It's usually user's identifier like email. |
 | `DomainSuffixMatch` | Domain suffix used to verify the RADIUS server's identity. The host checks that the server certificate's SAN DNS name (or CN if no SAN is present) ends with this suffix. |
 | `ClientCertKeyPairAlias` | Name of the certificate you added in Fleet under **Controls > OS settings > Certificates**. |
 | `X509` | Base64-encoded content of the root CA certificate that signed both server and client certificates. Exclude header and footer (`-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`). |
 
-## Configuration status
+## See status
 
 To check the status, go to the host and select **OS settings** in Fleet.
 
@@ -70,7 +72,9 @@ If the profile shows `"openNetworkConfiguration" setting couldn't apply to a hos
 
 ## End user experience
 
-When the end user selects the network in **Settings > Wi-Fi**, the host will automatically connect to the configured Wi-Fi network. 
+The network is saved but the end user must select it once in Wi-Fi settings. After that, the device reconnects automatically.
+
+To skip the manual step, set `AutoConnect` to `true` in the profile — the device will connect automatically without end user action, unless end user disables auto-connect for this network.
 
 <meta name="articleTitle" value="Configure EAP-TLS Wi-Fi on Android">
 <meta name="authorFullName" value="Marko Lisica">
