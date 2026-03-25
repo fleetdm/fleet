@@ -4436,13 +4436,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 								platform,
 								self_service,
 								package_ids,
-								is_active
+								is_active,
+								patch_query
 							)
 						VALUES
-							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
 				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), "pkg", fmt.Sprintf("v%d.0.0", i), scriptContentID,
 				uninstallScriptContentID,
-				[]byte("test"), "darwin", i < 2, "[]")
+				[]byte("test"), "darwin", i < 2, "[]", "")
 			if err != nil {
 				return err
 			}
@@ -5326,13 +5327,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 									platform,
 									self_service,
 									package_ids,
-									is_active
+									is_active,
+									patch_query
 								)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
 			darwinHost.TeamID, 0, softwareAlreadyInstalled.TitleID, "DummyApp.pkg", "pkg", "2.0.0",
 			scriptContentID, uninstallScriptContentID,
-			[]byte("test"), "darwin", true, "[]")
+			[]byte("test"), "darwin", true, "[]", "")
 		if err != nil {
 			return err
 		}
@@ -5463,13 +5465,14 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 									platform,
 									self_service,
 									package_ids,
-									is_active
+									is_active,
+									patch_query
 								)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
 				nil, 0, titleID, installer.Filename, installer.Extension, "2.0.0",
 				scriptContentID, scriptContentID,
-				[]byte("test"), "linux", true, "[]")
+				[]byte("test"), "linux", true, "[]", "")
 			require.NoError(t, err)
 		}
 
@@ -6367,10 +6370,10 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 
 		res, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, package_ids)
+				(title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, package_ids, patch_query)
 			VALUES
-				(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			titleID, "installer.pkg", "pkg", "v1.0.0", scriptContentID, uninstallScriptContentID, []byte("test"), "darwin", "[]")
+				(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			titleID, "installer.pkg", "pkg", "v1.0.0", scriptContentID, uninstallScriptContentID, []byte("test"), "darwin", "[]", "")
 		if err != nil {
 			return err
 		}
@@ -11806,8 +11809,8 @@ func testListHostSoftwarePaginationWithMultipleInstallers(t *testing.T, ds *Data
 			if _, err := q.ExecContext(ctx, `
 				INSERT INTO software_installers
 					(team_id, global_or_team_id, title_id, filename, extension, version,
-					 install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
-				VALUES (NULL, 0, ?, ?, 'pkg', ?, ?, ?, ?, 'darwin', 0, '[]')`,
+					 install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids, patch_query)
+				VALUES (NULL, 0, ?, ?, 'pkg', ?, ?, ?, ?, 'darwin', 0, '[]', '')`,
 				titleID, fmt.Sprintf("installer-%s.pkg", version), version,
 				installScriptID, uninstallScriptID, fmt.Appendf(nil, "storage-%s", version),
 			); err != nil {

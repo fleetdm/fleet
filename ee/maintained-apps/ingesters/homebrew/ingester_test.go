@@ -25,6 +25,9 @@ func TestIngestValidations(t *testing.T) {
 	testUninstallScriptContents := "this is a test uninstall script"
 	require.NoError(t, os.WriteFile(path.Join(tempDir, "uninstall_script.sh"), []byte(testUninstallScriptContents), 0644))
 
+	testPatchPolicyContents := `query: "SELECT 1;"`
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "policy.yml"), []byte(testPatchPolicyContents), 0644))
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var cask brewCask
 
@@ -86,7 +89,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post":
+		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -123,6 +126,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"cannot provide pre-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_pre", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PreUninstallScripts: []string{"foo", "bar"}}},
 		{"cannot provide post-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_post", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PostUninstallScripts: []string{"foo", "bar"}}},
+		{"", inputApp{Token: "patch_policy_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", PatchPolicyPath: path.Join(tempDir, "policy.yml")}},
 	}
 	for _, c := range cases {
 		t.Run(c.inputApp.Token, func(t *testing.T) {
@@ -146,6 +150,10 @@ func TestIngestValidations(t *testing.T) {
 
 			if c.inputApp.UninstallScriptPath != "" {
 				require.Equal(t, testUninstallScriptContents, out.UninstallScript)
+			}
+
+			if c.inputApp.PatchPolicyPath != "" {
+				require.Equal(t, "SELECT 1;", out.Queries.Patch)
 			}
 
 		})
