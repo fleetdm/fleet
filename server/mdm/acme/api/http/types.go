@@ -164,6 +164,9 @@ type JWSRequestContainer struct {
 }
 
 func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	// TODO(mna): I'm not totally sure if errors returned here go through the
+	// custom domain error encoding that we set in server.encodeResponse?
+
 	jwsBytes, err := io.ReadAll(r)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
@@ -172,21 +175,26 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	// (via the `url:"identifier"` struct tag), so we don't set it here.
 	jws, err := jose.ParseJWS(string(jwsBytes))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing jws")
+		err = types.MalformedError("Failed to parse JWS body")
+		return ctxerr.Wrap(ctx, err)
 	}
 	// The JWS must have exactly one signature because ACME uses the "flattened" JWS JSON serialization
 	if len(jws.Signatures) == 0 {
-		return ctxerr.New(ctx, "jws must have a signature")
+		err = types.MalformedError("JWS must have a signature")
+		return ctxerr.Wrap(ctx, err)
 	}
 	if len(jws.Signatures) > 1 {
-		return ctxerr.New(ctx, "jws must have only one signature")
+		err = types.MalformedError("JWS must have only one signature")
+		return ctxerr.Wrap(ctx, err)
 	}
 	// All ACME requests should have either a JWK in the header or a KeyID that points to an account, but never both
 	if jws.Signatures[0].Protected.JSONWebKey == nil && jws.Signatures[0].Protected.KeyID == "" {
-		return ctxerr.New(ctx, "jws must have a key or key ID in the protected header")
+		err = types.MalformedError("JWS must have a key or key ID in the protected header")
+		return ctxerr.Wrap(ctx, err)
 	}
 	if jws.Signatures[0].Protected.JSONWebKey != nil && jws.Signatures[0].Protected.KeyID != "" {
-		return ctxerr.New(ctx, "jws must have a key or key ID in the protected header")
+		err = types.MalformedError("JWS must not have both a key and key ID in the protected header")
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	req.JWS = *jws
@@ -203,7 +211,8 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.2
 	headerURL, ok := jws.Signatures[0].Protected.ExtraHeaders["url"].(string)
 	if !ok || headerURL == "" {
-		return ctxerr.New(ctx, "jws must have a url in the protected header")
+		err = types.MalformedError("JWS must have a url in the protected header")
+		return ctxerr.Wrap(ctx, err)
 	}
 	req.JWSHeaderURL = headerURL
 
