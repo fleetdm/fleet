@@ -172,6 +172,37 @@ function validateResolvedChanges(changes) {
 }
 
 /**
+ * Fix malformed @@ hunk headers in a unified diff.
+ * LLMs often get the line counts wrong; this recalculates them
+ * from the actual +/-/context lines in each hunk.
+ */
+function fixHunkHeaders(patch) {
+  const lines = patch.split("\n");
+  const result = [];
+  for (let i = 0; i < lines.length; i++) {
+    const hunkMatch = lines[i].match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@(.*)$/);
+    if (!hunkMatch) {
+      result.push(lines[i]);
+      continue;
+    }
+    let oldCount = 0;
+    let newCount = 0;
+    let j = i + 1;
+    while (j < lines.length) {
+      const line = lines[j];
+      const ch = line[0];
+      if (ch === "-") oldCount++;
+      else if (ch === "+") newCount++;
+      else if (ch === " ") { oldCount++; newCount++; }
+      else break; // stop at @@, ---, empty lines, or anything else
+      j++;
+    }
+    result.push(`@@ -${hunkMatch[1]},${oldCount} +${hunkMatch[2]},${newCount} @@${hunkMatch[3]}`);
+  }
+  return result.join("\n");
+}
+
+/**
  * Resolve the final content for a change object, handling both full-content
  * and unified-diff patch modes.
  *
@@ -190,7 +221,7 @@ async function resolveChangeContent(change, getContent, fullPath, logPrefix = ""
     }
     let result;
     try {
-      result = applyPatch(currentContent, change.patch, { fuzzFactor: 2 });
+      result = applyPatch(currentContent, fixHunkHeaders(change.patch), { fuzzFactor: 2 });
     } catch (err) {
       console.error(`${logPrefix} Failed to parse/apply unified diff to ${change.filePath}: ${err.message}\n${change.patch}`);
       throw new Error(`Cannot apply patch to "${change.filePath}": ${err.message}`);
