@@ -106,7 +106,7 @@ INSERT INTO setup_experience_status_results (
 	software_installer_id
 ) SELECT
 	?,
-	COALESCE(stdn.display_name, st.name),
+	st.name,
 	'pending',
 	si.id
 FROM software_installers si
@@ -156,7 +156,7 @@ INSERT INTO setup_experience_status_results (
 	vpp_app_team_id
 ) SELECT
 	?,
-	COALESCE(stdn.display_name, st.name),
+	st.name,
 	'pending',
 	vat.id
 FROM vpp_apps va

@@ -668,9 +668,10 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 }
 
 // testEnqueueSetupExperienceItemsWithDisplayName verifies that when a custom
-// display name is set for a software title, the enqueue function uses it for
-// both the stored name and the alphabetical install order (instead of the
-// default software_titles.name).
+// display name is set for a software title, the enqueue function uses it to
+// determine the alphabetical install order (instead of the default
+// software_titles.name). The stored `name` column should still contain the
+// original st.name; the display name only affects ordering.
 func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -685,8 +686,11 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	// We will then assign custom display names that invert this order:
 	//   "AAA_Software" → "Zulu Custom"
 	//   "ZZZ_Software" → "Alpha Custom"
-	// After enqueue, the rows should be ordered by display name:
-	//   "Alpha Custom" (was ZZZ_Software), "Zulu Custom" (was AAA_Software)
+	// After enqueue, the rows ordered by id (insert order) should reflect
+	// the display-name alphabetical order:
+	//   id=N   → ZZZ_Software (display name "Alpha Custom", sorts first)
+	//   id=N+1 → AAA_Software (display name "Zulu Custom", sorts second)
+	// But the `name` column still stores the original st.name.
 
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello1"), t.TempDir)
 	require.NoError(t, err)
@@ -790,23 +794,27 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	require.True(t, anythingEnqueued)
 
 	// --- Verify software installer rows ---
+	// ORDER BY id ASC gives us the insert order, which should reflect
+	// the display-name alphabetical order.
 	var installerRows []setupExperienceInsertTestRows
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &installerRows,
 			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
 			 FROM setup_experience_status_results
 			 WHERE host_uuid = ? AND software_installer_id IS NOT NULL
-			 ORDER BY name ASC`, hostUUID)
+			 ORDER BY id ASC`, hostUUID)
 	})
 	require.Len(t, installerRows, 2, "expected 2 software installer rows")
 
-	// The custom display names should be used as the stored name.
-	// "Alpha Custom" (originally ZZZ_Software) should come first alphabetically.
-	assert.Equal(t, "Alpha Custom", installerRows[0].Name, "first installer should use custom display name 'Alpha Custom'")
-	assert.Equalf(t, int64(installerID2), installerRows[0].SoftwareInstallerID.Int64, "first installer should be ZZZ_Software (id=%d) because its display name 'Alpha Custom' sorts first", installerID2) // nolint: gosec
+	// The name column should still store the original st.name.
+	// But the insert order (by id) should reflect the display-name sort:
+	//   1st: ZZZ_Software  (display name "Alpha Custom" sorts first)
+	//   2nd: AAA_Software  (display name "Zulu Custom" sorts second)
+	assert.Equal(t, "ZZZ_Software", installerRows[0].Name, "first row by id should be ZZZ_Software (display name 'Alpha Custom' sorts first)")
+	assert.Equal(t, installerID2, uint(installerRows[0].SoftwareInstallerID.Int64), "first row should be installer 2 (ZZZ_Software)") //nolint:gosec
 
-	assert.Equal(t, "Zulu Custom", installerRows[1].Name, "second installer should use custom display name 'Zulu Custom'")
-	assert.Equalf(t, int64(installerID1), installerRows[1].SoftwareInstallerID.Int64, "second installer should be AAA_Software (id=%d) because its display name 'Zulu Custom' sorts second", installerID1) // nolint: gosec
+	assert.Equal(t, "AAA_Software", installerRows[1].Name, "second row by id should be AAA_Software (display name 'Zulu Custom' sorts second)")
+	assert.Equal(t, installerID1, uint(installerRows[1].SoftwareInstallerID.Int64), "second row should be installer 1 (AAA_Software)") //nolint:gosec
 
 	// --- Verify VPP app rows ---
 	var vppRows []setupExperienceInsertTestRows
@@ -815,16 +823,18 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
 			 FROM setup_experience_status_results
 			 WHERE host_uuid = ? AND vpp_app_team_id IS NOT NULL
-			 ORDER BY name ASC`, hostUUID)
+			 ORDER BY id ASC`, hostUUID)
 	})
 	require.Len(t, vppRows, 2, "expected 2 VPP app rows")
 
-	// "Alpha VPP Custom" (originally ZZZ_VPP_App) should come first alphabetically.
-	assert.Equal(t, "Alpha VPP Custom", vppRows[0].Name, "first VPP app should use custom display name 'Alpha VPP Custom'")
-	assert.Equal(t, "Zulu VPP Custom", vppRows[1].Name, "second VPP app should use custom display name 'Zulu VPP Custom'")
+	// Same idea: insert order reflects display-name sort.
+	//   1st: ZZZ_VPP_App  (display name "Alpha VPP Custom" sorts first)
+	//   2nd: AAA_VPP_App  (display name "Zulu VPP Custom" sorts second)
+	assert.Equal(t, "ZZZ_VPP_App", vppRows[0].Name, "first VPP row by id should be ZZZ_VPP_App (display name 'Alpha VPP Custom' sorts first)")
+	assert.Equal(t, "AAA_VPP_App", vppRows[1].Name, "second VPP row by id should be AAA_VPP_App (display name 'Zulu VPP Custom' sorts second)")
 
-	// --- Verify fallback: no display name → use st.name ---
-	// Create a third installer with no custom display name
+	// --- Verify fallback: no display name → order uses st.name ---
+	// Create a third installer with no custom display name.
 	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
 	require.NoError(t, err)
 	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -849,7 +859,7 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 		return err
 	})
 
-	// Re-enqueue for a new host
+	// Re-enqueue for a new host to pick up the third installer.
 	hostUUID2 := "host-display-name-fallback-" + uuid.NewString()
 	_, err = ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "macos-dn-test-2",
@@ -871,14 +881,17 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
 			 FROM setup_experience_status_results
 			 WHERE host_uuid = ? AND software_installer_id IS NOT NULL
-			 ORDER BY name ASC`, hostUUID2)
+			 ORDER BY id ASC`, hostUUID2)
 	})
 	require.Len(t, allInstallerRows, 3, "expected 3 software installer rows")
 
-	// Order should be: "Alpha Custom" (ZZZ_Software), "MMM_NoDisplayName" (no display name, uses st.name), "Zulu Custom" (AAA_Software)
-	assert.Equal(t, "Alpha Custom", allInstallerRows[0].Name, "first should be 'Alpha Custom'")
-	assert.Equal(t, "MMM_NoDisplayName", allInstallerRows[1].Name, "second should be 'MMM_NoDisplayName' (fallback to st.name)")
-	assert.Equal(t, "Zulu Custom", allInstallerRows[2].Name, "third should be 'Zulu Custom'")
+	// Expected display-name sort order:
+	//   "Alpha Custom"      → ZZZ_Software       (has display name)
+	//   "MMM_NoDisplayName"  → MMM_NoDisplayName   (falls back to st.name)
+	//   "Zulu Custom"       → AAA_Software        (has display name)
+	assert.Equal(t, "ZZZ_Software", allInstallerRows[0].Name, "first should be ZZZ_Software (display name 'Alpha Custom')")
+	assert.Equal(t, "MMM_NoDisplayName", allInstallerRows[1].Name, "second should be MMM_NoDisplayName (no display name, falls back to st.name)")
+	assert.Equal(t, "AAA_Software", allInstallerRows[2].Name, "third should be AAA_Software (display name 'Zulu Custom')")
 }
 
 type setupExperienceInsertTestRows struct {
