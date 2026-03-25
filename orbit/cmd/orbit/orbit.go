@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/client"
 	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
@@ -1604,7 +1603,7 @@ func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string
 		switch {
 		case err == nil:
 			// OK, continue
-		case errors.Is(err, client.ErrMissingLicense):
+		case errors.Is(err, fleetclient.ErrMissingLicense):
 			// Setup experience is a premium feature.
 			log.Debug().Msg("setup experience is a premium feature, writing setup experience file, and continuing")
 			initSetupExperienceResponse = fleet.SetupExperienceInitResult{
