@@ -102,7 +102,7 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 	webKeyToVerify := message.Key
 	var account *types.Account
 	if otherRequest != nil {
-		accountID, err := accountIDFromKeyID(ctx, *message.KeyID, message.Identifier)
+		accountID, err := s.accountIDFromKeyID(ctx, *message.KeyID, message.Identifier)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parsing account ID from key ID")
 		}
@@ -149,14 +149,24 @@ func (s *Service) AuthenticateMessageFromAccount(ctx context.Context, message *a
 	return s.commonAuthenticateMessage(ctx, message, nil, request)
 }
 
-func accountIDFromKeyID(ctx context.Context, keyID, pathIdentifier string) (uint, error) {
+func (s *Service) accountIDFromKeyID(ctx context.Context, keyID, pathIdentifier string) (uint, error) {
 	// The key ID is the account URL, which should be in the format /api/mdm/acme/{identifier}/account/{accountID}
 	// We can parse the account ID out of the URL to look up the account in the database
 	urlParsed, err := url.Parse(keyID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "parsing key ID URL")
 	}
-	prefix := fmt.Sprintf("/api/mdm/acme/%s/account/", pathIdentifier)
+
+	expectedURL, err := s.getACMEURL(ctx, pathIdentifier, "accounts")
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting expected account URL")
+	}
+	expectedParsed, err := url.Parse(expectedURL)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "parsing expected account URL")
+	}
+
+	prefix := expectedParsed.Path + "/"
 	if !strings.HasPrefix(urlParsed.Path, prefix) {
 		return 0, ctxerr.New(ctx, "invalid key ID URL format")
 	}

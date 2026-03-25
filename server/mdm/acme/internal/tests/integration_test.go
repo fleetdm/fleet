@@ -277,9 +277,11 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Nil(t, acmeErr)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+		require.NotEmpty(t, resp.Header.Get("Location"))
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp.Header.Get("Location"))
 
 		require.Equal(t, "valid", acctResp.Status)
-		require.Contains(t, acctResp.Orders, "/orders")
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+/orders$`, acctResp.Orders)
 	})
 
 	t.Run("return existing account with same JWK", func(t *testing.T) {
@@ -293,6 +295,9 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
 
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
+		require.NotEmpty(t, resp1.Header.Get("Location"))
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp1.Header.Get("Location"))
+		location1 := resp1.Header.Get("Location")
 
 		// create again with same key - should return existing (use the valid returned nonce)
 		nonce2 := resp1.Header.Get("Replay-Nonce")
@@ -304,6 +309,9 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Equal(t, "valid", acctResp2.Status)
 		// same account, same orders URL
 		require.Equal(t, acctResp1.Orders, acctResp2.Orders)
+		require.NotEmpty(t, resp2.Header.Get("Location"))
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp2.Header.Get("Location"))
+		require.Equal(t, location1, resp2.Header.Get("Location"))
 	})
 
 	t.Run("too many accounts", func(t *testing.T) {
@@ -329,6 +337,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Contains(t, acmeErr.Type, "error/tooManyAccounts")
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("revoked account", func(t *testing.T) {
@@ -341,8 +350,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		// create an account
 		nonce := s.getNonce(t, enrollForRevoke.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollForRevoke.PathIdentifier), nil)
-		_, _, resp := s.createAccount(t, enrollForRevoke.PathIdentifier, jwsBody)
-		require.Equal(t, http.StatusCreated, resp.StatusCode)
+		_, _, resp1 := s.createAccount(t, enrollForRevoke.PathIdentifier, jwsBody)
+		require.Equal(t, http.StatusCreated, resp1.StatusCode)
 
 		// revoke it directly in the DB
 		var accountID uint
@@ -352,13 +361,14 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.NoError(t, err)
 
 		// try to create again with the same key — should get accountRevoked error
-		nonce2 := resp.Header.Get("Replay-Nonce")
+		nonce2 := resp1.Header.Get("Replay-Nonce")
 		jwsBody2 := buildJWS(t, privateKey, nonce2, s.newAccountURL(enrollForRevoke.PathIdentifier), nil)
 		_, acmeErr, resp2 := s.createAccount(t, enrollForRevoke.PathIdentifier, jwsBody2)
 
 		require.Equal(t, http.StatusBadRequest, resp2.StatusCode)
 		require.NotEmpty(t, resp2.Header.Get("Replay-Nonce"))
 		require.Contains(t, acmeErr.Type, "error/accountRevoked")
+		require.Empty(t, resp2.Header.Get("Location"))
 	})
 
 	t.Run("onlyReturnExisting account exists", func(t *testing.T) {
@@ -370,6 +380,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody1 := buildJWS(t, privateKey, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp1.Header.Get("Location"))
+		location1 := resp1.Header.Get("Location")
 
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
 
@@ -382,6 +394,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, "valid", acctResp2.Status)
 		require.Equal(t, acctResp1.Orders, acctResp2.Orders)
+		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp2.Header.Get("Location"))
+		require.Equal(t, location1, resp2.Header.Get("Location"))
 	})
 
 	t.Run("onlyReturnExisting account does not exist", func(t *testing.T) {
@@ -397,6 +411,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Contains(t, acmeErr.Type, "error:accountDoesNotExist")
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("unknown identifier", func(t *testing.T) {
@@ -416,6 +431,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is unknown
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("revoked enrollment", func(t *testing.T) {
@@ -434,6 +450,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is invalid
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
@@ -451,6 +468,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is invalid
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
@@ -465,5 +483,6 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		require.Contains(t, acmeErr.Type, "error:badNonce")
 		// it does generate a new valid nonce
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
 	})
 }

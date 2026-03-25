@@ -9,7 +9,7 @@ import (
 	"go.step.sm/crypto/jose"
 )
 
-func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose.JSONWebKey, onlyReturnExisting bool) (*types.AccountResponse, error) {
+func (s *Service) CreateAccount(ctx context.Context, pathIdentifier string, enrollmentID uint, jwk jose.JSONWebKey, onlyReturnExisting bool) (*types.AccountResponse, error) {
 	// authorization is checked in the endpoint implementation for JWS-protected endpoints
 
 	account := &types.Account{
@@ -26,11 +26,11 @@ func (s *Service) CreateAccount(ctx context.Context, enrollmentID uint, jwk jose
 		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
 	}
 
-	ordersURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, "accounts", fmt.Sprint(account.ID), "orders")
+	ordersURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, pathIdentifier, "accounts", fmt.Sprint(account.ID), "orders")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "constructing orders URL for account")
 	}
-	acctURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, "accounts", fmt.Sprint(account.ID))
+	acctURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, pathIdentifier, "accounts", fmt.Sprint(account.ID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "constructing account URL for account")
 	}

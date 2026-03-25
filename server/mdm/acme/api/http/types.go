@@ -104,6 +104,9 @@ func (r *CreateNewAccountResponse) BeforeRender(ctx context.Context, w http.Resp
 		r.Err = err
 		return
 	}
+	if r.AccountResponse != nil && r.AccountResponse.Location != "" {
+		w.Header().Set("Location", r.AccountResponse.Location)
+	}
 }
 
 // Status implements the statuser interface.

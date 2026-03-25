@@ -88,7 +88,7 @@ func createAccountEndpoint(ctx context.Context, request any, svc api.Service) pl
 		return &api_http.CreateNewAccountResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
 
-	accountResp, err := svc.CreateAccount(ctx, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
+	accountResp, err := svc.CreateAccount(ctx, req.Identifier, newAccountRequest.Enrollment.ID, *newAccountRequest.JSONWebKey, newAccountRequest.OnlyReturnExisting)
 	if err != nil {
 		return &api_http.CreateNewAccountResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
