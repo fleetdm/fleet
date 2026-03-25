@@ -927,7 +927,7 @@ func (c *Client) ApplyGroup(
 		// the team spec doesn't include software. Additionally, setup_experience
 		// references packages by file path which server-side data doesn't have.
 		// The server will validate when the setup experience is applied.
-		softwareExcepted := appconfig != nil && appconfig.GitOpsConfig.Exceptions.Software
+		softwareExcepted := viaGitOps && appconfig != nil && appconfig.GitOpsConfig.Exceptions.Software
 		for tmName, setupSw := range tmMacSetupSoftware {
 			if softwareExcepted {
 				continue
