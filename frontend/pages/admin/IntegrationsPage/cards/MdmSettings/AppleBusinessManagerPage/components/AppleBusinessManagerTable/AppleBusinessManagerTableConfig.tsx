@@ -3,6 +3,7 @@ import { CellProps, Column } from "react-table";
 
 import { IMdmAbmToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { getTeamDisplayName } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -90,7 +91,7 @@ export const generateTableConfig = (
     },
     {
       id: "macos_team",
-      accessor: (originalRow) => originalRow.macos_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.macos_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -115,7 +116,7 @@ export const generateTableConfig = (
     },
     {
       id: "ios_team",
-      accessor: (originalRow) => originalRow.ios_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.ios_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -140,7 +141,7 @@ export const generateTableConfig = (
     },
     {
       id: "ipados_team",
-      accessor: (originalRow) => originalRow.ipados_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.ipados_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
