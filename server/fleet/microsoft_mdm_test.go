@@ -430,7 +430,7 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 			},
 		},
 		{
-			name: "atomic profile with multiple Replace commands",
+			name: "atomic profile with multiple Replace commands produces individual Deletes (not Atomic)",
 			profileXML: `<Atomic>
 				<CmdID>1</CmdID>
 				<Replace>
@@ -449,13 +449,16 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 				</Replace>
 			</Atomic>`,
 			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
+				// Delete commands should NOT be wrapped in <Atomic>. Removal
+				// is best-effort, and Atomic would cause all to fail if one fails.
 				cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
 				require.NoError(t, err)
-				require.Len(t, cmds, 1)
-				require.Equal(t, CmdAtomic, cmds[0].XMLName.Local)
-				require.Len(t, cmds[0].DeleteCommands, 2)
-				require.Equal(t, "./Device/Vendor/MSFT/BitLocker/RequireStorageCardEncryption", cmds[0].DeleteCommands[0].GetTargetURI())
-				require.Equal(t, "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption", cmds[0].DeleteCommands[1].GetTargetURI())
+				require.Len(t, cmds, 2)
+				for _, c := range cmds {
+					require.Equal(t, CmdDelete, c.XMLName.Local)
+				}
+				require.Equal(t, "./Device/Vendor/MSFT/BitLocker/RequireStorageCardEncryption", cmds[0].GetTargetURI())
+				require.Equal(t, "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption", cmds[1].GetTargetURI())
 			},
 		},
 		{
@@ -505,12 +508,12 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 			</Atomic>`,
 			checkFn: func(t *testing.T, cmd *MDMWindowsCommand) {
 				// Only the Add should produce a Delete; Exec is skipped.
+				// Delete is NOT wrapped in Atomic (best-effort removal).
 				cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
 				require.NoError(t, err)
 				require.Len(t, cmds, 1)
-				require.Equal(t, CmdAtomic, cmds[0].XMLName.Local)
-				require.Len(t, cmds[0].DeleteCommands, 1)
-				require.Equal(t, "./Device/Vendor/MSFT/VPNv2/MyVPN/ProfileXML", cmds[0].DeleteCommands[0].GetTargetURI())
+				require.Equal(t, CmdDelete, cmds[0].XMLName.Local)
+				require.Equal(t, "./Device/Vendor/MSFT/VPNv2/MyVPN/ProfileXML", cmds[0].GetTargetURI())
 			},
 		},
 		{
@@ -545,7 +548,7 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, err := BuildDeleteCommandFromProfileBytes([]byte(tt.profileXML), "test-uuid-123")
+			cmd, err := BuildDeleteCommandFromProfileBytes([]byte(tt.profileXML), "test-uuid-123", "test-profile-uuid")
 			switch {
 			case tt.expectError != "":
 				require.Error(t, err)
@@ -580,7 +583,7 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 		exclude := map[string]bool{
 			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
 		}
-		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", exclude)
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
 		require.Nil(t, cmd, "should return nil when the only LocURI is protected")
 	})
@@ -604,7 +607,7 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 		exclude := map[string]bool{
 			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": true,
 		}
-		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", exclude)
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
 		require.NotNil(t, cmd, "should generate a command for the non-protected LocURI")
 
@@ -637,7 +640,7 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 			"./Device/Vendor/MSFT/BitLocker/A": true,
 			"./Device/Vendor/MSFT/BitLocker/B": true,
 		}
-		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", exclude)
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
 		require.Nil(t, cmd, "should return nil when all atomic LocURIs are protected")
 	})
@@ -663,16 +666,16 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 		exclude := map[string]bool{
 			"./Device/Vendor/MSFT/BitLocker/A": true,
 		}
-		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", exclude)
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid", exclude)
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
 
+		// Delete is NOT wrapped in Atomic (best-effort removal).
 		cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
 		require.NoError(t, err)
-		require.Len(t, cmds, 1)
-		require.Equal(t, CmdAtomic, cmds[0].XMLName.Local)
-		require.Len(t, cmds[0].DeleteCommands, 1, "should only have one Delete for the unprotected URI")
-		require.Equal(t, "./Device/Vendor/MSFT/BitLocker/B", cmds[0].DeleteCommands[0].GetTargetURI())
+		require.Len(t, cmds, 1, "should only have one Delete for the unprotected URI")
+		require.Equal(t, CmdDelete, cmds[0].XMLName.Local)
+		require.Equal(t, "./Device/Vendor/MSFT/BitLocker/B", cmds[0].GetTargetURI())
 	})
 
 	t.Run("no exclusions works as before", func(t *testing.T) {
@@ -684,9 +687,26 @@ func TestBuildDeleteCommandExcludesProtectedLocURIs(t *testing.T) {
 			</Item>
 		</Replace>`
 		// No exclude parameter — should generate the Delete normally
-		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid")
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "test-uuid", "test-profile-uuid")
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
+	})
+
+	t.Run("SCEP variable in LocURI is substituted with profile UUID", func(t *testing.T) {
+		profileXML := `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI></Target></Item></Add>
+<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI></Target><Data>https://example.com</Data></Item></Add>`
+		cmd, err := BuildDeleteCommandFromProfileBytes([]byte(profileXML), "cmd-uuid", "w-my-profile-uuid")
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+
+		cmds, err := UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+		require.NoError(t, err)
+		require.Len(t, cmds, 2)
+		// The $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID should be replaced with the profile UUID
+		require.Equal(t, "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/w-my-profile-uuid", cmds[0].GetTargetURI())
+		require.Equal(t, "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/w-my-profile-uuid/Install/ServerURL", cmds[1].GetTargetURI())
+		// Must NOT contain the variable literal
+		require.NotContains(t, string(cmd.RawCommand), "$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID")
 	})
 }
 

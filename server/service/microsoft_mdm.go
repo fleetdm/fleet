@@ -2757,7 +2757,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 			}
 		}
 
-		command, err := fleet.BuildDeleteCommandFromProfileBytes(p.SyncML, target.cmdUUID, activeLocURIs)
+		command, err := fleet.BuildDeleteCommandFromProfileBytes(p.SyncML, target.cmdUUID, profUUID, activeLocURIs)
 		if err != nil {
 			logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
 			continue

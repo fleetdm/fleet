@@ -1108,7 +1108,7 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 			continue
 		}
 
-		deleteCmd, err := fleet.BuildDeleteCommandFromProfileBytes(syncML, target.cmdUUID, activeLocURIs)
+		deleteCmd, err := fleet.BuildDeleteCommandFromProfileBytes(syncML, target.cmdUUID, profUUID, activeLocURIs)
 		if err != nil {
 			ds.logger.WarnContext(ctx, "skipping delete command generation: build error",
 				"profile.uuid", profUUID, "err", err)
