@@ -1,1 +1,0 @@
-profiles show -type enrollment

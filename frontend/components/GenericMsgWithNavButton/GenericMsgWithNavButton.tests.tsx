@@ -10,7 +10,7 @@ describe("GenericMsgWithNavButton", () => {
   it("renders with passed in header and info", () => {
     render(
       <GenericMsgWithNavButton
-        header="Manage your hosts"
+        header="Additional configuration required"
         info="MDM must be turned on to change settings on your hosts."
         path={PATHS.ADMIN_INTEGRATIONS_MDM}
         buttonText="Turn on"
@@ -18,7 +18,9 @@ describe("GenericMsgWithNavButton", () => {
       />
     );
 
-    expect(screen.getByText("Manage your hosts")).toBeInTheDocument();
+    expect(
+      screen.getByText("Additional configuration required")
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "MDM must be turned on to change settings on your hosts."
