@@ -1,3 +1,11 @@
+## Fleet 4.82.2 (Mar 27, 2026)
+
+### Bug fixes
+
+- Fixed the metadata extraction for `.pkg` macOS installers, which was introduced in `4.77.0` and could prevent updating some installers that were added in a previous Fleet version.
+    * **NOTE**: the fix may cause some installers that were added in Fleet `4.77.0` and later to fail to update with the message "The selected package is for different software". In this case, you will have to delete and re-add the installer. This will not only make it possible to update it successfully later, it will also create it with the correct metadata (name, version, bundle identifier).
+- Fixed FMA apps not showing up for a fleet when added via GitOps after an automated FMA version update with an unchanged binary.
+
 ## Fleet 4.82.1 (Mar 18, 2026)
 
 ### Bug fixes
