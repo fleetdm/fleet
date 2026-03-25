@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-33186](https://nvd.nist.gov/vuln/detail/CVE-2026-33186)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** There are no path-based authorization interceptors. The only interceptors are grpc_recovery (panic handlers). CVE-2026-33186 specifically requires path-based authz rules (like grpc/authz RBAC policies) that compare against info.FullMethod — Fleet doesn't use any.
+- **Products:**: `fleet`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:38:53
+
 ### [CVE-2026-22184](https://nvd.nist.gov/vuln/detail/CVE-2026-22184)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -388,6 +396,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Timestamp:** 2025-04-10 14:46:52
 
 ## `fleetdm/wix` docker image
+
+### [CVE-2026-2921](https://nvd.nist.gov/vuln/detail/CVE-2026-2921)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process media files when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libgstreamer-plugins-base1.0-0`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:23:52
+
+### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** No attacker-controlled allocation arguments. The fleetdm/wix container runs WiX toolset commands (heat.exe, candle.exe, light.exe) via Wine to compile .wxs files into an MSI. The only input is a volume-mounted temp directory containing Fleet-generated files (main.wxs, heat.wxs, the orbit root directory). None of this feeds attacker-controlled size/alignment values to memalign.
+- **Products:**: `wix`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:18:16
 
 ### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
 - **Author:** @lucasmrod
