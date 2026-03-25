@@ -1,1 +1,0 @@
-Fixed FMA apps not showing up for a fleet when added via GitOps after an automated FMA version update with an unchanged binary.
