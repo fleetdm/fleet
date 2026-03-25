@@ -719,6 +719,7 @@ func TestRunWithDeltaGeneration(t *testing.T) {
 	require.Equal(t, 1, todayDelta.TotalPackages)
 	require.NotNil(t, todayDelta.Vulnerabilities)
 	require.Contains(t, todayDelta.Vulnerabilities, "changed-today-package")
+	require.NotEmpty(t, todayDelta.Vulnerabilities["changed-today-package"])
 	require.Equal(t, "CVE-2024-1111", todayDelta.Vulnerabilities["changed-today-package"][0].CVE)
 
 	// Verify yesterday's delta artifact
@@ -728,6 +729,7 @@ func TestRunWithDeltaGeneration(t *testing.T) {
 	require.Equal(t, 1, yesterdayDelta.TotalPackages)
 	require.NotNil(t, yesterdayDelta.Vulnerabilities)
 	require.Contains(t, yesterdayDelta.Vulnerabilities, "changed-yesterday-package")
+	require.NotEmpty(t, yesterdayDelta.Vulnerabilities["changed-yesterday-package"])
 	require.Equal(t, "CVE-2024-2222", yesterdayDelta.Vulnerabilities["changed-yesterday-package"][0].CVE)
 }
 
