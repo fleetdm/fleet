@@ -24,7 +24,13 @@
   }
 
   &__status-title {
-    width: 200px;
+    width: 215px;
+  }
+
+  &__status-value {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
   }
 
   &__profile-assignment {

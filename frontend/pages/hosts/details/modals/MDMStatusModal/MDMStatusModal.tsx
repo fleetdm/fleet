@@ -5,16 +5,21 @@ import { AxiosError } from "axios";
 
 import { internationalTimeFormat } from "utilities/helpers";
 import {
+  DEFAULT_EMPTY_CELL_VALUE,
   LEARN_MORE_ABOUT_BASE_LINK,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
+
 import paths from "router/paths";
 import {
   MdmEnrollmentStatus,
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
-import hostAPI, { IDepAssignmentHostResponse } from "services/entities/hosts";
+import hostAPI, {
+  DepAssignProfileResponse,
+  IDepAssignmentHostResponse,
+} from "services/entities/hosts";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -31,6 +36,7 @@ import { IconNames } from "components/icons";
 const baseClass = "mdm-status-modal";
 
 interface IMDMStatusModal {
+  fleetId?: number;
   hostId: number;
   enrollmentStatus: MdmEnrollmentStatus;
   depProfileError?: boolean;
@@ -41,6 +47,11 @@ interface IMDMStatusModal {
 }
 
 type ProfileStatusCode = "" | "removed" | "assigned" | "pushed";
+
+type DepAssignProfileResponseErrors = Exclude<
+  DepAssignProfileResponse,
+  "SUCCESS" | undefined
+>;
 
 const PROFILE_STATUS_UI_MAP: Record<
   ProfileStatusCode,
@@ -75,10 +86,10 @@ const getProfileStatusUI = (raw?: string | null) => {
 };
 
 const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
-  string,
+  Exclude<DepAssignProfileResponse, "SUCCESS" | undefined>,
   { label: JSX.Element | string; tooltip: JSX.Element | string }
 > = {
-  throttled: {
+  THROTTLED: {
     label: "Throttled",
     tooltip: (
       <>
@@ -88,7 +99,7 @@ const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
       </>
     ),
   },
-  failed: {
+  FAILED: {
     label: "Failed",
     tooltip: (
       <>
@@ -98,7 +109,7 @@ const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
       </>
     ),
   },
-  not_accessible: {
+  NOT_ACCESSIBLE: {
     label: "Not accessible",
     tooltip: (
       <>
@@ -110,7 +121,7 @@ const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
   },
 };
 
-const getProfileAssignmentError = (raw?: string) => {
+const getProfileAssignmentError = (raw?: DepAssignProfileResponseErrors) => {
   return raw ? PROFILE_ASSIGNMENT_ERROR_UI_MAP[raw] : undefined;
 };
 
@@ -130,9 +141,10 @@ interface IProfileRowItem {
 }
 
 const MDMStatusModal = ({
+  fleetId,
   hostId,
   enrollmentStatus,
-  depProfileError = false,
+  depProfileError = true, // return to false after testing
   isPremiumTier = false,
   isMacOSHost = false,
   router,
@@ -152,7 +164,6 @@ const MDMStatusModal = ({
     }
   );
 
-  // Keeping this as-is per your note.
   const fakeDepAssignmentData: IDepAssignmentHostResponse = {
     id: 32,
     dep_device: {
@@ -171,7 +182,7 @@ const MDMStatusModal = ({
       serial_number: "ABC1FND0ZX",
     },
     host_dep_assignment: {
-      assign_profile_response: "SUCCESS",
+      assign_profile_response: "THROTTLED",
       profile_uuid: "762C4D36550103CCC53AA212A8D31CDD",
       response_updated_at: "2025-12-04 01:35:27",
       added_at: "2025-12-04 01:35:27",
@@ -185,26 +196,51 @@ const MDMStatusModal = ({
   const enrollmentFilterValue =
     MDM_ENROLLMENT_STATUS_UI_MAP[enrollmentStatus].filterValue;
 
-  const handleClickStatusRow = (item: IStatusRowItem) => {
+  const handleClickStatusRow = () => {
     const path = getPathWithQueryParams(paths.MANAGE_HOSTS, {
       mdm_enrollment_status: enrollmentFilterValue,
+      fleet_id: fleetId,
     });
     router.push(path);
-    return item;
   };
 
   const handleClickProfileRow = (item: IProfileRowItem) => {
+    // Only handle the profile error row
+    if (item.id !== "profile-error") {
+      return;
+    }
+
+    const raw = (fakeDepAssignmentData?.host_dep_assignment
+      .assign_profile_response || "") as DepAssignProfileResponseErrors;
+
+    let responseParam: string | undefined;
+
+    switch (raw) {
+      case "FAILED":
+        responseParam = "FAILED";
+        break;
+      case "THROTTLED":
+        responseParam = "THROTTLED";
+        break;
+      case "NOT_ACCESSIBLE":
+        responseParam = "NOT_ACCESSIBLE";
+        break;
+      default:
+        // No navigation for other responses
+        return;
+    }
+
     const path = getPathWithQueryParams(paths.MANAGE_HOSTS, {
-      dep_profile_error: "true",
+      dep_assign_profile_response: responseParam,
+      fleet_id: fleetId,
     });
+
     router.push(path);
-    return item;
   };
 
   const renderStatusRow = (item: IStatusRowItem) => {
     const statusTooltip = MDM_STATUS_TOOLTIP[item.status];
 
-    console.log("statusTooltip", statusTooltip);
     return (
       <>
         <div className={`${baseClass}__status`}>
@@ -228,36 +264,47 @@ const MDMStatusModal = ({
     );
   };
 
-  const renderProfileRow = (item: IProfileRowItem) => (
-    <>
-      <div className={`${baseClass}__status`}>
-        <div className={`${baseClass}__status-title`}>
-          {item.nameTooltip ? (
-            <TooltipWrapper tipContent={item.nameTooltip}>
-              {item.name}
-            </TooltipWrapper>
-          ) : (
-            item.name
-          )}
+  const renderProfileRow = (item: IProfileRowItem) => {
+    const isErrorRow = item.id === "profile-error";
+
+    return (
+      <>
+        <div className={`${baseClass}__status`}>
+          <div className={`${baseClass}__status-title`}>
+            {item.nameTooltip ? (
+              <TooltipWrapper tipContent={item.nameTooltip}>
+                {item.name}
+              </TooltipWrapper>
+            ) : (
+              item.name
+            )}
+          </div>
+          <div className={`${baseClass}__status-value`}>
+            {item.statusIconName && <Icon name={item.statusIconName} />}
+            {item.statusTooltip ? (
+              <TooltipWrapper tipContent={item.statusTooltip}>
+                {item.status}
+              </TooltipWrapper>
+            ) : (
+              item.status
+            )}
+          </div>
         </div>
-        <div className={`${baseClass}__status-value`}>
-          {item.statusIconName && <Icon name={item.statusIconName} />}
-          {item.statusTooltip ? (
-            <TooltipWrapper tipContent={item.statusTooltip}>
-              {item.status}
-            </TooltipWrapper>
-          ) : (
-            item.status
-          )}
-        </div>
-      </div>
-      <ViewAllHostsLink
-        queryParams={{ mdm_enrollment_status: item.status }}
-        rowHover
-        noLink
-      />
-    </>
-  );
+        {isErrorRow && (
+          <ViewAllHostsLink
+            queryParams={{
+              dep_assign_profile_response: (
+                fakeDepAssignmentData?.host_dep_assignment
+                  .assign_profile_response || ""
+              ).toLowerCase(),
+            }}
+            rowHover
+            noLink
+          />
+        )}
+      </>
+    );
+  };
 
   const renderMDMStatus = () => {
     const data: IStatusRowItem[] = [
@@ -278,6 +325,16 @@ const MDMStatusModal = ({
   };
 
   const renderProfileAssignmentList = () => {
+    if (isLoadingDepAssignment) {
+      return <Spinner />;
+    }
+
+    if (isDepAssignmentError) {
+      return (
+        <DataError description="We can't retrieve data from Apple right now. Please try again later." />
+      );
+    }
+
     const data: IProfileRowItem[] = [
       {
         id: "profile-assigned",
@@ -289,6 +346,7 @@ const MDMStatusModal = ({
             to this host in Apple Business Manager.
           </>
         ),
+        // Follow current pattern of international time formate for dates in UI
         status: internationalTimeFormat(
           new Date(fakeDepAssignmentData.dep_device.profile_assign_time)
         ),
@@ -303,9 +361,13 @@ const MDMStatusModal = ({
             host won&apos;t be able to turn on MDM.
           </>
         ),
-        status: internationalTimeFormat(
-          new Date(fakeDepAssignmentData.dep_device.profile_push_time)
-        ),
+        // Follow current pattern of international time formate for dates in UI
+        status:
+          fakeDepAssignmentData.dep_device.profile_push_time === ""
+            ? DEFAULT_EMPTY_CELL_VALUE
+            : internationalTimeFormat(
+                new Date(fakeDepAssignmentData.dep_device.profile_push_time)
+              ),
       },
       {
         id: "profile-status",
@@ -313,15 +375,19 @@ const MDMStatusModal = ({
         status: getProfileStatusUI(
           fakeDepAssignmentData.dep_device.profile_status
         ).label,
-        statusTooltip: getProfileStatusUI(
-          fakeDepAssignmentData.dep_device.profile_status
-        ).tooltip,
+        statusTooltip:
+          fakeDepAssignmentData.dep_device.profile_status === ""
+            ? DEFAULT_EMPTY_CELL_VALUE
+            : getProfileStatusUI(
+                fakeDepAssignmentData.dep_device.profile_status
+              ).tooltip,
       },
     ];
 
-    if (depProfileError) {
+    if (depProfileError && fakeDepAssignmentData) {
       const assignmentError = getProfileAssignmentError(
-        depAssignmentData?.host_dep_assignment.assign_profile_response
+        fakeDepAssignmentData.host_dep_assignment
+          .assign_profile_response as DepAssignProfileResponseErrors
       );
 
       if (assignmentError) {
@@ -335,21 +401,12 @@ const MDMStatusModal = ({
       }
     }
 
-    if (isLoadingDepAssignment) {
-      return <Spinner />;
-    }
-
-    if (isDepAssignmentError) {
-      return (
-        <DataError description="We can't retrieve data from Apple right now. Please try again later." />
-      );
-    }
-
     return (
       <List<IProfileRowItem>
         data={data}
         renderItemRow={renderProfileRow}
         onClickRow={handleClickProfileRow}
+        isRowClickable={(item) => item.id === "profile-error"}
       />
     );
   };

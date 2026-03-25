@@ -99,8 +99,8 @@
       display: flex;
       align-items: center;
       gap: $pad-xsmall;
-      margin-bottom: -$pad-xsmall; // See underline under link
-      padding-bottom: $pad-xsmall; // See underline under link
+      margin: -6px; // See underline under link and border with keyboard nav
+      padding: 6px; // See underline under link and border with keyboard nav
     }
   }
 

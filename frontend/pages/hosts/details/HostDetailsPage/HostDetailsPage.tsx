@@ -1742,6 +1742,7 @@ const HostDetailsPage = ({
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (
           <MDMStatusModal
+            fleetId={currentTeam?.id}
             hostId={host.id}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
