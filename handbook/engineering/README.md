@@ -291,7 +291,9 @@ Our Android app is managed through Google Play. Follow the [Android release guid
 
 The Chrome extension is released via [Google Admin](https://admin.google.com).
 For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
-For production releases, follow the [Chrome extension README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).### Deploy a new release to dogfood
+For production releases, follow the [Chrome extension
+README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).### Deploy a new
+release to dogfood.
 
 ### Deploy a new release to dogfood
 
