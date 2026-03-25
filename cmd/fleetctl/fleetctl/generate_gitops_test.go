@@ -2077,16 +2077,41 @@ func TestGenerateMDMVPPTokens(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("GetVPPTokens error", func(t *testing.T) {
+		fleetClient := &MockClient{WithoutVPP: true}
+		appConfig, err := fleetClient.GetAppConfig()
+		require.NoError(t, err)
+
+		wrapper := &vppMockClientWrapper{
+			MockClient: fleetClient,
+			vppErr:     errors.New("vpp tokens unavailable"),
+		}
+
+		cmd := &GenerateGitopsCommand{
+			Client:       wrapper,
+			CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+			Messages:     Messages{},
+			FilesToWrite: make(map[string]any),
+			AppConfig:    appConfig,
+			ScriptList:   make(map[uint]string),
+		}
+
+		mdmRaw, err := cmd.generateMDM(&appConfig.MDM)
+		require.Error(t, err)
+		require.Nil(t, mdmRaw)
+	})
 }
 
 // vppMockClientWrapper wraps MockClient but overrides GetVPPTokens.
 type vppMockClientWrapper struct {
 	*MockClient
 	vppTokens []*fleet.VPPTokenDB
+	vppErr    error
 }
 
 func (w *vppMockClientWrapper) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
-	return w.vppTokens, nil
+	return w.vppTokens, w.vppErr
 }
 
 func TestSillyTeamNames(t *testing.T) {
