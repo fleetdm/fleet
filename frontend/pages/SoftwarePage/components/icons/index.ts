@@ -8,6 +8,7 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import Charles from "./Charles";
+import Codex from "./Codex";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Iina from "./Iina";
@@ -309,6 +310,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
+  codex: Codex,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
