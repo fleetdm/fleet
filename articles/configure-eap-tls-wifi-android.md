@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-This guide walks through configuring enterprise Wi-Fi network (802.1X) with EAP-TLS method on Android devices.
+This guide walks through configuring enterprise Wi-Fi network (802.1X) with EAP-TLS method on Android hosts. Supported on fully-managed and work profile (BYOD) hosts.
 
 Follow steps below to connect your Android hosts to enterprise Wi-Fi:
 
@@ -58,7 +58,7 @@ Follow steps below to connect your Android hosts to enterprise Wi-Fi:
 | `Name` | Display label, can be anything. For human readability only. |
 | `GUID` | Unique identifier for the each network. Use a different GUID for each network if you have multiple networks under `NetworkConfigurations`, or multiple configuration profiles with `openNetworkConfiguration` setting. |
 | `Identity` | It's usually user's identifier like email. |
-| `DomainSuffixMatch` | Domain suffix used to verify the RADIUS server's identity. The device checks that the server certificate's SAN DNS name (or CN if no SAN is present) ends with this suffix. |
+| `DomainSuffixMatch` | Domain suffix used to verify the RADIUS server's identity. The host checks that the server certificate's SAN DNS name (or CN if no SAN is present) ends with this suffix. |
 | `ClientCertKeyPairAlias` | Name of the certificate you added in Fleet under **Controls > OS settings > Certificates**. |
 | `X509` | Base64-encoded content of the root CA certificate that signed both server and client certificates. Exclude header and footer (`-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`). |
 
@@ -70,11 +70,11 @@ If the profile shows `"openNetworkConfiguration" setting couldn't apply to a hos
 
 ## End user experience
 
-When the end user selects the network in **Settings > Wi-Fi**, the device will automatically connect to the configured Wi-Fi network. 
+When the end user selects the network in **Settings > Wi-Fi**, the host will automatically connect to the configured Wi-Fi network. 
 
 <meta name="articleTitle" value="Configure EAP-TLS Wi-Fi on Android">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-03-24">
-<meta name="description" value="Learn how to configure enterprise Wi-Fi network (802.1X) with EAP-TLS method on Android devices in Fleet.">
+<meta name="description" value="Learn how to configure enterprise Wi-Fi network (802.1X) with EAP-TLS method on Android hosts in Fleet.">
