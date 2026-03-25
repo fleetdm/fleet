@@ -1258,6 +1258,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			instanceID,
 			ds,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+			redis_key_value.New(redisPool),
 			logger,
 			config.MDM.CertificateProfilesLimit,
 		)
