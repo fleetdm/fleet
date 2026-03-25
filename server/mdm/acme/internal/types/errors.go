@@ -28,6 +28,32 @@ type ACMEError struct {
 	StatusCode int    `json:"-"`
 }
 
+var (
+	enrollmentNotFound = EnrollmentNotFoundError("")
+	serverInternal     = InternalServerError("")
+)
+
+func (e *ACMEError) ShouldReturnNonce() bool {
+	if e == nil {
+		return false
+	}
+	switch e.Type {
+	case enrollmentNotFound.Type, serverInternal.Type:
+		return false
+	default:
+		return true
+	}
+}
+
+func EnrollmentNotFoundError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "enrollmentNotFound",
+		Title:      "The specified enrollment does not exist",
+		Detail:     detail,
+		StatusCode: http.StatusNotFound,
+	}
+}
+
 func AccountDoesNotExistError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "accountDoesNotExist",
@@ -61,6 +87,15 @@ func BadNonceError(detail string) *ACMEError {
 		Title:      "The client sent an unacceptable anti-replay nonce",
 		Detail:     detail,
 		StatusCode: http.StatusBadRequest, // as per RFC https://datatracker.ietf.org/doc/html/rfc8555/#section-6.5
+	}
+}
+
+func InternalServerError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "serverInternal",
+		Title:      "The server experienced an internal error",
+		Detail:     detail,
+		StatusCode: http.StatusInternalServerError,
 	}
 }
 

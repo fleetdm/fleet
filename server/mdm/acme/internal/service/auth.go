@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"go.step.sm/crypto/jose"
 )
 
@@ -29,7 +28,8 @@ func (s *Service) authenticateWithACMEEnrollment(ctx context.Context, identifier
 		return nil, err
 	}
 	if !enrollment.IsValid() {
-		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("ACME enrollment").WithName(identifier))
+		err = types.EnrollmentNotFoundError(fmt.Sprintf("ACME enrollment with path identifier %s not found", identifier))
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return enrollment, nil
 }

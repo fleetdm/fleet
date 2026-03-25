@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -34,8 +33,9 @@ func testGetACMEEnrollment(t *testing.T, env *testEnv) {
 	// non-existing
 	enrollment, err := env.ds.GetACMEEnrollment(t.Context(), "non-existing")
 	require.Nil(t, enrollment)
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 
 	// existing and valid
 	enrollValid := &types.Enrollment{}

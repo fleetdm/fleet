@@ -114,6 +114,7 @@ func (ds *Datastore) GetAccountByID(ctx context.Context, enrollmentID uint, acco
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dbAcc, stmt, enrollmentID, accountID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			// TODO: use an ACME error probably
 			return nil, platform_mysql.NotFound("acme account").WithID(accountID)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select acme account")

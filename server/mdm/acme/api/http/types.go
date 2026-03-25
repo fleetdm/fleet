@@ -92,13 +92,14 @@ type CreateNewAccountResponse struct {
 
 // BeforeRender implements the beforeRenderer interface.
 func (r *CreateNewAccountResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// only generate a new nonce if there is no error or the error is an ACME error,
-	// indicating a client issue.
-	var acmeErr *types.ACMEError
-	if r.Err != nil && !errors.As(r.Err, &acmeErr) {
-		return
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
 	}
-
 	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
 		r.Err = err
 		return
@@ -128,11 +129,13 @@ type CreateNewOrderResponse struct {
 }
 
 func (r *CreateNewOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// only generate a new nonce if there is no error or the error is an ACME error,
-	// indicating a client issue.
-	var acmeErr *types.ACMEError
-	if r.Err != nil && !errors.As(r.Err, &acmeErr) {
-		return
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
 	}
 	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
 		r.Err = err

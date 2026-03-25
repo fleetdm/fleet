@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -32,7 +32,8 @@ LIMIT 1
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enrollment, stmt, pathIdentifier)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("ACME enrollment").WithName(pathIdentifier))
+			err = types.EnrollmentNotFoundError(fmt.Sprintf("ACME enrollment with path identifier %s not found", pathIdentifier))
+			return nil, ctxerr.Wrap(ctx, err)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting ACME enrollment")
 	}

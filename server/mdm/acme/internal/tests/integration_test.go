@@ -412,7 +412,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.Nil(t, acctResp)
-		require.Nil(t, acmeErr)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is unknown
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
 	})
@@ -429,7 +430,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.Nil(t, acctResp)
-		require.Nil(t, acmeErr)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is invalid
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
 	})
@@ -445,7 +447,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.Nil(t, acctResp)
-		require.Nil(t, acmeErr)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "error/enrollmentNotFound")
 		// no nonce generated when the identifier is invalid
 		require.Empty(t, resp.Header.Get("Replay-Nonce"))
 	})
