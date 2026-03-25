@@ -16,7 +16,7 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best prac
 
 Fleet UI:
 
-1. In the Fleet UI, head to the **Controls > OS settings > Custom settings** page.
+1. In the Fleet UI, head to the **Controls > OS settings > Configuration profiles** page.
 
 2. Choose which fleet you want to add a configuration profile to by selecting the desired fleet in the fleets dropdown in the upper left corner. Fleets are available in Fleet Premium.
 
@@ -24,7 +24,7 @@ Fleet UI:
 
 4. To edit the OS setting, first remove the old configuration profile and then add the new one.
 
-Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) in the Fleet API.
+Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
 
 ### Removal behavior
 
@@ -85,7 +85,7 @@ If you want to make sure the profile stays device-scoped, update `PayloadScope` 
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
-To see the status of a specific setting, hover over the setting's row in the **Custom settings** table and select the information (**i**) icon.
+To see the status of a specific setting, hover over the setting's row in the **Configuration profiles** table and select the information (**i**) icon.
 
 Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
 

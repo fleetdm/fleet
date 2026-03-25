@@ -11,7 +11,7 @@ Cloudflare WARP is a secure VPN-like service that encrypts internet traffic and 
 2. Upload `.mobileconfig` to Fleet
    a. In the Fleet admin console, navigate to **Controls**
    b. Select the fleet that requires Cloudflare WARP
-   c. Select **OS settings** > **Custom settings**
+   c. Select **OS settings** > **Configuration profiles**
    d. Select **Add profile** and upload the `.mobileconfig` from step 1
    e. Select the hosts which require Cloudflare WARP:
       - **All hosts:** Deploys WARP to all hosts in selected fleet
