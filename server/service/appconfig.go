@@ -225,7 +225,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Integrations:      appConfig.Integrations,
 			MDM:               appConfig.MDM,
 			Scripts:           appConfig.Scripts,
-			UIGitOpsMode:      appConfig.UIGitOpsMode,
+			GitOpsConfig:      appConfig.GitOpsConfig,
 			ConditionalAccess: appConfig.ConditionalAccess,
 		},
 		appConfigResponseFields: appConfigResponseFields{
@@ -809,7 +809,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
-	gitopsModeEnabled, gitopsRepoURL := appConfig.UIGitOpsMode.GitopsModeEnabled, appConfig.UIGitOpsMode.RepositoryURL
+	gitopsModeEnabled, gitopsRepoURL := appConfig.GitOpsConfig.GitopsModeEnabled, appConfig.GitOpsConfig.RepositoryURL
 	if gitopsModeEnabled {
 		if !lic.IsPremium() {
 			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
@@ -826,7 +826,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
+	if oldAppConfig.GitOpsConfig.GitopsModeEnabled != appConfig.GitOpsConfig.GitopsModeEnabled {
 		// generate the activity
 		var act fleet.ActivityDetails
 		if gitopsModeEnabled {

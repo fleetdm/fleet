@@ -113,12 +113,12 @@ hello world
 		{
 			name:         "invalid hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#! /foo/bar", ".sh") },
-			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`,
+			expectErrMsg: `Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`,
 		},
 		{
 			name:         "unsupported hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#!/bin/ksh", ".sh") },
-			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`,
+			expectErrMsg: `Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`,
 		},
 		{
 			name:       "posix shell hashbang",

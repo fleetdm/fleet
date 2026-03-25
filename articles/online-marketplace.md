@@ -77,3 +77,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-14">
 <meta name="description" value="An online marketplace replaces complex device tools with Fleet, gaining unified visibility across macOS, Windows, and Linux."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Online marketplace">
+<meta name="cardBodyForCustomersPage" value="An online marketplace replaces complex device tools.">

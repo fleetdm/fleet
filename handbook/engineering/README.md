@@ -255,12 +255,6 @@ If an announcement is found for either data source that may impact data feed ava
 
 If a new OS version is missing, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=).
 
-6. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
-- Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/tree/main/orbit/cmd/desktop) since the last `orbit-*` tag was published.
-- Check for code changes to the [fleetd-chrome extension](https://github.com/fleetdm/fleet/tree/main/ee/fleetd-chrome) since the last `fleetd-chrome-*` tag was published.
-
-If code changes are found for any `fleetd` components, create a new release QA issue to update `fleetd`. Delete the top section for Fleet core, and retain the bottom section for `fleetd`. Populate the necessary version changes for each `fleetd` component.
-
 
 ### Indicate your product group is release-ready
 
@@ -284,8 +278,21 @@ See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/b
 
 ### Prepare fleetd agent release
 
-See [Fleet's TUF release documentation](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
+#### macOS, Windows, Linux
 
+Fleetd for macOS, Windows and Linux is an agent composed of several components. The latest released versions in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
+For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
+
+#### Android
+
+Our Android app is managed through Google Play. Follow the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
+
+#### ChromeOS
+
+The Chrome extension is released via [Google Admin](https://admin.google.com).
+For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
+For production releases, follow the [Chrome extension
+README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 ### Deploy a new release to dogfood
 
@@ -677,7 +684,13 @@ If the action fails, please complete the following steps:
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
+### Enable merge commits to allow large features branches with multiple contributors to retain git history
 
+1. A github admin must go to Settings -> General -> Enable the `allow merge commits` checkbox near the bottom
+2. A github admin must go to the branch settings for main and uncheck `require linear history`
+3. Merge in the PR with the merge dropdown option 'Create a merge commit'
+4. A github admin must re-enable the branch `require linear history`
+5. A github admin must disable the `allow merge commits`
 
 ## Rituals
 

@@ -109,7 +109,7 @@ If your organization has Fleet Premium, you can [access professional support](ht
 
 ## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
 
-For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
+For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Unmanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
 
 ## Where's the data stored?
 
@@ -152,7 +152,7 @@ See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-unin
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.34, 8.4.8, and 9.5.0 (9.6.0 is currently incompatible). Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.08.2. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.44, 8.4.8, and 9.5.0 (9.6.0 is currently incompatible). Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.10.3. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What version of the Mac Admins osquery extension is supported?
 

@@ -26,6 +26,7 @@ type addFleetMaintainedAppRequest struct {
 	UninstallScript   string   `json:"uninstall_script"`
 	LabelsIncludeAny  []string `json:"labels_include_any"`
 	LabelsExcludeAny  []string `json:"labels_exclude_any"`
+	LabelsIncludeAll  []string `json:"labels_include_all"`
 	AutomaticInstall  bool     `json:"automatic_install"`
 	Categories        []string `json:"categories"`
 }
@@ -105,6 +106,7 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 		req.AutomaticInstall,
 		req.LabelsIncludeAny,
 		req.LabelsExcludeAny,
+		req.LabelsIncludeAll,
 	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -116,7 +118,7 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 	return &addFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil
 }
 
-func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, _, _, _, _ string, _ bool, _ bool, _, _ []string) (uint, error) {
+func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, _, _, _, _ string, _ bool, _ bool, _, _, _ []string) (uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

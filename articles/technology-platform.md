@@ -88,3 +88,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-14">
 <meta name="description" value="A technology company manages 15,000 iPads with Fleet, using GitOps workflows and API automation to replace manual device management."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Technology platform">

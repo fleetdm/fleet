@@ -4,6 +4,28 @@ _Available in Fleet Premium_
 
 Fleet’s self-service lets end users update and install approved apps and run scripts from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive.
 
+## Platforms
+
+Fleet supports self-service software installs on the following platforms:
+
+macOS:
+
+- Custom packages (.pkg, .sh)
+- Fleet-maintained apps
+- App Store apps
+
+Windows: 
+
+- Custom packages (.msi, .exe, .ps1)
+
+Linux: 
+
+- Custom packages (.deb, .rpm, .sh, .tar.gz)
+
+iOS/iPadOS: 
+
+- App Store apps and custom .ipa packages
+
 ## Add software
 
 1. Select the fleet to which you want to add the software from the dropdown in the upper left corner of the page.

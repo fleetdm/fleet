@@ -106,7 +106,7 @@ const UnlockModal = ({
       return (
         <>
           <Button type="button" onClick={onClose}>
-            Done
+            Close
           </Button>
         </>
       );
