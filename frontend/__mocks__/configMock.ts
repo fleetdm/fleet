@@ -13,6 +13,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_bm_terms_expired: false,
   enabled_and_configured: true,
   android_enabled_and_configured: false,
+  apple_require_hardware_attestation: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",

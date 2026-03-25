@@ -349,6 +349,7 @@ export interface IHost {
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
   conditional_access_bypassed: boolean;
+  mdm_enrollment_hardware_attested?: boolean;
 }
 
 /*
