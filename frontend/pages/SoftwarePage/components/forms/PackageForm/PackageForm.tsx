@@ -201,7 +201,7 @@ const PackageForm = ({
     software: { isValid: false },
   });
 
-  const onFileSelect = async (files: FileList | null) => {
+  const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
 
@@ -214,7 +214,7 @@ const PackageForm = ({
       } else {
         let newDefaultInstallScript: string;
         try {
-          newDefaultInstallScript = await getDefaultInstallScript(file);
+          newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
           renderFlash("error", `${e}`);
           return;
