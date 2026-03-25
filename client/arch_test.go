@@ -13,7 +13,7 @@ func TestClientPackageDoesNotImportServerService(t *testing.T) {
 	archtest.NewPackageTest(t, m+"/client...").
 		ShouldNotDependOn(
 			m+"/server/service...",
-			m+"ee/server/service...",
+			m+"/ee/server/service...",
 		).
 		IgnoreDeps(
 			m + "/server/service/externalsvc", // server/fleet has a dependency on Jira and Zendesk.
