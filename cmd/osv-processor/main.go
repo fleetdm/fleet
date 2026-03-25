@@ -57,6 +57,18 @@ type ProcessedVuln struct {
 	Versions   []string `json:"versions,omitempty"`
 }
 
+type Config struct {
+	InputDir              string
+	OutputDir             string
+	Versions              string
+	ExcludeVersions       string
+	ChangedFilesToday     string
+	ChangedFilesYesterday string
+	DateStr               string
+	GeneratedTimestamp    string
+	RunTime               time.Time
+}
+
 type ArtifactData struct {
 	SchemaVersion   string                     `json:"schema_version"`
 	UbuntuVersion   string                     `json:"ubuntu_version"`
@@ -76,45 +88,61 @@ func main() {
 	flag.Parse()
 
 	runTime := time.Now().UTC()
-	dateStr := runTime.Format("2006-01-02")
-	generatedTimestamp := runTime.Format(time.RFC3339)
 
-	if err := os.MkdirAll(*outputDir, 0o755); err != nil {
-		log.Fatalf("Failed to create output directory: %v", err)
+	cfg := Config{
+		InputDir:              *inputDir,
+		OutputDir:             *outputDir,
+		Versions:              *versions,
+		ExcludeVersions:       *excludeVersions,
+		ChangedFilesToday:     *changedFilesToday,
+		ChangedFilesYesterday: *changedFilesYesterday,
+		DateStr:               runTime.Format("2006-01-02"),
+		GeneratedTimestamp:    runTime.Format(time.RFC3339),
+		RunTime:               runTime,
+	}
+
+	if err := run(cfg); err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+}
+
+func run(cfg Config) error {
+	if err := os.MkdirAll(cfg.OutputDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	// Build version filter
-	targetVersions, excludedVersions := buildVersionFilter(*versions, *excludeVersions)
+	targetVersions, excludedVersions := buildVersionFilter(cfg.Versions, cfg.ExcludeVersions)
 	switch {
 	case targetVersions != nil:
-		log.Printf("Processing OSV files from %s for versions: %s", *inputDir, *versions)
+		log.Printf("Processing OSV files from %s for versions: %s", cfg.InputDir, cfg.Versions)
 	case excludedVersions != nil:
-		log.Printf("Processing OSV files from %s (auto-detecting, excluding: %s)", *inputDir, *excludeVersions)
+		log.Printf("Processing OSV files from %s (auto-detecting, excluding: %s)", cfg.InputDir, cfg.ExcludeVersions)
 	default:
-		log.Printf("Processing OSV files from %s (auto-detecting all versions)", *inputDir)
+		log.Printf("Processing OSV files from %s (auto-detecting all versions)", cfg.InputDir)
 	}
 
 	// Load changed CVE files for delta generation
 	var todayCVEFiles, yesterdayCVEFiles map[string]bool
-	generateTodayDeltas := *changedFilesToday != ""
-	generateYesterdayDeltas := *changedFilesYesterday != ""
+	generateTodayDeltas := cfg.ChangedFilesToday != ""
+	generateYesterdayDeltas := cfg.ChangedFilesYesterday != ""
 
 	if generateTodayDeltas {
-		log.Printf("Loading today's changed CVE files from %s", *changedFilesToday)
+		log.Printf("Loading today's changed CVE files from %s", cfg.ChangedFilesToday)
 		var err error
-		todayCVEFiles, err = loadChangedFiles(*changedFilesToday)
+		todayCVEFiles, err = loadChangedFiles(cfg.ChangedFilesToday)
 		if err != nil {
-			log.Fatalf("Failed to load today's changed files: %v", err)
+			return fmt.Errorf("failed to load today's changed files: %w", err)
 		}
 		log.Printf("Found %d CVE files changed today", len(todayCVEFiles))
 	}
 
 	if generateYesterdayDeltas {
-		log.Printf("Loading yesterday's changed CVE files from %s", *changedFilesYesterday)
+		log.Printf("Loading yesterday's changed CVE files from %s", cfg.ChangedFilesYesterday)
 		var err error
-		yesterdayCVEFiles, err = loadChangedFiles(*changedFilesYesterday)
+		yesterdayCVEFiles, err = loadChangedFiles(cfg.ChangedFilesYesterday)
 		if err != nil {
-			log.Fatalf("Failed to load yesterday's changed files: %v", err)
+			return fmt.Errorf("failed to load yesterday's changed files: %w", err)
 		}
 		log.Printf("Found %d CVE files changed yesterday", len(yesterdayCVEFiles))
 	}
@@ -126,7 +154,7 @@ func main() {
 	filesProcessed := 0
 	filesSkipped := 0
 
-	err := filepath.Walk(*inputDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(cfg.InputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -145,10 +173,10 @@ func main() {
 		inToday := false
 		inYesterday := false
 		if generateTodayDeltas {
-			inToday = shouldIncludeInDelta(*inputDir, path, todayCVEFiles)
+			inToday = shouldIncludeInDelta(cfg.InputDir, path, todayCVEFiles)
 		}
 		if generateYesterdayDeltas {
-			inYesterday = shouldIncludeInDelta(*inputDir, path, yesterdayCVEFiles)
+			inYesterday = shouldIncludeInDelta(cfg.InputDir, path, yesterdayCVEFiles)
 		}
 
 		for _, affected := range osvData.Affected {
@@ -249,7 +277,7 @@ func main() {
 		return nil
 	})
 	if err != nil {
-		log.Fatalf("Error walking directory: %v", err)
+		return fmt.Errorf("error walking directory: %w", err)
 	}
 
 	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
@@ -257,16 +285,16 @@ func main() {
 
 	// Write full artifacts
 	for ver, artifact := range artifacts {
-		artifact.Generated = generatedTimestamp
+		artifact.Generated = cfg.GeneratedTimestamp
 		artifact.TotalCVEs = countTotalCVEs(artifact)
 		artifact.TotalPackages = len(artifact.Vulnerabilities)
 
-		outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-%s.json.gz",
+		outputFile := filepath.Join(cfg.OutputDir, fmt.Sprintf("osv-ubuntu-%s-%s.json.gz",
 			strings.ReplaceAll(ver, ".", ""),
-			dateStr))
+			cfg.DateStr))
 
 		if err := writeArtifact(outputFile, artifact); err != nil {
-			log.Fatalf("Failed to write artifact for Ubuntu %s: %v", ver, err)
+			return fmt.Errorf("failed to write artifact for Ubuntu %s: %w", ver, err)
 		}
 
 		log.Printf("Ubuntu %s: %d packages, %d CVEs -> %s",
@@ -275,17 +303,17 @@ func main() {
 
 	// Write delta artifacts (if any were generated)
 	if generateTodayDeltas && len(todayArtifacts) > 0 {
-		log.Printf("\nWriting today's delta artifacts (%s)...", dateStr)
+		log.Printf("\nWriting today's delta artifacts (%s)...", cfg.DateStr)
 		for ver, artifact := range todayArtifacts {
-			artifact.Generated = generatedTimestamp
+			artifact.Generated = cfg.GeneratedTimestamp
 			artifact.TotalCVEs = countTotalCVEs(artifact)
 			artifact.TotalPackages = len(artifact.Vulnerabilities)
 
-			outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
-				strings.ReplaceAll(ver, ".", ""), dateStr))
+			outputFile := filepath.Join(cfg.OutputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
+				strings.ReplaceAll(ver, ".", ""), cfg.DateStr))
 
 			if err := writeArtifact(outputFile, artifact); err != nil {
-				log.Fatalf("Failed to write today's delta for Ubuntu %s: %v", ver, err)
+				return fmt.Errorf("failed to write today's delta for Ubuntu %s: %w", ver, err)
 			}
 
 			log.Printf("Ubuntu %s (today): %d packages, %d CVEs -> %s",
@@ -294,24 +322,26 @@ func main() {
 	}
 
 	if generateYesterdayDeltas && len(yesterdayArtifacts) > 0 {
-		yesterdayStr := runTime.AddDate(0, 0, -1).Format("2006-01-02")
+		yesterdayStr := cfg.RunTime.AddDate(0, 0, -1).Format("2006-01-02")
 		log.Printf("\nWriting yesterday's delta artifacts (%s)...", yesterdayStr)
 		for ver, artifact := range yesterdayArtifacts {
-			artifact.Generated = generatedTimestamp
+			artifact.Generated = cfg.GeneratedTimestamp
 			artifact.TotalCVEs = countTotalCVEs(artifact)
 			artifact.TotalPackages = len(artifact.Vulnerabilities)
 
-			outputFile := filepath.Join(*outputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
+			outputFile := filepath.Join(cfg.OutputDir, fmt.Sprintf("osv-ubuntu-%s-delta-%s.json.gz",
 				strings.ReplaceAll(ver, ".", ""), yesterdayStr))
 
 			if err := writeArtifact(outputFile, artifact); err != nil {
-				log.Fatalf("Failed to write yesterday's delta for Ubuntu %s: %v", ver, err)
+				return fmt.Errorf("failed to write yesterday's delta for Ubuntu %s: %w", ver, err)
 			}
 
 			log.Printf("Ubuntu %s (yesterday): %d packages, %d CVEs -> %s",
 				ver, artifact.TotalPackages, artifact.TotalCVEs, outputFile)
 		}
 	}
+
+	return nil
 }
 
 func buildVersionFilter(versions, excludeVersions string) (targetVersions, excludedVersions map[string]bool) {

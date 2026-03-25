@@ -1,7 +1,14 @@
 package main
 
 import (
+	"compress/gzip"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -559,4 +566,288 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			require.Equal(t, tt.expectedMatch, result)
 		})
 	}
+}
+
+func TestRun(t *testing.T) {
+	// Create temporary directories for input and output
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Create a simple test OSV file
+	testOSVData := `{
+		"schema_version": "1.0",
+		"id": "USN-1234-1",
+		"published": "2024-01-01T00:00:00Z",
+		"modified": "2024-01-02T00:00:00Z",
+		"details": "Test vulnerability",
+		"affected": [{
+			"package": {
+				"ecosystem": "Ubuntu:22.04:LTS",
+				"name": "test-package"
+			},
+			"ranges": [{
+				"type": "ECOSYSTEM",
+				"events": [
+					{"introduced": "0"},
+					{"fixed": "1.2.3"}
+				]
+			}]
+		}],
+		"upstream": ["CVE-2024-1234"]
+	}`
+
+	// Write test file
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "CVE-2024-1234.json"), []byte(testOSVData), 0o644))
+
+	// Create config
+	cfg := Config{
+		InputDir:              inputDir,
+		OutputDir:             outputDir,
+		Versions:              "",
+		ExcludeVersions:       "",
+		ChangedFilesToday:     "",
+		ChangedFilesYesterday: "",
+		DateStr:               "2024-01-03",
+		GeneratedTimestamp:    "2024-01-03T00:00:00Z",
+		RunTime:               time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+	}
+
+	// Run the function
+	err := run(cfg)
+	require.NoError(t, err)
+
+	// Verify output artifact was created
+	expectedFile := filepath.Join(outputDir, "osv-ubuntu-2204-2024-01-03.json.gz")
+	require.FileExists(t, expectedFile)
+
+	// Verify artifact content (decompress and check)
+	artifact, err := readArtifact(expectedFile)
+	require.NoError(t, err)
+	require.Equal(t, "1.0", artifact.SchemaVersion)
+	require.Equal(t, "22.04", artifact.UbuntuVersion)
+	require.Equal(t, 1, artifact.TotalCVEs)
+	require.Equal(t, 1, artifact.TotalPackages)
+	require.Contains(t, artifact.Vulnerabilities, "test-package")
+	require.Len(t, artifact.Vulnerabilities["test-package"], 1)
+	require.Equal(t, "CVE-2024-1234", artifact.Vulnerabilities["test-package"][0].CVE)
+}
+
+func TestRunWithDeltaGeneration(t *testing.T) {
+	// Create temporary directories
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+	changedFilesDir := t.TempDir()
+
+	// Create two test OSV files
+	testOSVData1 := `{
+		"schema_version": "1.0",
+		"id": "USN-1234-1",
+		"published": "2024-01-01T00:00:00Z",
+		"modified": "2024-01-02T00:00:00Z",
+		"affected": [{
+			"package": {
+				"ecosystem": "Ubuntu:22.04:LTS",
+				"name": "changed-today-package"
+			},
+			"ranges": [{
+				"type": "ECOSYSTEM",
+				"events": [{"introduced": "0"}, {"fixed": "1.0"}]
+			}]
+		}],
+		"upstream": ["CVE-2024-1111"]
+	}`
+
+	testOSVData2 := `{
+		"schema_version": "1.0",
+		"id": "USN-5678-1",
+		"published": "2024-01-01T00:00:00Z",
+		"modified": "2024-01-02T00:00:00Z",
+		"affected": [{
+			"package": {
+				"ecosystem": "Ubuntu:22.04:LTS",
+				"name": "changed-yesterday-package"
+			},
+			"ranges": [{
+				"type": "ECOSYSTEM",
+				"events": [{"introduced": "0"}, {"fixed": "2.0"}]
+			}]
+		}],
+		"upstream": ["CVE-2024-2222"]
+	}`
+
+	// Write test files
+	osvCveDir := filepath.Join(inputDir, "osv", "cve")
+	require.NoError(t, os.MkdirAll(osvCveDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(osvCveDir, "CVE-2024-1111.json"), []byte(testOSVData1), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(osvCveDir, "CVE-2024-2222.json"), []byte(testOSVData2), 0o644))
+
+	// Create changed files lists
+	changedTodayFile := filepath.Join(changedFilesDir, "changed_today.txt")
+	changedYesterdayFile := filepath.Join(changedFilesDir, "changed_yesterday.txt")
+	require.NoError(t, os.WriteFile(changedTodayFile, []byte("osv/cve/CVE-2024-1111.json\n"), 0o644))
+	require.NoError(t, os.WriteFile(changedYesterdayFile, []byte("osv/cve/CVE-2024-2222.json\n"), 0o644))
+
+	// Create config with delta generation
+	cfg := Config{
+		InputDir:              inputDir,
+		OutputDir:             outputDir,
+		Versions:              "",
+		ExcludeVersions:       "",
+		ChangedFilesToday:     changedTodayFile,
+		ChangedFilesYesterday: changedYesterdayFile,
+		DateStr:               "2024-01-03",
+		GeneratedTimestamp:    "2024-01-03T00:00:00Z",
+		RunTime:               time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+	}
+
+	// Run
+	err := run(cfg)
+	require.NoError(t, err)
+
+	// Verify full artifact
+	fullArtifact, err := readArtifact(filepath.Join(outputDir, "osv-ubuntu-2204-2024-01-03.json.gz"))
+	require.NoError(t, err)
+	require.Equal(t, 2, fullArtifact.TotalCVEs)
+	require.Equal(t, 2, fullArtifact.TotalPackages)
+
+	// Verify today's delta artifact
+	todayDelta, err := readArtifact(filepath.Join(outputDir, "osv-ubuntu-2204-delta-2024-01-03.json.gz"))
+	require.NoError(t, err)
+	require.Equal(t, 1, todayDelta.TotalCVEs)
+	require.Equal(t, 1, todayDelta.TotalPackages)
+	require.Contains(t, todayDelta.Vulnerabilities, "changed-today-package")
+	require.Equal(t, "CVE-2024-1111", todayDelta.Vulnerabilities["changed-today-package"][0].CVE)
+
+	// Verify yesterday's delta artifact
+	yesterdayDelta, err := readArtifact(filepath.Join(outputDir, "osv-ubuntu-2204-delta-2024-01-02.json.gz"))
+	require.NoError(t, err)
+	require.Equal(t, 1, yesterdayDelta.TotalCVEs)
+	require.Equal(t, 1, yesterdayDelta.TotalPackages)
+	require.Contains(t, yesterdayDelta.Vulnerabilities, "changed-yesterday-package")
+	require.Equal(t, "CVE-2024-2222", yesterdayDelta.Vulnerabilities["changed-yesterday-package"][0].CVE)
+}
+
+func TestRunWithVersionFiltering(t *testing.T) {
+	tests := []struct {
+		name                 string
+		versions             string
+		excludeVersions      string
+		expectedVersionCount int
+		expectedVersions     []string
+	}{
+		{
+			name:                 "Inclusive filtering - single version",
+			versions:             "22.04",
+			excludeVersions:      "",
+			expectedVersionCount: 1,
+			expectedVersions:     []string{"22.04"},
+		},
+		{
+			name:                 "Inclusive filtering - multiple versions",
+			versions:             "20.04,22.04",
+			excludeVersions:      "",
+			expectedVersionCount: 2,
+			expectedVersions:     []string{"20.04", "22.04"},
+		},
+		{
+			name:                 "Exclusive filtering - exclude one version",
+			versions:             "",
+			excludeVersions:      "24.04",
+			expectedVersionCount: 2,
+			expectedVersions:     []string{"20.04", "22.04"},
+		},
+		{
+			name:                 "Auto-detect - no filtering",
+			versions:             "",
+			excludeVersions:      "",
+			expectedVersionCount: 3,
+			expectedVersions:     []string{"20.04", "22.04", "24.04"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directories
+			inputDir := t.TempDir()
+			outputDir := t.TempDir()
+
+			// Create test OSV files for different Ubuntu versions
+			for _, ver := range []string{"20.04", "22.04", "24.04"} {
+				data := fmt.Sprintf(`{
+					"schema_version": "1.0",
+					"id": "USN-1234-1",
+					"published": "2024-01-01T00:00:00Z",
+					"modified": "2024-01-02T00:00:00Z",
+					"affected": [{
+						"package": {
+							"ecosystem": "Ubuntu:%s:LTS",
+							"name": "test-package-%s"
+						},
+						"ranges": [{
+							"type": "ECOSYSTEM",
+							"events": [{"introduced": "0"}, {"fixed": "1.0"}]
+						}]
+					}],
+					"upstream": ["CVE-2024-%s"]
+				}`, ver, strings.ReplaceAll(ver, ".", ""), strings.ReplaceAll(ver, ".", ""))
+
+				filename := fmt.Sprintf("CVE-2024-%s.json", strings.ReplaceAll(ver, ".", ""))
+				require.NoError(t, os.WriteFile(filepath.Join(inputDir, filename), []byte(data), 0o644))
+			}
+
+			// Create config
+			cfg := Config{
+				InputDir:              inputDir,
+				OutputDir:             outputDir,
+				Versions:              tt.versions,
+				ExcludeVersions:       tt.excludeVersions,
+				ChangedFilesToday:     "",
+				ChangedFilesYesterday: "",
+				DateStr:               "2024-01-03",
+				GeneratedTimestamp:    "2024-01-03T00:00:00Z",
+				RunTime:               time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+			}
+
+			// Run
+			err := run(cfg)
+			require.NoError(t, err)
+
+			// Count artifacts created
+			files, err := filepath.Glob(filepath.Join(outputDir, "osv-ubuntu-*.json.gz"))
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedVersionCount, len(files))
+
+			// Verify expected versions were generated
+			for _, expectedVer := range tt.expectedVersions {
+				verStr := strings.ReplaceAll(expectedVer, ".", "")
+				expectedFile := filepath.Join(outputDir, fmt.Sprintf("osv-ubuntu-%s-2024-01-03.json.gz", verStr))
+				require.FileExists(t, expectedFile)
+
+				artifact, err := readArtifact(expectedFile)
+				require.NoError(t, err)
+				require.Equal(t, expectedVer, artifact.UbuntuVersion)
+			}
+		})
+	}
+}
+
+func readArtifact(path string) (*ArtifactData, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	gzReader, err := gzip.NewReader(file)
+	if err != nil {
+		return nil, err
+	}
+	defer gzReader.Close()
+
+	var artifact ArtifactData
+	if err := json.NewDecoder(gzReader).Decode(&artifact); err != nil {
+		return nil, err
+	}
+
+	return &artifact, nil
 }
