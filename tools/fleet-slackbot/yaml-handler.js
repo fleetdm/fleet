@@ -172,12 +172,32 @@ function validateResolvedChanges(changes) {
 }
 
 /**
- * Fix malformed @@ hunk headers in a unified diff.
- * LLMs often get the line counts wrong; this recalculates them
- * from the actual +/-/context lines in each hunk.
+ * Fix common LLM mistakes in unified diffs:
+ * 1. Blank context lines missing the leading space (e.g. "" → " ")
+ * 2. Incorrect line counts in @@ hunk headers
  */
-function fixHunkHeaders(patch) {
+function fixPatch(patch) {
   const lines = patch.split("\n");
+  let inHunk = false;
+
+  // Pass 1: fix blank context lines within hunks
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith("@@")) {
+      inHunk = true;
+      continue;
+    }
+    if (inHunk) {
+      const ch = lines[i][0];
+      if (ch === "-" || ch === "+" || ch === " ") continue;
+      if (lines[i] === "") {
+        lines[i] = " "; // blank context line — add leading space
+      } else {
+        inHunk = false; // non-diff line ends the hunk
+      }
+    }
+  }
+
+  // Pass 2: recalculate @@ hunk header line counts
   const result = [];
   for (let i = 0; i < lines.length; i++) {
     const hunkMatch = lines[i].match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@(.*)$/);
@@ -189,12 +209,11 @@ function fixHunkHeaders(patch) {
     let newCount = 0;
     let j = i + 1;
     while (j < lines.length) {
-      const line = lines[j];
-      const ch = line[0];
+      const ch = lines[j][0];
       if (ch === "-") oldCount++;
       else if (ch === "+") newCount++;
       else if (ch === " ") { oldCount++; newCount++; }
-      else break; // stop at @@, ---, empty lines, or anything else
+      else break;
       j++;
     }
     result.push(`@@ -${hunkMatch[1]},${oldCount} +${hunkMatch[2]},${newCount} @@${hunkMatch[3]}`);
@@ -221,7 +240,7 @@ async function resolveChangeContent(change, getContent, fullPath, logPrefix = ""
     }
     let result;
     try {
-      result = applyPatch(currentContent, fixHunkHeaders(change.patch), { fuzzFactor: 2 });
+      result = applyPatch(currentContent, fixPatch(change.patch), { fuzzFactor: 2 });
     } catch (err) {
       console.error(`${logPrefix} Failed to parse/apply unified diff to ${change.filePath}: ${err.message}\n${change.patch}`);
       throw new Error(`Cannot apply patch to "${change.filePath}": ${err.message}`);

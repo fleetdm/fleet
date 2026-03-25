@@ -65,7 +65,10 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get endpoints: %v", err)), nil
 		}
 
-		totalCount, _ := fleetClient.GetHostCount()
+		totalCount, err := fleetClient.GetHostCount()
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get host count: %v", err)), nil
+		}
 
 		result := struct {
 			Total     int        `json:"total"`

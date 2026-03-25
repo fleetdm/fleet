@@ -136,7 +136,7 @@ function createWebhookHandler(config, github, claude) {
 
     // Check if the bot was @mentioned
     const mentionedBot = config.github.botUsername &&
-      commentBody.includes(`@${config.github.botUsername}`);
+      commentBody.toLowerCase().includes(`@${config.github.botUsername.toLowerCase()}`);
 
     processComment({ prNumber, commentBody, commentId, event, mentionedBot }, config, github, claude).catch(
       async (err) => {
