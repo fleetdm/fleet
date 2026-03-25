@@ -6,8 +6,8 @@
   "keywords": [],
   "dependencies": {
     "sails": "^1.5.17",
-    "@okta/oidc-middleware": "5.0.0",
-    "@okta/okta-sdk-nodejs": "3.2.0",
+    "@okta/oidc-middleware": "5.5.1",
+    "@okta/okta-sdk-nodejs": "8.0.0",
     "sails-hook-apianalytics": "^2.0.6",
     "sails-hook-organics": "^3.0.0",
     "sails-hook-orm": "^4.0.3",
