@@ -3,6 +3,7 @@ services:
     name: fleet
     runtime: node
     plan: starter
+    rootDir: tools/fleet-slackbot
     buildCommand: npm install
     startCommand: node app.js
     healthCheckPath: /healthz
