@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/mdm-commands'
+      viewTemplatePath: 'pages/docs/mdm-commands'
     },
     badConfig: { responseType: 'badConfig' },
 
