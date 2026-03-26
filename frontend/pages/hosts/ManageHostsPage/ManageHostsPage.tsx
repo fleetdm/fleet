@@ -313,7 +313,8 @@ const ManageHostsPage = ({
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
   const depProfileError = queryParams?.dep_profile_error;
-  const depAssignProfileResponse = queryParams?.dep_assign_profile_response;
+  /** URL converts to lowercase but API and UI requires uppercase */
+  const depAssignProfileResponse = queryParams?.dep_assign_profile_response.toUpperCase();
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
