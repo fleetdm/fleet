@@ -369,9 +369,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	// create patch policy
 	p := patch_policy.PolicyData{
-		Platform:      "windows",
-		Version:       out.Version,
-		SoftwareTitle: out.UniqueIdentifier, // careful here
+		Platform:       "windows",
+		Version:        out.Version,
+		SoftwareTitle:  name,
+		Publisher:      publisher,
+		FuzzyMatchName: input.FuzzyMatchName,
 	}
 	if input.PatchPolicyPath != "" {
 		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
