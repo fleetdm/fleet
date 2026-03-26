@@ -42,9 +42,16 @@ func run(cfg *Config) error {
 		if installerPath == "" {
 			return
 		}
+		var sizeBytes int64
+		if info, err := os.Stat(installerPath); err == nil {
+			sizeBytes = info.Size()
+		}
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("Cleaning up installer file: %s (%d bytes)", installerPath, sizeBytes))
 		if err := os.Remove(installerPath); err != nil && !os.IsNotExist(err) {
 			cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to remove installer file '%s': %v", installerPath, err))
+			return
 		}
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("Deleted installer file: %s", installerPath))
 	}
 
 	apps, err := getListOfApps(cfg.outputsPath)
