@@ -202,6 +202,7 @@ export const DEFAULT_CAMPAIGN = {
     failed: 0,
   },
   queryResults: [],
+  performanceStats: [],
 
   status: "",
   serverHostCounts: {

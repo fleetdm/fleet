@@ -35,6 +35,15 @@ export interface IHostWithQueryResults extends IHost {
 
 type QueryResults = Record<string, unknown>[];
 
+export interface ICampaignPerformanceStats {
+  host_id: number;
+  host_display_name: string;
+  wall_time_ms: number;
+  user_time: number;
+  system_time: number;
+  memory: number;
+}
+
 export interface ICampaign {
   // upstream websocket and services methods return any
   // so narrower typing at this level is not actually guaranteed
@@ -59,6 +68,7 @@ export interface ICampaign {
   hosts: IHostWithQueryResults[]; // Array of all hosts that responded to the query, each including and their associated results
   uiHostCounts: IUIHostCounts; // Aggregate data about the results of the live query campaign. Differs from `serverHostCounts` in that this object is constructed and updated by the UI from incoming "result"-type websocket messages
   queryResults: QueryResults;
+  performanceStats: ICampaignPerformanceStats[];
 
   // `status` and `server_host_counts` represent information about the state of a live query campaign
   // and the hosts it targets, reported via "status"-type websocket messages.
