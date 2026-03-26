@@ -1,6 +1,7 @@
 import React from "react";
 import { ILabel, LabelMembershipTypeToDisplayCopy } from "interfaces/label";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
@@ -76,7 +77,8 @@ const hasEditPermission = (currentUser: IUser, label: ILabel): boolean => {
 const generateActionDropdownOptions = (
   currentUser: IUser,
   label: ILabel,
-  labelsGitOpsManaged: boolean
+  labelsGitOpsManaged: boolean,
+  repoURL?: string
 ): IDropdownOption[] => {
   const options: IDropdownOption[] = [
     {
@@ -86,11 +88,16 @@ const generateActionDropdownOptions = (
     },
   ];
 
+  const gitOpsTooltip =
+    labelsGitOpsManaged && repoURL
+      ? getGitOpsModeTipContent(repoURL)
+      : undefined;
+
   if (hasEditPermission(currentUser, label)) {
     if (label.label_membership_type !== "host_vitals") {
       options.push({
         label: "Edit",
-        disabled: labelsGitOpsManaged,
+        disabled: false,
         value: "edit",
       });
     }
@@ -99,6 +106,7 @@ const generateActionDropdownOptions = (
       label: "Delete",
       disabled: labelsGitOpsManaged,
       value: "delete",
+      tooltipContent: gitOpsTooltip,
     });
   }
 
@@ -108,7 +116,8 @@ const generateActionDropdownOptions = (
 const generateTableHeaders = (
   currentUser: IUser,
   onClickAction: (action: string, label: ILabel) => void,
-  labelsGitOpsManaged = false
+  labelsGitOpsManaged = false,
+  repoURL?: string
 ): IDataColumn[] => {
   return [
     {
@@ -162,7 +171,8 @@ const generateTableHeaders = (
         const dropdownOptions = generateActionDropdownOptions(
           currentUser,
           label,
-          labelsGitOpsManaged
+          labelsGitOpsManaged,
+          repoURL
         );
         return (
           <ViewAllHostsLink

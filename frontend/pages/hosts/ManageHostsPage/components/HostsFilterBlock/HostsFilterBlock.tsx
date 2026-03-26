@@ -38,6 +38,7 @@ import {
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 
@@ -216,27 +217,34 @@ const HostsFilterBlock = ({
           {label_type !== "builtin" &&
             !isOnlyObserver &&
             (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
-              <>
-                {
-                  // TODO - remove condition if/when can edit host_vitals labels
-                  label_membership_type !== "host_vitals" && (
+              <GitOpsModeTooltipWrapper
+                entityType="labels"
+                renderChildren={(disableChildren) => (
+                  <>
+                    {
+                      // TODO - remove condition if/when can edit host_vitals labels
+                      label_membership_type !== "host_vitals" && (
+                        <Button
+                          className={`${baseClass}__action-btn`}
+                          onClick={onClickEditLabel}
+                          variant="icon"
+                          disabled={disableChildren}
+                        >
+                          <Icon name="pencil" size="small" />
+                        </Button>
+                      )
+                    }
                     <Button
                       className={`${baseClass}__action-btn`}
-                      onClick={onClickEditLabel}
+                      onClick={onClickDeleteLabel}
                       variant="icon"
+                      disabled={disableChildren}
                     >
-                      <Icon name="pencil" size="small" />
+                      <Icon name="trash" size="small" />
                     </Button>
-                  )
-                }
-                <Button
-                  className={`${baseClass}__action-btn`}
-                  onClick={onClickDeleteLabel}
-                  variant="icon"
-                >
-                  <Icon name="trash" size="small" />
-                </Button>
-              </>
+                  </>
+                )}
+              />
             )}
         </>
       );

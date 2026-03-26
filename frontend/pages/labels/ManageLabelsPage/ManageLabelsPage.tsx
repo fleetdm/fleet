@@ -14,7 +14,6 @@ import { ILabel } from "interfaces/label";
 import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
 
 import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
@@ -115,6 +114,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         labels={labels}
         onClickAction={onClickAction}
         labelsGitOpsManaged={labelsGitOpsManaged}
+        repoURL={config?.gitops.repository_url}
       />
     );
   }, [currentUser, error, isLoading, labels, onClickAction]);
@@ -130,18 +130,12 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
           </div>
           {canAddLabel && (
             <div className={`${baseClass}__action-button-container`}>
-              <GitOpsModeTooltipWrapper
-                entityType="labels"
-                renderChildren={(disableChildren) => (
-                  <Button
-                    className={`${baseClass}__create-button`}
-                    onClick={onCreateLabelClick}
-                    disabled={disableChildren}
-                  >
-                    Add label
-                  </Button>
-                )}
-              />
+              <Button
+                className={`${baseClass}__create-button`}
+                onClick={onCreateLabelClick}
+              >
+                Add label
+              </Button>
             </div>
           )}
         </div>
