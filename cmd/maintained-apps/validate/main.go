@@ -38,6 +38,14 @@ type Config struct {
 
 func run(cfg *Config) error {
 	ctx := context.Background()
+	cleanupInstaller := func(installerPath string) {
+		if installerPath == "" {
+			return
+		}
+		if err := os.Remove(installerPath); err != nil && !os.IsNotExist(err) {
+			cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to remove installer file '%s': %v", installerPath, err))
+		}
+	}
 
 	apps, err := getListOfApps(cfg.outputsPath)
 	if err != nil {
@@ -72,6 +80,7 @@ func run(cfg *Config) error {
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Validating app: %s (%s)", app.Name, app.Slug))
 		appLogger := cfg.logger.With("app", app.Name)
 		ac := &AppCommander{cfg: cfg, appLogger: appLogger}
+		installerPath := ""
 
 		appJson, err := getAppJson(cfg.outputsPath, app.Slug)
 		if err != nil {
@@ -101,12 +110,13 @@ func run(cfg *Config) error {
 			continue
 		}
 
-		installerTFR, err := DownloadMaintainedApp(cfg, maintainedApp)
+		installerTFR, downloadedInstallerPath, err := DownloadMaintainedApp(cfg, maintainedApp)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error downloading maintained app: %v", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
+		installerPath = downloadedInstallerPath
 
 		err = ac.extractAppVersion(installerTFR)
 		if err != nil {
@@ -119,11 +129,13 @@ func run(cfg *Config) error {
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if sha256 hash matches: %v", err))
 			appWithError = append(appWithError, ac.Name)
+			cleanupInstaller(installerPath)
 			continue
 		}
 		if hash != maintainedApp.SHA256 && maintainedApp.SHA256 != "no_check" {
 			appLogger.ErrorContext(ctx, "SHA256 hash in manifest does not match installer file hash")
 			appWithError = append(appWithError, ac.Name)
+			cleanupInstaller(installerPath)
 			continue
 		}
 
@@ -150,6 +162,7 @@ func run(cfg *Config) error {
 		}
 		if changerError != nil {
 			appWithError = append(appWithError, ac.Name)
+			cleanupInstaller(installerPath)
 			continue
 		}
 		ac.AppPath = appPath
@@ -167,11 +180,13 @@ func run(cfg *Config) error {
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
+			cleanupInstaller(installerPath)
 			continue
 		}
 		if !existance {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("App version '%s' was not found by osquery", ac.Version))
 			appWithError = append(appWithError, ac.Name)
+			cleanupInstaller(installerPath)
 			continue
 		}
 
@@ -179,9 +194,11 @@ func run(cfg *Config) error {
 		uninstalled := ac.uninstallApp(ctx)
 		if !uninstalled {
 			appWithError = append(appWithError, ac.Name)
+			cleanupInstaller(installerPath)
 			continue
 		}
 
+		cleanupInstaller(installerPath)
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("All checks passed for app: %s (%s)", ac.Name, ac.Slug))
 		successfulApps++
 	}
@@ -306,14 +323,14 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) fleet.MaintainedApp 
 	return app
 }
 
-func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, error) {
+func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	cfg.logger.InfoContext(ctx, "Downloading...")
 	installerTFR, filename, err := mdm_maintained_apps.DownloadInstaller(ctx, app.InstallerURL, http.DefaultClient)
 	if err != nil {
-		return nil, fmt.Errorf("downloading installer: %w", err)
+		return nil, "", fmt.Errorf("downloading installer: %w", err)
 	}
 
 	// Create a file in tmpDir for the installer
@@ -324,27 +341,27 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 	filePath := filepath.Join(cfg.tmpDir, cleanFilename)
 	out, err := os.Create(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("creating file: %w", err)
+		return nil, "", fmt.Errorf("creating file: %w", err)
 	}
 	defer out.Close()
 
 	// Copy from TempFileReader to our file
 	_, err = io.Copy(out, installerTFR)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save file: %w", err)
+		return nil, "", fmt.Errorf("failed to save file: %w", err)
 	}
 
 	// Rewind the TempFileReader for future use
 	err = installerTFR.Rewind()
 	if err != nil {
-		return nil, fmt.Errorf("rewinding temp file: %w", err)
+		return nil, "", fmt.Errorf("rewinding temp file: %w", err)
 	}
 
 	cfg.env = os.Environ()
 	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", filePath)
 	cfg.env = append(cfg.env, installerPathEnv)
 
-	return installerTFR, nil
+	return installerTFR, filePath, nil
 }
 
 func listDirectoryContents(dir string) (map[string]struct{}, error) {
