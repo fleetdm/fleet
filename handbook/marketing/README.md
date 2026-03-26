@@ -204,14 +204,16 @@ Here are some links that filter relevant conversations on each platform:
 
 ### Monitor and respond to LinkedIn comments
 
-The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
+The social media manager monitors comments on Fleet's company LinkedIn page posts daily. All comments on tracked posts are automatically surfaced in the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel, so this should be the primary place to monitor.
 
 To monitor and respond to LinkedIn comments:
-1. Check LinkedIn mentions and comments once per work day.
-2. Like mentions and respond to comments where appropriate.
-3. Repost content related to GitOps certification or from Fleeties.
-4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
-5. All interactions are catalogued in Hootsuite for future review.
+1. Check the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel daily for any new comments on tracked company LinkedIn posts.
+2. Review each comment and determine the appropriate response:
+   - **Like** all relevant mentions and comments.
+   - **Respond** to comments where appropriate (e.g., questions, positive engagement).
+   - **Repost** content related to GitOps certification or from Fleeties.
+   - **Flag** comments containing questions you can't answer to the appropriate subject-matter expert for input.
+3. Once a response is obtained from the SME, reply to the LinkedIn comment promptly.
 
 
 ### Publish sprint demo video
