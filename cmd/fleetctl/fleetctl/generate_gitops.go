@@ -57,6 +57,7 @@ type Software struct {
 	AppStoreId      string
 	Comment         string
 	MaintainedAppID uint
+	Slug            string
 }
 
 type teamToProcess struct {
@@ -1542,7 +1543,11 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
-				if software.Hash != "" {
+				if software.MaintainedAppID != 0 && software.Slug != "" {
+					policySpec["install_software"] = map[string]any{
+						"fleet_maintained_app_slug": software.Slug,
+					}
+				} else if software.Hash != "" {
 					policySpec["install_software"] = map[string]any{
 						"hash_sha256": software.Hash + " " + software.Comment,
 					}
@@ -1869,6 +1874,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				}
 				if sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil {
 					swEntry.MaintainedAppID = *sw.SoftwarePackage.FleetMaintainedAppID
+					slug, err := slugResolver.resolve(*sw.SoftwarePackage.FleetMaintainedAppID)
+					if err != nil {
+						return nil, err
+					}
+					swEntry.Slug = slug
 				}
 
 				cmd.SoftwareList[sw.ID] = swEntry
