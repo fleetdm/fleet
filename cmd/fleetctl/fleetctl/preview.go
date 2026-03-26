@@ -274,8 +274,17 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("failed to set private key: %w", err)
 			}
 
-			if err := ensureWSTEPCerts(filepath.Join(previewDir, "config")); err != nil {
+			// Generate a self-signed WSTEP certificate and key for Windows MDM
+			// and save them to the config directory for use in subsequent runs.
+			wstepConfigDir := filepath.Join(previewDir, "config")
+			if err := ensureWSTEPCerts(wstepConfigDir); err != nil {
 				return fmt.Errorf("generating WSTEP certificates: %w", err)
+			}
+			if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT", "/config/wstep.crt"); err != nil {
+				return fmt.Errorf("failed to set WSTEP cert path: %w", err)
+			}
+			if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY", "/config/wstep.key"); err != nil {
+				return fmt.Errorf("failed to set WSTEP key path: %w", err)
 			}
 
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
@@ -523,9 +532,9 @@ func ensureWSTEPCerts(configDir string) error {
 		return nil
 	}
 
-	// One exists without the other: inconsistent state; refuse to overwrite.
+	// One exists without the other: inconsistent state; refuse to overwrite and provide remediation.
 	if certExists != keyExists {
-		return fmt.Errorf("inconsistent WSTEP certificate/key state: certificate exists=%t, key exists=%t", certExists, keyExists)
+		return fmt.Errorf("inconsistent WSTEP certificate/key state: certificate exists=%t, key exists=%t. Please delete the existing wstep.crt and/or wstep.key in %q and re-run `fleetctl preview` to regenerate them", certExists, keyExists, configDir)
 	}
 
 	// Both files are missing; generate a new keypair and self-signed certificate.

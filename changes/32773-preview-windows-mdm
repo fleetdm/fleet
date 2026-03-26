@@ -1,1 +1,1 @@
-* Added automatic WSTEP certificate generation for Windows MDM in `fleetctl preview`.
+* Enabled Windows MDM in `fleetctl preview` by auto-generating WSTEP certificates on startup.
