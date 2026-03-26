@@ -80,3 +80,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-14">
 <meta name="description" value="A fintech company manages a global remote workforce with Fleet, maintaining visibility across macOS, Windows, and Linux devices."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Financial technology company">

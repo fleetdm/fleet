@@ -22,8 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -111,7 +111,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		SCEPStorage:            scepStorage,
 		Pool:                   redisPool,
 		APNSTopic:              "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		SCEPConfigService:      eeservice.NewSCEPConfigService(slog.New(slog.NewTextHandler(os.Stdout, nil)), nil),
+		SCEPConfigService:      scep.NewSCEPConfigService(slog.New(slog.NewTextHandler(os.Stdout, nil)), nil),
 		DigiCertService:        digicert.NewService(),
 		SoftwareTitleIconStore: softwareTitleIconStore,
 	}
@@ -147,6 +147,15 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownSuite() {
 func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
+
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		// Delete certificate templates before CAs and teams to avoid FK constraints.
+		if _, err := q.ExecContext(ctx, `DELETE FROM certificate_templates`); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `DELETE FROM certificate_authorities`)
+		return err
+	})
 
 	teams, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -751,6 +760,153 @@ reports:
 	assert.Empty(t, groupedCAs.CustomScepProxy)
 }
 
+// TestDeleteCAWithCertificateTemplates tests the GitOps ordering when deleting a certificate
+// authority that is referenced by certificate templates on a team.
+func (s *enterpriseIntegrationGitopsTestSuite) TestDeleteCAWithCertificateTemplates() {
+	t := s.T()
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	scepServer := scep_server.StartTestSCEPServer(t)
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Step 1: Create a CA and a team with a certificate template referencing it via GitOps.
+	globalFileWithCA := s.writeConfigFile(t, fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  certificate_authorities:
+    custom_scep_proxy:
+      - name: TestSCEP
+        url: %s
+        challenge: challenge
+policies:
+reports:
+`, scepServer.URL+"/scep"))
+
+	teamFileWithCert := s.writeConfigFile(t, `
+name: CA Test Team
+controls:
+  android_settings:
+    certificates:
+      - name: TestCert
+        certificate_authority_name: TestSCEP
+        subject_name: "CN=test,O=Fleet"
+settings:
+  secrets:
+    - secret: ca_test_team_secret
+agent_options:
+policies:
+reports:
+software:
+`)
+
+	// Apply both files to create the CA, team, and certificate template.
+	fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFileWithCA, "-f", teamFileWithCert,
+	})
+
+	// Verify the CA was created via GitOps.
+	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	require.Equal(t, "TestSCEP", groupedCAs.CustomScepProxy[0].Name)
+
+	// Verify the team was created and the certificate template exists.
+	teams, err := s.DS.ListTeams(t.Context(), fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	require.NoError(t, err)
+	var teamID uint
+	for _, tm := range teams {
+		if tm.Name == "CA Test Team" {
+			teamID = tm.ID
+			break
+		}
+	}
+	require.NotZero(t, teamID, "team 'CA Test Team' should exist")
+
+	certTemplates, _, err := s.DS.GetCertificateTemplatesByTeamID(t.Context(), teamID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certTemplates, 1)
+	require.Equal(t, "TestCert", certTemplates[0].Name)
+
+	// Step 2: Run gitops removing the CA but WITHOUT the team file.
+	// This should fail because the team's certificate templates still reference the CA.
+	globalFileWithoutCA := s.writeConfigFile(t, `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`)
+
+	_, err = fleetctl.RunAppNoChecks([]string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFileWithoutCA,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), fleet.DeleteCAReferencedByTemplatesErrMsg)
+
+	// Verify CA and certificate template still exist.
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+
+	certTemplates, _, err = s.DS.GetCertificateTemplatesByTeamID(t.Context(), teamID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certTemplates, 1)
+
+	// Step 3: Run gitops removing BOTH the CA and the certificate template.
+	// This should succeed because the postOp ordering ensures certificate templates
+	// are deleted before the CA.
+	teamFileWithoutCert := s.writeConfigFile(t, `
+name: CA Test Team
+controls:
+settings:
+  secrets:
+    - secret: ca_test_team_secret
+agent_options:
+policies:
+reports:
+software:
+`)
+
+	fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFileWithoutCA, "-f", teamFileWithoutCert,
+	})
+
+	// Verify CA and certificate template are deleted.
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+	assert.Empty(t, groupedCAs.CustomScepProxy)
+
+	certTemplates, _, err = s.DS.GetCertificateTemplatesByTeamID(t.Context(), teamID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, certTemplates)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) writeConfigFile(t *testing.T, content string) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = f.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	return f.Name()
+}
+
 // TestUnsetConfigurationProfileLabels tests the removal of labels associated with a
 // configuration profile via gitops.
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabels() {
@@ -917,6 +1073,10 @@ software:
 		emptyLabelsIncludeAny = `
       labels_include_any:
 `
+		withLabelsIncludeAll = `
+      labels_include_all:
+        - Label1
+`
 		teamTemplate = `
 controls:
 software:
@@ -996,6 +1156,34 @@ settings:
 	require.Len(t, meta.LabelsExcludeAny, 1)
 	require.Equal(t, "Label1", meta.LabelsExcludeAny[0].LabelName)
 
+	// switch both to labels_include_all
+	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, withLabelsIncludeAll), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, withLabelsIncludeAll, teamName), 0o644)
+	require.NoError(t, err)
+
+	// Apply configs
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}))
+
+	// the installer is now scoped by labels_include_all for no team
+	meta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, meta.LabelsIncludeAny)
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Len(t, meta.LabelsIncludeAll, 1)
+	require.Equal(t, "Label1", meta.LabelsIncludeAll[0].LabelName)
+
+	// the installer is now scoped by labels_include_all for team
+	meta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, meta.LabelsIncludeAny)
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Len(t, meta.LabelsIncludeAll, 1)
+	require.Equal(t, "Label1", meta.LabelsIncludeAll[0].LabelName)
+
 	// remove the label conditions
 	err = os.WriteFile(noTeamFilePath, []byte(fmt.Sprintf(noTeamTemplate, emptyLabelsIncludeAny)), 0o644)
 	require.NoError(t, err)
@@ -1015,6 +1203,7 @@ settings:
 	require.Equal(t, noTeamTitleID, *meta.TitleID)
 	require.Len(t, meta.LabelsExcludeAny, 0)
 	require.Len(t, meta.LabelsIncludeAny, 0)
+	require.Len(t, meta.LabelsIncludeAll, 0)
 
 	meta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
 	require.NoError(t, err)
@@ -1022,6 +1211,7 @@ settings:
 	require.Equal(t, teamTitleID, *meta.TitleID)
 	require.Len(t, meta.LabelsExcludeAny, 0)
 	require.Len(t, meta.LabelsIncludeAny, 0)
+	require.Len(t, meta.LabelsIncludeAll, 0)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestDeletingNoTeamYAML() {
@@ -2092,6 +2282,119 @@ labels:
 	require.ElementsMatch(t, labelHostIDs, []uint{host1.ID, host2.ID, host3.ID, host5.ID})
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestManualLabelOmitHostsPreservesMembership() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := fleet.User{
+		Name:       "Admin User",
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.DS.NewUser(context.Background(), &user)
+	require.NoError(t, err)
+
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	host1, err := s.DS.NewHost(ctx, &fleet.Host{
+		UUID:           "omit-hosts-uuid-1",
+		Hostname:       "omit-hosts-host1",
+		Platform:       "linux",
+		HardwareSerial: "omit-hosts-serial1",
+	})
+	require.NoError(t, err)
+	host2, err := s.DS.NewHost(ctx, &fleet.Host{
+		UUID:           "omit-hosts-uuid-2",
+		Hostname:       "omit-hosts-host2",
+		Platform:       "linux",
+		HardwareSerial: "omit-hosts-serial2",
+	})
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	// Step 1: Apply a manual label with hosts.
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+  - name: preserve-membership-label
+    description: A manual label
+    label_membership_type: manual
+    hosts:
+    - %s
+    - %s
+`, host1.Hostname, host2.Hostname))
+	require.NoError(t, err)
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	labels, err := s.DS.LabelsByName(ctx, []string{"preserve-membership-label"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	label := labels["preserve-membership-label"]
+	require.NotNil(t, label)
+	labelHosts, err := s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labelHosts, 2)
+
+	// Step 2: Re-apply the same label without the hosts key.
+	require.NoError(t, os.WriteFile(globalFile.Name(), []byte(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+  - name: preserve-membership-label
+    description: A manual label
+    label_membership_type: manual
+`), 0o644))
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	// Verify the hosts are still attached.
+	labelHosts, err = s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labelHosts, 2, "omitting hosts key should preserve existing membership")
+	var hostIDs []uint
+	for _, h := range labelHosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+	require.ElementsMatch(t, hostIDs, []uint{host1.ID, host2.ID})
+
+	// Step 3: Re-apply with empty hosts to clear membership.
+	require.NoError(t, os.WriteFile(globalFile.Name(), []byte(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+  - name: preserve-membership-label
+    description: A manual label
+    label_membership_type: manual
+    hosts: []
+`), 0o644))
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	// Verify hosts were cleared.
+	labelHosts, err = s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labelHosts, 0, "empty hosts list should clear membership")
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestIPASoftwareInstallers() {
 	t := s.T()
 	ctx := context.Background()
@@ -2191,6 +2494,7 @@ settings:
 		require.True(t, meta.SelfService)
 		require.Empty(t, meta.LabelsExcludeAny)
 		require.Empty(t, meta.LabelsIncludeAny)
+		require.Empty(t, meta.LabelsIncludeAll)
 	}
 	require.ElementsMatch(t, []string{"ios_apps", "ipados_apps"}, sources)
 	require.ElementsMatch(t, []string{"ios", "ipados"}, platforms)
@@ -2247,6 +2551,7 @@ settings:
 		require.NoError(t, err)
 		require.False(t, meta.SelfService)
 		require.Empty(t, meta.LabelsExcludeAny)
+		require.Empty(t, meta.LabelsIncludeAll)
 		require.Len(t, meta.LabelsIncludeAny, 1)
 		require.Equal(t, lbl.ID, meta.LabelsIncludeAny[0].LabelID)
 		require.Empty(t, meta.InstallScript) // install script should be ignored for ipa apps
@@ -2286,6 +2591,7 @@ settings:
 		require.False(t, meta.SelfService)
 		require.Empty(t, meta.LabelsExcludeAny)
 		require.Empty(t, meta.LabelsIncludeAny)
+		require.Empty(t, meta.LabelsIncludeAll)
 	}
 	require.ElementsMatch(t, []string{"ios_apps", "ipados_apps"}, sources)
 	require.ElementsMatch(t, []string{"ios", "ipados"}, platforms)
@@ -3999,4 +4305,205 @@ name: %s
 		fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
 	require.Len(t, titles, 0)
+}
+
+// TestFMALabelsIncludeAll tests that labels_include_all is correctly applied and
+// cleared for Fleet Maintained Apps via gitops, for both no-team and a specific team.
+func (s *enterpriseIntegrationGitopsTestSuite) TestFMALabelsIncludeAll() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	lbl, err := s.DS.NewLabel(ctx, &fleet.Label{Name: "Label1" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotZero(t, lbl.ID)
+
+	slug := fmt.Sprintf("foo%s/darwin", t.Name())
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+		noTeamTemplate = `name: No team
+controls:
+policies:
+software:
+  fleet_maintained_apps:
+    - slug: %s
+%s
+`
+		teamTemplate = `
+controls:
+software:
+  fleet_maintained_apps:
+    - slug: %s
+%s
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+	const noLabels = ""
+
+	withLabelsIncludeAll := fmt.Sprintf(`
+      labels_include_all:
+        - %s
+`, lbl.Name)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fmt.Fprintf(noTeamFile, noTeamTemplate, slug, withLabelsIncludeAll)
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fmt.Fprintf(teamFile, teamTemplate, slug, withLabelsIncludeAll, teamName)
+	require.NoError(t, err)
+	err = teamFile.Close()
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	// Mock server to serve FMA installer bytes
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("foo"))
+	}))
+	defer installerServer.Close()
+
+	// Mock server to serve the FMA manifest
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		versions := []*ma.FMAManifestApp{
+			{
+				Version: "1.0",
+				Queries: ma.FMAQueries{
+					Exists: "SELECT 1 FROM osquery_info;",
+				},
+				InstallerURL:       installerServer.URL + "/foo.pkg",
+				InstallScriptRef:   "fooscript",
+				UninstallScriptRef: "fooscript",
+				SHA256:             "no_check",
+			},
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs:     map[string]string{"fooscript": "echo hello"},
+		}
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	defer manifestServer.Close()
+
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	// Insert the FMA record so gitops can resolve the slug
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			 VALUES (?, ?, 'darwin', ?)`, "foo"+t.Name(), slug, `com.example.foo`+t.Name())
+		return err
+	})
+
+	// Apply configs — dry-run first, then real run
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(),
+		"--dry-run",
+	}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(),
+	}))
+
+	// Retrieve the team so we have its ID
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	// Locate the FMA installer for no-team and assert labels_include_all is set
+	noTeamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx,
+		fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, noTeamTitles, 1)
+	noTeamTitleID := noTeamTitles[0].ID
+
+	noTeamMeta, err := s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, noTeamMeta.LabelsIncludeAny)
+	require.Empty(t, noTeamMeta.LabelsExcludeAny)
+	require.Len(t, noTeamMeta.LabelsIncludeAll, 1)
+	require.Equal(t, lbl.Name, noTeamMeta.LabelsIncludeAll[0].LabelName)
+
+	// Locate the FMA installer for the team and assert labels_include_all is set
+	teamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx,
+		fleet.SoftwareTitleListOptions{TeamID: &team.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, teamTitles, 1)
+	teamTitleID := teamTitles[0].ID
+
+	teamMeta, err := s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, teamMeta.LabelsIncludeAny)
+	require.Empty(t, teamMeta.LabelsExcludeAny)
+	require.Len(t, teamMeta.LabelsIncludeAll, 1)
+	require.Equal(t, lbl.Name, teamMeta.LabelsIncludeAll[0].LabelName)
+
+	// Now re-apply without labels_include_all and confirm they are cleared
+	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, slug, noLabels), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, slug, noLabels, teamName), 0o644)
+	require.NoError(t, err)
+
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(),
+		"--dry-run",
+	}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(),
+	}))
+
+	// Labels should now be empty for no-team
+	noTeamMeta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, noTeamMeta.LabelsIncludeAny)
+	require.Empty(t, noTeamMeta.LabelsExcludeAny)
+	require.Empty(t, noTeamMeta.LabelsIncludeAll)
+
+	// Labels should now be empty for the team
+	teamMeta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, teamMeta.LabelsIncludeAny)
+	require.Empty(t, teamMeta.LabelsExcludeAny)
+	require.Empty(t, teamMeta.LabelsIncludeAll)
 }

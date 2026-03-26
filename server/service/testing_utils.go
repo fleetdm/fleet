@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
@@ -94,7 +95,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage                      nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer                          fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                               clock.Clock                   = clock.C
-		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
+		scepConfigService                                             = scep.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
 		estCAService                                                  = est.NewService(est.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
@@ -529,7 +530,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
-			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger))
+			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
@@ -550,7 +551,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		if opts[0].EnableSCEPProxy {
 			var timeout *time.Duration
 			if opts[0].SCEPConfigService != nil {
-				scepConfig, ok := opts[0].SCEPConfigService.(*eeservice.SCEPConfigService)
+				scepConfig, ok := opts[0].SCEPConfigService.(*scep.SCEPConfigService)
 				if ok {
 					// In tests, we share the same Timeout pointer between SCEPConfigService and SCEPProxy
 					timeout = scepConfig.Timeout
@@ -1426,6 +1427,7 @@ type fmaTestState struct {
 	installerBytes []byte
 	sha256         string
 	installerPath  string
+	patchQuery     string
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1479,8 +1481,11 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 
 		versions := []*ma.FMAManifestApp{
 			{
-				Version:            state.version,
-				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				Version: state.version,
+				Queries: ma.FMAQueries{
+					Exists: "SELECT 1 FROM osquery_info;",
+					Patch:  state.patchQuery,
+				},
 				InstallerURL:       installerServer.URL + state.installerPath,
 				InstallScriptRef:   "foobaz",
 				UninstallScriptRef: "foobaz",

@@ -36,5 +36,61 @@ const XmlCPETestDict = `
     <title xml:lang="en-US">Vendor2 Product4 999 for MacOS</title>
     <cpe-23:cpe23-item name="cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*"/>
   </cpe-item>
+  <cpe-item name="cpe:/a:ge:line:1.0">
+    <title xml:lang="en-US">GE Line 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:ge:line:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:linecorp:line:1.0">
+    <title xml:lang="en-US">LINE Corporation Line 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:linecorp:line:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:badvendor:widget:1.0" deprecated="true" deprecation_date="2021-06-10T15:28:05.490Z">
+    <title xml:lang="en-US">Bad Vendor Widget 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:badvendor:widget:1.0:*:*:*:*:*:*:*">
+      <cpe-23:deprecation date="2021-06-10T11:28:05.490-04:00">
+        <cpe-23:deprecated-by name="cpe:2.3:a:badvendor:wrong_result:1.0:*:*:*:*:*:*:*" type="NAME_CORRECTION"/>
+      </cpe-23:deprecation>
+    </cpe-23:cpe23-item>
+  </cpe-item>
+  <cpe-item name="cpe:/a:badvendor:wrong_result:1.0">
+    <title xml:lang="en-US">Bad Vendor Wrong Result 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:badvendor:wrong_result:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:goodcorp:widget:1.0" deprecated="true" deprecation_date="2021-06-10T15:28:05.490Z">
+    <title xml:lang="en-US">Good Corp Widget 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:goodcorp:widget:1.0:*:*:*:*:*:*:*">
+      <cpe-23:deprecation date="2021-06-10T11:28:05.490-04:00">
+        <cpe-23:deprecated-by name="cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:*:*:*" type="NAME_CORRECTION"/>
+      </cpe-23:deprecation>
+    </cpe-23:cpe23-item>
+  </cpe-item>
+  <cpe-item name="cpe:/a:goodcorp:correct_result:1.0">
+    <title xml:lang="en-US">Good Corp Correct Result 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:python:requests:2.31.0">
+    <title xml:lang="en-US">Python Requests 2.31.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:python:requests:2.31.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:jenkins:requests:2.31.0">
+    <title xml:lang="en-US">Jenkins Requests 2.31.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:jenkins:requests:2.31.0:*:*:*:*:jenkins:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:duplicity_project:duplicity:0.8.0">
+    <title xml:lang="en-US">Duplicity Project Duplicity 0.8.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:duplicity_project:duplicity:0.8.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:debian:duplicity:0.8.0">
+    <title xml:lang="en-US">Debian Duplicity 0.8.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:debian:duplicity:0.8.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:openjsf:express:4.18.0">
+    <title xml:lang="en-US">OpenJS Foundation Express 4.18.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:openjsf:express:4.18.0:*:*:*:*:node.js:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:checkpoint:express:4.18.0">
+    <title xml:lang="en-US">Check Point Express 4.18.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:checkpoint:express:4.18.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
 </cpe-list>
 `

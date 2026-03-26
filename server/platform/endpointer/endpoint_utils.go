@@ -32,17 +32,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// We use our own wrapper here, to preserve the Close method of the original io.ReadCloser
-// But also allows us to modify the limit at a laterp oint.
-type LimitedReadCloser struct {
-	*io.LimitedReader
-	Closer io.Closer
-}
-
-func (lrc *LimitedReadCloser) Close() error {
-	return lrc.Closer.Close()
-}
-
 type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
 
 // ParseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
@@ -501,23 +490,7 @@ type requestValidator interface {
 // The customQueryDecoder parameter allows services to inject domain-specific
 // query parameter decoding logic.
 //
-// If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
-
-// limitExhaustedBody returns true when the LimitedReader was the cause of an
-// unexpected EOF — i.e. the underlying body actually had more data beyond the
-// limit. It does this by attempting a single-byte read from the underlying
-// reader (limitedReader.R) which bypasses the limit wrapper. A successful read
-// means the body exceeded the limit; an immediate EOF means the body ended
-// exactly at the limit (malformed JSON, not an oversized payload).
-//
-// This is used to avoid false-positive PayloadTooLargeError responses for
-// bodies whose JSON is malformed and happen to be exactly maxRequestBodySize
-// bytes long.
-func limitExhaustedBody(limitedReader *io.LimitedReader) bool {
-	var peek [1]byte
-	n, _ := limitedReader.R.Read(peek[:])
-	return n > 0
-}
+// If adding a new way to parse/decode the request, make sure to wrap the body with http.MaxBytesReader using the maxRequestBodySize
 
 func MakeDecoder(
 	iface interface{},
@@ -537,18 +510,48 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
-			var limitedReader *io.LimitedReader
 			if maxRequestBodySize != -1 {
-				limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
-
-				r.Body = &LimitedReadCloser{
-					LimitedReader: limitedReader,
-					Closer:        r.Body,
+				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
+			}
+			//
+			// We take care of gzip encoding here to prevent any future DecodeRequest
+			// implementations from missing gzip bomb checks.
+			//
+			gzipped := false
+			if strings.EqualFold(r.Header.Get("content-encoding"), "gzip") {
+				gzipped = true
+				gzr, err := gzip.NewReader(r.Body)
+				if err != nil {
+					return nil, BadRequestErr("gzip decoder error", err)
 				}
+				defer gzr.Close()
+				if maxRequestBodySize != -1 {
+					// Limit decompressed bytes to prevent gzip bombs from bypassing
+					// the raw body size limit applied above.
+					r.Body = http.MaxBytesReader(nil, gzr, maxRequestBodySize)
+				} else {
+					r.Body = io.NopCloser(gzr)
+				}
+				// Clear so implementations don't try to decompress again.
+				r.Header.Del("Content-Encoding")
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
-				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+
+			// Some DecodeRequest implementations (like getHostSoftwareRequest)
+			// themselves return platform_http.PayloadTooLargeError.
+			if inner, isPayloadTooLargeError := errors.AsType[platform_http.PayloadTooLargeError](err); isPayloadTooLargeError {
+				// Preserve the inner error's MaxRequestSize and ContentLength
+				// (it knows the actual limit that was hit), only add Gzipped.
+				inner.Gzipped = gzipped
+				return nil, inner
+			}
+
+			if _, isMaxBytesError := errors.AsType[*http.MaxBytesError](err); isMaxBytesError {
+				return nil, platform_http.PayloadTooLargeError{
+					ContentLength:  r.Header.Get("Content-Length"),
+					MaxRequestSize: maxRequestBodySize,
+					Gzipped:        gzipped,
+				}
 			}
 			return ret, err
 		}
@@ -564,28 +567,30 @@ func MakeDecoder(
 		nilBody := false
 		var rewriter *JSONKeyRewriteReader
 
-		var limitedReader *io.LimitedReader
 		if maxRequestBodySize != -1 {
-			limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
-
-			r.Body = &LimitedReadCloser{
-				LimitedReader: limitedReader,
-				Closer:        r.Body,
-			}
+			r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 		}
 
 		buf := bufio.NewReader(r.Body)
 		var body io.Reader = buf
+		gzipped := false
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
-			if r.Header.Get("content-encoding") == "gzip" {
+			if strings.EqualFold(r.Header.Get("content-encoding"), "gzip") {
+				gzipped = true
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
 					return nil, BadRequestErr("gzip decoder error", err)
 				}
 				defer gzr.Close()
-				body = gzr
+				if maxRequestBodySize != -1 {
+					// Limit decompressed bytes to prevent gzip bombs from bypassing
+					// the raw body size limit applied above.
+					body = http.MaxBytesReader(nil, gzr, maxRequestBodySize)
+				} else {
+					body = gzr
+				}
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline
@@ -610,35 +615,18 @@ func MakeDecoder(
 							InternalErr: ace,
 						}
 					}
-
-					if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+						return nil, platform_http.PayloadTooLargeError{
+							ContentLength:  r.Header.Get("Content-Length"),
+							MaxRequestSize: maxRequestBodySize,
+							Gzipped:        gzipped,
+						}
 					}
-
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
 			}
 
-			// Log deprecation warnings when deprecated field names are used.
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					newNames := make([]string, len(deprecated))
-					for i, old := range deprecated {
-						for _, rule := range aliasRules {
-							if rule.OldKey == old {
-								newNames[i] = rule.NewKey
-								break
-							}
-						}
-					}
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
-					)
-				}
-			}
 		}
 
 		fields := allFields(v)
@@ -701,25 +689,38 @@ func MakeDecoder(
 					}
 				}
 
-				if errors.Is(err, io.ErrUnexpectedEOF) {
-					if limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+				if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+					return nil, platform_http.PayloadTooLargeError{
+						ContentLength:  r.Header.Get("Content-Length"),
+						MaxRequestSize: maxRequestBodySize,
+						Gzipped:        gzipped,
 					}
+				}
+				if errors.Is(err, io.ErrUnexpectedEOF) {
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err
 			}
 
-			// Log deprecation warnings when deprecated field names are used
-			// (bodyDecoder path).
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", "use the updated field names instead",
-					)
+		}
+
+		// Log deprecation warnings when deprecated field names are used.
+		if rewriter != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+				newNames := make([]string, len(deprecated))
+				for i, old := range deprecated {
+					for _, rule := range aliasRules {
+						if rule.OldKey == old {
+							newNames[i] = rule.NewKey
+							break
+						}
+					}
 				}
+				logging.WithLevel(ctx, slog.LevelWarn)
+				logging.WithExtras(ctx,
+					"deprecated_fields", fmt.Sprintf("%v", deprecated),
+					"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
+				)
 			}
 		}
 

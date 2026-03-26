@@ -265,7 +265,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   2,
 				Name: "My App Store App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "com.example.team-software",
+					AppStoreID: "1234567890",
 					Platform:   string(fleet.MacOSPlatform),
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
@@ -274,7 +274,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   6,
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID:         "com.example.setup-experience-software",
+					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
@@ -284,7 +284,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   7,
 				Name: "My iOS Auto Update App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "com.example.ios-auto-update",
+					AppStoreID: "9999888877",
 					Platform:   string(fleet.IOSPlatform),
 				},
 				HashSHA256: ptr.String("ios-auto-update-hash"),
@@ -380,6 +380,20 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				SoftwareTitleID: 8,
 			},
 		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          3,
+				Name:        "Team VPP policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 3",
+				Resolution:  ptr.String("Install the app"),
+				Description: "This is a team policy with VPP app automation",
+				Platform:    "darwin",
+				Type:        fleet.PolicyTypeDynamic,
+			},
+			InstallSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 2,
+			},
+		},
 	}, nil
 }
 
@@ -473,9 +487,15 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 6,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
-				LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
-				SelfService:      true,
+				VPPAppID: fleet.VPPAppID{AdamID: "55566677778", Platform: fleet.AndroidPlatform},
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label C",
+					}, {
+						LabelName: "Label D",
+					},
+				},
+				SelfService: true,
 			},
 			IconUrl: ptr.String("/api/icon3.png"),
 		}, nil
@@ -486,8 +506,15 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 7,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID:    fleet.VPPAppID{AdamID: "com.example.ios-auto-update", Platform: fleet.IOSPlatform},
+				VPPAppID:    fleet.VPPAppID{AdamID: "9999888877", Platform: fleet.IOSPlatform},
 				SelfService: false,
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label C",
+					}, {
+						LabelName: "Label D",
+					},
+				},
 			},
 			IconUrl: ptr.String("/api/icon4.png"),
 			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
@@ -524,6 +551,14 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			ID:   9,
 			Name: "My Windows FMA",
 			SoftwarePackage: &fleet.SoftwareInstaller{
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label A",
+					},
+					{
+						LabelName: "Label B",
+					},
+				},
 				InstallScript:        "install",
 				UninstallScript:      "uninstall",
 				SelfService:          true,
@@ -603,7 +638,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:   6,
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID:         "com.example.setup-experience-software",
+					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
@@ -1078,7 +1113,7 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 
 	var found bool
 	for _, a := range appsList {
-		if a["app_store_id"] == "com.example.ios-auto-update" {
+		if a["app_store_id"] == "9999888877" {
 			found = true
 			// auto update keys should be present
 			val, ok := a["auto_update_enabled"]
@@ -1738,6 +1773,9 @@ func TestGeneratePolicies(t *testing.T) {
 			1: {
 				Hash:    "team-software-hash",
 				Comment: "__TEAM_SOFTWARE_COMMENT_TOKEN__",
+			},
+			2: {
+				AppStoreId: "1234567890",
 			},
 		},
 		ScriptList: map[uint]string{

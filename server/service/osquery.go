@@ -229,7 +229,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	if save {
 		if appConfig.ServerSettings.DeferredSaveHost {
-			go svc.serialUpdateHost(host)
+			go svc.serialUpdateHost(ctx, host)
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "save host in enroll agent")
@@ -242,12 +242,14 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 var counter = int64(0)
 
-func (svc *Service) serialUpdateHost(host *fleet.Host) {
+func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) {
 	newVal := atomic.AddInt64(&counter, 1)
 	defer func() {
 		atomic.AddInt64(&counter, -1)
 	}()
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+	// Detach from request cancellation but preserve context values (e.g. OTEL trace),
+	// then apply a timeout for this background operation.
+	ctx, cancelFunc := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancelFunc()
 	svc.logger.DebugContext(ctx, "serial update host background", "background", newVal)
 	err := svc.ds.SerialUpdateHost(ctx, host)
@@ -715,6 +717,53 @@ var criticalDetailQueries = map[string]bool{
 	"mdm_windows": true,
 }
 
+// hostDetailQueryConfig holds pre-loaded configuration data needed for building and ingesting
+// detail queries. Loading this once and passing it through avoids redundant database calls
+// (AppConfig, HostFeatures, TeamMDMConfig, conditional access) on every detail query result,
+// and also caches the resolved detail query map so it is built only once per request.
+type hostDetailQueryConfig struct {
+	appConfig     *fleet.AppConfig
+	features      *fleet.Features
+	detailQueries map[string]osquery_utils.DetailQuery
+}
+
+func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.Host) (*hostDetailQueryConfig, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read app config")
+	}
+
+	features, err := svc.HostFeatures(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read host features")
+	}
+
+	var mdmTeamConfig *fleet.TeamMDM
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")
+		}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+		},
+		mdmTeamConfig,
+	)
+
+	return &hostDetailQueryConfig{
+		appConfig:     appConfig,
+		features:      features,
+		detailQueries: detailQueries,
+	}, nil
+}
+
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
@@ -729,36 +778,15 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		}
 	}
 
-	appConfig, err := svc.ds.AppConfig(ctx)
+	cfg, err := svc.loadHostDetailQueryConfig(ctx, host)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "read app config")
-	}
-
-	features, err := svc.HostFeatures(ctx, host)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "read host features")
-	}
-
-	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
-		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")
-		}
+		return nil, nil, err
 	}
 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		}, mdmTeamConfig)
-	for name, query := range detailQueries {
+	for name, query := range cfg.detailQueries {
 		if criticalQueriesOnly && !criticalDetailQueries[name] {
 			continue
 		}
@@ -784,13 +812,13 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		}
 	}
 
-	if features.AdditionalQueries == nil || criticalQueriesOnly {
+	if cfg.features.AdditionalQueries == nil || criticalQueriesOnly {
 		// No additional queries set
 		return queries, discovery, nil
 	}
 
 	var additionalQueries map[string]string
-	if err := json.Unmarshal(*features.AdditionalQueries, &additionalQueries); err != nil {
+	if err := json.Unmarshal(*cfg.features.AdditionalQueries, &additionalQueries); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
 	}
 
@@ -804,7 +832,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.Context, host *fleet.Host) bool {
-	if host.Platform != "darwin" {
+	if host.Platform != "darwin" && host.Platform != "windows" {
 		return false
 	}
 
@@ -1086,6 +1114,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	preProcessSoftwareResults(ctx, host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
+	// Lazy-load detail query config only when a detail result is present, to avoid
+	// unnecessary HostFeatures/TeamMDMConfig/conditional access DB calls for payloads
+	// that only contain label, policy, or live-query results.
+	var detailConfig *hostDetailQueryConfig
+	var detailConfigFailed bool
+
 	var hostWithoutPolicies bool
 	for query, rows := range results {
 		// When receiving this query in the results, we will update the host's
@@ -1109,8 +1143,23 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		queryStats := stats[query]
 
+		// Lazy-load detail config on first detail query result.
+		if detailConfig == nil && strings.HasPrefix(query, hostDetailQueryPrefix) {
+			if detailConfigFailed {
+				// Already failed to load detail config, skip all detail queries.
+				continue
+			}
+			var err error
+			detailConfig, err = svc.loadHostDetailQueryConfig(ctx, host)
+			if err != nil {
+				detailConfigFailed = true
+				logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "loading host detail query config"))
+				continue
+			}
+		}
+
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
-			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
+			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats, detailConfig,
 		)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
@@ -1121,6 +1170,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		additionalUpdated = additionalUpdated || ingestedAdditionalUpdated
 	}
 
+	// Load AppConfig separately for label/policy processing. detailConfig may be nil
+	// (no detail queries in this check-in) or may have failed to load (soft failure).
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
@@ -1159,8 +1210,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		if host.Platform == "darwin" {
-			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, policyResults); err != nil {
+		if host.Platform == "darwin" || host.Platform == "windows" {
+			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, host.Platform, policyResults); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -1253,16 +1304,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
-		appConfig, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			logging.WithErr(ctx, err)
+		if ac.ServerSettings.DeferredSaveHost {
+			go svc.serialUpdateHost(ctx, host)
 		} else {
-			if appConfig.ServerSettings.DeferredSaveHost {
-				go svc.serialUpdateHost(host)
-			} else {
-				if err := svc.ds.UpdateHost(ctx, host); err != nil {
-					logging.WithErr(ctx, err)
-				}
+			if err := svc.ds.UpdateHost(ctx, host); err != nil {
+				logging.WithErr(ctx, err)
 			}
 		}
 	}
@@ -1434,6 +1480,9 @@ func preProcessSoftwareResults(
 
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
 	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	goBinariesExtraQuery := hostDetailQueryPrefix + "software_go_binaries"
+	preProcessSoftwareExtraResults(ctx, goBinariesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
@@ -1678,6 +1727,7 @@ func (svc *Service) ingestQueryResults(
 	labelResults map[uint]*bool,
 	additionalResults fleet.OsqueryDistributedQueryResults,
 	stats *fleet.Stats,
+	detailConfig *hostDetailQueryConfig,
 ) (bool, bool, error) {
 	var detailUpdated, additionalUpdated bool
 
@@ -1703,11 +1753,14 @@ func (svc *Service) ingestQueryResults(
 
 	switch {
 	case strings.HasPrefix(query, hostDetailQueryPrefix):
+		if detailConfig == nil { // safety net for NilAway linter
+			return false, false, newOsqueryError("detail query config not loaded for query " + query)
+		}
 		trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
 		var ingested bool
-		ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows)
+		ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, detailConfig)
 		if !ingested && err == nil {
-			err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
+			err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows, detailConfig)
 			// No err != nil check here because ingestDetailQuery could have updated
 			// successfully some values of host.
 			detailUpdated = true
@@ -1723,36 +1776,8 @@ func (svc *Service) ingestQueryResults(
 
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
 
-func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) (ingested bool, err error) {
-	features, err := svc.HostFeatures(ctx, host)
-	if err != nil {
-		return false, newOsqueryError("ingest detail query: " + err.Error())
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return false, newOsqueryError("ingest detail query: " + err.Error())
-	}
-
-	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
-		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
-		if err != nil {
-			return false, newOsqueryError("ingest detail query: " + err.Error())
-		}
-	}
-
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		},
-		mdmTeamConfig,
-	)
-	query, ok := detailQueries[name]
+func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, cfg *hostDetailQueryConfig) (ingested bool, err error) {
+	query, ok := cfg.detailQueries[name]
 	if !ok {
 		return false, newOsqueryError("unknown detail query " + name)
 	}
@@ -1882,44 +1907,14 @@ func ingestMembershipQuery(
 
 // ingestDetailQuery takes the results of a detail query and modifies the
 // provided fleet.Host appropriately.
-func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) error {
-	features, err := svc.HostFeatures(ctx, host)
-	if err != nil {
-		return newOsqueryError("ingest detail query: " + err.Error())
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return newOsqueryError("ingest detail query: " + err.Error())
-	}
-
-	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
-		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
-		if err != nil {
-			return newOsqueryError("ingest detail query: " + err.Error())
-		}
-	}
-
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		},
-		mdmTeamConfig,
-	)
-
-	query, ok := detailQueries[name]
+func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, cfg *hostDetailQueryConfig) error {
+	query, ok := cfg.detailQueries[name]
 	if !ok {
 		return newOsqueryError("unknown detail query " + name)
 	}
 
 	if query.IngestFunc != nil {
-		err = query.IngestFunc(ctx, svc.logger, host, rows)
-		if err != nil {
+		if err := query.IngestFunc(ctx, svc.logger, host, rows); err != nil {
 			return newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
 	}
@@ -2484,6 +2479,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	hostID uint,
 	hostTeamID *uint,
 	hostOrbitNodeKey *string,
+	hostPlatform string,
 	incomingPolicyResults map[uint]*bool,
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
@@ -2532,7 +2528,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	}
 
 	// Get policies configured for conditional access.
-	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID)
+	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID, hostPlatform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
 	}
@@ -2559,13 +2555,14 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
 
 	return nil
 }
 
 func (svc *Service) setHostConditionalAccessAsync(
 	hostID uint,
+	hostPlatform string,
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
@@ -2573,11 +2570,12 @@ func (svc *Service) setHostConditionalAccessAsync(
 	go func() {
 		logger := svc.logger.With(
 			"host_id", hostID,
+			"platform", hostPlatform,
 			"managed", managed,
 			"compliant", compliant,
 		)
 		start := time.Now()
-		if err := svc.setHostConditionalAccess(hostID, hostConditionalAccessStatus, managed, compliant); err != nil {
+		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant); err != nil {
 			logger.ErrorContext(context.TODO(), "set host conditional access", "took", time.Since(start), "err", err)
 		}
 		logger.DebugContext(context.TODO(), "set host conditional access", "took", time.Since(start))
@@ -2590,6 +2588,7 @@ var conditionalAccessSetWaitTime = 10 * time.Second
 
 func (svc *Service) setHostConditionalAccess(
 	hostID uint,
+	hostPlatform string,
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
@@ -2602,10 +2601,18 @@ func (svc *Service) setHostConditionalAccess(
 	}
 	logger := svc.logger.With(
 		"host_id", hostID,
+		"platform", hostPlatform,
 		"managed", managed,
 		"compliant", compliant,
 	)
 	logger.DebugContext(ctx, "set compliance status")
+
+	// Currently, only macOS and Windows are supported.
+	osName := "macOS" // "macOS" is what Entra requires for darwin hosts.
+	if hostPlatform == "windows" {
+		osName = "windows"
+	}
+
 	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(ctx,
 		integration.TenantID,
 		integration.ProxyServerSecret,
@@ -2615,7 +2622,7 @@ func (svc *Service) setHostConditionalAccess(
 
 		managed,
 		hostConditionalAccessStatus.DisplayName,
-		"macOS",
+		osName,
 		hostConditionalAccessStatus.OSVersion,
 		compliant,
 		time.Now().UTC(),
@@ -2623,38 +2630,46 @@ func (svc *Service) setHostConditionalAccess(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
 	}
-	const (
-		timeout = 1 * time.Minute
-	)
-	logger.DebugContext(ctx, "set compliance status message sent")
-	startTime := time.Now()
-	for range time.Tick(conditionalAccessSetWaitTime) {
-		if time.Since(startTime) > timeout {
-			return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
-		}
-		logger.DebugContext(ctx, "get compliance status message wait")
-		messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
-			integration.TenantID, integration.ProxyServerSecret, response.MessageID,
+
+	//
+	// The macOS API is asynchronous, the Windows API is not.
+	// So we only need to retrieve the status of the "request" for macOS hosts.
+	//
+
+	if hostPlatform == "darwin" {
+		const (
+			timeout = 1 * time.Minute
 		)
-		if err != nil {
-			// Retry again in case of network or transient errors.
-			logger.InfoContext(ctx, "get message status, retrying", "err", err)
-			continue
-		}
-		if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
-			logger.DebugContext(ctx, "set device compliance status completed",
-				"took", time.Since(startTime),
+		logger.DebugContext(ctx, "set compliance status message sent")
+		startTime := time.Now()
+		for range time.Tick(conditionalAccessSetWaitTime) {
+			if time.Since(startTime) > timeout {
+				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
+			}
+			logger.DebugContext(ctx, "get compliance status message wait")
+			messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
+				integration.TenantID, integration.ProxyServerSecret, response.MessageID,
 			)
-			break
+			if err != nil {
+				// Retry again in case of network or transient errors.
+				logger.InfoContext(ctx, "get message status, retrying", "err", err)
+				continue
+			}
+			if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
+				logger.DebugContext(ctx, "set device compliance status completed",
+					"took", time.Since(startTime),
+				)
+				break
+			}
+			detail := ""
+			if messageStatus.Detail != nil {
+				detail = *messageStatus.Detail
+			}
+			logger.InfoContext(ctx, "get message status, retrying",
+				"status", messageStatus.Status,
+				"detail", detail,
+			)
 		}
-		detail := ""
-		if messageStatus.Detail != nil {
-			detail = *messageStatus.Detail
-		}
-		logger.InfoContext(ctx, "get message status, retrying",
-			"status", messageStatus.Status,
-			"detail", detail,
-		)
 	}
 
 	if err := svc.ds.SetHostConditionalAccessStatus(ctx, hostID, managed, compliant); err != nil {

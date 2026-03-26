@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/internal/testutils"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,7 +41,7 @@ func testCleanupExpiredActivitiesNoop(t *testing.T, env *testEnv) {
 
 	// Create a recent activity -should not be deleted.
 	userID := env.InsertUser(t, "user", "user@example.com")
-	env.InsertActivity(t, ptr.Uint(userID), "recent_activity", map[string]any{})
+	env.InsertActivity(t, &userID, "recent_activity", map[string]any{})
 
 	err = env.ds.CleanupExpiredActivities(ctx, 500, 1)
 	require.NoError(t, err)
@@ -62,12 +61,12 @@ func testCleanupExpiredActivitiesBasic(t *testing.T, env *testEnv) {
 
 	// Create activities with different states:
 	// 1. Expired, no host link → should be deleted
-	expiredNoHost := env.InsertActivityWithTime(t, ptr.Uint(userID), "expired_no_host", map[string]any{}, expiredTime)
+	expiredNoHost := env.InsertActivityWithTime(t, &userID, "expired_no_host", map[string]any{}, expiredTime)
 	// 2. Expired, linked to host → should be preserved
-	expiredWithHost := env.InsertActivityWithTime(t, ptr.Uint(userID), "expired_with_host", map[string]any{}, expiredTime)
+	expiredWithHost := env.InsertActivityWithTime(t, &userID, "expired_with_host", map[string]any{}, expiredTime)
 	env.InsertHostActivity(t, hostID, expiredWithHost)
 	// 3. Recent, no host link → should be preserved
-	recentNoHost := env.InsertActivityWithTime(t, ptr.Uint(userID), "recent_no_host", map[string]any{}, recentTime)
+	recentNoHost := env.InsertActivityWithTime(t, &userID, "recent_no_host", map[string]any{}, recentTime)
 
 	err := env.ds.CleanupExpiredActivities(ctx, 500, 1)
 	require.NoError(t, err)
@@ -98,8 +97,8 @@ func testCleanupHostActivities(t *testing.T, env *testEnv) {
 	hostA := env.InsertHost(t, "hostA.local", nil)
 	hostB := env.InsertHost(t, "hostB.local", nil)
 
-	actA := env.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{})
-	actB := env.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{})
+	actA := env.InsertActivity(t, &userID, "ran_script", map[string]any{})
+	actB := env.InsertActivity(t, &userID, "ran_script", map[string]any{})
 	env.InsertHostActivity(t, hostA, actA)
 	env.InsertHostActivity(t, hostB, actB)
 
@@ -138,7 +137,7 @@ func testCleanupExpiredActivitiesBatch(t *testing.T, env *testEnv) {
 
 	// Create 10 expired activities (no host links).
 	for i := range 10 {
-		env.InsertActivityWithTime(t, ptr.Uint(userID), fmt.Sprintf("expired_%d", i), map[string]any{}, expiredTime)
+		env.InsertActivityWithTime(t, &userID, fmt.Sprintf("expired_%d", i), map[string]any{}, expiredTime)
 	}
 
 	// Cleanup with maxCount=3 -only 3 should be deleted per call.
