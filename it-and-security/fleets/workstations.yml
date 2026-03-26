@@ -118,23 +118,23 @@ policies:
   - path: ../lib/macos/policies/update-1password.yml
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
-  - path: ../lib/macos/policies/filevault-enabled.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-nudge.yml
   - path: ../lib/macos/policies/update-claude.yml
   - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/macos/policies/battery-health-check.yml
   # Windows policies
   - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
-  - path: ../lib/windows/policies/bitlocker-enabled.yml
   - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/update-claude.yml
   - path: ../lib/windows/policies/update-slack.yml
+  - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
@@ -316,6 +316,7 @@ software:
         - Security
     - slug: claude/darwin # Claude for macOS
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
     # Windows apps
@@ -328,6 +329,7 @@ software:
         - "x86-based Windows hosts"
     - slug: claude/windows # Claude for Windows
       self_service: true
+      setup_experience: true
       labels_include_any:
         - "x86-based Windows hosts"
       categories:

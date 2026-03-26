@@ -89,6 +89,12 @@ export const hostSelectStatuses = [
     value: "new",
     helpText: "Hosts added to Fleet in the last 24 hours.",
   },
+  {
+    disabled: false,
+    label: "Pending",
+    value: "pending",
+    helpText: "Hosts pending enrollment.",
+  },
 ];
 
 export const OS_SETTINGS_FILTER_OPTIONS = [
