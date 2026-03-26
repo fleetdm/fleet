@@ -12,6 +12,8 @@ import { TooltipContent } from "interfaces/dropdownOption";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import { getGitOpsModeTipContent } from "utilities/helpers";
+import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+
 import paths from "router/paths";
 import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
@@ -26,26 +28,42 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
 
-const ACTION_EDIT_APPEARANCE = "edit_appearance";
-const ACTION_EDIT_SOFTWARE = "edit_software";
-const ACTION_EDIT_CONFIGURATION = "edit_configuration";
-const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION = "edit_auto_update_configuration";
+export const ACTION_EDIT_APPEARANCE = "edit_appearance";
+export const ACTION_EDIT_SOFTWARE = "edit_software";
+export const ACTION_EDIT_CONFIGURATION = "edit_configuration";
+export const ACTION_PATCH = "patch";
+export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
+  "edit_auto_update_configuration";
 
-const buildActionOptions = (
-  gitOpsModeEnabled: boolean | undefined,
-  repoURL: string | undefined,
-  source: string | undefined,
-  androidSoftwareAvailableForInstall: boolean,
-  canConfigureAutoUpdate: boolean
-): CustomOptionType[] => {
+export interface BuildActionOptionsArgs {
+  gitOpsModeEnabled?: boolean;
+  repoURL?: string;
+  source?: string;
+  canEditSoftware: boolean;
+  canEditConfiguration: boolean;
+  canAddPatchPolicy: boolean;
+  canConfigureAutoUpdate: boolean;
+  hasExistingPatchPolicy?: boolean;
+}
+
+export const buildActionOptions = ({
+  gitOpsModeEnabled,
+  repoURL,
+  source,
+  canEditSoftware,
+  canEditConfiguration,
+  canAddPatchPolicy,
+  canConfigureAutoUpdate,
+  hasExistingPatchPolicy = false,
+}: BuildActionOptionsArgs): CustomOptionType[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
+  let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
   let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
 
   if (gitOpsModeEnabled) {
@@ -60,6 +78,10 @@ const buildActionOptions = (
     }
   }
 
+  if (hasExistingPatchPolicy) {
+    disabledPatchPolicyTooltipContent = "Patch policy is already added.";
+  }
+
   const options: CustomOptionType[] = [
     {
       label: "Edit appearance",
@@ -69,8 +91,8 @@ const buildActionOptions = (
     },
   ];
 
-  // Hides edit software option only for Android installers, as they are currently non-editable
-  if (!androidSoftwareAvailableForInstall) {
+  // Hides edit software option only for Android installers (Playstore and Web apps), as they are currently non-editable
+  if (canEditSoftware) {
     options.push({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
@@ -79,13 +101,23 @@ const buildActionOptions = (
     });
   }
 
-  // Show edit configuration option only for Android installers
-  if (androidSoftwareAvailableForInstall) {
+  // Show edit configuration option only for Android installers that are not web apps
+  if (canEditConfiguration) {
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
       isDisabled: !!disabledEditConfigurationTooltipContent,
       tooltipContent: disabledEditConfigurationTooltipContent,
+    });
+  }
+
+  // Show patch option only for fleet maintained apps
+  if (canAddPatchPolicy) {
+    options.push({
+      label: "Patch",
+      value: ACTION_PATCH,
+      isDisabled: !!disabledPatchPolicyTooltipContent,
+      tooltipContent: disabledPatchPolicyTooltipContent,
     });
   }
 
@@ -126,6 +158,8 @@ interface ISoftwareDetailsSummaryProps {
   /** Displays an edit CTA to edit the software installer
    * Should only be defined for team view of an installable software */
   onClickEditSoftware?: () => void;
+  /** Displays Patch CTA to add a patch policy */
+  onClickAddPatchPolicy?: () => void;
   /** undefined unless previewing icon, in which case is string or null */
   /** Displays an edit CTA to edit the software's icon
    * Should only be defined for team view of an installable software */
@@ -134,6 +168,7 @@ interface ISoftwareDetailsSummaryProps {
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
+  patchPolicyId?: number;
 }
 
 const SoftwareDetailsSummary = ({
@@ -150,10 +185,12 @@ const SoftwareDetailsSummary = ({
   canManageSoftware = false,
   onClickEditAppearance,
   onClickEditSoftware,
+  onClickAddPatchPolicy,
   onClickEditConfiguration,
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
+  patchPolicyId,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -170,6 +207,9 @@ const SoftwareDetailsSummary = ({
         break;
       case ACTION_EDIT_SOFTWARE:
         onClickEditSoftware && onClickEditSoftware();
+        break;
+      case ACTION_PATCH:
+        onClickAddPatchPolicy && onClickAddPatchPolicy();
         break;
       case ACTION_EDIT_CONFIGURATION:
         onClickEditConfiguration && onClickEditConfiguration();
@@ -211,13 +251,16 @@ const SoftwareDetailsSummary = ({
     );
   };
 
-  const actionOptions = buildActionOptions(
+  const actionOptions = buildActionOptions({
     gitOpsModeEnabled,
     repoURL,
     source,
-    !!onClickEditConfiguration,
-    !!onClickEditAutoUpdateConfig
-  );
+    canEditSoftware: !!onClickEditSoftware,
+    canEditConfiguration: !!onClickEditConfiguration,
+    canAddPatchPolicy: !!onClickAddPatchPolicy,
+    canConfigureAutoUpdate: !!onClickEditAutoUpdateConfig,
+    hasExistingPatchPolicy: !!patchPolicyId,
+  });
 
   return (
     <>

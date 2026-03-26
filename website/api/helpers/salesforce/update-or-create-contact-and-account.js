@@ -38,20 +38,26 @@ module.exports = {
     contactSource: {
       type: 'string',
       isIn: [
-        'Website - Contact forms',
-        'Website - Contact forms - Demo',
-        'Website - Contact forms - Demo - ICP',
-        'Website - Sign up',
-        'Website - Newsletter',
-        'Website - GitOps',
+        'Attended a call with Fleet',
+        'Event',
+        'GitHub - Contributed to fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Stared fleetdm/fleet',
         'LinkedIn - Comment',
+        'LinkedIn - Liked the LinkedIn company page',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
-        'LinkedIn - Liked the LinkedIn company page',
-        'Event',
-        'GitHub - Stared fleetdm/fleet',
-        'GitHub - Forked fleetdm/fleet',
-        'GitHub - Contributed to fleetdm/fleet',
+        'Prospecting - AE',
+        'Prospecting - Meeting service',
+        'Prospecting - Specialist',
+        'Website - Chat',
+        'Website - Contact forms',
+        'Website - Contact forms - Demo - ICP',
+        'Website - Contact forms - Demo',
+        'Website - GitOps',
+        'Website - Newsletter',
+        'Website - Sign up',
+        'Website - Swag request',
       ],
     },
     getStartedResponses: {
@@ -61,6 +67,7 @@ module.exports = {
       type: 'string',
       isIn: [
         'Subscribed to the Fleet newsletter',
+        'Registered for a conference',
         // 'Signed up for a fleetdm.com account',//
         // 'Submitted the "Talk to us" form',
         // 'Submitted the "Send a message" form',
@@ -70,6 +77,17 @@ module.exports = {
     marketingAttributionCookie: {
       type: {},
       description: 'The contents of the marketingAttribution cookie set in the requesting user\'s browser',
+    },
+
+    trialInstanceUsageDetails: {
+      type: {
+        status: 'string',
+        lastUpdatedOn: 'string',
+        trialStartedOn: 'string',
+        trialEndsOn: 'string',
+        numUsers: 'number',
+        numHostsEnrolled: 'number',
+      }
     }
 
   },
@@ -90,7 +108,7 @@ module.exports = {
 
   },
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal, marketingAttributionCookie}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal, marketingAttributionCookie, trialInstanceUsageDetails}) {
 
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
@@ -144,7 +162,9 @@ module.exports = {
       valuesToSet.Website_questionnaire_answers__c = getStartedResponses;// eslint-disable-line camelcase
     }
     if(description) {
-      valuesToSet.Description = description;
+      // Create a ISO date timestamp to add to the description.
+      let isoTimeStringForThisDescriptionUpdate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      valuesToSet.Description = isoTimeStringForThisDescriptionUpdate+': '+description;
     }
     if(intentSignal) {
       valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
@@ -153,6 +173,15 @@ module.exports = {
       valuesToSet.Title = jobTitle;
     }
 
+
+    if(trialInstanceUsageDetails) {
+      valuesToSet.Trial_status__c = trialInstanceUsageDetails.status;// eslint-disable-line camelcase
+      valuesToSet.Last_trial_sync__c = trialInstanceUsageDetails.lastUpdatedOn;// eslint-disable-line camelcase
+      valuesToSet.Trial_start_date__c = trialInstanceUsageDetails.trialStartedOn;// eslint-disable-line camelcase
+      valuesToSet.Trial_end_date__c = trialInstanceUsageDetails.trialEndsOn;// eslint-disable-line camelcase
+      valuesToSet.Trial_user_count__c = trialInstanceUsageDetails.numUsers;// eslint-disable-line camelcase
+      valuesToSet.Trial_hosts_enrolled__c = trialInstanceUsageDetails.numHostsEnrolled;// eslint-disable-line camelcase
+    }
     //  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔╦╗╔═╗╦═╗╦╔═╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╔╦╗╔╦╗╦═╗╦╔╗ ╦ ╦╔╦╗╦╔═╗╔╗╔
     //  ╠═╝╠╦╝║ ║║  ║╣ ║╣ ╚═╗╚═╗  ║║║╠═╣╠╦╝╠╩╗║╣  ║ ║║║║║ ╦  ╠═╣ ║  ║ ╠╦╝║╠╩╗║ ║ ║ ║║ ║║║║
     //  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝╚═╝  ╩ ╩╩ ╩╩╚═╩ ╩╚═╝ ╩ ╩╝╚╝╚═╝  ╩ ╩ ╩  ╩ ╩╚═╩╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
@@ -469,9 +498,9 @@ module.exports = {
     //  ║ ║╠═╝ ║║╠═╣ ║ ║╣   ║╣ ╔╩╦╝║╚═╗ ║ ║║║║║ ╦  ║  ║ ║║║║ ║ ╠═╣║   ║
     //  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╚═╝╩ ╚═╩╚═╝ ╩ ╩╝╚╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩ ╩╚═╝ ╩
     if(existingContactRecord) {
-      // If a description was provided and the contact has a description, append the new description to it.
+      // If a description was provided and the contact has a description, prepend the new description to it.
       if(description && existingContactRecord.Description) {
-        valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+        valuesToSet.Description += '\n' + existingContactRecord.Description;
       }
       // If we're updating a contact, add psychologicalStage and psychologicalStageChangeReason to the dictionary of valuesToSet.
       if(psychologicalStage) {
@@ -544,3 +573,4 @@ module.exports = {
 
 
 };
+

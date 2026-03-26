@@ -16,6 +16,7 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/google/go-github/v37/github"
@@ -298,7 +299,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			}
 		}
 		if uninstallScript == "" && upgradeCode != "" {
-			uninstallScript = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+			var err error
+			uninstallScript, err = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "building upgrade code based uninstall script")
+			}
 		}
 
 		if uninstallScript == "" {
@@ -351,23 +356,56 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		Exists: fmt.Sprintf(existsTemplate, name, publisher),
 	}
 	out.InstallScript = installScript
-	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
+	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "pre-processing uninstall script")
+	}
+	out.UninstallScript = processedUninstallScript
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.Frozen = input.Frozen
 
 	external_refs.EnrichManifest(&out)
 
+	// create patch policy
+	if input.PatchPolicyPath != "" {
+		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy path")
+		}
+
+		p := patch_policy.PolicyData{}
+		if err := yaml.Unmarshal(policyBytes, &p); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
+		}
+
+		p.Platform = "windows"
+		p.Version = out.Version
+		out.Queries.Patch, err = patch_policy.GenerateFromManifest(p)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+		}
+	}
+
 	return &out, nil
 }
 
-func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
-	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
+func buildUpgradeCodeBasedUninstallScript(upgradeCode string) (string, error) {
+	if err := file.ValidatePackageIdentifiers(nil, upgradeCode); err != nil {
+		return "", err
+	}
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("'%s'${suffix}", upgradeCode)), nil
 }
 
-func preProcessUninstallScript(uninstallScript, productCode string) string {
-	code := fmt.Sprintf("\"%s\"", productCode)
-	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
+func preProcessUninstallScript(uninstallScript, productCode string) (string, error) {
+	if productCode == "" {
+		return uninstallScript, nil
+	}
+	if err := file.ValidatePackageIdentifiers([]string{productCode}, ""); err != nil {
+		return "", err
+	}
+	code := fmt.Sprintf("'%s'", productCode)
+	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code)), nil
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type
@@ -416,6 +454,7 @@ type inputApp struct {
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
+	PatchPolicyPath   string   `json:"patch_policy_path"`
 }
 
 type installerManifest struct {

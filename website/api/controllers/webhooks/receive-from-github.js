@@ -31,7 +31,7 @@ module.exports = {
   },
 
 
-  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release, projects_v2_item: projectsV2Item}) {
+  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, projects_v2_item: projectsV2Item}) {
 
     // Grab the set of GitHub pull request numbers the bot considers "unfrozen" from the platform record.
     // If there is more than one platform record, or it is missing, we'll throw an error.
@@ -74,7 +74,6 @@ module.exports = {
       'rachelelysia',
       'gillespi314',
       'mna',
-      'edwardsb',
       'eashaw',
       'lucasmrod',
       'ksatter',
@@ -89,9 +88,7 @@ module.exports = {
       'AnthonySnyder8',
       'jahzielv',
       'getvictor',
-      'phtardif1',
       'pintomi1989',
-      'nonpunctual',
       'dantecatalfamo',
       'SFriendLee',
       'ddribeiro',
@@ -116,7 +113,6 @@ module.exports = {
       'cdcme',
       'kevinmalkin12',
       'karmine05',
-      'ericswenson0',
       'kitzy',
       'Seedity',
       'NickBlee',
@@ -709,7 +705,8 @@ module.exports = {
       )
       .timeout(5000)
       .retry([{name: 'TimeoutError'}, 'non200Response', 'requestFailed']);
-    } else if(ghNoun === 'release' && ['published'].includes(action) ) {
+      // 2026-03-17: @eashaw: this section is commented out because the zapier automation used by this webhook has been turned off.
+      // } else if(ghNoun === 'release' && ['published'].includes(action) ) {
       //  ██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗███████╗███████╗
       //  ██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝
       //  ██████╔╝█████╗  ██║     █████╗  ███████║███████╗█████╗  ███████╗
@@ -719,31 +716,30 @@ module.exports = {
       //
       // Handle new Fleet releases by sending a POST request to Zapier to
       // trigger an automation that updates Slack channel topics with the latest version of Fleet.
-      let owner = repository.owner.login;
-      let repo = repository.name;
-
-      // Only continue if this release came from the fleetdm/fleet repo,
-      if(owner === 'fleetdm' && repo === 'fleet') {
-        if(release
-          && _.startsWith(release.tag_name, 'fleet-v')// Only send requests for releases with tag names that start with 'fleet'
-          && _.endsWith(release.tag_name, '.0')// Only send requests if the release is a major or minor version. This works because all Fleet semvers have 2 periods.
-        ) {
-          // Send a POST request to Zapier with the release object.
-          await sails.helpers.http.post.with({
-            url: 'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',
-            data: {
-              'release': release,
-              'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
-            }
-          })
-          .timeout(5000)
-          .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
-            // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-            sails.log.warn(`When trying to send information about a new Fleet release to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
-            return;
-          });
-        }
-      }//ﬁ
+      // let owner = repository.owner.login;
+      // let repo = repository.name;
+      // // Only continue if this release came from the fleetdm/fleet repo,
+      // if(owner === 'fleetdm' && repo === 'fleet') {
+      //   if(release
+      //     && _.startsWith(release.tag_name, 'fleet-v')// Only send requests for releases with tag names that start with 'fleet'
+      //     && _.endsWith(release.tag_name, '.0')// Only send requests if the release is a major or minor version. This works because all Fleet semvers have 2 periods.
+      //   ) {
+      //     // Send a POST request to Zapier with the release object.
+      //     await sails.helpers.http.post.with({
+      //       url: 'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',
+      //       data: {
+      //         'release': release,
+      //         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
+      //       }
+      //     })
+      //     .timeout(5000)
+      //     .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+      //       // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+      //       sails.log.warn(`When trying to send information about a new Fleet release to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
+      //       return;
+      //     });
+      //   }
+      // }//ﬁ
     } else if(ghNoun === 'projects_v2_item') {
       //
       //  ██████╗ ██████╗  ██████╗      ██╗███████╗ ██████╗████████╗███████╗    ██╗   ██╗██████╗

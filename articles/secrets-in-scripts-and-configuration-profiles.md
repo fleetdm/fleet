@@ -20,7 +20,7 @@ To add or delete a variable in the UI, go to `Controls` > `Variables` and click 
 
 ![Add variable](../website/assets/images/articles/controls-add-variable-337x209@2x.png)
 
-Variables are global, meaning they can be used in scripts and profiles across all teams.
+Variables are global, meaning they can be used in scripts and profiles across all fleets.
 
 ### GitOps
 
@@ -44,9 +44,13 @@ Profiles with variables aren’t validated during a GitOps dry run because the v
 
 Some variables trigger a profile resend when their value changes. See which variables support this in the [YAML reference docs](https://fleetdm.com/docs/configuration/yaml-files#variables).
 
-If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API. If a secret’s value changes, the profile is resent to hosts.
+If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
 
 Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
+
+> Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small fleet first.
+
+## Using the secret on a configuration profile
 
 Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_CERT_BASE64` variables:
 ```xml

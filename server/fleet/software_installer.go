@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -122,6 +123,8 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// LabelsIncludeAll is the list of "include all" labels for this software installer (if not nil).
+	LabelsIncludeAll []SoftwareScopeLabel `json:"labels_include_all" db:"labels_include_all"`
 	// Source is the osquery source for this software.
 	Source string `json:"-" db:"source"`
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
@@ -132,6 +135,11 @@ type SoftwareInstaller struct {
 
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name"`
+
+	// PatchPolicy is present for Fleet maintained apps with an associated patch policy
+	PatchPolicy *PatchPolicyData `json:"patch_policy"`
+	// PatchQuery is the query to use for creating a patch policy
+	PatchQuery string `json:"-" db:"patch_query"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -521,6 +529,7 @@ type UploadSoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
 	LabelsIncludeAny   []string // names of "include any" labels
 	LabelsExcludeAny   []string // names of "exclude any" labels
+	LabelsIncludeAll   []string // names of "include all" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
 	ValidatedLabels       *LabelIdentsWithScope
@@ -533,6 +542,7 @@ type UploadSoftwareInstallerPayload struct {
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
+	PatchQuery                  string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -604,6 +614,7 @@ type UpdateSoftwareInstallerPayload struct {
 	UpgradeCode       string
 	LabelsIncludeAny  []string // names of "include any" labels
 	LabelsExcludeAny  []string // names of "exclude any" labels
+	LabelsIncludeAll  []string // names of "include all" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// can be nil if the labels have not been validated or if the labels are not being updated.
 	ValidatedLabels *LabelIdentsWithScope
@@ -616,8 +627,8 @@ type UpdateSoftwareInstallerPayload struct {
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
-		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil &&
-		u.CategoryIDs == nil
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
+		u.DisplayName == nil && u.CategoryIDs == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -725,6 +736,12 @@ type AutomaticInstallPolicy struct {
 	ID      uint   `json:"id" db:"id"`
 	Name    string `json:"name" db:"name"`
 	TitleID uint   `json:"-" db:"software_title_id"`
+	Type    string `json:"type" db:"type"`
+}
+
+type PatchPolicyData struct {
+	ID   uint   `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer
@@ -780,6 +797,7 @@ type SoftwarePackageSpec struct {
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 
@@ -789,7 +807,7 @@ type SoftwarePackageSpec struct {
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
-	// side of processing. This is required to match a macos_setup.software to
+	// side of processing. This is required to match a setup_experience.software to
 	// its corresponding software package, as we do this matching by yaml path.
 	//
 	// It must be JSON-marshaled because it gets set during gitops file processing,
@@ -812,8 +830,8 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 }
 
 func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
-	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
-		spec.SelfService || spec.InstallDuringSetup.Valid
+	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
+		len(spec.Categories) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {
@@ -834,6 +852,7 @@ type MaintainedAppSpec struct {
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	Categories         []string              `json:"categories"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
@@ -850,6 +869,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		SelfService:        spec.SelfService,
 		LabelsIncludeAny:   spec.LabelsIncludeAny,
 		LabelsExcludeAny:   spec.LabelsExcludeAny,
+		LabelsIncludeAll:   spec.LabelsIncludeAll,
 		InstallDuringSetup: spec.InstallDuringSetup,
 		Icon:               spec.Icon,
 		Categories:         spec.Categories,
@@ -1075,10 +1095,11 @@ func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader
 // NOTE: depending on how/where this struct is used, fields MAY BE
 // UNRELIABLE insofar as they represent default, empty values.
 type SoftwareScopeLabel struct {
-	LabelName string `db:"label_name" json:"name"`
-	LabelID   uint   `db:"label_id" json:"id"` // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
-	Exclude   bool   `db:"exclude" json:"-"`   // not rendered in JSON, used when processing LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
-	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
+	LabelName  string `db:"label_name" json:"name"`
+	LabelID    uint   `db:"label_id" json:"id"`   // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
+	Exclude    bool   `db:"exclude" json:"-"`     // not rendered in JSON, used when processing LabelsIncludeAll, LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
+	TitleID    uint   `db:"title_id" json:"-"`    // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
+	RequireAll bool   `db:"require_all" json:"-"` // not rendered in JSON, used when processing LabelsIncludeAll, LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
 }
 
 // Max total attempts (including initial) for a non-policy software install.
@@ -1116,4 +1137,24 @@ func (o HostSoftwareInstallOptions) Priority() int {
 		return 100
 	}
 	return 0
+}
+
+const (
+	BatchDownloadMaxRetries = 3
+	BatchUploadMaxRetries   = 3
+)
+
+func BatchSoftwareInstallerRetryInterval() time.Duration {
+	defaultInterval := 30 * time.Second
+	d := dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL")
+	if d != "" {
+		t, err := time.ParseDuration(d)
+		if err != nil {
+			return defaultInterval
+		}
+
+		return t
+	}
+
+	return defaultInterval
 }

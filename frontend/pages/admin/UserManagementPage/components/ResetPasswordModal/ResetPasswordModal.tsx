@@ -1,18 +1,15 @@
 import React from "react";
-import { IUser } from "interfaces/user";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 const baseClass = "reset-password-modal";
 
 interface IResetPasswordModal {
-  user: IUser;
-  onResetConfirm: (user: IUser) => void;
+  onResetConfirm: () => void;
   onResetCancel: () => void;
 }
 
 const ResetPasswordModal = ({
-  user,
   onResetConfirm,
   onResetCancel,
 }: IResetPasswordModal): JSX.Element => {
@@ -20,7 +17,7 @@ const ResetPasswordModal = ({
     <Modal
       title="Require password reset"
       onExit={onResetCancel}
-      onEnter={() => onResetConfirm(user)}
+      onEnter={onResetConfirm}
     >
       <div className={baseClass}>
         <p>
@@ -30,7 +27,7 @@ const ResetPasswordModal = ({
           This will revoke all active Fleet API tokens for this user.
         </p>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={() => onResetConfirm(user)}>
+          <Button type="button" onClick={onResetConfirm}>
             Confirm
           </Button>
           <Button onClick={onResetCancel} variant="inverse">

@@ -13,12 +13,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -144,9 +144,9 @@ func main() {
 		}
 	}
 
-	logger := logging.NewLogfmtLogger(os.Stderr)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	opts := []mysql.DBOption{
-		mysql.Logger(logger.SlogLogger()),
+		mysql.Logger(logger),
 		mysql.WithFleetConfig(&config.FleetConfig{
 			Server: config.ServerConfig{
 				PrivateKey: *serverPrivateKey,
@@ -158,7 +158,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = mds.EnqueueSetupExperienceItems(ctx, "darwin", *hostUUID, teamID)
+	_, err = mds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", *hostUUID, teamID)
 	if err != nil {
 		log.Fatalf("failed to enqueue setup experience items for host %s: %v", *hostUUID, err)
 	}

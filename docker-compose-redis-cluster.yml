@@ -19,7 +19,7 @@ services:
     image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - "7001:7001"
+      - "127.0.0.1:7001:7001"
     volumes:
       - ./tools/redis-tests/redis-cluster-1.conf:/usr/local/etc/redis/redis.conf
     networks:
@@ -30,7 +30,7 @@ services:
     image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - "7002:7002"
+      - "127.0.0.1:7002:7002"
     volumes:
       - ./tools/redis-tests/redis-cluster-2.conf:/usr/local/etc/redis/redis.conf
     networks:
@@ -41,7 +41,7 @@ services:
     image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - "7003:7003"
+      - "127.0.0.1:7003:7003"
     volumes:
       - ./tools/redis-tests/redis-cluster-3.conf:/usr/local/etc/redis/redis.conf
     networks:
@@ -52,7 +52,7 @@ services:
     image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - "7004:7004"
+      - "127.0.0.1:7004:7004"
     volumes:
       - ./tools/redis-tests/redis-cluster-4.conf:/usr/local/etc/redis/redis.conf
     networks:
@@ -63,7 +63,7 @@ services:
     image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - "7005:7005"
+      - "127.0.0.1:7005:7005"
     volumes:
       - ./tools/redis-tests/redis-cluster-5.conf:/usr/local/etc/redis/redis.conf
     networks:
@@ -74,7 +74,7 @@ services:
     image: redis:6
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - "7006:7006"
+      - "127.0.0.1:7006:7006"
     volumes:
       - ./tools/redis-tests/redis-cluster-6.conf:/usr/local/etc/redis/redis.conf
     networks:

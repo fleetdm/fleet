@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.2.13897266",
+      "version": "26.3.14124477",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linguee.DeepLCopyTranslator';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linguee.DeepLCopyTranslator';",
+        "patch": ""
       },
-      "installer_url": "https://www.deepl.com/macos/download/26.2/13897266/DeepL.dmg",
+      "installer_url": "https://www.deepl.com/macos/download/26.3/14124477/DeepL.dmg",
       "install_script_ref": "43f0969c",
       "uninstall_script_ref": "c57425e6",
-      "sha256": "d74a9747fb50149d5142be76500de5f88f4441e3bd4fd10cd555598b6cd73248",
+      "sha256": "ec1f68036d211878b14da74c04d3f5ee17e0aab513af2cfcf84910274365babd",
       "default_categories": [
         "Productivity"
       ]

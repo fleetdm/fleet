@@ -138,7 +138,7 @@ export const ModalButtons = ({
   }
 
   return (
-    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Close</Button>} />
   );
 };
 
@@ -271,16 +271,14 @@ const SoftwareUninstallDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          uninstallStatus={uninstallStatus}
-          deviceAuthToken={deviceAuthToken}
-          onCancel={onCancel}
-          onRetry={onRetry}
-          hostSoftware={hostSoftware}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        uninstallStatus={uninstallStatus}
+        deviceAuthToken={deviceAuthToken}
+        onCancel={onCancel}
+        onRetry={onRetry}
+        hostSoftware={hostSoftware}
+      />
     </Modal>
   );
 };

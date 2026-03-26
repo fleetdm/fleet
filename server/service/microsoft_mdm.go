@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -2608,17 +2609,19 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
+	scepConfigSvc := scep.NewSCEPConfigService(logger, nil)
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
-	deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
-		ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
-			Context:            ctx,
-			Logger:             logger,
-			DataStore:          ds,
-			HostIDForUUIDCache: make(map[string]uint),
-		},
+	deps := microsoft_mdm.ProfilePreprocessDependencies{
+		Context:                    ctx,
+		Logger:                     logger,
+		DataStore:                  ds,
+		HostIDForUUIDCache:         make(map[string]uint),
 		AppConfig:                  appConfig,
 		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
 		ManagedCertificatePayloads: managedCertificatePayloads,
+		NDESConfig:                 groupedCAs.NDESSCEP,
+		GetNDESSCEPChallenge:       scepConfigSvc.GetNDESSCEPChallenge,
+		NDESChallengeErrorToDetail: scep.NDESChallengeErrorToDetail,
 	}
 
 	for profUUID, target := range installTargets {

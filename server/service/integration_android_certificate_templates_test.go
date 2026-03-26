@@ -1126,15 +1126,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 			shouldRenew:   false,
 			description:   "30-day cert expiring in 16 days should NOT renew (outside 15-day threshold)",
 		},
-		// Edge case: exactly at boundary (validity = 31 days, so > 30, uses 30-day threshold)
-		// SQL uses strict less-than: not_valid_after < NOW() + 30 days
-		// So expiring in exactly 30 days is NOT renewed (30 < 30 is false)
+		// Edge case: validity = 31 days (> 30), so uses 30-day threshold.
+		// Exact boundary (expiresInDays == 30) is tested in the unit test where we can pass a fixed
+		// reference time. Here we use 31 days to avoid flakiness from clock skew between test setup
+		// and the renewal job execution.
 		{
-			name:          "boundary_31d_expires_30d",
+			name:          "boundary_31d_expires_31d",
 			validityDays:  31,
-			expiresInDays: 30,
+			expiresInDays: 31,
 			shouldRenew:   false,
-			description:   "31-day cert expiring in exactly 30 days should NOT renew (at boundary, not within)",
+			description:   "31-day cert expiring in 31 days should NOT renew (outside 30-day threshold)",
 		},
 	}
 
@@ -1361,4 +1362,113 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		// Team admin should get 403 forbidden when trying to list other team's certificates
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
 	})
+}
+
+// TestCertificateTemplateResend tests the resend endpoint for Android certificate templates:
+// 1. After a certificate reaches 'verified' status, calling resend resets it to 'pending'
+// 2. The UUID changes after resend (signals the device to re-fetch)
+// 3. The reconcile cron picks up the pending template and re-delivers it
+func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
+	t := s.T()
+	ctx := t.Context()
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Create a test team
+	teamName := t.Name() + "-team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	// Create a test certificate authority
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+
+	// Create an enrolled Android host in the team
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "1")
+
+	// Create a certificate template for the team
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
+	var createResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName,
+		TeamID:                 teamID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	certTemplateID := createResp.ID
+
+	// Verify initial pending status
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplatePending, "")
+
+	// Trigger reconciliation to deliver the certificate template
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Verify status is now 'delivered'
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateDelivered, "")
+
+	// Simulate device reporting certificate enrollment as verified
+	updateReq, err := json.Marshal(updateCertificateStatusRequest{
+		Status: string(fleet.CertificateTemplateVerified),
+	})
+	require.NoError(t, err)
+	resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), updateReq, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	_ = resp.Body.Close()
+
+	// Verify status is 'verified'
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateVerified, "")
+
+	// Record UUID before resend
+	originalRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+	require.NoError(t, err)
+	originalUUID := originalRecord.UUID
+
+	// Call the resend endpoint
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),
+		nil, http.StatusOK, &struct{}{})
+
+	// Verify activity was created for the resend
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeResentCertificate{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "certificate_template_id": %d, "certificate_name": %q}`,
+			host.ID,
+			host.DisplayName(),
+			certTemplateID,
+			certTemplateName,
+		),
+		0)
+
+	// Verify status is reset to 'pending' and UUID changed
+	updatedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.CertificateTemplatePending, updatedRecord.Status)
+	require.NotEqual(t, originalUUID, updatedRecord.UUID, "UUID should change after resend")
+
+	// Verify the host API reflects pending status
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplatePending, "")
+
+	// Trigger reconciliation again - should re-deliver with new UUID
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Verify status is 'delivered' again after reconciliation
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateDelivered, "")
+
+	// Resend for a non-existent host should return 404
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", 99999, certTemplateID),
+		nil, http.StatusNotFound, &struct{}{})
+
+	// Resend for a non-existent template returns 404
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, 99999),
+		nil, http.StatusNotFound, &struct{}{})
 }

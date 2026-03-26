@@ -26,15 +26,15 @@ func (c *Client) TriggerCronSchedule(name string) error {
 		if err != nil {
 			return err
 		}
-		return conflictErr{msg: msg}
+		return conflictErr{Msg: msg}
 	case http.StatusNotFound:
 		msg, err := extractServerErrMsg(verb, path, response)
 		if err != nil {
 			return err
 		}
-		return notFoundErr{msg: msg}
+		return &notFoundErr{Msg: msg}
 	default:
-		return c.parseResponse(verb, path, response, nil)
+		return c.ParseResponse(verb, path, response, nil)
 	}
 }
 

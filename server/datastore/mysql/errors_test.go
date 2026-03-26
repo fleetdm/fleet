@@ -14,14 +14,14 @@ func TestAlreadyExistsError(t *testing.T) {
 		name: "WithTeamID",
 		fn: func(t *testing.T) {
 			err := alreadyExists("User", "alice").WithTeamID(42)
-			expectedMsg := `User "alice" already exists with TeamID 42.`
+			expectedMsg := `User "alice" already exists with FleetID 42.`
 			require.Equal(t, expectedMsg, err.Error())
 		},
 	}, {
 		name: "WithTeamName",
 		fn: func(t *testing.T) {
 			err := alreadyExists("User", "alice").WithTeamName("Falcon Team")
-			expectedMsg := `User "alice" already exists with team "Falcon Team".`
+			expectedMsg := `User "alice" already exists with fleet "Falcon Team".`
 			require.Equal(t, expectedMsg, err.Error())
 		},
 	}, {

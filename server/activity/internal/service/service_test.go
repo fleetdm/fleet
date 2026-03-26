@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,6 +60,14 @@ func (m *mockDatastore) MarkActivitiesAsStreamed(ctx context.Context, activityID
 }
 
 func (m *mockDatastore) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error {
+	return nil
+}
+
+func (m *mockDatastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
+	return nil
+}
+
+func (m *mockDatastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {
 	return nil
 }
 
@@ -130,8 +137,7 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 	for _, opt := range opts {
 		opt(ts)
 	}
-	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
-	ts.svc = NewService(ts.authz, ts.ds, ts.providers, noopWebhookSend, slog.New(slog.DiscardHandler))
+	ts.svc = NewService(ts.authz, ts.ds, ts.providers, slog.New(slog.DiscardHandler))
 	return ts
 }
 
@@ -202,8 +208,8 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(johnUser.ID)},
-			{ID: 2, Type: "another_activity", ActorID: ptr.Uint(janeUser.ID)},
+			{ID: 1, Type: "test_activity", ActorID: &johnUser.ID},
+			{ID: 2, Type: "another_activity", ActorID: &janeUser.ID},
 			{ID: 3, Type: "system_activity"}, // No actor
 		}),
 		withUsers([]*activity.User{johnUser, janeUser}),
@@ -246,7 +252,7 @@ func TestListActivitiesDeletedUserFallsBackToStoredName(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(deletedUserID), ActorFullName: &storedName, ActorEmail: &storedEmail},
+			{ID: 1, Type: "test_activity", ActorID: &deletedUserID, ActorFullName: &storedName, ActorEmail: &storedEmail},
 		}),
 		// UsersByIDs returns nothing for the deleted user
 		withUsers(nil),
@@ -282,7 +288,7 @@ func TestListActivitiesWithMatchQuery(t *testing.T) {
 
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(johnUser.ID)},
+			{ID: 1, Type: "test_activity", ActorID: &johnUser.ID},
 		}),
 		withSearchUserIDs([]uint{100, 200, 300}), // 3 users match "john", but only user 100 has activities
 		withUsers([]*activity.User{johnUser}),
@@ -340,9 +346,9 @@ func TestListActivitiesWithDuplicateUserIDs(t *testing.T) {
 	// Multiple activities by the same user
 	ts := setupTest(
 		withActivities([]*api.Activity{
-			{ID: 1, Type: "created_policy", ActorID: ptr.Uint(johnUser.ID)},
-			{ID: 2, Type: "deleted_policy", ActorID: ptr.Uint(johnUser.ID)},
-			{ID: 3, Type: "edited_policy", ActorID: ptr.Uint(johnUser.ID)},
+			{ID: 1, Type: "created_policy", ActorID: &johnUser.ID},
+			{ID: 2, Type: "deleted_policy", ActorID: &johnUser.ID},
+			{ID: 3, Type: "edited_policy", ActorID: &johnUser.ID},
 		}),
 		withUsers([]*activity.User{johnUser}),
 	)
@@ -412,7 +418,7 @@ func TestListActivitiesErrors(t *testing.T) {
 			name: "user enrichment error",
 			opts: []func(*testSetup){
 				withActivities([]*api.Activity{
-					{ID: 1, Type: "test_activity", ActorID: ptr.Uint(100)},
+					{ID: 1, Type: "test_activity", ActorID: new(uint(100))},
 				}),
 				withUsersByIDsError(errors.New("user service error")),
 			},
@@ -518,6 +524,14 @@ func (m *mockStreamingDatastore) NewActivity(ctx context.Context, user *api.User
 	panic("not implemented")
 }
 
+func (m *mockStreamingDatastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
+	panic("not implemented")
+}
+
+func (m *mockStreamingDatastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {
+	panic("not implemented")
+}
+
 func newTestActivity(id uint, actorName string, actorID uint, actType, details string) *api.Activity {
 	jsonDetails := json.RawMessage(details)
 	return &api.Activity{
@@ -532,9 +546,8 @@ func newTestActivity(id uint, actorName string, actorID uint, actType, details s
 func TestStreamActivities(t *testing.T) {
 	t.Parallel()
 
-	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
 	newStreamingService := func(ds *mockStreamingDatastore) *Service {
-		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, noopWebhookSend, slog.New(slog.DiscardHandler))
+		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, slog.New(slog.DiscardHandler))
 	}
 
 	t.Run("basic streaming", func(t *testing.T) {

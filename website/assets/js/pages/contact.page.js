@@ -120,10 +120,26 @@ parasails.registerPage('contact', {
     submittedContactForm: async function() {
       if(typeof gtag !== 'undefined'){
         gtag('event','fleet_website__contact_forms');
+        // Additional conversion tracking
+        gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/e9FrCNGYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
       }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
+      if(typeof qualified !== 'undefined') {
+        qualified('saveFormData',
+        {
+          email: this.formData.emailAddress,
+          name: this.formData.firstName +' '+ this.formData.lastName,
+
+        });
+        qualified('showFormExperience', 'experience-1772126772950');
+      }
+
       // Show the success message.
       this.cloudSuccess = true;
 
@@ -142,6 +158,23 @@ parasails.registerPage('contact', {
         } else {
           gtag('event','fleet_website__contact_forms__demo__icp');
         }
+        // Additional conversion tracking
+        gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/aNrhCNSYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
+      }
+      if(typeof qualified !== 'undefined') {
+        qualified('saveFormData',
+        {
+          email: this.formData.emailAddress,
+          name: this.formData.firstName +' '+ this.formData.lastName,
+          company: this.formData.organization,
+          how_many_hostsdevices_do_you_want_to_manage: this.formData.numberOfHosts,// eslint-disable-line camelcase
+          what_will_you_be_using_fleet_for: this.formData.primaryBuyingSituation,// eslint-disable-line camelcase
+        });
+        qualified('showFormExperience', 'experience-1772126772950');
       }
 
       this.goto(report.eventUrl);
@@ -153,6 +186,24 @@ parasails.registerPage('contact', {
     },
 
     submittedWorkshopRequestForm: async function() {
+      if(typeof gtag !== 'undefined'){
+        // Additional conversion tracking
+        gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/RULOCNeYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
+      }
+      if(typeof qualified !== 'undefined') {
+        qualified('saveFormData',
+        {
+          email: this.formData.emailAddress,
+          name: this.formData.firstName +' '+ this.formData.lastName,
+          company: this.formData.organization,
+          how_many_hostsdevices_do_you_want_to_manage: this.formData.numberOfHosts,// eslint-disable-line camelcase
+        });
+        qualified('showFormExperience', 'experience-1772126772950');
+      }
       // Show the success message.
       this.cloudSuccess = true;
     },

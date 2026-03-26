@@ -1,9 +1,10 @@
 {
   "versions": [
     {
-      "version": "0.11.132",
+      "version": "0.11.134",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.realtimeboard';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.realtimeboard';",
+        "patch": ""
       },
       "installer_url": "https://desktop.miro.com/platforms/darwin-arm64/Install-Miro.dmg",
       "install_script_ref": "9badc2ec",

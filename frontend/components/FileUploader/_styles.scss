@@ -8,17 +8,27 @@
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
 
-  &:not(.file-uploader__file-preview) {
-    text-align: center;
+  &__outer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-large;
+  }
 
-    // Preview may include dropdown input that needs to be shown
+  &__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+
     input {
       display: none;
     }
   }
 
-  .content-wrapper {
-    @include content-wrapper();
+  // Cannot hide all input as preview may include dropdown input that needs to be shown
+  .file-input-visually-hidden {
+    display: none;
   }
 
   &__error {
@@ -40,9 +50,11 @@
     justify-content: center;
     gap: $pad-medium;
   }
+
   &__message {
     margin: 0;
     color: $ui-fleet-black-75;
+    text-align: center;
   }
 
   &__additional-info {

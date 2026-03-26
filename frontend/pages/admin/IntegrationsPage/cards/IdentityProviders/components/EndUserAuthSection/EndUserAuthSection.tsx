@@ -21,7 +21,9 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import {
   IFormDataIdp,
   IFormErrorsIdp,
+  isEmptyFormData,
   isMissingAnyRequiredField,
+  trimFormDataIdp,
   validateFormDataIdp,
 } from "./helpers";
 
@@ -50,14 +52,15 @@ const EndUserAuthSection = ({
   const { renderFlash } = useContext(NotificationContext);
   const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
 
+  const isFormCleared =
+    isEmptyFormData(formData) && !isEmptyFormData(originalFormData.current);
+
   const enableSaveButton =
-    // TODO: it seems like we should allow saving an empty form so that the user can clear their IdP info
-    // isEmptyFormData(formData) ||
-    !isMissingAnyRequiredField(formData) && !formErrors;
+    isFormCleared || (!isMissingAnyRequiredField(formData) && !formErrors);
 
   const onInputChange = useCallback(
     ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
-      const newData = { ...formData, [name]: value?.trim() || "" };
+      const newData = { ...formData, [name]: value };
       setFormData(newData);
       setDirty(true);
 
@@ -79,13 +82,18 @@ const EndUserAuthSection = ({
   );
 
   const onBlur = useCallback(() => {
-    setFormErrors(validateFormDataIdp(formData));
-  }, [formData]);
+    const trimmed = trimFormDataIdp(formData);
+    setFormData(trimmed);
+    setFormErrors(validateFormDataIdp(trimmed));
+  }, [formData, setFormData]);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent<SubmitEvent>) => {
       e.preventDefault();
-      const newErrors = validateFormDataIdp(formData);
+      const trimmed = trimFormDataIdp(formData);
+      setFormData(trimmed);
+
+      const newErrors = validateFormDataIdp(trimmed);
       if (newErrors) {
         setFormErrors(newErrors);
         return;
@@ -95,7 +103,7 @@ const EndUserAuthSection = ({
         await configAPI.update({
           mdm: {
             end_user_authentication: {
-              ...formData,
+              ...trimmed,
             },
           },
         });
@@ -117,7 +125,7 @@ const EndUserAuthSection = ({
         renderFlash("error", "Couldn't update. Please try again.");
       }
     },
-    [formData, renderFlash, setDirty]
+    [formData, setFormData, renderFlash, setDirty]
   );
 
   const renderContent = () => {

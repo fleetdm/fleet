@@ -103,6 +103,7 @@ export interface ILoadHostsOptions {
   configProfileUUID?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
 }
 
 export interface IExportHostsOptions {
@@ -139,6 +140,7 @@ export interface IExportHostsOptions {
   configProfileStatus?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
 }
 
 export interface IActionByFilter {
@@ -167,6 +169,7 @@ export interface IActionByFilter {
   vulnerability?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -260,10 +263,10 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
 
 const createMdmParams = (platform?: PlatformValueOptions, teamId?: number) => {
   if (platform === "all") {
-    return buildQueryStringFromParams({ team_id: teamId });
+    return buildQueryStringFromParams({ fleet_id: teamId });
   }
 
-  return buildQueryStringFromParams({ platform, team_id: teamId });
+  return buildQueryStringFromParams({ platform, fleet_id: teamId });
 };
 
 export default {
@@ -308,7 +311,7 @@ export default {
         query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
-        team_id: teamId,
+        fleet_id: teamId,
         policy_id: policyId,
         policy_response: policyResponse,
         software_id: softwareId,
@@ -360,11 +363,11 @@ export default {
     const configProfileStatus = options?.configProfileStatus;
     const scriptBatchExecutionStatus = options?.scriptBatchExecutionStatus;
     const scriptBatchExecutionId = options?.scriptBatchExecutionId;
+    const depProfileError = options?.depProfileError;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
     }
-
     const queryParams = {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
@@ -399,6 +402,7 @@ export default {
         configProfileStatus,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
       }),
       status,
       label_id: label,
@@ -444,6 +448,7 @@ export default {
     configProfileUUID,
     scriptBatchExecutionStatus,
     scriptBatchExecutionId,
+    depProfileError,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -486,6 +491,7 @@ export default {
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
       }),
     };
 
@@ -526,7 +532,7 @@ export default {
     const { HOSTS_TRANSFER } = endpoints;
 
     return sendRequest("POST", HOSTS_TRANSFER, {
-      team_id: teamId,
+      fleet_id: teamId,
       hosts: hostIds,
     });
   },
@@ -556,15 +562,16 @@ export default {
     osSettings,
     diskEncryptionStatus,
     vulnerability,
+    depProfileError,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
-      team_id: teamId,
+      fleet_id: teamId,
       filters: {
         query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
-        team_id: currentTeam,
+        fleet_id: currentTeam,
         policy_id: policyId,
         policy_response: policyResponse,
         software_id: softwareId,
@@ -583,6 +590,7 @@ export default {
         os_settings: osSettings,
         os_settings_disk_encryption: diskEncryptionStatus,
         vulnerability,
+        dep_profile_error: depProfileError,
       },
     });
   },
@@ -607,6 +615,16 @@ export default {
   getEncryptionKey: (id: number) => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  getRecoveryLockPassword: (id: number) => {
+    const { HOST_RECOVERY_LOCK_PASSWORD } = endpoints;
+    return sendRequest("GET", HOST_RECOVERY_LOCK_PASSWORD(id));
+  },
+
+  rotateRecoveryLockPassword: (id: number): Promise<void> => {
+    const { HOST_RECOVERY_LOCK_PASSWORD_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_RECOVERY_LOCK_PASSWORD_ROTATE(id));
   },
 
   lockHost: (id: number) => {

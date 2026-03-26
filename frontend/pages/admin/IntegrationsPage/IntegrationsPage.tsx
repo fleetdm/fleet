@@ -3,6 +3,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 
 import deepDifference from "utilities/deep_difference";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -43,12 +44,11 @@ const IntegrationsPage = ({
   const {
     data: appConfig,
     isLoading: isLoadingAppConfig,
+    isFetching: isFetchingAppConfig,
     refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {}
-  );
+  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+  });
 
   /** The common submission logic for settings that are rendered on the Integrations page, but use
    * the common configAPI.update method, the same one used by cards of the OrgSettingsPage */
@@ -96,6 +96,7 @@ const IntegrationsPage = ({
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentSection.Card;
+  const isLoading = isLoadingAppConfig || isFetchingAppConfig;
 
   return (
     <div className={`${baseClass}`}>
@@ -104,10 +105,9 @@ const IntegrationsPage = ({
         navItems={navItems}
         activeItem={currentSection.urlSection}
         CurrentCard={
-          !isLoadingAppConfig && appConfig ? (
+          !isLoading && appConfig ? (
             <CurrentCard
               router={router}
-              // below props used only by settings-related cards e.g. SSO
               appConfig={appConfig}
               handleSubmit={onUpdateSettings}
               isPremiumTier={isPremiumTier}

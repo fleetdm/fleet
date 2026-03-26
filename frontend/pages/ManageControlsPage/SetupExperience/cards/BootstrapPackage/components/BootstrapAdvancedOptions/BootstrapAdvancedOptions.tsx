@@ -33,7 +33,7 @@ const BootstrapAdvancedOptions = ({
     setIsSaving(true);
     try {
       await mdmAPI.updateSetupExperienceSettings({
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         manual_agent_install: selectManualAgentInstall,
       });
       renderFlash("success", "Successfully updated.");
@@ -57,8 +57,8 @@ const BootstrapAdvancedOptions = ({
       <RevealButton
         className={`${baseClass}__accordion-title`}
         isShowing={showAdvancedOptions}
-        showText="Show advanced options"
-        hideText="Hide advanced options"
+        showText="Advanced options"
+        hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
       />

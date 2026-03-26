@@ -261,14 +261,20 @@ dump-test-schema: test-schema
 # GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 # GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
 PKG_TO_TEST := ""
+COVER_PKG ?= github.com/fleetdm/fleet/v4/...
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
 		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info.";
 else
+ifdef USE_GOTESTSUM
+		@echo Running Go tests with gotestsum:
+		gotestsum --format=$(GOTESTSUM_FORMAT) --jsonfile=/tmp/test-output.json -- -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=$(COVER_PKG) $(go_test_pkg_to_test)
+else
 		@echo Running Go tests with command:
-		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
+		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=$(COVER_PKG) $(go_test_pkg_to_test)
+endif
 endif
 
 # This is the base command to debug Go tests.
@@ -311,10 +317,11 @@ debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Set up packages for CI testing.
-DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/... ./client/...
 # fast tests are quick and do not require out-of-process dependencies (such as MySQL, etc.)
 FAST_PKGS_TO_TEST := \
-	./ee/server/service/hostidentity/types \
+	./client \
+	./ee/pkg/hostidentity/types \
 	./ee/tools/mdm \
 	./orbit/pkg/cryptoinfo \
 	./orbit/pkg/dataflatten \
@@ -330,6 +337,7 @@ MYSQL_PKGS_TO_TEST := ./server/datastore/mysql/...
 SCRIPTS_PKGS_TO_TEST := ./orbit/pkg/scripts
 SERVICE_PKGS_TO_TEST := ./server/service
 VULN_PKGS_TO_TEST := ./server/vulnerabilities/...
+ACTIVITY_PKGS_TO_TEST := ./server/activity/...
 ifeq ($(CI_TEST_PKG), main)
     # This is the bucket of all the tests that are not in a specific group. We take a diff between DEFAULT_PKG_TO_TEST and all the specific *_PKGS_TO_TEST.
 	CI_PKG_TO_TEST=$(shell /bin/bash -c "comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ \
@@ -338,7 +346,8 @@ ifeq ($(CI_TEST_PKG), main)
 	go list $(MYSQL_PKGS_TO_TEST) && \
 	go list $(SCRIPTS_PKGS_TO_TEST) && \
 	go list $(SERVICE_PKGS_TO_TEST) && \
-	go list $(VULN_PKGS_TO_TEST) \
+	go list $(VULN_PKGS_TO_TEST) && \
+	go list $(ACTIVITY_PKGS_TO_TEST) \
 	;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g'")
 else ifeq ($(CI_TEST_PKG), fast)
 	CI_PKG_TO_TEST=$(FAST_PKGS_TO_TEST)
@@ -352,6 +361,8 @@ else ifeq ($(CI_TEST_PKG), service)
 	CI_PKG_TO_TEST=$(SERVICE_PKGS_TO_TEST)
 else ifeq ($(CI_TEST_PKG), vuln)
 	CI_PKG_TO_TEST=$(VULN_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), activity)
+	CI_PKG_TO_TEST=$(ACTIVITY_PKGS_TO_TEST)
 else
 	CI_PKG_TO_TEST=$(DEFAULT_PKGS_TO_TEST)
 endif
@@ -371,6 +382,7 @@ endif
 	@echo "  mysql"
 	@echo "  fleetctl"
 	@echo "  vuln"
+	@echo "  activity"
 	@echo "  main        (all tests not included in other bundles)"
 test-go:
 	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"

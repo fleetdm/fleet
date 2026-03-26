@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.26.0",
+      "version": "4.26.2",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.surfshark.vpnclient.macos.direct';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.surfshark.vpnclient.macos.direct';",
+        "patch": ""
       },
-      "installer_url": "https://downloads.surfshark.com/macOS/stable/4.26.0/4206/Surfshark.dmg",
+      "installer_url": "https://downloads.surfshark.com/macOS/stable/4.26.2/4284/Surfshark.dmg",
       "install_script_ref": "70309c13",
       "uninstall_script_ref": "a2b88fd6",
-      "sha256": "b9ac3b751d6ecccbd442c497d12f0e579bd4762bd2fd082110f1a210c8167a75",
+      "sha256": "eefc220835eb594090b4fb7b41911158277a42680bbec4595c2e3d4f53cf75db",
       "default_categories": [
         "Productivity"
       ]

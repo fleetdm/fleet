@@ -3,7 +3,8 @@
     {
       "version": "4.5.12",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.adobedigitaleditions.app';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.adobedigitaleditions.app';",
+        "patch": ""
       },
       "installer_url": "https://adedownload.adobe.com/pub/adobe/digitaleditions/ADE_4.5_Installer.dmg",
       "install_script_ref": "b7d45b59",

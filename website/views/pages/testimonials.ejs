@@ -138,46 +138,23 @@
           <p>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually.</p>
           <a href="/case-study/stripe">Read their story</a>
         </div>
-        <div purpose="article-card" @click="goto('/announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet')">
-          <p><strong>Global workforce management software</strong></p>
-          <p>A global workforce management company achieved compliance and clarity with Fleet — keeping shift work in sync.</p>
-          <a href="/announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet">Read their story</a>
+        <div purpose="article-card" @click="goto('/case-study/thumbtack')">
+          <img alt="Thumbtack logo" src="/images/thumbtack-logo-197x40@2x.png">
+          <p>Thumbtack migrates more than 90% of Macs with no IT intervention.</p>
+          <a href="/case-study/thumbtack">Read their story</a>
         </div>
-        <div purpose="article-card" @click="goto('/announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux')">
-          <p><strong>Security and authentication platform</strong></p>
-          <p>Worldwide security and authentication platform chooses Fleet for Linux management.</p>
-          <a href="/announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/announcements/large-gaming-company-enhances-server-observability-with-fleet')">
-          <p><strong>Online gaming platform</strong></p>
-          <p>Large gaming company enhances server observability with Fleet.</p>
-          <a href="/announcements/large-gaming-company-enhances-server-observability-with-fleet">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security')">
-          <p><strong>Electric vehicle manufacturer</strong></p>
-          <p>Vehicle manufacturer transitions to Fleet for endpoint security.</p>
-          <a href="/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/announcements/global-social-media-platform-switches-to-fleet')">
-          <p><strong>Global social media platform</strong></p>
-          <p>Global social media platform migrates to Fleet.</p>
-          <a href="/announcements/global-social-media-platform-switches-to-fleet">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/announcements/interactive-entertainment-company-adopts-fleet-for-mdm')">
-          <p><strong>Interactive entertainment company</strong></p>
-          <p>Leading interactive entertainment company adopts Fleet for MDM.</p>
-          <a href="/announcements/interactive-entertainment-company-adopts-fleet-for-mdm">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/announcements/cloud-based-data-leader-choosed-fleet-for-orchestration')">
-          <p><strong>Cloud data platform</strong></p>
-          <p>Cloud-based data leader chooses Fleet for orchestration.</p>
-          <a href="/announcements/cloud-based-data-leader-choosed-fleet-for-orchestration">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/announcements/fintech-company-migrates-to-fleet')">
-          <p><strong>Financial services company</strong></p>
-          <p>Financial services company migrates to Fleet for MDM and next-gen change management</p>
-          <a href="/announcements/fintech-company-migrates-to-fleet">Read their story</a>
-        </div>
+        <% /*  Automatically created cards for anonymous case studies  */%>
+        <% for(let article of caseStudiesToCreateLinksFor) { %>
+          <div purpose="article-card" @click="goto('<%- article.url %>')">
+            <p><strong><%- article.meta.cardTitleForCustomersPage %></strong></p>
+            <% if(article.meta.cardBodyForCustomersPage){ %>
+              <p><%- article.meta.cardBodyForCustomersPage %></p>
+            <% } else {%>
+              <p><%- article.meta.articleTitle %>.</p>
+            <% }%>
+            <a href="<%- article.url %>">Read their story</a>
+          </div>
+        <% } %>
       </div>
 
       <div purpose="logo-container">
@@ -230,7 +207,7 @@
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
         <div>
-        <h4>Open device management</h4>
+        <h4>High-agency device management</h4>
         <h2 class="mx-auto">Manage devices your way</h2>
         </div>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">

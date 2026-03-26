@@ -80,6 +80,7 @@ Senior Manager, Corporate Engineer
 <meta name="category" value="case study">
 <meta name="companyLogoFilename" value="foursquare-logo-212x40@2x.png">
 <meta name="articleTitle" value="Foursquare cut costs and gained 114% ROI with Fleet">
+<meta name="description" value="Foursquare replaced two MDM tools with Fleet, cut maintenance work by 50%, reduced costs by 24%, and achieved 114% ROI.">
 
 
 <meta name="publishedOn" value="2025-12-11">

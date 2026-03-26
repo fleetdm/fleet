@@ -41,8 +41,8 @@ const PreviewDataModal = ({
           <TooltipWrapper
             tipContent={
               <>
-                The &quot;snapshot&quot; key includes the query&apos;s results.
-                These will be unique to your query.
+                The &quot;snapshot&quot; key includes the report&apos;s results.
+                These will be unique to your report.
               </>
             }
           >
@@ -54,7 +54,7 @@ const PreviewDataModal = ({
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
+          <Button onClick={onCancel}>Close</Button>
         </div>
       </div>
     </Modal>

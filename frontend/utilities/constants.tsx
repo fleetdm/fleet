@@ -90,6 +90,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.22.1 +", value: "5.22.1" },
   { label: "5.21.0 +", value: "5.21.0" },
   { label: "5.20.0 +", value: "5.20.0" },
   { label: "5.19.0 +", value: "5.19.0" },
@@ -336,10 +337,10 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
 ] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
-  "Search name, hostname, UUID, serial number, or private IP address";
+  "Search name, user email, hostname, UUID, serial number, or private IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP =
-  "Search hosts by name, hostname, UUID, serial number, or private IP address";
+  "Search hosts by name, user email, hostname, UUID, serial number, or private IP address";
 
 export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
   'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
@@ -417,6 +418,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
   "os_version",
+  "mdm",
 ];
 
 export const HOST_VITALS_DATA = [
