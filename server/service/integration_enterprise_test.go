@@ -5418,6 +5418,98 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	assert.Equal(t, host1.ID, resp.Hosts[0].ID)
 }
 
+func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferentTeam() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create 2 teams
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	// create 2 hosts
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "h1"),
+		NodeKey:         ptr.String(t.Name() + "h1"),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + "h1.local",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+	})
+	require.NoError(t, err)
+
+	h2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "h2"),
+		NodeKey:         ptr.String(t.Name() + "h2"),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + "h2.local",
+		Platform:        "darwin",
+		TeamID:          &team2.ID,
+	})
+	require.NoError(t, err)
+	_ = h2
+
+	// Install software only on h1 (team1).
+
+	testSw := fleet.Software{Name: "UniqueApp", Version: "3.4.5", Source: "apps", BundleIdentifier: "com.unique.app"}
+	_, err = s.ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{
+		testSw,
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, h1, false))
+	require.Len(t, h1.Software, 1)
+	swVersionID := h1.Software[0].ID
+
+	// Sync host counts so the team-scoped queries work.
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Filtering team1 by the software version returns the host and software including its bundle id.
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_version_id", fmt.Sprint(swVersionID),
+		"team_id", fmt.Sprint(team1.ID),
+	)
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, h1.ID, resp.Hosts[0].ID)
+	require.NotNil(t, resp.Software)
+	assert.Equal(t, testSw.Name, resp.Software.Name)
+	assert.Equal(t, testSw.Version, resp.Software.Version)
+	assert.Equal(t, testSw.BundleIdentifier, resp.Software.BundleIdentifier)
+
+	// Filtering team2 (no hosts with this software) returns 0 hosts but still
+	// returns minimal software data
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_version_id", fmt.Sprint(swVersionID),
+		"team_id", fmt.Sprint(team2.ID),
+	)
+	require.Len(t, resp.Hosts, 0)
+	require.NotNil(t, resp.Software, "software metadata should be returned even when no hosts match on this team")
+	assert.Equal(t, swVersionID, resp.Software.ID)
+	assert.Equal(t, testSw.Name, resp.Software.Name)
+	assert.Equal(t, testSw.Version, resp.Software.Version)
+	assert.Empty(t, resp.Software.BundleIdentifier)
+
+	// Filtering with a completely non-existent software_version_id → returns nil software.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_version_id", "999999",
+		"team_id", fmt.Sprint(team2.ID),
+	)
+	require.Empty(t, resp.Hosts, 0)
+	assert.Empty(t, resp.Software)
+}
+
 func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	t := s.T()
 
@@ -27524,7 +27616,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		checkPolicies(listPolResp.Policies, "1.0")
 	})
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation() {

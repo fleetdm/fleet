@@ -288,14 +288,16 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		case fleet.IsNotFound(err):
 			// Look for sw lite without team scope
-			swLite, err := svc.SoftwareLiteByID(ctx, *id)
-			if err != nil {
-				return listHostsResponse{Err: err}, nil
+			swLite, errLite := svc.SoftwareLiteByID(ctx, *id)
+			if errLite != nil && !fleet.IsNotFound(errLite) {
+				return listHostsResponse{Err: errLite}, nil
 			}
-			software = &fleet.Software{
-				ID:      *id,
-				Name:    swLite.Name,
-				Version: swLite.Version,
+			if errLite == nil {
+				software = &fleet.Software{
+					ID:      *id,
+					Name:    swLite.Name,
+					Version: swLite.Version,
+				}
 			}
 		default:
 			return listHostsResponse{Err: err}, nil
