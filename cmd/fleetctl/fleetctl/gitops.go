@@ -331,19 +331,19 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 				}
-				// When GitOps mode is on and labels are not excepted, treat absent labels
+				// When labels are not excepted from GitOps, treat absent labels
 				// as "delete all" (i.e. as if `labels:` was present but empty).
 				labelsExcepted := appConfig.GitOpsConfig.Exceptions.Labels
-				processMissingLabels := config.LabelsPresent
+				deleteMissingLabels := config.LabelsPresent
 				if !labelsExcepted {
-					processMissingLabels = true
+					deleteMissingLabels = true
 				}
 				labelChanges[teamName] = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
 					config.Labels,
-					processMissingLabels,
+					deleteMissingLabels,
 				)
 			}
 
@@ -759,7 +759,7 @@ func computeLabelChanges(
 	teamName string,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
-	processMissingLabels bool,
+	deleteMissingLabels bool,
 ) []spec.LabelChange {
 	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
@@ -774,7 +774,7 @@ func computeLabelChanges(
 	// or else delete them all.
 	if len(specifiedLabels) == 0 {
 		op := "~" // preserved (excepted from GitOps, no action needed)
-		if processMissingLabels {
+		if deleteMissingLabels {
 			op = "-"
 		}
 		for _, l := range regularLabels {
