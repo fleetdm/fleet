@@ -280,11 +280,19 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			if err := ensureWSTEPCerts(wstepConfigDir); err != nil {
 				return fmt.Errorf("generating WSTEP certificates: %w", err)
 			}
-			if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT", "/config/wstep.crt"); err != nil {
-				return fmt.Errorf("failed to set WSTEP cert path: %w", err)
+			// Only set default WSTEP certificate and key paths if the user has not
+			// already provided either path-based or bytes-based configuration.
+			if os.Getenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT") == "" &&
+				os.Getenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES") == "" {
+				if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT", "/config/wstep.crt"); err != nil {
+					return fmt.Errorf("failed to set WSTEP cert path: %w", err)
+				}
 			}
-			if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY", "/config/wstep.key"); err != nil {
-				return fmt.Errorf("failed to set WSTEP key path: %w", err)
+			if os.Getenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY") == "" &&
+				os.Getenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES") == "" {
+				if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY", "/config/wstep.key"); err != nil {
+					return fmt.Errorf("failed to set WSTEP key path: %w", err)
+				}
 			}
 
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
@@ -548,6 +556,9 @@ func ensureWSTEPCerts(configDir string) error {
 	if err != nil {
 		return fmt.Errorf("generating certificate serial number: %w", err)
 	}
+	if serialNumber.Sign() <= 0 {
+		serialNumber = big.NewInt(1)
+	}
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -574,7 +585,7 @@ func ensureWSTEPCerts(configDir string) error {
 	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
 		return fmt.Errorf("writing WSTEP certificate: %w", err)
 	}
-	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+	if err := os.WriteFile(keyPath, keyPEM, 0o644); err != nil {
 		return fmt.Errorf("writing WSTEP key: %w", err)
 	}
 
