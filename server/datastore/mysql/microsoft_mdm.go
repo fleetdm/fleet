@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/xml"
@@ -1083,14 +1084,8 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 				var activeProfiles [][]byte
 				if err := sqlx.SelectContext(ctx, tx, &activeProfiles, apStmt, apArgs...); err == nil {
 					for _, syncML := range activeProfiles {
-						cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(syncML)
-						if err != nil {
-							continue
-						}
-						for _, cmd := range cmds {
-							if uri := cmd.GetTargetURI(); uri != "" {
-								activeLocURIs[uri] = true
-							}
+						for _, uri := range fleet.ExtractLocURIsFromProfileBytes(syncML) {
+							activeLocURIs[uri] = true
 						}
 					}
 				}
@@ -2419,6 +2414,61 @@ ON DUPLICATE KEY UPDATE
 	if len(deletedProfileUUIDs) > 0 {
 		if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs, deletedProfileContents); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
+		}
+	}
+
+	// For profiles being updated (same name, different content), diff the old
+	// and new LocURIs. Generate <Delete> commands for LocURIs that were removed
+	// so the device reverts those settings.
+	//
+	// This is an edge case (most edits change values, not remove LocURIs).
+	// The delete commands are best-effort and currently not visible to the
+	// IT admin in the UI or API. They are fire-and-forget MDM commands
+	// with no corresponding host_mdm_windows_profiles status entry.
+	for _, existing := range existingProfiles {
+		incoming := incomingProfs[existing.Name]
+		if incoming == nil || bytes.Equal(existing.SyncML, incoming.SyncML) {
+			continue
+		}
+
+		oldURIs := fleet.ExtractLocURIsFromProfileBytes(existing.SyncML)
+		newURIs := fleet.ExtractLocURIsFromProfileBytes(incoming.SyncML)
+
+		newSet := make(map[string]bool, len(newURIs))
+		for _, u := range newURIs {
+			newSet[u] = true
+		}
+
+		var removedURIs []string
+		for _, u := range oldURIs {
+			if !newSet[u] {
+				removedURIs = append(removedURIs, u)
+			}
+		}
+
+		if len(removedURIs) == 0 {
+			continue
+		}
+
+		cmdUUID := uuid.NewString()
+		deleteCmd, err := fleet.BuildDeleteCommandFromLocURIs(removedURIs, cmdUUID)
+		if err != nil || deleteCmd == nil {
+			continue
+		}
+
+		// Find hosts that have this profile installed (non-NULL status = was delivered at some point).
+		var hostUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs,
+			`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND status IS NOT NULL`,
+			existing.ProfileUUID); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "selecting hosts for edited profile LocURI cleanup")
+		}
+		if len(hostUUIDs) > 0 {
+			ds.logger.InfoContext(ctx, "sending delete commands for LocURIs removed from edited profile",
+				"profile.name", existing.Name, "profile.uuid", existing.ProfileUUID, "removed_loc_uris", len(removedURIs))
+			if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, hostUUIDs, deleteCmd); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "inserting delete commands for removed LocURIs")
+			}
 		}
 	}
 

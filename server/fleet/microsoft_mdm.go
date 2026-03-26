@@ -1754,90 +1754,49 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
 	}
 
-	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshalling profile bytes for delete: %w", err)
-	}
-	if len(cmds) == 0 {
-		return nil, errors.New("no commands found in profile")
+	allURIs := ExtractLocURIsFromProfileBytes(normalized)
+	if len(allURIs) == 0 {
+		return nil, nil
 	}
 
-	// extractLocURIs collects all Target LocURIs from Replace and Add commands. Exec commands are intentionally excluded.
-	extractLocURIs := func(cmd *SyncMLCmd) []string {
-		var uris []string
-		for _, nested := range cmd.ReplaceCommands {
-			if uri := nested.GetTargetURI(); uri != "" {
-				uris = append(uris, uri)
-			}
-		}
-		for _, nested := range cmd.AddCommands {
-			if uri := nested.GetTargetURI(); uri != "" {
-				uris = append(uris, uri)
-			}
-		}
-		return uris
-	}
-
-	// makeDeleteCmd creates a single <Delete> SyncMLCmd for the given LocURI.
-	makeDeleteCmd := func(locURI string, cmdID string) SyncMLCmd {
-		target := locURI
-		return SyncMLCmd{
-			XMLName: xml.Name{Local: CmdDelete},
-			CmdID:   CmdID{Value: cmdID, IncludeFleetComment: true},
-			Items:   []CmdItem{{Target: &target}},
-		}
-	}
-
-	// Build the set of protected LocURIs from the variadic parameter.
+	// Filter out LocURIs that are still targeted by other active profiles.
 	inUse := make(map[string]bool)
 	if len(locURIsInUseByOtherProfiles) > 0 && locURIsInUseByOtherProfiles[0] != nil {
 		inUse = locURIsInUseByOtherProfiles[0]
 	}
 
-	// safeToDelete returns true if the LocURI is safe to delete (no other
-	// active profile targets it).
-	safeToDelete := func(uri string) bool {
-		return !inUse[uri]
-	}
-
-	var rawCommand []byte
-
-	// Collect all LocURIs to delete. For Atomic profiles, extract from nested
-	// commands; for non-atomic, extract from top-level commands.
-	var allURIs []string
-	switch {
-	case len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic:
-		allURIs = extractLocURIs(&cmds[0])
-	default:
-		for _, cmd := range cmds {
-			if cmd.XMLName.Local == CmdExec {
-				continue
-			}
-			if uri := cmd.GetTargetURI(); uri != "" {
-				allURIs = append(allURIs, uri)
-			}
-		}
-	}
-
-	// Filter out protected URIs and build individual <Delete> commands.
-	// Never wrap in <Atomic> — removal is best-effort, and <Atomic> would
-	// cause all deletes to roll back (507) if any single one fails.
-	var deleteCmds []SyncMLCmd
+	var safeURIs []string
 	for _, uri := range allURIs {
-		if !safeToDelete(uri) {
-			continue
+		if !inUse[uri] {
+			safeURIs = append(safeURIs, uri)
 		}
+	}
+
+	return BuildDeleteCommandFromLocURIs(safeURIs, commandUUID)
+}
+
+// BuildDeleteCommandFromLocURIs generates individual <Delete> commands for
+// the given LocURIs. Returns nil if locURIs is empty.
+func BuildDeleteCommandFromLocURIs(locURIs []string, commandUUID string) (*MDMWindowsCommand, error) {
+	if len(locURIs) == 0 {
+		return nil, nil
+	}
+
+	var deleteCmds []SyncMLCmd
+	for _, uri := range locURIs {
 		cmdID := uuid.NewString()
 		if len(deleteCmds) == 0 {
 			cmdID = commandUUID
 		}
-		deleteCmds = append(deleteCmds, makeDeleteCmd(uri, cmdID))
-	}
-	if len(deleteCmds) == 0 {
-		return nil, nil
+		target := uri
+		deleteCmds = append(deleteCmds, SyncMLCmd{
+			XMLName: xml.Name{Local: CmdDelete},
+			CmdID:   CmdID{Value: cmdID, IncludeFleetComment: true},
+			Items:   []CmdItem{{Target: &target}},
+		})
 	}
 
-	rawCommand, err = xml.Marshal(deleteCmds)
+	rawCommand, err := xml.Marshal(deleteCmds)
 	if err != nil {
 		return nil, fmt.Errorf("marshalling delete commands: %w", err)
 	}
@@ -1869,4 +1828,42 @@ func UnmarshallMultiTopLevelXMLProfile(profileBytes []byte) ([]SyncMLCmd, error)
 	}
 
 	return root.Commands, nil
+}
+
+// ExtractLocURIsFromProfileBytes returns all Target LocURIs found in the
+// profile's Replace and Add commands. Exec commands are excluded (they
+// trigger one-time actions, not persistent settings). For Atomic profiles,
+// nested commands are inspected.
+func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
+	// Mirror the install-side SCEP normalization.
+	normalized := profileBytes
+	if strings.Contains(string(normalized), WINDOWS_SCEP_LOC_URI_PART) && !strings.Contains(string(normalized), "<Atomic>") {
+		normalized = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", normalized)
+	}
+
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
+	if err != nil || len(cmds) == 0 {
+		return nil
+	}
+
+	var uris []string
+	for _, cmd := range cmds {
+		if cmd.XMLName.Local == CmdAtomic {
+			for _, nested := range cmd.ReplaceCommands {
+				if uri := nested.GetTargetURI(); uri != "" {
+					uris = append(uris, uri)
+				}
+			}
+			for _, nested := range cmd.AddCommands {
+				if uri := nested.GetTargetURI(); uri != "" {
+					uris = append(uris, uri)
+				}
+			}
+		} else if cmd.XMLName.Local != CmdExec {
+			if uri := cmd.GetTargetURI(); uri != "" {
+				uris = append(uris, uri)
+			}
+		}
+	}
+	return uris
 }

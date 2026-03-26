@@ -540,9 +540,9 @@ func TestBuildDeleteCommandFromProfileBytes(t *testing.T) {
 			expectNil: true,
 		},
 		{
-			name:        "empty profile",
-			profileXML:  "",
-			expectError: "no commands found in profile",
+			name:       "empty profile returns nil",
+			profileXML: "",
+			expectNil:  true,
 		},
 	}
 
@@ -778,5 +778,31 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.
 		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
 		require.NoError(t, err)
 		require.Equal(t, MDMDeliveryVerified, *payload.Status)
+	})
+}
+
+func TestExtractLocURIsFromProfileBytes(t *testing.T) {
+	t.Parallel()
+	t.Run("atomic profile", func(t *testing.T) {
+		xml := `<Atomic><Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace><Replace><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace></Atomic>`
+		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
+		require.Equal(t, []string{"./Device/A", "./Device/B"}, uris)
+	})
+
+	t.Run("non-atomic profile", func(t *testing.T) {
+		xml := `<Replace><Item><Target><LocURI>./Device/X</LocURI></Target></Item></Replace><Replace><Item><Target><LocURI>./Device/Y</LocURI></Target></Item></Replace>`
+		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
+		require.Equal(t, []string{"./Device/X", "./Device/Y"}, uris)
+	})
+
+	t.Run("exec commands excluded", func(t *testing.T) {
+		xml := `<Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace><Exec><Item><Target><LocURI>./Device/Enroll</LocURI></Target></Item></Exec>`
+		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
+		require.Equal(t, []string{"./Device/A"}, uris)
+	})
+
+	t.Run("empty profile", func(t *testing.T) {
+		uris := ExtractLocURIsFromProfileBytes([]byte(""))
+		require.Nil(t, uris)
 	})
 }
