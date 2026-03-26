@@ -3,6 +3,7 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -154,6 +155,11 @@ func TestIngestValidations(t *testing.T) {
 
 			if c.inputApp.PatchPolicyPath != "" {
 				require.Equal(t, "SELECT 1;", out.Queries.Patch)
+			} else {
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
+					out.Queries.Patch,
+				)
 			}
 
 		})
