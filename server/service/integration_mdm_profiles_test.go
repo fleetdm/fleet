@@ -4431,7 +4431,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
-		cmds, err = mdmDevice.SendResponse()
+		_, err = mdmDevice.SendResponse()
 		require.NoError(t, err)
 
 		// Drain any remaining commands until the device is clean.

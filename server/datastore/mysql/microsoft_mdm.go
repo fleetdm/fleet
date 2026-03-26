@@ -19,6 +19,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// windowsMDMProfileDeleteBatchSize is the number of hosts to process per
+// batch when enqueuing <Delete> commands and updating host profile rows
+// during profile deletion.
+const windowsMDMProfileDeleteBatchSize = 5000
+
 func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
 	var unused string
 
@@ -254,29 +259,25 @@ func (ds *Datastore) mdmWindowsInsertCommandForHostsDB(ctx context.Context, tx s
 		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
 	}
 
-	// create the command execution queue entries, one per host
-	for _, hostUUIDOrDeviceID := range hostUUIDsOrDeviceIDs {
-		if err := ds.mdmWindowsInsertHostCommandDB(ctx, tx, hostUUIDOrDeviceID, cmd.CommandUUID); err != nil {
-			return err
+	// create the command execution queue entries in batches
+	return common_mysql.BatchProcessSimple(hostUUIDsOrDeviceIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
+		valuesPart := strings.Repeat(
+			`((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1), ?),`,
+			len(batch),
+		)
+		valuesPart = strings.TrimSuffix(valuesPart, ",")
+
+		args := make([]any, 0, len(batch)*3)
+		for _, id := range batch {
+			args = append(args, id, id, cmd.CommandUUID)
 		}
-	}
-	return nil
-}
 
-func (ds *Datastore) mdmWindowsInsertHostCommandDB(ctx context.Context, tx sqlx.ExecerContext, hostUUIDOrDeviceID, commandUUID string) error {
-	stmt := `
-INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
-VALUES ((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1), ?)
-`
-
-	if _, err := tx.ExecContext(ctx, stmt, hostUUIDOrDeviceID, hostUUIDOrDeviceID, commandUUID); err != nil {
-		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", commandUUID))
+		batchStmt := `INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES ` + valuesPart
+		if _, err := tx.ExecContext(ctx, batchStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
 		}
-		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommandQueue", "host_uuid_or_device_id", hostUUIDOrDeviceID, "command_uuid", commandUUID)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // MDMWindowsGetPendingCommands retrieves all commands awaiting execution for a
@@ -1064,15 +1065,18 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// This prevents deleting one profile from undoing settings in another.
 	activeLocURIs := make(map[string]bool)
 	if len(profileUUIDs) > 0 {
-		// Get team IDs for the profiles being deleted (from host assignments).
+		// Get team IDs for the profiles being deleted. Use the hosts table
+		// with a single query instead of one per host.
+		teamIDStmt, teamIDArgs, err := sqlx.In(
+			`SELECT DISTINCT COALESCE(h.team_id, 0) FROM hosts h
+			JOIN host_mdm_windows_profiles hwp ON hwp.host_uuid = h.uuid
+			WHERE hwp.profile_uuid IN (?)`, profileUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN for team ID lookup")
+		}
 		var teamIDs []uint
-		for _, row := range rowsToRemove {
-			// Look up team from the host.
-			var teamID uint
-			if err := sqlx.GetContext(ctx, tx, &teamID,
-				`SELECT COALESCE(team_id, 0) FROM hosts WHERE uuid = ?`, row.HostUUID); err == nil {
-				teamIDs = append(teamIDs, teamID)
-			}
+		if err := sqlx.SelectContext(ctx, tx, &teamIDs, teamIDStmt, teamIDArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting team IDs for LocURI protection")
 		}
 		if len(teamIDs) > 0 {
 			// Query all SyncML from profiles NOT being deleted in the same team(s).
@@ -1135,18 +1139,23 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// This covers both install rows (being flipped to remove) and remove+NULL rows
 	// (being given a command_uuid and set to pending).
 	for profUUID, target := range enqueuedTargets {
-		upStmt, upArgs, err := sqlx.In(
-			`UPDATE host_mdm_windows_profiles
-			SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
-			WHERE profile_uuid = ? AND host_uuid IN (?)`,
-			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, target.cmdUUID,
-			profUUID, target.hostUUIDs,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN for phase 2 update")
-		}
-		if _, err := tx.ExecContext(ctx, upStmt, upArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating host profiles to remove")
+		if err := common_mysql.BatchProcessSimple(target.hostUUIDs, 5000, func(batch []string) error {
+			upStmt, upArgs, err := sqlx.In(
+				`UPDATE host_mdm_windows_profiles
+				SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
+				WHERE profile_uuid = ? AND host_uuid IN (?)`,
+				fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, target.cmdUUID,
+				profUUID, batch,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building IN for phase 2 update")
+			}
+			if _, err := tx.ExecContext(ctx, upStmt, upArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating host profiles to remove")
+			}
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 
