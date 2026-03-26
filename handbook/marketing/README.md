@@ -295,6 +295,16 @@ This view displays the website's efficiency by tracking the rate at which users 
   - **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
 - **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
 
+### Monitor and respond to LinkedIn comments
+
+The marketing team monitors and responds to comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
+- Check LinkedIn mentions and comments once per work day
+- Like mentions and respond to comments where appropriate  
+- Repost content related to GitOps certification or from Fleeties
+- Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond
+- All interactions are catalogued in Hootsuite for future reference
+
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
