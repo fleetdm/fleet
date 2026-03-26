@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/oauth2"
 )
 
 func TestClient(t *testing.T) {
@@ -74,6 +75,34 @@ func TestTransport(t *testing.T) {
 			}
 			assert.NotNil(t, tr.Proxy)
 			assert.NotNil(t, tr.DialContext)
+		})
+	}
+}
+
+func TestNewGithubClientWithToken(t *testing.T) {
+	cases := []struct {
+		name    string
+		token   string
+		opts    []ClientOpt
+		timeout time.Duration
+	}{
+		{"token only", "test-token", nil, 0},
+		{"token with timeout", "test-token", []ClientOpt{WithTimeout(5 * time.Second)}, 5 * time.Second},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			cli := NewGithubClientWithToken(c.token, c.opts...)
+
+			// Outer transport must be otelhttp.
+			require.IsType(t, &otelhttp.Transport{}, cli.Transport, "outer transport should be otelhttp")
+
+			// The inner (base) transport wrapped by otelhttp should be an
+			// oauth2.Transport, not the plain http.DefaultTransport.
+			rtField := reflect.ValueOf(cli.Transport).Elem().FieldByName("rt")
+			inner := *(*http.RoundTripper)(unsafe.Pointer(rtField.UnsafeAddr())) //nolint:gosec
+			assert.IsType(t, &oauth2.Transport{}, inner, "inner transport should be oauth2.Transport")
+
+			assert.Equal(t, c.timeout, cli.Timeout)
 		})
 	}
 }
