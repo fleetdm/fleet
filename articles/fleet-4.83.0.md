@@ -1,7 +1,7 @@
 # Fleet 4.83.0 | Recovery Lock passwords, patch policies, and more...
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/TODO" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/DxCqKE8tNyU?si=CKZm_FL0E4UjJf1T" title="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.83.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.83.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
