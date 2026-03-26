@@ -2048,7 +2048,7 @@ func (svc *Service) ListHostReports(
 		opts.ListOptions.OrderDirection = fleet.OrderDescending
 	}
 
-	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, opts, maxQueryReportRows)
+	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
 	}
