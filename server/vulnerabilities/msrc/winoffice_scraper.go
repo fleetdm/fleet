@@ -117,11 +117,30 @@ func parseWinOfficeSecurityMarkdown(r io.Reader) ([]WinOfficeSecurityRelease, er
 				continue
 			}
 
-			// Check if we already have this version branch (avoid duplicates)
+			// Check if we already have this version branch.
+			//
+			// Edge case: Different channels may have slightly different build suffixes
+			// for the same version on the same Patch Tuesday. For example, March 2026:
+			//   - Current Channel: Version 2602 (Build 19725.20172)
+			//   - Monthly Enterprise: Version 2602 (Build 19725.20170)
+			//
+			// Both builds contain the same security fixes (released on the same date).
+			// This is rare (~3x per year when versions overlap across channels), and
+			// when it happens the builds are usually identical. The March 2026 case
+			// with different suffixes appears to be an anomaly, possibly a release
+			// note bug on Microsoft's side.
+			//
+			// We keep the MINIMUM build suffix since that's the lowest build containing
+			// the security fix. Any build >= minimum is patched on all channels.
 			found := false
-			for _, b := range current.Branches {
+			for i, b := range current.Branches {
 				if b.Version == version {
 					found = true
+					// Keep the minimum build suffix
+					if compareBuildVersions(fullBuild, b.FullBuild) < 0 {
+						current.Branches[i].BuildPrefix = buildPrefix
+						current.Branches[i].FullBuild = fullBuild
+					}
 					break
 				}
 			}
