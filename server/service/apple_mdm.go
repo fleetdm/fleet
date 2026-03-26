@@ -6624,6 +6624,7 @@ func NewSetRecoveryLockResultsHandler(
 				if err := ds.CompleteRecoveryLockRotation(ctx, hostUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: complete rotation")
 				}
+
 				logger.InfoContext(ctx, "RotateRecoveryLock acknowledged, password rotated",
 					"host_uuid", hostUUID,
 				)

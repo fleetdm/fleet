@@ -1,7 +1,0 @@
-- name: Windows - BitLocker enabled
-  query: SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;
-  critical: false
-  description: "This policy checks whether BitLocker disk encryption is enabled on the C: drive of Windows devices. BitLocker encrypts the entire drive and helps protect data at rest."
-  resolution: |-
-    These settings should be automatically applied once MDM is enabled on your device. If you're still failing this policy, please reach out to #help-it for assistance.
-  platform: windows

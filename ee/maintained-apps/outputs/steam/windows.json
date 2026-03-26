@@ -3,7 +3,8 @@
     {
       "version": "2.10.91.91",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Steam' AND publisher = 'Valve Corporation';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Steam' AND publisher = 'Valve Corporation';",
+        "patch": ""
       },
       "installer_url": "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe",
       "install_script_ref": "abd50ee4",

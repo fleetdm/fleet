@@ -3,7 +3,8 @@
     {
       "version": "4.7.5",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.utmapp.UTM';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.utmapp.UTM';",
+        "patch": ""
       },
       "installer_url": "https://github.com/utmapp/UTM/releases/download/v4.7.5/UTM.dmg",
       "install_script_ref": "3e4c292c",

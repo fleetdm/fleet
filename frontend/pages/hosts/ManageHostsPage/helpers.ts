@@ -5,7 +5,8 @@ export const isAcceptableStatus = (filter: string): boolean => {
     filter === "new" ||
     filter === "online" ||
     filter === "offline" ||
-    filter === "missing"
+    filter === "missing" ||
+    filter === "pending"
   );
 };
 

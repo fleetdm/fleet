@@ -159,6 +159,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		AutomaticInstallQuery: app.AutomaticInstallQuery,
 		Categories:            app.Categories,
 		URL:                   app.InstallerURL,
+		PatchQuery:            app.PatchQuery,
 	}
 
 	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)

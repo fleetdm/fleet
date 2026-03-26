@@ -3,7 +3,8 @@
     {
       "version": "9.5.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre';",
+        "patch": ""
       },
       "installer_url": "https://download.calibre-ebook.com/9.5.0/calibre-9.5.0.dmg",
       "install_script_ref": "41fb296a",

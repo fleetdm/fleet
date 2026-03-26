@@ -492,7 +492,7 @@ type MDMDeliveryStatus string
 //     command failed to enqueue in ReconcileProfile (it resets the status to
 //     NULL). A failure in the asynchronous actual response of the MDM command
 //     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
-//     a retry of mdm.MaxProfileRetries times and if it still reports as failed
+//     a retry of mdm.MaxAppleProfileRetries times (or mdm.MaxWindowsProfileRetries for Windows) and if it still reports as failed
 //     it will be set to failed permanently.
 //
 //   - verified: the MDM command was successfully applied, and Fleet has
