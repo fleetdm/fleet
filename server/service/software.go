@@ -212,6 +212,23 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 	return software, nil
 }
 
+func (svc *Service) SoftwareLiteByID(
+	ctx context.Context,
+	id uint,
+) (fleet.SoftwareLite, error) {
+	// Intentionally skip team-scoped inventory auth: only minimal software name/version.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+
+	swLite, err := svc.ds.SoftwareLiteByID(ctx, id)
+	if err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+
+	return swLite, nil
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Count
 /////////////////////////////////////////////////////////////////////////////////
