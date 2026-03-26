@@ -266,7 +266,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   2,
 				Name: "My App Store App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "com.example.team-software",
+					AppStoreID: "1234567890",
 					Platform:   string(fleet.MacOSPlatform),
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
@@ -275,7 +275,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   6,
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID:         "com.example.setup-experience-software",
+					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
@@ -285,7 +285,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   7,
 				Name: "My iOS Auto Update App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "com.example.ios-auto-update",
+					AppStoreID: "9999888877",
 					Platform:   string(fleet.IOSPlatform),
 				},
 				HashSHA256: ptr.String("ios-auto-update-hash"),
@@ -312,6 +312,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: ptr.Uint(2),
 				},
 			},
+			{
+				ID:         10,
+				Name:       "Version Locked Name 0.1",
+				HashSHA256: ptr.String("win-fma-3-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-fma.msi",
+					Platform:             "windows",
+					Version:              "1",
+					FleetMaintainedAppID: ptr.Uint(3),
+				},
+			},
 		}, nil
 	case "available_for_install=1&fleet_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -322,6 +333,14 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 
 func (MockClient) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
 	return &fleet.MaintainedApp{Slug: "foo/darwin"}, nil
+}
+
+func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error) {
+	return []fleet.MaintainedApp{
+		{ID: 1, Slug: "fma1/darwin", Name: "My FMA", Platform: "darwin", UniqueIdentifier: "com.my.fma"},
+		{ID: 2, Slug: "fma2/windows", Name: "My Windows FMA", Platform: "windows", UniqueIdentifier: "My Windows FMA"},
+		{ID: 3, Slug: "fma3/windows", Name: "Version Locked Name 2.0", Platform: "windows", UniqueIdentifier: "Version Locked Name 2.0"},
+	}, nil
 }
 
 func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
@@ -379,6 +398,20 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 8,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          3,
+				Name:        "Team VPP policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 3",
+				Resolution:  ptr.String("Install the app"),
+				Description: "This is a team policy with VPP app automation",
+				Platform:    "darwin",
+				Type:        fleet.PolicyTypeDynamic,
+			},
+			InstallSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 2,
 			},
 		},
 	}, nil
@@ -474,7 +507,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 6,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID: fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
+				VPPAppID: fleet.VPPAppID{AdamID: "55566677778", Platform: fleet.AndroidPlatform},
 				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
 					{
 						LabelName: "Label C",
@@ -493,7 +526,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 7,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID:    fleet.VPPAppID{AdamID: "com.example.ios-auto-update", Platform: fleet.IOSPlatform},
+				VPPAppID:    fleet.VPPAppID{AdamID: "9999888877", Platform: fleet.IOSPlatform},
 				SelfService: false,
 				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
 					{
@@ -553,6 +586,18 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				FleetMaintainedAppID: ptr.Uint(2),
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
+		}, nil
+	case 10:
+		return &fleet.SoftwareTitle{
+			ID:   9,
+			Name: "Version Locked Name 0.1",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				SelfService:          true,
+				Platform:             "windows",
+				FleetMaintainedAppID: ptr.Uint(3),
+			},
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -625,7 +670,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:   6,
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID:         "com.example.setup-experience-software",
+					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
@@ -839,7 +884,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return
@@ -1118,7 +1163,7 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 
 	var found bool
 	for _, a := range appsList {
-		if a["app_store_id"] == "com.example.ios-auto-update" {
+		if a["app_store_id"] == "9999888877" {
 			found = true
 			// auto update keys should be present
 			val, ok := a["auto_update_enabled"]
@@ -1778,6 +1823,9 @@ func TestGeneratePolicies(t *testing.T) {
 			1: {
 				Hash:    "team-software-hash",
 				Comment: "__TEAM_SOFTWARE_COMMENT_TOKEN__",
+			},
+			2: {
+				AppStoreId: "1234567890",
 			},
 		},
 		ScriptList: map[uint]string{

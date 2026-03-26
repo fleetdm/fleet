@@ -648,6 +648,18 @@ export default {
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
   },
 
+  resendCertificate: (
+    hostId: number,
+    certificateTemplateId: number
+  ): Promise<void> => {
+    const { HOST_RESEND_CERTIFICATE } = endpoints;
+
+    return sendRequest(
+      "POST",
+      HOST_RESEND_CERTIFICATE(hostId, certificateTemplateId)
+    );
+  },
+
   getHostSoftware: (
     params: IHostSoftwareQueryKey
   ): Promise<IGetHostSoftwareResponse> => {

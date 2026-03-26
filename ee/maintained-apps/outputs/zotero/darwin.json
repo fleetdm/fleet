@@ -3,7 +3,8 @@
     {
       "version": "8.0.4",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.zotero.zotero';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.zotero.zotero';",
+        "patch": ""
       },
       "installer_url": "https://download.zotero.org/client/release/8.0.4/Zotero-8.0.4.dmg",
       "install_script_ref": "52a11eaf",

@@ -72,7 +72,7 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
-	err = c.parseResponse(verb, path, response, nil)
+	err = c.ParseResponse(verb, path, response, nil)
 	if err != nil {
 		return nil, fmt.Errorf("parsing icon response: %w", err)
 	}
@@ -266,4 +266,16 @@ func (c *Client) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
 		return nil, err
 	}
 	return responseBody.FleetMaintainedApp, nil
+}
+
+func (c *Client) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error) {
+	verb, path := "GET", "/api/latest/fleet/software/fleet_maintained_apps"
+	query := fmt.Sprintf("fleet_id=%d", teamID)
+
+	var responseBody listFleetMaintainedAppsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.FleetMaintainedApps, nil
 }

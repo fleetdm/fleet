@@ -389,15 +389,18 @@ const Vitals = ({
               key="mdm-status"
               title="MDM status"
               value={
-                <TooltipWrapper
-                  tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
-                  underline={mdm.enrollment_status !== "Off"}
-                >
-                  {
-                    MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
-                      .displayName
-                  }
-                </TooltipWrapper>
+                <div className={`${baseClass}__mdm-status`}>
+                  {mdm.dep_profile_error && <Icon name="error" />}
+                  <TooltipWrapper
+                    tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
+                    underline={mdm.enrollment_status !== "Off"}
+                  >
+                    {
+                      MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
+                        .displayName
+                    }
+                  </TooltipWrapper>
+                </div>
               }
             />
           ),

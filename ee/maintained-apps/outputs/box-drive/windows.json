@@ -3,7 +3,8 @@
     {
       "version": "2.49.257",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';",
+        "patch": ""
       },
       "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.49.257.msi",
       "install_script_ref": "8959087b",

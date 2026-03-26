@@ -355,7 +355,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
 				require.NoError(t, err)
 
-				var orbitScriptResp orbitPostScriptResultResponse
+				var orbitScriptResp fleet.OrbitPostScriptResultResponse
 				s.DoJSON(
 					"POST",
 					"/api/fleet/orbit/scripts/result",

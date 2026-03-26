@@ -145,7 +145,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dry
 	defer response.Body.Close()
 
 	var bpResponse uploadBootstrapPackageResponse
-	if err := c.parseResponse(verb, path, response, &bpResponse); err != nil {
+	if err := c.ParseResponse(verb, path, response, &bpResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 
@@ -556,7 +556,7 @@ func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 	defer resp.Body.Close()
 
 	var eulaResponse createMDMEULAResponse
-	if err := c.parseResponse(verb, path, resp, &eulaResponse); err != nil {
+	if err := c.ParseResponse(verb, path, resp, &eulaResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 

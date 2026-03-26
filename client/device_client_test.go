@@ -1,4 +1,4 @@
-package service
+package client
 
 import (
 	"bytes"
@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockHttpClient struct {
+type mockHTTPClient struct {
 	resBody    string
 	statusCode int
 	err        error
 }
 
-func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
+func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -37,8 +37,8 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 	token := "test_token"
 	require.NoError(t, err)
 
-	mockRequestDoer := &mockHttpClient{}
-	client.http = mockRequestDoer
+	mockRequestDoer := &mockHTTPClient{}
+	client.SetHTTPClient(mockRequestDoer)
 
 	t.Run("with wrong license", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusPaymentRequired
