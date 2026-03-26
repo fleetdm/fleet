@@ -1301,7 +1301,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		json.RawMessage(jsonMustMarshal(t, map[string]any{"enable_release_device_manually": true})),
 		http.StatusNoContent)
 
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// preassign an empty profile, fails
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
@@ -1378,7 +1378,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// trigger the schedule so profiles are set in their state
 	s.awaitTriggerProfileSchedule(t)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// the mdm host has the same profiles (i1, i2, plus fleetd config and disk encryption)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
@@ -1535,7 +1535,9 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	host1, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host3, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	s.runWorker()
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Set up a mock Apple DEP API
 	s.enableABM(t.Name())
@@ -1915,8 +1917,11 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
+	// ensure fleet profile
+	s.awaitTriggerProfileSchedule(t)
+
 	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	t.Run("no profiles", func(t *testing.T) {
 		var listResp listMDMAppleConfigProfilesResponse
@@ -7138,8 +7143,11 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	// cron job hasn't run yet, so no profile exist for the host
 	assertHostProfiles([]hostProfile{})
 
-	// trigger a profile sync
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
 
 	// user-scoped profiles show up as status nil (no user-enrollment yet)
 	assertHostProfiles([]hostProfile{

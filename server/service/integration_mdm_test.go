@@ -6781,7 +6781,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	// Enroll generated the TokenUpdate request to Fleet and enqueued the
 	// Post-DEP enrollment job, it needs to be processed.
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// ask for commands and verify that we get AccountConfiguration
 	var accCmd *mdm.Command
@@ -11062,6 +11062,9 @@ func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
 func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	t := s.T()
 
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	// create a device that's not enrolled into Fleet, it should get a command to
 	// install fleetd
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -11071,7 +11074,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	}, "MacBookPro16,1")
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 	// create a device that's enrolled into Fleet before turning on MDM features,
@@ -11084,7 +11087,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	mdmDevice.UUID = host.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 }
 
@@ -12966,7 +12969,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
 	t := s.T()
 	_, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	cmd, err := device.Acknowledge("foo")
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
@@ -13356,8 +13359,20 @@ func checkInstallFleetdCommandSent(t *testing.T, mdmDevice *mdmtest.TestAppleMDM
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
+		if cmd.Command.RequestType == "DeclarativeManagement" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue // Do not add to commands as it's not a XML file, so we use a bool to see it once.
+		}
+
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		if fullCmd.Command.RequestType != "InstallEnterpriseApplication" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+
 		if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
 			foundInstallFleetdCommand = true
 			require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
@@ -14001,10 +14016,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, selfServiceHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, selfServiceDevice, true)
 	selfServiceToken := "selfservicetoken"
@@ -14014,6 +14031,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	iPadOSHost, iPadOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ipados")
 	// ensure a valid alternate device token for self-service status access checking later
 	updateDeviceTokenForHost(t, s.ds, mdmHost.ID, "foobar")
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial,
@@ -15605,6 +15623,9 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	signedReqBody, err := signedData.Finish()
 	require.NoError(t, err)
 
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	t.Run("errors", func(t *testing.T) {
 		t.Run("if no enroll secret is provided", func(t *testing.T) {
 			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusForbidden)
@@ -15723,7 +15744,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
@@ -15744,7 +15765,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "ipados", enrollTime)
@@ -15761,7 +15782,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
@@ -15789,7 +15810,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)

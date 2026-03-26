@@ -1359,7 +1359,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 		hwModel,
 	)
 	require.NoError(t, mdmDevice.Enroll())
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 	// mu.Lock()

@@ -897,10 +897,10 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
 
 	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, shouldReceive bool) {
-		// run the worker to process the DEP enroll request
-		s.runWorker()
-		// run the worker to assign configuration profiles
+		// ensure fleet profiles
 		s.awaitTriggerProfileSchedule(t)
+		// run the worker to process the DEP enroll request
+		s.awaitRunAppleMDMWorkerSchedule()
 
 		var seenDeclarativeManagement bool
 		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
@@ -1408,6 +1408,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// Simulate fleetd re-enrolling automatically.
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// The last activity should have `installed_from_dep=true`.
 	s.lastActivityMatches(
@@ -3090,6 +3091,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 		mdmDevice.SerialNumber = devices[0].SerialNumber
 		err = mdmDevice.Enroll()
 		require.NoError(t, err)
+		s.awaitRunAppleMDMWorkerSchedule()
 
 		// Simulate an osquery enrollment too
 		// set an enroll secret

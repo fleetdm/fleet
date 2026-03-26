@@ -143,9 +143,11 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	setOrbitEnrollment(t, selfServiceHost, s.ds)
 	selfServiceToken := "selfservicetoken"
@@ -156,6 +158,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Create and enroll an iOS device
 	// ensure a valid alternate device token for self-service status access checking later
 	updateDeviceTokenForHost(t, s.ds, mdmHost.ID, "foobar")
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
@@ -774,6 +777,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	// Re-enroll host in MDM
 	mdmDevice = enrollMacOSHostInMDMManually(t, mdmHost, s.ds, s.server.URL)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 
@@ -835,6 +839,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Enroll iOS device and ipod device, add serial number to fake Apple server, and transfer to team
 	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
 	ipodHost, ipodDevice := s.createIpodHostThenEnrollMDM()
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber, ipodDevice.SerialNumber)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
 		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID, ipodHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -1094,6 +1099,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	for _, data := range ssVppData {
 		// Enroll device, add serial number to fake Apple server, and transfer to team
 		data.host, data.device = s.createAppleMobileHostThenEnrollMDM(data.platform)
+		s.awaitRunAppleMDMWorkerSchedule()
 		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, data.device.SerialNumber)
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
 			&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -1231,6 +1237,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	// create a control host that will not be used in the test, should be unaffected
 	controlHost, controlDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, controlHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, controlDevice, true)
 	// Add serial number to our fake Apple server
@@ -1247,6 +1254,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	// (so the VPP installs are not activated when they are cancelled)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 	// Add serial number to our fake Apple server
@@ -1315,6 +1323,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	// they are cancelled)
 	mdmHost2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost2, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice2, true)
 	// Add serial number to our fake Apple server
@@ -1562,6 +1571,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	// Enroll iPhone
 	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Create a label
 	clr := createLabelResponse{}
@@ -1728,6 +1738,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	// Enroll iPhone
 	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Upload in-house app for iOS, not available in self-service for now
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
@@ -2625,6 +2636,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	// create a host that will receive the VPP install commands
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 
@@ -2777,6 +2789,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	// trigger install of both apps together on a different host
 	mdmHost2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	mdmHost2.OrbitNodeKey = ptr.String(setOrbitEnrollment(t, mdmHost2, s.ds))
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice2, true)
 
