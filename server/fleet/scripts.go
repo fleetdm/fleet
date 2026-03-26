@@ -387,8 +387,9 @@ const (
 
 // anchored, so that it matches to the end of the line
 var (
-	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
-	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
+	scriptHashbangValidation       = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
+	ErrUnsupportedInterpreter      = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
+	ErrUnsupportedShellInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`)
 )
 
 type ShebangKind int
@@ -573,8 +574,16 @@ func ValidateSoftwareInstallerScript(s, platform string) error {
 	// Shebang/interpreter check: only for darwin and linux (shell scripts).
 	// Windows uses PowerShell, which doesn't use shebangs.
 	if platform != "windows" {
-		if _, err := ValidateShebang(s); err != nil {
-			return err
+		kind, _, err := ShebangInfo(s)
+		if err != nil {
+			// Return a shell-specific error message for software installer scripts,
+			// since they only support shell interpreters (not python).
+			return ErrUnsupportedShellInterpreter
+		}
+		// Software installer scripts must use a shell interpreter (or no shebang,
+		// which defaults to /bin/sh). Python shebangs are not supported here.
+		if kind == ShebangPython {
+			return ErrUnsupportedShellInterpreter
 		}
 	}
 

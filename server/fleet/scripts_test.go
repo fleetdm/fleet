@@ -279,13 +279,13 @@ func TestValidateSoftwareInstallerScript(t *testing.T) {
 			name:     "unsupported interpreter on darwin",
 			script:   "#!/usr/bin/perl\nprint 'hello'",
 			platform: "darwin",
-			wantErr:  ErrUnsupportedInterpreter,
+			wantErr:  ErrUnsupportedShellInterpreter,
 		},
 		{
 			name:     "unsupported interpreter on linux",
 			script:   "#!/usr/bin/perl\nprint 'hello'",
 			platform: "linux",
-			wantErr:  ErrUnsupportedInterpreter,
+			wantErr:  ErrUnsupportedShellInterpreter,
 		},
 		{
 			name:     "unsupported interpreter on windows is OK (shebang not checked)",
@@ -348,10 +348,16 @@ func TestValidateSoftwareInstallerScript(t *testing.T) {
 			wantErr:  nil,
 		},
 		{
-			name:     "python shebang is valid on darwin (accepted by ValidateShebang)",
+			name:     "python shebang is rejected on darwin (software installer scripts are shell only)",
 			script:   "#!/usr/bin/env python3\nprint('hello')",
 			platform: "darwin",
-			wantErr:  nil,
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+		{
+			name:     "python shebang is rejected on linux (software installer scripts are shell only)",
+			script:   "#!/usr/bin/env python3\nprint('hello')",
+			platform: "linux",
+			wantErr:  ErrUnsupportedShellInterpreter,
 		},
 	}
 
