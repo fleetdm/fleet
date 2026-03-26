@@ -3,7 +3,8 @@
     {
       "version": "2026.29.22575",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos';",
+        "patch": ""
       },
       "installer_url": "https://binaries.twingate.com/client/macos/2026.29.22575/Twingate.pkg",
       "install_script_ref": "57e2cdb2",

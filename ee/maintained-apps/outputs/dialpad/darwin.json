@@ -3,7 +3,8 @@
     {
       "version": "2603.2.1",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialpad';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialpad';",
+        "patch": ""
       },
       "installer_url": "https://storage.googleapis.com/dialpad_native/osx/arm64/Dialpad.2603.2.1.zip",
       "install_script_ref": "20aa37b1",

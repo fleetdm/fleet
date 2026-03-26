@@ -3,7 +3,8 @@
     {
       "version": "15.76.3",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer';",
+        "patch": ""
       },
       "installer_url": "https://dl.teamviewer.com/download/version_15x/update/15.76.3/TeamViewer.pkg",
       "install_script_ref": "a885afbc",

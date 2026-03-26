@@ -3,7 +3,8 @@
     {
       "version": "11.9.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop';",
+        "patch": ""
       },
       "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.9.0/507/install/CrashPlan_11.9.0_507_Mac.dmg",
       "install_script_ref": "4a9ec0ad",

@@ -1,9 +1,10 @@
 {
   "versions": [
     {
-      "version": "26.11.21",
+      "version": "26.12.22",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';",
+        "patch": ""
       },
       "installer_url": "https://web.whatsapp.com/desktop/mac_native/release/?configuration=Release&src=whatsapp_downloads_page",
       "install_script_ref": "ae8b13ef",

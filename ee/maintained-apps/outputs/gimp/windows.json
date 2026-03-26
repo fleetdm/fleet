@@ -3,7 +3,8 @@
     {
       "version": "3.2.0.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'GIMP 3.0.8-2' AND publisher = 'The GIMP Team';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'GIMP 3.0.8-2' AND publisher = 'The GIMP Team';",
+        "patch": ""
       },
       "installer_url": "https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.0-setup.exe",
       "install_script_ref": "7e5269bc",

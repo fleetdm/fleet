@@ -3,7 +3,8 @@
     {
       "version": "5.3.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.krita';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.krita';",
+        "patch": ""
       },
       "installer_url": "https://download.kde.org/stable/krita/5.3.0/krita-5.3.0-signed.dmg",
       "install_script_ref": "bca236c8",
