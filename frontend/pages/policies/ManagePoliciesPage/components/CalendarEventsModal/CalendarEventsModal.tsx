@@ -186,7 +186,7 @@ const CalendarEventsModal = ({
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onExit}>Done</Button>
+          <Button onClick={onExit}>Close</Button>
         </div>
       </div>
     );

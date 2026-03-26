@@ -375,9 +375,14 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			// Set a GitOps UI mode to verify that applying GitOps config won't overwrite it.
-			UIGitOpsMode: fleet.UIGitOpsModeConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
 				GitopsModeEnabled: true,
 				RepositoryURL:     "https://didsomeonesaygitops.biz",
+				Exceptions: fleet.GitOpsExceptions{
+					Software: false,
+					Secrets:  true,
+					Labels:   true,
+				},
 			},
 		}, nil
 	}
@@ -577,8 +582,11 @@ software:
 	assert.Empty(t, enrolledSecrets)
 
 	// GitOps should not overwrite GitOps UI Mode.
-	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
-	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
+	assert.Equal(t, savedAppConfig.GitOpsConfig.GitopsModeEnabled, true)
+	assert.Equal(t, savedAppConfig.GitOpsConfig.RepositoryURL, "https://didsomeonesaygitops.biz")
+	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Labels, true)
+	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Secrets, true)
+	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Software, false)
 
 	// Check MDM settings
 	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
@@ -1279,8 +1287,18 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
 	assert.True(t, savedAppConfig.WebhookSettings.ActivitiesWebhook.Enable)
 	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
-	assert.Len(t, appliedLabelSpecs, 2)
+	require.Len(t, appliedLabelSpecs, 3)
 	assert.Len(t, deletedLabels, 1)
+	// Label "d" is a manual label without hosts key — Hosts should be nil (preserve membership).
+	var labelD *fleet.LabelSpec
+	for _, l := range appliedLabelSpecs {
+		if l.Name == "d" {
+			labelD = l
+			break
+		}
+	}
+	require.NotNil(t, labelD, "label d should be in applied specs")
+	assert.Nil(t, labelD.Hosts, "omitting hosts key should result in nil Hosts (preserve membership)")
 
 	// Reset labels arrays
 	deletedLabels = make([]string, 0)

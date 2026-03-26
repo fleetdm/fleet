@@ -251,6 +251,11 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 				continue
 			}
 
+			if s.Hosts == nil {
+				// hosts key was omitted — preserve existing membership
+				continue
+			}
+
 			// For manual labels, we need the label ID to update membership
 			var labelID uint
 			if existing, ok := existingLabels[strings.ToLower(s.Name)]; ok {
@@ -1209,6 +1214,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		opt.MacOSSettingsFilter.IsValid() {
 		query += sqlJoinMDMAppleProfilesStatus()
 		query += sqlJoinMDMAppleDeclarationsStatus()
+		query += sqlJoinRecoveryLockStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {

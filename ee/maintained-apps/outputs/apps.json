@@ -83,7 +83,7 @@
       "slug": "adobe-creative-cloud/darwin",
       "platform": "darwin",
       "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
-      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe's suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
       "name": "Adobe Digital Editions",
@@ -118,14 +118,14 @@
       "slug": "airtame/darwin",
       "platform": "darwin",
       "unique_identifier": "com.airtame.airtame-application",
-      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+      "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
     },
     {
       "name": "Airtame",
       "slug": "airtame/windows",
       "platform": "windows",
       "unique_identifier": "Airtame 4.15.0",
-      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+      "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
     },
     {
       "name": "Amazon Chime",
@@ -489,14 +489,14 @@
       "slug": "cursor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.todesktop.230313mzl4w4u92",
-      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors - all inside your editor."
     },
     {
       "name": "Cursor",
       "slug": "cursor/windows",
       "platform": "windows",
       "unique_identifier": "Cursor",
-      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors - all inside your editor."
     },
     {
       "name": "Cyberduck",
@@ -707,6 +707,20 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox (x64 en-US)",
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
+      "name": "Mozilla Firefox ESR",
+      "slug": "firefox@esr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.firefox",
+      "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox ESR",
+      "slug": "firefox@esr/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
+      "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
     },
     {
       "name": "Fork",
@@ -931,6 +945,13 @@
       "platform": "darwin",
       "unique_identifier": "com.aone.keka",
       "description": "Keka is a file archiver."
+    },
+    {
+      "name": "kitty",
+      "slug": "kitty/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.kovidgoyal.kitty",
+      "description": "kitty is a fast, feature-rich, GPU-based terminal emulator."
     },
     {
       "name": "Krita",
@@ -1332,6 +1353,13 @@
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
+      "name": "Proxyman",
+      "slug": "proxyman/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.proxyman.NSProxy",
+      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
+    },
+    {
       "name": "PuTTY",
       "slug": "putty/windows",
       "platform": "windows",
@@ -1568,6 +1596,13 @@
       "platform": "darwin",
       "unique_identifier": "com.mothersruin.SuspiciousPackage",
       "description": "Suspicious Package is an application for inspecting installer packages."
+    },
+    {
+      "name": "swiftDialog",
+      "slug": "swiftdialog/darwin",
+      "platform": "darwin",
+      "unique_identifier": "au.csiro.dialog",
+      "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
     },
     {
       "name": "Tableau Desktop",

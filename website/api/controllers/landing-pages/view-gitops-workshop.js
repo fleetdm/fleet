@@ -36,23 +36,12 @@ module.exports = {
     let eventsToGetDetailsFor = futureGitopsEvents.events;
 
     await sails.helpers.flow.simultaneouslyForEach(eventsToGetDetailsFor, async (event)=>{
-      let eventVenueResponse = await sails.helpers.http.get.with({
-        url: `https://www.eventbriteapi.com/v3/venues/${event.venue_id}/`,
-        headers: {
-          authorization: `Bearer ${sails.config.custom.eventbriteApiToken}`
-        },
-      }).tolerate((err)=>{
-        sails.log.warn(`When a user visited the gitops workshop page, details about a venue for an event (${event.name.text}) could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
-        return {
-          events: [],
-        };
-      });
-
       // Convert the ISO timestamps that represent the start and end time of the event into a formatted string.
       // Create new Date objects from the start and end times.
       let eventStartsOn = new Date(event.start.utc);
       let eventEndsOn = new Date(event.end.utc);
-
+      // Get a JS timestamp of when this event starts (used to sort the final list of events.)
+      let eventStartsAt = eventStartsOn.getTime();
       let eventTimeZone = event.start.timezone;
       let formattedDateString = new Intl.DateTimeFormat('en-US', {
         timeZone: eventTimeZone,
@@ -93,14 +82,40 @@ module.exports = {
       .toLowerCase();
       let eventTimeDetailsString = `${formattedDateString} from ${startTime} to ${endTime} ${abbreviatedTimeZoneString}`;
       let eventDetails = {
-        workshopCity: eventVenueResponse.address.city,
-        workshopAddress: eventVenueResponse.name,
         eventbriteLink: event.url,
         eventTime: eventTimeDetailsString,
+        startsAt: eventStartsAt,
       };
+
+      // If an event has a venue_id, we'll send a request to the Eventbrite API to get details about the venue.
+      if(event.venue_id) {
+        let eventVenueResponse = await sails.helpers.http.get.with({
+          url: `https://www.eventbriteapi.com/v3/venues/${event.venue_id}/`,
+          headers: {
+            authorization: `Bearer ${sails.config.custom.eventbriteApiToken}`
+          },
+        }).tolerate((err)=>{
+          sails.log.warn(`When a user visited the gitops workshop page, details about a venue for an event (${event.name.text}) could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
+          // If there was an error getting details about the venue for this event, set the address to 'TBA' and use the event name instead of the city name.
+          return {
+            address: { city: event.name.text },
+            name: 'TBA'
+          };
+        });
+        eventDetails.workshopCity = eventVenueResponse.address.city;
+        eventDetails.workshopAddress = eventVenueResponse.name;
+      } else {
+        // IF the event is missing a venue_id, set the address to 'TBA' and use the event name instead of the city name.
+        eventDetails.workshopCity = event.name.text;
+        eventDetails.workshopAddress = 'TBA';
+
+      }
+
+
       futureGitopsWorkshops.push(eventDetails);
     });
-
+    // Sort the events that will be displayed on the page.
+    futureGitopsWorkshops = _.sortBy(futureGitopsWorkshops, 'startsAt');
     // Respond with view.
     return {
       futureGitopsWorkshops

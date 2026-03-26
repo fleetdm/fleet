@@ -42,7 +42,7 @@ module "loadtest" {
     name                         = local.customer
     instance_class               = var.database_instance_size
     replicas                     = var.database_instance_count
-    engine_version               = "8.0.mysql_aurora.3.08.2"
+    engine_version               = "8.0.mysql_aurora.3.10.3"
     snapshot_identifier          = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned-8-0-teams-fixes-v4-55-0-minimum"
     preferred_maintenance_window = "fri:04:00-fri:05:00"
     # VPN
@@ -138,6 +138,12 @@ module "loadtest" {
       local.extra_secrets
     )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
+    software_installers = {
+      # bucket_prefix shortened to allow for terraform.workspace values with longer names
+      bucket_prefix  = "${terraform.workspace}-sw-inst-"
+      create_kms_key = true
+      kms_alias      = "${terraform.workspace}-software-installers"
+    }
     volumes = [
       {
         name = "rds-tls-certs"

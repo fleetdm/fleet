@@ -203,7 +203,7 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 	defer response.Body.Close()
 
 	var resp setSetupExperienceScriptResponse
-	if err := c.parseResponse(verb, path, response, &resp); err != nil {
+	if err := c.ParseResponse(verb, path, response, &resp); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 
@@ -229,7 +229,7 @@ func (c *Client) GetScriptContents(scriptID uint) ([]byte, error) {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
-	err = c.parseResponse(verb, path, response, nil)
+	err = c.ParseResponse(verb, path, response, nil)
 	if err != nil {
 		return nil, fmt.Errorf("parsing script response: %w", err)
 	}

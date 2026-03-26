@@ -29,7 +29,7 @@ func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, nil)
 	logger := slog.New(slog.DiscardHandler)
 
-	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, logger)
+	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, logger, 0)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }

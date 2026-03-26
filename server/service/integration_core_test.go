@@ -3757,13 +3757,16 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
+	sql := "select * from time;"
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
 		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
-		Query: ptr.String("select * from time;"),
+		Query: ptr.String(sql),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
+	assert.Equal(t, query.Query, sql)
+	assert.Equal(t, createQueryResp.Report.Query, sql)
 
 	// listing returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
@@ -3803,6 +3806,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var getQryResp getQueryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
 	assert.Equal(t, query.ID, getQryResp.Query.ID)
+	assert.Equal(t, query.ID, getQryResp.Report.ID)
+	assert.Equal(t, sql, getQryResp.Query.Query)
+	assert.Equal(t, sql, getQryResp.Report.Query)
 
 	// list scheduled queries in pack, none yet
 	var getInPackResp getScheduledQueriesInPackResponse
@@ -3888,6 +3894,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var modQryResp modifyQueryResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
 	assert.Equal(t, "updated", modQryResp.Query.Description)
+	assert.Equal(t, sql, modQryResp.Query.Query)
+	assert.Equal(t, sql, modQryResp.Report.Query)
 
 	// TODO(jahziel): check that the query results were deleted
 
@@ -4182,7 +4190,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	})
 
 	// create a custom_installer email for orbit host
-	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", fleet.OrbitPutDeviceMappingRequest{
 		OrbitNodeKey: *orbitHost.OrbitNodeKey,
 		Email:        "e@b.c",
 	}, http.StatusOK)
@@ -4214,7 +4222,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", orbitHost.ID), putHostDeviceMappingRequest{Email: "f@b.c"}, http.StatusOK, &putResp)
 
 	// update the custom_installer email for orbit host, will get ignored (because a custom_override exists)
-	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", fleet.OrbitPutDeviceMappingRequest{
 		OrbitNodeKey: *orbitHost.OrbitNodeKey,
 		Email:        "g@b.c",
 	}, http.StatusOK)
@@ -5512,17 +5520,15 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		&applyResp,
 	)
 
-	// apply an invalid label spec - manual membership without a host specified
+	// apply a valid label spec - manual membership without hosts specified (preserves existing membership)
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
 			{
 				Name:                name,
-				Query:               "select 1",
-				Platform:            "linux",
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 			},
 		},
-	}, http.StatusUnprocessableEntity, &applyResp,
+	}, http.StatusOK, &applyResp,
 	)
 
 	// apply an invalid label spec - builtin label type
@@ -7746,8 +7752,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
-	assert.False(t, acResp.UIGitOpsMode.GitopsModeEnabled)
-	assert.Zero(t, acResp.UIGitOpsMode.RepositoryURL)
+	assert.False(t, acResp.GitOpsConfig.GitopsModeEnabled)
+	assert.Zero(t, acResp.GitOpsConfig.RepositoryURL)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -10557,7 +10563,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	// the orbit endpoint to set the disk encryption key always fails in this
 	// suite because MDM is not configured.
 	orbitHost := createOrbitEnrolledHost(t, "windows", "diskenc", s.ds)
-	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *orbitHost.OrbitNodeKey,
 		EncryptionKey: []byte("testkey"),
 	}, http.StatusBadRequest)
@@ -11137,7 +11143,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		var headers map[string]string
 		switch {
 		case route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status":
-			params = getOrbitSetupExperienceStatusRequest{
+			params = fleet.GetOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
 
@@ -11191,19 +11197,19 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 		require.NoError(t, err)
 	}()
 
-	var resp orbitGetConfigResponse
+	var resp fleet.OrbitGetConfigResponse
 	// missing orbit key
 	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
 
 	hNoMDM := createOrbitEnrolledHost(t, "darwin", "nomdm", s.ds)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hNoMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
 	hSimpleMDM := createOrbitEnrolledHost(t, "darwin", "simplemdm", s.ds)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hSimpleMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -11212,7 +11218,7 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -11225,14 +11231,14 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.NoError(t, err)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.True(t, resp.Notifications.RenewEnrollmentProfile)
 
 	// if the fleet mdm host is fully enrolled (not pending anymore), then the notification is false
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, true, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -11255,7 +11261,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	require.NoError(t, err)
 
 	var resp endpointer.JsonError
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
 		HardwareSerial: h.HardwareSerial,
@@ -11292,9 +11298,9 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// enroll the host from orbit, it will NOT match the existing host since MDM
 	// is not configured (it will only look for a match by osquery_host_id with
 	// the provided uuid).
-	var resp EnrollOrbitResponse
+	var resp enrollOrbitResponse
 	hostUUID := uuid.New().String()
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 		EnrollSecret:   secret,
 		HardwareUUID:   hostUUID, // will not match any existing host
 		HardwareSerial: h.HardwareSerial,
@@ -12332,7 +12338,7 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 
 	// Orbit client gets no extensions if extensions are not configured.
 	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar1", s.ds)
-	resp := orbitGetConfigResponse{}
+	resp := fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.Extensions)
 
@@ -12404,7 +12410,7 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 
 	// Orbit client gets extensions configured for its platform.
 	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar2", s.ds)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
     "hello_world_macos": {
@@ -12416,12 +12422,12 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
 
 	// Orbit client gets no extensions if none of the platforms target it.
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.Extensions)
 
 	// Orbit client gets the two extensions configured for its platform.
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
 	"hello_world_linux": {
@@ -13667,28 +13673,28 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	orbitHost := createOrbitEnrolledHost(t, "windows", "device_token", s.ds)
 
 	// Write empty token
-	body := setOrUpdateDeviceTokenRequest{
+	body := fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 
 	// Use illegal characters
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "../.",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 
 	// Write bad node key
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    "",
 		DeviceAuthToken: "token",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusUnauthorized, &response{})
 
 	// Write a good token.
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "token",
 	}
@@ -13697,14 +13703,14 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	// Try to write the token again for a different host.
 	// First write a valid token.
 	orbitHost2 := createOrbitEnrolledHost(t, "darwin", "device_token2", s.ds)
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
 		DeviceAuthToken: "token2",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
 
 	// Now write a duplicate token, which will result in a conflict with the first host.
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
 		DeviceAuthToken: "token",
 	}
@@ -13748,7 +13754,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	require.Equal(t, "echo 'hello world'", result.ScriptContents)
 	require.Nil(t, result.ExitCode)
 
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
@@ -16056,5 +16062,302 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 
 		// body within the custom limit must succeed.
 		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+	})
+}
+
+func (s *integrationTestSuite) TestListHostReports() {
+	t := s.T()
+	ctx := t.Context()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	earlier := now.Add(-time.Hour)
+
+	// Create a global host (no team).
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// Create two global queries that save results and one that discards them.
+	admin := s.users[TestAdminUserEmail]
+	qAlpha, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_alpha",
+		Query:       "SELECT 1",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingSnapshot,
+		Description: "alpha description",
+	})
+	require.NoError(t, err)
+
+	qBeta, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_beta",
+		Query:       "SELECT 2",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingSnapshot,
+		Description: "beta description",
+	})
+	require.NoError(t, err)
+
+	qDiscard, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_discard",
+		Query:       "SELECT 3",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: true,
+		Logging:     fleet.LoggingDifferential, // non-snapshot + discard_data=1 → "don't store results"
+	})
+	require.NoError(t, err)
+
+	// Insert two result rows for qAlpha on the host (to test has_more_results and first_result).
+	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: earlier, Data: ptr.RawMessage([]byte(`{"col":"older"}`))},
+		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"newest"}`))},
+	}, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	// Insert one result row for qDiscard (only appears when include_reports_dont_store_results=true).
+	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+		{QueryID: qDiscard.ID, HostID: host.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"discarded"}`))},
+	}, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	url := fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", host.ID)
+
+	t.Run("unauthenticated returns 401", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSONWithoutAuth("GET", url, nil, http.StatusUnauthorized, &resp)
+	})
+
+	t.Run("observer can read reports", func(t *testing.T) {
+		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("admin can read reports", func(t *testing.T) {
+		s.setTokenForTest(t, TestAdminUserEmail, test.GoodPassword)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("nonexistent host returns 404", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/99999999/reports", nil, http.StatusNotFound, &resp)
+	})
+
+	t.Run("default excludes dont-store-results queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+		for _, r := range resp.Reports {
+			assert.NotEqual(t, qDiscard.Name, r.Name)
+		}
+	})
+
+	t.Run("include_reports_dont_store_results=true returns all queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true", "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 3, resp.Count)
+		require.Len(t, resp.Reports, 3)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+		assert.Equal(t, qDiscard.Name, resp.Reports[2].Name)
+	})
+
+	t.Run("response fields are populated correctly", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+
+		alpha := resp.Reports[0]
+		assert.Equal(t, qAlpha.ID, alpha.ReportID)
+		assert.Equal(t, qAlpha.Name, alpha.Name)
+		assert.Equal(t, "alpha description", alpha.Description)
+		// first_result is the most recent row.
+		require.NotNil(t, alpha.FirstResult)
+		assert.Equal(t, "newest", alpha.FirstResult["col"])
+		// last_fetched is the most recent timestamp.
+		require.NotNil(t, alpha.LastFetched)
+		assert.Equal(t, now.Unix(), alpha.LastFetched.Unix())
+		// n_host_results is 2 because there are 2 rows.
+		assert.Equal(t, 2, alpha.NHostResults)
+		assert.False(t, alpha.ReportClipped)
+		// qAlpha stores results (discard_data=false).
+		assert.True(t, alpha.StoreResults)
+
+		// qBeta has no results yet.
+		beta := resp.Reports[1]
+		assert.Equal(t, qBeta.ID, beta.ReportID)
+		assert.Nil(t, beta.FirstResult)
+		assert.Nil(t, beta.LastFetched)
+		assert.Equal(t, 0, beta.NHostResults)
+		// qBeta also stores results.
+		assert.True(t, beta.StoreResults)
+	})
+
+	t.Run("store_results is false for discard queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true", "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 3)
+		// qDiscard has discard_data=true → store_results must be false.
+		discard := resp.Reports[2]
+		assert.Equal(t, qDiscard.Name, discard.Name)
+		assert.False(t, discard.StoreResults)
+	})
+
+	t.Run("report_clipped when total results reach the cap", func(t *testing.T) {
+		// Save the current cap before mutating.
+		var originalConfig fleet.AppConfig
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &originalConfig)
+		origCap := originalConfig.ServerSettings.QueryReportCap
+
+		// Set the report cap to 2, which equals the number of rows already stored for qAlpha.
+		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"query_report_cap":2}}`), http.StatusOK)
+		t.Cleanup(func() {
+			s.DoRaw("PATCH", "/api/latest/fleet/config",
+				fmt.Appendf(nil, `{"server_settings":{"query_report_cap":%d}}`, origCap),
+				http.StatusOK)
+		})
+
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+		assert.True(t, resp.Reports[0].ReportClipped)  // qAlpha has 2 rows == cap of 2
+		assert.False(t, resp.Reports[1].ReportClipped) // qBeta has 0 rows
+	})
+
+	t.Run("name search", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "query", "alpha")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 1, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+	})
+
+	t.Run("sort by name ascending and descending", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// Ascending (A→Z).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name", "order_direction", "asc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+
+		// Descending (Z→A).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name", "order_direction", "desc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qBeta.Name, resp.Reports[0].Name)
+		assert.Equal(t, qAlpha.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("sort by last_fetched puts nulls last", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// ASC: qAlpha (has results) before qBeta (no results / NULL).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "last_fetched", "order_direction", "asc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+
+		// DESC: same NULL-last behaviour.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "last_fetched", "order_direction", "desc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// Page 0, 1 item per page.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp,
+			"order_key", "name", "per_page", "1", "page", "0")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		require.NotNil(t, resp.Meta)
+		assert.True(t, resp.Meta.HasNextResults)
+		assert.False(t, resp.Meta.HasPreviousResults)
+
+		// Page 1, 1 item per page.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp,
+			"order_key", "name", "per_page", "1", "page", "1")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qBeta.Name, resp.Reports[0].Name)
+		require.NotNil(t, resp.Meta)
+		assert.False(t, resp.Meta.HasNextResults)
+		assert.True(t, resp.Meta.HasPreviousResults)
+	})
+
+	t.Run("default page size is 50", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+		require.NotNil(t, resp.Meta)
+		// With only 2 queries, both fit within the default page size of 50.
+		assert.False(t, resp.Meta.HasNextResults)
+		assert.Len(t, resp.Reports, 2)
+	})
+
+	t.Run("alt path /hosts/:id/queries works", func(t *testing.T) {
+		altURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", altURL, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+	})
+
+	t.Run("default sort is last_fetched descending (newest first)", func(t *testing.T) {
+		// With no order params, the endpoint defaults to last_fetched DESC.
+		// qAlpha has results (non-NULL last_fetched) so it comes first; qBeta
+		// has no results (NULL) so it sorts last.
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("report_id is present in JSON response", func(t *testing.T) {
+		rawBody := s.DoRaw("GET", url, nil, http.StatusOK)
+		var raw map[string]any
+		require.NoError(t, json.NewDecoder(rawBody.Body).Decode(&raw))
+
+		reports, ok := raw["reports"].([]any)
+		require.True(t, ok)
+		require.NotEmpty(t, reports)
+
+		firstReport, ok := reports[0].(map[string]any)
+		require.True(t, ok)
+
+		_, hasReportID := firstReport["report_id"]
+		assert.True(t, hasReportID, "expected key 'report_id' in response")
 	})
 }

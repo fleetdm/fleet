@@ -127,6 +127,7 @@ export interface IOSSettings {
   recovery_lock_password?: {
     status: RecoveryLockPasswordStatus;
     detail: string;
+    password_available: boolean;
   };
   certificates: IHostAndroidCert[];
 }
@@ -253,6 +254,7 @@ export interface IHostRecoveryLockPasswordResponse {
   recovery_lock_password: {
     updated_at: string;
     password: string;
+    auto_rotate_at?: string;
   };
 }
 

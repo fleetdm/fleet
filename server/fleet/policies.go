@@ -59,7 +59,7 @@ type PolicyPayload struct {
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string
-	// PatchSoftwareTitleID is the title id of the Fleet maintained app chcked by a patch policy.
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
 	//
 	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint
@@ -109,16 +109,17 @@ type NewTeamPolicyPayload struct {
 }
 
 var (
-	errPolicyEmptyName           = errors.New("policy name cannot be empty")
-	errPolicyEmptyQuery          = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet       = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidPlatform     = errors.New("invalid policy platform")
-	errPolicyConflictingLabels   = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
-	errPolicyPatchAndQuerySet    = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
-	errPolicyPatchAndPlatformSet = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
-	errPolicyPatchNoTitleID      = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
-	errPolicyQueryUpdated        = errors.New("\"query\" can't be updated")
-	errPolicyPlatformUpdated     = errors.New("\"platform\" can't be updated")
+	errPolicyEmptyName                               = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery                              = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet                           = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidPlatform                         = errors.New("invalid policy platform")
+	errPolicyConflictingLabels                       = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
+	errPolicyPatchAndQuerySet                        = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
+	errPolicyPatchAndPlatformSet                     = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
+	errPolicyPatchNoTitleID                          = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
+	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
+	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
+	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -163,6 +164,10 @@ func (p PolicyPayload) Verify() error {
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
 	}
+	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+
 	if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
 		return errPolicyConflictingLabels
 	}
@@ -198,6 +203,13 @@ func verifyPolicyPlatforms(platforms string) error {
 		default:
 			return errPolicyInvalidPlatform
 		}
+	}
+	return nil
+}
+
+func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform string) error {
+	if conditionalAccessEnabled && !strings.Contains(platform, "darwin") && !strings.Contains(platform, "windows") {
+		return errPolicyConditionalAccessEnabledInvalidPlatform
 	}
 	return nil
 }
@@ -490,6 +502,9 @@ func (p PolicySpec) Verify() error {
 		return err
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
+		return err
+	}
+	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
 		return err
 	}
 	return nil

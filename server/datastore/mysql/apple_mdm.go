@@ -2026,7 +2026,9 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed,
+		       profile_uuid, assign_profile_response, response_updated_at
+		FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
@@ -3555,8 +3557,8 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 }
 
 // sqlCaseMDMAppleStatus returns a SQL snippet that can be used to determine the status of a host
-// based on the status of its profiles and declarations and filevault status. It should be used in
-// conjunction with sqlJoinMDMAppleProfilesStatus and sqlJoinMDMAppleDeclarationsStatus. It assumes the
+// based on the status of its profiles, declarations, filevault status, and recovery lock status. It should be used in
+// conjunction with sqlJoinMDMAppleProfilesStatus, sqlJoinMDMAppleDeclarationsStatus, and sqlJoinRecoveryLockStatus. It assumes the
 // hosts table to be aliased as 'h' and the host_disk_encryption_keys table to be aliased as 'hdek'.
 func sqlCaseMDMAppleStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
@@ -3570,10 +3572,12 @@ func sqlCaseMDMAppleStatus() string {
 	return `
 	CASE WHEN (prof_failed
 		OR decl_failed
-		OR fv_failed) THEN
+		OR fv_failed
+		OR rl_failed) THEN
 		` + failed + `
 	WHEN (prof_pending
 		OR decl_pending
+		OR rl_pending
 		-- special case for filevault, it's pending if the profile is
 		-- pending OR the profile is verified or verifying but we still
 		-- don't have an encryption key.
@@ -3584,6 +3588,7 @@ func sqlCaseMDMAppleStatus() string {
 		` + pending + `
 	WHEN (prof_verifying
 		OR decl_verifying
+		OR rl_verifying
 		-- special case when fv profile is verifying, and we already have an encryption key, in any state, we treat as verifying
 		OR(fv_verifying
 			AND hdek.base64_encrypted IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable = 1))
@@ -3593,6 +3598,7 @@ func sqlCaseMDMAppleStatus() string {
 		` + verifying + `
 	WHEN (prof_verified
 		OR decl_verified
+		OR rl_verified
 		OR(fv_verified
 			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable = 1)) THEN
 		` + verified + `
@@ -3634,6 +3640,36 @@ func sqlJoinMDMAppleProfilesStatus() string {
 			host_mdm_apple_profiles
 		GROUP BY
 			host_uuid) hmap ON h.uuid = hmap.host_uuid
+`
+}
+
+// sqlJoinRecoveryLockStatus returns a SQL snippet that can be used to join the host_recovery_key_passwords
+// table to the hosts table. For each host, it derives a boolean value for each status category.
+// The value will be 1 if the host has recovery lock in the given status. The snippet assumes the hosts
+// table to be aliased as 'h'. Recovery lock is only applicable to macOS hosts.
+func sqlJoinRecoveryLockStatus() string {
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+	)
+	return `
+	LEFT JOIN (
+		-- recovery lock statuses grouped by host uuid
+		-- NULL status is treated as pending (retry state after failed enqueue)
+		SELECT
+			host_uuid,
+			MAX(IF(status IS NULL OR status = ` + pending + `, 1, 0)) AS rl_pending,
+			MAX(IF(status = ` + failed + `, 1, 0)) AS rl_failed,
+			MAX(IF(status = ` + verifying + `, 1, 0)) AS rl_verifying,
+			MAX(IF(status = ` + verified + `, 1, 0)) AS rl_verified
+		FROM
+			host_recovery_key_passwords
+		WHERE
+			deleted = 0
+		GROUP BY
+			host_uuid) hrlp ON h.uuid = hrlp.host_uuid
 `
 }
 
@@ -3679,6 +3715,7 @@ FROM
 	hosts h
 	%s
 	%s
+	%s
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
 	platform IN('darwin', 'ios', 'ipados') AND %s
@@ -3690,7 +3727,7 @@ GROUP BY
 		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
 	}
 
-	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), teamFilter)
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), sqlJoinRecoveryLockStatus(), teamFilter)
 
 	var dest []struct {
 		Count  uint   `db:"count"`
@@ -4921,6 +4958,9 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		}
 
 		// TODO: Add test coverage for scepRenewalInProgress branching logic.
+		// FIXME: When revisiting scep renewal paths, think about no clear indicator for new enrollment vs only SCEP renewal coming from Authenticate
+		// which is why we call this method, with a distinct false value in TokenUpdate, as that is only where we have a clear indicator
+		// on if it is an old device that was expected to renew but was wiped.
 		if scepRenewalInProgress {
 			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
 			// much more difficult to reason about the state of the host. We should try instead
@@ -7283,11 +7323,12 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 }
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+	const stmt = `SELECT encrypted_password, updated_at, auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
-		EncryptedPassword []byte    `db:"encrypted_password"`
-		UpdatedAt         time.Time `db:"updated_at"`
+		EncryptedPassword []byte     `db:"encrypted_password"`
+		UpdatedAt         time.Time  `db:"updated_at"`
+		AutoRotateAt      *time.Time `db:"auto_rotate_at"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -7303,9 +7344,47 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 	}
 
 	return &fleet.HostRecoveryLockPassword{
-		Password:  string(decrypted),
-		UpdatedAt: row.UpdatedAt,
+		Password:     string(decrypted),
+		UpdatedAt:    row.UpdatedAt,
+		AutoRotateAt: row.AutoRotateAt,
 	}, nil
+}
+
+func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+	const stmt = `
+		SELECT
+			status,
+			operation_type,
+			COALESCE(error_message, '') AS detail,
+			encrypted_password IS NOT NULL AS password_available
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ? AND deleted = 0`
+
+	var row struct {
+		Status            *fleet.MDMDeliveryStatus `db:"status"`
+		OperationType     fleet.MDMOperationType   `db:"operation_type"`
+		Detail            string                   `db:"detail"`
+		PasswordAvailable bool                     `db:"password_available"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting recovery lock password status")
+	}
+
+	// Treat NULL status as pending (retry state after failed command enqueue)
+	status := row.Status
+	if status == nil {
+		status = &fleet.MDMDeliveryPending
+	}
+
+	result := &fleet.HostMDMRecoveryLockPassword{
+		Detail:            row.Detail,
+		PasswordAvailable: row.PasswordAvailable,
+	}
+	result.SetRawStatus(status, row.OperationType)
+	return result, nil
 }
 
 func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error) {
@@ -7546,6 +7625,150 @@ func (ds *Datastore) GetRecoveryLockOperationType(ctx context.Context, hostUUID 
 	return opType, nil
 }
 
+func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error {
+	encryptedPassword, err := encrypt([]byte(newPassword), ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt pending recovery lock password")
+	}
+
+	// Set the pending password and mark status as pending.
+	// Only allow rotation if:
+	// - Has an existing password (encrypted_password IS NOT NULL)
+	// - Operation type is 'install' (not removing the password)
+	// - Current status is 'verified' or 'failed' (not 'pending' or NULL)
+	// - No pending rotation already (pending_encrypted_password IS NULL)
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET pending_encrypted_password = ?,
+		    pending_error_message = NULL,
+		    status = '%s'
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND encrypted_password IS NOT NULL
+		  AND operation_type = '%s'
+		  AND status IN ('%s', '%s')
+		  AND pending_encrypted_password IS NULL
+	`, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, encryptedPassword, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "initiate recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		// Determine the specific reason for failure
+		var dest struct {
+			HasPassword   bool           `db:"has_password"`
+			HasPending    bool           `db:"has_pending"`
+			Status        sql.NullString `db:"status"`
+			OperationType sql.NullString `db:"operation_type"`
+		}
+		checkStmt := `
+			SELECT
+				encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
+				pending_encrypted_password IS NOT NULL AS has_pending,
+				status,
+				operation_type
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0
+		`
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, checkStmt, hostUUID); err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+					WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+			}
+			return ctxerr.Wrap(ctx, err, "check recovery lock rotation eligibility")
+		}
+
+		if dest.HasPending {
+			return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockRotationPending, fmt.Sprintf("host %s", hostUUID))
+		}
+
+		return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockNotEligible, fmt.Sprintf("host %s (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	// Move pending password to active and clear pending columns.
+	// Also clear auto_rotate_at since rotation is now complete.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET encrypted_password = pending_encrypted_password,
+		    pending_encrypted_password = NULL,
+		    pending_error_message = NULL,
+		    status = '%s',
+		    error_message = NULL,
+		    auto_rotate_at = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryVerified)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "complete recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error {
+	// Mark as failed but keep pending password for potential retry.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    pending_error_message = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryFailed)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fail recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	// Clear pending rotation (e.g., if command enqueue fails).
+	// Only affects rows that were modified by InitiateRecoveryLockRotation
+	// (status = pending AND has pending password).
+	// Restores status to previous state: 'failed' if error_message exists, otherwise 'verified'.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET pending_encrypted_password = NULL,
+		    pending_error_message = NULL,
+		    status = CASE WHEN error_message IS NOT NULL THEN '%s' ELSE '%s' END
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND status = '%s'
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified, fleet.MDMDeliveryPending)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear recovery lock rotation")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
@@ -7559,4 +7782,123 @@ func (ds *Datastore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID str
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error) {
+	const stmt = `
+		SELECT
+			host_uuid,
+			encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
+			status,
+			operation_type,
+			pending_encrypted_password IS NOT NULL AS has_pending_rotation,
+			pending_error_message
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`
+
+	var row struct {
+		HostUUID            string  `db:"host_uuid"`
+		HasPassword         bool    `db:"has_password"`
+		Status              *string `db:"status"`
+		OperationType       string  `db:"operation_type"`
+		HasPendingRotation  bool    `db:"has_pending_rotation"`
+		PendingErrorMessage *string `db:"pending_error_message"`
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get recovery lock rotation status")
+	}
+
+	return &fleet.HostRecoveryLockRotationStatus{
+		HostUUID:            row.HostUUID,
+		HasPassword:         row.HasPassword,
+		Status:              row.Status,
+		OperationType:       row.OperationType,
+		HasPendingRotation:  row.HasPendingRotation,
+		PendingErrorMessage: row.PendingErrorMessage,
+	}, nil
+}
+
+func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error) {
+	const stmt = `
+		SELECT pending_encrypted_password IS NOT NULL
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`
+
+	var hasPending bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "has pending recovery lock rotation")
+	}
+
+	return hasPending, nil
+}
+
+func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
+	// Set auto_rotate_at to 1 hour from now when password is viewed.
+	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
+	rotateAt := time.Now().Add(1 * time.Hour)
+
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET auto_rotate_at = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND operation_type = '%s'
+	`, fleet.MDMOperationTypeInstall)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, rotateAt, hostUUID)
+	if err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return time.Time{}, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return rotateAt, nil
+}
+
+func (ds *Datastore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+	// Return hosts where:
+	// - auto_rotate_at is in the past (due for rotation)
+	// - status is verified (password is confirmed working)
+	// - no pending rotation (pending_encrypted_password IS NULL)
+	// - operation_type is install (not in remove state)
+	// - not deleted
+	// Join with hosts table to get host ID and display name for activity logging.
+	stmt := fmt.Sprintf(`
+		SELECT
+			hrkp.host_uuid,
+			h.id AS host_id,
+			COALESCE(NULLIF(h.computer_name, ''), h.hostname) AS display_name
+		FROM host_recovery_key_passwords hrkp
+		JOIN hosts h ON h.uuid = hrkp.host_uuid
+		WHERE hrkp.auto_rotate_at IS NOT NULL
+		  AND hrkp.auto_rotate_at <= NOW(6)
+		  AND hrkp.status = '%s'
+		  AND hrkp.pending_encrypted_password IS NULL
+		  AND hrkp.operation_type = '%s'
+		  AND hrkp.deleted = 0
+		LIMIT 100
+	`, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall)
+
+	var hosts []fleet.HostAutoRotationInfo
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hosts for auto rotation")
+	}
+
+	return hosts, nil
 }

@@ -750,7 +750,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("rotated the Recovery Lock password for", {
+      screen.getByText("triggered rotation of the Recovery Lock password for", {
         exact: false,
       })
     ).toBeInTheDocument();

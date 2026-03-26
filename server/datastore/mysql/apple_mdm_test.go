@@ -120,7 +120,10 @@ func TestMDMApple(t *testing.T) {
 		{"RecoveryLockPasswordUpdatedAtChanges", testRecoveryLockPasswordUpdatedAtChanges},
 		{"RecoveryLockStatusMethods", testRecoveryLockStatusMethods},
 		{"GetHostsForRecoveryLockAction", testGetHostsForRecoveryLockAction},
+		{"GetHostRecoveryLockPasswordStatus", testGetHostRecoveryLockPasswordStatus},
 		{"ClaimHostsForRecoveryLockClear", testClaimHostsForRecoveryLockClear},
+		{"RecoveryLockRotation", testRecoveryLockRotation},
+		{"RecoveryLockAutoRotation", testRecoveryLockAutoRotation},
 	}
 
 	for _, c := range cases {
@@ -4615,7 +4618,31 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	// after the grace period and one retry attempt, status changes to "failed" if a profile is missing (i.e. not installed)
+	// after the grace period and max retry attempts, status changes to "failed" if a profile is missing (i.e. not installed)
+	for missingRetry := range fleetmdm.MaxAppleProfileRetries {
+		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
+			{
+				Identifier:  cp1.Identifier,
+				DisplayName: cp1.Name,
+				InstallDate: time.Now(),
+			},
+			{
+				Identifier:  cp2.Identifier,
+				DisplayName: cp2.Name,
+				InstallDate: time.Now(),
+			},
+		})))
+		if missingRetry == 0 {
+			expectedHostMDMStatus[hosts[2].ID][cp1.Identifier] = fleet.MDMDeliveryVerified // cp1 can go from pending to verified
+		}
+		expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryPending // retry for cp3
+		expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryPending // retry for cp4
+		checkHostMDMProfileStatuses()
+		// simulate retry command acknowledged by setting status to "verifying"
+		adHocSetVerifying(hosts[2].UUID, cp3.Identifier)
+		adHocSetVerifying(hosts[2].UUID, cp4.Identifier)
+	}
+	// report osquery results again with cp3 and cp4 still missing after max retries
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
@@ -4628,32 +4655,31 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			InstallDate: time.Now(),
 		},
 	})))
-	expectedHostMDMStatus[hosts[2].ID][cp1.Identifier] = fleet.MDMDeliveryVerified // cp1 can go from pending to verified
-	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryPending  // first retry for cp3
-	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryPending  // first retry for cp4
-	checkHostMDMProfileStatuses()
-	// simulate retry command acknowledged by setting status to "verifying"
-	adHocSetVerifying(hosts[2].UUID, cp3.Identifier)
-	adHocSetVerifying(hosts[2].UUID, cp4.Identifier)
-	// report osquery results again with cp3 and cp4 still missing
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
-		{
-			Identifier:  cp1.Identifier,
-			DisplayName: cp1.Name,
-			InstallDate: time.Now(),
-		},
-		{
-			Identifier:  cp2.Identifier,
-			DisplayName: cp2.Name,
-			InstallDate: time.Now(),
-		},
-	})))
-	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryFailed // still missing after retry so expect cp3 to fail
-	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryFailed // still missing after retry so expect cp4 to fail
+	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryFailed // still missing after max retries so expect cp3 to fail
+	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryFailed // still missing after max retries so expect cp4 to fail
 	checkHostMDMProfileStatuses()
 
-	// after the grace period and one retry attempt, status changes to "failed" if a profile is outdated (i.e. installed
+	// after the grace period and max retry attempts, status changes to "failed" if a profile is outdated (i.e. installed
 	// before the updated at timestamp of the profile)
+	for range fleetmdm.MaxAppleProfileRetries {
+		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
+			{
+				Identifier:  cp1.Identifier,
+				DisplayName: cp1.Name,
+				InstallDate: time.Now(),
+			},
+			{
+				Identifier:  cp2.Identifier,
+				DisplayName: cp2.Name,
+				InstallDate: time.Now().Add(-48 * time.Hour),
+			},
+		})))
+		expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMDeliveryPending // retry for cp2
+		checkHostMDMProfileStatuses()
+		// simulate retry command acknowledged by setting status to "verifying"
+		adHocSetVerifying(hosts[2].UUID, cp2.Identifier)
+	}
+	// report osquery results again with cp2 still outdated after max retries
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
@@ -4666,24 +4692,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			InstallDate: time.Now().Add(-48 * time.Hour),
 		},
 	})))
-	expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMDeliveryPending // first retry for cp2
-	checkHostMDMProfileStatuses()
-	// simulate retry command acknowledged by setting status to "verifying"
-	adHocSetVerifying(hosts[2].UUID, cp2.Identifier)
-	// report osquery results again with cp2 still outdated
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
-		{
-			Identifier:  cp1.Identifier,
-			DisplayName: cp1.Name,
-			InstallDate: time.Now(),
-		},
-		{
-			Identifier:  cp2.Identifier,
-			DisplayName: cp2.Name,
-			InstallDate: time.Now().Add(-48 * time.Hour),
-		},
-	})))
-	expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMDeliveryFailed // still outdated after retry so expect cp2 to fail
+	expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMDeliveryFailed // still outdated after max retries so expect cp2 to fail
 	checkHostMDMProfileStatuses()
 }
 
@@ -6264,7 +6273,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 	t.Run("MissingProfileWithRetry", func(t *testing.T) {
 		defer cleanupProfiles(t)
 		// missing profile, verifying and verified statuses should change to failed after the grace
-		// period and one retry
+		// period and max retries
 		cases := []testCase{
 			{
 				name:           "PendingThenMissing",
@@ -6314,11 +6323,18 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 			}
 
 			if tc.initialStatus != fleet.MDMDeliveryPending {
-				// after retry, assume successful install profile command so status should be verifying
+				// simulate retry cycles up to max retries
+				for retry := uint(1); retry < fleetmdm.MaxAppleProfileRetries; retry++ {
+					// after retry, assume successful install profile command so status should be verifying
+					upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+					// report osquery results with profile still missing
+					require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
+					// still retrying so status should be pending
+					require.NoError(t, checkHostStatus(t, h, fleet.MDMDeliveryPending, ""), tc.name)
+				}
+				// final retry: after max retries, expect failure
 				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
-				// report osquery results
 				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
-				// now we see the expected status
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, string(fleet.HostMDMProfileDetailFailedWasVerifying)), tc.name) // grace period expired, max retries so check expected status
 			}
 		}
@@ -6371,7 +6387,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				}
 
 				// initialize with no remaining retries
-				initializeProfile(t, h, cp, tc.initialStatus, 1)
+				initializeProfile(t, h, cp, tc.initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 				// within grace period
 				setProfileUploadedAt(t, cp, twoMinutesAgo)
@@ -6379,7 +6395,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, "")) // outdated profiles are treated similar to missing profiles so status doesn't change if within grace period
 
 				// reinitalize with no remaining retries
-				initializeProfile(t, h, cp, tc.initialStatus, 1)
+				initializeProfile(t, h, cp, tc.initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 				// outside grace period
 				setProfileUploadedAt(t, cp, twoHoursAgo)
@@ -6434,7 +6450,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				}
 
 				// initialize with no remaining retries
-				initializeProfile(t, h, cp, tc.initialStatus, 1)
+				initializeProfile(t, h, cp, tc.initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 				// within grace period
 				setProfileUploadedAt(t, cp, twoMinutesAgo)
@@ -6442,7 +6458,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // if found within grace period, verifying status can become verified so check expected status
 
 				// reinitializewith no remaining retries
-				initializeProfile(t, h, cp, tc.initialStatus, 1)
+				initializeProfile(t, h, cp, tc.initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 				// outside grace period
 				setProfileUploadedAt(t, cp, twoHoursAgo)
@@ -6502,7 +6518,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				}
 
 				// initialize with no remaining retries
-				initializeProfile(t, h, cp, tc.initialStatus, 1)
+				initializeProfile(t, h, cp, tc.initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 				// within grace period
 				setProfileUploadedAt(t, cp, twoMinutesAgo)
@@ -6510,7 +6526,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // if found within grace period, verifying status can become verified so check expected status
 
 				// reinitialize with no remaining retries
-				initializeProfile(t, h, cp, tc.initialStatus, 1)
+				initializeProfile(t, h, cp, tc.initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 				// outside grace period
 				setProfileUploadedAt(t, cp, twoHoursAgo)
@@ -6545,7 +6561,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 		initialStatus := fleet.MDMDeliveryVerifying
 
 		// initialize with no remaining retries
-		initializeProfile(t, h, stored0, initialStatus, 1)
+		initializeProfile(t, h, stored0, initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 		// within grace period
 		setProfileUploadedAt(t, stored0, twoMinutesAgo) // host is out of date but still within grace period
@@ -6553,7 +6569,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 		require.NoError(t, checkHostStatus(t, h, fleet.MDMDeliveryVerifying, "")) // no change
 
 		// reinitialize with no remaining retries
-		initializeProfile(t, h, stored0, initialStatus, 1)
+		initializeProfile(t, h, stored0, initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 		// outside grace period
 		setProfileUploadedAt(t, stored0, twoHoursAgo) // host is out of date and grace period has passed
@@ -6561,7 +6577,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 		require.NoError(t, checkHostStatus(t, h, fleet.MDMDeliveryFailed, string(fleet.HostMDMProfileDetailFailedWasVerifying))) // set to failed
 
 		// reinitialize with no remaining retries
-		initializeProfile(t, h, stored0, initialStatus, 1)
+		initializeProfile(t, h, stored0, initialStatus, fleetmdm.MaxAppleProfileRetries)
 
 		// save a copy of the config profile to team 1
 		cp.TeamID = ptr.Uint(1)
@@ -6751,6 +6767,46 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.ID, assignment.HostID)
 	require.Nil(t, assignment.DeletedAt)
+	// profile fields are nil before any assignment response has been recorded
+	require.Nil(t, assignment.ProfileUUID)
+	require.Nil(t, assignment.AssignProfileResponse)
+	require.Nil(t, assignment.ResponseUpdatedAt)
+
+	// simulate a successful profile assignment response from Apple
+	profileUUID := uuid.NewString()
+	err = ds.UpdateHostDEPAssignProfileResponses(ctx, &godep.ProfileResponse{
+		ProfileUUID: profileUUID,
+		Devices:     map[string]string{h.HardwareSerial: string(fleet.DEPAssignProfileResponseSuccess)},
+	}, abmToken.ID)
+	require.NoError(t, err)
+
+	beforeDelete, err := ds.GetHostDEPAssignment(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, beforeDelete.HostID)
+	require.Nil(t, beforeDelete.DeletedAt)
+	// profile fields are now populated
+	require.NotNil(t, beforeDelete.ProfileUUID)
+	require.Equal(t, profileUUID, *beforeDelete.ProfileUUID)
+	require.NotNil(t, beforeDelete.AssignProfileResponse)
+	require.Equal(t, fleet.DEPAssignProfileResponseSuccess, *beforeDelete.AssignProfileResponse)
+	require.NotNil(t, beforeDelete.ResponseUpdatedAt)
+	require.WithinDuration(t, time.Now(), *beforeDelete.ResponseUpdatedAt, 5*time.Second)
+
+	// simulate a failed profile assignment response — fields should be updated
+	profileUUID2 := uuid.NewString()
+	err = ds.UpdateHostDEPAssignProfileResponses(ctx, &godep.ProfileResponse{
+		ProfileUUID: profileUUID2,
+		Devices:     map[string]string{h.HardwareSerial: string(fleet.DEPAssignProfileResponseFailed)},
+	}, abmToken.ID)
+	require.NoError(t, err)
+
+	afterFail, err := ds.GetHostDEPAssignment(ctx, h.ID)
+	require.NoError(t, err)
+	require.NotNil(t, afterFail.ProfileUUID)
+	require.Equal(t, profileUUID2, *afterFail.ProfileUUID)
+	require.NotNil(t, afterFail.AssignProfileResponse)
+	require.Equal(t, fleet.DEPAssignProfileResponseFailed, *afterFail.AssignProfileResponse)
+	require.NotNil(t, afterFail.ResponseUpdatedAt)
 
 	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{h.HardwareSerial})
 	require.NoError(t, err)
@@ -6766,6 +6822,11 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.ID, assignment.HostID)
 	require.Nil(t, assignment.DeletedAt)
+	// profile fields survive an upsert (the upsert only resets added_at/deleted_at)
+	require.NotNil(t, assignment.ProfileUUID)
+	require.Equal(t, profileUUID2, *assignment.ProfileUUID)
+	require.NotNil(t, assignment.AssignProfileResponse)
+	require.Equal(t, fleet.DEPAssignProfileResponseFailed, *assignment.AssignProfileResponse)
 }
 
 func createRawAppleCmd(reqType, cmdUUID string) string {
@@ -10929,5 +10990,627 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.True(t, found)
 		assert.Equal(t, "remove", opType)
 		assert.Equal(t, "pending", status)
+	})
+}
+
+func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("returns nil for host without recovery lock password", func(t *testing.T) {
+		host := test.NewHost(t, ds, "no-rlp-host", "1.2.6.1", "norlpkey", "norlpuuid", time.Now())
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+	})
+
+	t.Run("returns enforcing status for pending install", func(t *testing.T) {
+		host := test.NewHost(t, ds, "pending-rlp-host", "1.2.6.2", "pendingrlpkey", "pendingrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.Empty(t, status.Detail)
+		assert.True(t, status.PasswordAvailable)
+	})
+
+	t.Run("returns verified status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verified-rlp-host", "1.2.6.3", "verifiedrlpkey", "verifiedrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *status.Status)
+		assert.Empty(t, status.Detail)
+		assert.True(t, status.PasswordAvailable)
+	})
+
+	t.Run("returns failed status with error message", func(t *testing.T) {
+		host := test.NewHost(t, ds, "failed-rlp-host", "1.2.6.4", "failedrlpkey", "failedrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		errMsg := "SetRecoveryLock command failed: device rejected"
+		err = ds.SetRecoveryLockFailed(ctx, host.UUID, errMsg)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *status.Status)
+		assert.Equal(t, errMsg, status.Detail)
+	})
+
+	t.Run("returns verifying status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verifying-rlp-host", "1.2.6.5", "verifyingrlpkey", "verifyingrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Set status to verifying directly via SQL (since there's no SetRecoveryLockVerifying method)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET status = ? WHERE host_uuid = ?`,
+			fleet.MDMDeliveryVerifying, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("returns enforcing status when status column is NULL (retry state)", func(t *testing.T) {
+		host := test.NewHost(t, ds, "null-status-host", "1.2.6.6", "nullstatuskey", "nullstatusuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Clear status to NULL (simulates retry state after failed enqueue)
+		err = ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		// NULL status is coalesced to pending, which becomes enforcing
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("returns removing_enforcement status for pending removal after PopulateStatus", func(t *testing.T) {
+		host := test.NewHost(t, ds, "remove-pending-host", "1.2.6.7", "removependingkey", "removependinguuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		// Set operation_type to 'remove' and status to 'pending' (simulates pending removal)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET operation_type = ?, status = ? WHERE host_uuid = ?`,
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+
+		// Before PopulateStatus, Status is nil (raw status is internal)
+		assert.Nil(t, status.Status)
+
+		// After PopulateStatus, Status is removing_enforcement
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *status.Status)
+	})
+
+	t.Run("returns failed status when operation_type is remove and status is failed", func(t *testing.T) {
+		host := test.NewHost(t, ds, "remove-failed-host", "1.2.6.8", "removefailedkey", "removefaileduuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		// Set operation_type to 'remove' and status to 'failed'
+		errMsg := "ClearRecoveryLock command failed"
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET operation_type = ?, status = ?, error_message = ? WHERE host_uuid = ?`,
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryFailed, errMsg, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		assert.Equal(t, errMsg, status.Detail)
+
+		// After PopulateStatus, Status is failed
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *status.Status)
+	})
+}
+
+func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Helper to set up a host with a verified recovery lock password
+	setupHostWithVerifiedPassword := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "1.2.3."+uuid[:3], name+"key", uuid, time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		return host
+	}
+
+	// Helper to get pending rotation state
+	getPendingRotationState := func(t *testing.T, hostUUID string) (hasPending bool, pendingErr *string) {
+		t.Helper()
+		var result struct {
+			HasPending bool    `db:"has_pending"`
+			PendingErr *string `db:"pending_err"`
+		}
+		err := ds.writer(ctx).GetContext(ctx, &result, `
+			SELECT
+				pending_encrypted_password IS NOT NULL AS has_pending,
+				pending_error_message AS pending_err
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		require.NoError(t, err)
+		return result.HasPending, result.PendingErr
+	}
+
+	t.Run("InitiateRecoveryLockRotation success", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "rotate-host", "rotateuuid1")
+
+		// Initiate rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Verify pending password is set
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.True(t, hasPending, "pending password should be set")
+
+		// Verify HasPendingRecoveryLockRotation returns true
+		pending, err := ds.HasPendingRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, pending)
+	})
+
+	t.Run("InitiateRecoveryLockRotation rejects if already pending", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "double-rotate-host", "doublerotuuid")
+
+		// Initiate first rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Try to initiate second rotation - should fail
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, "another-password")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, fleet.ErrRecoveryLockRotationPending)
+	})
+
+	t.Run("InitiateRecoveryLockRotation rejects pending status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "pending-rotate-host", "1.2.3.100", "pendingrotkey", "pendingrotuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Status is pending after SetHostsRecoveryLockPasswords
+
+		// Try to initiate rotation on pending status - should fail
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, "new-password")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, fleet.ErrRecoveryLockNotEligible)
+	})
+
+	t.Run("InitiateRecoveryLockRotation allows failed status", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "failed-rotate-host", "failedrotuuid")
+
+		// Set to failed status
+		err := ds.SetRecoveryLockFailed(ctx, host.UUID, "previous failure")
+		require.NoError(t, err)
+
+		// Should be able to initiate rotation on failed status
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.True(t, hasPending)
+	})
+
+	t.Run("CompleteRecoveryLockRotation success", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "complete-rotate-host", "completerotuuid")
+
+		// Get original password
+		origPw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Initiate rotation with new password
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Complete rotation
+		err = ds.CompleteRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify new password is now the active password
+		currentPw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.NotEqual(t, origPw.Password, currentPw.Password)
+		assert.Equal(t, newPassword, currentPw.Password)
+
+		// Verify pending is cleared
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.False(t, hasPending)
+
+		// Verify status is verified
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	})
+
+	t.Run("FailRecoveryLockRotation preserves pending password", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "fail-rotate-host", "failrotuuid")
+
+		// Initiate rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Fail rotation
+		err = ds.FailRecoveryLockRotation(ctx, host.UUID, "rotation failed due to device error")
+		require.NoError(t, err)
+
+		// Verify pending password is still there (for potential retry)
+		hasPending, pendingErr := getPendingRotationState(t, host.UUID)
+		assert.True(t, hasPending, "pending password should still be set for retry")
+		require.NotNil(t, pendingErr)
+		assert.Equal(t, "rotation failed due to device error", *pendingErr)
+
+		// Verify rotation status shows the error
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, status.HasPendingRotation)
+		require.NotNil(t, status.PendingErrorMessage)
+		assert.Equal(t, "rotation failed due to device error", *status.PendingErrorMessage)
+	})
+
+	t.Run("ClearRecoveryLockRotation removes pending", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "clear-rotate-host", "clearrotuuid")
+
+		// Initiate rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Clear rotation
+		err = ds.ClearRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify pending is cleared
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.False(t, hasPending)
+
+		// Verify HasPendingRecoveryLockRotation returns false
+		pending, err := ds.HasPendingRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.False(t, pending)
+
+		// Verify status restored to verified (since it was verified before rotation)
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	})
+
+	t.Run("ClearRecoveryLockRotation restores failed status", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "clear-failed-rotate-host", "clearfailedrotuuid")
+
+		// Set to failed status
+		err := ds.SetRecoveryLockFailed(ctx, host.UUID, "previous failure")
+		require.NoError(t, err)
+
+		// Initiate rotation from failed state
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Clear rotation
+		err = ds.ClearRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify pending is cleared
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.False(t, hasPending)
+
+		// Verify status restored to failed (since error_message still exists from previous failure)
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
+	})
+
+	t.Run("GetRecoveryLockRotationStatus returns all fields", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "status-rotate-host", "statusrotuuid")
+
+		// Get initial status
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, host.UUID, status.HostUUID)
+		assert.True(t, status.HasPassword)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+		assert.Equal(t, string(fleet.MDMOperationTypeInstall), status.OperationType)
+		assert.False(t, status.HasPendingRotation)
+		assert.Nil(t, status.PendingErrorMessage)
+
+		// Initiate rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Check status now shows pending rotation
+		status, err = ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, status.HasPendingRotation)
+	})
+
+	t.Run("GetRecoveryLockRotationStatus not found", func(t *testing.T) {
+		_, err := ds.GetRecoveryLockRotationStatus(ctx, "non-existent-uuid")
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("HasPendingRecoveryLockRotation returns false for no record", func(t *testing.T) {
+		pending, err := ds.HasPendingRecoveryLockRotation(ctx, "non-existent-uuid")
+		require.NoError(t, err)
+		assert.False(t, pending)
+	})
+}
+
+func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Helper to set up a host with a verified recovery lock password
+	setupHostWithVerifiedPassword := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "2.3.4."+uuid[:3], name+"key", uuid, time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		return host
+	}
+
+	// Helper to get auto_rotate_at directly from DB
+	getAutoRotateAt := func(t *testing.T, hostUUID string) *time.Time {
+		t.Helper()
+		var autoRotateAt *time.Time
+		err := ds.writer(ctx).GetContext(ctx, &autoRotateAt, `
+			SELECT auto_rotate_at FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		require.NoError(t, err)
+		return autoRotateAt
+	}
+
+	t.Run("MarkRecoveryLockPasswordViewed sets auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "view-host1", "viewuuid0001")
+
+		// Initially no auto_rotate_at
+		autoRotateAt := getAutoRotateAt(t, host.UUID)
+		assert.Nil(t, autoRotateAt)
+
+		// Mark as viewed
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.False(t, rotateAt.IsZero())
+
+		// Verify auto_rotate_at is approximately 1 hour from now
+		expectedRotateAt := time.Now().Add(1 * time.Hour)
+		assert.WithinDuration(t, expectedRotateAt, rotateAt, 1*time.Minute)
+
+		// Verify via direct DB query
+		autoRotateAt = getAutoRotateAt(t, host.UUID)
+		require.NotNil(t, autoRotateAt)
+		assert.WithinDuration(t, expectedRotateAt, *autoRotateAt, 1*time.Minute)
+	})
+
+	t.Run("MarkRecoveryLockPasswordViewed updates existing auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "view-host2", "viewuuid0002")
+
+		// First view
+		firstRotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		time.Sleep(10 * time.Millisecond) // Small delay to ensure different timestamp
+
+		// Second view should update auto_rotate_at
+		secondRotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Second rotation time should be after first
+		assert.True(t, secondRotateAt.After(firstRotateAt), "second view should update auto_rotate_at")
+
+		// Verify the value was persisted in the database
+		pw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, pw.AutoRotateAt, "auto_rotate_at should be persisted")
+		assert.True(t, pw.AutoRotateAt.After(firstRotateAt), "persisted auto_rotate_at should be after first rotation time")
+	})
+
+	t.Run("MarkRecoveryLockPasswordViewed fails for non-existent host", func(t *testing.T) {
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, "non-existent-uuid")
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("MarkRecoveryLockPasswordViewed fails for remove operation", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "view-host3", "viewuuid0003")
+
+		// Change to remove operation type
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET operation_type = 'remove'
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Should fail because operation_type is not 'install'
+		_, err = ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	// Helper to check if a host UUID is in the rotation info list
+	containsHostUUID := func(hosts []fleet.HostAutoRotationInfo, uuid string) bool {
+		for _, h := range hosts {
+			if h.HostUUID == uuid {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("GetHostsForAutoRotation returns due hosts", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "auto-rotate-host1", "autorotateuuid1")
+
+		// Set auto_rotate_at to 2 hours ago (past due)
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET auto_rotate_at = DATE_SUB(NOW(6), INTERVAL 2 HOUR)
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Should be returned
+		hosts, err := ds.GetHostsForAutoRotation(ctx)
+		require.NoError(t, err)
+		assert.True(t, containsHostUUID(hosts, host.UUID), "host should be in auto-rotation list")
+	})
+
+	t.Run("GetHostsForAutoRotation excludes future auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "auto-rotate-host2", "autorotateuuid2")
+
+		// Set auto_rotate_at to 1 hour in the future
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET auto_rotate_at = DATE_ADD(NOW(6), INTERVAL 1 HOUR)
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Should NOT be returned
+		hosts, err := ds.GetHostsForAutoRotation(ctx)
+		require.NoError(t, err)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
+	})
+
+	t.Run("GetHostsForAutoRotation excludes hosts with pending rotation", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "auto-rotate-host3", "autorotateuuid3")
+
+		// Set auto_rotate_at to past due
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET auto_rotate_at = DATE_SUB(NOW(6), INTERVAL 2 HOUR)
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Initiate rotation (sets pending_encrypted_password)
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Should NOT be returned because pending rotation exists
+		hosts, err := ds.GetHostsForAutoRotation(ctx)
+		require.NoError(t, err)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
+	})
+
+	t.Run("GetHostsForAutoRotation excludes non-verified hosts", func(t *testing.T) {
+		host := test.NewHost(t, ds, "auto-rotate-host4", "2.3.4.104", "autorotate4key", "autorotateuuid4", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Status is "pending" after SetHostsRecoveryLockPasswords, NOT verified
+
+		// Set auto_rotate_at to past due
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET auto_rotate_at = DATE_SUB(NOW(6), INTERVAL 2 HOUR)
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Should NOT be returned because status is not verified
+		hosts, err := ds.GetHostsForAutoRotation(ctx)
+		require.NoError(t, err)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
+	})
+
+	t.Run("CompleteRecoveryLockRotation clears auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "complete-auto-rotate", "completeautorot")
+
+		// Mark as viewed to set auto_rotate_at
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify auto_rotate_at is set
+		autoRotateAt := getAutoRotateAt(t, host.UUID)
+		require.NotNil(t, autoRotateAt)
+
+		// Initiate and complete rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		err = ds.CompleteRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// auto_rotate_at should be cleared
+		autoRotateAt = getAutoRotateAt(t, host.UUID)
+		assert.Nil(t, autoRotateAt)
+	})
+
+	t.Run("GetHostRecoveryLockPassword includes auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "get-pw-auto-rotate", "getpwautorot")
+
+		// Initially no auto_rotate_at
+		pw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, pw.AutoRotateAt)
+
+		// Mark as viewed
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Now auto_rotate_at should be returned
+		pw, err = ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, pw.AutoRotateAt)
+		assert.WithinDuration(t, rotateAt, *pw.AutoRotateAt, 1*time.Second)
 	})
 }

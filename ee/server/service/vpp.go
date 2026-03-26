@@ -99,6 +99,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					Platform:            fleet.MacOSPlatform,
 					LabelsExcludeAny:    payload.LabelsExcludeAny,
 					LabelsIncludeAny:    payload.LabelsIncludeAny,
+					LabelsIncludeAll:    payload.LabelsIncludeAll,
 					Categories:          payload.Categories,
 					DisplayName:         payload.DisplayName,
 					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
@@ -112,6 +113,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					Platform:            fleet.IOSPlatform,
 					LabelsExcludeAny:    payload.LabelsExcludeAny,
 					LabelsIncludeAny:    payload.LabelsIncludeAny,
+					LabelsIncludeAll:    payload.LabelsIncludeAll,
 					Categories:          payload.Categories,
 					DisplayName:         payload.DisplayName,
 					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
@@ -125,6 +127,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					Platform:            fleet.IPadOSPlatform,
 					LabelsExcludeAny:    payload.LabelsExcludeAny,
 					LabelsIncludeAny:    payload.LabelsIncludeAny,
+					LabelsIncludeAll:    payload.LabelsIncludeAll,
 					Categories:          payload.Categories,
 					DisplayName:         payload.DisplayName,
 					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
@@ -141,6 +144,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			Platform:            payload.Platform,
 			LabelsExcludeAny:    payload.LabelsExcludeAny,
 			LabelsIncludeAny:    payload.LabelsIncludeAny,
+			LabelsIncludeAll:    payload.LabelsIncludeAll,
 			Categories:          payload.Categories,
 			DisplayName:         payload.DisplayName,
 			Configuration:       payload.Configuration,
@@ -184,7 +188,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				}
 			}
 
-			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
 			}
@@ -318,7 +322,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					return nil, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+					return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in Play Store. Please find ID on the Play Store and try again.", a.AdamID))
 				}
 				return nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
 			}
@@ -578,7 +582,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 	}
 
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, appID.LabelsIncludeAny, appID.LabelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, appID.LabelsIncludeAny, appID.LabelsExcludeAny, appID.LabelsIncludeAll)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
 	}
@@ -632,7 +636,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, androidEnterpriseName, appID.AdamID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				return 0, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+				return 0, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in Play Store. Please find ID on the Play Store and try again.", appID.AdamID))
 			}
 			return 0, ctxerr.Wrap(ctx, err, "add app store app: check if android app exists")
 		}
@@ -650,7 +654,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			return 0, fleet.NewInvalidArgumentError(
 				"app_store_id",
 				fmt.Sprintf(
-					"Couldn't add software. %s isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.",
+					"Couldn't add software. %q isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.",
 					appID.AdamID,
 				),
 			)
@@ -668,7 +672,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		if len(assets) == 0 {
 			return 0, fleet.NewInvalidArgumentError("app_store_id",
-				fmt.Sprintf("Error: Couldn't add software. %s isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.", appID.AdamID))
+				fmt.Sprintf("Error: Couldn't add software. %q isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.", appID.AdamID))
 		}
 
 		asset := assets[0]
@@ -757,7 +761,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
 	act := fleet.ActivityAddedAppStoreApp{
 		AppStoreID:       app.AdamID,
@@ -767,8 +771,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		SoftwareTitleId:  addedApp.TitleID,
 		TeamID:           teamID,
 		SelfService:      app.SelfService,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
+		LabelsIncludeAny: actLabelsInclAny,
+		LabelsExcludeAny: actLabelsExclAny,
+		LabelsIncludeAll: actLabelsInclAll,
 		Configuration:    app.Configuration,
 	}
 
@@ -912,9 +917,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	var validatedLabels *fleet.LabelIdentsWithScope
-	if payload.LabelsExcludeAny != nil || payload.LabelsIncludeAny != nil {
+	if payload.LabelsExcludeAny != nil || payload.LabelsIncludeAny != nil || payload.LabelsIncludeAll != nil {
 		var err error
-		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+		validatedLabels, err = ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
 		}
@@ -995,6 +1000,13 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		for _, l := range meta.LabelsIncludeAny {
 			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
+
+	case len(meta.LabelsIncludeAll) > 0:
+		existingLabels.LabelScope = fleet.LabelScopeIncludeAll
+		existingLabels.ByName = make(map[string]fleet.LabelIdent, len(meta.LabelsIncludeAll))
+		for _, l := range meta.LabelsIncludeAll {
+			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
 	}
 	var labelsChanged bool
 	if validatedLabels != nil {
@@ -1066,7 +1078,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
 
 	displayNameVal := ptr.ValOrZero(payload.DisplayName)
 
@@ -1078,8 +1090,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		SoftwareTitle:       meta.Name,
 		AppStoreID:          meta.AdamID,
 		Platform:            meta.Platform,
-		LabelsIncludeAny:    actLabelsIncl,
-		LabelsExcludeAny:    actLabelsExcl,
+		LabelsIncludeAny:    actLabelsInclAny,
+		LabelsExcludeAny:    actLabelsExclAny,
+		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
 		SoftwareDisplayName: displayNameVal,
 		Configuration:       appToWrite.Configuration,

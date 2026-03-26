@@ -1,4 +1,8 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "env": {
     "MYSQL_TEST": "1",
     "REDIS_TEST": "1"
