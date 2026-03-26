@@ -12,12 +12,11 @@ In this guide, we will focus on deploying Fleet only on a Kubernetes cluster usi
 > - If you intend to deploy using the Fleet Helm chart, you will only need to have Helm (v3).
 > - If you intend to deploy using Terraform, you will, at minimum, need Terraform installed. If you intend to deploy MySQL and/or Redis to your k8s cluster using this guide, for testing, then you will also need Helm (v3).
 
-Before we get started with deploying Fleet, you will need 
+Before we get started with deploying Fleet, you will need
 1. Access to a Kubernetes cluster
-2. Access to a MySQL database (or you can deploy one to your Kubernetes cluster using Helm)
-  - This guide will use bitnamilegacy/mysql images.
-3. Access to a Redis cluster (or you can deploy one to your Kubernetes cluster using Helm)
-  - This guide will use bitnamilegacy/redis images.
+2. Access to a MySQL database (or you can deploy one using the Fleet Helm chart's built-in MySQL sub-chart, or install one separately)
+3. Access to a Redis-compatible cache (or you can deploy one using the Fleet Helm chart's built-in Valkey sub-chart, or install one separately)
+  - [Valkey](https://valkey.io) is a Linux Foundation-governed, Redis-compatible cache.
 
 Additionally, ensure a namespace is created or already exists for your Fleet deployment resources. 
 - Example of creating a kubernetes namespace
@@ -26,56 +25,67 @@ Additionally, ensure a namespace is created or already exists for your Fleet dep
 kubectl create ns <namespace>
 ```
 
-## Install Infrastructure Dependencies with Helm
+## Install Infrastructure Dependencies
 
-### MySQL
+### Option A: Use Fleet Helm Chart Sub-charts (Recommended for Dev/Test)
+
+The Fleet Helm chart includes optional MySQL and Valkey (Redis-compatible) sub-charts that can be enabled for dev/test deployments. To use them, set the following in your `values.yaml`:
+
+```yaml
+mysql:
+  enabled: true
+  auth:
+    username: fleet
+    password: <password>
+    database: fleet
+
+redis:
+  enabled: true
+```
+
+When the Fleet chart is deployed with these settings, it will automatically create:
+- A MySQL instance at `<release-name>-mysql:3306`
+- A Valkey instance at `<release-name>-valkey:6379`
+
+> **Note:** These sub-charts are intended for dev/test only. For production, use a managed MySQL and Redis service from your cloud provider.
+
+### Option B: Install MySQL and Redis/Valkey Separately
+
+#### MySQL
 
 > Skip if you already have a MySQL database that you plan on using.
 
-The MySQL that we will use for this tutorial is not replicated and is not highly available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc.), I suggest using their MySQL product if possible, as running HA MySQL in Kubernetes can be complex. To make this tutorial cloud provider agnostic, however, we will use a non-replicated instance of MySQL.
+The MySQL that we will use for this tutorial is not replicated and is not highly available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc.), I suggest using their MySQL product if possible, as running HA MySQL in Kubernetes can be complex.
 
-To install MySQL from Helm, run the following command.
+You can deploy MySQL using the official Docker image with a simple Helm chart, or any MySQL-compatible deployment method. Ensure:
+- A `fleet` database is created
+- A user `fleet` with a password is created
 
-- There should be a `fleet` database created
-- The default user's username should be `fleet`
-
-```sh
-helm install fleet-database \
-  --namespace <namespace> \
-  --set auth.username=fleet,auth.database=fleet,auth.password=<password> \
-  --set image.repository=bitnamilegacy/mysql \
-  oci://registry-1.docker.io/bitnamicharts/mysql 
-```
-
-This helm package will create a Kubernetes `Service` which exposes the MySQL server to the rest of the cluster on the following DNS address:
-
-```txt
-fleet-database-mysql:3306
-```
-
-We will use this address when we configure the Kubernetes deployment and database migration job, but if you're not using a Helm-installed MySQL in your deployment, you'll have to change this in your Kubernetes config files. 
+The MySQL `Service` DNS address (e.g., `fleet-database-mysql:3306`) will be used when configuring the Fleet deployment.
 - For the Fleet Helm Chart, this will be used in the `values.yaml`
 - For Terraform, this will be used in `main.tf`.
 
-### Redis
+#### Redis / Valkey
 
-> Skip if you already have a Redis cluster that you plan on using.
+> Skip if you already have a Redis-compatible cache that you plan on using.
+
+[Valkey](https://valkey.io) is the recommended Redis-compatible cache. You can install it using the official Valkey Helm chart:
 
 ```sh
 helm install fleet-cache \
   --namespace <namespace> \
-  --set persistence.enabled=false \
-  --set image.repository=bitnamilegacy/redis \
-  oci://registry-1.docker.io/bitnamicharts/redis
+  --set replica.enabled=false \
+  --repo https://valkey.io/valkey-helm/ \
+  valkey
 ```
 
-This helm package will create a Kubernetes `Service` which exposes the Redis server to the rest of the cluster on the following DNS address:
+This will create a Kubernetes `Service` which exposes Valkey to the rest of the cluster on the following DNS address:
 
 ```txt
-fleet-cache-redis-master:6379
+fleet-cache-valkey:6379
 ```
 
-We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis in your deployment, you'll have to change this in your Kubernetes config files. 
+We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis/Valkey in your deployment, you'll have to change this in your Kubernetes config files.
 - For the Fleet Helm Chart, this will be used in the `values.yaml`
 - For Terraform, this will be used in `main.tf`.
 
@@ -105,9 +115,9 @@ stringData:
   password: <mysql-password-here>
 ```
 
-### Redis
+### Redis / Valkey
 
-- Your redis password can be retrieved with the following command `kubectl get secret --namespace <namespace> fleet-cache-redis -o jsonpath="{.data.redis-password}" | base64 -d`
+- If you installed Valkey separately with authentication enabled, retrieve the password from the Valkey secret.
 
 ```yaml
 ---
@@ -234,14 +244,14 @@ database:
 ...    
 ```
 
-- Update `values.yaml` to include the details for Redis
+- Update `values.yaml` to include the details for Redis/Valkey
 
 ```yaml
 ...
 ## Section: cache
-# All of the connection settings for Redis
+# All of the connection settings for Redis/Valkey
 cache:
-  address: fleet-cache-redis-master:6379
+  address: fleet-cache-valkey:6379
   database: "0"
   usePassword: false
   secretName: redis
@@ -334,13 +344,13 @@ database = {
 ...    
 ```
 
-- Update `main.tf` to include the details for Redis
+- Update `main.tf` to include the details for Redis/Valkey
 
 ```txt
 ...
   cache = {
       enabled = false
-      address = "fleet-cache-redis-master:6379"
+      address = "fleet-cache-valkey:6379"
       database = "0"
       use_password = true
       secret_name = "redis"
