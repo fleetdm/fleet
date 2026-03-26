@@ -1598,6 +1598,13 @@
       "description": "Suspicious Package is an application for inspecting installer packages."
     },
     {
+      "name": "swiftDialog",
+      "slug": "swiftdialog/darwin",
+      "platform": "darwin",
+      "unique_identifier": "au.csiro.dialog",
+      "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
