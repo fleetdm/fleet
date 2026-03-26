@@ -1716,10 +1716,18 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 	vppApps []fleet.VPPAppResponse,
 	err error,
 ) {
-	query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=1000", teamID)
-	titles, err := client.ListSoftwareTitles(query)
-	if err != nil {
-		return nil, nil, nil, err
+	const perPage = 1000
+	var titles []fleet.SoftwareTitleListResult
+	for page := 0; ; page++ {
+		query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=%d&page=%d", teamID, perPage, page)
+		pageTitles, err := client.ListSoftwareTitles(query)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		titles = append(titles, pageTitles...)
+		if len(pageTitles) < perPage {
+			break
+		}
 	}
 	if len(titles) == 0 {
 		return nil, nil, nil, nil

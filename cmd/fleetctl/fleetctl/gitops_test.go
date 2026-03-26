@@ -1180,9 +1180,11 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 
 	// Server-side software for "Test Fleet" (teamID=1) and "No team" (teamID=0).
 	// This is what the pre-fetch will retrieve and inject as synthetic data into the parser.
+	// For team software, page 0 returns a full page of bogus results to exercise pagination,
+	// and page 1 returns the actual software that policies reference.
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		if opt.TeamID != nil && *opt.TeamID == 0 {
-			// No-team software
+			// No-team software — single page
 			return []fleet.SoftwareTitleListResult{
 				{
 					ID:         30,
@@ -1197,10 +1199,28 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				},
 			}, 1, nil, nil
 		}
-		// Team software
+		// Team software — paginated
+		if opt.ListOptions.Page == 0 {
+			// Page 0: full page of bogus packages that don't match any policy references.
+			bogus := make([]fleet.SoftwareTitleListResult, opt.ListOptions.PerPage)
+			for i := range bogus {
+				bogus[i] = fleet.SoftwareTitleListResult{
+					ID:         uint(1000 + i),
+					Name:       fmt.Sprintf("Bogus Package %d", i),
+					HashSHA256: ptr.String(fmt.Sprintf("%064x", i)),
+					SoftwarePackage: &fleet.SoftwarePackageOrApp{
+						Name:       fmt.Sprintf("bogus-%d.deb", i),
+						Platform:   "linux",
+						Version:    "0.0.1",
+						PackageURL: ptr.String(fmt.Sprintf("https://example.com/bogus-%d.deb", i)),
+					},
+				}
+			}
+			return bogus, int(opt.ListOptions.PerPage), nil, nil
+		}
+		// Page 1: the real software that policies reference.
 		return []fleet.SoftwareTitleListResult{
 			{
-				// Custom package — referenced by policy via hash_sha256
 				ID:         10,
 				Name:       "Custom Package",
 				HashSHA256: ptr.String("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abcd"),
@@ -1212,7 +1232,6 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				},
 			},
 			{
-				// VPP app — referenced by policy via app_store_id
 				ID:   20,
 				Name: "VPP App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
