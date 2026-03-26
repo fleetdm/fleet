@@ -70,6 +70,18 @@ policies:
   resolution: Do a team thing
   type: patch
   webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with VPP app automation
+  install_software:
+    app_store_id: "1234567890"
+  name: Team VPP policy
+  platform: darwin
+  query: SELECT * FROM team_policy WHERE id = 3
+  resolution: Install the app
+  type: dynamic
+  webhooks_and_tickets_enabled: true
 reports:
 - automations_enabled: true
   description: This is a team query
@@ -107,7 +119,7 @@ settings:
       host_percentage: 2
 software:
   app_store_apps:
-  - app_store_id: com.example.team-software
+  - app_store_id: "1234567890"
     categories:
     - Productivity
     - Utilities
@@ -118,7 +130,7 @@ software:
     - Label D
     platform: darwin
     self_service: true
-  - app_store_id: com.example.setup-experience-software
+  - app_store_id: "55566677778"
     icon:
       path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
     labels_include_all:
@@ -127,7 +139,7 @@ software:
     platform: android
     self_service: true
     setup_experience: true
-  - app_store_id: com.example.ios-auto-update
+  - app_store_id: "9999888877"
     auto_update_enabled: true
     auto_update_window_end: "03:00"
     auto_update_window_start: "01:00"
@@ -159,6 +171,8 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
+  - self_service: true
+    slug: fma3/windows
   packages:
   - categories:
     - Browsers

@@ -466,17 +466,18 @@ type MDMProfilesSummary struct {
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID            string           `db:"-" json:"-"`
-	CommandUUID         string           `db:"-" json:"-"`
-	ProfileUUID         string           `db:"-" json:"profile_uuid"`
-	Name                string           `db:"-" json:"name"`
-	Identifier          string           `db:"-" json:"-"`
-	Status              *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
-	OperationType       MDMOperationType `db:"-" json:"operation_type"`
-	Detail              string           `db:"-" json:"detail"`
-	Platform            string           `db:"-" json:"platform"`
-	Scope               *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
-	ManagedLocalAccount *string          `db:"-" json:"managed_local_account"`
+	HostUUID              string           `db:"-" json:"-"`
+	CommandUUID           string           `db:"-" json:"-"`
+	ProfileUUID           string           `db:"-" json:"profile_uuid"`
+	Name                  string           `db:"-" json:"name"`
+	Identifier            string           `db:"-" json:"-"`
+	Status                *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
+	OperationType         MDMOperationType `db:"-" json:"operation_type"`
+	Detail                string           `db:"-" json:"detail"`
+	Platform              string           `db:"-" json:"platform"`
+	Scope                 *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount   *string          `db:"-" json:"managed_local_account"`
+	CertificateTemplateID *uint            `db:"-" json:"certificate_template_id,omitempty"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -492,7 +493,7 @@ type MDMDeliveryStatus string
 //     command failed to enqueue in ReconcileProfile (it resets the status to
 //     NULL). A failure in the asynchronous actual response of the MDM command
 //     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
-//     a retry of mdm.MaxProfileRetries times and if it still reports as failed
+//     a retry of mdm.MaxAppleProfileRetries times (or mdm.MaxWindowsProfileRetries for Windows) and if it still reports as failed
 //     it will be set to failed permanently.
 //
 //   - verified: the MDM command was successfully applied, and Fleet has

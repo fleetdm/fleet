@@ -3,7 +3,8 @@
     {
       "version": "1.9577.43",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf';",
+        "patch": ""
       },
       "installer_url": "https://windsurf-stable.codeiumdata.com/darwin-arm64-dmg/stable/745a6c1ac471cc11f782a05d2c3ceacbc1de308f/Windsurf-darwin-arm64-1.9577.43.dmg",
       "install_script_ref": "82803996",

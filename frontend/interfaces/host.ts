@@ -254,6 +254,7 @@ export interface IHostRecoveryLockPasswordResponse {
   recovery_lock_password: {
     updated_at: string;
     password: string;
+    auto_rotate_at?: string;
   };
 }
 

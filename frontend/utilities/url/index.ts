@@ -6,6 +6,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import {
+  DepAssignProfileResponse,
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
@@ -51,6 +52,7 @@ interface IMutuallyExclusiveHostParams {
   scriptBatchExecutionStatus?: string;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
+  depAssignProfileResponse?: DepAssignProfileResponse;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -226,6 +228,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   scriptBatchExecutionStatus,
   scriptBatchExecutionId,
   depProfileError,
+  depAssignProfileResponse,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -301,6 +304,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
       };
     case !!depProfileError:
       return { dep_profile_error: true };
+    case !!depAssignProfileResponse:
+      return { dep_assign_profile_response: depAssignProfileResponse };
     default:
       return {};
   }

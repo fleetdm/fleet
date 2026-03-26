@@ -3,7 +3,8 @@
     {
       "version": "1.26.1",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop';",
+        "patch": ""
       },
       "installer_url": "https://github.com/containers/podman-desktop/releases/download/v1.26.1/podman-desktop-1.26.1-arm64.dmg",
       "install_script_ref": "d89d7788",
