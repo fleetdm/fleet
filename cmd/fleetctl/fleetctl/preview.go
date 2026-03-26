@@ -516,8 +516,14 @@ func ensureWSTEPCerts(configDir string) error {
 		return fmt.Errorf("generating RSA key: %w", err)
 	}
 
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return fmt.Errorf("generating certificate serial number: %w", err)
+	}
+
 	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName:   "Fleet Root CA",
 			Country:      []string{"US"},
@@ -538,10 +544,10 @@ func ensureWSTEPCerts(configDir string) error {
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 
-	if err := os.WriteFile(certPath, certPEM, 0o600); err != nil {
+	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
 		return fmt.Errorf("writing WSTEP certificate: %w", err)
 	}
-	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+	if err := os.WriteFile(keyPath, keyPEM, 0o644); err != nil {
 		return fmt.Errorf("writing WSTEP key: %w", err)
 	}
 
