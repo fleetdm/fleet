@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -283,14 +284,7 @@ func (b *WinOfficeBulletin) MatchHostVersion(hostVersion string, cve string) (bo
 	if !ok {
 		// No fix for this version branch
 		// Check if the branch is still supported
-		supported := false
-		for _, v := range b.SupportedVersions {
-			if v == versionBranch {
-				supported = true
-				break
-			}
-		}
-		if !supported {
+		if !slices.Contains(b.SupportedVersions, versionBranch) {
 			// Unsupported version - vulnerable, must upgrade
 			return true, "", nil
 		}
@@ -329,10 +323,7 @@ func compareBuildVersions(a, b string) int {
 		suffixA := partsA[1]
 		suffixB := partsB[1]
 		// Pad to same length for proper comparison
-		maxLen := len(suffixA)
-		if len(suffixB) > maxLen {
-			maxLen = len(suffixB)
-		}
+		maxLen := max(len(suffixA), len(suffixB))
 		suffixA = fmt.Sprintf("%0*s", maxLen, suffixA)
 		suffixB = fmt.Sprintf("%0*s", maxLen, suffixB)
 		if suffixA < suffixB {
