@@ -1,0 +1,237 @@
+{
+  "section": "Hosts",
+  "endpoint_count": 33,
+  "endpoints": [
+    {
+      "heading": "List hosts",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Count hosts",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/count",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get hosts summary",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/host_summary",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host by identifier",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/identifier/:identifier",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Delete host",
+      "http_method": "DELETE",
+      "path": "/api/v1/fleet/hosts/:id",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Refetch host",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/:id/refetch",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Refetch host by Fleet Desktop token",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/device/:token/refetch",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Update hosts' fleet",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/transfer",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Update hosts' fleet by filter",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/transfer/filter",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Turn off host's MDM",
+      "http_method": "DELETE",
+      "path": "/api/v1/fleet/hosts/:id/mdm",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Batch-delete hosts",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/delete",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Update human-device mapping",
+      "http_method": "PUT",
+      "path": "/api/v1/fleet/hosts/:id/device_mapping",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's device health report",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/health",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's mobile device management (MDM) information",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/mdm",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get mobile device management (MDM) status",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/summary/mdm",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's mobile device management (MDM) and Munki information",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/macadmins",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get hosts' aggregate mobile device management (MDM) and Munki information",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/macadmins",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's software",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/software",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get hosts report in CSV",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/report",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's disk encryption key",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/encryption_key",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's certificates",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/certificates",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's OS settings (configuration profile)",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/configuration_profiles",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Lock host",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/:id/lock",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Unlock host",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/:id/unlock",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Wipe host",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/:id/wipe",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's past activity",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/activities",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Get host's upcoming activity",
+      "http_method": "GET",
+      "path": "/api/v1/fleet/hosts/:id/activities/upcoming",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Cancel host's upcoming activity",
+      "http_method": "DELETE",
+      "path": "/api/v1/fleet/hosts/:id/activities/upcoming/:activity_id",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Add labels to host",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/:id/labels",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Remove labels from host",
+      "http_method": "DELETE",
+      "path": "/api/v1/fleet/hosts/:id/labels",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Run live query on host (ad hoc)",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/:id/query",
+      "deprecated": false,
+      "authorization_roles": null
+    },
+    {
+      "heading": "Run live query on host by identifier (ad hoc)",
+      "http_method": "POST",
+      "path": "/api/v1/fleet/hosts/identifier/:identifier/query",
+      "deprecated": false,
+      "authorization_roles": null
+    }
+  ]
+}
