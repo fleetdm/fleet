@@ -58,7 +58,7 @@ const AddHostsModal = ({
       return (
         <DataError>
           <span className="info__data">
-            You have no enroll secrets.{" "}
+            You have no enroll secret's.{" "}
             {openEnrollSecretModal ? (
               <Button onClick={onManageEnrollSecretsClick} variant="inverse">
                 Manage enroll secrets
