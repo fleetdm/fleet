@@ -2801,8 +2801,6 @@ type Datastore interface {
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
-	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
-
 	// GetWindowsMDMCommandsForResending retrieves Windows MDM commands that failed to be delivered
 	// and need to be resent based on their command IDs.
 	//
