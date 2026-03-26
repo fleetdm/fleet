@@ -4,5 +4,5 @@
   "token": "swiftdialog",
   "installer_format": "pkg",
   "slug": "swiftdialog/darwin",
-  "default_categories": ["Utilities"]
+  "default_categories": ["Developer tools"]
 }
