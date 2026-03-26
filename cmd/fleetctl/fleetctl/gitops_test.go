@@ -1039,6 +1039,237 @@ agent_options:
 	// (not via separate mock-trackable calls).
 }
 
+// TestGitOpsSoftwareExceptionPolicyValidation verifies that when software is excepted
+// and the software: key is omitted from YAML, policies with install_software references
+// (hash_sha256 for packages, app_store_id for VPP apps) still validate successfully
+// against server-side software data.
+func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	// --- Shared mocks ---
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true},
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	}
+	setupDefaultTeamConfigMocks(ds)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return nil
+	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{ID: 1, Name: name}, nil
+	}
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{}, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		return false, nil
+	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return nil, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Fleet" {
+			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error { return nil }
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return nil, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return nil, nil
+	}
+
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		return nil
+	}
+
+	// Server-side software for "Test Fleet" (teamID=1) and "No team" (teamID=0).
+	// This is what the pre-fetch will retrieve and inject as synthetic data into the parser.
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		if opt.TeamID != nil && *opt.TeamID == 0 {
+			// No-team software
+			return []fleet.SoftwareTitleListResult{
+				{
+					ID:         30,
+					Name:       "No-Team Package",
+					HashSHA256: ptr.String("eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111"),
+					SoftwarePackage: &fleet.SoftwarePackageOrApp{
+						Name:       "noteam-pkg.deb",
+						Platform:   "linux",
+						Version:    "2.0",
+						PackageURL: ptr.String("https://example.com/noteam-pkg.deb"),
+					},
+				},
+			}, 1, nil, nil
+		}
+		// Team software
+		return []fleet.SoftwareTitleListResult{
+			{
+				// Custom package — referenced by policy via hash_sha256
+				ID:         10,
+				Name:       "Custom Package",
+				HashSHA256: ptr.String("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abcd"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:       "custom-pkg.deb",
+					Platform:   "linux",
+					Version:    "1.0",
+					PackageURL: ptr.String("https://example.com/custom-pkg.deb"),
+				},
+			},
+			{
+				// VPP app — referenced by policy via app_store_id
+				ID:   20,
+				Name: "VPP App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID: "com.example.vpp-app",
+					Platform:   string(fleet.MacOSPlatform),
+				},
+			},
+		}, 2, nil, nil
+	}
+
+	// Config files that omit software: but have policies referencing server-side software
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+controls:
+policies:
+agent_options:
+reports:
+`), 0o644))
+
+	teamFile := filepath.Join(tmpDir, "test-team.yml")
+	require.NoError(t, os.WriteFile(teamFile, []byte(`
+name: Test Fleet
+policies:
+  - name: Package Policy
+    query: SELECT 1
+    install_software:
+      hash_sha256: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abcd
+  - name: VPP Policy
+    query: SELECT 1
+    install_software:
+      app_store_id: com.example.vpp-app
+agent_options:
+reports:
+`), 0o644))
+
+	unassignedFile := filepath.Join(tmpDir, "unassigned.yml")
+	require.NoError(t, os.WriteFile(unassignedFile, []byte(`
+name: Unassigned
+policies:
+  - name: No-Team Package Policy
+    query: SELECT 1
+    install_software:
+      hash_sha256: eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111
+`), 0o644))
+
+	// Run gitops — should succeed because the synthetic software injection
+	// provides the server-side data for policy validation on both team and no-team.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", teamFile, "-f", unassignedFile})
+	require.NoError(t, err, "gitops should succeed when policies reference server-side software and software is excepted")
+}
+
 // TestGitOpsNoExceptionsClearOmittedKeys verifies that when exceptions are OFF,
 // omitting keys from YAML clears existing data.
 func TestGitOpsNoExceptionsClearOmittedKeys(t *testing.T) {
