@@ -621,7 +621,7 @@ module.exports.routes = {
   'GET /jamf-alternative': {
     action: 'landing-pages/view-jamf-alternative',
     locals: {
-      pageTitleForMeta: 'Jamf Alternative | Fleet — Open Device Management',
+      pageTitleForMeta: 'Jamf alternative',
       pageDescriptionForMeta: 'Fleet is the modern Jamf alternative with cross-platform management, GitOps, AI-accelerated workflows, and open-source transparency. Manage macOS, Windows, Linux, and mobile from one console.',
     }
   },
