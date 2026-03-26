@@ -739,12 +739,10 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 
 	// Set custom display names that invert the alphabetical order
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?), (?, ?, ?)",
-			team.ID, titleID1, "Zulu Custom",
-			team.ID, titleID2, "Alpha Custom",
-		)
-		return err
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, titleID1, "Zulu Custom"); err != nil {
+			return err
+		}
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, titleID2, "Alpha Custom")
 	})
 
 	// Create two VPP apps with titles that sort in a known order, then invert with display names.
@@ -772,12 +770,10 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 
 	// Set custom display names for VPP apps (invert order)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?), (?, ?, ?) ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)",
-			team.ID, vppApp1.TitleID, "Zulu VPP Custom",
-			team.ID, vppApp2.TitleID, "Alpha VPP Custom",
-		)
-		return err
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, vppApp1.TitleID, "Zulu VPP Custom"); err != nil {
+			return err
+		}
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, vppApp2.TitleID, "Alpha VPP Custom")
 	})
 
 	// Create a host and enqueue setup experience
@@ -796,51 +792,51 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	// --- Verify software installer rows ---
-	// ORDER BY id ASC gives us the insert order, which should reflect
-	// the display-name alphabetical order.
-	var installerRows []setupExperienceInsertTestRows
+	// --- Verify all rows (installers + VPP apps) are ordered by display name ---
+	// ORDER BY id ASC gives us the insert order. Software installers are
+	// enqueued first, then VPP apps. Within each group the rows should be
+	// sorted by display name (falling back to st.name when no display name
+	// is set).
+	//
+	// Expected overall order:
+	//   1. ZZZ_Software  (installer, display name "Alpha Custom")
+	//   2. AAA_Software  (installer, display name "Zulu Custom")
+	//   3. ZZZ_VPP_App   (VPP app,   display name "Alpha VPP Custom")
+	//   4. AAA_VPP_App   (VPP app,   display name "Zulu VPP Custom")
+	var allRows []setupExperienceInsertTestRows
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &installerRows,
+		return sqlx.SelectContext(ctx, q, &allRows,
 			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
 			 FROM setup_experience_status_results
-			 WHERE host_uuid = ? AND software_installer_id IS NOT NULL
+			 WHERE host_uuid = ?
 			 ORDER BY id ASC`, hostUUID)
 	})
-	require.Len(t, installerRows, 2, "expected 2 software installer rows")
+	require.Len(t, allRows, 4, "expected 4 rows total (2 installers + 2 VPP apps)")
 
-	// The name column should still store the original st.name.
-	// But the insert order (by id) should reflect the display-name sort:
-	//   1st: ZZZ_Software  (display name "Alpha Custom" sorts first)
-	//   2nd: AAA_Software  (display name "Zulu Custom" sorts second)
-	assert.Equal(t, "ZZZ_Software", installerRows[0].Name, "first row by id should be ZZZ_Software (display name 'Alpha Custom' sorts first)")
-	assert.Equal(t, installerID2, uint(installerRows[0].SoftwareInstallerID.Int64), "first row should be installer 2 (ZZZ_Software)") //nolint:gosec
+	// Software installers come first, ordered by display name.
+	assert.Equal(t, "ZZZ_Software", allRows[0].Name, "row 0: ZZZ_Software (display name 'Alpha Custom' sorts first among installers)")
+	assert.Equal(t, installerID2, uint(allRows[0].SoftwareInstallerID.Int64), "row 0: should be installer 2") //nolint:gosec
+	assert.False(t, allRows[0].VPPAppTeamID.Valid, "row 0: should be a software installer, not a VPP app")
 
-	assert.Equal(t, "AAA_Software", installerRows[1].Name, "second row by id should be AAA_Software (display name 'Zulu Custom' sorts second)")
-	assert.Equal(t, installerID1, uint(installerRows[1].SoftwareInstallerID.Int64), "second row should be installer 1 (AAA_Software)") //nolint:gosec
+	assert.Equal(t, "AAA_Software", allRows[1].Name, "row 1: AAA_Software (display name 'Zulu Custom' sorts second among installers)")
+	assert.Equal(t, installerID1, uint(allRows[1].SoftwareInstallerID.Int64), "row 1: should be installer 1") //nolint:gosec
+	assert.False(t, allRows[1].VPPAppTeamID.Valid, "row 1: should be a software installer, not a VPP app")
 
-	// --- Verify VPP app rows ---
-	var vppRows []setupExperienceInsertTestRows
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &vppRows,
-			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
-			 FROM setup_experience_status_results
-			 WHERE host_uuid = ? AND vpp_app_team_id IS NOT NULL
-			 ORDER BY id ASC`, hostUUID)
-	})
-	require.Len(t, vppRows, 2, "expected 2 VPP app rows")
+	// VPP apps come next, also ordered by display name.
+	assert.Equal(t, "ZZZ_VPP_App", allRows[2].Name, "row 2: ZZZ_VPP_App (display name 'Alpha VPP Custom' sorts first among VPP apps)")
+	assert.True(t, allRows[2].VPPAppTeamID.Valid, "row 2: should be a VPP app")
+	assert.False(t, allRows[2].SoftwareInstallerID.Valid, "row 2: should not be a software installer")
 
-	// Same idea: insert order reflects display-name sort.
-	//   1st: ZZZ_VPP_App  (display name "Alpha VPP Custom" sorts first)
-	//   2nd: AAA_VPP_App  (display name "Zulu VPP Custom" sorts second)
-	assert.Equal(t, "ZZZ_VPP_App", vppRows[0].Name, "first VPP row by id should be ZZZ_VPP_App (display name 'Alpha VPP Custom' sorts first)")
-	assert.Equal(t, "AAA_VPP_App", vppRows[1].Name, "second VPP row by id should be AAA_VPP_App (display name 'Zulu VPP Custom' sorts second)")
+	assert.Equal(t, "AAA_VPP_App", allRows[3].Name, "row 3: AAA_VPP_App (display name 'Zulu VPP Custom' sorts second among VPP apps)")
+	assert.True(t, allRows[3].VPPAppTeamID.Valid, "row 3: should be a VPP app")
+	assert.False(t, allRows[3].SoftwareInstallerID.Valid, "row 3: should not be a software installer")
 
 	// --- Verify fallback: no display name → order uses st.name ---
-	// Create a third installer with no custom display name.
+	// Add a third installer and a third VPP app, both without custom display
+	// names, then re-enqueue for a new host and verify the combined order.
 	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
 	require.NoError(t, err)
-	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   "install3",
 		UninstallScript: "uninstall3",
 		InstallerFile:   tfr3,
@@ -855,14 +851,26 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	_ = installerID3
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id = ?", installerID3)
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id NOT IN (?, ?)", installerID1, installerID2)
 		return err
 	})
 
-	// Re-enqueue for a new host to pick up the third installer.
+	vppApp3 := &fleet.VPPApp{
+		Name:             "MMM_VPP_NoDisplayName",
+		BundleIdentifier: "com.mmm.vpp",
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_3", Platform: fleet.MacOSPlatform}},
+	}
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, vppApp3, &team.ID)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE adam_id = ?", vpp3.AdamID)
+		return err
+	})
+
+	// Re-enqueue for a new host to pick up all installers and VPP apps.
 	hostUUID2 := "host-display-name-fallback-" + uuid.NewString()
 	_, err = ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "macos-dn-test-2",
@@ -878,23 +886,44 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	var allInstallerRows []setupExperienceInsertTestRows
+	var fallbackRows []setupExperienceInsertTestRows
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &allInstallerRows,
+		return sqlx.SelectContext(ctx, q, &fallbackRows,
 			`SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id
 			 FROM setup_experience_status_results
-			 WHERE host_uuid = ? AND software_installer_id IS NOT NULL
+			 WHERE host_uuid = ?
 			 ORDER BY id ASC`, hostUUID2)
 	})
-	require.Len(t, allInstallerRows, 3, "expected 3 software installer rows")
+	require.Len(t, fallbackRows, 6, "expected 6 rows total (3 installers + 3 VPP apps)")
 
-	// Expected display-name sort order:
-	//   "Alpha Custom"      → ZZZ_Software       (has display name)
-	//   "MMM_NoDisplayName"  → MMM_NoDisplayName   (falls back to st.name)
-	//   "Zulu Custom"       → AAA_Software        (has display name)
-	assert.Equal(t, "ZZZ_Software", allInstallerRows[0].Name, "first should be ZZZ_Software (display name 'Alpha Custom')")
-	assert.Equal(t, "MMM_NoDisplayName", allInstallerRows[1].Name, "second should be MMM_NoDisplayName (no display name, falls back to st.name)")
-	assert.Equal(t, "AAA_Software", allInstallerRows[2].Name, "third should be AAA_Software (display name 'Zulu Custom')")
+	// Expected order — installers first (sorted by COALESCE(display_name, st.name)):
+	//   0. ZZZ_Software          (display name "Alpha Custom")
+	//   1. MMM_NoDisplayName     (no display name, falls back to st.name)
+	//   2. AAA_Software          (display name "Zulu Custom")
+	// Then VPP apps (sorted by COALESCE(display_name, st.name)):
+	//   3. ZZZ_VPP_App           (display name "Alpha VPP Custom")
+	//   4. MMM_VPP_NoDisplayName (no display name, falls back to st.name)
+	//   5. AAA_VPP_App           (display name "Zulu VPP Custom")
+
+	// Installers
+	assert.Equal(t, "ZZZ_Software", fallbackRows[0].Name, "row 0: ZZZ_Software (display name 'Alpha Custom')")
+	assert.True(t, fallbackRows[0].SoftwareInstallerID.Valid)
+
+	assert.Equal(t, "MMM_NoDisplayName", fallbackRows[1].Name, "row 1: MMM_NoDisplayName (no display name, falls back to st.name)")
+	assert.True(t, fallbackRows[1].SoftwareInstallerID.Valid)
+
+	assert.Equal(t, "AAA_Software", fallbackRows[2].Name, "row 2: AAA_Software (display name 'Zulu Custom')")
+	assert.True(t, fallbackRows[2].SoftwareInstallerID.Valid)
+
+	// VPP apps
+	assert.Equal(t, "ZZZ_VPP_App", fallbackRows[3].Name, "row 3: ZZZ_VPP_App (display name 'Alpha VPP Custom')")
+	assert.True(t, fallbackRows[3].VPPAppTeamID.Valid)
+
+	assert.Equal(t, "MMM_VPP_NoDisplayName", fallbackRows[4].Name, "row 4: MMM_VPP_NoDisplayName (no display name, falls back to st.name)")
+	assert.True(t, fallbackRows[4].VPPAppTeamID.Valid)
+
+	assert.Equal(t, "AAA_VPP_App", fallbackRows[5].Name, "row 5: AAA_VPP_App (display name 'Zulu VPP Custom')")
+	assert.True(t, fallbackRows[5].VPPAppTeamID.Valid)
 }
 
 type setupExperienceInsertTestRows struct {
