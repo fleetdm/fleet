@@ -1205,6 +1205,9 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
+			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
+		}),
 	)
 
 	return s, nil

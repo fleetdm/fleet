@@ -123,6 +123,8 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostRecoveryLockPasswordStatus", testGetHostRecoveryLockPasswordStatus},
 		{"ClaimHostsForRecoveryLockClear", testClaimHostsForRecoveryLockClear},
 		{"RecoveryLockRotation", testRecoveryLockRotation},
+		{"CleanupStaleNanoRefetchCommands", testCleanupStaleNanoRefetchCommands},
+		{"CleanupOrphanedNanoRefetchCommands", testCleanupOrphanedNanoRefetchCommands},
 	}
 
 	for _, c := range cases {
@@ -11376,4 +11378,202 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.False(t, pending)
 	})
+}
+
+func testCleanupStaleNanoRefetchCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host and enroll it in nano MDM.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-cleanup-host",
+		OsqueryHostID:   ptr.String("cleanup-osquery-id"),
+		NodeKey:         ptr.String("cleanup-node-key"),
+		UUID:            "cleanup-test-uuid",
+		Platform:        "ios",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	enrollmentID := host.UUID
+
+	// Helper to insert a nano command with a specific created_at.
+	insertNanoCmd := func(cmdUUID, reqType string, createdAt time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+			cmdUUID, reqType, createdAt)
+		require.NoError(t, err)
+	}
+
+	// Helper to insert a nano_enrollment_queue entry.
+	insertNEQ := func(id, cmdUUID string, createdAt time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority, created_at) VALUES (?, ?, 0, 0, ?)`,
+			id, cmdUUID, createdAt)
+		require.NoError(t, err)
+	}
+
+	// Helper to insert a nano_command_results entry.
+	insertNCR := func(id, cmdUUID, status string) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml')`,
+			id, cmdUUID, status)
+		require.NoError(t, err)
+	}
+
+	now := time.Now()
+	oldTime := now.Add(-31 * 24 * time.Hour)   // 31 days ago
+	recentTime := now.Add(-1 * 24 * time.Hour) // 1 day ago
+
+	// Create old REFETCH-APPS- commands (should be cleaned up).
+	for i := 0; i < 3; i++ {
+		cmdUUID := fmt.Sprintf("REFETCH-APPS-old-%d", i)
+		insertNanoCmd(cmdUUID, "InstalledApplicationList", oldTime)
+		insertNEQ(enrollmentID, cmdUUID, oldTime)
+		insertNCR(enrollmentID, cmdUUID, "Acknowledged")
+	}
+
+	// Create an old REFETCH-APPS- command that has Error status (should also be cleaned up).
+	insertNanoCmd("REFETCH-APPS-old-error", "InstalledApplicationList", oldTime)
+	insertNEQ(enrollmentID, "REFETCH-APPS-old-error", oldTime)
+	insertNCR(enrollmentID, "REFETCH-APPS-old-error", "Error")
+
+	// Create an old REFETCH-APPS- command with no result (should NOT be cleaned up).
+	insertNanoCmd("REFETCH-APPS-old-noresult", "InstalledApplicationList", oldTime)
+	insertNEQ(enrollmentID, "REFETCH-APPS-old-noresult", oldTime)
+
+	// Create a recent REFETCH-APPS- command (should NOT be cleaned up).
+	insertNanoCmd("REFETCH-APPS-recent", "InstalledApplicationList", recentTime)
+	insertNEQ(enrollmentID, "REFETCH-APPS-recent", recentTime)
+	insertNCR(enrollmentID, "REFETCH-APPS-recent", "Acknowledged")
+
+	// Create old REFETCH-DEVICE- commands (different prefix, should NOT be affected by APPS cleanup).
+	insertNanoCmd("REFETCH-DEVICE-old-0", "DeviceInformation", oldTime)
+	insertNEQ(enrollmentID, "REFETCH-DEVICE-old-0", oldTime)
+	insertNCR(enrollmentID, "REFETCH-DEVICE-old-0", "Acknowledged")
+
+	// The "current" command that triggered the cleanup.
+	currentCmdUUID := "REFETCH-APPS-current"
+	insertNanoCmd(currentCmdUUID, "InstalledApplicationList", now)
+	insertNEQ(enrollmentID, currentCmdUUID, now)
+	insertNCR(enrollmentID, currentCmdUUID, "Acknowledged")
+
+	// Run cleanup for REFETCH-APPS- prefix, scoped to this enrollment.
+	err = ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchAppsCommandUUIDPrefix, currentCmdUUID)
+	require.NoError(t, err)
+
+	// Verify: old acknowledged/errored REFETCH-APPS- entries should be deleted from neq and ncr.
+	var neqCount int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid LIKE 'REFETCH-APPS-old-%'`)
+	require.NoError(t, err)
+	// Only the one with no result should remain.
+	assert.Equal(t, 1, neqCount, "only the no-result entry should remain in neq")
+
+	var ncrCount int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &ncrCount,
+		`SELECT COUNT(*) FROM nano_command_results WHERE command_uuid LIKE 'REFETCH-APPS-old-%'`)
+	require.NoError(t, err)
+	assert.Equal(t, 0, ncrCount, "all old acknowledged/errored ncr entries should be deleted")
+
+	// Verify: recent command should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = 'REFETCH-APPS-recent'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, neqCount, "recent command should not be deleted")
+
+	// Verify: current command should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = ?`, currentCmdUUID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, neqCount, "current command should not be deleted")
+
+	// Verify: REFETCH-DEVICE- command should not be affected.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = 'REFETCH-DEVICE-old-0'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, neqCount, "different prefix should not be affected")
+}
+
+func testCleanupOrphanedNanoRefetchCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host and enroll it for FK constraints.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-orphan-host",
+		OsqueryHostID:   ptr.String("orphan-osquery-id"),
+		NodeKey:         ptr.String("orphan-node-key"),
+		UUID:            "orphan-test-uuid",
+		Platform:        "ios",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	now := time.Now()
+	oldTime := now.Add(-31 * 24 * time.Hour)
+	recentTime := now.Add(-1 * 24 * time.Hour)
+
+	// Insert an old REFETCH command WITH a neq reference (should NOT be deleted).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+		"REFETCH-APPS-with-ref", "InstalledApplicationList", oldTime)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority, created_at) VALUES (?, ?, 0, 0, ?)`,
+		host.UUID, "REFETCH-APPS-with-ref", oldTime)
+	require.NoError(t, err)
+
+	// Insert an old REFETCH command WITHOUT neq reference (should be deleted).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+		"REFETCH-APPS-orphan", "InstalledApplicationList", oldTime)
+	require.NoError(t, err)
+
+	// Insert a recent REFETCH command WITHOUT neq reference (should NOT be deleted - too new).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+		"REFETCH-APPS-recent-orphan", "InstalledApplicationList", recentTime)
+	require.NoError(t, err)
+
+	// Insert an old non-REFETCH command WITHOUT neq reference (should NOT be deleted - wrong prefix).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+		"OTHER-CMD-orphan", "ProfileList", oldTime)
+	require.NoError(t, err)
+
+	// Run cleanup.
+	err = ds.CleanupOrphanedNanoRefetchCommands(ctx)
+	require.NoError(t, err)
+
+	// Verify: old orphaned REFETCH command should be gone.
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM nano_commands WHERE command_uuid = 'REFETCH-APPS-orphan'`)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "old orphaned REFETCH command should be deleted")
+
+	// Verify: old REFETCH command with reference should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM nano_commands WHERE command_uuid = 'REFETCH-APPS-with-ref'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "REFETCH command with neq reference should not be deleted")
+
+	// Verify: recent orphaned REFETCH command should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM nano_commands WHERE command_uuid = 'REFETCH-APPS-recent-orphan'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "recent orphaned REFETCH command should not be deleted")
+
+	// Verify: non-REFETCH command should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM nano_commands WHERE command_uuid = 'OTHER-CMD-orphan'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "non-REFETCH command should not be deleted")
 }
