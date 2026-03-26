@@ -136,8 +136,8 @@ const ManageAutomationsModal = ({
   const { config: globalConfigFromContext, isFreeTier } = useContext(
     AppContext
   );
-  const softwareExcepted =
-    !!globalConfigFromContext?.gitops.exceptions?.software;
+  const softwareExcepted = !!globalConfigFromContext?.gitops.exceptions
+    ?.software;
   const gitOpsModeEnabled =
     globalConfigFromContext?.gitops.gitops_mode_enabled && !softwareExcepted;
 
