@@ -3,7 +3,8 @@
     {
       "version": "9.4.1",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck';",
+        "patch": ""
       },
       "installer_url": "https://update.cyberduck.io/Cyberduck-9.4.1.44384.zip",
       "install_script_ref": "9419833e",

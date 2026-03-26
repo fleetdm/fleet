@@ -580,21 +580,24 @@ func TestExtractDisplayVersionFromName(t *testing.T) {
 	}
 }
 
+// msrcWinProducts mirrors what production code produces: raw MSRC product names
+// are always processed through NewProductFromFullName before reaching GetMatchForOS
 var msrcWinProducts = Products{
-	"10729": "Windows 10 for 32-bit Systems",
-	"10735": "Windows 10 for x64-based Systems",
-	"10852": "Windows 10 Version 1607 for 32-bit Systems",
-	"10853": "Windows 10 Version 1607 for x64-based Systems",
-	"11926": "Windows 11 for x64-based Systems",
-	"11927": "Windows 11 for ARM64-based Systems",
-	"12085": "Windows 11 Version 22H2 for ARM64-based Systems",
-	"12086": "Windows 11 Version 22H2 for x64-based Systems",
-	"12242": "Windows 11 Version 23H2 for ARM64-based Systems",
-	"12243": "Windows 11 Version 23H2 for x64-based Systems",
-	"11923": "Windows Server 2022",
-	"11924": "Windows Server 2022 (Server Core installation)",
-	"12244": "Windows Server 2022, 23H2 Edition (Server Core installation)",
-	"12436": "Windows Server 2025 Version 24H2",
+	"10729": NewProductFromFullName("Windows 10 for 32-bit Systems"),
+	"10735": NewProductFromFullName("Windows 10 for x64-based Systems"),
+	"10852": NewProductFromFullName("Windows 10 Version 1607 for 32-bit Systems"),
+	"10853": NewProductFromFullName("Windows 10 Version 1607 for x64-based Systems"),
+	"11926": NewProductFromFullName("Windows 11 for x64-based Systems"),
+	"11927": NewProductFromFullName("Windows 11 for ARM64-based Systems"),
+	"12085": NewProductFromFullName("Windows 11 Version 22H2 for ARM64-based Systems"),
+	"12086": NewProductFromFullName("Windows 11 Version 22H2 for x64-based Systems"),
+	"12242": NewProductFromFullName("Windows 11 Version 23H2 for ARM64-based Systems"),
+	"12243": NewProductFromFullName("Windows 11 Version 23H2 for x64-based Systems"),
+	"11923": NewProductFromFullName("Windows Server 2022"),
+	"11924": NewProductFromFullName("Windows Server 2022 (Server Core installation)"),
+	"12244": NewProductFromFullName("Windows Server 2022, 23H2 Edition (Server Core installation)"),
+	"12436": NewProductFromFullName("Windows Server 2025 Version 24H2"),
+	"12437": NewProductFromFullName("Windows Server 2025 (Server Core installation)"),
 }
 
 func TestMatchesOperatingSystem(t *testing.T) {
@@ -677,9 +680,10 @@ func TestMatchesOperatingSystem(t *testing.T) {
 		{
 			name: "Windows Server 2025 with display version",
 			os: fleet.OperatingSystem{
-				Name:           "Microsoft Windows Server 2025 Datacenter 24H2",
-				Arch:           "64-bit",
-				DisplayVersion: "24H2",
+				Name:             "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "24H2",
+				InstallationType: "Server",
 			},
 			want: "12436",
 			err:  nil,
@@ -693,11 +697,96 @@ func TestMatchesOperatingSystem(t *testing.T) {
 			want: "",
 			err:  ErrNoMatch,
 		},
+		{
+			name: "Windows Server 2022 full desktop with installation type",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2022 Datacenter 21H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "21H2",
+				InstallationType: "Server",
+			},
+			want: "11923",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2022 Server Core with installation type",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2022 Datacenter 21H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "21H2",
+				InstallationType: "Server Core",
+			},
+			want: "11924",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2025 full desktop with installation type",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "24H2",
+				InstallationType: "Server",
+			},
+			want: "12436",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2025 Server Core with installation type",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "24H2",
+				InstallationType: "Server Core",
+			},
+			want: "12437",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2022 without installation type deterministically picks full desktop",
+			os: fleet.OperatingSystem{
+				Name:           "Microsoft Windows Server 2022 Datacenter 21H2",
+				Arch:           "64-bit",
+				DisplayVersion: "21H2",
+			},
+			// When InstallationType is empty, the full desktop product is preferred
+			// as a deterministic fallback (desktop CVEs are a superset of Server Core).
+			want: "11923",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2025 without installation type deterministically picks full desktop",
+			os: fleet.OperatingSystem{
+				Name:           "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:           "64-bit",
+				DisplayVersion: "24H2",
+			},
+			want: "12436",
+			err:  nil,
+		},
 	}
 
 	for _, tt := range tc {
 		match, err := msrcWinProducts.GetMatchForOS(ctx, tt.os)
 		require.ErrorIs(t, err, tt.err, tt.name)
 		require.Equal(t, tt.want, match, tt.name)
+	}
+}
+
+func TestIsServerCore(t *testing.T) {
+	tc := []struct {
+		product  Product
+		expected bool
+	}{
+		{"Windows Server 2022", false},
+		{"Windows Server 2022 (Server Core installation)", true},
+		{"Windows Server 2022, 23H2 Edition (Server Core installation)", true},
+		{"Windows Server, version 1803 (Server Core Installation)", true},
+		{"Windows 11 Version 22H2 for x64-based Systems", false},
+		{"Windows Server 2025 Version 24H2", false},
+		{"Windows Server 2025 (Server Core installation) Version 24H2", true},
+	}
+
+	for _, tt := range tc {
+		require.Equal(t, tt.expected, tt.product.IsServerCore(), string(tt.product))
 	}
 }

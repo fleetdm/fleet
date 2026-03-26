@@ -560,7 +560,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		payload := uuidsToPayloads[hp.CommandUUID]
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
 			// Don't retry remove operations; removal is best-effort. Only retry install operations up to the max retry count.
-			if hp.OperationType != fleet.MDMOperationTypeRemove && hp.Retries < mdm.MaxProfileRetries {
+			if hp.OperationType != fleet.MDMOperationTypeRemove && hp.Retries < mdm.MaxWindowsProfileRetries {
 				// if we haven't hit the max retries, we set
 				// the host profile status to nil (which causes
 				// an install profile command to be enqueued

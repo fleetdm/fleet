@@ -34,7 +34,7 @@ func TestListHostReports(t *testing.T) {
 
 	sampleReports := []*fleet.HostReport{
 		{
-			QueryID:      1,
+			ReportID:     1,
 			Name:         "Query Alpha",
 			Description:  "desc alpha",
 			LastFetched:  &now,
@@ -42,7 +42,7 @@ func TestListHostReports(t *testing.T) {
 			NHostResults: 3,
 		},
 		{
-			QueryID:      2,
+			ReportID:     2,
 			Name:         "Query Beta",
 			Description:  "desc beta",
 			LastFetched:  nil,
@@ -66,7 +66,7 @@ func TestListHostReports(t *testing.T) {
 	}
 
 	var capturedTeamID *uint
-	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 		capturedTeamID = tID
 		return sampleReports, len(sampleReports), nil, nil
 	}
@@ -76,7 +76,7 @@ func TestListHostReports(t *testing.T) {
 	t.Run("admin can list reports for host with no team", func(t *testing.T) {
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
 		opts := fleet.ListHostReportsOptions{}
-		reports, count, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, opts)
+		reports, count, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, opts)
 		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 		assert.Len(t, reports, 2)
@@ -95,7 +95,7 @@ func TestListHostReports(t *testing.T) {
 	t.Run("admin can list reports for host with team", func(t *testing.T) {
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
 		opts := fleet.ListHostReportsOptions{}
-		reports, count, _, _, err := svc.ListHostReports(viewerCtx, hostWithTeam.ID, opts)
+		reports, count, _, err := svc.ListHostReports(viewerCtx, hostWithTeam.ID, opts)
 		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 		assert.Len(t, reports, 2)
@@ -110,29 +110,15 @@ func TestListHostReports(t *testing.T) {
 		}
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: observer})
 		opts := fleet.ListHostReportsOptions{}
-		reports, count, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, opts)
+		reports, count, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, opts)
 		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 		assert.Len(t, reports, 2)
 	})
 
-	t.Run("save_reports_disabled is forwarded from app config", func(t *testing.T) {
-		original := ds.AppConfigFunc
-		t.Cleanup(func() { ds.AppConfigFunc = original })
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true},
-			}, nil
-		}
-		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
-		_, _, _, disabled, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, fleet.ListHostReportsOptions{})
-		require.NoError(t, err)
-		assert.True(t, disabled)
-	})
-
 	t.Run("invalid order_key returns bad request", func(t *testing.T) {
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
-		_, _, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, fleet.ListHostReportsOptions{
+		_, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "invalid_key"},
 		})
 		require.Error(t, err)
@@ -141,7 +127,7 @@ func TestListHostReports(t *testing.T) {
 	})
 
 	t.Run("unauthenticated gets error", func(t *testing.T) {
-		_, _, _, _, err := svc.ListHostReports(ctx, hostNoTeam.ID, fleet.ListHostReportsOptions{})
+		_, _, _, err := svc.ListHostReports(ctx, hostNoTeam.ID, fleet.ListHostReportsOptions{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "forbidden")
 	})
@@ -156,7 +142,7 @@ func TestListHostReports(t *testing.T) {
 		}
 		// hostWithTeam belongs to teamID=42; teamObserver only has access to teamID=99.
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: teamObserver})
-		_, _, _, _, err := svc.ListHostReports(viewerCtx, hostWithTeam.ID, fleet.ListHostReportsOptions{})
+		_, _, _, err := svc.ListHostReports(viewerCtx, hostWithTeam.ID, fleet.ListHostReportsOptions{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "forbidden")
 	})
@@ -168,7 +154,9 @@ func TestListHostReportsDatastorePassthrough(t *testing.T) {
 	ds := new(mock.Store)
 
 	teamID := uint(5)
-	host := &fleet.Host{ID: 7, TeamID: &teamID}
+	// Platform is "ubuntu" so PlatformFromHost maps it to "linux" — a non-trivial
+	// conversion that would be missed if the service passed host.Platform raw.
+	host := &fleet.Host{ID: 7, TeamID: &teamID, Platform: "ubuntu"}
 
 	admin := &fleet.User{
 		ID:         1,
@@ -185,11 +173,13 @@ func TestListHostReportsDatastorePassthrough(t *testing.T) {
 
 	capturedHostID := uint(0)
 	capturedTeamID := (*uint)(nil)
+	capturedPlatform := ""
 	capturedOpts := fleet.ListHostReportsOptions{}
 
-	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 		capturedHostID = hostID
 		capturedTeamID = tID
+		capturedPlatform = hostPlatform
 		capturedOpts = opts
 		return nil, 0, nil, nil
 	}
@@ -208,11 +198,12 @@ func TestListHostReportsDatastorePassthrough(t *testing.T) {
 		},
 	}
 
-	_, _, _, _, err := svc.ListHostReports(viewerCtx, host.ID, opts)
+	_, _, _, err := svc.ListHostReports(viewerCtx, host.ID, opts)
 	require.NoError(t, err)
 
 	assert.Equal(t, host.ID, capturedHostID)
 	assert.Equal(t, &teamID, capturedTeamID)
+	assert.Equal(t, fleet.PlatformFromHost(host.Platform), capturedPlatform)
 	assert.True(t, capturedOpts.IncludeReportsDontStoreResults)
 	assert.Equal(t, uint(1), capturedOpts.ListOptions.Page)
 	assert.Equal(t, uint(10), capturedOpts.ListOptions.PerPage)
@@ -228,7 +219,7 @@ func TestHostReportJSONRoundTrip(t *testing.T) {
 	// This test exercises the HostReport struct's FirstResult field to ensure
 	// the data mapping from query_results.data JSON is correct.
 	report := &fleet.HostReport{
-		QueryID:      1,
+		ReportID:     1,
 		Name:         "USB Devices",
 		Description:  "List USB devices",
 		LastFetched:  &now,
@@ -244,7 +235,7 @@ func TestHostReportJSONRoundTrip(t *testing.T) {
 	err = json.Unmarshal(b, &decoded)
 	require.NoError(t, err)
 
-	assert.Equal(t, report.QueryID, decoded.QueryID)
+	assert.Equal(t, report.ReportID, decoded.ReportID)
 	assert.Equal(t, report.Name, decoded.Name)
 	assert.Equal(t, report.Description, decoded.Description)
 	assert.Equal(t, report.FirstResult, decoded.FirstResult)

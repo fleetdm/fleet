@@ -3,7 +3,8 @@
     {
       "version": "4.2.17",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.torusknot.SourceTreeNotMAS';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.torusknot.SourceTreeNotMAS';",
+        "patch": ""
       },
       "installer_url": "https://product-downloads.atlassian.com/software/sourcetree/ga/Sourcetree_4.2.17_311.zip",
       "install_script_ref": "3a5ca048",

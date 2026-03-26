@@ -57,7 +57,7 @@ module.exports.routes = {
   },
 
   'GET /queries': {
-    action: 'view-query-library',
+    action: 'docs/view-query-library',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'Queries',
@@ -66,21 +66,21 @@ module.exports.routes = {
   },
 
   'GET /queries/:slug': {
-    action: 'view-query-detail',// Meta title and description set in view action
+    action: 'docs/view-query-detail',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
   },
 
   'GET /vitals/:slug': {
-    action: 'view-vital-details',// Meta title and description set in view action
+    action: 'docs/view-vital-details',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
   },
 
   'GET /policies': {
-    action: 'view-policy-library',
+    action: 'docs/view-policy-library',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'Policies',
@@ -88,14 +88,14 @@ module.exports.routes = {
     }
   },
   'GET /policies/:slug': {
-    action: 'view-policy-details',// Meta title and description set in view action
+    action: 'docs/view-policy-details',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
   },
 
   'GET /scripts': {
-    action: 'view-scripts',
+    action: 'docs/view-script-library',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'Scripts',
@@ -104,7 +104,7 @@ module.exports.routes = {
   },
 
   'GET /scripts/:slug': {
-    action: 'view-script-details',
+    action: 'docs/view-script-details',
     locals: {// Meta title set in view action
       currentSection: 'more',
       pageDescriptionForMeta: 'A collection of scripts you can run on your devices.'
@@ -112,7 +112,7 @@ module.exports.routes = {
   },
 
   'GET /mdm-commands': {
-    action: 'view-mdm-commands',
+    action: 'docs/view-mdm-commands',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'MDM commands',
@@ -121,7 +121,7 @@ module.exports.routes = {
   },
 
   'GET /mdm-commands/:slug': {
-    action: 'view-command-details',
+    action: 'docs/view-command-details',
     locals: {// Meta title set in view action
       currentSection: 'more',
       pageDescriptionForMeta: 'A collection of commands you can send to devices.'
@@ -375,7 +375,7 @@ module.exports.routes = {
   },
 
   'GET /tables/:tableName': {
-    action: 'view-osquery-table-details',// Meta title and description set in view action
+    action: 'docs/view-osquery-table-details',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
     }
@@ -478,7 +478,7 @@ module.exports.routes = {
   },
 
   'GET /software-catalog': {
-    action: 'view-app-library',
+    action: 'docs/view-app-library',
     locals: {
       pageTitleForMeta: 'Software',
       pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
@@ -486,7 +486,7 @@ module.exports.routes = {
   },
 
   'GET /software-catalog/:appIdentifier': {
-    action: 'view-app-details',// Meta title and description set in view action
+    action: 'docs/view-app-details',// Meta title and description set in view action
   },
 
   'GET /meetups': {
@@ -506,7 +506,7 @@ module.exports.routes = {
   },
 
   'GET /os-settings': {
-    action: 'view-os-settings',
+    action: 'docs/view-os-settings',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'OS settings',
@@ -525,7 +525,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
-      disableAnalyticsScriptsAndIndexing: true,
+      disableChatbotAndIndexing: true,
     }
   },
 
@@ -533,7 +533,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
-      disableAnalyticsScriptsAndIndexing: true,
+      disableChatbotAndIndexing: true,
     }
   },
 
@@ -548,7 +548,7 @@ module.exports.routes = {
     action: 'view-okta-conditional-access-error',
     locals: {
       showConfigurationProfileLayout: true,
-      disableAnalyticsScriptsAndIndexing: true,
+      disableChatbotAndIndexing: true,
     }
   },
 
@@ -815,6 +815,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
   'GET /guides/how-to-uninstall-osquery': (req, res) => { return res.redirect(301, '/guides/how-to-uninstall-fleetd'); },
   'GET /guides/sysadmin-diaries-lost-device': (req, res) => { return res.redirect(301, '/guides/lock-wipe-hosts'); },
+  'GET /guides/teams': (req, res) => { return res.redirect(301, '/guides/fleets'); },
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
@@ -1233,6 +1234,7 @@ module.exports.routes = {
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
+  'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
 
