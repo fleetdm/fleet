@@ -513,7 +513,7 @@ type InsertSoftwareVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.S
 
 type SoftwareByIDFunc func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error)
 
-type SoftwareLiteByIDFunc func(ctx context.Context, id uint) (name string, version string, err error)
+type SoftwareLiteByIDFunc func(ctx context.Context, id uint) (fleet.SoftwareLite, error)
 
 type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -6272,7 +6272,7 @@ func (s *DataStore) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 	return s.SoftwareByIDFunc(ctx, id, teamID, includeCVEScores, tmFilter)
 }
 
-func (s *DataStore) SoftwareLiteByID(ctx context.Context, id uint) (name string, version string, err error) {
+func (s *DataStore) SoftwareLiteByID(ctx context.Context, id uint) (fleet.SoftwareLite, error) {
 	s.mu.Lock()
 	s.SoftwareLiteByIDFuncInvoked = true
 	s.mu.Unlock()
