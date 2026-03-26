@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { format, parseISO, isValid } from "date-fns";
 
 import { getErrorReason } from "interfaces/errors";
 import { IHostRecoveryLockPasswordResponse } from "interfaces/host";
@@ -20,6 +19,7 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
+import { monthDayTimeFormat } from "utilities/date_format";
 
 const baseClass = "recovery-lock-password-modal";
 
@@ -55,14 +55,6 @@ const RecoveryLockPasswordModal = ({
       cacheTime: 0,
     }
   );
-
-  const formatAutoRotateTime = (isoDate: string) => {
-    const date = parseISO(isoDate);
-    if (!isValid(date)) {
-      return "";
-    }
-    return format(date, "MMM d, p"); // e.g., "Mar 20, 1:35 PM"
-  };
 
   const onRotatePassword = async () => {
     setIsRotating(true);
@@ -141,7 +133,7 @@ const RecoveryLockPasswordModal = ({
             {recoveryLockData?.auto_rotate_at && (
               <InfoBanner color="yellow">
                 Password rotates automatically by{" "}
-                {formatAutoRotateTime(recoveryLockData.auto_rotate_at)}.
+                {monthDayTimeFormat(recoveryLockData.auto_rotate_at)}.
               </InfoBanner>
             )}
             <div className="modal-cta-wrap">
