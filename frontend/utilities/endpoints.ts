@@ -100,6 +100,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping`,
   HOST_DEVICE_MAPPING_IDP: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping/idp`,
+  HOST_DEP_ASSIGNMENT: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/dep_assignment`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
