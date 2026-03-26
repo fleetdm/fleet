@@ -312,6 +312,8 @@ WHERE
 			wmcr.enrollment_id = wmcq.enrollment_id AND
 			wmcr.command_uuid = wmcq.command_uuid
 	)
+ORDER BY
+	wmc.created_at ASC
 `
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
