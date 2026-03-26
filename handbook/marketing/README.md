@@ -204,7 +204,7 @@ Here are some links that filter relevant conversations on each platform:
 
 ### Monitor and respond to LinkedIn comments
 
-The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
+The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#linkedin-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
 
 To monitor and respond to LinkedIn comments:
 1. Check LinkedIn mentions and comments once per work day.
