@@ -81,28 +81,45 @@ func TestTransport(t *testing.T) {
 
 func TestNewGithubClientWithToken(t *testing.T) {
 	cases := []struct {
-		name    string
-		token   string
-		opts    []ClientOpt
-		timeout time.Duration
+		name        string
+		token       string
+		opts        []ClientOpt
+		timeout     time.Duration
+		nilRedirect bool
+		customTLS   bool
 	}{
-		{"token only", "test-token", nil, 0},
-		{"token with timeout", "test-token", []ClientOpt{WithTimeout(5 * time.Second)}, 5 * time.Second},
+		{"token only", "test-token", nil, 0, true, false},
+		{"token with timeout", "test-token", []ClientOpt{WithTimeout(5 * time.Second)}, 5 * time.Second, true, false},
+		{"token with nofollow", "test-token", []ClientOpt{WithFollowRedir(false)}, 0, false, false},
+		{"token with tls", "test-token", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, 0, true, true},
+		{"token combined", "test-token", []ClientOpt{
+			WithTimeout(3 * time.Second),
+			WithFollowRedir(false),
+			WithTLSClientConfig(&tls.Config{}),
+		}, 3 * time.Second, false, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			cli := NewGithubClientWithToken(c.token, c.opts...)
 
-			// Outer transport must be otelhttp.
 			require.IsType(t, &otelhttp.Transport{}, cli.Transport, "outer transport should be otelhttp")
 
-			// The inner (base) transport wrapped by otelhttp should be an
-			// oauth2.Transport, not the plain http.DefaultTransport.
 			rtField := reflect.ValueOf(cli.Transport).Elem().FieldByName("rt")
 			inner := *(*http.RoundTripper)(unsafe.Pointer(rtField.UnsafeAddr())) //nolint:gosec
 			assert.IsType(t, &oauth2.Transport{}, inner, "inner transport should be oauth2.Transport")
 
 			assert.Equal(t, c.timeout, cli.Timeout)
+
+			if c.nilRedirect {
+				assert.Nil(t, cli.CheckRedirect)
+			} else {
+				assert.NotNil(t, cli.CheckRedirect)
+			}
+
+			if c.customTLS {
+				oauthTr := inner.(*oauth2.Transport)
+				assert.IsType(t, &http.Transport{}, oauthTr.Base, "base transport should be custom *http.Transport for TLS")
+			}
 		})
 	}
 }

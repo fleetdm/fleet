@@ -3,7 +3,6 @@
 package fleethttp
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -134,22 +133,38 @@ func NewGithubClient() *http.Client {
 }
 
 // NewGithubClientWithToken returns an HTTP client that authenticates to GitHub
-// using the provided token (as an OAuth2 static token). Optional ClientOpts
-// (e.g. WithTimeout) are applied to the underlying transport.
+// using the provided token (as an OAuth2 static token). All ClientOpts
+// (WithTimeout, WithTLSClientConfig, WithFollowRedir, WithCookieJar) are
+// applied to the returned client.
 func NewGithubClientWithToken(token string, opts ...ClientOpt) *http.Client {
 	var co clientOpts
 	for _, opt := range opts {
 		opt(&co)
 	}
 
-	cli := oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
-		&oauth2.Token{
-			AccessToken: token,
-		},
-	))
-	cli.Transport = otelhttp.NewTransport(cli.Transport)
-	if co.timeout > 0 {
-		cli.Timeout = co.timeout
+	tokenSource := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+
+	var baseTransport http.RoundTripper
+	if co.tlsConf != nil {
+		baseTransport = NewTransport(WithTLSConfig(co.tlsConf))
+	}
+
+	oauthTransport := &oauth2.Transport{
+		Source: tokenSource,
+		Base:   baseTransport,
+	}
+
+	cli := &http.Client{
+		Transport: otelhttp.NewTransport(oauthTransport),
+		Timeout:   co.timeout,
+	}
+	if co.noFollow {
+		cli.CheckRedirect = noFollowRedirect
+	}
+	if co.cookieJar != nil {
+		cli.Jar = co.cookieJar
 	}
 	return cli
 }
