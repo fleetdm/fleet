@@ -82,6 +82,30 @@ policies:
   resolution: Install the app
   type: dynamic
   webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with FMA install automation
+  install_software:
+    fleet_maintained_app_slug: fma1/darwin
+  name: Team FMA install policy
+  platform: darwin
+  query: SELECT * FROM team_policy WHERE id = 4
+  resolution: Install the FMA
+  type: dynamic
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with custom package install automation
+  install_software:
+    hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
+  name: Team package install policy
+  platform: linux,windows
+  query: SELECT * FROM team_policy WHERE id = 5
+  resolution: Install the package
+  type: dynamic
+  webhooks_and_tickets_enabled: false
 reports:
 - automations_enabled: true
   description: This is a team query

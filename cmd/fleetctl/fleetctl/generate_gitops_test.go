@@ -414,6 +414,34 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				SoftwareTitleID: 2,
 			},
 		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          4,
+				Name:        "Team FMA install policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 4",
+				Resolution:  ptr.String("Install the FMA"),
+				Description: "This is a team policy with FMA install automation",
+				Platform:    "darwin",
+				Type:        fleet.PolicyTypeDynamic,
+			},
+			InstallSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 8,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          5,
+				Name:        "Team package install policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 5",
+				Resolution:  ptr.String("Install the package"),
+				Description: "This is a team policy with custom package install automation",
+				Platform:    "linux,windows",
+				Type:        fleet.PolicyTypeDynamic,
+			},
+			InstallSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 1,
+			},
+		},
 	}, nil
 }
 
