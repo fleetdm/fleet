@@ -1461,9 +1461,12 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 
-	// TODO: Figure out why the generated profile escaopes the left angle bracket in the opening
-	// `<?xml` tag and remove the need for this replacement.
-	return bytes.Replace(buf.Bytes(), []byte("&lt;"), []byte("<"), 1), nil
+	// TODO: In the PoC, the generated profile unexpectedly escaped the left angle bracket in the opening
+	// `<?xml` tag. If we see that again, the replacement below can be used as a workaround, but
+	// ideally we should figure out why that is happening in the first place.
+	// return bytes.Replace(buf.Bytes(), []byte("&lt;"), []byte("<"), 1), nil
+
+	return buf.Bytes(), nil
 }
 
 // ProfileBimap implements bidirectional mapping for profiles, and utility

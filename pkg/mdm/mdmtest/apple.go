@@ -48,6 +48,8 @@ type TestAppleMDMClient struct {
 	SerialNumber string
 	// Model is the model of the simulated device.
 	Model string
+	// OSVersion is the version of the operating system of the simulated device.
+	OSVersion string
 
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
@@ -449,9 +451,10 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
-		Serial:  c.SerialNumber,
-		UDID:    c.UUID,
-		Product: c.Model,
+		Serial:    c.SerialNumber,
+		UDID:      c.UUID,
+		Product:   c.Model,
+		OSVersion: c.OSVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -463,9 +466,10 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 	buf, err := MachineInfoAsPKCS7(fleet.MDMAppleMachineInfo{
-		Serial:  c.SerialNumber,
-		UDID:    c.UUID,
-		Product: c.Model,
+		Serial:    c.SerialNumber,
+		UDID:      c.UUID,
+		Product:   c.Model,
+		OSVersion: c.OSVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -534,6 +538,8 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	if err != nil {
 		return fmt.Errorf("verifying OTA profile: %w", err)
 	}
+
+	fmt.Println("OTA profile content:", string(p7.Content))
 
 	var otaEnrollmentProfile struct {
 		PayloadContent struct {
@@ -629,6 +635,8 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 		} `plist:"PayloadContent"`
 	}
 
+	fmt.Println("SCEP response content:", string(body))
+
 	err = plist.Unmarshal(body, &scepInfo)
 	if err != nil {
 		return fmt.Errorf("unmarshaling SCEP response: %w", err)
@@ -655,6 +663,7 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 		c.EnrollInfo.RawProfile = p7.Content
 		return nil
 	}
+	fmt.Println("Enrollment profile content:", string(p7.Content))
 	enrollInfo, err := ParseEnrollmentProfile(p7.Content)
 	if err != nil {
 		return fmt.Errorf("parse OTA SCEP profile: %w", err)
