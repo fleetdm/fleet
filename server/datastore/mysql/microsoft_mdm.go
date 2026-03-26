@@ -1141,7 +1141,7 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// This covers both install rows (being flipped to remove) and remove+NULL rows
 	// (being given a command_uuid and set to pending).
 	for profUUID, target := range enqueuedTargets {
-		if err := common_mysql.BatchProcessSimple(target.hostUUIDs, 5000, func(batch []string) error {
+		if err := common_mysql.BatchProcessSimple(target.hostUUIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
 			upStmt, upArgs, err := sqlx.In(
 				`UPDATE host_mdm_windows_profiles
 				SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
