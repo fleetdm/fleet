@@ -108,7 +108,7 @@ parasails.registerPage('new-license', {
       });
       this.goto(redirectUrl);
     },
-    submittedQuoteForm: async function(quote) {
+    submittedQuoteForm: async function() {
       if(this.formErrors.numberOfHosts){
         return;
       }
