@@ -409,6 +409,7 @@ func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID u
 			hosts h ON h.uuid = hct.host_uuid
 		SET
 			hct.uuid = UUID_TO_BIN(UUID(), true),
+			hct.fleet_challenge = NULL,
 			hct.status = ?
 		WHERE
 			h.id = ? AND
