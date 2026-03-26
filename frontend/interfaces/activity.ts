@@ -279,6 +279,7 @@ export interface IActivityDetails {
   team_name?: string | null;
   teams?: ITeamSummary[];
   triggered_by?: string;
+  from_setup_experience?: boolean;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
