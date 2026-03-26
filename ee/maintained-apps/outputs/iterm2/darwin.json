@@ -3,7 +3,8 @@
     {
       "version": "3.6.9",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2';",
+        "patch": ""
       },
       "installer_url": "https://iterm2.com/downloads/stable/iTerm2-3_6_9.zip",
       "install_script_ref": "21022a53",

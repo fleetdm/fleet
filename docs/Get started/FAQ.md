@@ -109,7 +109,7 @@ If your organization has Fleet Premium, you can [access professional support](ht
 
 ## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
 
-For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
+For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Unmanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
 
 ## Where's the data stored?
 

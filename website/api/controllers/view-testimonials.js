@@ -30,6 +30,7 @@ module.exports = {
 
     let sortOrderOfTestimonialAuthorsShownOnThisPage = [
       'Scott MacVicar',
+      'Adam Anklewicz',
       'Nick Fohs',
       'Wes Whetstone',
       'Erik Gomez',

@@ -3,7 +3,8 @@
     {
       "version": "29.6.1",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jgraph.drawio.desktop';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jgraph.drawio.desktop';",
+        "patch": ""
       },
       "installer_url": "https://github.com/jgraph/drawio-desktop/releases/download/v29.6.1/draw.io-arm64-29.6.1.dmg",
       "install_script_ref": "02421b0a",

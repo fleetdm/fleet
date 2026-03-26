@@ -166,6 +166,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedAndroidProfile{},
 	ActivityTypeEditedAndroidProfile{},
 	ActivityTypeEditedAndroidCertificate{},
+	ActivityTypeResentCertificate{},
 
 	ActivityTypeResentConfigurationProfile{},
 	ActivityTypeResentConfigurationProfileBatch{},
@@ -1003,9 +1004,12 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+// ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.
+// Can be user-initiated (manual) or Fleet-initiated (auto-rotation after password viewed).
 type ActivityTypeRotatedHostRecoveryLockPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	FleetInitiated  bool   `json:"-"` // True for auto-rotation, not serialized
 }
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
@@ -1014,6 +1018,10 @@ func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
+	return a.FleetInitiated
 }
 
 type ActivityTypeCreatedDeclarationProfile struct {
@@ -1747,6 +1755,21 @@ type ActivityTypeEditedAndroidCertificate struct {
 
 func (a ActivityTypeEditedAndroidCertificate) ActivityName() string {
 	return "edited_android_certificate"
+}
+
+type ActivityTypeResentCertificate struct {
+	HostID                uint   `json:"host_id"`
+	HostDisplayName       string `json:"host_display_name"`
+	CertificateTemplateID uint   `json:"certificate_template_id"`
+	CertificateName       string `json:"certificate_name"`
+}
+
+func (a ActivityTypeResentCertificate) ActivityName() string {
+	return "resent_certificate"
+}
+
+func (a ActivityTypeResentCertificate) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 type ActivityTypeEditedHostIdpData struct {

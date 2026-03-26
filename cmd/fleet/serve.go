@@ -360,6 +360,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.Server.PrivateKey = config.Server.PrivateKey[:32]
 	}
 
+	if config.MDM.CertificateProfilesLimit < 0 {
+		config.MDM.CertificateProfilesLimit = 0
+	}
+
 	var ds fleet.Datastore
 	var carveStore fleet.CarveStore
 
@@ -1255,6 +1259,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			ds,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 			logger,
+			config.MDM.CertificateProfilesLimit,
 		)
 	}); err != nil {
 		initFatal(err, "failed to register mdm_apple_profile_manager schedule")
@@ -1351,7 +1356,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger)
+			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
 		}); err != nil {
 			initFatal(err, "failed to register recovery lock password schedule")
 		}

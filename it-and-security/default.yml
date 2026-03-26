@@ -85,7 +85,6 @@ reports:
   - path: ./lib/all/reports/collect-operating-system-information.yml
   - path: ./lib/all/reports/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/reports/detect-apns-certificate.yml
-  - path: ./lib/macos/reports/collect-macos-compatibility-data.yml
   - path: ./lib/macos/reports/collect-xprotect-reports.yml
 controls:
   enable_disk_encryption: true
@@ -103,7 +102,6 @@ labels:
   - path: ./lib/all/labels/macs-with-1password-installed.yml
   - path: ./lib/all/labels/rpm-based-linux-hosts.yml
   - path: ./lib/all/labels/virtual-machines.yml
-  - path: ./lib/all/labels/santa-test-devices.yml
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
   - path: ./lib/all/labels/keynote-14-installed.yml
