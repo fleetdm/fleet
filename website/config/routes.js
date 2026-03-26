@@ -614,7 +614,7 @@ module.exports.routes = {
   'GET /whitepapers': {
     action: 'articles/view-articles',
     locals: {
-      currentSection: 'more',
+      currentSection: 'more', 
     }
   },
 
@@ -699,7 +699,7 @@ module.exports.routes = {
   'GET /handbook/demand': '/handbook/marketing/',
   'GET /handbook/customers': '/handbook/sales/',
   'GET /handbook/product': '/handbook/product-design',
-  'GET /handbook/business-operations': '/handbook/finance',
+  'GET /handbook/business-operations': '/handbook/finance', 
   'GET /handbook/digital-experience': '/handbook/it',
 
   'GET /docs': '/docs/get-started/why-fleet',
