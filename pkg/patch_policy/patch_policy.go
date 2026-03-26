@@ -14,32 +14,36 @@ type PolicyData struct {
 	Platform    string
 	Description string
 	Resolution  string
-	Version     string
+	// Information required for query
+	SoftwareTitle    string
+	BundleIdentifier string
+	Version          string
 }
 
 const versionVariable = "$FMA_VERSION"
 
 var (
-	ErrEmptyQuery    = errors.New("query should not be empty")
 	ErrWrongPlatform = errors.New("platform should be darwin or windows")
 )
 
-// GenerateFromManifest replaces the $FMA_VERSION variable and checks platform
-func GenerateFromManifest(p PolicyData) (string, error) {
-	if p.Query == "" {
-		return "", ErrEmptyQuery
+// GenerateQueryForManifest either creates a default query or replaces the $FMA_VERSION variable in a given one
+func GenerateQueryForManifest(p PolicyData) (string, error) {
+	if p.Query != "" {
+		// Version is extracted from the manifest so this should be safe to run as an osquery query
+		return strings.ReplaceAll(p.Query, versionVariable, p.Version), nil
 	}
-	// Version is extracted from the manifest so this should be safe to run as an osquery query
-	query := strings.ReplaceAll(p.Query, versionVariable, p.Version)
 
 	switch p.Platform {
 	case "darwin":
+		if p.Query == "" {
+			return defaultMacOSQuery(p.BundleIdentifier, p.Version), nil
+		}
 	case "windows":
-	default:
-		return "", ErrWrongPlatform
+		if p.Query == "" {
+			return defaulWindowsQuery(p.SoftwareTitle, p.Version), nil
+		}
 	}
-
-	return query, nil
+	return "", ErrWrongPlatform
 }
 
 // GenerateFromInstaller creates a patch policy with all fields from an installer
@@ -61,27 +65,35 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 			p.Name = fmt.Sprintf("macOS - %s up to date", installer.SoftwareTitle)
 		}
 		if installer.PatchQuery == "" {
-			query = fmt.Sprintf(
-				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
-				installer.BundleIdentifier,
-				installer.Version,
-			)
+			query = defaultMacOSQuery(installer.BundleIdentifier, installer.Version)
 		}
 	case "windows":
 		if p.Name == "" {
 			p.Name = fmt.Sprintf("Windows - %s up to date", installer.SoftwareTitle)
 		}
 		if installer.PatchQuery == "" {
-			// TODO: use upgrade code to improve accuracy?
-			query = fmt.Sprintf(
-				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);",
-				installer.SoftwareTitle,
-				installer.Version,
-			)
+			query = defaulWindowsQuery(installer.SoftwareTitle, installer.Version)
 		}
 	default:
 		return nil, ErrWrongPlatform
 	}
 
 	return &PolicyData{Query: query, Platform: installer.Platform, Name: p.Name, Description: p.Description, Resolution: p.Resolution}, nil
+}
+
+func defaulWindowsQuery(softwareTitle, version string) string {
+	// TODO: use upgrade code to improve accuracy?
+	return fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);",
+		softwareTitle,
+		version,
+	)
+}
+
+func defaultMacOSQuery(bundleIdentifier, version string) string {
+	return fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
+		bundleIdentifier,
+		version,
+	)
 }

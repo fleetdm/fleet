@@ -368,23 +368,24 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	external_refs.EnrichManifest(&out)
 
 	// create patch policy
+	p := patch_policy.PolicyData{
+		Platform:      "windows",
+		Version:       out.Version,
+		SoftwareTitle: out.UniqueIdentifier, // careful here
+	}
 	if input.PatchPolicyPath != "" {
 		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy path")
 		}
 
-		p := patch_policy.PolicyData{}
 		if err := yaml.Unmarshal(policyBytes, &p); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
 		}
-
-		p.Platform = "windows"
-		p.Version = out.Version
-		out.Queries.Patch, err = patch_policy.GenerateFromManifest(p)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
-		}
+	}
+	out.Queries.Patch, err = patch_policy.GenerateQueryForManifest(p)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
 
 	return &out, nil
