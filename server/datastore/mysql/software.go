@@ -2620,7 +2620,7 @@ func (ds *Datastore) SoftwareLiteByID(
 	id uint,
 ) (fleet.SoftwareLite, error) {
 	const stmt = `
-    SELECT name, version
+    SELECT id, name, version
     FROM software
     WHERE id = ?
   `
