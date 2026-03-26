@@ -1762,8 +1762,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
 				if byFMAID == nil {
-					var err error
 					if appsList == nil {
+						var err error
+						// currently, the list FMA endpoint has no default pagination
 						appsList, err = cmd.Client.ListFleetMaintainedApps(teamID)
 						if err != nil {
 							return nil, err
