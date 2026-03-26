@@ -5443,6 +5443,21 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 	})
 	require.NoError(t, err)
 
+	h2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "h2"),
+		NodeKey:         ptr.String(t.Name() + "h2"),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + "h2.local",
+		Platform:        "darwin",
+		TeamID:          &team2.ID,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, h2.ID)
+
 	// Install software only on h1 (team1).
 
 	testSw := fleet.Software{Name: "UniqueApp", Version: "3.4.5", Source: "apps", BundleIdentifier: "com.unique.app"}
