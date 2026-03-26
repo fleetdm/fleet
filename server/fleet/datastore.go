@@ -672,8 +672,7 @@ type Datastore interface {
 	// Intentionally allows callers to discover the software name and version
 	// even if the software is not present on their team.
 	//
-	// Only use for host list filters and similar use cases where
-	// exposing the existence of a software version is acceptable.
+	// Only use for use cases where exposing the existence of a software version is acceptable.
 	SoftwareLiteByID(ctx context.Context, id uint) (SoftwareLite, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
