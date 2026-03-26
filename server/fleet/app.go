@@ -861,7 +861,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.AppleBusinessManager.Set {
 		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
 		copy(abm, c.MDM.AppleBusinessManager.Value)
-		clone.MDM.AppleBusinessManager = optjson.SetSlice(AB)
+		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
 
 	}
 
