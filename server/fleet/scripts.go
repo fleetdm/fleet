@@ -514,7 +514,7 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	}
 
 	maxLen := SavedScriptMaxRuneLen
-	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+	maxLenErrMsg := RunScriptSavedMaxLenErrMsg
 	if !isSavedScript {
 		maxLen = UnsavedScriptMaxRuneLen
 		maxLenErrMsg = RunScripUnsavedMaxLenErrMsg
@@ -558,14 +558,11 @@ func ValidateSoftwareInstallerScript(s, platform string) error {
 	}
 
 	// Size check: use the saved-script limit (500,000 runes).
-	maxLen := SavedScriptMaxRuneLen
-	maxLenErrMsg := RunScripSavedMaxLenErrMsg
-
-	if len(s) > utf8.UTFMax*maxLen {
-		return errors.New(maxLenErrMsg)
+	if len(s) > utf8.UTFMax*SavedScriptMaxRuneLen {
+		return errors.New(RunScriptSavedMaxLenErrMsg)
 	}
-	if utf8.RuneCountInString(s) > maxLen {
-		return errors.New(maxLenErrMsg)
+	if utf8.RuneCountInString(s) > SavedScriptMaxRuneLen {
+		return errors.New(RunScriptSavedMaxLenErrMsg)
 	}
 
 	// Binary check: must be valid UTF-8.
