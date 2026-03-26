@@ -202,6 +202,18 @@ Here are some links that filter relevant conversations on each platform:
 4. If a post is helpful to our audience, reshare it.
 
 
+### Monitor and respond to LinkedIn comments
+
+The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
+
+To monitor and respond to LinkedIn comments:
+1. Check LinkedIn mentions and comments once per work day.
+2. Like mentions and respond to comments where appropriate.
+3. Repost content related to GitOps certification or from Fleeties.
+4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
+5. All interactions are catalogued in Hootsuite for future review.
+
+
 ### Publish sprint demo video
 
 After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
