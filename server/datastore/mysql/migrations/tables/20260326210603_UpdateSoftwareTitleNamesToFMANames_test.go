@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260320142359(t *testing.T) {
+func TestUp_20260326210603(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert FMAs with canonical names

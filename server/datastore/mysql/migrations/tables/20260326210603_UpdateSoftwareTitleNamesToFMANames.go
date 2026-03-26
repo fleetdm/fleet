@@ -3,10 +3,10 @@ package tables
 import "database/sql"
 
 func init() {
-	MigrationClient.AddMigration(Up_20260320142359, Down_20260320142359)
+	MigrationClient.AddMigration(Up_20260326210603, Down_20260326210603)
 }
 
-func Up_20260320142359(tx *sql.Tx) error {
+func Up_20260326210603(tx *sql.Tx) error {
 	// Update software_titles to use FMA canonical names where there's a matching
 	// bundle_identifier. This fixes existing titles that were created with
 	// osquery-reported names (e.g., "Code") instead of the FMA name
@@ -48,7 +48,7 @@ func Up_20260320142359(tx *sql.Tx) error {
 	return err
 }
 
-func Down_20260320142359(tx *sql.Tx) error {
+func Down_20260326210603(tx *sql.Tx) error {
 	// Down migration is a no-op because we cannot reliably restore the original
 	// osquery-reported names. The FMA names are the canonical/correct names anyway.
 	return nil
