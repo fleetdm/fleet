@@ -1240,7 +1240,23 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 					Platform:   string(fleet.MacOSPlatform),
 				},
 			},
-		}, 2, nil, nil
+			{
+				ID:         40,
+				Name:       "Zoom",
+				HashSHA256: ptr.String("fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "zoom.pkg",
+					Platform:             "darwin",
+					Version:              "6.0",
+					FleetMaintainedAppID: ptr.Uint(100),
+				},
+			},
+		}, 3, nil, nil
+	}
+	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+		return []fleet.MaintainedApp{
+			{ID: 100, Slug: "zoom/darwin"},
+		}, nil, nil
 	}
 
 	// Config files that omit software: but have policies referencing server-side software
@@ -1270,6 +1286,10 @@ policies:
     query: SELECT 1
     install_software:
       app_store_id: "5128675309"
+  - name: FMA Policy
+    query: SELECT 1
+    install_software:
+      fleet_maintained_app_slug: zoom/darwin
 agent_options:
 reports:
 `), 0o644))
