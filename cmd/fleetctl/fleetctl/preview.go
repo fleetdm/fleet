@@ -506,11 +506,29 @@ func ensureWSTEPCerts(configDir string) error {
 	keyPath := filepath.Join(configDir, "wstep.key")
 
 	_, certErr := os.Stat(certPath)
+	if certErr != nil && !os.IsNotExist(certErr) {
+		return fmt.Errorf("checking WSTEP certificate: %w", certErr)
+	}
+
 	_, keyErr := os.Stat(keyPath)
-	if certErr == nil && keyErr == nil {
+	if keyErr != nil && !os.IsNotExist(keyErr) {
+		return fmt.Errorf("checking WSTEP key: %w", keyErr)
+	}
+
+	certExists := certErr == nil
+	keyExists := keyErr == nil
+
+	// Both cert and key already exist; nothing to do.
+	if certExists && keyExists {
 		return nil
 	}
 
+	// One exists without the other: inconsistent state; refuse to overwrite.
+	if certExists != keyExists {
+		return fmt.Errorf("inconsistent WSTEP certificate/key state: certificate exists=%t, key exists=%t", certExists, keyExists)
+	}
+
+	// Both files are missing; generate a new keypair and self-signed certificate.
 	key, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return fmt.Errorf("generating RSA key: %w", err)
@@ -547,7 +565,7 @@ func ensureWSTEPCerts(configDir string) error {
 	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
 		return fmt.Errorf("writing WSTEP certificate: %w", err)
 	}
-	if err := os.WriteFile(keyPath, keyPEM, 0o644); err != nil {
+	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
 		return fmt.Errorf("writing WSTEP key: %w", err)
 	}
 
