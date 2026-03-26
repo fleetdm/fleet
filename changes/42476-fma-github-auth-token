@@ -1,0 +1,1 @@
+* Added support for `FLEET_MAINTAINED_APPS_GITHUB_TOKEN` environment variable to authenticate GitHub requests when fetching Fleet-maintained app manifests, preventing HTTP 429 rate limiting.

@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
@@ -31,6 +32,17 @@ type AppsList struct {
 
 const fmaOutputsBase = "https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/maintained-apps/outputs"
 
+// fmaHTTPClient returns an HTTP client for fetching FMA manifests from GitHub.
+// If the FLEET_MAINTAINED_APPS_GITHUB_TOKEN environment variable is set, the
+// returned client uses it as a Bearer token for authentication, which raises
+// the GitHub rate limit from ~60 req/hr (unauthenticated) to 5,000 req/hr.
+func fmaHTTPClient() *http.Client {
+	if token := os.Getenv("FLEET_MAINTAINED_APPS_GITHUB_TOKEN"); token != "" {
+		return fleethttp.NewGithubClientWithToken(token, fleethttp.WithTimeout(10*time.Second))
+	}
+	return fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+}
+
 // Refresh fetches the latest information about maintained apps from FMA's
 // apps list on GitHub and updates the Fleet database with the new information.
 func Refresh(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
@@ -43,7 +55,7 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error
 }
 
 func FetchAppsList(ctx context.Context) (*AppsList, error) {
-	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+	httpClient := fmaHTTPClient()
 	baseURL := fmaOutputsBase
 	if baseFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
 		baseURL = baseFromEnvVar
@@ -163,7 +175,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 		return app, nil
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+	httpClient := fmaHTTPClient()
 	baseURL := fmaOutputsBase
 	if baseFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
 		baseURL = baseFromEnvVar

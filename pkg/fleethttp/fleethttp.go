@@ -128,15 +128,30 @@ func noFollowRedirect(*http.Request, []*http.Request) error {
 // token for authentication (as OAuth2 static token).
 func NewGithubClient() *http.Client {
 	if githubToken := os.Getenv("NETWORK_TEST_GITHUB_TOKEN"); githubToken != "" {
-		cli := oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
-			&oauth2.Token{
-				AccessToken: githubToken,
-			},
-		))
-		cli.Transport = otelhttp.NewTransport(cli.Transport)
-		return cli
+		return NewGithubClientWithToken(githubToken)
 	}
 	return NewClient()
+}
+
+// NewGithubClientWithToken returns an HTTP client that authenticates to GitHub
+// using the provided token (as an OAuth2 static token). Optional ClientOpts
+// (e.g. WithTimeout) are applied to the underlying transport.
+func NewGithubClientWithToken(token string, opts ...ClientOpt) *http.Client {
+	var co clientOpts
+	for _, opt := range opts {
+		opt(&co)
+	}
+
+	cli := oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+		&oauth2.Token{
+			AccessToken: token,
+		},
+	))
+	cli.Transport = otelhttp.NewTransport(cli.Transport)
+	if co.timeout > 0 {
+		cli.Timeout = co.timeout
+	}
+	return cli
 }
 
 // HostnamesMatch is an utility function to parse two strings as
