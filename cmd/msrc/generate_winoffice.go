@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
-	msrcapps "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/apps"
 )
 
 func panicif(err error) {
@@ -39,26 +38,22 @@ func main() {
 	fmt.Printf("Found %d CVEs across %d supported versions\n",
 		len(winOfficeBulletin.CVEToFixedBuilds), len(winOfficeBulletin.SupportedVersions))
 	fmt.Printf("Supported versions: %v\n", winOfficeBulletin.SupportedVersions)
+	fmt.Printf("Build prefixes: %d mappings\n", len(winOfficeBulletin.BuildPrefixToVersion))
 
 	// Convert to AppBulletinFile format
 	bulletinFile := msrc.ConvertWinOfficeToAppBulletin(winOfficeBulletin)
-	bulletinFile = bulletinFile.WithMappings(msrcapps.DefaultMappings())
 
-	fmt.Printf("Created %d product bulletins\n", len(bulletinFile.Products))
+	fmt.Printf("Created bulletin with %d version branches\n", len(bulletinFile.Versions))
 
 	fmt.Println("Saving Windows Office bulletins...")
 	err = bulletinFile.SerializeAsWinOffice(now, outPath)
 	panicif(err)
 
-	// Show sample of CVEs from first product
-	if len(bulletinFile.Products) > 0 {
-		fmt.Println("\nSample CVEs (first 10 from first product):")
-		for i, su := range bulletinFile.Products[0].SecurityUpdates {
-			if i >= 10 {
-				fmt.Printf("  ... and %d more\n", len(bulletinFile.Products[0].SecurityUpdates)-10)
-				break
-			}
-			fmt.Printf("  %s -> %s\n", su.CVE, su.FixedVersion)
+	// Show CVE counts per supported version
+	fmt.Println("\nCVEs per supported version:")
+	for _, version := range winOfficeBulletin.SupportedVersions {
+		if vb, ok := bulletinFile.Versions[version]; ok {
+			fmt.Printf("  %s: %d CVEs\n", version, len(vb.SecurityUpdates))
 		}
 	}
 

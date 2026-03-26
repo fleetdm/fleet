@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,11 +89,18 @@ func TestIntegrationsWinOfficeGenerator(t *testing.T) {
 
 		// Convert to AppBulletinFile
 		bulletinFile := msrc.ConvertWinOfficeToAppBulletin(bulletin)
-		require.NotEmpty(t, bulletinFile.Products, "should have products")
+		require.NotEmpty(t, bulletinFile.Versions, "should have versions")
+		require.NotEmpty(t, bulletinFile.BuildPrefixes, "should have build prefixes")
+		require.Equal(t, 1, bulletinFile.Version, "should have version 1")
 
-		// Add mappings
-		bulletinFile = bulletinFile.WithMappings(msrcapps.DefaultMappings())
-		require.NotEmpty(t, bulletinFile.Mappings, "should have mappings")
+		// Verify at least one supported version exists
+		supportedCount := 0
+		for _, vb := range bulletinFile.Versions {
+			if vb.Supported {
+				supportedCount++
+			}
+		}
+		require.Greater(t, supportedCount, 0, "should have at least one supported version")
 
 		// Write to temp directory
 		tempDir := t.TempDir()
@@ -115,30 +123,31 @@ func TestIntegrationsWinOfficeGenerator(t *testing.T) {
 		require.NoError(t, err, "should be valid JSON")
 
 		// Verify parsed structure
-		require.NotEmpty(t, parsed.Mappings, "parsed file should have mappings")
-		require.NotEmpty(t, parsed.Products, "parsed file should have products")
+		require.Equal(t, 1, parsed.Version, "parsed file should have version 1")
+		require.NotEmpty(t, parsed.BuildPrefixes, "parsed file should have build prefixes")
+		require.NotEmpty(t, parsed.Versions, "parsed file should have versions")
 
-		// Verify mappings
-		require.GreaterOrEqual(t, len(parsed.Mappings), 1, "should have at least one mapping")
-		for _, mapping := range parsed.Mappings {
-			require.NotEmpty(t, mapping.Match.Name, "mapping should have name patterns")
-			require.NotEmpty(t, mapping.ProductID, "mapping should have product ID")
+		// Verify build prefixes map to valid versions
+		for prefix, version := range parsed.BuildPrefixes {
+			require.NotEmpty(t, prefix, "build prefix should not be empty")
+			require.Regexp(t, regexp.MustCompile(`^\d{4}$`), version,
+				"version should be YYMM format")
 		}
 
-		// Verify products
+		// Verify version bulletins structure
 		cvePattern := regexp.MustCompile(`^CVE-\d{4}-\d+$`)
 		versionPattern := regexp.MustCompile(`^16\.0\.\d+\.\d+$`)
 
-		for _, product := range parsed.Products {
-			require.NotEmpty(t, product.ProductID, "product should have ID")
-			require.NotEmpty(t, product.Product, "product should have name")
-			require.NotEmpty(t, product.SecurityUpdates, "product should have security updates")
+		for version, vb := range parsed.Versions {
+			require.Regexp(t, regexp.MustCompile(`^\d{4}$`), version,
+				"version key should be YYMM format")
+			require.NotEmpty(t, vb.SecurityUpdates, "version should have security updates")
 
-			for _, update := range product.SecurityUpdates {
+			for _, update := range vb.SecurityUpdates {
 				require.Regexp(t, cvePattern, update.CVE,
 					"CVE should match expected format")
-				require.Regexp(t, versionPattern, update.FixedVersion,
-					"fixed version should be 16.0.X.Y format")
+				require.Regexp(t, versionPattern, update.FixedBuild,
+					"fixed build should be 16.0.X.Y format")
 			}
 		}
 	})
@@ -150,11 +159,9 @@ func TestIntegrationsWinOfficeGenerator(t *testing.T) {
 		// Get a CVE from the bulletin to test with
 		var testCVE string
 		var expectedFixedBuild string
-		var testVersion string
 		for cve, builds := range bulletin.CVEToFixedBuilds {
 			testCVE = cve
-			for version, build := range builds {
-				testVersion = version
+			for _, build := range builds {
 				expectedFixedBuild = build
 				break
 			}
@@ -162,32 +169,31 @@ func TestIntegrationsWinOfficeGenerator(t *testing.T) {
 		}
 		require.NotEmpty(t, testCVE, "should have at least one CVE to test")
 
-		// Get build prefix for this version
-		var buildPrefix string
-		for prefix, version := range bulletin.BuildPrefixToVersion {
-			if version == testVersion {
-				buildPrefix = prefix
-				break
-			}
-		}
-		require.NotEmpty(t, buildPrefix, "should find build prefix for test version")
+		// Extract build prefix from the fixed build (e.g., "19725.20172" -> "19725")
+		// This ensures we test with a consistent build prefix
+		fixedBuildParts := strings.Split(expectedFixedBuild, ".")
+		require.Len(t, fixedBuildParts, 2, "fixed build should be prefix.suffix format")
+		buildPrefix := fixedBuildParts[0]
+		fixedSuffix := fixedBuildParts[1]
 
-		// Test with vulnerable version (older than fixed)
+		// Test with vulnerable version (older suffix than fixed)
 		vulnerableVersion := "16.0." + buildPrefix + ".10000"
 		isVulnerable, fixedVersion, err := bulletin.MatchHostVersion(vulnerableVersion, testCVE)
 		require.NoError(t, err)
 		require.True(t, isVulnerable, "older version should be vulnerable")
 		require.Equal(t, "16.0."+expectedFixedBuild, fixedVersion, "should report correct fixed version")
 
-		// Test with fixed version
+		// Test with fixed version (exact match)
 		fixedHostVersion := "16.0." + expectedFixedBuild
 		isVulnerable, fixedVersion, err = bulletin.MatchHostVersion(fixedHostVersion, testCVE)
 		require.NoError(t, err)
 		require.False(t, isVulnerable, "fixed version should not be vulnerable")
 		require.Empty(t, fixedVersion, "should not report fixed version when not vulnerable")
 
-		// Test with newer version
-		newerVersion := "16.0." + buildPrefix + ".99999"
+		// Test with newer version (same prefix, higher suffix)
+		// Use a suffix that's definitely higher than the fixed suffix
+		newerSuffix := fixedSuffix + "9"
+		newerVersion := "16.0." + buildPrefix + "." + newerSuffix
 		isVulnerable, _, err = bulletin.MatchHostVersion(newerVersion, testCVE)
 		require.NoError(t, err)
 		require.False(t, isVulnerable, "newer version should not be vulnerable")

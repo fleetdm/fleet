@@ -191,42 +191,44 @@ func BuildWinOfficeBulletin(releases []WinOfficeSecurityRelease) *WinOfficeBulle
 	return bulletin
 }
 
-// ConvertWinOfficeToAppBulletin converts an WinOfficeBulletin to AppBulletinFile format
+// ConvertWinOfficeToAppBulletin converts a WinOfficeBulletin to AppBulletinFile format
 func ConvertWinOfficeToAppBulletin(bulletin *WinOfficeBulletin) *msrcapps.AppBulletinFile {
-	// Group CVEs by version branch for the products list
-	// We'll create one "product" per version branch
-	products := make(map[string]*msrcapps.AppBulletin)
+	// Build version-indexed structure
+	versions := make(map[string]*msrcapps.VersionBulletin)
 
+	// Create a set of supported versions for quick lookup
+	supportedSet := make(map[string]bool)
+	for _, v := range bulletin.SupportedVersions {
+		supportedSet[v] = true
+	}
+
+	// Group CVEs by version branch
 	for cve, fixedBuilds := range bulletin.CVEToFixedBuilds {
-		for version, fixedBuild := range fixedBuilds {
-			if products[version] == nil {
-				products[version] = &msrcapps.AppBulletin{
-					ProductID: version, // Use version as product ID for now
-					Product:   fmt.Sprintf("Microsoft 365 Apps (Version %s)", version),
+		for version, build := range fixedBuilds {
+			if versions[version] == nil {
+				versions[version] = &msrcapps.VersionBulletin{
+					Supported: supportedSet[version],
 				}
 			}
-			products[version].SecurityUpdates = append(products[version].SecurityUpdates, msrcapps.SecurityUpdate{
-				CVE:          cve,
-				FixedVersion: "16.0." + fixedBuild,
-			})
+			versions[version].SecurityUpdates = append(versions[version].SecurityUpdates,
+				msrcapps.VersionSecurityUpdate{
+					CVE:        cve,
+					FixedBuild: "16.0." + build,
+				})
 		}
 	}
 
-	// Convert to slice and sort
-	var productList []msrcapps.AppBulletin
-	for _, p := range products {
-		// Sort security updates by CVE for deterministic output
-		sort.Slice(p.SecurityUpdates, func(i, j int) bool {
-			return p.SecurityUpdates[i].CVE < p.SecurityUpdates[j].CVE
+	// Sort security updates within each version for deterministic output
+	for _, vb := range versions {
+		sort.Slice(vb.SecurityUpdates, func(i, j int) bool {
+			return vb.SecurityUpdates[i].CVE < vb.SecurityUpdates[j].CVE
 		})
-		productList = append(productList, *p)
 	}
-	sort.Slice(productList, func(i, j int) bool {
-		return productList[i].ProductID < productList[j].ProductID
-	})
 
 	return &msrcapps.AppBulletinFile{
-		Products: productList,
+		Version:       1,
+		BuildPrefixes: bulletin.BuildPrefixToVersion,
+		Versions:      versions,
 	}
 }
 
