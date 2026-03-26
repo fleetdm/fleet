@@ -646,6 +646,15 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resentCertificate: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.certificate_name} certificate for host{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   addedCertificateAuthority: (name = "") => {
     return name ? (
       <>
@@ -1901,6 +1910,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedAndroidCertificate: {
       return TAGGED_TEMPLATES.editedAndroidCertificate(activity, isPremiumTier);
+    }
+    case ActivityType.ResentCertificate: {
+      return TAGGED_TEMPLATES.resentCertificate(activity);
     }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
