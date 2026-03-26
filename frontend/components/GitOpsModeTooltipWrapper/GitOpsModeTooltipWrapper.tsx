@@ -11,8 +11,8 @@ interface IGitOpsModeTooltipWrapper {
   position?: ITooltipWrapper["position"];
   tipOffset?: ITooltipWrapper["tipOffset"];
   fixedPositionStrategy?: ITooltipWrapper["fixedPositionStrategy"];
-  /** When specified, the wrapper checks the exception for this entity type.
-   *  If the entity is excepted, children remain enabled even in GitOps mode. */
+  // When specified, the wrapper checks the exception for this entity type.
+  // If the entity is excepted, children remain enabled even in GitOps mode.
   entityType?: GitOpsEntityType;
 }
 
@@ -33,7 +33,7 @@ const GitOpsModeTooltipWrapper = ({
   // render children without the tooltip and with no disabled state.
   if (
     !gitOpsModeEnabled ||
-    (entityType && config?.gitops.exceptions[entityType])
+    (entityType && config?.gitops.exceptions?.[entityType])
   ) {
     return <>{renderChildren()}</>;
   }
