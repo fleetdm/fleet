@@ -1,11 +1,12 @@
 {
   "versions": [
     {
-      "version": "0.2026.03.18.08.24.01",
+      "version": "0.2026.03.18.08.24.03",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable';",
+        "patch": ""
       },
-      "installer_url": "https://releases.warp.dev/stable/v0.2026.03.18.08.24.stable_01/Warp.dmg",
+      "installer_url": "https://releases.warp.dev/stable/v0.2026.03.18.08.24.stable_03/Warp.dmg",
       "install_script_ref": "df0fd0b3",
       "uninstall_script_ref": "54d05203",
       "sha256": "no_check",

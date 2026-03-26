@@ -8,6 +8,13 @@
     align-items: baseline;
   }
 
+  &__os-settings {
+    dd {
+      padding: 6px; // See underline under link and border with keyboard nav
+      margin: -6px; // See underline under link and border with keyboard nav
+    }
+  }
+
   // Properly vertically aligns host issue icon
   .host-issue {
     display: flex;

@@ -180,16 +180,16 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(onCancel).toHaveBeenCalledTimes(2);
     });
 
-    it("shows Done button for pending install", () => {
+    it("shows Close button for pending install", () => {
       const onCancel = jest.fn();
       render(<ModalButtons status="pending_install" onCancel={onCancel} />);
-      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Retry" })
       ).not.toBeInTheDocument();
     });
 
-    it("on device user page, shows Done button for installed software", () => {
+    it("on device user page, shows Close button for installed software", () => {
       const onCancel = jest.fn();
       render(
         <ModalButtons
@@ -198,7 +198,7 @@ describe("SoftwareInstallDetailsModal", () => {
           onCancel={onCancel}
         />
       );
-      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     });
   });
 

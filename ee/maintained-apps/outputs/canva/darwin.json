@@ -3,7 +3,8 @@
     {
       "version": "1.121.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop';",
+        "patch": ""
       },
       "installer_url": "https://desktop-release.canva.com/Canva-1.121.0-universal.dmg",
       "install_script_ref": "db63c321",

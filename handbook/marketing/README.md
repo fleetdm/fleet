@@ -7,9 +7,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Chief  Marketing Officer           | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
-| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
+| Content Specialist                 | [Irena E. Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation          | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
-| Marketing Campaign Manager         | [Michael D Buck](https://www.linkedin.com/in/michael-buck-chi312/ ) _([@mb-chigoose312](https://github.com/mb-chigoose312))_
+| Marketing Campaign Manager         | [Michael Buck](https://www.linkedin.com/in/michael-buck-chi312/ ) _([@mb-chigoose312](https://github.com/mb-chigoose312))_
 
 
 ## Contact us
@@ -58,7 +58,7 @@ Note: for event execution, additional labels are used to manage the process and 
 
 ### Prepare "Let's get you set up!" meeting notes
 
-Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
+Before each group call, copy the attendees from the "Let's get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
 On Thursdays, marketing reviews the names and accounts for upcoming meetings and checks how many hosts each account has. If an account has more than 500 hosts, post a message in the #help-gtm-ops Slack channel.
 Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
 
@@ -94,6 +94,11 @@ To propose an ad, or a change to an ad:
 2. Choose the appropriate audience according to the buying situation and disable audience expansion and the LinkedIn audience network. 
 3. When creating the ad for the new campaign, select "browse existing content" and find the post under the employee tab.
 4. Launch campaign once approved.
+
+
+### Manage LinkedIn ad creatives
+
+LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
 
 
 ### Settle content strategy
@@ -195,6 +200,18 @@ Here are some links that filter relevant conversations on each platform:
 2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
+
+
+### Monitor and respond to LinkedIn comments
+
+The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
+
+To monitor and respond to LinkedIn comments:
+1. Check LinkedIn mentions and comments once per work day.
+2. Like mentions and respond to comments where appropriate.
+3. Repost content related to GitOps certification or from Fleeties.
+4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
+5. All interactions are catalogued in Hootsuite for future review.
 
 
 ### Publish sprint demo video

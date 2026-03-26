@@ -3,7 +3,8 @@
     {
       "version": "32.1.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.obsproject.obs-studio';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.obsproject.obs-studio';",
+        "patch": ""
       },
       "installer_url": "https://cdn-fastly.obsproject.com/downloads/obs-studio-32.1.0-macos-apple.dmg",
       "install_script_ref": "5670387b",
