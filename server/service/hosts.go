@@ -280,8 +280,24 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		if id == nil {
 			id = req.Opts.SoftwareIDFilter
 		}
-		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
-		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software in that case
+
+		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
+		switch {
+		case err == nil:
+			software = sw
+
+		case fleet.IsNotFound(err):
+			// Look for sw lite without team scope
+			swLite, err := svc.SoftwareLiteByID(ctx, *id)
+			if err != nil {
+				return listHostsResponse{Err: err}, nil
+			}
+			software = &fleet.Software{
+				ID:      *id,
+				Name:    swLite.Name,
+				Version: swLite.Version,
+			}
+		default:
 			return listHostsResponse{Err: err}, nil
 		}
 	}
