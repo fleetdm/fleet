@@ -107,7 +107,7 @@ describe("List", () => {
       li.textContent?.includes("Beta")
     );
 
-    expect(alphaLi?.getAttribute("key")).toBeUndefined(); // React doesn't expose "key" to the DOM
+    expect(alphaLi?.getAttribute("key")).toBeNull(); // React doesn't expose "key" to the DOM
     expect(betaLi).toBeInTheDocument();
   });
 });
