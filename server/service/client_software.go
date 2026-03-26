@@ -72,7 +72,7 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
-	err = c.parseResponse(verb, path, response, nil)
+	err = c.ParseResponse(verb, path, response, nil)
 	if err != nil {
 		return nil, fmt.Errorf("parsing icon response: %w", err)
 	}

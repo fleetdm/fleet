@@ -3,7 +3,8 @@
     {
       "version": "2.12.5",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats';",
+        "patch": ""
       },
       "installer_url": "https://github.com/exelban/stats/releases/download/v2.12.5/Stats.dmg",
       "install_script_ref": "ab69db04",

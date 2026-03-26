@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -583,7 +583,7 @@ type Datastore interface {
 	// host (nil for global). maxQueryReportRows is the configured report cap used to determine
 	// whether each query's report has been clipped. It returns the list of reports, the total
 	// count (without pagination), optional pagination metadata, and any error.
-	ListHostReports(ctx context.Context, hostID uint, teamID *uint, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
+	ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

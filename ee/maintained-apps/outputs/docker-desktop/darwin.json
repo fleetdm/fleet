@@ -3,7 +3,8 @@
     {
       "version": "4.66.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop';",
+        "patch": ""
       },
       "installer_url": "https://desktop.docker.com/mac/main/arm64/222299/Docker.dmg",
       "install_script_ref": "2fd921da",
