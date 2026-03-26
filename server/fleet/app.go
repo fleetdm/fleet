@@ -200,7 +200,7 @@ type MDM struct {
 	// the server starts.
 	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
 
-	// AppleBMTermsExpired is set to true if an Apple Business Manager request
+	// AppleBMTermsExpired is set to true if an Apple Business request
 	// failed due to Apple's terms and conditions having changed and need the
 	// user to explicitly accept them. It cannot be set manually via the
 	// PATCH /config API, it is only set automatically, internally, by detecting
@@ -861,7 +861,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.AppleBusinessManager.Set {
 		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
 		copy(abm, c.MDM.AppleBusinessManager.Value)
-		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
+		clone.MDM.AppleBusinessManager = optjson.SetSlice(AB)
 
 	}
 

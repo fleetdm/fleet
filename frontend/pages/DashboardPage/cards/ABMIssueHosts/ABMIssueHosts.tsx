@@ -16,7 +16,7 @@ interface IABMIssueHostsProps {
 export const abmIssueTooltip = (): JSX.Element => {
   return (
     <span>
-      Hosts that have Apple Business Manager (ABM) profile assignment issue.
+      Hosts that have Apple Business (AB) profile assignment issue.
       Migration or new Mac setup won&apos;t work.
     </span>
   );
@@ -42,7 +42,7 @@ const ABMIssueHosts = ({
     <HostCountCard
       iconName="abm-issue-hosts"
       count={abmIssueCount}
-      title="ABM issue"
+      title="AB issue"
       tooltip={abmIssueTooltip()}
       path={path}
       className={baseClass}

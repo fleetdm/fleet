@@ -9,7 +9,7 @@ This guide provides instructions for migrating devices from your current MDM sol
 ## Requirements
 
 - A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet)
-- Fleet is connected to Apple Push Notification service (APNs) and Apple Business Manager (ABM). [See macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
+- Fleet is connected to Apple Push Notification service (APNs) and Apple Business (AB). [See macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
 - For the end-user workflow: A service is required that can receive a webhook to send an unenroll request to the existing MDM server. See [this example](https://victoronsoftware.com/posts/webhook-flow-with-tines/) using Fleet webhooks with Tines.
 
 > **Important:** Apple MDM enrollment relies on a Safari-based system web view. If Safari is blocked or restricted, enrollment can fail.
@@ -19,7 +19,7 @@ This guide provides instructions for migrating devices from your current MDM sol
 To migrate hosts, we will do the following steps:
 
 1. Enroll hosts to Fleet
-2. Assign hosts in Apple Business Manager (ABM) to Fleet
+2. Assign hosts in Apple Business (AB) to Fleet
 3. Choose migration workflow and migrate hosts
 
 ### Step 1: Enroll hosts to Fleet
@@ -27,7 +27,7 @@ To migrate hosts, we will do the following steps:
 1. First, [enroll your hosts](https://fleetdm.com/guides/enroll-hosts) to Fleet by installing Fleet's agent (fleetd).
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
-### Step 2: Assign hosts in Apple Business Manager (ABM) to Fleet
+### Step 2: Assign hosts in Apple Business (AB) to Fleet
 
 1. In ABM, unassign your hosts from your current MDM solution by selecting **Devices** and then selecting **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
 
@@ -125,7 +125,7 @@ After turning on disk encryption in Fleet, share [these guided instructions](#ho
 
 In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (ADE) hosts.
 
-In 2024, Apple added the ability to manage activation lock in Apple Business Manager (ABM). For devices that are owned by the business and available in ABM, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/apple-business-manager/axm812df1dd8/web).
+In 2024, Apple added the ability to manage activation lock in Apple Business (AB). For devices that are owned by the business and available in ABM, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/apple-business-manager/axm812df1dd8/web).
 
 If a device is not available in ABM and has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating the device to Fleet: https://support.apple.com/en-us/HT208987.
 

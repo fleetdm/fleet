@@ -87,7 +87,7 @@ For organizations managing mixed fleets, unified MDM visibility across Mac, Wind
 
 When selecting an MDM, verify these capabilities across all operating systems you manage:
 
-* Zero-touch enrollment through Apple Business Manager  
+* Zero-touch enrollment through Apple Business  
 * Configuration profile deployment and verification  
 * Software deployment and patch management  
 * Compliance monitoring aligned with NIST mSCP baselines  

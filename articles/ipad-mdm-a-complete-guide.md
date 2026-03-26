@@ -53,7 +53,7 @@ This works across any internet connection assuming the MDM server is configured 
 
 Organizations can choose from three enrollment methods that provide different management capabilities depending on device ownership:
 
-- **Automated Device Enrollment (ADE)** through Apple Business Manager (ABM) or Apple School Manager (ASM) provides the most streamlined approach for devices purchased through Apple or authorized Apple reseller channels. Devices automatically contact Apple services and walk the end user through a guided Setup Assistant workflow and an automated provisioning process resulting in a fully-managed device on-demand without admin interaction or IT help.
+- **Automated Device Enrollment (ADE)** through Apple Business (AB) or Apple School Manager (ASM) provides the most streamlined approach for devices purchased through Apple or authorized Apple reseller channels. Devices automatically contact Apple services and walk the end user through a guided Setup Assistant workflow and an automated provisioning process resulting in a fully-managed device on-demand without admin interaction or IT help.
 
 - **User Enrollment** creates separate management on the device for corporate apps, data and access to resources while maintaining strict privacy boundaries around personal data which can't be deleted via management.
 
@@ -63,13 +63,13 @@ The enrollment method chosen determines the level of control an organization has
 
 ### Supervised vs. unsupervised capabilities
 
-Supervision determine which MDM features are available on enrolled devices. Getting devices supervised requires either Automated Device Enrollment through Apple Business Manager or Apple School Manager during initial setup or using Apple Configurator with physical USB connectivity to each device.
+Supervision determine which MDM features are available on enrolled devices. Getting devices supervised requires either Automated Device Enrollment through Apple Business or Apple School Manager during initial setup or using Apple Configurator with physical USB connectivity to each device.
 
 Two supervision levels serve different organizational needs:
 
 - **Supervision** - Organizations can unlock advanced capabilities that address enterprise requirements, like:
 
- - De[ploying managed apps
+ - Deploying managed apps
  - Hiding specific Apple native applications from home screens
  - Making MDM management immutable so end users can't remove the MDM profile
  - Restricting data exfiltration paths like AirDrop and Sharing
@@ -82,7 +82,7 @@ An institutionally-owned iPad deployed 1:1 for a single employee as a primary wo
 
 > Supervised devices can't be converted to unsupervised devices without erasing all data contained on them and re-enrolling them into MDM.
 
-### Apple Business Manager and Apple School Manager integration
+### Apple Business and Apple School Manager integration
 
 ABM and ASM integration allows your organization to easily grow your iPad deployments to enterprise scale. ABM / ASM administrators can assign devices to one or many MDM servers in the portal. In addition, most MDM solutions allow for multiple enrollment groupings, meaning enrollment can be customized for potentially unique deployments like special-use iPads if needed.
 

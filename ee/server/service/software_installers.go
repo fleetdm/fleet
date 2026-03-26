@@ -1429,7 +1429,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 				"host_serial", host.HardwareSerial,
 			)
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.",
+				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business. Please purchase license in Apple Business and try again.",
 				InternalErr: ctxerr.Errorf(ctx, "VPP API didn't return any assets for adamID %s", vppApp.AdamID),
 			}
 		}
@@ -1440,7 +1440,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 
 		if assets[0].AvailableCount <= 0 {
 			return "", &fleet.BadRequestError{
-				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business Manager and try again.",
+				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business and try again.",
 				InternalErr: ctxerr.NewWithData(
 					ctx, "license available count <= 0",
 					map[string]any{

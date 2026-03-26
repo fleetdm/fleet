@@ -53,7 +53,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
   return (
     <Modal
       className={baseClass}
-      title="Add ABM"
+      title="Add AB"
       onExit={onCancel}
       width="large"
     >
@@ -71,7 +71,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
               Sign in to{" "}
               <CustomLink
                 newTab
-                text="Apple Business Manager"
+                text="Apple Business"
                 url="https://business.apple.com"
               />
               <br />
@@ -129,7 +129,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
           isUploading ? `${baseClass}__file-uploader--loading` : ""
         }`}
         accept=".p7m"
-        message="ABM token (.p7m)"
+        message="AB token (.p7m)"
         graphicName="file-p7m"
         buttonType="brand-inverse-icon"
         buttonMessage={isUploading ? "Uploading..." : "Upload"}
@@ -142,7 +142,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
           isLoading={isUploading}
           disabled={!tokenFile || isUploading}
         >
-          Add ABM
+          Add AB
         </Button>
       </div>
     </Modal>
