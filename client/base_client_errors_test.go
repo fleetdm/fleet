@@ -1,4 +1,4 @@
-package service
+package client
 
 import (
 	"strings"
@@ -58,7 +58,7 @@ func TestExtractServerErrorText(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reader := strings.NewReader(tt.body)
-			result := extractServerErrorText(reader)
+			result := ExtractServerErrorText(reader)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

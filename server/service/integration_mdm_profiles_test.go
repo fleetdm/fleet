@@ -32,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -2335,8 +2334,8 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		}, "MacBookPro16,1")
 
 		// enroll the device with orbit
-		var resp EnrollOrbitResponse
-		s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+		var resp enrollOrbitResponse
+		s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 			EnrollSecret:   secret,
 			HardwareUUID:   mdmDevice.UUID, // will not match any existing host
 			HardwareSerial: mdmDevice.SerialNumber,

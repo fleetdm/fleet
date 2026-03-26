@@ -1,4 +1,4 @@
-package service
+package client
 
 import (
 	"bytes"
@@ -26,13 +26,13 @@ type SetupAlreadyErr interface {
 	Error() string
 }
 
-type setupAlreadyErr struct{}
+type SetupAlreadyError struct{}
 
-func (e setupAlreadyErr) Error() string {
+func (e SetupAlreadyError) Error() string {
 	return "Fleet has already been setup"
 }
 
-func (e setupAlreadyErr) SetupAlready() bool {
+func (e SetupAlreadyError) SetupAlready() bool {
 	return true
 }
 
@@ -41,58 +41,59 @@ type NotSetupErr interface {
 	Error() string
 }
 
-type notSetupErr struct{}
+type NotSetupError struct{}
 
-func (e notSetupErr) Error() string {
+func (e NotSetupError) Error() string {
 	return "The Fleet instance is not set up yet"
 }
 
-func (e notSetupErr) NotSetup() bool {
+func (e NotSetupError) NotSetup() bool {
 	return true
 }
 
+// NotFoundErrIface is the interface for not-found errors.
 // TODO: we have a similar but different interface in the fleet package,
 // fleet.NotFoundError - at the very least, the NotFound method should be the
 // same in both (the other is currently IsNotFound), and ideally we'd just have
 // one of those interfaces.
-type NotFoundErr interface {
+type NotFoundErrIface interface {
 	NotFound() bool
 	Error() string
 }
 
-type notFoundErr struct {
-	msg string
+type NotFoundErr struct {
+	Msg string
 
 	fleet.ErrorWithUUID
 }
 
-func (e *notFoundErr) Error() string {
-	if e.msg != "" {
-		return e.msg
+func (e *NotFoundErr) Error() string {
+	if e.Msg != "" {
+		return e.Msg
 	}
 	return "The resource was not found"
 }
 
-func (e *notFoundErr) NotFound() bool {
+func (e *NotFoundErr) NotFound() bool {
 	return true
 }
 
 // Implement Is so that errors.Is(err, sql.ErrNoRows) returns true for an
-// error of type *notFoundError, without having to wrap sql.ErrNoRows
-// explicitly. It also matches other *notFoundErr targets so that pointer-based
+// error of type *NotFoundErr, without having to wrap sql.ErrNoRows
+// explicitly. It also matches other *NotFoundErr targets so that pointer-based
 // comparison works (pointers to distinct structs are never == even if their
 // contents are identical).
-func (e *notFoundErr) Is(other error) bool {
+func (e *NotFoundErr) Is(other error) bool {
 	if other == sql.ErrNoRows {
 		return true
 	}
-	_, ok := other.(*notFoundErr)
+	_, ok := other.(*NotFoundErr)
 	return ok
 }
 
-// isNotFoundErr reports whether err's chain contains a *notFoundErr.
-func isNotFoundErr(err error) bool {
-	var nfe *notFoundErr
+// IsNotFoundErr reports whether err's chain contains a *NotFoundErr.
+func IsNotFoundErr(err error) bool {
+	var nfe *NotFoundErr
 	return errors.As(err, &nfe)
 }
 
@@ -101,15 +102,15 @@ type ConflictErr interface {
 	Error() string
 }
 
-type conflictErr struct {
-	msg string
+type ConflictError struct {
+	Msg string
 }
 
-func (e conflictErr) Error() string {
-	return e.msg
+func (e ConflictError) Error() string {
+	return e.Msg
 }
 
-func (e conflictErr) Conflict() bool {
+func (e ConflictError) Conflict() bool {
 	return true
 }
 
@@ -121,9 +122,9 @@ type serverError struct {
 	} `json:"errors"`
 }
 
-// truncateAndDetectHTML truncates a response body to a reasonable length and
+// TruncateAndDetectHTML truncates a response body to a reasonable length and
 // detects if it's HTML content. Returns the truncated body and whether it's HTML.
-func truncateAndDetectHTML(body []byte, maxLen int) (truncated []byte, isHTML bool) {
+func TruncateAndDetectHTML(body []byte, maxLen int) (truncated []byte, isHTML bool) {
 	if len(body) > maxLen {
 		// Use append which is more idiomatic and efficient
 		truncated = append([]byte(nil), body[:maxLen]...)
@@ -140,12 +141,12 @@ func truncateAndDetectHTML(body []byte, maxLen int) (truncated []byte, isHTML bo
 	return truncated, isHTML
 }
 
-func extractServerErrorText(body io.Reader) string {
-	_, reason := extractServerErrorNameReason(body)
+func ExtractServerErrorText(body io.Reader) string {
+	_, reason := ExtractServerErrorNameReason(body)
 	return reason
 }
 
-func extractServerErrorNameReason(body io.Reader) (string, string) {
+func ExtractServerErrorNameReason(body io.Reader) (string, string) {
 	// Read the body first so we can try to parse it as JSON and fallback to text if needed
 	bodyBytes, err := io.ReadAll(body)
 	if err != nil {
@@ -157,7 +158,7 @@ func extractServerErrorNameReason(body io.Reader) (string, string) {
 	if err := json.Unmarshal(bodyBytes, &serverErr); err != nil {
 		// If it's not JSON, it might be HTML or plain text error from a proxy/load balancer
 		const maxLen = 200
-		truncatedBytes, isHTML := truncateAndDetectHTML(bodyBytes, maxLen)
+		truncatedBytes, isHTML := TruncateAndDetectHTML(bodyBytes, maxLen)
 
 		if isHTML {
 			// Generic HTML response
@@ -182,7 +183,7 @@ func extractServerErrorNameReason(body io.Reader) (string, string) {
 	return errName, errReason
 }
 
-func extractServerErrorNameReasons(body io.Reader) ([]string, []string) {
+func ExtractServerErrorNameReasons(body io.Reader) ([]string, []string) {
 	var serverErr serverError
 	if err := json.NewDecoder(body).Decode(&serverErr); err != nil {
 		return []string{""}, []string{"unknown"}
@@ -198,15 +199,15 @@ func extractServerErrorNameReasons(body io.Reader) ([]string, []string) {
 	return errName, errReason
 }
 
-type statusCodeErr struct {
-	code int
-	body string
+type StatusCodeErr struct {
+	Code int
+	Body string
 }
 
-func (e *statusCodeErr) Error() string {
-	return fmt.Sprintf("%d %s", e.code, e.body)
+func (e *StatusCodeErr) Error() string {
+	return fmt.Sprintf("%d %s", e.Code, e.Body)
 }
 
-func (e *statusCodeErr) StatusCode() int {
-	return e.code
+func (e *StatusCodeErr) StatusCode() int {
+	return e.Code
 }
