@@ -368,7 +368,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 		}, nil
 	}
-	return []*fleet.Policy{
+	policies := []*fleet.Policy{
 		{
 			PolicyData: fleet.PolicyData{
 				ID:                       1,
@@ -414,35 +414,41 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				SoftwareTitleID: 2,
 			},
 		},
-		{
-			PolicyData: fleet.PolicyData{
-				ID:          4,
-				Name:        "Team FMA install policy",
-				Query:       "SELECT * FROM team_policy WHERE id = 4",
-				Resolution:  ptr.String("Install the FMA"),
-				Description: "This is a team policy with FMA install automation",
-				Platform:    "darwin",
-				Type:        fleet.PolicyTypeDynamic,
+	}
+	// Only add FMA and package install policies for actual teams, not unassigned.
+	if *teamID != 0 {
+		policies = append(policies,
+			&fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:          4,
+					Name:        "Team FMA install policy",
+					Query:       "SELECT * FROM team_policy WHERE id = 4",
+					Resolution:  ptr.String("Install the FMA"),
+					Description: "This is a team policy with FMA install automation",
+					Platform:    "darwin",
+					Type:        fleet.PolicyTypeDynamic,
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 8,
+				},
 			},
-			InstallSoftware: &fleet.PolicySoftwareTitle{
-				SoftwareTitleID: 8,
+			&fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:          5,
+					Name:        "Team package install policy",
+					Query:       "SELECT * FROM team_policy WHERE id = 5",
+					Resolution:  ptr.String("Install the package"),
+					Description: "This is a team policy with custom package install automation",
+					Platform:    "linux,windows",
+					Type:        fleet.PolicyTypeDynamic,
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 1,
+				},
 			},
-		},
-		{
-			PolicyData: fleet.PolicyData{
-				ID:          5,
-				Name:        "Team package install policy",
-				Query:       "SELECT * FROM team_policy WHERE id = 5",
-				Resolution:  ptr.String("Install the package"),
-				Description: "This is a team policy with custom package install automation",
-				Platform:    "linux,windows",
-				Type:        fleet.PolicyTypeDynamic,
-			},
-			InstallSoftware: &fleet.PolicySoftwareTitle{
-				SoftwareTitleID: 1,
-			},
-		},
-	}, nil
+		)
+	}
+	return policies, nil
 }
 
 func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
