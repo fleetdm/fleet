@@ -2124,6 +2124,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 			http.StatusAccepted, &installResp)
 
 		// iOS device acknowledges the InstallApplication command.
+		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()
 		cmd, err := deviceClient.Idle()
 		require.NoError(t, err)
