@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/app-library'
+      viewTemplatePath: 'pages/docs/app-library'
     },
     badConfig: { responseType: 'badConfig' },
   },

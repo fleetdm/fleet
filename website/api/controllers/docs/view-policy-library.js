@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/policy-library'
+      viewTemplatePath: 'pages/docs/policy-library'
     },
     badConfig: { responseType: 'badConfig' },
 

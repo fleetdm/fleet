@@ -13,7 +13,7 @@ module.exports = {
 
   exits: {
 
-    success: { viewTemplatePath: 'pages/command-details' },
+    success: { viewTemplatePath: 'pages/docs/command-details' },
     notFound: { responseType: 'notFound' },
     badConfig: { responseType: 'badConfig' },
 

@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/os-settings'
+      viewTemplatePath: 'pages/docs/os-settings'
     }
 
   },

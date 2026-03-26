@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View scripts',
+  friendlyName: 'View script library',
 
 
-  description: 'Display "Scripts" page.',
+  description: 'Display "Script library" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/scripts'
+      viewTemplatePath: 'pages/docs/script-library'
     },
     badConfig: { responseType: 'badConfig' },
 

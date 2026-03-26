@@ -14,7 +14,7 @@ module.exports = {
 
   exits: {
 
-    success: { viewTemplatePath: 'pages/script-details' },
+    success: { viewTemplatePath: 'pages/docs/script-details' },
     notFound: { responseType: 'notFound' },
     badConfig: { responseType: 'badConfig' },
 
