@@ -10,6 +10,10 @@ To migrate Windows hosts from your current MDM solution to Fleet, follow the [Au
 
 ## Turn on Windows MDM
 
+### `fleetctl preview`
+
+If you're using `fleetctl preview`, the WSTEP certificate and key are generated automatically. Skip to [Step 3](#step-3-turn-on-windows-mdm) to turn on Windows MDM.
+
 ### Step 1: Generate your certificate and key
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between the Fleet server and a Windows host.

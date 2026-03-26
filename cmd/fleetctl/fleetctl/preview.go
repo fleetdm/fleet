@@ -3,12 +3,17 @@ package fleetctl
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
@@ -269,6 +274,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("failed to set private key: %w", err)
 			}
 
+			if err := ensureWSTEPCerts(filepath.Join(previewDir, "config")); err != nil {
+				return fmt.Errorf("generating WSTEP certificates: %w", err)
+			}
+
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
 				return fmt.Errorf("failed to set Fleet version: %w", err)
 			}
@@ -487,6 +496,56 @@ func copyDirectory(destDir, sourceDir string) error {
 		}
 		return os.WriteFile(filepath.Join(destDir, relPath), data, 0o777)
 	})
+}
+
+// ensureWSTEPCerts generates a self-signed WSTEP identity certificate and key
+// for Windows MDM if they don't already exist in configDir. The generated files
+// match the parameters recommended in the Windows MDM setup guide.
+func ensureWSTEPCerts(configDir string) error {
+	certPath := filepath.Join(configDir, "wstep.crt")
+	keyPath := filepath.Join(configDir, "wstep.key")
+
+	_, certErr := os.Stat(certPath)
+	_, keyErr := os.Stat(keyPath)
+	if certErr == nil && keyErr == nil {
+		return nil
+	}
+
+	key, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return fmt.Errorf("generating RSA key: %w", err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName:   "Fleet Root CA",
+			Country:      []string{"US"},
+			Organization: []string{"Fleet."},
+		},
+		NotBefore:             time.Now().Add(-10 * time.Minute),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		return fmt.Errorf("creating certificate: %w", err)
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+
+	if err := os.WriteFile(certPath, certPEM, 0o600); err != nil {
+		return fmt.Errorf("writing WSTEP certificate: %w", err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+		return fmt.Errorf("writing WSTEP key: %w", err)
+	}
+
+	return nil
 }
 
 var TestOverridePreviewDirectory string
