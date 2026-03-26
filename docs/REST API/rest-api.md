@@ -13903,6 +13903,8 @@ If `api_endpoints` is specified, these do not grant additional permissions other
 
 ### List API endpoints for API-only user permissions
 
+ _Available in Fleet Premium._
+
 Lists Fleet REST API endpoints that an API-only user can be granted access to.
 
 `GET /api/v1/fleet/rest_api`
