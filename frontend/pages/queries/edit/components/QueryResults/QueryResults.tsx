@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
-import { Row, Column } from "react-table";
+import { CellProps, Row, Column } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import FileSaver from "file-saver";
@@ -11,8 +11,13 @@ import {
   generateCSVQueryResults,
 } from "utilities/generate_csv";
 import { SUPPORT_LINK } from "utilities/constants";
-import { ICampaign, ICampaignError } from "interfaces/campaign";
+import {
+  ICampaign,
+  ICampaignError,
+  ICampaignPerformanceStats,
+} from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
+import { PerformanceImpactIndicatorValue } from "interfaces/schedulable_query";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -25,6 +30,11 @@ import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeadin
 import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
+import TooltipWrapper from "components/TooltipWrapper";
+
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import PATHS from "router/paths";
 
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
@@ -46,7 +56,56 @@ const CSV_TITLE = "New Report";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
+  PERFORMANCE: "Performance",
 };
+
+const getPerformanceIndicator = (stats: ICampaignPerformanceStats) => {
+  const cpuTotal = stats.user_time + stats.system_time;
+  if (cpuTotal < 2000) {
+    return PerformanceImpactIndicatorValue.MINIMAL;
+  }
+  if (cpuTotal < 4000) {
+    return PerformanceImpactIndicatorValue.CONSIDERABLE;
+  }
+  return PerformanceImpactIndicatorValue.EXCESSIVE;
+};
+
+const perfColumnConfigs: Column<ICampaignPerformanceStats>[] = [
+  {
+    id: "host_display_name",
+    Header: "Host",
+    accessor: "host_display_name",
+    Cell: (cellProps: CellProps<ICampaignPerformanceStats>) => {
+      const hostID = cellProps.row.original.host_id;
+      return (
+        <LinkCell
+          value={cellProps.cell.value}
+          path={PATHS.HOST_DETAILS(hostID)}
+        />
+      );
+    },
+  },
+  {
+    id: "performance_impact",
+    Header: () => (
+      <TooltipWrapper tipContent="The average performance impact across all hosts.">
+        Performance impact
+      </TooltipWrapper>
+    ),
+    disableSortBy: true,
+    accessor: (row) => getPerformanceIndicator(row),
+    Cell: (cellProps: CellProps<ICampaignPerformanceStats>) => (
+      <PerformanceImpactCell
+        value={{
+          indicator: cellProps.cell.value,
+          id: cellProps.row.original.host_id,
+        }}
+        isHostSpecific
+        customIdPrefix="live-perf"
+      />
+    ),
+  },
+];
 
 const QueryResults = ({
   campaign,
@@ -61,8 +120,13 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
 
-  const { uiHostCounts, serverHostCounts, queryResults, errors } =
-    campaign || {};
+  const {
+    uiHostCounts,
+    serverHostCounts,
+    queryResults,
+    errors,
+    performanceStats,
+  } = campaign || {};
 
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [showQueryModal, setShowQueryModal] = useState(false);
@@ -122,6 +186,7 @@ const QueryResults = ({
     }
   }, [errors]); // Cannot use errorTableHeaders as it will cause infinite loop with setErrorTableHeaders
 
+
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     FileSaver.saveAs(
@@ -168,7 +233,7 @@ const QueryResults = ({
   };
 
   const renderCount = useCallback(
-    (tableType: "errors" | "results") => {
+    (tableType: "errors" | "results" | "performance") => {
       const count =
         tableType === "results"
           ? filteredResults.length
@@ -179,7 +244,14 @@ const QueryResults = ({
     [filteredResults.length, filteredErrors.length]
   );
 
-  const renderTableButtons = (tableType: "results" | "errors") => {
+  const renderTableButtons = (
+    tableType: "results" | "errors" | "performance"
+  ) => {
+    const exportHandlers: Record<string, typeof onExportQueryResults> = {
+      results: onExportQueryResults,
+      errors: onExportErrorsResults,
+    };
+
     return (
       <div className={`${baseClass}__results-cta`}>
         <Button
@@ -191,35 +263,41 @@ const QueryResults = ({
             Show query <Icon name="eye" />
           </>
         </Button>
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={
-            tableType === "errors"
-              ? onExportErrorsResults
-              : onExportQueryResults
-          }
-          variant="inverse"
-        >
-          <>
-            Export {tableType}
-            <Icon name="download" />
-          </>
-        </Button>
+        {exportHandlers[tableType] && (
+          <Button
+            className={`${baseClass}__export-btn`}
+            onClick={exportHandlers[tableType]}
+            variant="inverse"
+          >
+            <>
+              Export {tableType}
+              <Icon name="download" />
+            </>
+          </Button>
+        )}
       </div>
     );
   };
 
   const renderTable = (
     tableData: unknown[],
-    tableType: "errors" | "results"
+    tableType: "errors" | "results" | "performance"
   ) => {
+    const columnConfigsMap = {
+      results: resultsColumnConfigs,
+      errors: errorColumnConfigs,
+      performance: perfColumnConfigs,
+    };
+    const setExportRowsMap: Record<string, typeof setFilteredResults> = {
+      results: setFilteredResults,
+      errors: setFilteredErrors,
+    };
+
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
           defaultSortHeader="host_display_name"
-          columnConfigs={
-            tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
-          }
+          columnConfigs={columnConfigsMap[tableType]}
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
@@ -230,9 +308,7 @@ const QueryResults = ({
           isAllPagesSelected={false}
           resultsTitle={tableType}
           customControl={() => renderTableButtons(tableType)}
-          setExportRows={
-            tableType === "results" ? setFilteredResults : setFilteredErrors
-          }
+          setExportRows={setExportRowsMap[tableType]}
           renderCount={() => renderCount(tableType)}
         />
       </div>
@@ -258,6 +334,9 @@ const QueryResults = ({
   };
 
   const renderErrorsTab = () => renderTable(errors, "errors");
+
+  const renderPerformanceTab = () =>
+    renderTable(performanceStats, "performance");
 
   const firstTabClass = classnames("react-tabs__tab", "no-count", {
     "errors-empty": !errors || errors?.length === 0,
@@ -299,9 +378,13 @@ const QueryResults = ({
                 {NAV_TITLES.ERRORS}
               </TabText>
             </Tab>
+            <Tab disabled={!performanceStats?.length}>
+              {NAV_TITLES.PERFORMANCE}
+            </Tab>
           </TabList>
           <TabPanel>{renderResultsTab()}</TabPanel>
           <TabPanel>{renderErrorsTab()}</TabPanel>
+          <TabPanel>{renderPerformanceTab()}</TabPanel>
         </Tabs>
       </TabNav>
       {showQueryModal && (

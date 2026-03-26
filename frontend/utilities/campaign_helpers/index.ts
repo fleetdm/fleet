@@ -1,5 +1,6 @@
 import {
   ICampaign,
+  ICampaignPerformanceStats,
   ICampaignState,
   IUIHostCounts,
   IHostWithQueryResults,
@@ -8,6 +9,13 @@ import { IHost } from "interfaces/host";
 import { useContext } from "react";
 import { NotificationContext } from "context/notification";
 
+interface IResultStats {
+  wall_time_ms: number;
+  user_time: number;
+  system_time: number;
+  memory: number;
+}
+
 interface IResult {
   type: "result";
   data: {
@@ -15,6 +23,7 @@ interface IResult {
     error: string | null;
     host: IHost;
     rows: Record<string, unknown>[];
+    stats?: IResultStats;
   };
 }
 
@@ -65,8 +74,14 @@ const updateCampaignStateFromResults = (
     hosts: prevHostsWithResults = [],
     uiHostCounts: prevUIHostCounts = { total: 0, failed: 0, successful: 0 },
     queryResults: prevQueryResults = [],
+    performanceStats: prevPerformanceStats = [],
   } = campaign;
-  const { error: curError, host: curHost, rows: curQueryResults = [] } = data;
+  const {
+    error: curError,
+    host: curHost,
+    rows: curQueryResults = [],
+    stats: curStats,
+  } = data;
 
   let newErrors;
   let newHostsWithResults: IHostWithQueryResults[];
@@ -113,6 +128,20 @@ const updateCampaignStateFromResults = (
     newHostsWithResults = prevHostsWithResults.concat(curHostWithResults);
   }
 
+  let newPerformanceStats: ICampaignPerformanceStats[];
+  if (curStats && curHost) {
+    newPerformanceStats = prevPerformanceStats.concat({
+      host_id: curHost.id,
+      host_display_name: curHost.display_name,
+      wall_time_ms: curStats.wall_time_ms,
+      user_time: curStats.user_time,
+      system_time: curStats.system_time,
+      memory: curStats.memory,
+    });
+  } else {
+    newPerformanceStats = prevPerformanceStats;
+  }
+
   return {
     campaign: {
       ...campaign,
@@ -120,6 +149,7 @@ const updateCampaignStateFromResults = (
       hosts: newHostsWithResults,
       uiHostCounts: newUIHostCounts,
       queryResults: [...prevQueryResults, ...curQueryResults],
+      performanceStats: newPerformanceStats,
     },
   };
 };
