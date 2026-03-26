@@ -160,7 +160,7 @@
     "jest-fixed-jsdom": "0.0.8",
     "jsdom": "26.1.0",
     "json-loader": "0.5.7",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "16.4.0",
     "mini-css-extract-plugin": "2.7.5",
     "msw": "2.5.1",
     "node-bourbon": "4.2.8",
