@@ -6911,22 +6911,52 @@ func (ds *Datastore) CleanupStaleNanoRefetchCommands(ctx context.Context, enroll
 }
 
 func (ds *Datastore) CleanupOrphanedNanoRefetchCommands(ctx context.Context) error {
-	// Find up to 100 old REFETCH- commands that have no references in nano_enrollment_queue.
-	// nano_commands PK on command_uuid makes the LIKE prefix scan efficient.
-	// The FK index on neq.command_uuid makes the NOT EXISTS subquery efficient.
-	const stmt = `
-		DELETE nc FROM nano_commands nc
+	// Find up to 100 old REFETCH- commands. Note I am doing this as two queries since nano_commands
+	// can be large and I want to make sure in the case of a large number of active commands there's
+	// not going to be a full table scan or something happening. This is a best effort deletion so it
+	// is OK if our sample deletes nothing
+	const selectStmt = `
+		SELECT command_uuid FROM nano_commands nc
 		WHERE nc.command_uuid LIKE 'REFETCH-%'
 		  AND nc.created_at < NOW() - INTERVAL 30 DAY
-		  AND NOT EXISTS (
-		      SELECT 1 FROM nano_enrollment_queue neq
-		      WHERE neq.command_uuid = nc.command_uuid
-		      LIMIT 1
-		  )
 		LIMIT 100`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete orphaned nano commands")
+	var cmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "get mdm apple refetch commands")
+	}
+	if len(cmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Delete those that don't have a corresponding entry in nano_enrollment_queue
+	selectOrphanedCommandsStmt := `
+	SELECT command_uuid FROM nano_commands nc
+	WHERE nc.command_uuid IN (?) AND NOT EXISTS (
+		SELECT 1 FROM nano_enrollment_queue neq
+		WHERE neq.command_uuid = nc.command_uuid AND neq.active = 1
+		LIMIT 1
+	)`
+	selectOrphanedCommandsStmt, args, err := sqlx.In(selectOrphanedCommandsStmt, cmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for orphaned refetch commands")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, selectOrphanedCommandsStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "get orphaned refetch commands")
+	}
+	if len(cmdUUIDs) == 0 {
+		return nil
+	}
+
+	deleteOrphanedCommandsStmt := `
+	DELETE FROM nano_commands
+	WHERE command_uuid IN (?)`
+	deleteOrphanedCommandsStmt, args, err = sqlx.In(deleteOrphanedCommandsStmt, cmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for deleting orphaned refetch commands")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedCommandsStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete orphaned refetch commands")
 	}
 	return nil
 }

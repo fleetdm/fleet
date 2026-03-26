@@ -11526,7 +11526,7 @@ func testCleanupOrphanedNanoRefetchCommands(t *testing.T, ds *Datastore) {
 		"REFETCH-APPS-with-ref", "InstalledApplicationList", oldTime)
 	require.NoError(t, err)
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority, created_at) VALUES (?, ?, 0, 0, ?)`,
+		`INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority, created_at) VALUES (?, ?, 1, 0, ?)`,
 		host.UUID, "REFETCH-APPS-with-ref", oldTime)
 	require.NoError(t, err)
 
