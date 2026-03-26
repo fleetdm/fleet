@@ -1216,7 +1216,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 					},
 				}
 			}
-			return bogus, int(opt.ListOptions.PerPage), nil, nil
+			return bogus, int(opt.ListOptions.PerPage), nil, nil //nolint:gosec // dismiss G115
 		}
 		// Page 1: the real software that policies reference.
 		return []fleet.SoftwareTitleListResult{
