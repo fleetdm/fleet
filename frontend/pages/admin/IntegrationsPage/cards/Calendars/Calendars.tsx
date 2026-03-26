@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from "react";
+import React, { useState, useContext, useCallback, useEffect } from "react";
 import { useQuery } from "react-query";
 
 import { IConfig } from "interfaces/config";
@@ -7,7 +7,10 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import paths from "router/paths";
-import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  UNCHANGED_PASSWORD_API_RESPONSE,
+} from "utilities/constants";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -97,32 +100,34 @@ const Calendars = (): JSX.Element => {
     refetch: refetchConfig,
     error: errorAppConfig,
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    refetchOnMount: false,
     select: (data: IConfig) => data,
-    onSuccess: (data) => {
-      if (
-        Array.isArray(data.integrations.google_calendar) &&
-        data.integrations.google_calendar.length > 0
-      ) {
-        const apiKeyJsonObj = data.integrations.google_calendar[0].api_key_json;
-
-        // Check if the API key is obfuscated
-        if (isObfuscatedApiKey(apiKeyJsonObj)) {
-          // Show masked value in UI
-          setFormData({
-            domain: data.integrations.google_calendar[0].domain,
-            apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
-          });
-        } else {
-          // Show the actual API key JSON
-          setFormData({
-            domain: data.integrations.google_calendar[0].domain,
-            // Formats string for better UI readability
-            apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
-          });
-        }
-      }
-    },
   });
+
+  // Sync form state from config data. Using useEffect instead of onSuccess
+  // so the form updates whether data comes from cache or a fresh fetch.
+  useEffect(() => {
+    if (
+      config &&
+      Array.isArray(config.integrations.google_calendar) &&
+      config.integrations.google_calendar.length > 0
+    ) {
+      const apiKeyJsonObj = config.integrations.google_calendar[0].api_key_json;
+
+      if (isObfuscatedApiKey(apiKeyJsonObj)) {
+        setFormData({
+          domain: config.integrations.google_calendar[0].domain,
+          apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
+        });
+      } else {
+        setFormData({
+          domain: config.integrations.google_calendar[0].domain,
+          apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
+        });
+      }
+    }
+  }, [config]);
 
   const gomEnabled = config?.gitops.gitops_mode_enabled;
 
