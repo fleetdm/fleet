@@ -578,10 +578,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 	}
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
 	// run the cron to assign configuration profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var seenDeclarativeManagement bool
 	var cmds []*micromdm.CommandPayload
@@ -600,7 +601,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		/* switch cmd.Command.RequestType {
+		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
 		case "InstallEnterpriseApplication":
@@ -611,7 +612,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			}
 		default:
 			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		} */
+		}
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -705,6 +706,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 				return err
 			})
 
+			s.awaitRunAppleMDMWorkerSchedule()
 			s.runWorker()
 
 			// make the device process the commands, it should receive the
@@ -823,6 +825,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			return err
 		})
 
+		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()
 
 	} else {
