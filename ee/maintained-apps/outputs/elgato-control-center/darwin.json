@@ -3,7 +3,8 @@
     {
       "version": "1.8.2",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.corsair.ControlCenter';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.corsair.ControlCenter';",
+        "patch": ""
       },
       "installer_url": "https://edge.elgato.com/egc/macos/eccm/1.8.2/ElgatoControlCenter-1.8.2.20643.zip",
       "install_script_ref": "c21d1e90",
