@@ -1602,7 +1602,7 @@
       "slug": "swiftdialog/darwin",
       "platform": "darwin",
       "unique_identifier": "au.csiro.dialog",
-      "description": ""
+      "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
     },
     {
       "name": "Tableau Desktop",
