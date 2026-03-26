@@ -125,6 +125,6 @@
 - task: "Check LinkedIn comments"
   startedOn: "2026-03-26"
   frequency: "Daily"
-  description: "Review and respond to comments on company LinkedIn page posts. Flag questions requiring SME input to the appropriate team member. Check the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel for tracked post comments."
+  description: "Review and respond to comments on company LinkedIn page posts. Flag questions requiring SME input to the appropriate team member. Check the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel for tracked post comments."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#monitor-and-respond-to-linkedin-comments"
   dri: "tombasgil"
