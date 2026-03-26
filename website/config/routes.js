@@ -617,7 +617,7 @@ module.exports.routes = {
       currentSection: 'more',
     }
   },
-  
+
   'GET /jamf-alternative': {
     action: 'landing-pages/view-jamf-alternative',
     locals: {
