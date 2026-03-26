@@ -88,6 +88,7 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
+	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
@@ -1656,35 +1657,30 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
-// fmaSlugResolver lazily fetches the Fleet Maintained Apps catalog and
-// resolves FMA slugs by bundle identifier or software title name.
+// fmaSlugResolver lazily fetches Fleet-maintained apps for a team via the API
+// and builds a map of FMA ID to slug for slug resolution.
 type fmaSlugResolver struct {
-	appsList   *maintained_apps.AppsList
-	byUniqueID map[string]string
+	client   generateGitopsClient
+	teamID   uint
+	appsList []fleet.MaintainedApp
+	byID     map[uint]string
 }
 
-func (r *fmaSlugResolver) resolve(bundleIdentifier *string, name string) (string, error) {
-	if r.byUniqueID == nil {
+func (r *fmaSlugResolver) resolve(fmaID uint) (string, error) {
+	if r.byID == nil {
 		if r.appsList == nil {
 			var err error
-			r.appsList, err = maintained_apps.FetchAppsList(context.Background())
+			r.appsList, err = r.client.ListFleetMaintainedApps(r.teamID)
 			if err != nil {
 				return "", err
 			}
 		}
-		r.byUniqueID = make(map[string]string, len(r.appsList.Apps))
-		for _, a := range r.appsList.Apps {
-			r.byUniqueID[a.UniqueIdentifier] = a.Slug
+		r.byID = make(map[uint]string, len(r.appsList))
+		for _, a := range r.appsList {
+			r.byID[a.ID] = a.Slug
 		}
 	}
-	// Look up slug by bundle identifier (macOS) or software title name (Windows).
-	// Windows FMAs don't have a bundle identifier; their unique_identifier
-	// in the manifest is the program name (e.g., "1Password").
-	lookupKey := ptr.ValOrZero(bundleIdentifier)
-	if lookupKey == "" {
-		lookupKey = name
-	}
-	return r.byUniqueID[lookupKey], nil
+	return r.byID[fmaID], nil
 }
 
 // isDuplicateInHouseApp returns true if this in-house app (.ipa) has already
@@ -1738,7 +1734,7 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 	appStoreApps := make([]map[string]any, 0)
 	fmas := make([]map[string]any, 0)
 	dedupeInHouseApps := make(map[string]struct{})
-	var slugResolver fmaSlugResolver
+	slugResolver := &fmaSlugResolver{client: client, teamID: teamID}
 
 	for _, sw := range titles {
 		if isDuplicateInHouseApp(sw, dedupeInHouseApps) {
@@ -1759,7 +1755,7 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 			}
 
 			if sw.SoftwarePackage.FleetMaintainedAppID != nil {
-				slug, err := slugResolver.resolve(sw.BundleIdentifier, sw.Name)
+				slug, err := slugResolver.resolve(*sw.SoftwarePackage.FleetMaintainedAppID)
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -1846,7 +1842,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	appStoreApps := make([]map[string]any, 0)
 	fmas := make([]map[string]any, 0)
 	dedupeInHouseApps := make(map[string]struct{})
-	var slugResolver fmaSlugResolver
+	slugResolver := &fmaSlugResolver{client: cmd.Client, teamID: teamID}
 	for _, sw := range software {
 		if isDuplicateInHouseApp(sw, dedupeInHouseApps) {
 			continue
@@ -1909,7 +1905,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
-				slug, err = slugResolver.resolve(softwareTitle.BundleIdentifier, softwareTitle.Name)
+				slug, err = slugResolver.resolve(*softwareTitle.SoftwarePackage.FleetMaintainedAppID)
 				if err != nil {
 					return nil, err
 				}
