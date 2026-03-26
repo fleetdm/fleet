@@ -631,6 +631,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 	h, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
 
+	// we remove the reds key and don't run the apple worker to keep the nature of the test
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h.UUID)
+	require.NoError(t, err)
+
 	expectedProfileStatuses := map[string]fleet.MDMDeliveryStatus{
 		"I1": fleet.MDMDeliveryVerifying,
 		"I2": fleet.MDMDeliveryVerifying,
