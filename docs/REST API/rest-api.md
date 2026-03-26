@@ -2911,6 +2911,7 @@ None.
 - [Run live query on host (ad hoc)](#run-live-query-on-host-ad-hoc)
 - [Run live query on host by identifier (ad hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
+- [Get host's managed account password](#get-hosts-managed-account-password)
 
 
 #### About host timestamps
@@ -5581,7 +5582,6 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
-
 ## Clear iOS/iPadOS host passcode
 
 _Available in Fleet Premium._
@@ -5610,6 +5610,39 @@ Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sen
   "command_uuid": "84F7F777-803E-40BB-8B47-2C0DC8B0118A",
   "request_type": "ClearPasscode",
   "platform": "ios"
+}
+```
+
+## Get host's managed account password
+
+Retrieves the managed account password for a host.
+
+The host will only return a password if its managed account password status is "Verified."
+
+`GET /api/v1/fleet/hosts/:id/managed_account_password`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                                              |
+| ---- | ------- | ---- | ------------------------------------------------------------------------ |
+| id   | integer | path | **Required** The id of the host to get the managed account password for. |
+
+
+#### Example
+
+`GET /api/v1/fleet/hosts/8/managed_account_password`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 8,
+  "managed_account_password": {
+    "password": "test-123",
+    "updated_at": "2026-02-01T05:31:43Z"
+  }
 }
 ```
 
@@ -6699,6 +6732,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 - [Create setup experience script](#create-setup-experience-script)
 - [Get or download setup experience script](#get-or-download-setup-experience-script)
 - [Delete setup experience script](#delete-setup-experience-script)
+- [Update managed local account](#update-managed-local-account)
 
 
 
@@ -7457,6 +7491,29 @@ Delete a script that will automatically run during macOS setup.
 ##### Default response
 
 `Status: 200`
+
+### Update managed local account
+
+_Available in Fleet Premium_
+
+Edit managed local account enforcement settings for eligible macOS hosts.
+
+`POST /api/v1/fleet/managed_local_account`
+
+#### Parameters
+
+| Name                         | Type    | In    | Description                                                                          |
+| ---------------------------- | ------  | ----  | -------------------------------------------------------------------------------------|
+| team_id                      | integer | body  | The team ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
+| enable_managed_local_account | boolean | body  | Whether to enforce creating managed local accounts on eligible hosts.                |
+
+#### Example
+
+`POST /api/v1/fleet/managed_local_account`
+
+##### Default response
+
+`204`
 
 ---
 
