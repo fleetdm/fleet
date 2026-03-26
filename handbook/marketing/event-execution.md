@@ -837,7 +837,7 @@ The Event ID can be sourced from:
 When Clay receives a new Eventbrite registration/attendee record:
 
 1. **Extract** `event_id` from the Eventbrite payload
-   * Clay knows it’s coming from Eventbrite, so it constructs the composite key: `Eventbrite-{event_id}`
+   * Clay matches the `Event key` from Zapier to the corresponding campaign.
 2. **Find Campaign** in Salesforce where:
    * *`Event key = Eventbrite-{event_id}`*
 3. **Create/update Person Record**

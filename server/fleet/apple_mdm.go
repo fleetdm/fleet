@@ -18,6 +18,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
+// Sentinel errors for recovery lock rotation
+var (
+	// ErrRecoveryLockRotationPending indicates a rotation is already in progress for the host.
+	ErrRecoveryLockRotationPending = errors.New("recovery lock rotation already pending")
+
+	// ErrRecoveryLockNotEligible indicates the host is not eligible for rotation
+	// (e.g., wrong status, operation type, or no existing password).
+	ErrRecoveryLockNotEligible = errors.New("host not eligible for recovery lock rotation")
+)
+
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
@@ -1144,8 +1154,9 @@ type HostLocationData struct {
 
 // HostRecoveryLockPassword represents a recovery lock password for a host.
 type HostRecoveryLockPassword struct {
-	Password  string
-	UpdatedAt time.Time
+	Password     string
+	UpdatedAt    time.Time
+	AutoRotateAt *time.Time // When auto-rotation is scheduled (1 hour after password is viewed)
 }
 
 // HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.
@@ -1162,4 +1173,11 @@ type HostRecoveryLockRotationStatus struct {
 	OperationType       string  // install or remove
 	HasPendingRotation  bool    // pending_encrypted_password is not null
 	PendingErrorMessage *string // error from failed rotation
+}
+
+// HostAutoRotationInfo contains the minimal host data needed for auto-rotation activity logging.
+type HostAutoRotationInfo struct {
+	HostUUID    string `db:"host_uuid"`
+	HostID      uint   `db:"host_id"`
+	DisplayName string `db:"display_name"`
 }

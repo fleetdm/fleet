@@ -3458,9 +3458,9 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO software_installers
 				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
-				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids)
+				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids, patch_query)
 			SELECT team_id, global_or_team_id, storage_id, filename, extension, 'old_version', platform, title_id,
-				install_script_content_id, uninstall_script_content_id, 0, url, package_ids
+				install_script_content_id, uninstall_script_content_id, 0, url, package_ids, patch_query
 			FROM software_installers WHERE id = ?
 		`, installer1NoTeam)
 		return err

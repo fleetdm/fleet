@@ -1134,7 +1134,7 @@ const HostDetailsPage = ({
       isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
-
+  const showReportsTab = mdm?.enrollment_status !== "Pending";
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1468,6 +1468,7 @@ const HostDetailsPage = ({
                   </Tabs>
                 </TabNav>
               </TabPanel>
+
               <TabPanel>
                 <HostReportsTab
                   hostId={host.id}
@@ -1477,8 +1478,10 @@ const HostDetailsPage = ({
                   saveReportsDisabledInConfig={
                     config?.server_settings?.query_reports_disabled
                   }
+                  showReportsTab={showReportsTab}
                 />
               </TabPanel>
+
               <TabPanel>
                 <PoliciesCard
                   policies={host?.policies || []}

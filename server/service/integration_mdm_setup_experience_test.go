@@ -338,7 +338,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -419,7 +419,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// Software is now running, script is still pending
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
@@ -441,7 +441,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
 	// status still shows script as pending
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -459,7 +459,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Nil(t, cmd)
 
 	// Software is installed, now we should run the script
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -525,14 +525,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
 
 	// record a result for script execution
-	var scriptResp orbitPostScriptResultResponse
+	var scriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *enrolledHost.OrbitNodeKey, execID)),
 		http.StatusOK, &scriptResp)
 
 	// Get status again, now the script should be complete. This should also trigger the automatic
 	// release of the device, as all setup experience steps are now complete.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -815,7 +815,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 	require.Len(t, pending, 0)
 
 	// First /status call: software pending, no script involved.
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
 		http.StatusOK, &statusResp)
@@ -856,7 +856,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 	require.Nil(t, cmd)
 
 	// Second /status call: software transitions to running.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
 		http.StatusOK, &statusResp)
@@ -887,7 +887,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 		}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
 	// /status call after success: software is now complete.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
 		http.StatusOK, &statusResp)
@@ -1031,7 +1031,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1217,7 +1217,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1275,7 +1275,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 					"install_script_output": "ok"
 				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1292,7 +1292,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
 
 	// Software installations are done, now we should run the script
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -1316,14 +1316,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	}
 
 	// record a result for script execution
-	var scriptResp orbitPostScriptResultResponse
+	var scriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *enrolledHost.OrbitNodeKey, execID)),
 		http.StatusOK, &scriptResp)
 
 	// Get status again, now the script should be complete. This should also trigger the automatic
 	// release of the device, as all setup experience steps are now complete.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -1411,7 +1411,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	host.OrbitNodeKey = &orbitKey
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1455,7 +1455,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	require.Nil(t, cmd)
 
 	// call the /status endpoint, the software is now running and script should be pending
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1482,7 +1482,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 
 	// call the /status endpoint, the software is still running and script should still be pending
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1504,7 +1504,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 
 	// call the /status endpoint, software is running, script is removed as it got cancelled by the update
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1541,7 +1541,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 				}`, *host.OrbitNodeKey, installUUIDs[0])), http.StatusNoContent)
 
 	// Check the setup experience status endpoint to advance the status
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 
 	// check that the host received the device configured command automatically
@@ -1609,7 +1609,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	host.OrbitNodeKey = &orbitKey
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1986,7 +1986,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -3231,7 +3231,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	// Note that this kicks off the next step of the setup experience, so while
 	// the API response will show the software as "pending", they will now be
 	// set as "running" in the database.
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_failed_setup_steps": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -3306,7 +3306,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 
 	// Check status again. Software should all be listed as "running" now.
 	// Since no results have been recorded, this shouldn't change any database state.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// Software is now running, script is still pending
 	require.Equal(t, len(statusResp.Results.Software), 3)
@@ -3327,7 +3327,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 				}`, *enrolledHost.OrbitNodeKey, installUUIDs[0])), http.StatusNoContent)
 
 	// status still shows script as pending
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -3357,7 +3357,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	require.Nil(t, cmd)
 
 	// Get the setup experience status again.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// Script should be marked as failed since required software install failed.
 	require.NotNil(t, statusResp.Results.Script)
@@ -3378,7 +3378,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	require.Equal(t, len(hostActivitiesResp.Activities), 0)
 
 	// Reset the setup experience items.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_failed_setup_steps": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// The script should be back to "pending"
 	require.NotNil(t, statusResp.Results.Script)
@@ -3530,7 +3530,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_failed_setup_steps": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -3590,7 +3590,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 					"install_script_output": "ok"
 				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -3609,7 +3609,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[2].Status)
 
 	// Reset the setup experience items.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_failed_setup_steps": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// the software and script are still pending
 	require.NotNil(t, statusResp.Results.Script)
@@ -3822,7 +3822,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	host.OrbitNodeKey = &orbitKey
 
 	// call the /status endpoint, the 2 software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -4995,15 +4995,15 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 	createDeviceTokenForHost(t, s.ds, hostUbuntu.ID, uuid.NewString())
 
 	// trigger setup experience for arch
-	var orbitInitResponse orbitSetupExperienceInitResponse
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+	var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 		OrbitNodeKey: *hostArch.OrbitNodeKey,
 	}, http.StatusOK, &orbitInitResponse)
 	require.True(t, orbitInitResponse.Result.Enabled)
 
 	// get status of the "Setup experience", only the .sh is compatible
-	var orbitStatusResponse getOrbitSetupExperienceStatusResponse
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusRequest{
+	var orbitStatusResponse fleet.GetOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", fleet.GetOrbitSetupExperienceStatusRequest{
 		OrbitNodeKey: *hostArch.OrbitNodeKey,
 	}, http.StatusOK, &orbitStatusResponse)
 	require.Nil(t, orbitStatusResponse.Results.Script)
@@ -5018,15 +5018,15 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 	require.Equal(t, shTitleID, *orbitStatusResponse.Results.Software[0].SoftwareTitleID)
 
 	// trigger setup experience for ubuntu
-	orbitInitResponse = orbitSetupExperienceInitResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+	orbitInitResponse = fleet.OrbitSetupExperienceInitResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 		OrbitNodeKey: *hostUbuntu.OrbitNodeKey,
 	}, http.StatusOK, &orbitInitResponse)
 	require.True(t, orbitInitResponse.Result.Enabled)
 
 	// get status of the "Setup experience", both the .sh and .deb are enqueued
-	orbitStatusResponse = getOrbitSetupExperienceStatusResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusRequest{
+	orbitStatusResponse = fleet.GetOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", fleet.GetOrbitSetupExperienceStatusRequest{
 		OrbitNodeKey: *hostUbuntu.OrbitNodeKey,
 	}, http.StatusOK, &orbitStatusResponse)
 	require.Nil(t, orbitStatusResponse.Results.Script)

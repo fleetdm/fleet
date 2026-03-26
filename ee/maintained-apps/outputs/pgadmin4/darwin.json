@@ -3,7 +3,8 @@
     {
       "version": "9.13",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4';",
+        "patch": ""
       },
       "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.13/macos/pgadmin4-9.13-arm64.dmg",
       "install_script_ref": "3c7763d1",

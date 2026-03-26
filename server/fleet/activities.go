@@ -1004,9 +1004,12 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+// ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.
+// Can be user-initiated (manual) or Fleet-initiated (auto-rotation after password viewed).
 type ActivityTypeRotatedHostRecoveryLockPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	FleetInitiated  bool   `json:"-"` // True for auto-rotation, not serialized
 }
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
@@ -1015,6 +1018,10 @@ func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
+	return a.FleetInitiated
 }
 
 type ActivityTypeCreatedDeclarationProfile struct {
@@ -1763,20 +1770,6 @@ func (a ActivityTypeResentCertificate) ActivityName() string {
 
 func (a ActivityTypeResentCertificate) HostIDs() []uint {
 	return []uint{a.HostID}
-}
-
-func (a ActivityTypeResentCertificate) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when a user resends a certificate to a host.`,
-		`This activity contains the following fields:
-- "host_id": The ID of the host.
-- "host_display_name": The display name of the host.
-- "certificate_template_id": The ID of the certificate template
-- "certificate_name": The name of the certificate`, `{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "certificate_template_id": 123,
-  "certificate_name": "Zero trust certificate"
-}`
 }
 
 type ActivityTypeEditedHostIdpData struct {

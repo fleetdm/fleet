@@ -3,7 +3,8 @@
     {
       "version": "0.338.4",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.loom.desktop';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.loom.desktop';",
+        "patch": ""
       },
       "installer_url": "https://packages.loom.com/desktop-packages/Loom-0.338.4-arm64.dmg",
       "install_script_ref": "1311e557",

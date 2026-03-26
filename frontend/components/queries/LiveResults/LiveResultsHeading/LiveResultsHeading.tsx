@@ -107,19 +107,19 @@ const LiveResultsHeading = ({
               tipContent={
                 isFinished ? (
                   <>
-                    Results:{" "}
+                    Results from{" "}
                     <b>
                       {numHostsRespondedResults}{" "}
                       {pluralizeHost(numHostsRespondedResults)}
                     </b>
                     <br />
-                    No results:{" "}
+                    No results from{" "}
                     <b>
                       {numHostsRespondedNoErrorsAndNoResults}{" "}
                       {pluralizeHost(numHostsRespondedNoErrorsAndNoResults)}
                     </b>
                     <br />
-                    Errors:{" "}
+                    Errors from{" "}
                     <b>
                       {numHostsRespondedErrors}{" "}
                       {pluralizeHost(numHostsRespondedErrors)}

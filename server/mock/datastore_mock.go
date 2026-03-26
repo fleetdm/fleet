@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -443,7 +443,7 @@ type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
 
 type CleanupExcessQueryResultRowsFunc func(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
-type ListHostReportsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error)
+type ListHostReportsFunc func(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error)
 
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
@@ -1062,6 +1062,10 @@ type GetRecoveryLockRotationStatusFunc func(ctx context.Context, hostUUID string
 type HasPendingRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) error
+
+type MarkRecoveryLockPasswordViewedFunc func(ctx context.Context, hostUUID string) (time.Time, error)
+
+type GetHostsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error)
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
@@ -3393,6 +3397,12 @@ type DataStore struct {
 
 	ResetRecoveryLockForRetryFunc        ResetRecoveryLockForRetryFunc
 	ResetRecoveryLockForRetryFuncInvoked bool
+
+	MarkRecoveryLockPasswordViewedFunc        MarkRecoveryLockPasswordViewedFunc
+	MarkRecoveryLockPasswordViewedFuncInvoked bool
+
+	GetHostsForAutoRotationFunc        GetHostsForAutoRotationFunc
+	GetHostsForAutoRotationFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -6022,11 +6032,11 @@ func (s *DataStore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryRe
 	return s.CleanupExcessQueryResultRowsFunc(ctx, maxQueryReportRows, opts...)
 }
 
-func (s *DataStore) ListHostReports(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostReportsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostReportsFunc(ctx, hostID, teamID, opts, maxQueryReportRows)
+	return s.ListHostReportsFunc(ctx, hostID, teamID, hostPlatform, opts, maxQueryReportRows)
 }
 
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -8190,6 +8200,20 @@ func (s *DataStore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID stri
 	s.ResetRecoveryLockForRetryFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResetRecoveryLockForRetryFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
+	s.mu.Lock()
+	s.MarkRecoveryLockPasswordViewedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkRecoveryLockPasswordViewedFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+	s.mu.Lock()
+	s.GetHostsForAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostsForAutoRotationFunc(ctx)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
