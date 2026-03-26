@@ -140,3 +140,11 @@
   description: "Review click-through rates (CTRs) of recently boosted posts on LinkedIn. The CEO will attend the first few sessions, then Irena and the CMO will continue running this ritual going forward."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#review-ctrs-of-recently-boosted-posts"
   dri: "irenareedy"
+
+-
+  task: "Check LinkedIn comments"
+  startedOn: "2026-03-26"
+  frequency: "Daily"
+  description: "Review and respond to comments and mentions on Fleet's company LinkedIn page posts. Flag questions needing SME input to the relevant team member. Comments on tracked posts can also be found in the [#social-media-comments](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#monitor-and-respond-to-linkedin-comments"
+  dri: "irenareedy"
