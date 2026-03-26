@@ -187,12 +187,14 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	})
 	require.NoError(t, err)
 
+	// calls ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
 
-	// trigger a profile sync
-	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule() // run the worker to process the enrollment and queue profiles
 	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
 	s.signedProfilesMatch(
@@ -210,6 +212,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	expectedTeamSummary := fleet.MDMProfilesSummary{}
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary) // empty because no hosts in team
+
+	// remove the key, to simulate key expiration.
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
@@ -6330,6 +6336,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	// add global profiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 
+	// make sure ensureFleetProfiles has been called
+	s.awaitTriggerProfileSchedule(t)
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// Add IdP email to host
@@ -6339,6 +6348,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		return err
 	})
 
+	s.awaitRunAppleMDMWorkerSchedule()
 	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
 	s.signedProfilesMatch(
@@ -6346,6 +6356,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		installs,
 	)
 	require.Empty(t, removes)
+
+	// Simulate 1 minute expiration for redis key
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	// Add a profile with a Fleet variable. We are also testing that removal of a profile with a Fleet variable works.
 	// A unique command is created for each host when this Fleet variable is used.
@@ -6447,11 +6461,15 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		return err
 	})
 
-	// trigger a profile sync
-	s.awaitTriggerProfileSchedule(t)
+	// Run the worker to process post-enrollment for host2 and install initial profiles
+	s.awaitRunAppleMDMWorkerSchedule()
 	installs, removes = checkNextPayloads(t, mdmDevice2, false)
 	assert.Len(t, installs, 3)
 	assert.Empty(t, removes)
+
+	// Simulate redis key expiration for host2
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host2.UUID)
+	require.NoError(t, err)
 
 	// Add a profile again
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -8011,6 +8029,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	// Create a host and enroll it in MDM
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
+
+	// Delete the key to let the reconciler pick up the profiles
+	err := s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user@example.com"})
 	require.NoError(t, err)
