@@ -187,7 +187,7 @@ const ActionsDropdown = ({
       width: "max-content",
       // Need minHeight to override default
       minHeight: variant === "small-button" ? "20px" : "32px", // Match button height
-      padding: variant === "small-button" ? "2px 4px" : "8px", // Match button padding
+      padding: variant === "small-button" ? "4px" : "8px", // Match button padding
       backgroundColor: state.isFocused ? COLORS["ui-fleet-black-5"] : "initial",
       border: 0,
       boxShadow: "none",
@@ -227,7 +227,7 @@ const ActionsDropdown = ({
         state.isFocused || variant === "button" || variant === "small-button"
           ? COLORS["ui-fleet-black-75"]
           : COLORS["core-fleet-black"],
-      fontSize: "13px",
+      fontSize: "14px",
       fontWeight:
         variant === "button" || variant === "small-button" ? "600" : undefined,
       lineHeight: "normal",
