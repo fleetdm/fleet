@@ -3,7 +3,8 @@
     {
       "version": "1.139.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser';",
+        "patch": ""
       },
       "installer_url": "https://releases.arc.net/release/Arc-1.139.0-77482.zip",
       "install_script_ref": "da46c3be",

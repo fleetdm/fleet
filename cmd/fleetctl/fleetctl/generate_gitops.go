@@ -89,6 +89,7 @@ type generateGitopsClient interface {
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
+	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -721,12 +722,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 			Filename: "default.yml",
 			Note:     "Warning: YARA rules are not supported by this tool yet. If you have existing YARA rules, add them to the new default.yml file.",
-		})
-	}
-
-	if cmd.CLI.String(fleetFlagName) != "global" {
-		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-			Note: "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate fleet .yml file.",
 		})
 	}
 
@@ -1687,13 +1682,13 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	packages := make([]map[string]any, 0)
 	appStoreApps := make([]map[string]any, 0)
 	fmas := make([]map[string]any, 0)
-	var appsList *maintained_apps.AppsList
+	var appsList []fleet.MaintainedApp
 
 	// in-house apps generate two software titles for the same gitops entry: one
 	// for iOS and one for iPadOS. Use this set to deduplicate them (by filename,
 	// which is unique for a given team and platform).
 	dedupeInHouseAppsByFilename := make(map[string]struct{})
-	var byUniqueID map[string]string
+	var byFMAID map[uint]string
 	for _, sw := range software {
 		softwareSpec := make(map[string]interface{})
 		switch {
@@ -1760,28 +1755,22 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
-				if byUniqueID == nil {
+				if byFMAID == nil {
 					if appsList == nil {
 						var err error
-						appsList, err = maintained_apps.FetchAppsList(context.Background())
+						// currently, the list FMA endpoint has no default pagination
+						appsList, err = cmd.Client.ListFleetMaintainedApps(teamID)
 						if err != nil {
 							return nil, err
 						}
 					}
-					byUniqueID = make(map[string]string, len(appsList.Apps))
-					for _, a := range appsList.Apps {
-						byUniqueID[a.UniqueIdentifier] = a.Slug
+					byFMAID = make(map[uint]string, len(appsList))
+					for _, a := range appsList {
+						byFMAID[a.ID] = a.Slug
 					}
 				}
 
-				// Look up slug by bundle identifier (macOS) or software title name (Windows).
-				// Windows FMAs don't have a bundle identifier; their unique_identifier
-				// in the manifest is the program name (e.g., "1Password").
-				lookupKey := ptr.ValOrZero(softwareTitle.BundleIdentifier)
-				if lookupKey == "" {
-					lookupKey = softwareTitle.Name
-				}
-				slug = byUniqueID[lookupKey]
+				slug = byFMAID[*softwareTitle.SoftwarePackage.FleetMaintainedAppID]
 				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
 					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
 					Slug: slug,

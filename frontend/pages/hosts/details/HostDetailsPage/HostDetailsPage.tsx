@@ -740,9 +740,19 @@ const HostDetailsPage = ({
   const resendProfile = useCallback(
     (profileUUID: string): Promise<void> => {
       if (!host?.id) {
-        return new Promise(() => undefined);
+        return Promise.resolve();
       }
       return hostAPI.resendProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const resendCertificate = useCallback(
+    (certificateTemplateId: number): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.resendCertificate(host.id, certificateTemplateId);
     },
     [host?.id]
   );
@@ -1125,7 +1135,7 @@ const HostDetailsPage = ({
   const isAppleDeviceHost = isAppleDevice(host.platform);
 
   const canResendProfiles =
-    (isAppleDeviceHost || isWindowsHost) &&
+    (isAppleDeviceHost || isWindowsHost || isAndroidHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalTechnician ||
@@ -1134,7 +1144,7 @@ const HostDetailsPage = ({
       isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
-
+  const showReportsTab = mdm?.enrollment_status !== "Pending";
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1468,6 +1478,7 @@ const HostDetailsPage = ({
                   </Tabs>
                 </TabNav>
               </TabPanel>
+
               <TabPanel>
                 <HostReportsTab
                   hostId={host.id}
@@ -1477,8 +1488,10 @@ const HostDetailsPage = ({
                   saveReportsDisabledInConfig={
                     config?.server_settings?.query_reports_disabled
                   }
+                  showReportsTab={showReportsTab}
                 />
               </TabPanel>
+
               <TabPanel>
                 <PoliciesCard
                   policies={host?.policies || []}
@@ -1546,6 +1559,7 @@ const HostDetailsPage = ({
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
               resendRequest={resendProfile}
+              resendCertificateRequest={resendCertificate}
               rotateRecoveryLockPassword={rotateRecoveryLockPassword}
               onProfileResent={refetchHostDetails}
             />

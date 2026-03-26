@@ -3,7 +3,8 @@
     {
       "version": "6.8.2",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus';",
+        "patch": ""
       },
       "installer_url": "https://files.tableplus.com/macos/656/TablePlus.dmg",
       "install_script_ref": "f7f6dba1",
