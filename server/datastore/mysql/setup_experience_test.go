@@ -670,8 +670,9 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 // testEnqueueSetupExperienceItemsWithDisplayName verifies that when a custom
 // display name is set for a software title, the enqueue function uses it to
 // determine the alphabetical install order (instead of the default
-// software_titles.name). The stored `name` column should still contain the
-// original st.name; the display name only affects ordering.
+// software_titles.name). This ordering also orders the steps in the
+// setup experience UI. The UI uses the display name if it is set, and
+// the name if not.
 func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -691,6 +692,8 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	//   id=N   → ZZZ_Software (display name "Alpha Custom", sorts first)
 	//   id=N+1 → AAA_Software (display name "Zulu Custom", sorts second)
 	// But the `name` column still stores the original st.name.
+	// Note that the setup experience UI will also follow this ordering;
+	// it will display "Alpha Custom" and then "Zulu Custom".
 
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello1"), t.TempDir)
 	require.NoError(t, err)
