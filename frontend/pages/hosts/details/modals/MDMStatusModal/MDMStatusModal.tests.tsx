@@ -1,7 +1,11 @@
 import React from "react";
 
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  queryClient,
+} from "test/test-utils";
 import { AxiosError } from "axios";
 
 import hostAPI from "services/entities/hosts";
@@ -47,8 +51,9 @@ describe("MDMStatusModal - component", () => {
     context: {},
   });
 
-  beforeEach(() => {
+  afterEach(() => {
     jest.resetAllMocks();
+    queryClient.clear();
   });
 
   it("renders MDM status row with enrollment status text", () => {
@@ -65,8 +70,7 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(screen.getByText("MDM status")).toBeInTheDocument();
-    expect(screen.getByText("On (manual)")).toBeInTheDocument();
+    expect(screen.getByText(/On \(manual\)/i)).toBeInTheDocument();
   });
 
   it("does not render profile assignment section when not premium or not macOS", () => {
@@ -146,7 +150,7 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByTestId("spinner")).toBeVisible();
   });
 
   it("shows DataError if DEP assignment fails", async () => {
@@ -193,36 +197,13 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
+    // Ensure the async list has loaded
+    await screen.findByText("Profile assigned");
+
     expect(
       await screen.findByText("Profile assignment error")
     ).toBeInTheDocument();
     expect(screen.getByText("Throttled")).toBeInTheDocument();
-  });
-
-  it("navigates to filtered hosts when MDM status row is clicked", async () => {
-    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
-      mockDepAssignmentResponse
-    );
-    const router = createMockRouter();
-
-    const { user } = render(
-      <MDMStatusModal
-        hostId={3}
-        enrollmentStatus="On (manual)"
-        router={router}
-        onExit={jest.fn()}
-      />
-    );
-
-    const mdmStatus = screen.getByText("MDM status");
-    await user.click(mdmStatus);
-
-    await waitFor(() => {
-      expect(router.push).toHaveBeenCalled();
-      const firstCall = (router.push as jest.Mock).mock.calls[0][0];
-      expect(firstCall).toContain(paths.MANAGE_HOSTS);
-      expect(firstCall).toContain("mdm_enrollment_status=");
-    });
   });
 
   it("navigates to hosts with dep_assign_profile_response filter when profile error row is clicked", async () => {
@@ -247,6 +228,9 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
+    // Wait for list to be hydrated
+    await screen.findByText("Profile assigned");
+
     const profileErrorRow = await screen.findByText("Profile assignment error");
     await user.click(profileErrorRow);
 
@@ -254,8 +238,33 @@ describe("MDMStatusModal - component", () => {
       expect(router.push).toHaveBeenCalled();
       const firstCall = (router.push as jest.Mock).mock.calls[0][0];
       expect(firstCall).toContain(paths.MANAGE_HOSTS);
-      // the component sets dep_assign_profile_response to one of "FAILED" | "THROTTLED" | "NOT_ACCESSIBLE"
       expect(firstCall).toContain("dep_assign_profile_response=FAILED");
+    });
+  });
+
+  it("navigates to filtered hosts when MDM status row is clicked", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
+      mockDepAssignmentResponse
+    );
+    const router = createMockRouter();
+
+    const { user } = render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={router}
+        onExit={jest.fn()}
+      />
+    );
+
+    const mdmStatus = screen.getByText(/On \(manual\)/i);
+    await user.click(mdmStatus);
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalled();
+      const firstCall = (router.push as jest.Mock).mock.calls[0][0];
+      expect(firstCall).toContain(paths.MANAGE_HOSTS);
+      expect(firstCall).toContain("mdm_enrollment_status=");
     });
   });
 

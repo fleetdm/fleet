@@ -58,7 +58,6 @@
   &__os-version,
   &__mdm-status {
     display: flex;
-    align-items: center;
     gap: $pad-xsmall;
     min-width: 0;
 
@@ -97,7 +96,6 @@
   &__location {
     dd {
       display: flex;
-      align-items: center;
       gap: $pad-xsmall;
       margin: -6px; // See underline under link and border with keyboard nav
       padding: 6px; // See underline under link and border with keyboard nav

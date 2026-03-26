@@ -209,7 +209,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
         })}
       </ul>
       {helpText && <div className="form-field__help-text">{helpText}</div>}
-
       <Pagination
         disablePrev={currentPage === 0}
         disableNext={disableNext}

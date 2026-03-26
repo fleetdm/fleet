@@ -300,9 +300,16 @@ const MDMStatusModal = ({
       return <Spinner />;
     }
 
-    if (isDepAssignmentError || !depAssignmentData) {
+    if (
+      isDepAssignmentError ||
+      !depAssignmentData?.host_dep_assignment ||
+      !depAssignmentData?.dep_device
+    ) {
       return (
-        <DataError description="We can't retrieve data from Apple right now. Please try again later." />
+        <DataError
+          singleCustomLine
+          description="We can't retrieve data from Apple right now. Please try again later."
+        />
       );
     }
 
@@ -319,7 +326,7 @@ const MDMStatusModal = ({
         ),
         // Follow current pattern of international time formate for dates in UI
         status: internationalTimeFormat(
-          new Date(depAssignmentData.dep_device.profile_assign_time)
+          new Date(depAssignmentData.dep_device?.profile_assign_time)
         ),
       },
       {
@@ -357,6 +364,12 @@ const MDMStatusModal = ({
       const assignmentError = getProfileAssignmentError(
         depAssignmentData.host_dep_assignment
           .assign_profile_response as DepAssignProfileResponseErrors
+      );
+
+      console.log(
+        "component assign_profile_response",
+        depAssignmentData.host_dep_assignment.assign_profile_response,
+        assignmentError
       );
 
       if (assignmentError) {

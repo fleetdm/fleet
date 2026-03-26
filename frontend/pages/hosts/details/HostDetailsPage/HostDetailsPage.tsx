@@ -238,7 +238,7 @@ const HostDetailsPage = ({
   const [showLocationModal, setShowLocationModal] = useState<
     boolean | undefined
   >(false);
-  const [showMDMStatusModal, setShowMDMStatusModal] = useState(true);
+  const [showMDMStatusModal, setShowMDMStatusModal] = useState(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
