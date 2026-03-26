@@ -5284,7 +5284,6 @@ func ReconcileAppleProfiles(
 					hp.Status = nil
 					hp.CommandUUID = ""
 					hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}] = hp
-					delete(installTargets, hp.ProfileUUID)
 				}
 			}
 		}

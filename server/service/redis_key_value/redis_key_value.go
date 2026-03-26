@@ -58,6 +58,10 @@ func (r *RedisKeyValue) Get(ctx context.Context, key string) (*string, error) {
 }
 
 func (r *RedisKeyValue) MGet(ctx context.Context, keys []string) (map[string]*string, error) {
+	if len(keys) == 0 {
+		return map[string]*string{}, nil
+	}
+
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -66,23 +70,31 @@ func (r *RedisKeyValue) MGet(ctx context.Context, keys []string) (map[string]*st
 		redisKeys[i] = r.testPrefix + prefix + key
 	}
 
-	res, err := redigo.Strings(conn.Do("MGET", redisKeys...))
+	res, err := redigo.Values(conn.Do("MGET", redisKeys...))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "redis failed to mget")
 	}
 
 	result := make(map[string]*string, len(keys))
 	for i, key := range keys {
-		if res[i] == "" {
+		if res[i] == nil {
 			result[key] = nil
 		} else {
-			result[key] = &res[i]
+			str, err := redigo.String(res[i], nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "redis failed to convert value to string")
+			}
+			result[key] = &str
 		}
 	}
 	return result, nil
 }
 
 func (r *RedisKeyValue) Delete(ctx context.Context, key string) error {
+	if key == "" {
+		return nil
+	}
+
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
