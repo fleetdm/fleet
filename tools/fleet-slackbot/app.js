@@ -41,9 +41,8 @@ mcpClient.addLocalTool(
   },
   async (args) => {
     const normalized = require("path").posix.normalize(args.path);
-    const ALLOWED = ["default.yml", "fleets/", "lib/"];
     if (normalized.includes("..") || require("path").posix.isAbsolute(normalized) ||
-        !ALLOWED.some((p) => normalized === p || normalized.startsWith(p))) {
+        !(normalized === "default.yml" || normalized.startsWith("fleets/") || normalized.startsWith("lib/"))) {
       return `Error: Invalid path (must be under default.yml, fleets/, or lib/): ${args.path}`;
     }
     const filePath = `${config.github.gitopsBasePath}/${normalized}`;

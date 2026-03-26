@@ -18,7 +18,7 @@ func mcpRouteGuard(next http.Handler) http.Handler {
 		default:
 			w.Header().Set("Content-Type", "text/plain")
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("fleet-mcp: use an MCP client to connect\n"))
+			_, _ = w.Write([]byte("fleet-mcp: use an MCP client to connect\n"))
 		}
 	})
 }

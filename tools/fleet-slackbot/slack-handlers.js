@@ -1,9 +1,6 @@
 const crypto = require("crypto");
 const path = require("path");
-const { validateProposedChanges, validateResolvedChanges, resolveChangeContent } = require("./yaml-handler");
-
-// Allowed top-level paths within the GitOps directory
-const ALLOWED_PATH_PREFIXES = ["default.yml", "fleets/", "lib/"];
+const { validateProposedChanges, validateResolvedChanges } = require("./yaml-handler");
 
 /**
  * Validate that a normalized path falls within the allowed GitOps structure.
@@ -13,7 +10,7 @@ function validateGitopsPath(normalizedPath) {
   if (normalizedPath.includes("..") || path.posix.isAbsolute(normalizedPath)) {
     return `Path traversal not allowed: ${normalizedPath}`;
   }
-  if (!ALLOWED_PATH_PREFIXES.some((prefix) => normalizedPath === prefix || normalizedPath.startsWith(prefix))) {
+  if (!(normalizedPath === "default.yml" || normalizedPath.startsWith("fleets/") || normalizedPath.startsWith("lib/"))) {
     return `Path outside allowed GitOps structure (default.yml, fleets/, lib/): ${normalizedPath}`;
   }
   return null;
@@ -169,17 +166,17 @@ async function handleRequest({ userText, userId, channelId, threadTs, messageTs,
         if (pathError) {
           throw new Error(`Invalid file path in response: ${pathError}`);
         }
+        if (!c.content) {
+          throw new Error(`Change for "${c.filePath}" is missing content`);
+        }
         const fullPath = `${config.github.gitopsBasePath}/${normalized}`;
-        const finalContent = await resolveChangeContent(
-          c, (p) => github.getFileContent(p), fullPath, logPrefix
-        );
-        changes.push({ path: fullPath, content: finalContent, relPath: normalized });
+        changes.push({ path: fullPath, content: c.content, relPath: normalized });
       }
 
-      // Validate final content after patches are applied
+      // Validate YAML schema on proposed content
       const warnings = validateResolvedChanges(changes);
 
-      // All patches validated — now create the branch and commit
+      // All changes validated — now create the branch and commit
       const branchId = crypto
         .createHash("sha256")
         .update(`${userId}:${userText}:${Date.now()}`)
@@ -248,7 +245,7 @@ async function handleRequest({ userText, userId, channelId, threadTs, messageTs,
     await setReaction("x");
 
     // Sanitize error message — don't leak internal details to Slack
-    const SAFE_PREFIXES = ["Cannot apply patch", "Refusing to commit", "Invalid file path"];
+    const SAFE_PREFIXES = ["Refusing to commit", "Invalid file path"];
     let userMessage;
     const msg = err.message || "";
     if (err.status === 429 || msg.includes("rate_limit")) {

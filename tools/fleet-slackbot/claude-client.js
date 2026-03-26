@@ -232,7 +232,6 @@ class ClaudeClient {
         filePath: c.file_path,
         changeDescription: c.change_description,
         content: c.content ?? null,
-        patch: c.patch ?? null,
         isNewFile: c.is_new_file || false,
       })),
     };

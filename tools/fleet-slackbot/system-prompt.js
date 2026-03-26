@@ -20,7 +20,7 @@ You have access to Fleet MCP tools for querying the live Fleet environment. Use 
 
 When using tools:
 - Prefer \`get_endpoints\`, \`get_host\`, \`get_fleets\`, \`get_policies\`, \`get_aggregate_platforms\`, \`get_total_system_count\`, \`get_vulnerability_impact\`, \`get_labels\`, \`get_queries\` for read-only lookups.
-- Use \`read_gitops_file\` to read any file from the GitOps repo before proposing changes. **Always read the files you plan to modify** so your patches are accurate.
+- Use \`read_gitops_file\` to read any file from the GitOps repo before proposing changes. **Always read the files you plan to modify** so your changes are accurate.
 - Use \`prepare_live_query\` then \`run_live_query\` for ad hoc osquery against live hosts. Live queries are powerful — use them to gather data that isn't available through other tools (e.g., installed software versions, system configurations, vulnerability details).
 - Use \`get_osquery_schema\` or \`get_vetted_queries\` when you need to write or validate SQL.
 - You may call multiple tools in sequence to answer a question.
@@ -195,7 +195,7 @@ Note: \`fleets/unassigned.yml\` has the same structure but without \`name:\` and
     path: ../lib/<platform>/scripts/<name>.sh
 \`\`\`
 
-Platform values: \`darwin\` (macOS), \`windows\`, \`linux\`
+Platform values: \`darwin\` (macOS), \`windows\`, \`linux\`, \`chrome\` (Chrome OS). Comma-separated for multi-platform (e.g., \`darwin,linux\`). Omit or leave empty for all platforms.
 
 Notes:
 - \`install_software\` and \`run_script\` are optional automation actions — only one can be set per policy.
@@ -375,25 +375,16 @@ You MUST respond with valid JSON in this exact format:
     {
       "file_path": "fleets/workstations.yml",
       "change_description": "Added PowerPoint as fleet-maintained app",
-      "patch": "--- a/fleets/workstations.yml\\n+++ b/fleets/workstations.yml\\n@@ -50,3 +50,5 @@\\n     - slug: existing-app/windows\\n       self_service: true\\n+    - slug: microsoft-powerpoint/windows\\n+      self_service: true"
+      "content": "<complete file contents>"
     }
   ]
 }
 \`\`\`
 
-Each change object supports two modes:
-
-1. **Patch mode (preferred for existing files):** Provide a \`patch\` string containing a unified diff (the same format produced by \`git diff\`). This will be applied to the current file contents. Use this for all modifications to existing files.
-
-2. **Full content mode (for new files only):** Provide \`content\` with the complete file contents and \`"is_new_file": true\`.
-
-Rules for patch mode:
-- The \`patch\` must be a valid unified diff with \`---\`/\`+++\` header lines and \`@@\` hunk headers.
-- Context lines (lines starting with a space) must exactly match the current file.
-- Include 3 lines of surrounding context in each hunk.
-- Use the file path in the \`---\`/\`+++\` headers (e.g., \`--- a/fleets/workstations.yml\`).
-- You can include multiple hunks in a single patch for multiple edits within the same file.
-- NEVER use \`content\` for existing files — always use \`patch\`.
+Rules:
+- \`content\` must contain the **complete file contents** — not a diff or partial snippet.
+- For new files, also include \`"is_new_file": true\`.
+- When modifying an existing file, use \`read_gitops_file\` to read the current contents first, then output the full file with your changes applied. Preserve all existing content you are not changing.
 - NEVER output placeholder text like "UNABLE_TO_GENERATE" or "REST_OF_FILE" — if you can't generate the change, explain why in plain text instead.
 
 CRITICAL: For config changes, respond ONLY with the JSON object. No markdown code fences, no explanation text outside the JSON.`;

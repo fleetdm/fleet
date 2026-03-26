@@ -1,10 +1,9 @@
 const crypto = require("crypto");
 const path = require("path");
-const { resolveChangeContent, validateProposedChanges, validateResolvedChanges } = require("./yaml-handler");
+const { validateProposedChanges, validateResolvedChanges } = require("./yaml-handler");
 
 // Known safe error prefixes that can be shown to users
 const SAFE_ERROR_PREFIXES = [
-  "Cannot apply patch",
   "Refusing to commit",
   "Invalid file path",
   "CI auto-fix failed",
@@ -249,19 +248,18 @@ async function processComment({ prNumber, commentBody, commentId, event, mention
   validateProposedChanges(proposal.changes);
 
   // Validate file paths: prevent traversal and enforce GitOps allowlist
-  const ALLOWED_PREFIXES = ["default.yml", "fleets/", "lib/"];
   const changes = [];
   for (const c of proposal.changes) {
     const normalized = path.posix.normalize(c.filePath);
     if (normalized.startsWith("..") || path.posix.isAbsolute(normalized) ||
-        !ALLOWED_PREFIXES.some((p) => normalized === p || normalized.startsWith(p))) {
+        !(normalized === "default.yml" || normalized.startsWith("fleets/") || normalized.startsWith("lib/"))) {
       throw new Error(`Invalid file path in response (must be under default.yml, fleets/, or lib/): ${c.filePath}`);
     }
+    if (!c.content) {
+      throw new Error(`Change for "${c.filePath}" is missing content`);
+    }
     const fullPath = `${config.github.gitopsBasePath}/${normalized}`;
-    const content = await resolveChangeContent(
-      c, (p) => github.getFileContentFromRef(p, pr.headBranch), fullPath, "[webhook]"
-    );
-    changes.push({ path: fullPath, content, relPath: normalized });
+    changes.push({ path: fullPath, content: c.content, relPath: normalized });
   }
 
   // Validate YAML schema on resolved content
@@ -394,19 +392,18 @@ async function handleCheckRun(payload, config, github, claude) {
   validateProposedChanges(proposal.changes);
 
   // Validate file paths: prevent traversal and enforce GitOps allowlist
-  const ALLOWED_PREFIXES = ["default.yml", "fleets/", "lib/"];
   const changes = [];
   for (const c of proposal.changes) {
     const normalized = path.posix.normalize(c.filePath);
     if (normalized.startsWith("..") || path.posix.isAbsolute(normalized) ||
-        !ALLOWED_PREFIXES.some((p) => normalized === p || normalized.startsWith(p))) {
+        !(normalized === "default.yml" || normalized.startsWith("fleets/") || normalized.startsWith("lib/"))) {
       throw new Error(`Invalid file path in CI fix response (must be under default.yml, fleets/, or lib/): ${c.filePath}`);
     }
+    if (!c.content) {
+      throw new Error(`Change for "${c.filePath}" is missing content`);
+    }
     const fullPath = `${config.github.gitopsBasePath}/${normalized}`;
-    const content = await resolveChangeContent(
-      c, (p) => github.getFileContentFromRef(p, pr.headBranch), fullPath, "[ci-fix]"
-    );
-    changes.push({ path: fullPath, content, relPath: normalized });
+    changes.push({ path: fullPath, content: c.content, relPath: normalized });
   }
 
   // Validate YAML schema on resolved content

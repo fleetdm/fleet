@@ -1,6 +1,6 @@
 const path = require("path");
 const yaml = require("js-yaml");
-const { createTwoFilesPatch, applyPatch } = require("diff");
+const { createTwoFilesPatch } = require("diff");
 
 /**
  * Parse YAML content into a JS object.
@@ -106,10 +106,12 @@ function validatePolicyYaml(content) {
     if (typeof policy.critical === "undefined") errors.push("Policy missing required field: critical");
     if (!policy.description) errors.push("Policy missing required field: description");
     if (!policy.resolution) errors.push("Policy missing required field: resolution");
-    if (!policy.platform) {
-      errors.push("Policy missing required field: platform");
-    } else if (!["darwin", "windows", "linux"].includes(policy.platform)) {
-      errors.push(`Invalid platform "${policy.platform}". Must be: darwin, windows, or linux`);
+    if (policy.platform) {
+      const validPlatforms = ["darwin", "windows", "linux", "chrome"];
+      const bad = policy.platform.split(",").map((t) => t.trim()).filter((t) => !validPlatforms.includes(t));
+      if (bad.length > 0) {
+        errors.push(`Invalid platform "${policy.platform}". Valid values: ${validPlatforms.join(", ")}`);
+      }
     }
   }
 
@@ -131,18 +133,6 @@ const PLACEHOLDER_PATTERNS = [
  */
 function validateProposedChanges(changes) {
   for (const change of changes) {
-    if (change.patch) {
-      // For patch mode, check that added lines don't contain placeholder content
-      const addedLines = change.patch.split("\n")
-        .filter((l) => l.startsWith("+") && !l.startsWith("+++"))
-        .map((l) => l.slice(1).trim())
-        .join("\n")
-        .trim();
-      if (PLACEHOLDER_PATTERNS.some((p) => p.test(addedLines))) {
-        throw new Error(`Refusing to commit: "${change.filePath}" patch contains placeholder content. Please try again.`);
-      }
-      continue;
-    }
     const trimmed = (change.content || "").trim();
     if (PLACEHOLDER_PATTERNS.some((p) => p.test(trimmed)) || !trimmed) {
       throw new Error(`Refusing to commit: "${change.filePath}" has placeholder content instead of real file contents. Please try again.`);
@@ -171,93 +161,6 @@ function validateResolvedChanges(changes) {
   return warnings;
 }
 
-/**
- * Fix common LLM mistakes in unified diffs:
- * 1. Blank context lines missing the leading space (e.g. "" → " ")
- * 2. Incorrect line counts in @@ hunk headers
- */
-function fixPatch(patch) {
-  const lines = patch.split("\n");
-  let inHunk = false;
-
-  // Pass 1: fix blank context lines within hunks
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith("@@")) {
-      inHunk = true;
-      continue;
-    }
-    if (inHunk) {
-      const ch = lines[i][0];
-      if (ch === "-" || ch === "+" || ch === " ") continue;
-      if (lines[i] === "") {
-        lines[i] = " "; // blank context line — add leading space
-      } else {
-        inHunk = false; // non-diff line ends the hunk
-      }
-    }
-  }
-
-  // Pass 2: recalculate @@ hunk header line counts
-  const result = [];
-  for (let i = 0; i < lines.length; i++) {
-    const hunkMatch = lines[i].match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@(.*)$/);
-    if (!hunkMatch) {
-      result.push(lines[i]);
-      continue;
-    }
-    let oldCount = 0;
-    let newCount = 0;
-    let j = i + 1;
-    while (j < lines.length) {
-      const ch = lines[j][0];
-      if (ch === "-") oldCount++;
-      else if (ch === "+") newCount++;
-      else if (ch === " ") { oldCount++; newCount++; }
-      else break;
-      j++;
-    }
-    result.push(`@@ -${hunkMatch[1]},${oldCount} +${hunkMatch[2]},${newCount} @@${hunkMatch[3]}`);
-  }
-  return result.join("\n");
-}
-
-/**
- * Resolve the final content for a change object, handling both full-content
- * and unified-diff patch modes.
- *
- * @param {object} change - { filePath, content, patch }
- * @param {function} getContent - async (fullPath) => string|null, fetches current file content
- * @param {string} fullPath - full repo path for the file
- * @param {string} [logPrefix] - logging prefix
- * @returns {Promise<string>} resolved file content
- */
-async function resolveChangeContent(change, getContent, fullPath, logPrefix = "") {
-  if (change.patch) {
-    const currentContent = await getContent(fullPath);
-    if (currentContent === null) {
-      console.log(`${logPrefix} File ${change.filePath} not found, cannot apply patch to non-existent file`);
-      throw new Error(`Cannot apply patch to "${change.filePath}": file does not exist. Use full content mode for new files.`);
-    }
-    let result;
-    try {
-      result = applyPatch(currentContent, fixPatch(change.patch), { fuzzFactor: 2 });
-    } catch (err) {
-      console.error(`${logPrefix} Failed to parse/apply unified diff to ${change.filePath}: ${err.message}\n${change.patch}`);
-      throw new Error(`Cannot apply patch to "${change.filePath}": ${err.message}`);
-    }
-    if (result === false) {
-      console.error(`${logPrefix} Failed to apply unified diff to ${change.filePath}:\n${change.patch}`);
-      throw new Error(`Cannot apply patch to "${change.filePath}": patch does not match the current file contents. The file may have changed since it was read.`);
-    }
-    console.log(`${logPrefix} Applied unified diff to ${change.filePath} (${currentContent.length} → ${result.length} chars)`);
-    return result;
-  }
-  if (change.content) {
-    return change.content;
-  }
-  throw new Error(`Change for "${change.filePath}" has neither content nor patch`);
-}
-
 module.exports = {
   parseYaml,
   dumpYaml,
@@ -266,5 +169,4 @@ module.exports = {
   validatePolicyYaml,
   validateProposedChanges,
   validateResolvedChanges,
-  resolveChangeContent,
 };
