@@ -152,7 +152,10 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 			detail,
 			COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid,
 			created_at,
-			updated_at
+			updated_at,
+			not_valid_before,
+			not_valid_after,
+			serial
 		FROM host_certificate_templates
 		WHERE host_uuid = ? AND certificate_template_id = ?
 	`
