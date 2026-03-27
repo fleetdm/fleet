@@ -518,9 +518,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.InstallScript = nil
 		} else {
 			installScript := file.Dos2UnixNewlines(*payload.InstallScript)
-			if installScript == "" {
-				installScript = file.GetInstallScript(existingInstaller.Extension)
-			}
+			installScript = getInstallScript(existingInstaller.Extension, existingInstaller.PackageIDs(), installScript)
 			if installScript == "" {
 				return nil, &fleet.BadRequestError{
 					Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
@@ -1429,7 +1427,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 				"host_serial", host.HardwareSerial,
 			)
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.",
+				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business. Please purchase license in Apple Business and try again.",
 				InternalErr: ctxerr.Errorf(ctx, "VPP API didn't return any assets for adamID %s", vppApp.AdamID),
 			}
 		}
@@ -1440,7 +1438,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 
 		if assets[0].AvailableCount <= 0 {
 			return "", &fleet.BadRequestError{
-				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business Manager and try again.",
+				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business and try again.",
 				InternalErr: ctxerr.NewWithData(
 					ctx, "license available count <= 0",
 					map[string]any{
@@ -1825,9 +1823,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
 	}
 
-	if payload.InstallScript == "" {
-		payload.InstallScript = file.GetInstallScript(meta.Extension)
-	}
+	payload.InstallScript = getInstallScript(meta.Extension, meta.PackageIDs, payload.InstallScript)
 
 	// Software edits validate non-empty scripts later, so set failOnBlankScript to false
 	if payload.InstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
@@ -2629,9 +2625,7 @@ func (svc *Service) softwareBatchUpload(
 
 			case installer.Extension != "exe":
 				// custom scripts only for exe installers and non-script packages
-				if installer.InstallScript == "" {
-					installer.InstallScript = file.GetInstallScript(installer.Extension)
-				}
+				installer.InstallScript = getInstallScript(installer.Extension, installer.PackageIDs, installer.InstallScript)
 
 				if installer.UninstallScript == "" {
 					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
@@ -3176,4 +3170,16 @@ func activitySoftwareLabelsFromSoftwareScopeLabels(includeAnyScopeLabels, exclud
 		})
 	}
 	return includeAny, excludeAny, includeAll
+}
+
+// getInstallScript returns the install script for a software installer,
+// using a special script for fleetd packages to handle macOS in-band upgrades.
+func getInstallScript(extension string, packageIDs []string, currentScript string) string {
+	if extension == "pkg" && file.IsFleetdPkg(packageIDs) {
+		return file.InstallPkgFleetdScript
+	}
+	if currentScript != "" {
+		return currentScript
+	}
+	return file.GetInstallScript(extension)
 }
