@@ -3,7 +3,8 @@
     {
       "version": "3.2",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Apparency';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Apparency';",
+        "patch": ""
       },
       "installer_url": "https://www.mothersruin.com/software/archives/Apparency-3.2.dmg",
       "install_script_ref": "a1a4400f",

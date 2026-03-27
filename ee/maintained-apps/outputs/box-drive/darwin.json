@@ -3,7 +3,8 @@
     {
       "version": "2.50.191",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.box.desktop';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.box.desktop';",
+        "patch": ""
       },
       "installer_url": "https://e3.boxcdn.net/desktop/releases/mac/BoxDrive-2.50.191.pkg",
       "install_script_ref": "5af00408",

@@ -306,7 +306,8 @@ SELECT
 	name,
 	status,
 	detail,
-	operation_type
+	operation_type,
+	certificate_template_id
 FROM host_certificate_templates
 WHERE host_uuid = ?`
 
@@ -409,20 +410,48 @@ func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID u
 			hosts h ON h.uuid = hct.host_uuid
 		SET
 			hct.uuid = UUID_TO_BIN(UUID(), true),
+			hct.fleet_challenge = NULL,
+			hct.not_valid_before = NULL,
+			hct.not_valid_after = NULL,
+			hct.serial = NULL,
+			hct.detail = NULL,
 			hct.status = ?
 		WHERE
 			h.id = ? AND
 			hct.certificate_template_id = ?
-	`
+		`
 
-	results, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CertificateTemplatePending, hostID, templateID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host certificate template uuid")
-	}
+	const deleteChallenge = `
+		DELETE c FROM
+			challenges c
+		INNER JOIN
+			host_certificate_templates hct ON hct.fleet_challenge = c.challenge
+		INNER JOIN
+			hosts h ON h.uuid = hct.host_uuid
+		WHERE
+			h.id = ? AND
+			hct.certificate_template_id = ?
+		`
 
-	affected, _ := results.RowsAffected()
-	if affected == 0 {
-		return ctxerr.Wrapf(ctx, notFound("HostCertificateTemplate"), "template %d does not exist for host %d", templateID, hostID)
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, deleteChallenge, hostID, templateID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting challenges associated with resent certificate template")
+		}
+
+		results, err := tx.ExecContext(ctx, stmt, fleet.CertificateTemplatePending, hostID, templateID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host certificate template uuid")
+		}
+
+		affected, _ := results.RowsAffected()
+		if affected == 0 {
+			return ctxerr.Wrapf(ctx, notFound("HostCertificateTemplate"), "template %d does not exist for host %d", templateID, hostID)
+		}
+
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting host certificate template for resend")
 	}
 
 	return nil
