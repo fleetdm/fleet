@@ -1230,21 +1230,47 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	}
 	require.ElementsMatch(t, []string{"N1", "Fleetd configuration", "Fleet root certificate authority (CA)"}, profNames)
 	require.ElementsMatch(t, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerifying}, profStatuses)
-
-	// the software and script are still pending
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 2)
-	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
+	require.Equal(t, "App 5", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
-	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[1].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
 
+	// Get status: the VPP app install should have run and failed.
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	// Both software items are in terminal states (success/failure) and
+	// softwarePending is empty, so NextStep enqueues the script in the
+	// same call — it should already be "running".
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 2)
+	// App 5 has no licenses available, so we should get a status failed here and setup experience
+	// should continue
+	require.Equal(t, "App 5", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
+
+	// The status for DummyApp should be "running" now, since it's started installing
+	// but we haven't sent back an installation status from orbit yet
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Len(t, statusResp.Results.Software, 2)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Software[1].Status)
+
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
-	// it out manually
+	// exec ID for "DummyApp" out manually
 	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
 	require.NoError(t, err)
 	require.Len(t, results, 3)
@@ -1252,7 +1278,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	for _, r := range results {
 		if r.HostSoftwareInstallsExecutionID != nil &&
 			r.SoftwareInstallerID != nil &&
-			r.Name == statusResp.Results.Software[0].Name {
+			r.Name == statusResp.Results.Software[1].Name {
 			installUUID = *r.HostSoftwareInstallsExecutionID
 			break
 		}
@@ -1262,7 +1288,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 
 	// Need to get the software title to get the package name
 	var getSoftwareTitleResp getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[1].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
 
@@ -1275,34 +1301,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 					"install_script_output": "ok"
 				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
+	// Script is already running, poll again to confirm status
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
-	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
-	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
-	require.NotNil(t, statusResp.Results.Script)
-	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
-	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
-	require.Len(t, statusResp.Results.Software, 2)
-	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
-	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
-	// App 5 has no licenses available, so we should get a status failed here and setup experience
-	// should continue
-	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
-	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
-
-	// Software installations are done, now we should run the script
-	statusResp = getOrbitSetupExperienceStatusResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
-	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	require.Equal(t, "App 5", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
-	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
-	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[1].Status)
 
 	// Get script exec ID
 	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
@@ -1325,12 +1335,12 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	// release of the device, as all setup experience steps are now complete.
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
-	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	require.Equal(t, "App 5", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
-	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
-	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[1].Status)
 
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
@@ -3858,7 +3868,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, deviceResp.Err)
 
-	// the software is now running (because previous call to /status kickstarted the process), and script is pending
+	// Software is installed one at a time in alphabetical order by display
+	// name (falling back to name). The previous call to /status kickstarted
+	// the first item; the second remains pending until the first finishes.
 	require.Len(t, deviceResp.Results.Scripts, 1)
 	require.Equal(t, "script.sh", deviceResp.Results.Scripts[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, deviceResp.Results.Scripts[0].Status)
@@ -3871,7 +3883,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	require.Empty(t, deviceResp.Results.Software[0].IconURL)
 	require.Equal(t, "EchoApp", deviceResp.Results.Software[1].Name)
 	require.Equal(t, "My Custom EchoApp", deviceResp.Results.Software[1].DisplayName)
-	require.Equal(t, fleet.SetupExperienceStatusRunning, deviceResp.Results.Software[1].Status)
+	require.Equal(t, fleet.SetupExperienceStatusPending, deviceResp.Results.Software[1].Status)
 	require.NotNil(t, deviceResp.Results.Software[1].SoftwareTitleID)
 	require.Equal(t, echoTitleID, *deviceResp.Results.Software[1].SoftwareTitleID)
 	require.NotEmpty(t, deviceResp.Results.Software[1].IconURL)

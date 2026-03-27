@@ -223,77 +223,75 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 
 	switch {
 	case len(softwarePending) > 0:
-		// enqueue all pending software (installers and VPP apps interleaved)
-		var skipRemaining bool
-		for _, sw := range softwarePending {
-			if skipRemaining {
-				break
+		// Enqueue only the first pending software item (installer or VPP app).
+		// On the next call, this item will be in "running" state and the next
+		// pending item will be picked up. This ensures software is installed
+		// one at a time in the alphabetical display-name order determined by
+		// ListSetupExperienceResultsByHostUUID.
+		sw := softwarePending[0]
+
+		switch {
+		case sw.SoftwareInstallerID != nil:
+			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			})
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
+			}
+			sw.HostSoftwareInstallsExecutionID = &installUUID
+			sw.Status = fleet.SetupExperienceStatusRunning
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
 			}
 
-			switch {
-			case sw.SoftwareInstallerID != nil:
-				installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
-					SelfService:        false,
-					ForSetupExperience: true,
-				})
+		case sw.VPPAppTeamID != nil:
+			vppAppID, err := sw.VPPAppID()
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
+			}
+
+			if sw.SoftwareTitleID == nil {
+				return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", sw.ID)
+			}
+
+			vppApp := &fleet.VPPApp{
+				TitleID: *sw.SoftwareTitleID,
+				VPPAppTeam: fleet.VPPAppTeam{
+					VPPAppID: *vppAppID,
+				},
+			}
+
+			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			})
+
+			sw.NanoCommandUUID = &cmdUUID
+			sw.Status = fleet.SetupExperienceStatusRunning
+
+			if err != nil {
+				// if we get an error (e.g. no available licenses) while attempting to enqueue the
+				// install, then we should immediately go to an error state so setup experience
+				// isn't blocked.
+				svc.logger.WarnContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", sw.VPPAppAdamID)
+				sw.Status = fleet.SetupExperienceStatusFailure
+				sw.Error = ptr.String(err.Error())
+				// At this point we need to check whether the "cancel if software install fails" setting is active,
+				// in which case we'll cancel the remaining pending items.
+				requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
 				if err != nil {
-					return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
+					return false, ctxerr.Wrap(ctx, err, "checking if all software is required after vpp app install failure")
 				}
-				sw.HostSoftwareInstallsExecutionID = &installUUID
-				sw.Status = fleet.SetupExperienceStatusRunning
-				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-					return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
-				}
-
-			case sw.VPPAppTeamID != nil:
-				vppAppID, err := sw.VPPAppID()
-				if err != nil {
-					return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
-				}
-
-				if sw.SoftwareTitleID == nil {
-					return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", sw.ID)
-				}
-
-				vppApp := &fleet.VPPApp{
-					TitleID: *sw.SoftwareTitleID,
-					VPPAppTeam: fleet.VPPAppTeam{
-						VPPAppID: *vppAppID,
-					},
-				}
-
-				cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
-					SelfService:        false,
-					ForSetupExperience: true,
-				})
-
-				sw.NanoCommandUUID = &cmdUUID
-				sw.Status = fleet.SetupExperienceStatusRunning
-
-				if err != nil {
-					// if we get an error (e.g. no available licenses) while attempting to enqueue the
-					// install, then we should immediately go to an error state so setup experience
-					// isn't blocked.
-					svc.logger.WarnContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", sw.VPPAppAdamID)
-					sw.Status = fleet.SetupExperienceStatusFailure
-					sw.Error = ptr.String(err.Error())
-					// At this point we need to check whether the "cancel if software install fails" setting is active,
-					// in which case we'll cancel the remaining pending items.
-					requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
+				if requireAllSoftware {
+					err := svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
 					if err != nil {
-						return false, ctxerr.Wrap(ctx, err, "checking if all software is required after vpp app install failure")
-					}
-					if requireAllSoftware {
-						err := svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
-						if err != nil {
-							return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
-						}
-						skipRemaining = true
+						return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
 					}
 				}
-				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
-				}
+			}
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 			}
 		}
 	case softwareRunning == 0 && len(scriptsPending) > 0:
