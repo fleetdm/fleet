@@ -154,7 +154,7 @@ software:
       categories:
         - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
-      self_service: true
+      self_service: false
       setup_experience: true
       categories:
         - Security
@@ -188,14 +188,14 @@ software:
         - Utilities
     # Linux apps
     - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
-      self_service: true
+      self_service: false
       setup_experience: true
       categories:
         - Security
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat
-      self_service: true
+      self_service: false
       setup_experience: true
       categories:
         - Security
@@ -253,7 +253,7 @@ software:
     #   labels_include_any:
     #     - "ARM-based Windows hosts"
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
-      self_service: true
+      self_service: false
       setup_experience: true
       categories:
         - Security
