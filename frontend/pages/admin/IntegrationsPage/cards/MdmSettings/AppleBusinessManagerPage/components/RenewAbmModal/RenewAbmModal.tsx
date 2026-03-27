@@ -66,34 +66,17 @@ const RenewAbmModal = ({
     >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
         <p className={`${baseClass}__description`}>
-          Renew Apple Business for <b>{orgName}</b>.
+          Renew Apple Business for <b>{orgName}</b> by uploading your AB token.{" "}
+          <CustomLink
+            newTab
+            text="Learn more"
+            url="https://fleetdm.com/guides/apple-mdm-setup#to-renew-an-abm-token"
+          />
         </p>
-        <ol className={`${baseClass}__setup-instructions-list`}>
+        <ul className={`${baseClass}__setup-instructions-list`}>
           <li>
             <p>
-              1. Sign in to{" "}
-              <CustomLink
-                url="https://business.apple.com/"
-                text="Apple Business"
-                newTab
-              />
-            </p>
-          </li>
-          <li>
-            <p>
-              2. Select your <b>account name</b> at the bottom left of the
-              screen, then select <b>Preferences</b>.
-            </p>
-          </li>
-          <li>
-            <p>
-              3. In the <b>Your MDM Servers</b> section, select your Fleet
-              server, then select <b>Download Token</b> at the top.
-            </p>
-          </li>
-          <li>
-            <p>
-              4. Upload the downloaded token (.p7m file) below.
+              Upload the downloaded token (.p7m file) below.
               <FileUploader
                 className={`${baseClass}__file-uploader`}
                 accept=".p7m"
@@ -106,7 +89,7 @@ const RenewAbmModal = ({
               />
             </p>
           </li>
-        </ol>
+        </ul>
         <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__submit-button ${
