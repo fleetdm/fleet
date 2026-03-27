@@ -6067,13 +6067,13 @@ software:
 
 func TestComputeLabelChanges(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		filename             string
-		teamName             string
-		existingLabels       []*fleet.LabelSpec
-		specifiedLabels      []*fleet.LabelSpec
-		processMissingLabels bool
-		expected             []spec.LabelChange
+		name                  string
+		filename              string
+		teamName              string
+		existingLabels        []*fleet.LabelSpec
+		specifiedLabels       []*fleet.LabelSpec
+		preserveMissingLabels bool
+		expected              []spec.LabelChange
 	}{
 		{
 			name:     "labels present but empty removes all regular labels",
@@ -6083,8 +6083,8 @@ func TestComputeLabelChanges(t *testing.T) {
 				{Name: "label1", LabelType: fleet.LabelTypeRegular},
 				{Name: "built-in", LabelType: fleet.LabelTypeBuiltIn},
 			},
-			specifiedLabels:      nil,
-			processMissingLabels: true,
+			specifiedLabels:       nil,
+			preserveMissingLabels: false,
 			expected: []spec.LabelChange{
 				{Name: "label1", Op: "-", TeamName: "team1", FileName: "config.yml"},
 			},
@@ -6096,8 +6096,8 @@ func TestComputeLabelChanges(t *testing.T) {
 			existingLabels: []*fleet.LabelSpec{
 				{Name: "label1", LabelType: fleet.LabelTypeRegular},
 			},
-			specifiedLabels:      nil,
-			processMissingLabels: false,
+			specifiedLabels:       nil,
+			preserveMissingLabels: true,
 			expected: []spec.LabelChange{
 				{Name: "label1", Op: "~", TeamName: "team1", FileName: "config.yml"},
 			},
@@ -6114,7 +6114,7 @@ func TestComputeLabelChanges(t *testing.T) {
 				{Name: "to-keep"},
 				{Name: "to-add"},
 			},
-			processMissingLabels: true,
+			preserveMissingLabels: false,
 			expected: []spec.LabelChange{
 				{Name: "to-remove", Op: "-", TeamName: "team1", FileName: "config.yml"},
 				{Name: "to-keep", Op: "=", TeamName: "team1", FileName: "config.yml"},
@@ -6125,7 +6125,7 @@ func TestComputeLabelChanges(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels, tc.processMissingLabels)
+			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels, tc.preserveMissingLabels)
 			require.ElementsMatch(t, tc.expected, changes)
 		})
 	}

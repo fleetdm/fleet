@@ -198,11 +198,11 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// Check if a no-team/unassigned file is present (by filename, before parsing).
-			noTeamPresent := false
+			prefetchNoTeamSoftware := false
 			for _, flFilename := range flFilenames.Value() {
 				fn := filepath.Base(flFilename)
 				if fn == "no-team.yml" || fn == "unassigned.yml" {
-					noTeamPresent = true
+					prefetchNoTeamSoftware = true
 					break
 				}
 			}
@@ -214,9 +214,25 @@ func gitopsCommand() *cli.Command {
 			// and would otherwise fail validating policy software references.
 			if appConfig.GitOpsConfig.Exceptions.Software {
 				syntheticSoftwareByTeam := make(map[string]json.RawMessage)
+				// Pre-fetch for "No team" (unassigned hosts, teamID=0) if present.
+				if prefetchNoTeamSoftware {
+					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, 0)
+					if err != nil {
+						return fmt.Errorf("getting software for unassigned hosts: %w", err)
+					}
+					if softwareMap != nil {
+						raw, err := json.Marshal(softwareMap)
+						if err != nil {
+							return fmt.Errorf("marshaling software for unassigned hosts: %w", err)
+						}
+						syntheticSoftwareByTeam[fleet.TeamNameNoTeam] = raw
+						teamsSoftwareInstallers[fleet.TeamNameNoTeam] = installers
+						teamsVPPApps[fleet.TeamNameNoTeam] = vppApps
+					}
+				}
 				for teamName, teamID := range teamIDLookup {
 					if teamID == nil || *teamID == 0 {
-						continue // skip global
+						continue // skip global and no-team/unassigned (handled above).
 					}
 					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, *teamID)
 					if err != nil {
@@ -233,31 +249,14 @@ func gitopsCommand() *cli.Command {
 					teamsSoftwareInstallers[teamName] = installers
 					teamsVPPApps[teamName] = vppApps
 				}
-				// Also pre-fetch for "No team" (unassigned hosts, teamID=0) if present.
-				if noTeamPresent {
-					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, 0)
-					if err != nil {
-						return fmt.Errorf("getting software for unassigned hosts: %w", err)
-					}
-					if softwareMap != nil {
-						raw, err := json.Marshal(softwareMap)
-						if err != nil {
-							return fmt.Errorf("marshaling software for unassigned hosts: %w", err)
-						}
-						syntheticSoftwareByTeam[fleet.TeamNameNoTeam] = raw
-						teamsSoftwareInstallers[fleet.TeamNameNoTeam] = installers
-						teamsVPPApps[fleet.TeamNameNoTeam] = vppApps
-					}
-				}
 				gitOpsOpts.SyntheticSoftwareByTeam = syntheticSoftwareByTeam
 			}
 
 			// We need the controls from no-team.yml to apply them when applying the global app config.
-			noTeamControls, noTeamParsed, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
+			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
 			if err != nil {
 				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
 			}
-			noTeamPresent = noTeamParsed
 			// Log a deprecation warning if the user is still using no-team.yml
 			if noTeamPresent && noTeamFilename == "no-team.yml" {
 				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
@@ -331,19 +330,15 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 				}
-				// When labels are not excepted from GitOps, treat absent labels
-				// as "delete all" (i.e. as if `labels:` was present but empty).
-				labelsExcepted := appConfig.GitOpsConfig.Exceptions.Labels
-				deleteMissingLabels := config.LabelsPresent
-				if !labelsExcepted {
-					deleteMissingLabels = true
-				}
+				// When labels are excepted and the key is omitted, preserve
+				// existing labels (no-op). Otherwise delete/update as normal.
+				preserveLabels := appConfig.GitOpsConfig.Exceptions.Labels && !config.LabelsPresent
 				labelChanges[teamName] = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
 					config.Labels,
-					deleteMissingLabels,
+					preserveLabels,
 				)
 			}
 
@@ -759,7 +754,7 @@ func computeLabelChanges(
 	teamName string,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
-	deleteMissingLabels bool,
+	preserveLabels bool,
 ) []spec.LabelChange {
 	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
@@ -770,12 +765,12 @@ func computeLabelChanges(
 		}
 	}
 
-	// If no labels are specified: either no-op if labels are exempted from GitOps,
+	// If no labels are specified: either no-op if labels are excepted from GitOps,
 	// or else delete them all.
 	if len(specifiedLabels) == 0 {
-		op := "~" // preserved (excepted from GitOps, no action needed)
-		if deleteMissingLabels {
-			op = "-"
+		op := "-"
+		if preserveLabels {
+			op = "~" // preserved (excepted from GitOps, no action needed)
 		}
 		for _, l := range regularLabels {
 			change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
