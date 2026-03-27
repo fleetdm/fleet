@@ -933,10 +933,10 @@ const (
 	// MDMAssetAPNSCert is the name of the APNs (Apple Push Notifications
 	// service) private key used by MDM
 	MDMAssetAPNSCert MDMAssetName = "apns_cert"
-	// MDMAssetABMKey is the name of the ABM (Apple Business Manager)
+	// MDMAssetABMKey is the name of the AB (Apple Business)
 	// private key used to decrypt MDMAssetABMToken
 	MDMAssetABMKey MDMAssetName = "abm_key"
-	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
+	// MDMAssetABMCert is the name of the AB (Apple Business)
 	// private key used to encrypt MDMAssetABMToken
 	MDMAssetABMCert MDMAssetName = "abm_cert"
 	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token

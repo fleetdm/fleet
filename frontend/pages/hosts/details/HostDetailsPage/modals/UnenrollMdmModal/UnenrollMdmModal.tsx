@@ -91,7 +91,7 @@ const UnenrollMdmModal = ({
       return (
         <p>
           To re-enroll, make sure that the host is still in Apple Business
-          Manager (ABM). The host will automatically enroll after it&apos;s
+          Manager (AB). The host will automatically enroll after it&apos;s
           reset.
         </p>
       );

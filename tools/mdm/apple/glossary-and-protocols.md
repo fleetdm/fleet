@@ -6,7 +6,7 @@ sequenceDiagram
     participant mac as Mac
     participant server as fleet server
 
-    note over server: Server sends automatic enrollment<br/>endpoint details to ABM as part of a<br/>ADE/DEP configuration cron job
+    note over server: Server sends automatic enrollment<br/>endpoint details to AB as part of a<br/>ADE/DEP configuration cron job
     alt Automatic Authenticated Enrollment
         mac->>server: GET /api/v1/fleet/sso<br/>(endpoint configured using ADE)<br/>Opens authetication webpage in a webview
         server->>mac: Enrollment Profile (specific response headers)
@@ -78,7 +78,7 @@ A method to enroll a device to an MDM server by manually getting and
 installing (generally by downloading from a URL) an [enrollment
 profile](#enrollment-profile).
 
-### ABM: Apple Business Manager
+### AB: Apple Business
 
 Interface to administer Devices and MDM servers, mainly used for [ADE
 enrollment](#ade-enrollment).
@@ -124,7 +124,7 @@ For [ADE enrollment](#ade-device-enrollment-program) the enrollment profile is d
 
 ### ADE profile
 
-This (JSON) profile is used to configure a device in Apple Business Manager.
+This (JSON) profile is used to configure a device in Apple Business.
 It contains all the necessary information that a device needs to automatically enroll to an MDM server during device setup.
 
 [Example](https://fleetdm.com/example-dep-profile)

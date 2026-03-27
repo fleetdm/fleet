@@ -1029,7 +1029,7 @@ func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
-	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business Manager)
+	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business)
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
 	}, abmToken.ID, nil, nil, nil)
