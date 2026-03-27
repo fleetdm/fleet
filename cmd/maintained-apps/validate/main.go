@@ -52,6 +52,26 @@ func logDiskSpace(ctx context.Context, logger *slog.Logger, tmpDir string, label
 		logger.WarnContext(ctx, fmt.Sprintf("Failed to get disk space: %v", err))
 	}
 
+	if runtime.GOOS == "darwin" {
+		if output, err := exec.Command("hdiutil", "info").CombinedOutput(); err == nil {
+			mounted := parseMountedDMGInfo(string(output))
+			if len(mounted) > 0 {
+				logger.WarnContext(ctx, fmt.Sprintf("Mounted DMG volumes (%d):", len(mounted)))
+				for _, m := range mounted {
+					logger.WarnContext(ctx, fmt.Sprintf("  %s (from %s)", m.mountPoint, m.imagePath))
+				}
+			}
+		}
+
+		if entries, err := os.ReadDir("/Volumes"); err == nil {
+			var names []string
+			for _, e := range entries {
+				names = append(names, e.Name())
+			}
+			logger.InfoContext(ctx, fmt.Sprintf("/Volumes: %v", names))
+		}
+	}
+
 	if matches, _ := filepath.Glob(filepath.Join(os.TempDir(), "fleet-temp-file-*")); len(matches) > 0 {
 		var totalSize int64
 		for _, m := range matches {
@@ -75,6 +95,44 @@ func logDiskSpace(ctx context.Context, logger *slog.Logger, tmpDir string, label
 	}
 }
 
+type mountedDMG struct {
+	imagePath  string
+	mountPoint string
+}
+
+func parseMountedDMGInfo(hdiutilOutput string) []mountedDMG {
+	var results []mountedDMG
+	var currentImage string
+	for _, line := range strings.Split(hdiutilOutput, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "image-path") {
+			currentImage = strings.TrimSpace(strings.TrimPrefix(line, "image-path      :"))
+		}
+		if strings.HasPrefix(line, "/dev/") && strings.Contains(line, "/Volumes/") {
+			mountPoint := line[strings.Index(line, "/Volumes/"):]
+			results = append(results, mountedDMG{imagePath: currentImage, mountPoint: mountPoint})
+		}
+	}
+	return results
+}
+
+func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	output, err := exec.Command("hdiutil", "info").CombinedOutput()
+	if err != nil {
+		return
+	}
+	mounted := parseMountedDMGInfo(string(output))
+	for _, m := range mounted {
+		logger.InfoContext(ctx, fmt.Sprintf("Force-detaching DMG: %s (image: %s)", m.mountPoint, m.imagePath))
+		if out, err := exec.Command("hdiutil", "detach", m.mountPoint, "-force").CombinedOutput(); err != nil {
+			logger.WarnContext(ctx, fmt.Sprintf("Failed to detach %s: %v (%s)", m.mountPoint, err, strings.TrimSpace(string(out))))
+		}
+	}
+}
+
 func run(cfg *Config) error {
 	ctx := context.Background()
 	cleanupInstaller := func(installerPath string) {
@@ -91,6 +149,7 @@ func run(cfg *Config) error {
 			return
 		}
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Deleted installer file: %s", installerPath))
+		detachAllDMGs(ctx, cfg.logger)
 	}
 
 	apps, err := getListOfApps(cfg.outputsPath)
