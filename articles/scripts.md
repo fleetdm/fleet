@@ -8,7 +8,7 @@ By default, shell scripts will run in the host's (root) shell (`/bin/sh`). We al
 
 > To run a shell script in `/bin/zsh` or `/bin/bash`, add a shebang as the first line (for example, `#!/bin/zsh` or `#!/bin/bash`).
 
-Python scripts must start with a python shebang as the first line (for example, `#!/usr/bin/env python3` or `#!/usr/bin/python3`).
+Python scripts must start with a Python shebang as the first line (for example, `#!/usr/bin/env python3` or `#!/usr/bin/python3`).
 
 PowerShell scripts are supported on Windows. Other types of scripts are not supported yet.
 
