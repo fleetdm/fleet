@@ -149,6 +149,34 @@ func (r *CreateNewOrderResponse) BeforeRender(ctx context.Context, w http.Respon
 // Error implements the platform_http.Errorer interface.
 func (r *CreateNewOrderResponse) Error() error { return r.Err }
 
+type SubmitChallengeRequest struct {
+	types.AccountAuthenticatedRequestBase
+	AttestationObject string `json:"attObj"`
+}
+
+type SubmitChallengeResponse struct {
+	Err    error                                `json:"error,omitempty"`
+	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
+}
+
+func (r *SubmitChallengeResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
+	}
+	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
+		r.Err = err
+		return
+	}
+}
+
+// Error implements the platform_http.Errorer interface.
+func (r *SubmitChallengeResponse) Error() error { return r.Err }
+
 // JWS Request container is a container for doing basic decoding and validation operations common to all
 // authenticated ACME requests, which come in the form of a JWS in flattened serialization syntax. This is
 // parsed into a jose.JSONWebSignature with some basic validation done on it and then the downstream

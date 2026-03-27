@@ -43,6 +43,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 
 	ae.POST("/api/mdm/acme/{identifier}/new_account", createAccountEndpoint, api_http.JWSRequestContainer{})
 	ae.POST("/api/mdm/acme/{identifier}/new_order", createOrderEndpoint, api_http.JWSRequestContainer{})
+
+	ae.POST("/api/mdm/acme/{identifier}/authorizations/{authorization_id}", getAuthorizationChallengesEndpoint, api_http.JWSRequestContainer{})
+	ae.POST("/api/mdm/acme/{identifier}/challenges/{challenge_id}", submitChallengeEndpoint, api_http.JWSRequestContainer{})
 }
 
 func skipStandardFleetAuth() endpoint.Middleware {
@@ -108,4 +111,22 @@ func createOrderEndpoint(ctx context.Context, request any, svc api.Service) plat
 	}
 	_ = newOrderRequest
 	panic("unimplemented")
+}
+
+func getAuthorizationChallengesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	panic("unimplemented")
+}
+
+func submitChallengeEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.JWSRequestContainer)
+	submitChallengeRequest := &api_http.SubmitChallengeRequest{}
+	err := svc.AuthenticateMessageFromAccount(ctx, req, submitChallengeRequest)
+	if err != nil {
+		return &api_http.SubmitChallengeResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+	err = svc.SubmitChallenge(ctx, submitChallengeRequest)
+	if err != nil {
+		return &api_http.SubmitChallengeResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+	_ = submitChallengeRequest
 }
