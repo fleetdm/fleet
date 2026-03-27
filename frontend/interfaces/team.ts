@@ -56,7 +56,7 @@ export interface ITeam extends ITeamSummary {
     ios_updates: IAppleDeviceUpdates;
     ipados_updates: IAppleDeviceUpdates;
     apple_settings: {
-      custom_settings: null; // TODO: types?
+      configuration_profiles: null; // TODO: types?
       enable_disk_encryption: boolean;
     };
     setup_experience: {
