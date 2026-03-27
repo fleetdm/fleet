@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -25,6 +26,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
+		{"SoftwareTitleRenaming", testSoftwareTitleRenaming},
 	}
 
 	for _, c := range cases {
@@ -628,4 +630,110 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 	require.Equal(t, titleID, *apps[0].TitleID)
 	// the darwin app should not be matched by name
 	require.Nil(t, apps[1].TitleID)
+}
+
+func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
+
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	software1 := []fleet.Software{
+		{Name: "Foo", Version: "1.0", Source: "apps", BundleIdentifier: "com.microsoft.foo"},
+		{Name: "Bar", Version: "1.0", Source: "apps", BundleIdentifier: "com.bar"},
+	}
+	software2 := []fleet.Software{
+		{Name: "7-Zip 1.00 (x64)", Version: "1.0", Source: "programs"},
+		{Name: "Hello", Version: "1.0", Source: "programs", UpgradeCode: ptr.String("{123456}")},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	opts := fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{OrderKey: "name"}}
+	sw, _, _, err := ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, sw, 4)
+	require.Equal(t, sw[0].Name, "7-Zip 1.00 (x64)")
+	require.Equal(t, sw[1].Name, "Bar")
+	require.Equal(t, sw[2].Name, "Foo")
+	require.Equal(t, sw[3].Name, "Hello")
+
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Foo",
+		Slug:             "foo/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.foo",
+	})
+	require.NoError(t, err)
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Bar",
+		Slug:             "bar/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.bar",
+	})
+	require.NoError(t, err)
+	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "7-zip",
+		Slug:             "7-zip/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "7-Zip 1.00 (x64)",
+	})
+	require.NoError(t, err)
+	maintained4, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Hello",
+		Slug:             "hello/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Hello-Unique",
+	})
+	require.NoError(t, err)
+
+	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, sw, 4)
+	require.Equal(t, sw[0].Name, "7-Zip 1.00 (x64)")
+	require.Equal(t, sw[1].Name, "Bar")
+	require.Equal(t, sw[2].Name, "Hello")
+	require.Equal(t, sw[3].Name, "Microsoft Visual Foo")
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "7-Zip 1.00 (x64)",
+		Source:               "programs",
+		StorageID:            "storageid1",
+		Filename:             "7-zip.msi",
+		Extension:            "msi",
+		Platform:             "windows",
+		Version:              "1.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: ptr.Uint(maintained3.ID),
+	})
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Hello-Unique", // From fma.UniqueIdentifier,
+		UpgradeCode:          "{123456}",
+		Source:               "programs",
+		StorageID:            "storageid2",
+		Filename:             "hello.msi",
+		Extension:            "msi",
+		Platform:             "windows",
+		Version:              "1.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: ptr.Uint(maintained4.ID),
+	})
+	require.NoError(t, err)
+
+	// After uploading installers, 7-Zip keeps the unique identifier name,
+	// and Hello updates to Hello-Unique since it was matched by upgrade code.
+	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, sw, 4)
+	require.Equal(t, sw[0].Name, "7-Zip 1.00 (x64)")
+	require.Equal(t, sw[2].Name, "Hello-Unique")
 }

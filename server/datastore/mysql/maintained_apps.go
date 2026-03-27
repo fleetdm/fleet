@@ -23,6 +23,14 @@ ON DUPLICATE KEY UPDATE
 	unique_identifier = VALUES(unique_identifier)
 `
 
+	// This won't update titles with an upgrade code, that will be done when uploading
+	// an FMA installer as the upgrade code is available then.
+	const updateTitleStmt = `UPDATE software_titles SET name = ? WHERE unique_identifier = ? AND source = ? AND name != ?`
+	args := []any{app.Name, app.UniqueIdentifier, app.Source(), app.Name}
+	if app.Platform == "windows" {
+		args = []any{app.UniqueIdentifier, app.UniqueIdentifier, app.Source(), app.Name}
+	}
+
 	var appID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -34,6 +42,11 @@ ON DUPLICATE KEY UPDATE
 		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
+
+		_, err = tx.ExecContext(ctx, updateTitleStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update software title names")
+		}
 		return nil
 	})
 	if err != nil {
