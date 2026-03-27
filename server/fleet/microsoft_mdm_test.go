@@ -805,4 +805,10 @@ func TestExtractLocURIsFromProfileBytes(t *testing.T) {
 		uris := ExtractLocURIsFromProfileBytes([]byte(""))
 		require.Nil(t, uris)
 	})
+
+	t.Run("delete commands excluded", func(t *testing.T) {
+		xml := `<Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace><Delete><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`
+		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
+		require.Equal(t, []string{"./Device/A"}, uris)
+	})
 }

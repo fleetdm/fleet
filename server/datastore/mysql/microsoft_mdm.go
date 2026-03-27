@@ -2505,13 +2505,22 @@ ON DUPLICATE KEY UPDATE
 	// The delete commands are best-effort and currently not visible to the
 	// IT admin in the UI or API. They are fire-and-forget MDM commands
 	// with no corresponding host_mdm_windows_profiles status entry.
-	// Collect all LocURIs across all incoming profiles (the post-edit desired
-	// state). Used below to protect LocURIs that are still in use by another
-	// profile when one profile's edit removes a LocURI.
-	allIncomingURIs := make(map[string]bool)
+	// Collect all LocURIs across incoming profiles AND reserved profiles that
+	// are kept even when not in the incoming list (e.g. "Windows OS Updates").
+	// This prevents deleting LocURIs that are still enforced by any profile
+	// that will remain after the batch-set.
+	allRetainedURIs := make(map[string]bool)
 	for _, p := range incomingProfs {
 		for _, uri := range fleet.ExtractLocURIsFromProfileBytes(p.SyncML) {
-			allIncomingURIs[uri] = true
+			allRetainedURIs[uri] = true
+		}
+	}
+	// Include LocURIs from reserved profiles that are always kept.
+	for _, ep := range existingProfiles {
+		if _, isReserved := mdm.FleetReservedProfileNames()[ep.Name]; isReserved {
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(ep.SyncML) {
+				allRetainedURIs[uri] = true
+			}
 		}
 	}
 
@@ -2533,7 +2542,7 @@ ON DUPLICATE KEY UPDATE
 		for _, u := range oldURIs {
 			// Skip if the LocURI is still in the updated version of this profile,
 			// or if another profile in the batch still targets it.
-			if !newSet[u] && !allIncomingURIs[u] {
+			if !newSet[u] && !allRetainedURIs[u] {
 				removedURIs = append(removedURIs, u)
 			}
 		}

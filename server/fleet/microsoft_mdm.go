@@ -1859,7 +1859,7 @@ func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
 					uris = append(uris, uri)
 				}
 			}
-		} else if cmd.XMLName.Local != CmdExec {
+		} else if cmd.XMLName.Local == CmdReplace || cmd.XMLName.Local == CmdAdd {
 			if uri := cmd.GetTargetURI(); uri != "" {
 				uris = append(uris, uri)
 			}
