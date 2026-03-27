@@ -63,6 +63,7 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
 
 func run(cfg *Config) error {
 	ctx := context.Background()
+	skipFiles := make(map[string]bool)
 	cleanupAppFiles := func(_ string) {
 		detachAllDMGs(ctx, cfg.logger)
 
@@ -72,8 +73,12 @@ func run(cfg *Config) error {
 			return
 		}
 		for _, e := range entries {
+			if skipFiles[e.Name()] {
+				continue
+			}
 			if err := os.RemoveAll(filepath.Join(cfg.tmpDir, e.Name())); err != nil {
 				cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to remove %s: %v", e.Name(), err))
+				skipFiles[e.Name()] = true
 			}
 		}
 	}
