@@ -2737,21 +2737,6 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 	}
 
-	// Store list of failed profiles (profile UUID + host UUID to create uniqueness) to avoid updating other stuff for that, such as managed certs.
-	failedProfileHostUUIDs := make(map[string]bool)
-
-	// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
-	// the checksum we retrieved earlier. Update the checksums if needed.
-	for _, p := range hostProfilesToUpdate {
-		if _, ok := profileContents[p.ProfileUUID]; ok {
-			p.Checksum = profileContents[p.ProfileUUID].Checksum
-		}
-
-		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
-			failedProfileHostUUIDs[p.ProfileUUID+p.HostUUID] = true
-		}
-	}
-
 	// Windows profiles are just deleted from the DB, the notion of sending
 	// a command to remove a profile doesn't exist.
 	if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, toRemove); err != nil {
