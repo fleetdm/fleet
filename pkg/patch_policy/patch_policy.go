@@ -42,7 +42,7 @@ func GenerateQueryForManifest(p PolicyData) (string, error) {
 		}
 	case "windows":
 		if p.Query == "" {
-			return defaulWindowsQuery(p.SoftwareTitle, p.Version, p.Publisher, p.FuzzyMatchName), nil
+			return defaultWindowsQuery(p.SoftwareTitle, p.Version, p.Publisher, p.FuzzyMatchName), nil
 		}
 	}
 	return "", ErrWrongPlatform
@@ -74,7 +74,7 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 			p.Name = fmt.Sprintf("Windows - %s up to date", installer.SoftwareTitle)
 		}
 		if installer.PatchQuery == "" {
-			query = defaulWindowsQuery(installer.SoftwareTitle, installer.Version, "", false)
+			query = defaultWindowsQuery(installer.SoftwareTitle, installer.Version, "", false)
 		}
 	default:
 		return nil, ErrWrongPlatform
@@ -83,7 +83,15 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 	return &PolicyData{Query: query, Platform: installer.Platform, Name: p.Name, Description: p.Description, Resolution: p.Resolution}, nil
 }
 
-func defaulWindowsQuery(softwareTitle, version, publisher string, fuzzyMatchName bool) string {
+func defaultMacOSQuery(bundleIdentifier, version string) string {
+	return fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
+		bundleIdentifier,
+		version,
+	)
+}
+
+func defaultWindowsQuery(softwareTitle, version, publisher string, fuzzyMatchName bool) string {
 	// TODO: use upgrade code to improve accuracy?
 	if publisher != "" {
 		patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s' AND version_compare(version, '%s') < 0);"
@@ -95,12 +103,4 @@ func defaulWindowsQuery(softwareTitle, version, publisher string, fuzzyMatchName
 
 	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);"
 	return fmt.Sprintf(patchTemplate, softwareTitle, version)
-}
-
-func defaultMacOSQuery(bundleIdentifier, version string) string {
-	return fmt.Sprintf(
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
-		bundleIdentifier,
-		version,
-	)
 }
