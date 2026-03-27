@@ -53,13 +53,6 @@ func getLatestBulletin(vulnPath string) (*BulletinFile, error) {
 	return &bulletin, nil
 }
 
-// isWindowsOffice returns true if the software appears to be a Windows Office product.
-// Note: The database query filters by name pattern and excludes companion apps,
-// so this is just a defensive check on the source.
-func isWindowsOffice(software *fleet.Software) bool {
-	return software.Source == "programs"
-}
-
 // parseOfficeVersion parses a Windows Office version string like "16.0.19725.20204"
 // and returns the build prefix and build suffix.
 func parseOfficeVersion(version string) (buildPrefix, buildSuffix string, err error) {
@@ -243,10 +236,6 @@ func Analyze(
 		software, err := iter.Value()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting software from iterator")
-		}
-
-		if !isWindowsOffice(software) {
-			continue
 		}
 
 		detected := collectVulnerabilities(software, bulletin)

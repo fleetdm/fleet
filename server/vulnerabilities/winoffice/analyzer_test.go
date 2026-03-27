@@ -3,42 +3,9 @@ package winoffice
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestIsWindowsOffice(t *testing.T) {
-	tests := []struct {
-		name     string
-		software *fleet.Software
-		expected bool
-	}{
-		{
-			name: "programs source",
-			software: &fleet.Software{
-				Name:   "Microsoft 365 Apps for enterprise",
-				Source: "programs",
-			},
-			expected: true,
-		},
-		{
-			name: "not programs source - chocolatey",
-			software: &fleet.Software{
-				Name:   "Microsoft 365 Apps",
-				Source: "chocolatey",
-			},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isWindowsOffice(tt.software)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
 
 func TestParseOfficeVersion(t *testing.T) {
 	tests := []struct {
