@@ -593,6 +593,8 @@ github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 h1:6E+4a0GO5zZEnZ
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/macadmins/osquery-extension v1.3.2 h1:X6x4jD6Te9uYW1s7LQPjrux5G6WC78UF/6p4qFw2Mb8=
 github.com/macadmins/osquery-extension v1.3.2/go.mod h1:/4WhG7sh9qyEi2WkacxOUJAmVciiDFmT468MbkiXBfE=
+github.com/macadmins/osquery-extension v1.4.0 h1:xsPxzg7uxF6V26PnActyPaJ9tEeTKb5dUkGV2hdg3Bg=
+github.com/macadmins/osquery-extension v1.4.0/go.mod h1:/4WhG7sh9qyEi2WkacxOUJAmVciiDFmT468MbkiXBfE=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/manifoldco/promptui v0.9.0 h1:3V4HzJk1TtXW1MTZMP7mdlwbBpIinw3HztaIlYthEiA=
 github.com/manifoldco/promptui v0.9.0/go.mod h1:ka04sppxSGFAtxX0qhlYQjISsg9mR4GWtQEhdbn6Pgg=
