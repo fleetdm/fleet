@@ -17,7 +17,7 @@ With Account-driven User Enrollment, end users can separate work and personal da
 
 ## Step 1: Connect Apple Business Manager (ABM) to Fleet
 
-1. If you haven't already connected ABM to Fleet, follow the [instructions](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to connect ABM to Fleet.
+1. If you haven't already, follow the [Apple Business Manager (ABM) instructions](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to connect it to Fleet.
 
 2. In ABM head to **Preferences > Management Assignment** and make sure that the **Default Assignment** for iPads and iPhones is set to Fleet.
 
