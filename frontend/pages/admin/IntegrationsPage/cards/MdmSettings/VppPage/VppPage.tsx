@@ -36,7 +36,7 @@ const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
   return (
     <EmptyTable
       header="Add your VPP"
-      info="Install Apple App Store apps purchased through Apple Business Manager."
+      info="Install Apple App Store apps purchased through Apple Business."
       primaryButton={<Button onClick={onAddVpp}>Add VPP</Button>}
     />
   );

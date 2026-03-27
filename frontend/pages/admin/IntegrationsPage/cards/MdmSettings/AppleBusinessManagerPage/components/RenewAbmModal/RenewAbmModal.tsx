@@ -66,7 +66,7 @@ const RenewAbmModal = ({
     >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
         <p className={`${baseClass}__description`}>
-          Renew Apple Business Manager for <b>{orgName}</b>.
+          Renew Apple Business for <b>{orgName}</b>.
         </p>
         <ol className={`${baseClass}__setup-instructions-list`}>
           <li>
@@ -74,7 +74,7 @@ const RenewAbmModal = ({
               1. Sign in to{" "}
               <CustomLink
                 url="https://business.apple.com/"
-                text="Apple Business Manager"
+                text="Apple Business"
                 newTab
               />
             </p>
@@ -100,7 +100,7 @@ const RenewAbmModal = ({
                 buttonMessage="Choose file"
                 buttonType="brand-inverse-icon"
                 graphicName="file-p7m"
-                message="ABM token (.p7m)"
+                message="AB token (.p7m)"
                 onFileUpload={onSelectFile}
                 fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
               />
@@ -117,7 +117,7 @@ const RenewAbmModal = ({
             type="button"
             onClick={onRenewToken}
           >
-            Renew ABM
+            Renew AB
           </Button>
         </div>
       </div>

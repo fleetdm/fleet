@@ -549,7 +549,7 @@ Delete pack by name.
 
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
-- [Generate Apple Business Manager public key (ADE)](#generate-apple-business-manager-public-key-ade)
+- [Generate Apple Business public key (ADE)](#generate-apple-business-manager-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
 - [Add ABM token](#add-abm-token)
@@ -585,7 +585,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Android Enterprise PubSub push endpoint](#android-enterprise-pubsub-push-endpoint)
 
 
-### Generate Apple Business Manager public key (ADE)
+### Generate Apple Business public key (ADE)
 
 `GET /api/v1/fleet/mdm/apple/abm_public_key`
 
@@ -669,7 +669,7 @@ Content-Type: application/octet-stream
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the token (.p7m) from Apple Business Manager |
+| token | file | form | *Required* The file containing the token (.p7m) from Apple Business |
 
 #### Example
 
@@ -712,11 +712,11 @@ Content-Type: application/octet-stream
 }
 ```
 
-### Count ABM tokens
+### Count AB tokens
 
 `GET /api/v1/fleet/abm_tokens/count`
 
-Get the number of ABM tokens on the Fleet server.
+Get the number of AB tokens on the Fleet server.
 
 #### Parameters
 
@@ -756,10 +756,10 @@ None.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The ABM token's ID |
-| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
-| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
-| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
+| id | integer | path | *Required* The AB token's ID |
+| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
+| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
+| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
 
 #### Example
 
@@ -870,7 +870,7 @@ Content-Type: application/octet-stream
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
 
 #### Example
 
@@ -1278,7 +1278,7 @@ This endpoint uses the profiles stored by the [Preassign profiles to devices](#p
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
 
 #### Example
 
