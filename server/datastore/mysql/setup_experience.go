@@ -631,6 +631,37 @@ WHERE host_uuid = ?
 		}
 	}
 
+	// Sort results so that software (installers and VPP apps) comes first,
+	// ordered alphabetically by display name (falling back to name), and
+	// scripts come last.
+	slices.SortStableFunc(results, func(a, b *fleet.SetupExperienceStatusResult) int {
+		aIsScript := a.IsForScript()
+		bIsScript := b.IsForScript()
+		// Scripts always sort after software.
+		if aIsScript != bIsScript {
+			if aIsScript {
+				return 1
+			}
+			return -1
+		}
+		// Within the same category, sort by display name (or name if no display name).
+		aName := a.DisplayName
+		if aName == "" {
+			aName = a.Name
+		}
+		bName := b.DisplayName
+		if bName == "" {
+			bName = b.Name
+		}
+		if aName < bName {
+			return -1
+		}
+		if aName > bName {
+			return 1
+		}
+		return 0
+	})
+
 	return results, nil
 }
 

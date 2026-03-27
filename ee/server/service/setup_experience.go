@@ -191,8 +191,12 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
 
-	var installersPending, appsPending, scriptsPending []*fleet.SetupExperienceStatusResult
-	var installersRunning, appsRunning, scriptsRunning int
+	// Software (installers and VPP apps) are treated as a single group,
+	// ordered alphabetically by display name (falling back to name). This
+	// ordering is determined by ListSetupExperienceResultsByHostUUID.
+	// Scripts always run after all software is done.
+	var softwarePending, scriptsPending []*fleet.SetupExperienceStatusResult
+	var softwareRunning, scriptsRunning int
 
 	for _, status := range statuses {
 		if err := status.IsValid(); err != nil {
@@ -200,21 +204,14 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 		}
 
 		switch {
-		case status.SoftwareInstallerID != nil:
+		case status.IsForSoftware():
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
-				installersPending = append(installersPending, status)
+				softwarePending = append(softwarePending, status)
 			case fleet.SetupExperienceStatusRunning:
-				installersRunning++
+				softwareRunning++
 			}
-		case status.VPPAppTeamID != nil:
-			switch status.Status {
-			case fleet.SetupExperienceStatusPending:
-				appsPending = append(appsPending, status)
-			case fleet.SetupExperienceStatusRunning:
-				appsRunning++
-			}
-		case status.SetupExperienceScriptID != nil:
+		case status.IsForScript():
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
 				scriptsPending = append(scriptsPending, status)
@@ -225,80 +222,81 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	}
 
 	switch {
-	case len(installersPending) > 0:
-		// enqueue installers
-		for _, installer := range installersPending {
-			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
-				SelfService:        false,
-				ForSetupExperience: true,
-			})
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
-			}
-			installer.HostSoftwareInstallsExecutionID = &installUUID
-			installer.Status = fleet.SetupExperienceStatusRunning
-			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, installer); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
-			}
-		}
-	case installersRunning == 0 && len(appsPending) > 0:
-		// enqueue vpp apps
-		var skipRemainingVPPInstalls bool
-	enqueueVPPApps:
-		for _, app := range appsPending {
-			vppAppID, err := app.VPPAppID()
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
+	case len(softwarePending) > 0:
+		// enqueue all pending software (installers and VPP apps interleaved)
+		var skipRemaining bool
+		for _, sw := range softwarePending {
+			if skipRemaining {
+				break
 			}
 
-			if app.SoftwareTitleID == nil {
-				return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", app.ID)
-			}
-
-			vppApp := &fleet.VPPApp{
-				TitleID: *app.SoftwareTitleID,
-				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID: *vppAppID,
-				},
-			}
-
-			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
-				SelfService:        false,
-				ForSetupExperience: true,
-			})
-
-			app.NanoCommandUUID = &cmdUUID
-			app.Status = fleet.SetupExperienceStatusRunning
-
-			if err != nil {
-				// if we get an error (e.g. no available licenses) while attempting to enqueue the
-				// install, then we should immediately go to an error state so setup experience
-				// isn't blocked.
-				svc.logger.WarnContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
-				app.Status = fleet.SetupExperienceStatusFailure
-				app.Error = ptr.String(err.Error())
-				// At this point we need to check whether the "cancel if software install fails" setting is active,
-				// in which case we'll cancel the remaining pending items.
-				requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
+			switch {
+			case sw.SoftwareInstallerID != nil:
+				installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+					SelfService:        false,
+					ForSetupExperience: true,
+				})
 				if err != nil {
-					return false, ctxerr.Wrap(ctx, err, "checking if all software is required after vpp app install failure")
+					return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
 				}
-				if requireAllSoftware {
-					err := svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
+				sw.HostSoftwareInstallsExecutionID = &installUUID
+				sw.Status = fleet.SetupExperienceStatusRunning
+				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+					return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
+				}
+
+			case sw.VPPAppTeamID != nil:
+				vppAppID, err := sw.VPPAppID()
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
+				}
+
+				if sw.SoftwareTitleID == nil {
+					return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", sw.ID)
+				}
+
+				vppApp := &fleet.VPPApp{
+					TitleID: *sw.SoftwareTitleID,
+					VPPAppTeam: fleet.VPPAppTeam{
+						VPPAppID: *vppAppID,
+					},
+				}
+
+				cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
+					SelfService:        false,
+					ForSetupExperience: true,
+				})
+
+				sw.NanoCommandUUID = &cmdUUID
+				sw.Status = fleet.SetupExperienceStatusRunning
+
+				if err != nil {
+					// if we get an error (e.g. no available licenses) while attempting to enqueue the
+					// install, then we should immediately go to an error state so setup experience
+					// isn't blocked.
+					svc.logger.WarnContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", sw.VPPAppAdamID)
+					sw.Status = fleet.SetupExperienceStatusFailure
+					sw.Error = ptr.String(err.Error())
+					// At this point we need to check whether the "cancel if software install fails" setting is active,
+					// in which case we'll cancel the remaining pending items.
+					requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
 					if err != nil {
-						return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
+						return false, ctxerr.Wrap(ctx, err, "checking if all software is required after vpp app install failure")
 					}
-					skipRemainingVPPInstalls = true
+					if requireAllSoftware {
+						err := svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
+						if err != nil {
+							return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
+						}
+						skipRemaining = true
+					}
 				}
-			}
-			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
-			}
-			if skipRemainingVPPInstalls {
-				break enqueueVPPApps
+				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+				}
 			}
 		}
-	case installersRunning == 0 && appsRunning == 0 && len(scriptsPending) > 0:
+	case softwareRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts
 		for _, script := range scriptsPending {
 			if script.ScriptContentID == nil {
@@ -323,7 +321,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience script execution id")
 			}
 		}
-	case installersRunning == 0 && appsRunning == 0 && scriptsRunning == 0:
+	case softwareRunning == 0 && scriptsRunning == 0:
 		// finished
 		return true, nil
 	}
