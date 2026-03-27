@@ -333,7 +333,10 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context,
 			`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`,
 			id, id)
 		if err != nil {
-			continue // skip hosts without enrollment
+			if errors.Is(err, sql.ErrNoRows) {
+				continue // host not enrolled, skip
+			}
+			return nil, ctxerr.Wrap(ctx, err, "looking up enrollment ID")
 		}
 		allIDs = append(allIDs, eid)
 	}
@@ -485,16 +488,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmdWithSecret, enrichedSyncML.CmdRefUUIDToStatus,
 						enrolledDevice.HostUUID, cmdOperationTypes[cmd.CommandUUID] == fleet.MDMOperationTypeRemove)
 					if err != nil {
-						ds.logger.ErrorContext(ctx, "BuildMDMWindowsProfilePayloadFromMDMResponse error",
-							"err", err, "cmd_uuid", cmd.CommandUUID, "host_uuid", enrolledDevice.HostUUID)
-						return err
-					}
-					if pp == nil {
-						ds.logger.WarnContext(ctx, "BuildMDMWindowsProfilePayloadFromMDMResponse returned nil payload",
-							"cmd_uuid", cmd.CommandUUID, "host_uuid", enrolledDevice.HostUUID)
-					} else if pp.Status == nil {
-						ds.logger.WarnContext(ctx, "profile payload has nil status",
-							"cmd_uuid", cmd.CommandUUID, "host_uuid", enrolledDevice.HostUUID)
+						return ctxerr.Wrap(ctx, err, "building profile payload from MDM response")
 					}
 					potentialProfilePayloads = append(potentialProfilePayloads, pp)
 				}
@@ -2557,11 +2551,11 @@ ON DUPLICATE KEY UPDATE
 			continue
 		}
 
-		// Find hosts that have this profile installed (non-NULL status = was delivered at some point).
+		// Find hosts that have this profile installed (not pending removal).
 		var hostUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs,
-			`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND status IS NOT NULL`,
-			existing.ProfileUUID); err != nil {
+			`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND operation_type = ? AND status IS NOT NULL`,
+			existing.ProfileUUID, fleet.MDMOperationTypeInstall); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "selecting hosts for edited profile LocURI cleanup")
 		}
 		if len(hostUUIDs) > 0 {
