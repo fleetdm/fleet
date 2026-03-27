@@ -174,7 +174,7 @@ func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
 	releases = filterRecentReleases(releases, BulletinMaxAge)
 
 	buildPrefixes := make(map[string]string)
-	cveToBuilds := make(map[string]map[string]string) // CVE → version → build (temporary index)
+	cveToBuilds := make(map[string]map[string]string) // CVE → version → build
 	versions := make(map[string]*VersionBulletin)
 
 	// First pass: collect all data from releases
@@ -182,45 +182,28 @@ func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
 		for _, branch := range rel.Branches {
 			buildPrefixes[branch.BuildPrefix] = branch.Version
 		}
-
 		for _, cve := range rel.CVEs {
-			if cveToBuilds[cve] == nil {
-				cveToBuilds[cve] = make(map[string]string)
-			}
-			for _, branch := range rel.Branches {
-				// Only store if not already set (first fix wins)
-				if _, exists := cveToBuilds[cve][branch.Version]; !exists {
-					cveToBuilds[cve][branch.Version] = branch.FullBuild
-				}
-			}
+			recordCVEFix(cveToBuilds, cve, rel.Branches)
 		}
 	}
 
 	// Build version-indexed structure with direct fixes
 	for cve, fixedBuilds := range cveToBuilds {
 		for version, build := range fixedBuilds {
-			if versions[version] == nil {
-				versions[version] = &VersionBulletin{}
-			}
-			versions[version].SecurityUpdates = append(versions[version].SecurityUpdates,
-				SecurityUpdate{
-					CVE:               cve,
-					ResolvedInVersion: OfficeVersionPrefix + build,
-				})
+			vb := getOrCreateVersion(versions, version)
+			vb.SecurityUpdates = append(vb.SecurityUpdates, SecurityUpdate{
+				CVE:               cve,
+				ResolvedInVersion: OfficeVersionPrefix + build,
+			})
 		}
 	}
 
-	// Get sorted list of all versions (for finding minimum upgrade path)
-	var sortedVersions []string
+	// Ensure all versions from buildPrefixes exist
 	for _, version := range buildPrefixes {
-		if versions[version] == nil {
-			versions[version] = &VersionBulletin{}
-		}
+		getOrCreateVersion(versions, version)
 	}
-	for version := range versions {
-		sortedVersions = append(sortedVersions, version)
-	}
-	sort.Strings(sortedVersions)
+
+	sortedVersions := sortedVersionKeys(versions)
 
 	// Add upgrade paths for versions missing direct fixes
 	for version, vb := range versions {
@@ -228,27 +211,7 @@ func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
 		for _, su := range vb.SecurityUpdates {
 			existingCVEs[su.CVE] = true
 		}
-
-		for cve, fixedBuilds := range cveToBuilds {
-			if existingCVEs[cve] {
-				continue
-			}
-
-			// Find oldest version > this one that has a fix
-			for _, otherVersion := range sortedVersions {
-				if otherVersion <= version {
-					continue
-				}
-				if build, ok := fixedBuilds[otherVersion]; ok {
-					vb.SecurityUpdates = append(vb.SecurityUpdates,
-						SecurityUpdate{
-							CVE:               cve,
-							ResolvedInVersion: OfficeVersionPrefix + build,
-						})
-					break
-				}
-			}
-		}
+		addUpgradePaths(vb, version, sortedVersions, cveToBuilds, existingCVEs)
 	}
 
 	// Sort for deterministic output
@@ -263,6 +226,72 @@ func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
 		BuildPrefixes: buildPrefixes,
 		Versions:      versions,
 	}
+}
+
+// recordCVEFix records a CVE fix for each branch, keeping the first fix (earliest release).
+func recordCVEFix(cveToBuilds map[string]map[string]string, cve string, branches []VersionBranch) {
+	if cveToBuilds[cve] == nil {
+		cveToBuilds[cve] = make(map[string]string)
+	}
+	for _, branch := range branches {
+		if _, exists := cveToBuilds[cve][branch.Version]; !exists {
+			cveToBuilds[cve][branch.Version] = branch.FullBuild
+		}
+	}
+}
+
+// getOrCreateVersion returns the VersionBulletin for a version, creating it if needed.
+func getOrCreateVersion(versions map[string]*VersionBulletin, version string) *VersionBulletin {
+	if versions[version] == nil {
+		versions[version] = &VersionBulletin{}
+	}
+	return versions[version]
+}
+
+// sortedVersionKeys returns the keys of versions sorted in ascending order.
+func sortedVersionKeys(versions map[string]*VersionBulletin) []string {
+	keys := make([]string, 0, len(versions))
+	for v := range versions {
+		keys = append(keys, v)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// addUpgradePaths adds CVE fixes pointing to newer versions for dropped/unsupported versions.
+func addUpgradePaths(
+	vb *VersionBulletin,
+	version string,
+	sortedVersions []string,
+	cveToBuilds map[string]map[string]string,
+	existingCVEs map[string]bool,
+) {
+	for cve, fixedBuilds := range cveToBuilds {
+		if existingCVEs[cve] {
+			continue
+		}
+		build := findMinimumUpgrade(version, sortedVersions, fixedBuilds)
+		if build == "" {
+			continue
+		}
+		vb.SecurityUpdates = append(vb.SecurityUpdates, SecurityUpdate{
+			CVE:               cve,
+			ResolvedInVersion: OfficeVersionPrefix + build,
+		})
+	}
+}
+
+// findMinimumUpgrade finds the oldest version > current that has a fix for a CVE.
+func findMinimumUpgrade(version string, sortedVersions []string, fixedBuilds map[string]string) string {
+	for _, v := range sortedVersions {
+		if v <= version {
+			continue
+		}
+		if build, ok := fixedBuilds[v]; ok {
+			return build
+		}
+	}
+	return ""
 }
 
 // compareBuildVersions compares two build versions like "19725.20172"
