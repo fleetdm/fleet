@@ -51,8 +51,8 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
 		if strings.HasPrefix(line, "image-path") {
 			currentImage = strings.TrimSpace(strings.TrimPrefix(line, "image-path      :"))
 		}
-		if strings.HasPrefix(line, "/dev/") && strings.Contains(line, "/Volumes/") {
-			mountPoint := line[strings.Index(line, "/Volumes/"):]
+		if idx := strings.Index(line, "/Volumes/"); strings.HasPrefix(line, "/dev/") && idx >= 0 {
+			mountPoint := line[idx:]
 			logger.InfoContext(ctx, fmt.Sprintf("Force-detaching DMG: %s (image: %s)", mountPoint, currentImage))
 			if out, err := exec.Command("hdiutil", "detach", mountPoint, "-force").CombinedOutput(); err != nil {
 				logger.WarnContext(ctx, fmt.Sprintf("Failed to detach %s: %v (%s)", mountPoint, err, strings.TrimSpace(string(out))))
