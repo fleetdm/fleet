@@ -862,7 +862,6 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	s.awaitTriggerProfileSchedule(t)
 	s.awaitRunAppleMDMWorkerSchedule()
-	s.runWorker()
 
 	ackAllCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, wantFleetdInstall, wantBootstrapInstall bool) int {
 		var count int
