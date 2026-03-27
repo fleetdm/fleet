@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -34,6 +35,44 @@ type Config struct {
 	logLevel                    string
 	inputsPath                  string
 	outputsPath                 string
+}
+
+func logDiskSpace(ctx context.Context, logger *slog.Logger, tmpDir string, label string) {
+	logger.InfoContext(ctx, fmt.Sprintf("--- Disk space check: %s ---", label))
+
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("wmic", "logicaldisk", "get", "size,freespace,caption")
+	} else {
+		cmd = exec.Command("df", "-h", "/")
+	}
+	if output, err := cmd.CombinedOutput(); err == nil {
+		logger.InfoContext(ctx, strings.TrimSpace(string(output)))
+	} else {
+		logger.WarnContext(ctx, fmt.Sprintf("Failed to get disk space: %v", err))
+	}
+
+	if matches, _ := filepath.Glob(filepath.Join(os.TempDir(), "fleet-temp-file-*")); len(matches) > 0 {
+		var totalSize int64
+		for _, m := range matches {
+			if info, err := os.Stat(m); err == nil {
+				totalSize += info.Size()
+			}
+		}
+		logger.WarnContext(ctx, fmt.Sprintf("Lingering fleet-temp-file-* in %s: %d files, %.2f MB", os.TempDir(), len(matches), float64(totalSize)/(1024*1024)))
+	}
+
+	if tmpDir != "" {
+		if entries, err := os.ReadDir(tmpDir); err == nil {
+			var totalSize int64
+			for _, e := range entries {
+				if info, err := e.Info(); err == nil {
+					totalSize += info.Size()
+				}
+			}
+			logger.InfoContext(ctx, fmt.Sprintf("Validation tmpDir (%s): %d entries, %.2f MB", tmpDir, len(entries), float64(totalSize)/(1024*1024)))
+		}
+	}
 }
 
 func run(cfg *Config) error {
@@ -72,6 +111,8 @@ func run(cfg *Config) error {
 		}
 	}()
 
+	logDiskSpace(ctx, cfg.logger, cfg.tmpDir, "initial state")
+
 	totalApps := 0
 	successfulApps := 0
 	appWithError := []string{}
@@ -84,6 +125,7 @@ func run(cfg *Config) error {
 
 		totalApps++
 
+		logDiskSpace(ctx, cfg.logger, cfg.tmpDir, fmt.Sprintf("before %s (%s)", app.Name, app.Slug))
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Validating app: %s (%s)", app.Name, app.Slug))
 		appLogger := cfg.logger.With("app", app.Name)
 		ac := &AppCommander{cfg: cfg, appLogger: appLogger}
@@ -209,6 +251,8 @@ func run(cfg *Config) error {
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("All checks passed for app: %s (%s)", ac.Name, ac.Slug))
 		successfulApps++
 	}
+
+	logDiskSpace(ctx, cfg.logger, cfg.tmpDir, "final state")
 
 	if len(frozenApps) > 0 {
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Some apps were skipped: %v", frozenApps))
@@ -340,7 +384,6 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 		return nil, "", fmt.Errorf("downloading installer: %w", err)
 	}
 
-	// Create a file in tmpDir for the installer
 	cleanFilename := filepath.Base(filename)
 	if cleanFilename == "." || cleanFilename == ".." {
 		cleanFilename = fmt.Sprintf("installer_%d", time.Now().UnixNano())
@@ -348,19 +391,20 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 	filePath := filepath.Join(cfg.tmpDir, cleanFilename)
 	out, err := os.Create(filePath)
 	if err != nil {
+		installerTFR.Close()
 		return nil, "", fmt.Errorf("creating file: %w", err)
 	}
 	defer out.Close()
 
-	// Copy from TempFileReader to our file
 	_, err = io.Copy(out, installerTFR)
 	if err != nil {
+		installerTFR.Close()
 		return nil, "", fmt.Errorf("failed to save file: %w", err)
 	}
 
-	// Rewind the TempFileReader for future use
 	err = installerTFR.Rewind()
 	if err != nil {
+		installerTFR.Close()
 		return nil, "", fmt.Errorf("rewinding temp file: %w", err)
 	}
 
