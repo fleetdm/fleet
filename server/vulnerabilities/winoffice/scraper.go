@@ -77,10 +77,7 @@ func parseSecurityMarkdown(r io.Reader) ([]SecurityRelease, error) {
 
 		// Check for new release date
 		if matches := datePattern.FindStringSubmatch(line); matches != nil {
-			// Save previous release if exists
-			if current != nil && len(current.Branches) > 0 && len(current.CVEs) > 0 {
-				releases = append(releases, *current)
-			}
+			releases = appendIfValid(releases, current)
 			current = &SecurityRelease{Date: matches[1]}
 			continue
 		}
@@ -89,60 +86,56 @@ func parseSecurityMarkdown(r io.Reader) ([]SecurityRelease, error) {
 			continue
 		}
 
-		// Check for version info (any channel/product) - all versions are on same line
-		allMatches := versionPattern.FindAllStringSubmatch(line, -1)
-		for _, matches := range allMatches {
-			channelOrProduct := strings.TrimSpace(matches[1])
-			version := matches[2]
-			buildPrefix := matches[3]
-			buildSuffix := matches[4]
-			fullBuild := buildPrefix + "." + buildSuffix
-
-			// Skip retail versions that duplicate Current Channel
-			if strings.Contains(channelOrProduct, "Retail") {
+		// Check for version info (any channel/product)
+		for _, matches := range versionPattern.FindAllStringSubmatch(line, -1) {
+			if strings.Contains(matches[1], "Retail") {
 				continue
 			}
-
-			// Check if we already have this version branch.
-			// Keep the MINIMUM build suffix since that's the lowest build containing
-			// the security fix. Any build >= minimum is patched on all channels.
-			found := false
-			for i, b := range current.Branches {
-				if b.Version == version {
-					found = true
-					if compareBuildVersions(fullBuild, b.FullBuild) < 0 {
-						current.Branches[i].BuildPrefix = buildPrefix
-						current.Branches[i].FullBuild = fullBuild
-					}
-					break
-				}
+			branch := VersionBranch{
+				Version:     matches[2],
+				BuildPrefix: matches[3],
+				FullBuild:   matches[3] + "." + matches[4],
 			}
-			if !found {
-				current.Branches = append(current.Branches, VersionBranch{
-					Version:     version,
-					BuildPrefix: buildPrefix,
-					FullBuild:   fullBuild,
-				})
-			}
+			current.Branches = addOrUpdateBranch(current.Branches, branch)
 		}
 
 		// Check for CVE
 		if matches := cvePattern.FindStringSubmatch(line); matches != nil {
-			cve := "CVE-" + matches[1]
-			current.CVEs = append(current.CVEs, cve)
+			current.CVEs = append(current.CVEs, "CVE-"+matches[1])
 		}
 	}
 
-	// Don't forget the last release
-	if current != nil && len(current.Branches) > 0 && len(current.CVEs) > 0 {
-		releases = append(releases, *current)
-	}
+	releases = appendIfValid(releases, current)
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scanning: %w", err)
 	}
 
 	return releases, nil
+}
+
+// appendIfValid appends the release to the slice if it has branches and CVEs.
+func appendIfValid(releases []SecurityRelease, rel *SecurityRelease) []SecurityRelease {
+	if rel != nil && len(rel.Branches) > 0 && len(rel.CVEs) > 0 {
+		return append(releases, *rel)
+	}
+	return releases
+}
+
+// addOrUpdateBranch adds a new branch or updates an existing one with the minimum build.
+func addOrUpdateBranch(branches []VersionBranch, branch VersionBranch) []VersionBranch {
+	for i, b := range branches {
+		if b.Version != branch.Version {
+			continue
+		}
+		// Keep the MINIMUM build since that's the lowest build containing the fix
+		if compareBuildVersions(branch.FullBuild, b.FullBuild) < 0 {
+			branches[i].BuildPrefix = branch.BuildPrefix
+			branches[i].FullBuild = branch.FullBuild
+		}
+		return branches
+	}
+	return append(branches, branch)
 }
 
 // parseReleaseDate parses a date string like "March 10, 2026" into a time.Time.
