@@ -6,7 +6,7 @@ To manually enroll macOS, Windows, and Linux hosts, install Fleet’s agent (fle
 
 For iOS, iPadOS, and Android hosts, share the enrollment link from the [Fleet UI](#ui) with your end users. End users with Apple's [Stolen Device Protection](https://support.apple.com/en-us/120340) enabled may have to wait 1 hour before they can enroll, depending on their current location.
 
-You can also automatically enroll macOS, Windows, iOS, and iPadOS hosts. To automatically enroll Apple (macOS, iOS, and iPadOS) hosts, [connect Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm). To automatically enroll Windows hosts, [connect Fleet to Microsoft Entra](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment).
+You can also automatically enroll macOS, Windows, iOS, and iPadOS hosts. To automatically enroll Apple (macOS, iOS, and iPadOS) hosts, [connect Fleet to Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm). To automatically enroll Windows hosts, [connect Fleet to Microsoft Entra](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment).
 
 To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-chromebooks).
 

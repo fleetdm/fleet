@@ -53,7 +53,7 @@ Example URL:
 
 When wiping and re-installing the operating system (OS) on a host, delete the host from Fleet before you re-enroll it. If you re-enroll without deleting, Fleet won't escrow a new disk encryption key.
 
-If you're gifting a company-owned macOS host or you want to prevent the host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business Manager (ABM) and then delete the host in Fleet.
+If you're gifting a company-owned macOS host or you want to prevent the host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business (AB) and then delete the host in Fleet.
 
 For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). However, it is possible to use the [doWipe command via the API](https://fleetdm.com/docs/rest-api/rest-api#parameters57).
 
