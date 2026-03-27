@@ -410,11 +410,32 @@ func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID u
 		SET
 			hct.uuid = UUID_TO_BIN(UUID(), true),
 			hct.fleet_challenge = NULL,
+			hct.not_valid_before = NULL,
+			hct.not_valid_after = NULL,
+			hct.serial = NULL,
+			hct.detail = NULL,
 			hct.status = ?
 		WHERE
 			h.id = ? AND
 			hct.certificate_template_id = ?
-	`
+		`
+
+	const deleteChallenge = `
+		DELETE c FROM
+			challenges c
+		INNER JOIN
+			host_certificate_templates hct ON hct.fleet_challenge = c.challenge
+		INNER JOIN
+			hosts h ON h.uuid = hct.host_uuid
+		WHERE
+			h.id = ? AND
+			hct.certificate_template_id = ?
+		`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteChallenge, hostID, templateID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting challenges associated with removed certificate template")
+	}
 
 	results, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CertificateTemplatePending, hostID, templateID)
 	if err != nil {
