@@ -2349,6 +2349,91 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_managed_local_account
+
+Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## disabled_managed_local_account
+
+Generated when a user turns off create managed local account for a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## read_managed_local_account
+
+Generated when a user reads the information for the local managed account for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## cleared_passcode
+
+Generated when a user clears the passcode on an iOS or iPadOS host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## created_managed_local_account
+
+Generated when a local managed account and password is created for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

@@ -24,7 +24,7 @@ You can also add the software and later make it available in self-service:
 
 1. Select the fleet to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
-3. Select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
+3. Select the **Library** tab to view software available for install. Select the software you want to make available in self-service.
 4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon. Icons appear on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [app store apps](https://fleetdm.com/guides/install-app-store-apps).
 5. Select the **Save** button.
 
