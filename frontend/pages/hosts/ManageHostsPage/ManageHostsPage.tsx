@@ -144,6 +144,8 @@ interface IRowProps extends Row {
 
 const LONG =
   "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+const LONG2 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 const CSV_HOSTS_TITLE = "Hosts";
 const baseClass = "manage-hosts";
 
