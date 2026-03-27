@@ -45,6 +45,12 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "conditionalAccessBypassDisabled": false,
   "numHostsFleetDesktopEnabled": 999,
   "numFleetsManagedAdminAccountEnabled": 999,
+  "gitOpsModeEnabled": true,
+  "gitOpsModeExceptions": [
+    "labels",
+    "software",
+    "secrets"
+  ],
   "fleetMaintainedAppsMacOS": [
     "1password/darwin",
     "slack/darwin",
