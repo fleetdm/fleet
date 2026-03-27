@@ -1803,6 +1803,10 @@ func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet
 // getPolicyAutomationScriptAttemptNumber calculates the attempt number for a policy automation script.
 // Returns nil for manual script runs (not triggered by policy automation).
 func (svc *Service) getPolicyAutomationScriptAttemptNumber(ctx context.Context, host *fleet.Host, executionID string) (*int, error) {
+	// Force reads from primary to avoid replication lag issues where the
+	// host_script_results row may not yet be visible on the replica.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	// First, check if this script execution already exists and has policy_id
 	// (to know if this is a policy automation)
 	existingResult, err := svc.ds.GetHostScriptExecutionResult(ctx, executionID)
@@ -1825,6 +1829,10 @@ func (svc *Service) getPolicyAutomationScriptAttemptNumber(ctx context.Context, 
 // getSoftwareInstallerAttemptNumber calculates the attempt number for a software install.
 // Returns nil for installs that don't have a software_installer_id.
 func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, installUUID string) (*int, error) {
+	// Force reads from primary to avoid replication lag issues where the
+	// host_software_installs row may not yet be visible on the replica.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	currentInstall, err := svc.ds.GetSoftwareInstallResults(ctx, installUUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get current install info for attempt number calculation")

@@ -989,3 +989,214 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }
+
+// TestFullFlowReplicaLagRetry exercises the real install-and-retry code path
+// with a dummy replica that lags behind the primary. Unlike the other replica
+// tests that manually INSERT rows, this test uses InsertSoftwareInstallRequest
+// to create the host_software_installs row.
+func TestFullFlowReplicaLagRetry(t *testing.T) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// --- Setup: user, host, policy, installer ---
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "Admin",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin-fullflow@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	host := test.NewHost(t, ds, "fullflow-host", "10.0.0.4", "fullflowKey", "fullflowUUID", time.Now())
+
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "fullflow test policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	installerPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "exit 1",
+		Filename:        "fullflow_installer.pkg",
+		StorageID:       uuid.New().String(),
+		Title:           "FullFlow Test Software",
+		Version:         "1.0.0",
+		Source:          "apps",
+		Platform:        "darwin",
+		UserID:          user.ID,
+		TeamID:          nil,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installerPayload)
+	require.NoError(t, err)
+
+	// Mark policy as failing for the host
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Replicate everything created so far. This is the "steady state" the
+	// replica would have before any install activity begins.
+	opts.RunReplication(
+		"hosts", "policies", "policy_membership",
+		"software_installers", "software_titles", "script_contents",
+		"users",
+	)
+
+	// Step 1: Queue and activate the install via the real code path
+	// This is what processSoftwareForNewlyFailingPolicies calls in production.
+	installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
+		PolicyID: &policy.ID,
+	})
+	require.NoError(t, err)
+	t.Logf("Install queued and activated: execution_id=%s", installUUID)
+
+	// Verify the host_software_installs row was created on PRIMARY
+	var primaryAttemptNumber *int
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &primaryAttemptNumber,
+			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
+			installUUID)
+	})
+	require.Nil(t, primaryAttemptNumber, "attempt_number should be NULL before result is submitted")
+
+	// Do NOT replicate host_software_installs or upcoming_activities
+	// The replica is stale. In production this simulates the window between
+	// the retry install being activated on primary and the replica catching up.
+
+	// Step 2: Submit a failed install result
+	// This is what orbit calls after executing the install script.
+	result := &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           installUUID,
+		InstallScriptExitCode: ptr.Int(1), // Failed
+		InstallScriptOutput:   ptr.String("install failed"),
+	}
+	ctx = hostctx.NewContext(ctx, host)
+
+	err = svc.SaveHostSoftwareInstallResult(ctx, result)
+	require.NoError(t, err)
+
+	// Step 3: Verify results
+
+	// Check attempt_number was correctly computed and written
+	var attemptNumber *int
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNumber,
+			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
+			installUUID)
+	})
+	require.NotNil(t, attemptNumber, "attempt_number must not be NULL — if it is, getSoftwareInstallerAttemptNumber read stale replica data")
+	require.Equal(t, 1, *attemptNumber, "first attempt should be numbered 1")
+
+	// Check that a retry was queued
+	var retryCount int
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &retryCount,
+			`SELECT COUNT(*) FROM upcoming_activities
+			 WHERE activity_type = 'software_install' AND host_id = ?`, host.ID)
+	})
+	require.Equal(t, 1, retryCount, "a retry install should have been queued — if 0, the retry logic failed")
+
+	t.Log("PASS: Full flow with replica lag — retry was correctly queued")
+}
+
+// TestFullFlowReplicaLagScriptRetry exercises the real script-and-retry code
+// path with a dummy replica that lags behind the primary. This is the script
+// counterpart of TestFullFlowReplicaLagRetry.
+//
+// See https://github.com/fleetdm/fleet/issues/40083
+func TestFullFlowReplicaLagScriptRetry(t *testing.T) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Setup: user, host, policy, script
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "Admin",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin-scriptflow@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	host := test.NewHost(t, ds, "scriptflow-host", "10.0.0.5", "scriptflowKey", "scriptflowUUID", time.Now())
+
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "scriptflow test policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "failing-script.sh",
+		ScriptContents: "exit 1",
+	})
+	require.NoError(t, err)
+
+	// Mark policy as failing for the host
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Replicate everything created so far.
+	opts.RunReplication(
+		"hosts", "policies", "policy_membership",
+		"scripts", "script_contents", "users",
+	)
+
+	// Step 1: Queue and activate the script via the real code path
+	// This is what processScriptsForNewlyFailingPolicies calls in production.
+	scriptResult, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         host.ID,
+		ScriptID:       &script.ID,
+		PolicyID:       &policy.ID,
+		ScriptContents: "exit 1",
+	})
+	require.NoError(t, err)
+	t.Logf("Script queued and activated: execution_id=%s", scriptResult.ExecutionID)
+
+	// The replica is stale.
+
+	// Step 2: Submit a failed script result
+	result := &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: scriptResult.ExecutionID,
+		Output:      "script failed",
+		ExitCode:    1,
+	}
+	ctx = hostctx.NewContext(ctx, host)
+
+	err = svc.SaveHostScriptResult(ctx, result)
+	require.NoError(t, err)
+
+	// Step 3: Verify results
+
+	// Check attempt_number was correctly computed and written
+	var attemptNumber *int
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNumber,
+			`SELECT attempt_number FROM host_script_results WHERE execution_id = ?`,
+			scriptResult.ExecutionID)
+	})
+	require.NotNil(t, attemptNumber, "attempt_number must not be NULL — if it is, getPolicyAutomationScriptAttemptNumber read stale replica data")
+	require.Equal(t, 1, *attemptNumber, "first attempt should be numbered 1")
+
+	// Check that a retry was queued
+	var retryCount int
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &retryCount,
+			`SELECT COUNT(*) FROM upcoming_activities
+			 WHERE activity_type = 'script' AND host_id = ?`, host.ID)
+	})
+	require.Equal(t, 1, retryCount, "a retry script should have been queued — if 0, the retry logic failed")
+
+	t.Log("PASS: Full flow with replica lag (script) — retry was correctly queued")
+}
