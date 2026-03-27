@@ -19,7 +19,7 @@ With Account-driven User Enrollment, end users can separate work and personal da
 
 1. If you haven't already, follow the [Apple Business Manager (ABM) instructions](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to connect it to Fleet.
 
-2. In ABM head to **Preferences > Management Assignment** and make sure that the **Default Assignment** for iPads and iPhones is set to Fleet.
+2. In ABM, go to **Preferences > Management Assignment** and make sure the **Default Assignment** for iPads and iPhones is set to Fleet.
 
 If you're testing Account-driven User Enrollment with Fleet, switch the **Default Assignment** during a time when no iPads or iPhones are expected to enroll to your current MDM, then switch it back when done. Alternatively, to keep non-Account-driven enrollments on your current MDM while pointing only Account-driven ones to Fleet, you can [self-host a service discovery file](#self-host-a-service-discovery-file-well-known-resource).
 
