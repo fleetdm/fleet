@@ -86,6 +86,9 @@ func compareBuildSuffix(a, b string) int {
 // CheckVersion returns all CVEs affecting the given Office version.
 // This is the main entry point for vulnerability matching.
 func CheckVersion(version string, bulletin *BulletinFile) []fleet.SoftwareVulnerability {
+	if bulletin == nil {
+		return nil
+	}
 	software := &fleet.Software{Version: version}
 	return collectVulnerabilities(software, bulletin)
 }
