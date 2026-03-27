@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -143,18 +144,6 @@ func gitopsCommand() *cli.Command {
 				return errors.New("no license struct found in app config")
 			}
 
-			// We need the controls from no-team.yml to apply them when applying the global app config.
-			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
-			if err != nil {
-				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
-			}
-			// Log a deprecation warning if the user is still using no-team.yml
-			if noTeamPresent && noTeamFilename == "no-team.yml" {
-				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-					logf("[!] no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'.\n")
-				}
-			}
-
 			var originalABMConfig []any
 			var originalVPPConfig []any
 			var teamNames []string
@@ -205,6 +194,73 @@ func gitopsCommand() *cli.Command {
 				}
 				for _, tm := range teams {
 					teamIDLookup[tm.Name] = &tm.ID
+				}
+			}
+
+			// Check if a no-team/unassigned file is present (by filename, before parsing).
+			prefetchNoTeamSoftware := false
+			for _, flFilename := range flFilenames.Value() {
+				fn := filepath.Base(flFilename)
+				if fn == "no-team.yml" || fn == "unassigned.yml" {
+					prefetchNoTeamSoftware = true
+					break
+				}
+			}
+
+			// When software is excepted from GitOps, pre-fetch server-side software
+			// for all existing teams (including "No team") so the parser can validate
+			// policy references, and DoGitOps can resolve policy title IDs. This must
+			// happen before extractControlsForNoTeam, which parses the no-team file
+			// and would otherwise fail validating policy software references.
+			if appConfig.GitOpsConfig.Exceptions.Software {
+				syntheticSoftwareByTeam := make(map[string]json.RawMessage)
+				// Pre-fetch for "No team" (unassigned hosts, teamID=0) if present.
+				if prefetchNoTeamSoftware {
+					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, 0)
+					if err != nil {
+						return fmt.Errorf("getting software for unassigned hosts: %w", err)
+					}
+					if softwareMap != nil {
+						raw, err := json.Marshal(softwareMap)
+						if err != nil {
+							return fmt.Errorf("marshaling software for unassigned hosts: %w", err)
+						}
+						syntheticSoftwareByTeam[fleet.TeamNameNoTeam] = raw
+						teamsSoftwareInstallers[fleet.TeamNameNoTeam] = installers
+						teamsVPPApps[fleet.TeamNameNoTeam] = vppApps
+					}
+				}
+				for teamName, teamID := range teamIDLookup {
+					if teamID == nil || *teamID == 0 {
+						continue // skip global and no-team/unassigned (handled above).
+					}
+					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, *teamID)
+					if err != nil {
+						return fmt.Errorf("getting software for team %q: %w", teamName, err)
+					}
+					if softwareMap == nil {
+						continue
+					}
+					raw, err := json.Marshal(softwareMap)
+					if err != nil {
+						return fmt.Errorf("marshaling software for team %q: %w", teamName, err)
+					}
+					syntheticSoftwareByTeam[teamName] = raw
+					teamsSoftwareInstallers[teamName] = installers
+					teamsVPPApps[teamName] = vppApps
+				}
+				gitOpsOpts.SyntheticSoftwareByTeam = syntheticSoftwareByTeam
+			}
+
+			// We need the controls from no-team.yml to apply them when applying the global app config.
+			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
+			if err != nil {
+				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
+			}
+			// Log a deprecation warning if the user is still using no-team.yml
+			if noTeamPresent && noTeamFilename == "no-team.yml" {
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logf("[!] no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'.\n")
 				}
 			}
 
@@ -274,11 +330,14 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 				}
+				// When labels are excepted and the key is omitted, preserve
+				// existing labels (no-op). Otherwise delete/update as normal.
 				labelChanges[teamName] = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
 					config.Labels,
+					appConfig.GitOpsConfig.Exceptions.Labels,
 				)
 			}
 
@@ -340,7 +399,7 @@ func gitopsCommand() *cli.Command {
 				validLabelNames := make(map[string]struct{})
 				if globalLabelChanges, ok := labelChanges[spec.LabelAPIGlobalTeamName]; ok {
 					for _, label := range globalLabelChanges {
-						if label.Op == "+" || label.Op == "=" {
+						if label.Op == "+" || label.Op == "=" || label.Op == "~" {
 							validLabelNames[label.Name] = struct{}{}
 						}
 					}
@@ -355,7 +414,7 @@ func gitopsCommand() *cli.Command {
 				}
 				if config.CoercedTeamName() != spec.LabelAPIGlobalTeamName {
 					for _, label := range labelChanges[config.CoercedTeamName()] {
-						if label.Op == "+" || label.Op == "=" {
+						if label.Op == "+" || label.Op == "=" || label.Op == "~" {
 							validLabelNames[label.Name] = struct{}{}
 						}
 					}
@@ -694,6 +753,7 @@ func computeLabelChanges(
 	teamName string,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
+	labelsExcepted bool,
 ) []spec.LabelChange {
 	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
@@ -704,12 +764,12 @@ func computeLabelChanges(
 		}
 	}
 
-	// Handle the cases where the 'labels:' section is either nil (an empty 'labels:' section was specified,
-	// meaning remove-all) or an empty list (the 'labels:' section was not specified, so we do a no-op).
+	// If no labels are specified: either no-op if labels are excepted from GitOps,
+	// or else delete them all.
 	if len(specifiedLabels) == 0 {
-		op := "="
-		if specifiedLabels == nil {
-			op = "-"
+		op := "-"
+		if labelsExcepted {
+			op = "~" // preserved (excepted from GitOps, no action needed)
 		}
 		for _, l := range regularLabels {
 			change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}

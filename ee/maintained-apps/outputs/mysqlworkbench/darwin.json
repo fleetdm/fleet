@@ -3,7 +3,8 @@
     {
       "version": "8.0.46",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.oracle.workbench.MySQLWorkbench';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.oracle.workbench.MySQLWorkbench';",
+        "patch": ""
       },
       "installer_url": "https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-community-8.0.46-macos-arm64.dmg",
       "install_script_ref": "954f79e1",
