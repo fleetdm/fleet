@@ -216,12 +216,9 @@ func (svc *Service) SoftwareLiteByID(
 	ctx context.Context,
 	id uint,
 ) (fleet.SoftwareLite, error) {
-	// Intentionally skip team-scoped inventory auth: only minimal software name/version.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return fleet.SoftwareLite{}, err
-	}
-
-	swLite, err := svc.ds.SoftwareLiteByID(ctx, id)
+	// Skip auth, this data is okay to show to any user
+	systemCtx := viewer.NewSystemContext(ctx)
+	swLite, err := svc.ds.SoftwareLiteByID(systemCtx, id)
 	if err != nil {
 		return fleet.SoftwareLite{}, err
 	}
