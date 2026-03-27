@@ -174,8 +174,8 @@ func TestCompareBuildVersions(t *testing.T) {
 	}
 }
 
-func TestBuildBulletin(t *testing.T) {
-	t.Run("builds mappings from releases", func(t *testing.T) {
+func TestBuildBulletinFile(t *testing.T) {
+	t.Run("builds version-indexed structure", func(t *testing.T) {
 		releases := []SecurityRelease{
 			{
 				Date: "March 11, 2026",
@@ -195,17 +195,23 @@ func TestBuildBulletin(t *testing.T) {
 			},
 		}
 
-		bulletin := BuildBulletin(releases)
+		bulletin := BuildBulletinFile(releases)
 
 		// Check build prefix mappings
-		assert.Equal(t, "2602", bulletin.BuildPrefixToVersion["19725"])
-		assert.Equal(t, "2512", bulletin.BuildPrefixToVersion["19530"])
-		assert.Equal(t, "2601", bulletin.BuildPrefixToVersion["19628"])
+		assert.Equal(t, "2602", bulletin.BuildPrefixes["19725"])
+		assert.Equal(t, "2512", bulletin.BuildPrefixes["19530"])
+		assert.Equal(t, "2601", bulletin.BuildPrefixes["19628"])
 
-		// Check CVE mappings
-		assert.Equal(t, "19725.20172", bulletin.CVEToResolvedVersions["CVE-2026-12345"]["2602"])
-		assert.Equal(t, "19530.20260", bulletin.CVEToResolvedVersions["CVE-2026-12345"]["2512"])
-		assert.Equal(t, "19628.20204", bulletin.CVEToResolvedVersions["CVE-2026-11111"]["2601"])
+		// Check version 2602 has its CVEs
+		require.NotNil(t, bulletin.Versions["2602"])
+		var found2602 bool
+		for _, su := range bulletin.Versions["2602"].SecurityUpdates {
+			if su.CVE == "CVE-2026-12345" {
+				found2602 = true
+				assert.Equal(t, "16.0.19725.20172", su.ResolvedInVersion)
+			}
+		}
+		assert.True(t, found2602)
 	})
 
 	t.Run("first fix wins for same CVE", func(t *testing.T) {
@@ -226,68 +232,41 @@ func TestBuildBulletin(t *testing.T) {
 			},
 		}
 
-		bulletin := BuildBulletin(releases)
+		bulletin := BuildBulletinFile(releases)
 
 		// Should have first (March) build, not February
-		assert.Equal(t, "19725.20172", bulletin.CVEToResolvedVersions["CVE-2026-12345"]["2602"])
-	})
-}
-
-func TestToBulletinFile(t *testing.T) {
-	t.Run("converts bulletin to file format", func(t *testing.T) {
-		bulletin := &Bulletin{
-			BuildPrefixToVersion: map[string]string{
-				"19725": "2602",
-				"19530": "2512",
-			},
-			CVEToResolvedVersions: map[string]map[string]string{
-				"CVE-2026-12345": {
-					"2602": "19725.20172",
-					"2512": "19530.20260",
-				},
-			},
-		}
-
-		file := bulletin.ToBulletinFile()
-
-		assert.Equal(t, 1, file.Version)
-		assert.Equal(t, "2602", file.BuildPrefixes["19725"])
-		assert.Equal(t, "2512", file.BuildPrefixes["19530"])
-
-		// Check version 2602
-		require.NotNil(t, file.Versions["2602"])
-		found := false
-		for _, su := range file.Versions["2602"].SecurityUpdates {
+		for _, su := range bulletin.Versions["2602"].SecurityUpdates {
 			if su.CVE == "CVE-2026-12345" {
-				found = true
 				assert.Equal(t, "16.0.19725.20172", su.ResolvedInVersion)
 			}
 		}
-		assert.True(t, found, "CVE should be in version 2602")
 	})
 
 	t.Run("adds upgrade paths for dropped versions", func(t *testing.T) {
-		bulletin := &Bulletin{
-			BuildPrefixToVersion: map[string]string{
-				"19725": "2602",
-				"19530": "2512",
-				"19000": "2400", // Dropped version
-			},
-			CVEToResolvedVersions: map[string]map[string]string{
-				"CVE-2026-12345": {
-					"2602": "19725.20172",
-					"2512": "19530.20260",
-					// No fix for 2400
+		releases := []SecurityRelease{
+			{
+				Date: "March 11, 2026",
+				Branches: []VersionBranch{
+					{Version: "2602", BuildPrefix: "19725", FullBuild: "19725.20172"},
+					{Version: "2512", BuildPrefix: "19530", FullBuild: "19530.20260"},
 				},
+				CVEs: []string{"CVE-2026-12345"},
+			},
+			{
+				Date: "January 11, 2026",
+				Branches: []VersionBranch{
+					{Version: "2400", BuildPrefix: "19000", FullBuild: "19000.20100"},
+				},
+				CVEs: []string{"CVE-2026-11111"}, // Old CVE for dropped version
 			},
 		}
 
-		file := bulletin.ToBulletinFile()
+		bulletin := BuildBulletinFile(releases)
 
-		// Dropped version 2400 should have upgrade path to 2512 (oldest newer version)
-		require.NotNil(t, file.Versions["2400"])
-		found := false
-		for _, su := range file.Versions["2400"].SecurityUpdates {
+		// Dropped version 2400 should have upgrade path to 2512 for CVE-2026-12345
+		require.NotNil(t, bulletin.Versions["2400"])
+		var found bool
+		for _, su := range bulletin.Versions["2400"].SecurityUpdates {
 			if su.CVE == "CVE-2026-12345" {
 				found = true
 				// Should point to 2512's fix (oldest version > 2400 with a fix)

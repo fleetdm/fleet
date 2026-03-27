@@ -30,20 +30,15 @@ func main() {
 
 	client := &http.Client{Timeout: 60 * time.Second}
 
-	// Scrape Windows Office security updates from Microsoft Learn
 	fmt.Println("Scraping Windows Office security updates from Microsoft Learn...")
 	bulletin, err := winoffice.FetchBulletin(client)
 	panicif(err)
 
-	// Convert to BulletinFile format for serialization
-	bulletinFile := bulletin.ToBulletinFile()
-
-	fmt.Printf("Found %d CVEs across %d versions\n",
-		len(bulletin.CVEToResolvedVersions), len(bulletinFile.Versions))
+	fmt.Printf("Found %d versions\n", len(bulletin.Versions))
 
 	fmt.Println("Saving Windows Office bulletin...")
-	err = bulletinFile.Serialize(now, outPath)
+	err = bulletin.Serialize(now, outPath)
 	panicif(err)
 
-	fmt.Println("\nDone processing Office security updates.")
+	fmt.Println("Done.")
 }
