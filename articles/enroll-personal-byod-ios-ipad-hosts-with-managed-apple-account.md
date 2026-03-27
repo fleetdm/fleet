@@ -17,10 +17,13 @@ With Account-driven User Enrollment, end users can separate work and personal da
 
 ## Step 1: Connect Apple Business (AB) to Fleet
 
-1. Follow the [instructions](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to connect ABM to Fleet.
-> **Note:** You may skip this if you have already connected ABM to enable automatic enrollment. 
-2. For Account-driven User Enrollment to work, ensure that personal (BYOD) iOS and iPadOS hosts are associated with Fleet in the **Default Server Assignment** section in Apple Business. 
-> **Note:** If you're trying Fleet and testing Account-driven User Enrollment, [self-host a service discovery file](#self-host-a-service-discovery-file-well-known-resource) instead. That way, hosts keep enrolling to your current MDM solution instead of Fleet.
+1. If you haven't already, follow the [Apple Business (AB) instructions](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to connect it to Fleet.
+
+2. In ABM, go to **Preferences > Management Assignment** and make sure the **Default Assignment** for iPads and iPhones is set to Fleet.
+
+If you're testing Account-driven User Enrollment with Fleet, switch the **Default Assignment** when no iPads or iPhones are expected to enroll, then switch it back when you're done.
+
+To keep non–Account-driven enrollments on your current MDM while sending only Account-driven enrollments to Fleet, you can [self-host a service discovery file](#self-host-a-service-discovery-file-well-known-resource).
 
 ## Step 2: Add and verify your domain in Apple Business (AB)
 
@@ -30,7 +33,7 @@ Follow the [Apple documentation](https://support.apple.com/en-gb/guide/apple-bus
 
 Follow the [Apple documentation](https://support.apple.com/en-gb/guide/apple-business-manager/axmb19317543/web) to connect your identity provider (IdP). This will enable end users to log in to their Managed Apple Account using their existing IdP credentials.
 
-> **Note:** For visual walk-throughs, see [Connect Google Workspace to ABM](https://www.youtube.com/watch?v=CPfO6W67d3A) and [Connect Microsoft Entra ID to ABM](https://www.youtube.com/watch?v=_-PnhMurAVk).
+> For visual walk-throughs, see [Connect Google Workspace to ABM](https://www.youtube.com/watch?v=CPfO6W67d3A) and [Connect Microsoft Entra ID to ABM](https://www.youtube.com/watch?v=_-PnhMurAVk).
 
 ## Step 4: Create a fleet for personal hosts
 
@@ -51,14 +54,14 @@ After signing in, the device will automatically enroll in Fleet.
 
 ## Self-host a service discovery file (well-known resource)
 
->**Note:** 
-> - If your iOS/iPadOS hosts are running version 18.2 or later, you can skip this. Fleet manages service discovery automatically for these versions.
-> - If your iOS/iPadOS hosts are running a version below 18.2 or you're trying Fleet, you'll need to self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df).
-> - If you're trying Fleet and using a different MDM solution in production, hosting this file will direct only Account-driven User Enrollments to Fleet. iOS/iPadOS hosts purchased in ABM and hosts using an enrollment profile will still enroll to your current MDM solution.
+- If your iOS/iPadOS hosts are running version 18.2 or later, skip this step. Fleet manages service discovery automatically for these versions.
+- If your iOS/iPadOS hosts are running a version below 18.2, self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df).
+
+> **Note:** If you're using another MDM in production, hosting this file sends only Account-driven User Enrollments to Fleet. Devices enrolled through ABM or an enrollment profile will continue to enroll in your current MDM.
 
 Host the JSON file below at the following URL: `https://<company_domain>/.well-known/com.apple.remotemanagement.`
 
-> **Note:** Make sure to include the trailing dot in the URL when hosting the file.
+> Include the trailing dot in the URL when hosting the file.
 
 Make sure the `Content-Type` header is set to `application/json`.
 

@@ -161,9 +161,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
 			expectError:      true,
 			processingError:  "Found 2 hosts with UUID test-uuid-789. Profile variable substitution for $FLEET_VAR_HOST_HARDWARE_SERIAL requires exactly one host",
-			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
-				require.True(t, ds.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked)
-			},
 			setup: func() {
 				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 					require.Equal(t, []string{"test-uuid-789"}, uuids)
@@ -177,9 +174,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 							HardwareSerial: "test-serial-789",
 						},
 					}, nil
-				}
-				ds.UpdateOrDeleteHostMDMWindowsProfileFunc = func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error {
-					return nil
 				}
 			},
 		},

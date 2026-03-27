@@ -89,6 +89,7 @@ type generateGitopsClient interface {
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
+	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 }
 
@@ -1107,7 +1108,23 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
-		result[jsonFieldName(t, "VolumePurchasingProgram")] = mdm.VolumePurchasingProgram
+		vppTokens, err := cmd.Client.GetVPPTokens()
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
+			return nil, err
+		}
+		var vppConfig []fleet.MDMAppleVolumePurchasingProgramInfo
+		for _, token := range vppTokens {
+			teamNames := make([]string, 0, len(token.Teams))
+			for _, team := range token.Teams {
+				teamNames = append(teamNames, team.Name)
+			}
+			vppConfig = append(vppConfig, fleet.MDMAppleVolumePurchasingProgramInfo{
+				Location: token.Location,
+				Teams:    teamNames,
+			})
+		}
+		result[jsonFieldName(t, "VolumePurchasingProgram")] = vppConfig
 
 		var eulaPath string
 		if cmd.AppConfig.MDM.EnabledAndConfigured {
