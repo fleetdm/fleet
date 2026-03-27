@@ -21,10 +21,10 @@ const AppleBMTermsMessage = () => {
       }
     >
       You can’t automatically enroll macOS, iOS, and iPadOS hosts until you
-      accept the new terms and conditions for your Apple Business (AB).
-      An AB administrator can accept these terms. If you have connected
-      multiple AB instances, this banner will disappear once you accept the new
-      terms and conditions in all of them.
+      accept the new terms and conditions for your Apple Business (AB). An AB
+      administrator can accept these terms. If you have connected multiple AB
+      instances, this banner will disappear once you accept the new terms and
+      conditions in all of them.
     </InfoBanner>
   );
 };

@@ -25,14 +25,14 @@ const AppleBMRenewalMessage = ({ expired }: IAppleBMRenewalMessageProps) => {
     >
       {expired ? (
         <>
-          Your Apple Business (AB) server token has expired. macOS,
-          iOS, and iPadOS hosts won’t automatically enroll to Fleet. Users with
-          the admin role in Fleet can renew AB.
+          Your Apple Business (AB) server token has expired. macOS, iOS, and
+          iPadOS hosts won’t automatically enroll to Fleet. Users with the admin
+          role in Fleet can renew AB.
         </>
       ) : (
         <>
-          Your Apple Business (AB) server token is less than 30 days
-          from expiration. If it expires, macOS, iOS, and iPadOS hosts won’t
+          Your Apple Business (AB) server token is less than 30 days from
+          expiration. If it expires, macOS, iOS, and iPadOS hosts won’t
           automatically enroll to Fleet. Users with the admin role in Fleet can
           renew AB.
         </>

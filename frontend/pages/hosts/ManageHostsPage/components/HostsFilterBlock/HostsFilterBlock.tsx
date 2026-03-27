@@ -661,8 +661,8 @@ const HostsFilterBlock = ({
           return (
             <>
               Migration or new Mac setup won&apos;t work. Details are not
-              accessible from Apple Business (AB). Verify these hosts
-              are assigned to your MDM server and Fleet has access permissions.
+              accessible from Apple Business (AB). Verify these hosts are
+              assigned to your MDM server and Fleet has access permissions.
             </>
           );
         default:

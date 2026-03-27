@@ -369,8 +369,8 @@ export const MDM_STATUS_TOOLTIP: Record<
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
-      Hosts ordered via Apple Business <br /> (AB). These will
-      automatically enroll to Fleet <br /> and turn on MDM when they&apos;re
+      Hosts ordered via Apple Business <br /> (AB). These will automatically
+      enroll to Fleet <br /> and turn on MDM when they&apos;re
       unboxed.
     </span>
   ),

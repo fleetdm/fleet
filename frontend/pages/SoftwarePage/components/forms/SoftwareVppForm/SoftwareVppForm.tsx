@@ -313,8 +313,8 @@ const SoftwareVppForm = ({
             onSelect={onSelectApp}
           />
           <div className={`${baseClass}__help-text`}>
-            These apps were added in Apple Business (AB). To add more
-            apps, head to{" "}
+            These apps were added in Apple Business (AB). To add more apps, head
+            to{" "}
             <CustomLink url="https://business.apple.com" text="AB" newTab />
           </div>
           {showDeploySoftwareSlider && (
