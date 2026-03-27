@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.0.4",
+      "version": "8.0.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.zotero.zotero';",
         "patch": ""
       },
-      "installer_url": "https://download.zotero.org/client/release/8.0.4/Zotero-8.0.4.dmg",
+      "installer_url": "https://download.zotero.org/client/release/8.0.5/Zotero-8.0.5.dmg",
       "install_script_ref": "52a11eaf",
       "uninstall_script_ref": "24de4c91",
-      "sha256": "54ef47ec82e9125b80165078565c25d3eca6d5dad190206ef5ab32b8e4493a1a",
+      "sha256": "128023036bd4dd3a861042f5918333491d61cd72dec3fd604ddf7488fa154f37",
       "default_categories": [
         "Productivity"
       ]

@@ -2566,6 +2566,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		hostUUIDs []string
 	}
 	installTargets := make(map[string]*cmdTarget)
+	removeTargets := make(map[string]*cmdTarget)
 
 	for _, p := range toInstall {
 		toGetContents[p.ProfileUUID] = true
@@ -2592,6 +2593,24 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		// Add to map for fast lookup
 		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
 		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+	}
+
+	// Build remove targets: profiles that need to be removed from hosts (e.g. host moved teams, label membership changed).
+	// We only collect targets here; host_mdm_windows_profiles entries are
+	// created after the delete command is successfully built and enqueued.
+	removePayloadData := make(map[string][]*fleet.MDMWindowsProfilePayload) // profUUID -> payloads
+	for _, p := range toRemove {
+		toGetContents[p.ProfileUUID] = true
+		target := removeTargets[p.ProfileUUID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID: uuid.New().String(),
+				profID:  p.ProfileUUID,
+			}
+			removeTargets[p.ProfileUUID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+		removePayloadData[p.ProfileUUID] = append(removePayloadData[p.ProfileUUID], p)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2710,10 +2729,66 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 	}
 
-	// Windows profiles are just deleted from the DB, the notion of sending
-	// a command to remove a profile doesn't exist.
-	if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, toRemove); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
+	// Generate and enqueue <Delete> commands for profiles being removed from hosts.
+	for profUUID, target := range removeTargets {
+		p, ok := profileContents[profUUID]
+		if !ok {
+			// Profile was deleted between list and fetch. (The deletion path already called cancelWindowsHostInstallsForDeletedMDMProfiles)
+			continue
+		}
+		// Collect LocURIs from all OTHER profiles still being installed to
+		// avoid deleting settings enforced by a remaining profile.
+		activeLocURIs := make(map[string]bool)
+		for otherUUID, otherContent := range profileContents {
+			if otherUUID == profUUID {
+				continue // skip the profile being deleted
+			}
+			if _, isBeingRemoved := removeTargets[otherUUID]; isBeingRemoved {
+				continue // also being removed, don't protect its URIs
+			}
+			otherCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(otherContent.SyncML)
+			if err != nil {
+				continue
+			}
+			for _, cmd := range otherCmds {
+				if uri := cmd.GetTargetURI(); uri != "" {
+					activeLocURIs[uri] = true
+				}
+			}
+		}
+
+		command, err := fleet.BuildDeleteCommandFromProfileBytes(p.SyncML, target.cmdUUID, profUUID, activeLocURIs)
+		if err != nil {
+			logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
+			continue
+		}
+		if command == nil {
+			// All LocURIs are protected by other active profiles; skip.
+			continue
+		}
+		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+		}
+
+		// Only create host profile entries after the command was successfully enqueued.
+		for _, rp := range removePayloadData[profUUID] {
+			// Remove operations don't need a checksum; use a zero value if none exists (defensive coding).
+			checksum := rp.Checksum
+			if len(checksum) == 0 {
+				checksum = make([]byte, 16)
+			}
+			hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				ProfileUUID:   rp.ProfileUUID,
+				HostUUID:      rp.HostUUID,
+				ProfileName:   rp.ProfileName,
+				CommandUUID:   target.cmdUUID,
+				OperationType: fleet.MDMOperationTypeRemove,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      checksum,
+			}
+			hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
+			logger.DebugContext(ctx, "removing profile", "profile.uuid", rp.ProfileUUID, "host.uuid", rp.HostUUID, "profile.name", rp.ProfileName)
+		}
 	}
 
 	// Upsert the host profiles we need to track.

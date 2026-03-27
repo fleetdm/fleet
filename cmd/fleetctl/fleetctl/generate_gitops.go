@@ -89,6 +89,7 @@ type generateGitopsClient interface {
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
+	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 }
 
@@ -725,12 +726,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		})
 	}
 
-	if cmd.CLI.String(fleetFlagName) != "global" {
-		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-			Note: "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate fleet .yml file.",
-		})
-	}
-
 	if len(cmd.Messages.Notes) > 0 {
 		fmt.Fprintf(cmd.CLI.App.Writer, "Other notes:\n")
 		for _, note := range cmd.Messages.Notes {
@@ -1113,7 +1108,23 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
-		result[jsonFieldName(t, "VolumePurchasingProgram")] = mdm.VolumePurchasingProgram
+		vppTokens, err := cmd.Client.GetVPPTokens()
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
+			return nil, err
+		}
+		var vppConfig []fleet.MDMAppleVolumePurchasingProgramInfo
+		for _, token := range vppTokens {
+			teamNames := make([]string, 0, len(token.Teams))
+			for _, team := range token.Teams {
+				teamNames = append(teamNames, team.Name)
+			}
+			vppConfig = append(vppConfig, fleet.MDMAppleVolumePurchasingProgramInfo{
+				Location: token.Location,
+				Teams:    teamNames,
+			})
+		}
+		result[jsonFieldName(t, "VolumePurchasingProgram")] = vppConfig
 
 		var eulaPath string
 		if cmd.AppConfig.MDM.EnabledAndConfigured {
