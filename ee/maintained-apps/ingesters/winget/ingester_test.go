@@ -3,7 +3,6 @@ package winget
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -149,37 +148,25 @@ func TestPreProcessUninstallScript(t *testing.T) {
 func TestIngestValidations(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := path.Base(r.URL.Path)
-		fmt.Println(path)
-		fmt.Println(r.URL.Path)
-		fmt.Println("--------------------__---_--------")
-
 		switch r.URL.Path {
-		// TODO: use strings.HasSuffix or some other more flexible way
-		case "/repos/microsoft/winget-pkgs/contents/manifests/g/guh":
-			content := []github.RepositoryContent{{Name: ptr.String("guh")}} // use new() ?
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{{Name: ptr.String("Foo")}}
 			err := json.NewEncoder(w).Encode(content)
 			require.NoError(t, err)
 
-		case "/repos/microsoft/winget-pkgs/contents/manifests/g/guh/guh/guh.installer.yaml":
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.installer.yaml":
 			manifest := installerManifest{
-				ProductCode:            "um",
-				InstallerType:          "um",
-				Scope:                  "um",
-				AppsAndFeaturesEntries: []appsAndFeaturesEntries{},
-				PackageVersion:         "um",
+				ProductCode:            "{ABCDEF}",
+				InstallerType:          "msi",
+				Scope:                  "machine",
+				PackageVersion:         "1.0",
+				AppsAndFeaturesEntries: []appsAndFeaturesEntries{{UpgradeCode: "{ABCDEF}"}},
 				Installers: []installer{
 					{
-						Architecture:           "um",
-						InstallerType:          "um",
-						Scope:                  "um",
-						InstallerURL:           "um",
-						InstallerSha256:        "um",
-						InstallModes:           []string{},
-						InstallerSwitches:      installerSwitches{},
-						ProductCode:            "um",
-						AppsAndFeaturesEntries: []appsAndFeaturesEntries{},
-						InstallerLocale:        "um",
+						Architecture:  "x64",
+						InstallerType: "msi",
+						ProductCode:   "{ACBDEF}",
+						Scope:         "machine",
 					},
 				},
 			}
@@ -187,34 +174,32 @@ func TestIngestValidations(t *testing.T) {
 			require.NoError(t, err)
 			stringManifest := string(bytes)
 
-			content := &github.RepositoryContent{Name: ptr.String("guh"), Content: &stringManifest}
+			content := &github.RepositoryContent{Name: ptr.String("Foo"), Content: &stringManifest}
 			err = json.NewEncoder(w).Encode(content)
 			require.NoError(t, err)
 
-		case "/repos/microsoft/winget-pkgs/contents/manifests/g/guh/guh/guh.locale.en-US.yaml":
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.locale.en-US.yaml":
 			lManifest := localeManifest{
-				PackageName: "umm",
-				Publisher:   "um, Inc.",
+				PackageName: "foo",
+				Publisher:   "Bar, Inc.",
 			}
 			bytes, err := yaml.Marshal(lManifest)
 			require.NoError(t, err)
 			stringManifest := string(bytes)
 
-			content := &github.RepositoryContent{Name: ptr.String("guh"), Content: &stringManifest}
+			content := &github.RepositoryContent{Name: ptr.String("Foo"), Content: &stringManifest}
 			err = json.NewEncoder(w).Encode(content)
 			require.NoError(t, err)
+
 		default:
 			w.WriteHeader(http.StatusBadRequest)
-			t.Fatalf("unexpected name %s", path)
+			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
 
 		err := json.NewEncoder(w).Encode("")
 		require.NoError(t, err)
 	}))
 	t.Cleanup(srv.Close)
-
-	uhhtest := srv.Client()
-	fmt.Println(uhhtest)
 
 	ctx := context.Background()
 
@@ -231,23 +216,15 @@ func TestIngestValidations(t *testing.T) {
 		inputApp inputApp
 	}{
 		{"", inputApp{
-			Name:                "guh",
-			UniqueIdentifier:    "guh",
-			PackageIdentifier:   "guh",
-			InstallerArch:       "um",
-			Slug:                "um",
+			Name:                "Foo",
+			UniqueIdentifier:    "Foo",
+			PackageIdentifier:   "Foo",
+			InstallerArch:       "x64",
+			Slug:                "foo/windows",
 			InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
 			UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
-			InstallerType:       "um",
-			InstallerScope:      "um",
-			InstallerLocale:     "um",
-			ProgramPublisher:    "um",
-			UninstallType:       "um",
-			FuzzyMatchName:      false,
-			IgnoreHash:          false,
-			DefaultCategories:   []string{},
-			Frozen:              false,
-			PatchPolicyPath:     "",
+			InstallerType:       "msi",
+			InstallerScope:      "machine",
 		}},
 	}
 	for _, c := range cases {
@@ -261,13 +238,12 @@ func TestIngestValidations(t *testing.T) {
 				githubClient: gc,
 			}
 
-			out, err := i.ingestOne(ctx, c.inputApp)
+			_, err = i.ingestOne(ctx, c.inputApp)
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
 				return
 			}
 			require.NoError(t, err)
-			fmt.Println(out)
 
 		})
 	}
