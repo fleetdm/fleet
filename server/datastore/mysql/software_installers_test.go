@@ -2496,6 +2496,7 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 		{Name: "Existing Title", Version: "v0.0.2", Source: "apps", BundleIdentifier: "existing.title"},
 		{Name: "Existing Title", Version: "0.0.3", Source: "apps", BundleIdentifier: "existing.title"},
 		{Name: "Existing Title Without Bundle", Version: "0.0.3", Source: "apps"},
+		{Name: "FMA Old Name", Version: "1.0", Source: "apps", BundleIdentifier: "com.fma"},
 	}
 	software3 := []fleet.Software{
 		{Name: "Win Title 1", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("")},
@@ -2592,7 +2593,18 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			expectedSource: "ios_apps",
 		},
 		{
-			name: "installer: no upgrade code,  existing title: same name, no upgrade code",
+			name: "don't rename macos FMA titles",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:                "FMA New Name",
+				Source:               "apps",
+				BundleIdentifier:     "com.fma",
+				FleetMaintainedAppID: ptr.Uint(2),
+			},
+			expectedName:   "FMA Old Name",
+			expectedSource: "apps",
+		},
+		{
+			name: "installer: no upgrade code, existing title: same name, no upgrade code",
 			payload: &fleet.UploadSoftwareInstallerPayload{
 				Title:  "Win Title 1",
 				Source: "programs",
@@ -2602,7 +2614,7 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			expectedUpgradeCode: ptr.String(""),
 		},
 		{
-			name: "installer: no upgrade code,  existing title: same name, has upgrade code",
+			name: "installer: no upgrade code, existing title: same name, has upgrade code",
 			payload: &fleet.UploadSoftwareInstallerPayload{
 				Title:  "Win Title 2",
 				Source: "programs",

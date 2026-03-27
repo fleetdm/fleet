@@ -645,8 +645,8 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 		{Name: "Bar", Version: "1.0", Source: "apps", BundleIdentifier: "com.bar"},
 	}
 	software2 := []fleet.Software{
-		{Name: "7-Zip 1.00 (x64)", Version: "1.0", Source: "programs"},
-		{Name: "Hello", Version: "1.0", Source: "programs", UpgradeCode: ptr.String("{123456}")},
+		{Name: "Goodbye 1.00 (x64)", Version: "1.0", Source: "programs"},
+		{Name: "Hello 1.00 (x64)", Version: "1.0", Source: "programs", UpgradeCode: ptr.String("{123456}")},
 	}
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
 	require.NoError(t, err)
@@ -659,10 +659,10 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 	sw, _, _, err := ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, sw, 4)
-	require.Equal(t, sw[0].Name, "7-Zip 1.00 (x64)")
-	require.Equal(t, sw[1].Name, "Bar")
-	require.Equal(t, sw[2].Name, "Foo")
-	require.Equal(t, sw[3].Name, "Hello")
+	require.Equal(t, sw[0].Name, "Bar")
+	require.Equal(t, sw[1].Name, "Foo")
+	require.Equal(t, sw[2].Name, "Goodbye 1.00 (x64)")
+	require.Equal(t, sw[3].Name, "Hello 1.00 (x64)")
 
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Microsoft Visual Foo",
@@ -679,33 +679,33 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "7-zip",
-		Slug:             "7-zip/windows",
+		Name:             "goodbye",
+		Slug:             "goodbye/windows",
 		Platform:         "windows",
-		UniqueIdentifier: "7-Zip 1.00 (x64)",
+		UniqueIdentifier: "Goodbye 1.00 (x64)",
 	})
 	require.NoError(t, err)
 	maintained4, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Hello",
 		Slug:             "hello/windows",
 		Platform:         "windows",
-		UniqueIdentifier: "Hello-Unique",
+		UniqueIdentifier: "Hello 1.00 (x64)",
 	})
 	require.NoError(t, err)
 
 	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, sw, 4)
-	require.Equal(t, sw[0].Name, "7-Zip 1.00 (x64)")
-	require.Equal(t, sw[1].Name, "Bar")
-	require.Equal(t, sw[2].Name, "Hello")
+	require.Equal(t, sw[0].Name, "Bar")
+	require.Equal(t, sw[1].Name, "Goodbye 1.00 (x64)")
+	require.Equal(t, sw[2].Name, "Hello 1.00 (x64)")
 	require.Equal(t, sw[3].Name, "Microsoft Visual Foo")
 
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:                "7-Zip 1.00 (x64)",
+		Title:                "Goodbye 1.00 (x64)",
 		Source:               "programs",
 		StorageID:            "storageid1",
-		Filename:             "7-zip.msi",
+		Filename:             "goodbye.msi",
 		Extension:            "msi",
 		Platform:             "windows",
 		Version:              "1.0",
@@ -715,7 +715,7 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:                "Hello-Unique", // From fma.UniqueIdentifier,
+		Title:                "Hello",
 		UpgradeCode:          "{123456}",
 		Source:               "programs",
 		StorageID:            "storageid2",
@@ -729,11 +729,11 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// After uploading installers, 7-Zip keeps the unique identifier name,
-	// and Hello updates to Hello-Unique since it was matched by upgrade code.
+	// After uploading installers, Goodbye 1.00 (x64) has no upgrade code so it
+	// keeps its name, and Hello 1.00 (x64) updates to just Hello as it has one.
 	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, sw, 4)
-	require.Equal(t, sw[0].Name, "7-Zip 1.00 (x64)")
-	require.Equal(t, sw[2].Name, "Hello-Unique")
+	require.Equal(t, sw[1].Name, "Goodbye 1.00 (x64)")
+	require.Equal(t, sw[2].Name, "Hello")
 }

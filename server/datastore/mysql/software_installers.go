@@ -553,11 +553,14 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
-		// update title name if this is an FMA
+
+		// Update the software title name if this is a Windows FMA with an upgrade code. We already update
+		// software titles with macOS FMA names on FMA catalog sync, so we only do Windows here.
 		if payload.FleetMaintainedAppID != nil {
 			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
 			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
 		}
+
 		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
 		if err != nil {
 			return 0, err
