@@ -1269,7 +1269,7 @@ policies:
   - name: VPP Policy
     query: SELECT 1
     install_software:
-      app_store_id: 5128675309
+      app_store_id: "5128675309"
 agent_options:
 reports:
 `), 0o644))
