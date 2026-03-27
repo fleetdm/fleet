@@ -1,23 +1,18 @@
 import React, { useState, useContext, useCallback, useEffect } from "react";
-import { useQuery } from "react-query";
+import { useQueryClient } from "react-query";
 
-import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import paths from "router/paths";
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  UNCHANGED_PASSWORD_API_RESPONSE,
-} from "utilities/constants";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import PageDescription from "components/PageDescription";
 import Card from "components/Card";
@@ -83,9 +78,10 @@ const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
 
 const baseClass = "calendars-integration";
 
-const Calendars = (): JSX.Element => {
+const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentTeam, isPremiumTier } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<ICalendarsFormData>({
     domain: "",
@@ -94,42 +90,31 @@ const Calendars = (): JSX.Element => {
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
 
-  const {
-    data: config,
-    isLoading: isLoadingAppConfig,
-    refetch: refetchConfig,
-    error: errorAppConfig,
-  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    refetchOnMount: false,
-    select: (data: IConfig) => data,
-  });
-
-  // Sync form state from config data. Using useEffect instead of onSuccess
-  // so the form updates whether data comes from cache or a fresh fetch.
+  // Sync form state from config prop passed by IntegrationsPage.
   useEffect(() => {
     if (
-      config &&
-      Array.isArray(config.integrations.google_calendar) &&
-      config.integrations.google_calendar.length > 0
+      appConfig &&
+      Array.isArray(appConfig.integrations.google_calendar) &&
+      appConfig.integrations.google_calendar.length > 0
     ) {
-      const apiKeyJsonObj = config.integrations.google_calendar[0].api_key_json;
+      const apiKeyJsonObj =
+        appConfig.integrations.google_calendar[0].api_key_json;
 
       if (isObfuscatedApiKey(apiKeyJsonObj)) {
         setFormData({
-          domain: config.integrations.google_calendar[0].domain,
+          domain: appConfig.integrations.google_calendar[0].domain,
           apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
         });
       } else {
         setFormData({
-          domain: config.integrations.google_calendar[0].domain,
+          domain: appConfig.integrations.google_calendar[0].domain,
           apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
         });
       }
     }
-  }, [config]);
+  }, [appConfig]);
 
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const { apiKeyJson, domain } = formData;
 
@@ -223,7 +208,7 @@ const Calendars = (): JSX.Element => {
         "success",
         "Successfully saved calendar integration settings."
       );
-      refetchConfig();
+      queryClient.invalidateQueries(["config"]);
     } catch (e) {
       renderFlash("error", "Could not save calendar integration settings.");
     } finally {
@@ -454,16 +439,6 @@ const Calendars = (): JSX.Element => {
       </>
     );
   };
-
-  if (isLoadingAppConfig) {
-    <div className={baseClass}>
-      <Spinner includeContainer={false} />
-    </div>;
-  }
-
-  if (errorAppConfig) {
-    return <DataError />;
-  }
 
   return (
     <SettingsSection title="Calendars">
