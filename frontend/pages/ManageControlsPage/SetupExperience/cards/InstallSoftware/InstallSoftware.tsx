@@ -107,7 +107,7 @@ const InstallSoftware = ({
   >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: isValidPlatform && currentTeamId !== API_NO_TEAM_ID,
-    select: (res) => res.team,
+    select: (res) => res.fleet,
   });
 
   const handleTabChange = useCallback(

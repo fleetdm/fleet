@@ -49,7 +49,7 @@ const SetupAssistant = ({
     refetchOnWindowFocus: false,
     retry: false,
     enabled: currentTeamId !== API_NO_TEAM_ID,
-    select: (res) => res.team,
+    select: (res) => res.fleet,
   });
 
   const {

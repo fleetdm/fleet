@@ -319,7 +319,7 @@ const HostsFilterBlock = ({
   );
 
   const renderMacSettingsStatusFilterBlock = () => {
-    const label = "macOS settings";
+    const label = "Apple settings";
     return (
       <>
         <Dropdown

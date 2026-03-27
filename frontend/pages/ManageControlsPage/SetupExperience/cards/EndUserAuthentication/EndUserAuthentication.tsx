@@ -86,7 +86,7 @@ const EndUserAuthentication = ({
     refetchOnWindowFocus: false,
     retry: false,
     enabled: currentTeamId !== 0,
-    select: (res) => res.team,
+    select: (res) => res.fleet,
   });
 
   const defaultIsEndUserAuthEnabled = getEnabledEndUserAuth(

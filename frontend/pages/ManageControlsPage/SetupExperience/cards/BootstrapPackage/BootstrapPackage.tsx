@@ -109,7 +109,7 @@ const BootstrapPackage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (data) => {
         setSelectedManualAgentInstall(
           getManualAgentInstallSetting(currentTeamId, undefined, data)
