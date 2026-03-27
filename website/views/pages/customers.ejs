@@ -116,47 +116,66 @@
         </div><%// End of [purpose="hero-slides"]%>
       </div>
       <div purpose="page-body">
-      <div purpose="case-study-cards">
+      <div>
+        <div purpose="case-study-cards">
 
-        <div purpose="article-card" @click="goto('/case-study/foursquare')">
-          <img alt="Foursquare logo" src="/images/foursquare-logo-212x40@2x.png">
-          <p>Foursquare cut costs and gained 114% ROI with Fleet.</p>
-          <a href="/case-study/foursquare">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/case-study/fastly')">
-          <img alt="Fastly logo" src="/images/fastly-logo-104x40@2x.png">
-          <p>Fastly gains visibility into all endpoints and critical infrastructure around the world.</p>
-          <a href="/case-study/fastly">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/case-study/faire')">
-          <img alt="Faire logo" src="/images/faire-logo-192x40@2x.png">
-          <p>Faire secures Macs with CIS benchmarks and Fleet.</p>
-          <a href="/case-study/faire">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/case-study/stripe')">
-          <img alt="Stripe logo" src="/images/stripe-logo-96x40@2x.png">
-          <p>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually.</p>
-          <a href="/case-study/stripe">Read their story</a>
-        </div>
-        <div purpose="article-card" @click="goto('/case-study/thumbtack')">
-          <img alt="Thumbtack logo" src="/images/thumbtack-logo-197x40@2x.png">
-          <p>Thumbtack migrates more than 90% of Macs with no IT intervention.</p>
-          <a href="/case-study/thumbtack">Read their story</a>
-        </div>
-        <% /*  Automatically created cards for anonymous case studies  */%>
-        <% for(let article of caseStudiesToCreateLinksFor) { %>
-          <div purpose="article-card" @click="goto('<%- article.url %>')">
-            <p><strong><%- article.meta.cardTitleForCustomersPage %></strong></p>
-            <% if(article.meta.cardBodyForCustomersPage){ %>
-              <p><%- article.meta.cardBodyForCustomersPage %></p>
-            <% } else {%>
-              <p><%- article.meta.articleTitle %>.</p>
-            <% }%>
-            <a href="<%- article.url %>">Read their story</a>
+          <div purpose="article-card" @click="goto('/case-study/foursquare', $event)">
+            <img alt="Foursquare logo" src="/images/foursquare-logo-212x40@2x.png">
+            <p>Foursquare cut costs and gained 114% ROI with Fleet.</p>
+            <a href="/case-study/foursquare">Read their story</a>
           </div>
-        <% } %>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/fastly', $event)">
+            <img alt="Fastly logo" src="/images/fastly-logo-104x40@2x.png">
+            <p>Fastly gains visibility into all endpoints and critical infrastructure around the world.</p>
+            <a href="/case-study/fastly">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/faire', $event)">
+            <img alt="Faire logo" src="/images/faire-logo-192x40@2x.png">
+            <p>Faire secures Macs with CIS benchmarks and Fleet.</p>
+            <a href="/case-study/faire">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/stripe', $event)">
+            <img alt="Stripe logo" src="/images/stripe-logo-96x40@2x.png">
+            <p>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually.</p>
+            <a href="/case-study/stripe">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/thumbtack', $event)">
+            <img alt="Thumbtack logo" src="/images/thumbtack-logo-197x40@2x.png">
+            <p>Thumbtack migrates more than 90% of Macs with no IT intervention.</p>
+            <a href="/case-study/thumbtack">Read their story</a>
+          </div>
+          <% /*  Automatically created cards for anonymous case studies  */%>
+          <% for(let article of initalCaseStudyLinksToShow) { %>
+            <div purpose="article-card" @click="clickGotoCaseStudyLink('<%- article.url %>', $event)">
+              <p><strong><%- article.meta.cardTitleForCustomersPage %></strong></p>
+              <% if(article.meta.cardBodyForCustomersPage){ %>
+                <p><%- article.meta.cardBodyForCustomersPage %></p>
+              <% } else {%>
+                <p><%- article.meta.articleTitle %>.</p>
+              <% }%>
+              <a href="<%- article.url %>">Read their story</a>
+            </div>
+          <% } %>
+          <% for(let batch of blocksOfCaseStudies) { %>
+            <% for(let article of batch) { %>
+              <div purpose="article-card" @click="clickGotoCaseStudyLink('<%- article.url %>', $event)" v-if="pageOfCaseStudiesVisible >= <%- blocksOfCaseStudies.indexOf(batch) %>">
+                <p><strong><%- article.meta.cardTitleForCustomersPage %></strong></p>
+                <% if(article.meta.cardBodyForCustomersPage){ %>
+                  <p><%- article.meta.cardBodyForCustomersPage %></p>
+                <% } else {%>
+                  <p><%- article.meta.articleTitle %>.</p>
+                <% }%>
+                <a href="<%- article.url %>">Read their story</a>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+        <div purpose="button-container">
+          <div purpose="button-row" class="d-flex flex-row align-items-center justify-content-center w-100" v-if="pageOfCaseStudiesVisible !== (numberOfPagesOfCaseStudies - 2)">
+            <a purpose="cta-button" @click="clickShowMoreCaseStudies()">Load more</a>
+          </div>
+        </div>
       </div>
-
       <div purpose="logo-container">
       <logo-carousel display-bottom-row="true"></logo-carousel>
       </div>

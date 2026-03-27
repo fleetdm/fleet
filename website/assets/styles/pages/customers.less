@@ -329,6 +329,10 @@
     background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
   }
 
+  [purpose='button-container'] {
+    margin-top: 48px;
+  }
+
   [purpose='bottom-cta'] {
 
     display: flex;
@@ -349,65 +353,66 @@
       font-weight: 800;
       line-height: 120%;
     }
-    [purpose='button-row'] {
-      a {
-        font-weight: 700;
-        font-size: 16px;
-        text-decoration: none;
-      }
-      [purpose='cta-button'] {
-        display: flex;
-        height: 36px;
-        padding: 16px;
-        justify-content: center;
-        align-items: center;
-        gap: 4px;
-        border-radius: 8px;
-        background: @core-vibrant-green;
-        color: #FFF;
+  }
+  [purpose='button-row'] {
+    a {
+      font-weight: 700;
+      font-size: 16px;
+      text-decoration: none;
+    }
+    [purpose='cta-button'] {
+      display: flex;
+      height: 36px;
+      padding: 16px;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      border-radius: 8px;
+      background: @core-vibrant-green;
+      color: #FFF;
+      text-align: center;
+      width: 140px;
+      /* Body MD (bold) */
+      font-family: Inter;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 150%;
+      margin-right: 24px;
+      position: relative;
+      cursor: pointer;
+    }
+    [purpose='cta-button']::before {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+      opacity: 1;
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 50%;
+      height: 100%;
+      transform: skew(-10deg);
+      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+    }
+    [purpose='cta-button']:hover:before {
+      left: 160px;
+      width: 110%;
+    }
+    [parasails-component='animated-arrow-button'] {
+      width: fit-content;
+      display: flex;
+      align-items: center;
+      padding: 6px 0px;
+      text-decoration: none;
+      font-weight: 700;
+      [purpose='button-text'] {
+        color: #192147;
         text-align: center;
-        width: 140px;
-        /* Body MD (bold) */
         font-family: Inter;
-        font-size: 16px;
+        font-size: 15px;
         font-style: normal;
-        font-weight: 700;
-        line-height: 150%;
-        margin-right: 24px;
-        position: relative;
-      }
-      [purpose='cta-button']::before {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-        opacity: 1;
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -5px;
-        width: 50%;
-        height: 100%;
-        transform: skew(-10deg);
-        transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
-      }
-      [purpose='cta-button']:hover:before {
-        left: 160px;
-        width: 110%;
-      }
-      [parasails-component='animated-arrow-button'] {
-        width: fit-content;
-        display: flex;
-        align-items: center;
-        padding: 6px 0px;
-        text-decoration: none;
-        font-weight: 700;
-        [purpose='button-text'] {
-          color: #192147;
-          text-align: center;
-          font-family: Inter;
-          font-size: 15px;
-          font-style: normal;
-          font-weight: 600;
-          line-height: 160%;
-        }
+        font-weight: 600;
+        line-height: 160%;
       }
     }
   }
