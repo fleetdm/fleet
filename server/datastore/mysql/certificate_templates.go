@@ -433,19 +433,25 @@ func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID u
 			hct.certificate_template_id = ?
 		`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteChallenge, hostID, templateID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting challenges associated with removed certificate template")
-	}
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, deleteChallenge, hostID, templateID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting challenges associated with resent certificate template")
+		}
 
-	results, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CertificateTemplatePending, hostID, templateID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host certificate template uuid")
-	}
+		results, err := tx.ExecContext(ctx, stmt, fleet.CertificateTemplatePending, hostID, templateID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host certificate template uuid")
+		}
 
-	affected, _ := results.RowsAffected()
-	if affected == 0 {
-		return ctxerr.Wrapf(ctx, notFound("HostCertificateTemplate"), "template %d does not exist for host %d", templateID, hostID)
+		affected, _ := results.RowsAffected()
+		if affected == 0 {
+			return ctxerr.Wrapf(ctx, notFound("HostCertificateTemplate"), "template %d does not exist for host %d", templateID, hostID)
+		}
+
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting host certificate template for resend")
 	}
 
 	return nil
