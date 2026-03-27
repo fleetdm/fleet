@@ -325,6 +325,16 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 	}
 
 	for _, hostUUID := range hostUUIDs {
+		// This may seem odd running the batch up front but it helps ensure we don't run oversized batches if for instance a caller
+		// makes an error leading to the warning below about mismatch host profile/command entries
+		if batchCount >= batchSize {
+			if err := executeBatch(); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+
+		batchCount++
 		// Command queue entry: resolve enrollment_id via subquery.
 		queueSB.WriteString(
 			"((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC LIMIT 1), ?),",
@@ -333,17 +343,14 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 
 		// Host profile entry.
 		p := payloadByHostUUID[hostUUID]
+
+		if p == nil {
+			ds.logger.WarnContext(ctx, "windows MDM profile Command enqueued without corresponding host profile", "host_uuid", hostUUID, "command_uuid", cmd.CommandUUID)
+			continue
+		}
 		profileSB.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
 		profileArgs = append(profileArgs, p.ProfileUUID, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.ProfileName, p.Checksum)
 
-		batchCount++
-
-		if batchCount >= batchSize {
-			if err := executeBatch(); err != nil {
-				return err
-			}
-			resetBatch()
-		}
 	}
 
 	if batchCount > 0 {
