@@ -2007,4 +2007,3 @@ func testGetOrCreateFleetChallengeForCertificateTemplate(t *testing.T, ds *Datas
 		require.Equal(t, 1, count)
 	})
 }
-
