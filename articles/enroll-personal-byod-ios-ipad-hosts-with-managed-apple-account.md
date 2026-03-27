@@ -54,15 +54,14 @@ After signing in, the device will automatically enroll in Fleet.
 
 ## Self-host a service discovery file (well-known resource)
 
-If your iOS/iPadOS hosts are running version 18.2 or later, you can skip this. Fleet manages service discovery automatically for these versions.
+- If your iOS/iPadOS hosts are running version 18.2 or later, skip this step. Fleet manages service discovery automatically for these versions.
+- If your iOS/iPadOS hosts are running a version below 18.2, self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df).
 
-If your iOS/iPadOS hosts are running a version below 18.2, you'll need to self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df).
-
-Also, if you're trying Fleet and using a different MDM solution in production, hosting this file will direct only Account-driven User Enrollments to Fleet. iOS/iPadOS hosts purchased in ABM and hosts using an enrollment profile will still enroll to your current MDM solution.
+> **Note:** If you're using another MDM in production, hosting this file sends only Account-driven User Enrollments to Fleet. Devices enrolled through ABM or an enrollment profile will continue to enroll in your current MDM.
 
 Host the JSON file below at the following URL: `https://<company_domain>/.well-known/com.apple.remotemanagement.`
 
-> Make sure to include the trailing dot in the URL when hosting the file.
+> Include the trailing dot in the URL when hosting the file.
 
 Make sure the `Content-Type` header is set to `application/json`.
 
