@@ -86,7 +86,7 @@ func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) er
 
 				// we perform this check locally on the client too to avoid showing the
 				// dialog if the Fleet enrollment profile has not been assigned to the device in
-				// Apple Business Manager.
+				// Apple Business.
 				assignedFn := h.checkAssignedEnrollmentProfileFn
 				if assignedFn == nil {
 					assignedFn = profiles.CheckAssignedEnrollmentProfile

@@ -111,7 +111,7 @@ An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). De
 
 ### mdm.apple_bm_server_token_bytes
 
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
+This is the content of the Apple Business encrypted server token downloaded from Apple Business.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -126,7 +126,7 @@ This is the content of the Apple Business Manager encrypted server token downloa
 
 ### mdm.apple_bm_cert_bytes
 
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
+This is the content of the Apple Business certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
@@ -141,7 +141,7 @@ This is the content of the Apple Business Manager certificate. The certificate i
 
 ### mdm.apple_bm_key_bytes
 
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
+This is the content of the PEM-encoded private key for the Apple Business. It's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
