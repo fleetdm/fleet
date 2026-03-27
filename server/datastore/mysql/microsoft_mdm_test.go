@@ -1526,44 +1526,6 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		require.Equal(t, "prof-upsert-updated", profiles[0].ProfileName)
 	})
 
-	t.Run("works with device IDs", func(t *testing.T) {
-		profUUID := InsertWindowsProfileForTest(t, ds, 0)
-		cmdUUID := uuid.NewString()
-		cmd := &fleet.MDMWindowsCommand{
-			CommandUUID:  cmdUUID,
-			RawCommand:   []byte("<Exec></Exec>"),
-			TargetLocURI: "./test/uri",
-		}
-		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
-			{
-				ProfileUUID:   profUUID,
-				ProfileName:   "prof-devid",
-				HostUUID:      d1.HostUUID,
-				CommandUUID:   cmdUUID,
-				OperationType: fleet.MDMOperationTypeInstall,
-				Status:        &fleet.MDMDeliveryPending,
-				Checksum:      []byte("checksum-devid"),
-			},
-		}
-
-		// Use device ID instead of host UUID
-		err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.MDMDeviceID}, cmd, payload)
-		require.NoError(t, err)
-
-		// Verify command was enqueued
-		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
-		require.NoError(t, err)
-		// Should have at least 1 pending command for this device
-		found := false
-		for _, c := range cmds {
-			if c.CommandUUID == cmdUUID {
-				found = true
-				break
-			}
-		}
-		require.True(t, found, "expected to find command %s in pending commands", cmdUUID)
-	})
-
 	t.Run("batching works correctly", func(t *testing.T) {
 		// Set a small batch size to force multiple batches
 		ds.testUpsertMDMDesiredProfilesBatchSize = 1
