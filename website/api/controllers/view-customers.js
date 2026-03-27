@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View testimonials',
+  friendlyName: 'View customers',
 
 
-  description: 'Display "Testimonials" page.',
+  description: 'Display "Customers" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/testimonials'
+      viewTemplatePath: 'pages/customers'
     }
 
   },
@@ -83,7 +83,6 @@ module.exports = {
         return article;
       }
     });
-
     // Sort the case study articles by the lowercase cardTitleForCustomersPage meta tag value.
     caseStudiesToCreateLinksFor = _.sortBy(caseStudiesToCreateLinksFor, (article)=>{
       return article.meta.cardTitleForCustomersPage.toLowerCase();

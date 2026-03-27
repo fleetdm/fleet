@@ -469,7 +469,7 @@ module.exports.routes = {
   },
 
   'GET /customers': {
-    action: 'view-testimonials',
+    action: 'view-customers',
     locals: {
       pageTitleForMeta: 'What people are saying',
       pageDescriptionForMeta: 'See what people are saying about Fleet.',
