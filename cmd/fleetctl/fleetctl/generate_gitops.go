@@ -1543,15 +1543,16 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
-				if software.MaintainedAppID != 0 && software.Slug != "" {
+				switch {
+				case software.MaintainedAppID != 0 && software.Slug != "":
 					policySpec["install_software"] = map[string]any{
 						"fleet_maintained_app_slug": software.Slug,
 					}
-				} else if software.Hash != "" {
+				case software.Hash != "":
 					policySpec["install_software"] = map[string]any{
 						"hash_sha256": software.Hash + " " + software.Comment,
 					}
-				} else if software.AppStoreId != "" {
+				case software.AppStoreId != "":
 					policySpec["install_software"] = map[string]any{
 						"app_store_id": software.AppStoreId,
 					}
