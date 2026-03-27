@@ -85,12 +85,18 @@ func logDiskSpace(ctx context.Context, logger *slog.Logger, tmpDir string, label
 	if tmpDir != "" {
 		if entries, err := os.ReadDir(tmpDir); err == nil {
 			var totalSize int64
+			var fileDetails []string
 			for _, e := range entries {
 				if info, err := e.Info(); err == nil {
-					totalSize += info.Size()
+					size := info.Size()
+					totalSize += size
+					fileDetails = append(fileDetails, fmt.Sprintf("  %s (%.2f MB, dir=%v)", e.Name(), float64(size)/(1024*1024), e.IsDir()))
 				}
 			}
 			logger.InfoContext(ctx, fmt.Sprintf("Validation tmpDir (%s): %d entries, %.2f MB", tmpDir, len(entries), float64(totalSize)/(1024*1024)))
+			for _, detail := range fileDetails {
+				logger.InfoContext(ctx, detail)
+			}
 		}
 	}
 }
@@ -135,21 +141,26 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
 
 func run(cfg *Config) error {
 	ctx := context.Background()
-	cleanupInstaller := func(installerPath string) {
-		if installerPath == "" {
-			return
-		}
-		var sizeBytes int64
-		if info, err := os.Stat(installerPath); err == nil {
-			sizeBytes = info.Size()
-		}
-		cfg.logger.InfoContext(ctx, fmt.Sprintf("Cleaning up installer file: %s (%d bytes)", installerPath, sizeBytes))
-		if err := os.Remove(installerPath); err != nil && !os.IsNotExist(err) {
-			cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to remove installer file '%s': %v", installerPath, err))
-			return
-		}
-		cfg.logger.InfoContext(ctx, fmt.Sprintf("Deleted installer file: %s", installerPath))
+	cleanupAppFiles := func(installerPath string) {
 		detachAllDMGs(ctx, cfg.logger)
+
+		entries, err := os.ReadDir(cfg.tmpDir)
+		if err != nil {
+			cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to read tmpDir for cleanup: %v", err))
+			return
+		}
+		for _, e := range entries {
+			p := filepath.Join(cfg.tmpDir, e.Name())
+			var sizeStr string
+			if info, err := e.Info(); err == nil {
+				sizeStr = fmt.Sprintf("%.2f MB", float64(info.Size())/(1024*1024))
+			}
+			if err := os.RemoveAll(p); err != nil {
+				cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to remove %s: %v", e.Name(), err))
+			} else {
+				cfg.logger.InfoContext(ctx, fmt.Sprintf("Cleaned up: %s (%s, dir=%v)", e.Name(), sizeStr, e.IsDir()))
+			}
+		}
 	}
 
 	apps, err := getListOfApps(cfg.outputsPath)
@@ -237,13 +248,13 @@ func run(cfg *Config) error {
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if sha256 hash matches: %v", err))
 			appWithError = append(appWithError, ac.Name)
-			cleanupInstaller(installerPath)
+			cleanupAppFiles(installerPath)
 			continue
 		}
 		if hash != maintainedApp.SHA256 && maintainedApp.SHA256 != "no_check" {
 			appLogger.ErrorContext(ctx, "SHA256 hash in manifest does not match installer file hash")
 			appWithError = append(appWithError, ac.Name)
-			cleanupInstaller(installerPath)
+			cleanupAppFiles(installerPath)
 			continue
 		}
 
@@ -270,7 +281,7 @@ func run(cfg *Config) error {
 		}
 		if changerError != nil {
 			appWithError = append(appWithError, ac.Name)
-			cleanupInstaller(installerPath)
+			cleanupAppFiles(installerPath)
 			continue
 		}
 		ac.AppPath = appPath
@@ -288,13 +299,13 @@ func run(cfg *Config) error {
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
-			cleanupInstaller(installerPath)
+			cleanupAppFiles(installerPath)
 			continue
 		}
 		if !existance {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("App version '%s' was not found by osquery", ac.Version))
 			appWithError = append(appWithError, ac.Name)
-			cleanupInstaller(installerPath)
+			cleanupAppFiles(installerPath)
 			continue
 		}
 
@@ -302,11 +313,11 @@ func run(cfg *Config) error {
 		uninstalled := ac.uninstallApp(ctx)
 		if !uninstalled {
 			appWithError = append(appWithError, ac.Name)
-			cleanupInstaller(installerPath)
+			cleanupAppFiles(installerPath)
 			continue
 		}
 
-		cleanupInstaller(installerPath)
+		cleanupAppFiles(installerPath)
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("All checks passed for app: %s (%s)", ac.Name, ac.Slug))
 		successfulApps++
 	}
