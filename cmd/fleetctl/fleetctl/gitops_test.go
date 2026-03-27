@@ -1043,6 +1043,7 @@ agent_options:
 // (hash_sha256 for packages, app_store_id for VPP apps) still validate successfully
 // against server-side software data.
 func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
+	policySpecsByTeam := make(map[string][]*fleet.PolicySpec)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{
@@ -1174,6 +1175,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 	}
 
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		policySpecsByTeam[specs[0].Team] = specs
 		return nil
 	}
 
@@ -1234,7 +1236,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				ID:   20,
 				Name: "VPP App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "com.example.vpp-app",
+					AppStoreID: "5128675309",
 					Platform:   string(fleet.MacOSPlatform),
 				},
 			},
@@ -1267,7 +1269,7 @@ policies:
   - name: VPP Policy
     query: SELECT 1
     install_software:
-      app_store_id: com.example.vpp-app
+      app_store_id: 5128675309
 agent_options:
 reports:
 `), 0o644))
@@ -1286,6 +1288,23 @@ policies:
 	// provides the server-side data for policy validation on both team and no-team.
 	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", teamFile, "-f", unassignedFile})
 	require.NoError(t, err, "gitops should succeed when policies reference server-side software and software is excepted")
+	// Check that policies for "Test Fleet" contained the expected software title IDs.
+	testFleetPolicySpecs := policySpecsByTeam["Test Fleet"]
+	require.Len(t, testFleetPolicySpecs, 2, "expected 2 policies for Test Fleet")
+	for _, spec := range testFleetPolicySpecs {
+		switch spec.Name {
+		case "Package Policy":
+			assert.Equal(t, uint(10), *spec.SoftwareTitleID, "expected server-side software ID to be injected into Package Policy spec")
+		case "VPP Policy":
+			assert.Equal(t, uint(20), *spec.SoftwareTitleID, "expected server-side software ID to be injected into VPP Policy spec")
+		default:
+			t.Errorf("unexpected policy name: %s", spec.Name)
+		}
+	}
+	// Check that no-team policy also had the expected software title ID.
+	noTeamPolicySpecs := policySpecsByTeam["No team"]
+	require.Len(t, noTeamPolicySpecs, 1, "expected 1 no-team policy")
+	assert.Equal(t, uint(30), *noTeamPolicySpecs[0].SoftwareTitleID, "expected server-side software ID to be injected into no-team policy spec")
 }
 
 // TestGitOpsNoExceptionsClearOmittedKeys verifies that when exceptions are OFF,
@@ -1300,7 +1319,10 @@ func TestGitOpsNoExceptionsClearOmittedKeys(t *testing.T) {
 	)
 
 	// Tracking variables
-	var appliedSecrets []*fleet.EnrollSecret
+	appliedSecrets := []*fleet.EnrollSecret{
+		{Secret: "existing-secret"},
+		{Secret: "another-secret"},
+	}
 	var deletedLabels []string
 
 	savedTeam := &fleet.Team{
