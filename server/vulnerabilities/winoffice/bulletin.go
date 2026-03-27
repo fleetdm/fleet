@@ -1,4 +1,4 @@
-package msrcapps
+package winoffice
 
 import (
 	"encoding/json"
@@ -9,22 +9,20 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 )
 
-// VersionSecurityUpdate represents a CVE with its fixed build for a specific version.
-type VersionSecurityUpdate struct {
-	CVE        string `json:"cve"`
-	FixedBuild string `json:"fixed_build"`
+// SecurityUpdate represents a CVE with its resolved version for a specific version branch.
+type SecurityUpdate struct {
+	CVE string `json:"cve"`
+	// ResolvedInVersion is the build version that fixes this CVE (e.g., "16.0.19725.20172").
+	ResolvedInVersion string `json:"resolved_in_version"`
 }
 
 // VersionBulletin contains security data for a specific version branch.
 type VersionBulletin struct {
-	// Supported indicates if this version is currently supported by Microsoft.
-	Supported bool `json:"supported"`
-	// SecurityUpdates lists CVEs affecting this version with their fixed builds.
-	SecurityUpdates []VersionSecurityUpdate `json:"security_updates"`
+	SecurityUpdates []SecurityUpdate `json:"security_updates"`
 }
 
-// AppBulletinFile contains Windows Office vulnerability data indexed by version.
-type AppBulletinFile struct {
+// BulletinFile contains Windows Office vulnerability data indexed by version.
+type BulletinFile struct {
 	// Version is the schema version for this file format.
 	Version int `json:"version"`
 	// BuildPrefixes maps build prefix to version branch (e.g., "19725" -> "2602").
@@ -33,8 +31,8 @@ type AppBulletinFile struct {
 	Versions map[string]*VersionBulletin `json:"versions"`
 }
 
-// SerializeAsWinOffice writes the bulletins to a JSON file using the WinOffice naming.
-func (b *AppBulletinFile) SerializeAsWinOffice(d time.Time, dir string) error {
+// Serialize writes the bulletin to a JSON file.
+func (b *BulletinFile) Serialize(d time.Time, dir string) error {
 	payload, err := json.Marshal(b)
 	if err != nil {
 		return err
