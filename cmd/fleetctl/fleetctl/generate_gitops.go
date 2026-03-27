@@ -91,7 +91,6 @@ type generateGitopsClient interface {
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
-	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
