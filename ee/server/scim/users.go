@@ -667,6 +667,7 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	// Store previous active state before applying patches
 	previousActive := user.Active
 
+	modified := false
 	for _, op := range operations {
 		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
 			u.logger.InfoContext(ctx, "unsupported patch operation", "op", op.Op)
@@ -691,44 +692,81 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case userNameAttr:
 					err = u.patchUserName(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case activeAttr:
 					err = u.patchActive(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case nameAttr + "." + givenNameAttr:
 					err = u.patchGivenName(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case nameAttr + "." + familyNameAttr:
 					err = u.patchFamilyName(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case nameAttr:
 					err = u.patchName(ctx, v, op, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case emailsAttr:
 					err = u.patchEmails(ctx, v, op, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case extensionEnterpriseUserAttributes + ":" + departmentAttr:
 					err = u.patchDepartment(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
+				case extensionEnterpriseUserAttributes:
+					// Some SCIM clients send enterprise extension attributes as a nested map with
+					// the schema URN as the key, e.g. {"urn:...:User": {"department": "Sales"}}.
+					// Ex:
+					//   "urn:ietf:params:scim:schemas:extension:{{CompanyName}}:2.0:User": {
+					// 	   "{{CustomAttributeName}}": "CustomValue",
+					// 	   "anotherCustomField": "AnotherValue"
+					//   }
+					extMap, ok := v.(map[string]any)
+					if !ok {
+						u.logger.ErrorContext(ctx,
+							fmt.Sprintf("unexpected type for %s: %T", extensionEnterpriseUserAttributes, v),
+							userNameAttr, user.UserName,
+						)
+						return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{extensionEnterpriseUserAttributes})
+					}
+					for key, val := range extMap {
+						switch key {
+						case departmentAttr:
+							err = u.patchDepartment(ctx, op.Op, val, user)
+							if err != nil {
+								return scim.Resource{}, err
+							}
+							modified = true
+						default:
+							u.logger.WarnContext(ctx, "unsupported enterprise extension attribute", "attribute", key)
+						}
+					}
 				default:
-					u.logger.InfoContext(ctx, "unsupported patch value field", "field", k)
-					return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					// Skip unrecognized fields rather than failing — a single unknown attribute
+					// must not abort the entire batch and discard valid updates like department.
+					u.logger.WarnContext(ctx, "unsupported patch value field", "field", k)
 				}
 			}
 		case op.Path.String() == externalIdAttr:
@@ -736,53 +774,63 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == userNameAttr:
 			err = u.patchUserName(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == activeAttr:
 			err = u.patchActive(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == nameAttr+"."+givenNameAttr:
 			err = u.patchGivenName(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == nameAttr+"."+familyNameAttr:
 			err = u.patchFamilyName(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == nameAttr:
 			err = u.patchName(ctx, op.Value, op, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == emailsAttr:
 			err = u.patchEmails(ctx, op.Value, op, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.AttributePath.String() == emailsAttr:
 			err = u.patchEmailsWithPathFiltering(ctx, op, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.AttributePath.String() == extensionEnterpriseUserAttributes+":"+departmentAttr:
 			err = u.patchDepartment(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		default:
-			u.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
-			return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			// Skip unrecognized paths rather than failing — a single unknown attribute must not
+			// abort the entire batch and discard valid updates (e.g. department alongside groups).
+			u.logger.WarnContext(ctx, "unsupported patch path", "path", op.Path)
 		}
 	}
 
-	if len(operations) != 0 {
+	if modified {
 		err = u.ds.ReplaceScimUser(ctx, user)
 		switch {
 		case fleet.IsNotFound(err):

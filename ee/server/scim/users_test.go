@@ -1032,3 +1032,234 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		assert.False(t, mocks.ds.CreateScimUserFuncInvoked)
 	})
 }
+
+// TestUserHandlerPatchDepartment tests that department PATCH operations from Okta are handled
+// correctly.
+func TestUserHandlerPatchDepartment(t *testing.T) {
+	const enterpriseExtURN = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+
+	setupMocks := func(t *testing.T) (*testMocks, *fleet.ScimUser, **fleet.ScimUser) {
+		t.Helper()
+		mocks := newTestMocks()
+		existingUser := newTestScimUser(&scimUserOpts{active: new(true), givenName: "John", familyName: "Doe"})
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingUser, nil
+		}
+		var saved *fleet.ScimUser
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+			saved = user
+			return nil
+		}
+		return mocks, existingUser, &saved
+	}
+
+	// Test {"op":"replace","path":"urn:...:User:department","value":"Sales"}
+	t.Run("Patch with path (confirmed Okta format) updates department", func(t *testing.T) {
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		deptPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":department"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationReplace, Path: &deptPath, Value: "Sales"},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Sales", *(*saved).Department)
+	})
+
+	t.Run("Patch with path (confirmed Okta format) removes department", func(t *testing.T) {
+		// Okta sends: {"op":"remove","path":"urn:...:User:department"}
+		mocks, existingUser, saved := setupMocks(t)
+		existingUser.Department = ptr.String("Sales")
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		deptPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":department"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationRemove, Path: &deptPath, Value: nil},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		assert.Nil(t, (*saved).Department)
+	})
+
+	t.Run("Patch with path updates department even when batched with unrecognized attributes", func(t *testing.T) {
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		deptPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":department"))
+		require.NoError(t, err)
+
+		unknownPath, err := filter.ParsePath([]byte("unknownAttribute"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			// An unrecognized attribute operation comes first (simulates groups or other attrs).
+			{Op: scim.PatchOperationReplace, Path: &unknownPath, Value: "ignored"},
+			// The department update must still be applied.
+			{Op: scim.PatchOperationReplace, Path: &deptPath, Value: "Engineering"},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Engineering", *(*saved).Department)
+	})
+
+	t.Run("no-path Patch with nested enterprise extension map updates department", func(t *testing.T) {
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationReplace,
+				Path: nil,
+				Value: map[string]any{
+					enterpriseExtURN: map[string]any{"department": "Sales"},
+				},
+			},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Sales", *(*saved).Department)
+	})
+
+	t.Run("no-path Patch with nested enterprise extension map also works for add operation", func(t *testing.T) {
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationAdd,
+				Path: nil,
+				Value: map[string]any{
+					enterpriseExtURN: map[string]any{"department": "Sales"},
+				},
+			},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Sales", *(*saved).Department)
+	})
+
+	t.Run("no-path Patch with nested enterprise extension rejects non-string department", func(t *testing.T) {
+		// The enterprise extension value is a recognized attribute, so a malformed value type
+		// must return a 400 error rather than being silently skipped.
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationReplace,
+				Path: nil,
+				Value: map[string]any{
+					enterpriseExtURN: map[string]any{"department": 42},
+				},
+			},
+		})
+		require.Error(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("no-path Patch with nested enterprise extension rejects non-map extension value", func(t *testing.T) {
+		// If the extension URN maps to a non-map value (e.g. a plain string), it is a client
+		// error and must return 400 — not be silently skipped like an unknown attribute.
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationReplace,
+				Path: nil,
+				Value: map[string]any{
+					enterpriseExtURN: "not-a-map",
+				},
+			},
+		})
+		require.Error(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("no-path Patch with nested enterprise extension ignores unrecognized extension keys", func(t *testing.T) {
+		// Keys inside the enterprise extension map that Fleet doesn't support (e.g. manager,
+		// costCenter) must be silently skipped so that supported keys like department still apply.
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationReplace,
+				Path: nil,
+				Value: map[string]any{
+					enterpriseExtURN: map[string]any{
+						"department": "Engineering",
+						"manager":    map[string]any{"value": "some-manager-id"},
+						"costCenter": "CC-001",
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Engineering", *(*saved).Department)
+	})
+
+	t.Run("Patch with only unrecognized path attributes does not write to database", func(t *testing.T) {
+		// When all operations in a PATCH contain only unrecognized attributes, there is nothing
+		// to persist. ReplaceScimUser must not be called to avoid an unnecessary DB round-trip.
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		unknownPath, err := filter.ParsePath([]byte("unknownAttribute"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationReplace, Path: &unknownPath, Value: "ignored"},
+			{Op: scim.PatchOperationReplace, Path: &unknownPath, Value: "also ignored"},
+		})
+		require.NoError(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("no-path Patch with only unrecognized value fields does not write to database", func(t *testing.T) {
+		// Same guard for the nil-path code path: if all keys in the value map are unrecognized,
+		// ReplaceScimUser must not be called.
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationReplace,
+				Path: nil,
+				Value: map[string]any{
+					"groups":        []any{map[string]any{"value": "grp1"}},
+					"unknownField2": "ignored",
+				},
+			},
+		})
+		require.NoError(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+}

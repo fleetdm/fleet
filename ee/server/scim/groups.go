@@ -317,6 +317,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 		return scim.Resource{}, err
 	}
 
+	modified := false
 	for _, op := range operations {
 		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
 			g.logger.InfoContext(ctx, "unsupported patch operation", "op", op.Op)
@@ -328,7 +329,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 				g.logger.InfoContext(ctx, "the 'path' attribute is REQUIRED for 'remove' operations", "op", op.Op)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			newValues, ok := op.Value.(map[string]interface{})
+			newValues, ok := op.Value.(map[string]any)
 			if !ok {
 				g.logger.InfoContext(ctx, "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -340,19 +341,23 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case displayNameAttr:
 					err = g.patchDisplayName(ctx, op.Op, v, group)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case membersAttr:
 					err = g.patchMembers(ctx, op.Op, v, group)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				default:
-					g.logger.InfoContext(ctx, "unsupported patch value field", "field", k)
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					// Skip unrecognized fields rather than failing — a single unknown attribute
+					// must not abort the entire batch and discard valid updates like members.
+					g.logger.WarnContext(ctx, "unsupported patch value field", "field", k)
 				}
 			}
 		case op.Path.String() == externalIdAttr:
@@ -360,28 +365,33 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == displayNameAttr:
 			err = g.patchDisplayName(ctx, op.Op, op.Value, group)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == membersAttr:
 			err = g.patchMembers(ctx, op.Op, op.Value, group)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.AttributePath.String() == membersAttr:
 			err = g.patchMembersWithPathFiltering(ctx, op, group)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		default:
-			g.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
-			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			// Skip unrecognized paths rather than failing — a single unknown attribute
+			// must not abort the entire batch and discard valid updates like members.
+			g.logger.WarnContext(ctx, "unsupported patch path", "path", op.Path)
 		}
 	}
 
-	if len(operations) != 0 {
+	if modified {
 		err = g.ds.ReplaceScimGroup(ctx, group)
 		switch {
 		case fleet.IsNotFound(err):

@@ -1,0 +1,2 @@
+* Fixed bug where batched PATCH operations abort on unrecognized attributes.
+* Extended the parsing of the SCIM enterprise user extension (urn:ietf:params:scim:schemas:extension:enterprise:2.0:User) to allow for no-path PATCH format: {"urn:...:User": {"department": "Sales"}}
