@@ -3,7 +3,8 @@
     {
       "version": "2026.0.1",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit';",
+        "patch": ""
       },
       "installer_url": "https://download.techsmith.com/snagitmac/releases/2601/snagit.dmg",
       "install_script_ref": "e4207142",

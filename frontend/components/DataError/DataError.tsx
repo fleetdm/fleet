@@ -25,6 +25,8 @@ interface IDataErrorProps {
   className?: string;
   /** Flag to use the updated DataError design */
   useNew?: boolean;
+  /** Overrides something gone wrong line with description text to condense error onto one line */
+  singleCustomLine?: boolean;
 }
 
 const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
@@ -36,8 +38,29 @@ const DataError = ({
   verticalPaddingSize,
   className,
   useNew = false,
+  singleCustomLine = false,
 }: IDataErrorProps): JSX.Element => {
   const classes = classnames(baseClass, className);
+
+  if (singleCustomLine) {
+    return (
+      <div className={classes}>
+        <div
+          className={`${baseClass}__inner ${
+            verticalPaddingSize &&
+            `${baseClass}__vertical-${verticalPaddingSize}`
+          }`}
+        >
+          <div className="info">
+            <span className="info__header-single-line">
+              <Icon name="error" />
+              {description}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (useNew) {
     return (

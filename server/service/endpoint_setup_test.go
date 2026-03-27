@@ -644,8 +644,8 @@ func TestApplyStarterLibraryWithFreeLicense(t *testing.T) {
 		// Set up the baseClient with the mock HTTP client and a valid baseURL
 		baseURL, _ := url.Parse(serverURL)
 		mockClient.baseClient = &baseClient{
-			http:    mockHTTPClient,
-			baseURL: baseURL,
+			HTTP:    mockHTTPClient,
+			BaseURL: baseURL,
 		}
 
 		return mockClient, nil

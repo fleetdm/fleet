@@ -31,6 +31,7 @@ import (
 	"text/template"
 	"time"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/hostidentity"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
@@ -43,7 +44,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
 	"github.com/remitly-oss/httpsig-go"
@@ -853,7 +853,7 @@ func (a *agent) runOrbitLoop() {
 		}
 	}
 
-	orbitClient, err := service.NewOrbitClient(
+	orbitClient, err := fleetclient.NewOrbitClient(
 		"",
 		a.serverAddress,
 		"",
@@ -875,7 +875,7 @@ func (a *agent) runOrbitLoop() {
 
 	orbitClient.TestNodeKey = *a.orbitNodeKey
 
-	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "", nil, "")
+	deviceClient, err := fleetclient.NewDeviceClient(a.serverAddress, true, "", nil, "")
 	if err != nil {
 		log.Fatal("creating device client: ", err)
 	}
@@ -1317,7 +1317,7 @@ func (a *agent) runWindowsMDMLoop() {
 	}
 }
 
-func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) {
+func (a *agent) execScripts(execIDs []string, orbitClient *fleetclient.OrbitClient) {
 	if a.scriptExecRunning.Swap(true) {
 		// if Swap returns true, the goroutine was already running, exit
 		return
@@ -1372,7 +1372,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 	}
 }
 
-func (a *agent) installSoftware(installerIDs []string, orbitClient *service.OrbitClient) {
+func (a *agent) installSoftware(installerIDs []string, orbitClient *fleetclient.OrbitClient) {
 	// Only allow one software install to happen at a time.
 	if a.softwareInstaller.mu.TryLock() {
 		defer a.softwareInstaller.mu.Unlock()
@@ -1382,7 +1382,7 @@ func (a *agent) installSoftware(installerIDs []string, orbitClient *service.Orbi
 	}
 }
 
-func (a *agent) installSoftwareItem(installerID string, orbitClient *service.OrbitClient) {
+func (a *agent) installSoftwareItem(installerID string, orbitClient *fleetclient.OrbitClient) {
 	a.stats.IncrementSoftwareInstalls()
 
 	payload := &fleet.HostSoftwareInstallResultPayload{}
@@ -1550,7 +1550,7 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 // now, we assume that the agent is not already enrolled, if you kill the agent
 // process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	params := contract.EnrollOrbitRequest{
+	params := fleet.EnrollOrbitRequest{
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
@@ -1572,7 +1572,7 @@ func (a *agent) orbitEnroll() error {
 	})
 	defer response.Body.Close()
 
-	var parsedResp service.EnrollOrbitResponse
+	var parsedResp fleet.EnrollOrbitResponse
 	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		log.Println("orbit json parse:", err)
 		return err

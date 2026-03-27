@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.2.2",
+      "version": "26.3.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';",
+        "patch": ""
       },
-      "installer_url": "https://download.parallels.com/desktop/v26/26.2.2-57373/ParallelsDesktop-26.2.2-57373.dmg",
+      "installer_url": "https://download.parallels.com/desktop/v26/26.3.0-57392/ParallelsDesktop-26.3.0-57392.dmg",
       "install_script_ref": "bec9673c",
       "uninstall_script_ref": "117c49a4",
-      "sha256": "42c30c3f317b451c367adc472e238773ca1f4ab3beae4ff74f5637fb3027c273",
+      "sha256": "a554e51976556ff43febf8bb074eca59bdca83ee4b9b4ebebf8111c548e85bba",
       "default_categories": [
         "Productivity"
       ]
