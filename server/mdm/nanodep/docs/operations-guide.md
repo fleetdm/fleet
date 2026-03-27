@@ -12,7 +12,7 @@ Note that because the name string is used pervasively in URL API paths you proba
 
 The `depserver` serves two main purposes:
 
-1. Setup & configuration of the DEP name(s) — that is, the locally-named instances that correspond to the DEP "MDM servers" in the Apple Business Manager (ABM), Apple School Manager (ASM), or Business Essentials (BE) portal. Configuration includes uploading the DEP authentication tokens, configuring the assigner, etc. See the "API endpoints" section below for more.
+1. Setup & configuration of the DEP name(s) — that is, the locally-named instances that correspond to the DEP "MDM servers" in the Apple Business (AB), Apple School Manager (ASM), or Business Essentials (BE) portal. Configuration includes uploading the DEP authentication tokens, configuring the assigner, etc. See the "API endpoints" section below for more.
 1. Accessing the actual DEP APIs using a transparently-authenticating reverse proxy. After you've configured the authentication tokens using the above APIs `depserver` provides a reverse proxy to talk to the Apple DEP endpoints where you don't have to worry about session management or token authentication: this's taken care of for you. All you need to do is use a special URL path and normal API (HTTP Basic) authentication and you can talk to the DEP APIs unfiltered. See the "Reverse proxy" section below for more.
 
 ### Switches
