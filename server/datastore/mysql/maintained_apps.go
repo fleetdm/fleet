@@ -28,7 +28,7 @@ ON DUPLICATE KEY UPDATE
 	const updateTitleStmt = `UPDATE software_titles SET name = ? WHERE unique_identifier = ? AND source = ? AND name != ?`
 	args := []any{app.Name, app.UniqueIdentifier, app.Source(), app.Name}
 	if app.Platform == "windows" {
-		args = []any{app.UniqueIdentifier, app.UniqueIdentifier, app.Source(), app.Name}
+		args = []any{app.UniqueIdentifier, app.UniqueIdentifier, app.Source(), app.UniqueIdentifier}
 	}
 
 	var appID uint
