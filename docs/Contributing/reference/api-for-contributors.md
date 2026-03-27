@@ -1349,25 +1349,25 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
     "color": "MIDNIGHT",
     "description": "IPHONE 13 MIDNIGHT 128GB-USA",
     "device_assigned_by": "fleetie@example.com",
-    "device_assigned_date": "2026-01-29T21:17:25Z",
+    "device_assigned_date": "2025-12-04T01:17:25Z",
     "device_family": "iPhone",
     "os": "iOS",
     "profile_status": "assigned",
-    "profile_assign_time": "2026-01-29T21:17:25Z",
+    "profile_assign_time": "2025-12-04T01:17:25Z",
     "profile_push_time": "0001-01-01T00:00:00Z",
     "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
-    "mdm_migration_deadline": null,
     "serial_number": "ABC1FND0ZX",
+    "op_date": "0001-01-01T00:00:00Z"
   },
   "host_dep_assignment": {
     "assign_profile_response": "SUCCESS",
     "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
-    "response_updated_at": "2025-12-04 01:35:27",
-    "added_at": "2025-12-04 01:35:27",
+    "response_updated_at": "2025-12-04T01:35:27Z",
+    "added_at": "2025-12-04T01:35:27Z",
     "deleted_at": null,
     "abm_token_id": 1,
-    "mdm_migration_deadline": "2025-12-05 00:00:00.000000",
-    "mdm_migration_completed": "2025-12-05 00:00:00.000000"
+    "mdm_migration_deadline": "2025-12-05T00:00:00Z",
+    "mdm_migration_completed": "2025-12-05T00:00:00Z"
   }
 }
 ```
