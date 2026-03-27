@@ -1036,7 +1036,8 @@ func TestFullFlowReplicaLagRetry(t *testing.T) {
 	require.NoError(t, err)
 
 	// Mark policy as failing for the host
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	failing := false
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: &failing}, time.Now(), false)
 	require.NoError(t, err)
 
 	// Replicate everything created so far. This is the "steady state" the
@@ -1070,11 +1071,13 @@ func TestFullFlowReplicaLagRetry(t *testing.T) {
 
 	// Step 2: Submit a failed install result
 	// This is what orbit calls after executing the install script.
+	failedExitCode := 1
+	failedOutput := "install failed"
 	result := &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           installUUID,
-		InstallScriptExitCode: ptr.Int(1), // Failed
-		InstallScriptOutput:   ptr.String("install failed"),
+		InstallScriptExitCode: &failedExitCode,
+		InstallScriptOutput:   &failedOutput,
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1143,7 +1146,8 @@ func TestFullFlowReplicaLagScriptRetry(t *testing.T) {
 	require.NoError(t, err)
 
 	// Mark policy as failing for the host
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	scriptFailing := false
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: &scriptFailing}, time.Now(), false)
 	require.NoError(t, err)
 
 	// Replicate everything created so far.
