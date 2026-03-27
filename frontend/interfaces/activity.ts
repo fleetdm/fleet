@@ -160,6 +160,7 @@ export enum ActivityType {
   EditedHostIdpData = "edited_host_idp_data",
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
+  InstalledCertificate = "installed_certificate",
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
@@ -181,7 +182,8 @@ export type IHostPastActivityType =
   | ActivityType.CanceledRunScript
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
-  | ActivityType.CanceledUninstallSoftware;
+  | ActivityType.CanceledUninstallSoftware
+  | ActivityType.InstalledCertificate;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -289,6 +291,7 @@ export interface IActivityDetails {
   tenant_id?: string;
   certificate_name?: string;
   certificate_template_id?: number;
+  detail?: string;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -459,5 +462,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
+  [ActivityType.InstalledCertificate]: "Installed certificate",
   [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
 };

@@ -1,0 +1,2 @@
+* Added activity logging when a certificate is installed or fails to install on an Android host.
+* Enabled the host activity card on the Android host details page.

@@ -1151,7 +1151,6 @@ const HostDetailsPage = ({
 
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsTab = mdm?.enrollment_status !== "Pending";
-  const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
@@ -1354,8 +1353,7 @@ const HostDetailsPage = ({
                   toggleLocationModal={toggleLocationModal}
                   toggleMDMStatusModal={toggleMDMStatusModal}
                 />
-                {showActivityCard && (
-                  <ActivityCard
+                <ActivityCard
                     className={
                       showAgentOptionsCard
                         ? tripleHeightCardClass
@@ -1411,7 +1409,6 @@ const HostDetailsPage = ({
                     onShowCommandDetails={setMdmCommandDetails}
                     onCancel={onCancelActivity}
                   />
-                )}
                 <UserCard
                   className={defaultCardClass}
                   endUsers={host.end_users ?? []}
@@ -1430,11 +1427,7 @@ const HostDetailsPage = ({
                   }}
                 />
                 <LabelsCard
-                  className={
-                    !showActivityCard && !showAgentOptionsCard
-                      ? fullWidthCardClass
-                      : defaultCardClass
-                  }
+                  className={defaultCardClass}
                   labels={host?.labels || []}
                   onLabelClick={onLabelClick}
                 />
