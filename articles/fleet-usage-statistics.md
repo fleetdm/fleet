@@ -43,9 +43,9 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "maintenanceWindowsConfigured": true,
   "oktaConditionalAccessConfigured": true,
   "conditionalAccessBypassDisabled": false,
-  "numHostsFleetDesktopEnabled": 999,
-  "gitOpsModeEnabled: true,
-  "gitOpsModeExceptions: [
+"numHostsFleetDesktopEnabled": 999,
+  "gitOpsModeEnabled": true,
+  "gitOpsModeExceptions": [
     "labels",
     "software",
     "secrets"
