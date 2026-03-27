@@ -1,0 +1,1 @@
+- remove the enrolled from migration status for a device when it is doing a new enrollment not that is not part of an mdm migration
