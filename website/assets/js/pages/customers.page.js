@@ -1,10 +1,11 @@
-parasails.registerPage('testimonials', {
+parasails.registerPage('customers', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: '',
     quotesWithVideoLinks: [],
+    pageOfCaseStudiesVisible: -1,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -34,6 +35,20 @@ parasails.registerPage('testimonials', {
     clickOpenVideoModal: function(modalName) {
       console.log(modalName);
       this.modal = _.kebabCase(modalName);
+    },
+
+    clickGotoCaseStudyLink: function(url, event) {
+      if (event.ctrlKey || event.metaKey) {
+        window.open(url, '_blank');
+        return;
+      } else {
+        this.goto(url);
+      }
+
+    },
+
+    clickShowMoreCaseStudies: function() {
+      this.pageOfCaseStudiesVisible++;
     },
 
     closeModal: function() {
