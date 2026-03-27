@@ -989,6 +989,8 @@ type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Hos
 
 type MDMResetEnrollmentFunc func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
+type ClearHostEnrolledFromMigrationFunc func(ctx context.Context, hostUUID string) error
+
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uint) ([]string, error)
@@ -3304,6 +3306,9 @@ type DataStore struct {
 
 	MDMResetEnrollmentFunc        MDMResetEnrollmentFunc
 	MDMResetEnrollmentFuncInvoked bool
+
+	ClearHostEnrolledFromMigrationFunc        ClearHostEnrolledFromMigrationFunc
+	ClearHostEnrolledFromMigrationFuncInvoked bool
 
 	ListMDMAppleDEPSerialsInTeamFunc        ListMDMAppleDEPSerialsInTeamFunc
 	ListMDMAppleDEPSerialsInTeamFuncInvoked bool
@@ -7986,6 +7991,13 @@ func (s *DataStore) MDMResetEnrollment(ctx context.Context, hostUUID string, sce
 	s.MDMResetEnrollmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMResetEnrollmentFunc(ctx, hostUUID, scepRenewalInProgress)
+}
+
+func (s *DataStore) ClearHostEnrolledFromMigration(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ClearHostEnrolledFromMigrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostEnrolledFromMigrationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
