@@ -1443,9 +1443,17 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	require.NotNil(t, preResendCertResp.Certificate.FleetChallenge, "fleet_challenge should be created on-demand")
 	originalFleetChallenge := *preResendCertResp.Certificate.FleetChallenge
 
-	// Simulate device reporting certificate enrollment as verified
+	// Simulate device reporting certificate enrollment as verified, with validity info
+	certNotBefore := time.Now().UTC().Truncate(time.Second)
+	certNotAfter := certNotBefore.Add(365 * 24 * time.Hour)
+	certSerial := "AB:CD:EF:01:23:45"
+	certDetail := "enrollment succeeded"
 	updateReq, err := json.Marshal(updateCertificateStatusRequest{
-		Status: string(fleet.CertificateTemplateVerified),
+		Status:         string(fleet.CertificateTemplateVerified),
+		NotValidBefore: &certNotBefore,
+		NotValidAfter:  &certNotAfter,
+		Serial:         &certSerial,
+		Detail:         &certDetail,
 	})
 	require.NoError(t, err)
 	resp = s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), updateReq, http.StatusOK, map[string]string{
@@ -1453,14 +1461,18 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	})
 	_ = resp.Body.Close()
 
-	// Verify status is 'verified'
+	// Verify status is 'verified' and validity fields are populated
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
 		fleet.CertificateTemplateVerified, "")
+	verifiedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+	require.NoError(t, err)
+	require.NotNil(t, verifiedRecord.NotValidBefore, "not_valid_before should be set after verified")
+	require.NotNil(t, verifiedRecord.NotValidAfter, "not_valid_after should be set after verified")
+	require.NotNil(t, verifiedRecord.Serial, "serial should be set after verified")
+	require.NotNil(t, verifiedRecord.Detail, "detail should be set after verified")
 
 	// Record UUID before resend
-	originalRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
-	require.NoError(t, err)
-	originalUUID := originalRecord.UUID
+	originalUUID := verifiedRecord.UUID
 
 	// Call the resend endpoint
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),
@@ -1478,12 +1490,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		),
 		0)
 
-	// Verify status is reset to 'pending', UUID changed, and fleet_challenge cleared
+	// Verify status is reset to 'pending', UUID changed, and all certificate fields cleared
 	updatedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.CertificateTemplatePending, updatedRecord.Status)
 	require.NotEqual(t, originalUUID, updatedRecord.UUID, "UUID should change after resend")
 	require.Nil(t, updatedRecord.FleetChallenge, "fleet_challenge should be cleared after resend")
+	require.Nil(t, updatedRecord.NotValidBefore, "not_valid_before should be cleared after resend")
+	require.Nil(t, updatedRecord.NotValidAfter, "not_valid_after should be cleared after resend")
+	require.Nil(t, updatedRecord.Serial, "serial should be cleared after resend")
+	require.Nil(t, updatedRecord.Detail, "detail should be cleared after resend")
 
 	// Verify the host API reflects pending status
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
