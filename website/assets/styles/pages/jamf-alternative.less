@@ -798,3 +798,9 @@
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-jamf-alternative .logo-ticker-track {
+    animation: none;
+  }
+}
