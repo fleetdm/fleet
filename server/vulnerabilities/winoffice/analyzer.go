@@ -70,10 +70,7 @@ func parseOfficeVersion(version string) (buildPrefix, buildSuffix string, err er
 // Returns -1 if a < b, 0 if a == b, 1 if a > b.
 func compareBuildSuffix(a, b string) int {
 	// Pad to same length for proper string comparison
-	maxLen := len(a)
-	if len(b) > maxLen {
-		maxLen = len(b)
-	}
+	maxLen := max(len(a), len(b))
 	paddedA := fmt.Sprintf("%0*s", maxLen, a)
 	paddedB := fmt.Sprintf("%0*s", maxLen, b)
 
