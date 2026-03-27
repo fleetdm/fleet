@@ -1569,7 +1569,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	wrapErrs := func(err error) []error {
 		return []error{wrapErr(err)}
 	}
-	if (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "" || installSoftwareObj.FleetMaintainedAppSlug != "") && teamName == nil {
+	if (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "" || installSoftwareObj.HashSHA256 != "" || installSoftwareObj.FleetMaintainedAppSlug != "") && teamName == nil {
 		return wrapErrs(errors.New("install_software can only be set on team policies"))
 	}
 	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" && installSoftwareObj.FleetMaintainedAppSlug == "" {
