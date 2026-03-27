@@ -614,7 +614,7 @@ module.exports.routes = {
   'GET /whitepapers': {
     action: 'articles/view-articles',
     locals: {
-      currentSection: 'more', 
+      currentSection: 'more',
     }
   },
 
