@@ -14,9 +14,12 @@ import {
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";
 
+import PATHS from "router/paths";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -36,11 +39,16 @@ const RECOVERY_LOCK_TOOLTIP_CONTENT = (
       text="Learn more"
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/recovery-lock-passwords`}
       newTab
+      variant="tooltip-link"
     />
   </>
 );
 
-const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
+const Passwords = ({
+  currentTeamId,
+  router,
+  onMutation,
+}: IOSSettingsCommonProps) => {
   const {
     isPremiumTier,
     config,
@@ -51,9 +59,13 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
+  // Recovery Lock is macOS only, so we only check for macOS MDM
+  const mdmEnabled = config?.mdm.enabled_and_configured;
+
   const [enableRecoveryLockPassword, setEnableRecoveryLockPassword] = useState<
     boolean | undefined
   >(undefined);
+  const [updating, setUpdating] = useState(false);
 
   const {
     isLoading: isLoadingTeam,
@@ -93,6 +105,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
     !isFormReady || isTeamError || enableRecoveryLockPassword === undefined;
 
   const onUpdateRecoveryLockPassword = async () => {
+    setUpdating(true);
     try {
       if (currentTeamId === API_NO_TEAM_ID) {
         await configAPI.update({
@@ -116,6 +129,8 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
         getErrorReason(e) ??
         "Couldn't update Recovery Lock password enforcement. Please try again.";
       renderFlash("error", errorMsg);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -127,8 +142,18 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
         content="Manage passwords used for recovery, security, or administrative access across supported platforms."
       />
       {!isPremiumTier && <PremiumFeatureMessage />}
-      {isPremiumTier && showLoading && <Spinner />}
-      {isPremiumTier && !showLoading && !isTechnician && (
+      {isPremiumTier && mdmEnabled === undefined && <Spinner />}
+      {isPremiumTier && mdmEnabled === false && (
+        <GenericMsgWithNavButton
+          header="Manage your hosts"
+          buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          router={router}
+          info="MDM must be turned on to apply password settings."
+        />
+      )}
+      {isPremiumTier && mdmEnabled === true && showLoading && <Spinner />}
+      {isPremiumTier && mdmEnabled === true && !showLoading && !isTechnician && (
         <div className="form passwords-content">
           <div className={`${baseClass}__recovery-lock-header`}>
             <TooltipWrapper tipContent={RECOVERY_LOCK_TOOLTIP_CONTENT}>
@@ -150,6 +175,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
               renderChildren={(gitopsDisabled) => (
                 <Button
                   disabled={isFormDisabled || gitopsDisabled}
+                  isLoading={updating}
                   className={`${baseClass}__save-button`}
                   onClick={onUpdateRecoveryLockPassword}
                 >

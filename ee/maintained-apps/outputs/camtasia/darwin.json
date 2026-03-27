@@ -3,7 +3,8 @@
     {
       "version": "2026.0.7",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.techsmith.camtasia';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.techsmith.camtasia';",
+        "patch": ""
       },
       "installer_url": "https://download.techsmith.com/camtasiamac/releases/2607/Camtasia.dmg",
       "install_script_ref": "41260542",

@@ -245,7 +245,7 @@ const ScriptDetailsModal = ({
                   />
                 </div>
               )}
-              <Button onClick={onCancel}>Done</Button>
+              <Button onClick={onCancel}>Close</Button>
             </>
           )
         }
@@ -290,10 +290,8 @@ const ScriptDetailsModal = ({
       onExit={onClose ?? onCancel}
       isHidden={isHidden}
     >
-      <>
-        {renderContent()}
-        {shouldShowFooter && renderFooter()}
-      </>
+      {renderContent()}
+      {shouldShowFooter && renderFooter()}
     </Modal>
   );
 };

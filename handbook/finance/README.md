@@ -8,7 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
-| GTM Systems Architect | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
+| Head of GTM Architecture | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 
 
 ## Contact us
@@ -359,7 +359,7 @@ No later than the second month of every quarter, we check [Delaware divison of c
 
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
 1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
-2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accural" accounting method.
+2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accrual" accounting method.
 3. Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
 4. Once quirks are resolved, note the day it was resolved in the spreadsheet.
 
@@ -459,7 +459,7 @@ Using this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF
 4. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
 5. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
 6. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
-7. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
+7. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form calculator as the source of truth, if needed, adjust the values in the table to be correct.
 8. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to [Deal Desk](https://fleetdm.com/handbook/finance#team) with concerns.
 9. `@`-mention the requestor in the thread to request changes or provide approval.
 
@@ -478,16 +478,6 @@ When an agreement is routed to the [CFO](https://fleetdm.com/handbook/finance#te
 > If the agreement closes a deal, inform the CFO (via Slack) that a subscription agreement is ready for his review/signature. The SLA for CFO review and signature is 48hrs.
 
 2. The CFO will comment in the issue once they've signed the agreement and assign the issue to [Deal Desk](https://fleetdm.com/handbook/finance#team) to confirm a signed copy of the agreement is correctly stored in Google Drive. Then the issue can be closed.  
-
-
-### Monitor compliance tests
-
-1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
-2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
-3. Click on a test, then click on "Tasks".  
-4. Click on "Create task." Then, "Create GitHub issue."
-5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-finance" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
-6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
 ### Check GitHub terms
@@ -516,9 +506,18 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 7. Verify that the principal record details match exactly what is on LinkedIn.
 
 
+### Send Primo CRO weekly export
+
+Every Friday, the Head of GTM Architecture will send an export/email to Primo's CRO with a list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view).
+
+1. Export the list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view) from the CRM.
+2. Paste the values into the [SHARED EXTERNALLY - Leads for Primo](https://docs.google.com/spreadsheets/d/1bJt7e26gDqPbq5emM1Pn3yUWaFzUtXrqmAhS2p53_ws/edit?gid=0#gid=0) Google sheet.
+3. Email Primo's CRO and cc Zay Hanlon.
+
+
 ### Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
 
 
 ### Add a seat to Salesforce
@@ -545,6 +544,9 @@ The following table lists this department's rituals, frequency, and Directly Res
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
+
+##### Monitor compliance tests
+Please see [handbook/it#monitor-compliance-tests](https://fleetdm.com/handbook/it#monitor-compliance-tests)
 
 ### Run payroll
 Please see [handbook/people#run-payroll](https://fleetdm.com/handbook/people#run-payroll)

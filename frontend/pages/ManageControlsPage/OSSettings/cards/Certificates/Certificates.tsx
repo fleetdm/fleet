@@ -71,7 +71,7 @@ const Certificates = ({
     [
       {
         scope: "certificates",
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         page: currentPage,
         per_page: 10,
       },
@@ -110,15 +110,13 @@ const Certificates = ({
     }
     if (!androidMdmEnabled) {
       return (
-        <div className={`${baseClass}__mdm-disabled-message`}>
-          <GenericMsgWithNavButton
-            header="Manage your hosts"
-            buttonText="Turn on"
-            path={PATHS.ADMIN_INTEGRATIONS_MDM}
-            router={router}
-            info="Android MDM must be turned on to apply custom settings."
-          />
-        </div>
+        <GenericMsgWithNavButton
+          header="Additional configuration required"
+          buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          router={router}
+          info="Android MDM must be turned on to add certificates."
+        />
       );
     }
     if (isLoadingCerts) {

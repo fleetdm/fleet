@@ -146,6 +146,9 @@
         "mode": "",
         "webhook_url": ""
       },
+      "apple_settings": {
+        "configuration_profiles": null
+      },
       "macos_settings": {
         "custom_settings": null
       },
@@ -160,12 +163,25 @@
         "manual_agent_install": null,
         "require_all_software_macos": false
       },
+      "setup_experience": {
+        "macos_bootstrap_package": null,
+        "enable_end_user_authentication": false,
+        "lock_end_user_info": false,
+        "apple_setup_assistant": null,
+        "apple_enable_release_device_manually": false,
+        "macos_script": null,
+        "software": null,
+        "macos_manual_agent_install": null,
+        "require_all_software_macos": false
+      },
       "windows_settings": {
-        "custom_settings": null
+        "custom_settings": null,
+        "configuration_profiles": null
       },
       "android_settings": {
         "certificates": null,
-        "custom_settings": null
+        "custom_settings": null,
+        "configuration_profiles": null
       },
       "end_user_authentication": {
         "entity_id": "",
@@ -178,7 +194,12 @@
     "scripts": null,
     "gitops": {
       "gitops_mode_enabled": false,
-      "repository_url": ""
+      "repository_url": "",
+      "exceptions": {
+        "labels": false,
+        "software": false,
+        "secrets": false
+      }
     }
   }
 }

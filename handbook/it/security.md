@@ -11,14 +11,13 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 | Participant | Role                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Requester   | Requests recovery for their own account                                                                |
-| Recoverer   | Person with access to perform the recovery who monitors `help-it` |
+| Recoverer   | Person with access to perform the recovery who monitors [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) |
 | Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
 
 
 ### Preparing for recovery
 
-1. If the requester still has access to GitHub and/or Slack, they [ask for
-   help](https://fleetdm.com/handbook/it#contact-us). For non-urgent requests, please
+1. If the requester still has access to GitHub and/or Slack, they [ask for help](https://fleetdm.com/handbook/it#contact-us). For non-urgent requests, please
    prefer filing an issue with the IT & Enablement team. If they do not have access,
    they can contact their manager or a teammate over the phone via voice or texting, and they will
    [ask for help](https://fleetdm.com/handbook/it#contact-us) on behalf of the
@@ -31,14 +30,14 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 3. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
    the identifier, they can perform the recovery and update the login recovery issue.
 * If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to
-  `#_security` to engage the security team immediately.
+  [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) to engage the security team immediately.
 
 After the identity confirmation, the recovery can be performed while still on the video call, or asynchronously.
 
 
 ### Performing recovery
 
-Before any account recovery, the recoverer must send a message to `#_security` announcing that the
+Before any account recovery, the recoverer must send a message to [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) announcing that the
 recovery will take place. Then, perform the necessary recovery steps.
 
 
@@ -318,7 +317,6 @@ We configure Chrome on company-owned devices with a basic policy.
 | --------------------------------------------------------- |
 | Enforce Chrome updates and Chrome restart within 48 hours |
 | Block intrusive ads                                       |
-| uBlock Origin adblocker extension deployed               |
 | Password manager extension deployed                       |
 | Chrome Endpoint Verification extension deployed           |
 
@@ -441,7 +439,7 @@ lost or stolen simultaneously.
 
 4. I've lost one of my keys, what do I do?
 
-**Answer**: Post in the `#g-security` channel ASAP so we can disable the key. IF you find it later, no
+**Answer**: Post in the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) channel ASAP so we can disable the key. If you find it later, no
 worries, just enroll it again!
 
 5. I lost all of my keys, and I'm locked out! What do I do?
@@ -586,6 +584,22 @@ We manage our GitHub configuration, creation of repositories, and team membershi
 future, we will consider automating most of it using the [Terraform
 provider](https://github.com/integrations/terraform-provider-github) for GitHub. Our strategy for
 this will be similar to what [this blog post](https://oops.computer/posts/github_automation/) describes.
+
+
+### Requesting pull request deletion
+
+Only GitHub Support can permanently delete a pull request — this cannot be done through the GitHub UI or API. Follow these steps to request deletion:
+
+1. **Confirm the PR is closed.** The pull request must be closed (not merged) before GitHub Support can delete it.
+2. **Go to GitHub Support.** Visit https://support.github.com/ and sign in with an account that has admin access to the repository.
+3. **Open a support ticket.** Select "Contact Support" and choose the category most relevant to repository management or pull requests.
+4. **Provide the required details.** In the ticket, include:
+   - The full URL of the pull request to be deleted (e.g., `https://github.com/fleetdm/fleet/pull/12345`).
+   - A clear request asking GitHub Support to permanently delete the pull request.
+   - The reason for deletion (e.g., sensitive data was accidentally included, or the PR was created in error).
+5. **Wait for confirmation.** GitHub Support will review the request and confirm once the pull request has been permanently deleted. This may take a few business days.
+
+> **Important:** The requester must have admin access to the repository. Deletion is permanent and cannot be undone. Merged pull requests generally cannot be deleted.
 
 
 ## Google Workspace security
@@ -956,9 +970,9 @@ Fleet requires all team members to comply with the following acceptable use requ
 
 - The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
-- Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
+- Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
 
-When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC))
+When in doubt, **ASK!** (in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2))
 
 
 ### Access control policy
@@ -1454,14 +1468,10 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
 
 #### I - Identification and Triage
 
-1. Immediately upon observation, Fleet members report suspected and known Events, Precursors, Indications, and Incidents in one of the following ways:
-  - Direct report to management, CTO, CEO, or other
-  - Email
-  - Phone call
-  - Slack
-2. The individual receiving the report facilitates the collection of additional information about the incident, as needed, and notifies the CTO (if not already done).
-3. The CTO determines if the issue is an Event, Precursor, Indication, or Incident.
-  - If the issue is an event, indication, or precursor, the CTO forwards it to the appropriate resource for resolution.
+1. Immediately upon observation, Fleet members report suspected and known Events, Precursors, Indications, and Incidents by sending a message to the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel, making sure to `@mention` **@allenhouchins** and **@pepper**. For anything serious or if there isn't a timely response, also follow up with a direct message (DM) to Allen Houchins and Pepper (Andrea Pepper).
+2. The individual receiving the report facilitates the collection of additional information about the incident, as needed, and notifies the Head of IT (if not already done).
+3. The Head of IT determines if the issue is an Event, Precursor, Indication, or Incident.
+  - If the issue is an event, indication, or precursor, the Head of IT forwards it to the appropriate resource for resolution.
     - Non-Technical Event (minor infringement): the CTO of the designee creates an appropriate issue in GitHub and further investigates the incident as needed.
     - Technical Event: Assign the issue to a technical resource for resolution. This resource may also be a contractor or outsourced technical resource in the event of a lack of resource or expertise in the area.
   - If the issue is a security incident, the CTO activates the Security Incident Response Team (SIRT) and notifies senior leadership by email.
@@ -1934,13 +1944,13 @@ We ask for vulnerabilities reported by researchers and prefer to perform coordin
 For other vulnerabilities affecting Fleet or code used in Fleet, the Head of Security, CTO and CEO can accept the risk of patching them according to custom timelines, depending on the risk and possible temporary mitigations.
 
 
-### Mapping of CVSSv3 scores to Fleet severity
+### Mapping of CVSSv4 scores to Fleet severity
 
 Fleet adapts the severity assigned to vulnerabilities when needed.
 
 The features we use in a library, for example, can mean that some vulnerabilities in the library are unexploitable. In other cases, it might make the vulnerability easier to exploit. In those cases, Fleet would first categorize the vulnerability using publicly available information, then lower or increase the severity based on additional context.
 
-When using externally provided CVSSv3 scores, Fleet maps them like this:
+When using externally provided CVSSv4 scores, Fleet maps them like this:
 
 | CVSSv3 score                       | Fleet severity                      |
 | ---------------------------------- | ----------------------------------- |
@@ -2069,7 +2079,7 @@ You can find the full report here: [2024-06-14-fleet-penetration-test.pdf](https
 | ------------------- | ----------------- |
 | Access controls     | Medium risk       |
 
-Software uploaded to a team's software library is accessible to any host via URL download. 
+Software uploaded to a fleet's software library is accessible to any host via URL download. 
 
 This was resolved in version release [4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) with [validation of agent access to installer package before returning it](https://github.com/fleetdm/fleet/pull/21337).
 
@@ -2141,7 +2151,7 @@ This was resolved in version release [4.33.0](https://github.com/fleetdm/fleet/r
 | ------------------- | -------------- |
 | Authorization issue | High risk      |
 
-Observers are not supposed to be able to add hosts to Fleet. Via specific endpoints, it becomes possible to retrieve the certificate chains and the secrets for all teams, and these are the information required to add a host. 
+Observers are not supposed to be able to add hosts to Fleet. Via specific endpoints, it becomes possible to retrieve the certificate chains and the secrets for all fleets, and these are the information required to add a host. 
 
 This was resolvedin version release [4.33.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) with [updating the observer permissions](https://github.com/fleetdm/fleet/pull/12216).
 
@@ -2164,7 +2174,7 @@ You can find the full report here: [2022-04-29-fleet-penetration-test.pdf](https
 | ------------------- | -------------- |
 | Authorization issue | High risk      |
 
-This section contains a few different authorization issues, allowing team members to access APIs out of the scope of their teams. The most significant problem was that a team administrator was able to add themselves to other teams. 
+This section contains a few different authorization issues, allowing fleet-level users to access APIs out of the scope of their fleets. The most significant problem was that a fleet administrator was able to add themselves to other fleets. 
 
 This is resolved in 4.13, and an [advisory](https://github.com/fleetdm/fleet/security/advisories/GHSA-pr2g-j78h-84cr) has been published before this report was made public.
 We are also planning to add [more testing](https://github.com/fleetdm/fleet/issues/5457) to catch potential future mistakes related to authorization.
@@ -2175,7 +2185,7 @@ We are also planning to add [more testing](https://github.com/fleetdm/fleet/issu
 | --------- | -------------- |
 | Injection | Medium risk    |
 
-It is possible to create or rename an existing team with a malicious name, which, once exported to CSV, could trigger code execution in Microsoft Excel. We assume there are other ways that inserting this type of data could have similar effects, including via osquery data. For this reason, we will evaluate the feasibility of [escaping CSV output](https://github.com/fleetdm/fleet/issues/5460).
+It is possible to create or rename an existing fleet with a malicious name, which, once exported to CSV, could trigger code execution in Microsoft Excel. We assume there are other ways that inserting this type of data could have similar effects, including via osquery data. For this reason, we will evaluate the feasibility of [escaping CSV output](https://github.com/fleetdm/fleet/issues/5460).
 
 Our current recommendation is to review CSV contents before opening in Excel or other programs that may execute commands.
 
@@ -2219,7 +2229,7 @@ The default password policy in Fleet requires passwords that are seven character
 | ----------- | -------------- |
 | Enumeration | Low risk       |
 
-User enumeration by a logged-in user is not a critical issue. Still, when done by a user with minimal privileges (such as a team observer), it is a leak of information, and might be a problem depending on how you use teams. For this reason, only team administrators are able to enumerate users as of Fleet 4.31.0.
+User enumeration by a logged-in user is not a critical issue. Still, when done by a user with minimal privileges (such as a fleet observer), it is a leak of information, and might be a problem depending on how you use fleets. For this reason, only fleet administrators are able to enumerate users as of Fleet 4.31.0.
 
 #### 9 - Information disclosure via default content
 
@@ -2249,7 +2259,7 @@ If this endpoint is a concern in your Fleet environment, consider that the infor
 
 [Add basic auth to /metrics endpoint #2322](https://github.com/fleetdm/fleet/issues/2322)
 
-[Ensure only team admins can list other users #5657](https://github.com/fleetdm/fleet/issues/5657)
+[Ensure only fleet admins can list other users #5657](https://github.com/fleetdm/fleet/issues/5657)
 
 
 ### August 2021 security of Orbit auto-updater

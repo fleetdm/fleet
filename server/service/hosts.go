@@ -29,9 +29,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
@@ -776,16 +778,17 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 		return nil, fleet.ErrNoContext
 	}
 
-	includeObserver := false
+	filter := fleet.TeamFilter{User: vc.User}
 	if queryID != nil {
-		canRun, err := svc.ds.ObserverCanRunQuery(ctx, *queryID)
+		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
-		includeObserver = canRun
+		filter.IncludeObserver = query.ObserverCanRun
+		// Scope observer access to the query's own team. A user who is observer on
+		// multiple teams may only search hosts from the team the query belongs to.
+		filter.ObserverTeamID = query.TeamID
 	}
-
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	results := []*fleet.Host{}
 
@@ -1743,6 +1746,18 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// raw decryptable key status.
 				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
 
+				// populate recovery lock password status for macOS hosts
+				if host.Platform == "darwin" {
+					rlpStatus, err := svc.ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password status")
+					}
+					if rlpStatus != nil {
+						rlpStatus.PopulateStatus()
+						host.MDM.OSSettings.RecoveryLockPassword = *rlpStatus
+					}
+				}
+
 				for _, p := range profs {
 					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
@@ -1929,6 +1944,118 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 	return result, lastFetched, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// List Host Reports
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostReportsRequest struct {
+	ID          uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+	// IncludeReportsDontStoreResults if true, include reports that don't store results
+	// (discard_data=1 AND logging_type != 'snapshot'). Defaults to false when omitted.
+	IncludeReportsDontStoreResults *bool `query:"include_reports_dont_store_results,optional"`
+}
+
+type listHostReportsResponse struct {
+	Reports []*fleet.HostReport       `json:"reports"`
+	Count   int                       `json:"count"`
+	Meta    *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err     error                     `json:"error,omitempty"`
+}
+
+func (r listHostReportsResponse) Error() error { return r.Err }
+
+func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listHostReportsRequest)
+
+	var includeReportsDontStoreResults bool
+	if req.IncludeReportsDontStoreResults != nil {
+		includeReportsDontStoreResults = *req.IncludeReportsDontStoreResults
+	}
+
+	opts := fleet.ListHostReportsOptions{
+		ListOptions:                    req.ListOptions,
+		IncludeReportsDontStoreResults: includeReportsDontStoreResults,
+	}
+
+	reports, count, meta, err := svc.ListHostReports(ctx, req.ID, opts)
+	if err != nil {
+		return listHostReportsResponse{Err: err}, nil
+	}
+
+	return listHostReportsResponse{
+		Reports: reports,
+		Count:   count,
+		Meta:    meta,
+	}, nil
+}
+
+func (svc *Service) ListHostReports(
+	ctx context.Context,
+	hostID uint,
+	opts fleet.ListHostReportsOptions,
+) (
+	[]*fleet.HostReport,
+	int,
+	*fleet.PaginationMetadata,
+	error,
+) {
+	// Load host to get team ID and authorize.
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Verify the caller can read this specific host.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{ID: host.ID, TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return nil, 0, nil, err
+	}
+
+	// Authorize against the host's team. Global queries (team_id IS NULL) are
+	// intentionally visible to all users who can read queries in this context —
+	// team-scoped users see global queries in addition to their own team's queries.
+	if err := svc.authz.Authorize(ctx, &fleet.Query{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return nil, 0, nil, err
+	}
+
+	appConfig, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
+
+	// This end-point is always paginated; metadata is required for HasNextResults.
+	opts.ListOptions.IncludeMetadata = true
+	// Default page size for this endpoint is 50 (not the global default).
+	if opts.ListOptions.PerPage == 0 {
+		opts.ListOptions.PerPage = 50
+	}
+	// Validate the order key before it reaches the datastore allowlist, so that
+	// invalid values produce a clear 400 Bad Request instead of an internal error.
+	switch opts.ListOptions.OrderKey {
+	case "", "name", "last_fetched":
+		// valid
+	default:
+		return nil, 0, nil, fleet.NewInvalidArgumentError("order_key", "must be one of: name, last_fetched")
+	}
+
+	// Default: sort by newest results first. Applies only when the caller has
+	// not specified an order key; explicit sorts (e.g. order_key=name) are
+	// passed through unchanged.
+	if opts.ListOptions.OrderKey == "" {
+		opts.ListOptions.OrderKey = "last_fetched"
+		opts.ListOptions.OrderDirection = fleet.OrderDescending
+	}
+
+	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
+	}
+
+	return reports, total, meta, nil
+}
+
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, []*fleet.Host, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -2092,6 +2219,18 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			return nil, ctxerr.Wrap(ctx, err, "get host for activity")
 		}
 
+		// Check if the email has changed; if not, return early to avoid
+		// unnecessary database updates and profile resends.
+		emails, err := svc.ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingIDP)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host emails for idempotency check")
+		}
+		for _, e := range emails {
+			if strings.EqualFold(e, email) {
+				return svc.ds.ListHostDeviceMapping(ctx, hostID)
+			}
+		}
+
 		// Store the IDP username for display (accept any value)
 		// This will appear in the host details API under the idp_username field
 		if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
@@ -2201,6 +2340,96 @@ func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
 	}
 
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get host DEP assignment
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostDEPAssignmentRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostDEPAssignmentResponse struct {
+	ID                uint                     `json:"id"`
+	HostDEPAssignment *fleet.HostDEPAssignment `json:"host_dep_assignment"`
+	DEPDevice         *godep.Device            `json:"dep_device"`
+	Err               error                    `json:"error,omitempty"`
+}
+
+func (r getHostDEPAssignmentResponse) Error() error { return r.Err }
+
+func getHostDEPAssignmentEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostDEPAssignmentRequest)
+	depAssignment, depDevice, err := svc.GetHostDEPAssignmentDetails(ctx, req.ID)
+	if err != nil {
+		return getHostDEPAssignmentResponse{Err: err}, nil
+	}
+
+	return getHostDEPAssignmentResponse{
+		ID:                req.ID,
+		HostDEPAssignment: depAssignment,
+		DEPDevice:         depDevice,
+	}, nil
+}
+
+func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+	// Load the host first so we can do a team-aware authorization check,
+	// mirroring what GET /hosts/:id does.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host for dep assignment")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	// Fetch Fleet's DEP assignment record. A not-found error means the host is
+	// not a DEP host; return all nils so the response contains JSON nulls.
+	depAssignment, err := svc.ds.GetHostDEPAssignment(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host dep assignment")
+	}
+
+	// Without an ABM token ID we can't resolve which org name to use for the
+	// Apple API call, so return what we have from Fleet's DB.
+	if depAssignment.ABMTokenID == nil {
+		return depAssignment, nil, nil
+	}
+
+	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get ABM token for dep assignment")
+	}
+
+	// If Apple MDM is not configured (e.g. free tier), depStorage will be nil
+	// and NewDEPClient would panic. Return what we have from Fleet's DB.
+	if svc.depStorage == nil {
+		return depAssignment, nil, nil
+	}
+
+	// Call Apple's "Get Device Details" API. Per the issue spec: on error, log
+	// and return dep_device as nil rather than surfacing the error to the caller.
+	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	depDevice, err := depClient.GetDeviceDetails(ctx, abmToken.OrganizationName, host.HardwareSerial)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "get DEP device details from ABM",
+			"host_id", hostID,
+			"org_name", abmToken.OrganizationName,
+			"err", err,
+		)
+		return depAssignment, nil, nil
+	}
+
+	return depAssignment, depDevice, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2498,6 +2727,9 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
+			// Add the aliased fields for team_id and team_name.
+			h.FleetID = h.TeamID
+			h.FleetName = h.TeamName
 		}
 	}
 
@@ -2589,6 +2821,14 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			cols = append(cols, rawCol)
 			if rawCol == "device_mapping" {
 				req.Opts.DeviceMapping = true
+			}
+			// If team_id / team_name are requested, also include their aliases.
+			// TODO: clean up in Fleet 5.
+			if rawCol == "team_id" {
+				cols = append(cols, "fleet_id")
+			}
+			if rawCol == "team_name" {
+				cols = append(cols, "fleet_name")
 			}
 		}
 	}
@@ -3220,12 +3460,12 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			} else {
 				return nil, nil, badRequest("label_id must be a number")
 			}
-		case "team_id":
+		case "fleet_id", "team_id":
 			if teamID, ok := v.(float64); ok { // json unmarshals numbers as float64
 				teamID := uint(teamID)
 				opt.TeamFilter = &teamID
 			} else {
-				return nil, nil, badRequest("team_id must be a number")
+				return nil, nil, badRequest("fleet_id must be a number")
 			}
 		case "status":
 			status, ok := v.(string)
@@ -3495,19 +3735,15 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// When accessed via "My device", we default to only showing inventory (excluding software available for install
-	// but not in inventory), unless we're asked to filter to self-service software only.
-	//
-	// Otherwise (e.g. host software UI within Fleet's admin interface), the default is to show both installed and
-	// available-for-install software, to maintain existing API behavior. This behavior can be explicitly overridden
-	// if needed (see opts.IncludeAvailableForInstallExplicitlySet).
+	// Default to only showing inventory (excluding software available for install but not in
+	// inventory). Callers can explicitly set include_available_for_install=true to also see
+	// library items. See #41631.
 	var includeAvailableForInstall bool
 
 	var host *fleet.Host
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
-		includeAvailableForInstall = true
 
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, nil, err
@@ -3655,4 +3891,134 @@ func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts 
 		payload = append(payload, cert.ToPayload())
 	}
 	return payload, meta, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Host Recovery Lock Password
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostRecoveryLockPasswordRequest struct {
+	ID uint `url:"id"`
+}
+
+type recoveryLockPasswordPayload struct {
+	Password     string     `json:"password"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty"`
+}
+
+type getHostRecoveryLockPasswordResponse struct {
+	HostID               uint                         `json:"host_id"`
+	RecoveryLockPassword *recoveryLockPasswordPayload `json:"recovery_lock_password"`
+	Err                  error                        `json:"error,omitempty"`
+}
+
+func (r getHostRecoveryLockPasswordResponse) Error() error { return r.Err }
+
+func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostRecoveryLockPasswordRequest)
+	password, err := svc.GetHostRecoveryLockPassword(ctx, req.ID)
+	if err != nil {
+		return getHostRecoveryLockPasswordResponse{Err: err}, nil
+	}
+	return getHostRecoveryLockPasswordResponse{
+		HostID: req.ID,
+		RecoveryLockPassword: &recoveryLockPasswordPayload{
+			Password:     password.Password,
+			UpdatedAt:    password.UpdatedAt,
+			AutoRotateAt: password.AutoRotateAt,
+		},
+	}, nil
+}
+
+func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Permissions to read recovery lock passwords are exactly the same
+	// as the ones required to read hosts.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	// Recovery lock is only supported on Apple Silicon macOS hosts
+	if host.Platform != "darwin" || !strings.Contains(strings.ToLower(host.CPUType), "arm") {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "recovery lock is only available on Apple Silicon macOS hosts"), "check host platform and cpu type")
+	}
+
+	// Check that MDM is enabled
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
+		return nil, fleet.ErrMDMNotConfigured
+	}
+
+	password, err := svc.ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
+	}
+
+	// Create activity first. If this fails, we return an error before scheduling
+	// rotation, ensuring we don't rotate passwords that were never returned to the user.
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeViewedHostRecoveryLockPassword{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
+	}
+
+	// Schedule auto-rotation by marking the password as viewed.
+	// This sets auto_rotate_at to 1 hour from now.
+	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+	password.AutoRotateAt = &rotateAt
+
+	return password, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Rotate Host Recovery Lock Password
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateRecoveryLockPasswordRequest struct {
+	HostID uint `url:"id"`
+}
+
+type rotateRecoveryLockPasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateRecoveryLockPasswordResponse) Error() error { return r.Err }
+
+func rotateRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*rotateRecoveryLockPasswordRequest)
+	err := svc.RotateRecoveryLockPassword(ctx, req.HostID)
+	if err != nil {
+		return rotateRecoveryLockPasswordResponse{Err: err}, nil
+	}
+	return rotateRecoveryLockPasswordResponse{}, nil
+}
+
+func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

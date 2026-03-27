@@ -13,13 +13,15 @@ import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
 import sortUtils from "utilities/sort";
-import { PolicyResponse } from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import InheritedBadge from "components/InheritedBadge";
+import PillBadge from "components/PillBadge";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+import { getAutomationTypesString } from "../../helpers";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -108,7 +110,7 @@ const generateTableHeaders = (
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { critical, id, team_id } = cellProps.row.original;
+        const { critical, id, team_id, type } = cellProps.row.original;
         return (
           <LinkCell
             className="w250"
@@ -117,8 +119,15 @@ const generateTableHeaders = (
             suffix={
               <>
                 {isPremiumTier && critical && <CriticalPolicyBadge />}
+                {type === "patch" && (
+                  <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>
+                    Patch
+                  </PillBadge>
+                )}
                 {viewingTeamPolicies && team_id === null && (
-                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                  <PillBadge tipContent="This policy runs on all hosts.">
+                    Inherited
+                  </PillBadge>
                 )}
               </>
             }
@@ -129,6 +138,27 @@ const generateTableHeaders = (
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Automations",
+      Header: "Automations",
+      accessor: "automations",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const policy = cellProps.row.original;
+        const automationsText = getAutomationTypesString(policy);
+        const isNone = automationsText === DEFAULT_EMPTY_CELL_VALUE;
+        return (
+          <span
+            className={`automations-cell${
+              isNone ? " automations-cell--none" : ""
+            }`}
+            title={isNone ? undefined : automationsText}
+          >
+            {automationsText}
+          </span>
+        );
+      },
     },
     {
       title: "Pass",

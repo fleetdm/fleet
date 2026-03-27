@@ -194,6 +194,8 @@ export interface IHostMdmProfile {
   detail: string;
   scope: ProfileScope | null;
   managed_local_account: string | null;
+  // identifier when this profile represents an Android certificate template
+  certificate_template_id?: number;
 }
 
 // TODO - move disk encryption related types to dedicated file
@@ -242,6 +244,12 @@ export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
   "Recovery Lock password";
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
   "fleet-host-certificate-template";
+
+export type RecoveryLockPasswordStatus =
+  | "verified"
+  | "pending"
+  | "removing_enforcement"
+  | "failed";
 
 export interface IMdmSSOReponse {
   url: string;

@@ -1,6 +1,6 @@
 <div id="homepage" v-cloak>
   <div purpose="announcement-banner">
-    <animated-arrow-button arrow-color="white" text-color="white" href="/compare/jamf">How to choose the right MDM — Fleet vs. Jamf</animated-arrow-button>
+    <animated-arrow-button arrow-color="white" text-color="white" href="/compare/jamf-vs-fleet">We are experiencing a high volume of Jamf replacement inquiries.  Click here to compare Fleet vs. Jamf</animated-arrow-button>
   </div>
   <%/* Hero container */%>
   <div purpose="hero-container">
@@ -70,13 +70,39 @@
   <div purpose="homepage-content" class="container">
     <div purpose="page-section" class="mb-0">
       <div purpose="homepage-text-block">
-        <h2>Freedom at every level</h2>
-        <p>Manage devices your way, without vendor limits. Fleet gives you full control and supports the choices that work for your organization.</p>
+        <h2>Get things done faster</h2>
+        <p>The world is changing rapidly, and traditional device management systems were built for computer labs.  In Fleet, you can become a power user in the UI, manage infrastructure as code, or adopt new ways of working.  For example:</p>
       </div>
       <div purpose="feature-with-image">
         <div purpose="feature-image">
-          <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/features-loop.mp4" type="video/mp4"></video>
+          <img alt="Modern change management" src="/images/mdm-modern-change-management-528x377@2x.png">
         </div>
+        <div purpose="feature-text">
+          <div purpose="feature-list-block">
+            <div purpose="feature-text-content">
+              <h5>Propose a change</h5>
+              <p>Describe a configuration change, CVE fix, or other improvement in natural language using your existing AI.</p>
+            </div>
+          </div>
+          <div purpose="feature-list-block">
+            <div purpose="feature-text-content">
+              <h5>Human review</h5>
+              <p>Review changes from your team (or your bots) before they reach your devices. Inspect the configuration, make edits if needed, then approve it.</p>
+            </div>
+          </div>
+          <div purpose="feature-list-block">
+            <div purpose="feature-text-content">
+              <h5>Apply across your fleet</h5>
+              <p>Merge the change and let Fleet apply it across your devices. Roll back instantly if needed.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="homepage-text-block">
+        <h2>Freedom at every level</h2>
+        <p>Manage devices your way, without vendor limits. Fleet gives you full control and supports the choices that work for your organization.</p>
+      </div>
+      <div purpose="feature-with-image" class="reverse">
 
         <div purpose="feature-text">
           <div purpose="feature-block">
@@ -84,15 +110,41 @@
             <p>Unlike other solutions, you can let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
           </div>
           <div purpose="feature-block">
-            <h5>UI, API, or GitOps</h5>
-            <p>Manage devices how you work best, with full support for configuration as code.</p>
+            <h5>UI, API, or infrastructure as code</h5>
+            <p>Work in the UI, automate with the API, or manage settings as code.</p>
           </div>
           <div purpose="feature-block">
-            <h5>Real device choice—even Linux</h5>
-            <p >Let employees use the OS they need, without compromising management and security.</p>
+            <h5>Real device choice, even Linux</h5>
+            <p>Let employees use the OS they need, without compromising management and security.</p>
           </div>
         </div>
 
+        <div purpose="feature-image">
+          <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/features-loop.mp4" type="video/mp4"></video>
+        </div>
+      </div>
+      <div purpose="homepage-text-block">
+        <h2>See reality clearly</h2>
+        <p>See what’s happening across your devices. Run live reports, collect data, and export logs. Answer questions from security, leadership, or auditors in minutes.</p>
+      </div>
+      <div purpose="feature-with-image">
+        <div purpose="feature-image">
+          <img alt="See reality clearly" src="/images/see-reality-clearly-688x516@2x.png">
+        </div>
+        <div purpose="feature-text">
+          <div purpose="feature-block">
+            <h5>Cut the busywork</h5>
+            <p>Get answers instantly with live reports. No waiting hours for scripts or manual data collection.</p>
+          </div>
+          <div purpose="feature-block">
+            <h5>Enroll any device</h5>
+            <p>Get instant visibility into devices from subsidiaries, partners, or acquisitions. Enroll endpoints without forcing teams to migrate tools.</p>
+          </div>
+          <div purpose="feature-block">
+            <h5>Tell your story</h5>
+            <p>Track AI usage, shadow IT, vulnerabilities, patch SLAs, and security posture with clear reports.</p>
+          </div>
+        </div>
       </div>
 
       <div purpose="testimonials-header">
@@ -372,7 +424,7 @@
             </div>
 
             <div purpose="table-row">
-              <div purpose="feature-name"><p>Config as code (GitOps)</p></div>
+              <div purpose="feature-name"><p>Infrastructure as code</p></div>
               <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
               <div purpose="comparison-column" v-if="['puppet', 'chef', 'ansible'].includes(comparisonModeForIt)">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -746,7 +798,7 @@
           </div>
 
           <div purpose="feature-table">
-            <div purpose="feature-name"><p>Config as code (GitOps)</p></div>
+            <div purpose="feature-name"><p>Infrastructure as code</p></div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
@@ -1396,7 +1448,7 @@
           <div purpose="feature" class="ml-sm-0">
             <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-md-0">
             <h5>"Why is this running on my computer?"</h5>
-            <p>Let end users see the source code for exactly <a href="/better">how they are being monitored</a>, and set clear expectations about what is and isn’t acceptable use of work computers.</p>
+            <p>Let end users see the source code for exactly <a href="/better">how they are being monitored</a>, and set clear expectations about what is and isn't acceptable use of work computers.</p>
           </div>
 
           <div purpose="feature">
@@ -1413,14 +1465,13 @@
 
         </div>
       </div>
-
     </div>
   </div>
   <%/* Bottom gradient */%>
   <div purpose="bottom-gradient">
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
-        <h4>Deploy anywhere</h4>
+        <h4>Reduce sprawl</h4>
         <h1 class="mx-auto <%= primaryBuyingSituation%>">
           One agent for every<br>
           <div purpose="ticker-container" class="d-flex align-items-center mx-auto flex-row text-nowrap">
@@ -1443,7 +1494,6 @@
               <span purpose="bottom-cta-ticker-option">new hire</span>
               <span purpose="bottom-cta-ticker-option">offboard</span>
               <span purpose="bottom-cta-ticker-option">employee</span>
-              <span purpose="bottom-cta-ticker-option">agent</span>
               <span purpose="bottom-cta-ticker-option">robot</span>
               <span purpose="bottom-cta-ticker-option">satellite</span>
               <span purpose="bottom-cta-ticker-option">telescope</span>

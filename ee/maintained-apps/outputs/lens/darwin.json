@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.2.111511",
+      "version": "2026.3.251250",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens';",
+        "patch": ""
       },
-      "installer_url": "https://api.k8slens.dev/binaries/Lens-2026.2.111511-latest-arm64.dmg",
+      "installer_url": "https://api.k8slens.dev/binaries/Lens-2026.3.251250-latest-arm64.dmg",
       "install_script_ref": "c4bea9a4",
       "uninstall_script_ref": "155f6301",
-      "sha256": "8e0b396cea4da62a215178b84b1963b67b46341e930281635c4ae3b773371283",
+      "sha256": "8c9465cf897984c9e4fdb0ef46e49556ea1ed92310b9974067746719a52ebe15",
       "default_categories": [
         "Developer tools"
       ]

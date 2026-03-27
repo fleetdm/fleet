@@ -76,7 +76,6 @@ Create these secrets in Fleet (**Controls** > **Variables**) or via GitOps:
 1. Download the profile XML (link above)
 2. Navigate to **Controls** > **OS settings** > **Custom settings** in Fleet
 3. Upload the XML file (no editing required)
-4. Assign to your team or hosts
 
 Fleet automatically replaces `$FLEET_SECRET_OKTA_SCEP_URL`, `$FLEET_SECRET_OKTA_SCEP_CHALLENGE`, and `$FLEET_SECRET_OKTA_CA_THUMBPRINT` when deploying. The certificate ID is automatically managed by Fleet using `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`.
 
@@ -158,7 +157,7 @@ This policy will:
 - **Fail**: When a certificate exists and expires within 30 days (needs renewal)
 - **Pass**: When no certificate exists yet, or certificate is valid for more than 30 days
 
-### Automated workflow
+### Renewal workflow
 
 To renew certificates, you can:
 

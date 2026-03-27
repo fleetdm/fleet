@@ -15,7 +15,7 @@ import {
   isOsSettingsDisplayPlatform,
 } from "interfaces/platform";
 
-import getHostStatusTooltipText from "pages/hosts/helpers";
+import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
@@ -23,13 +23,17 @@ import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 
-import { DATE_FNS_FORMAT_STRINGS } from "utilities/constants";
+import {
+  DATE_FNS_FORMAT_STRINGS,
+  DEFAULT_EMPTY_CELL_VALUE,
+} from "utilities/constants";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 import {
   generateLinuxDiskEncryptionSetting,
+  generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
 } from "../../helpers";
 
@@ -63,7 +67,7 @@ const HostSummary = ({
 }: IHostSummaryProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
-  const { status, platform, os_version } = summaryData;
+  const { status, platform, os_version, mdm } = summaryData;
 
   const isAndroidHost = isAndroid(platform);
   const isIosOrIpadosHost = isIPadOrIPhone(platform);
@@ -166,6 +170,16 @@ const HostSummary = ({
       : [linuxDiskEncryptionSetting];
   }
 
+  if (platform === "darwin" && osSettings?.recovery_lock_password?.status) {
+    const recoveryLockSetting = generateRecoveryLockPasswordSetting(
+      osSettings.recovery_lock_password.status,
+      osSettings.recovery_lock_password.detail
+    );
+    hostSettings = hostSettings
+      ? [...hostSettings, recoveryLockSetting]
+      : [recoveryLockSetting];
+  }
+
   return (
     <Card
       borderRadiusSize="xxlarge"
@@ -177,9 +191,11 @@ const HostSummary = ({
           title="Status"
           value={
             <StatusIndicator
-              value={status || ""} // temporary work around of integration test bug
+              value={getHostStatus(status, mdm?.enrollment_status)}
               tooltip={{
-                tooltipText: getHostStatusTooltipText(status),
+                tooltipText: getHostStatusTooltipText(
+                  getHostStatus(status, mdm?.enrollment_status)
+                ),
                 position: "bottom",
               }}
             />
@@ -191,6 +207,7 @@ const HostSummary = ({
         hostSettings &&
         hostSettings.length > 0 && (
           <DataSet
+            className={`${baseClass}__os-settings`}
             title="OS settings"
             value={
               <OSSettingsIndicator

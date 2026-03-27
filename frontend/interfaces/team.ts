@@ -7,6 +7,7 @@ import {
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
+import { ITokenTeam } from "./mdm";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -144,3 +145,8 @@ export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
 
 export const isAnyTeamSelected = (currentTeamId?: number) =>
   currentTeamId !== undefined && currentTeamId > APP_CONTEXT_NO_TEAM_ID;
+
+export const getTeamDisplayName = (team: ITokenTeam) =>
+  team.team_id === APP_CONTEXT_NO_TEAM_ID
+    ? APP_CONTEXT_NO_TEAM_SUMMARY.name
+    : team.name;

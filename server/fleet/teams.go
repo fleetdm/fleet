@@ -185,7 +185,7 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !x.MDM.MacOSSetup.LockEndUserInfo.Valid {
-		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(x.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 	*t = Team{
 		ID:          x.ID,
@@ -274,6 +274,7 @@ type TeamSpecAppStoreApp struct {
 	SelfService      bool     `json:"self_service"`
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsIncludeAll []string `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// InstallDuringSetup indicates whether a package should be incorporated into setup experience;
@@ -332,7 +333,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 	clone := *t
 
-	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
+	// EnableDiskEncryption, MacOS/IOS/IPadOS/WindowsUpdates don't have fields that
 	// require cloning (all fields are basic value types, no
 	// pointers/slices/maps).
 
@@ -629,6 +630,11 @@ type TeamFilter struct {
 	// specified, they must met too (e.g. if a User is provided, that team ID
 	// must be part of their teams).
 	TeamID *uint
+	// ObserverTeamID, when set, restricts observer-role access to only this team.
+	// Used for live queries where observer_can_run is scoped to the query's own team,
+	// so that a user who is observer on multiple teams only sees hosts from the query's team.
+	// Non-observer roles (admin, maintainer, etc.) are not affected.
+	ObserverTeamID *uint
 }
 
 func (f TeamFilter) UserCanAccessSelectedTeam() bool {

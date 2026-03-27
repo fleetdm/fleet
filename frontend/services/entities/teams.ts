@@ -54,8 +54,8 @@ export interface IUpdateTeamFormData {
       deadline: string;
     };
     windows_updates?: {
-      deadline_days: number;
-      grace_period_days: number;
+      deadline_days: number | null;
+      grace_period_days: number | null;
     };
   };
   host_expiry_settings: {

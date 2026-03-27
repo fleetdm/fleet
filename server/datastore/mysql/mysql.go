@@ -35,6 +35,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
@@ -342,7 +343,10 @@ var otelTracedDriverName string
 func init() {
 	var err error
 	otelTracedDriverName, err = otelsql.Register("mysql",
-		otelsql.WithAttributes(semconv.DBSystemNameMySQL),
+		otelsql.WithAttributes(
+			attribute.String("db.system", "mysql"),
+			semconv.DBSystemNameMySQL,
+		),
 		otelsql.WithSpanOptions(otelsql.SpanOptions{
 			// DisableErrSkip ignores driver.ErrSkip errors which are frequently returned by the MySQL driver
 			// when certain optional methods or paths are not implemented/taken.
@@ -903,6 +907,10 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
+				if filter.ObserverTeamID != nil {
+					// Restrict global observer to only the specified team (e.g. the live query's own team).
+					return fmt.Sprintf("%s.team_id = %d", hostKey, *filter.ObserverTeamID)
+				}
 				return defaultAllowClause
 			}
 			return "FALSE"
@@ -918,11 +926,19 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleTechnician ||
-			team.Role == fleet.RoleObserverPlus ||
-			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			team.Role == fleet.RoleObserverPlus {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
+			}
+		} else if team.Role == fleet.RoleObserver && filter.IncludeObserver {
+			// When ObserverTeamID is set, restrict observer access to only that team.
+			// This scopes observer_can_run to the query's own team, not all observed teams.
+			if filter.ObserverTeamID == nil || *filter.ObserverTeamID == team.ID {
+				idStrs = append(idStrs, fmt.Sprint(team.ID))
+				if filter.TeamID != nil && *filter.TeamID == team.ID {
+					teamIDSeen = true
+				}
 			}
 		}
 	}

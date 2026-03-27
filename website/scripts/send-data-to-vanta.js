@@ -164,6 +164,10 @@ module.exports = {
         allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.filter((host)=>{
           return [275].includes(host.team_id);
         });
+      } else if(vantaConnection.id === 77) {// [?]: https://github.com/fleetdm/confidential/issues/14218
+        allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.filter((host)=>{
+          return [3].includes(host.team_id);
+        });
       }
 
       let macOsHosts = allHostsOnThisFleetInstance.filter((host)=>{

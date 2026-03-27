@@ -1,0 +1,1 @@
+* Fixed a bug where script packages (.sh, .ps1) incorrectly used the unsaved script size limit (10K characters) instead of the saved script limit (500K characters), preventing large scripts from being added as software packages.

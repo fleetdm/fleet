@@ -6,7 +6,13 @@ const FileSh = () => {
   const clipPathId = uniqueId("clip-path-");
 
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="34"
+      height="40"
+      viewBox="0 0 34 40"
+      fill="none"
+    >
       <g clipPath={`url(#${clipPathId})`}>
         <path
           fill="#fff"

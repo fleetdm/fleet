@@ -3,7 +3,8 @@
     {
       "version": "16.0.4",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = '010 Editor 16.0.2 (64-bit)' AND publisher = 'SweetScape Software';"
+        "exists": "SELECT 1 FROM programs WHERE name = '010 Editor 16.0.2 (64-bit)' AND publisher = 'SweetScape Software';",
+        "patch": ""
       },
       "installer_url": "https://download.sweetscape.com/010EditorWin64Installer16.0.4.exe",
       "install_script_ref": "5764f801",

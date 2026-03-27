@@ -55,7 +55,7 @@ Security is a data problem. We felt confident being able to know what we wanted 
 **— Senior Cybersecurity Manager**
 </div> 
 
-Fleet enables comprehensive monitoring and management by communicating with online devices in real-time. It delivers chip-level data insights that surface critical information, ensuring they can maintain a secure and efficient operational environment. Additionally, Fleet’s query engine and open API enable them to create custom detections for zero-day threats, increasing their ability to identify and respond to emerging vulnerabilities swiftly.
+Fleet enables comprehensive monitoring and management by communicating with online devices in real-time. It delivers chip-level data insights that surface critical information, ensuring they can maintain a secure and efficient operational environment. Additionally, Fleet’s reporting engine and open API enable them to create custom detections for zero-day threats, increasing their ability to identify and respond to emerging vulnerabilities swiftly.
 
 ### Proactive Vulnerability Management
 
@@ -83,3 +83,4 @@ The decision to purchase Fleet was driven by the need for a more reliable, compr
 <meta name="articleTitle" value="Vehicle manufacturer transitions to Fleet for endpoint security">
 <meta name="description" value="Vehicle manufacturer transitions to Fleet for endpoint security">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Electric vehicle manufacturer">

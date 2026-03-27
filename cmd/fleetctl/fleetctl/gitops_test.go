@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
@@ -107,7 +109,7 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 		return nil, 0, 0, nil, nil
 	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -335,6 +337,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		},
 	)
 
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -371,9 +376,14 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			// Set a GitOps UI mode to verify that applying GitOps config won't overwrite it.
-			UIGitOpsMode: fleet.UIGitOpsModeConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
 				GitopsModeEnabled: true,
 				RepositoryURL:     "https://didsomeonesaygitops.biz",
+				Exceptions: fleet.GitOpsExceptions{
+					Labels:   false,
+					Software: true,
+					Secrets:  false,
+				},
 			},
 		}, nil
 	}
@@ -425,7 +435,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		return nil
 	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -452,11 +462,25 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
 		upserts = append(upserts, ops.Add...)
 		upserts = append(upserts, ops.Update...)
-		g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
-		if err != nil {
-			return err
+		if len(upserts) > 0 {
+			g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
+			if err != nil {
+				return err
+			}
+			// Merge into stored state per CA type, like a real DB upsert.
+			if g.NDESSCEP != nil {
+				storedCAs.NDESSCEP = g.NDESSCEP
+			}
+			if len(g.DigiCert) > 0 {
+				storedCAs.DigiCert = g.DigiCert
+			}
+			if len(g.CustomScepProxy) > 0 {
+				storedCAs.CustomScepProxy = g.CustomScepProxy
+			}
+			if len(g.Hydrant) > 0 {
+				storedCAs.Hydrant = g.Hydrant
+			}
 		}
-		storedCAs = *g
 		return nil
 	}
 
@@ -486,14 +510,14 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 controls:
   macos_updates:
     deadline: "2024-03-03"
-    minimum_version: "18.0"
+    minimum_version: "14.6.1"
   ios_updates:
     deadline: "2022-02-02"
     minimum_version: "17.6"
     update_new_hosts: true
   ipados_updates:
     deadline: "2023-03-03"
-    minimum_version: "18.0"
+    minimum_version: "17.6"
     update_new_hosts: false
   enable_disk_encryption: true
   windows_require_bitlocker_pin: true
@@ -559,13 +583,16 @@ software:
 	assert.Empty(t, enrolledSecrets)
 
 	// GitOps should not overwrite GitOps UI Mode.
-	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
-	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
+	assert.Equal(t, savedAppConfig.GitOpsConfig.GitopsModeEnabled, true)
+	assert.Equal(t, savedAppConfig.GitOpsConfig.RepositoryURL, "https://didsomeonesaygitops.biz")
+	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Labels, false)
+	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Software, true)
+	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Secrets, false)
 
 	// Check MDM settings
 	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
 	require.True(t, savedAppConfig.MDM.RequireBitLockerPIN.Value)
-	require.Equal(t, "18.0", savedAppConfig.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "14.6.1", savedAppConfig.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-03-03", savedAppConfig.MDM.MacOSUpdates.Deadline.Value)
 	// To keep things backwards compatible if MinimumVersion & Deadline are set, then UpdateNewHosts should be set to true
 	require.Equal(t, optjson.SetBool(true), savedAppConfig.MDM.MacOSUpdates.UpdateNewHosts)
@@ -573,7 +600,7 @@ software:
 	require.Equal(t, "17.6", savedAppConfig.MDM.IOSUpdates.MinimumVersion.Value)
 	require.Equal(t, optjson.Bool{}, savedAppConfig.MDM.IOSUpdates.UpdateNewHosts)
 	require.Equal(t, "2023-03-03", savedAppConfig.MDM.IPadOSUpdates.Deadline.Value)
-	require.Equal(t, "18.0", savedAppConfig.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "17.6", savedAppConfig.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Equal(t, optjson.Bool{}, savedAppConfig.MDM.IPadOSUpdates.UpdateNewHosts)
 
 	// Check certificate authorities
@@ -663,6 +690,844 @@ software:
 	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
 }
 
+func TestGitOpsExceptionEnforcement(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+	setupDefaultTeamConfigMocks(ds)
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		return false, nil
+	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return nil, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, nil
+	}
+
+	// Test: excepted keys present in YAML → error
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				GitopsModeEnabled: true,
+				RepositoryURL:     "https://example.com/repo",
+				Exceptions:        fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true},
+			},
+		}, nil
+	}
+
+	// Labels excepted + present → error
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: test-label
+    query: SELECT 1
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+
+	// Secrets excepted + present → error
+	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile2.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: mysecret
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"secrets" is excepted from GitOps management`)
+
+	// Secrets excepted + present → error
+	tmpFile3, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile3.WriteString(`
+name: test
+controls:
+policies:
+agent_options:
+software:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"software" is excepted from GitOps management`)
+
+	// Test: exceptions enforced even when GitOps mode is OFF (decoupled from UI mode)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				GitopsModeEnabled: false,
+				Exceptions:        fleet.GitOpsExceptions{Labels: true},
+			},
+		}, nil
+	}
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+}
+
+// TestGitOpsExceptionsPreserveOmittedKeys verifies that when exceptions are ON,
+// omitting the excepted keys from YAML preserves existing data.
+func TestGitOpsExceptionsPreserveOmittedKeys(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	// Tracking variables
+	var appliedSecrets []*fleet.EnrollSecret
+	var deletedLabels []string
+
+	// --- Shared mocks ---
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true},
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+	setupDefaultTeamConfigMocks(ds)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return []*fleet.LabelSpec{
+			{Name: "existing-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
+		}, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return errors.New("unexpected ApplyLabelSpecsWithAuthorFunc call - should not apply labels when excepted")
+	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{ID: 1, Name: name}, nil
+	}
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		deletedLabels = append(deletedLabels, name)
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{}, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return errors.New("unexpected ApplyEnrollSecretsFunc call - should not apply enroll secrets when excepted")
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		return false, nil
+	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return nil, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
+	}
+	var savedTeam *fleet.Team
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Name == name {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error { return nil }
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = 1
+		savedTeam = newTeam
+		return newTeam, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return nil, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return nil, nil
+	}
+
+	// Global config that omits labels, secrets, and software
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	require.NoError(t, err)
+
+	// Labels should NOT have been deleted (excepted)
+	assert.Empty(t, deletedLabels, "labels should be preserved when excepted and key is omitted")
+	// Secrets should NOT have been applied (excepted)
+	assert.Nil(t, appliedSecrets, "secrets should be preserved when excepted and key is omitted")
+	// Software is global — not applicable (software exceptions only apply to team configs)
+	// so we don't assert on appliedSoftware here.
+
+	// Team secrets and software preservation are verified in the integration test
+	// TestOmittedTopLevelKeysFleet, since both are applied as part of the team spec payload
+	// (not via separate mock-trackable calls).
+}
+
+// TestGitOpsSoftwareExceptionPolicyValidation verifies that when software is excepted
+// and the software: key is omitted from YAML, policies with install_software references
+// (hash_sha256 for packages, app_store_id for VPP apps) still validate successfully
+// against server-side software data.
+func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
+	policySpecsByTeam := make(map[string][]*fleet.PolicySpec)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	// --- Shared mocks ---
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true},
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	}
+	setupDefaultTeamConfigMocks(ds)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return nil
+	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{ID: 1, Name: name}, nil
+	}
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{}, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		return false, nil
+	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return nil, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Fleet" {
+			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error { return nil }
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return nil, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return nil, nil
+	}
+
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		policySpecsByTeam[specs[0].Team] = specs
+		return nil
+	}
+
+	// Server-side software for "Test Fleet" (teamID=1) and "No team" (teamID=0).
+	// This is what the pre-fetch will retrieve and inject as synthetic data into the parser.
+	// For team software, page 0 returns a full page of bogus results to exercise pagination,
+	// and page 1 returns the actual software that policies reference.
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		if opt.TeamID != nil && *opt.TeamID == 0 {
+			// No-team software — single page
+			return []fleet.SoftwareTitleListResult{
+				{
+					ID:         30,
+					Name:       "No-Team Package",
+					HashSHA256: ptr.String("eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111"),
+					SoftwarePackage: &fleet.SoftwarePackageOrApp{
+						Name:       "noteam-pkg.deb",
+						Platform:   "linux",
+						Version:    "2.0",
+						PackageURL: ptr.String("https://example.com/noteam-pkg.deb"),
+					},
+				},
+			}, 1, nil, nil
+		}
+		// Team software — paginated
+		if opt.ListOptions.Page == 0 {
+			// Page 0: full page of bogus packages that don't match any policy references.
+			bogus := make([]fleet.SoftwareTitleListResult, opt.ListOptions.PerPage)
+			for i := range bogus {
+				bogus[i] = fleet.SoftwareTitleListResult{
+					ID:         uint(1000 + i),
+					Name:       fmt.Sprintf("Bogus Package %d", i),
+					HashSHA256: ptr.String(fmt.Sprintf("%064x", i)),
+					SoftwarePackage: &fleet.SoftwarePackageOrApp{
+						Name:       fmt.Sprintf("bogus-%d.deb", i),
+						Platform:   "linux",
+						Version:    "0.0.1",
+						PackageURL: ptr.String(fmt.Sprintf("https://example.com/bogus-%d.deb", i)),
+					},
+				}
+			}
+			return bogus, int(opt.ListOptions.PerPage), nil, nil //nolint:gosec // dismiss G115
+		}
+		// Page 1: the real software that policies reference.
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:         10,
+				Name:       "Custom Package",
+				HashSHA256: ptr.String("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abcd"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:       "custom-pkg.deb",
+					Platform:   "linux",
+					Version:    "1.0",
+					PackageURL: ptr.String("https://example.com/custom-pkg.deb"),
+				},
+			},
+			{
+				ID:   20,
+				Name: "VPP App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID: "5128675309",
+					Platform:   string(fleet.MacOSPlatform),
+				},
+			},
+		}, 2, nil, nil
+	}
+
+	// Config files that omit software: but have policies referencing server-side software
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+controls:
+policies:
+agent_options:
+reports:
+`), 0o644))
+
+	teamFile := filepath.Join(tmpDir, "test-team.yml")
+	require.NoError(t, os.WriteFile(teamFile, []byte(`
+name: Test Fleet
+policies:
+  - name: Package Policy
+    query: SELECT 1
+    install_software:
+      hash_sha256: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abcd
+  - name: VPP Policy
+    query: SELECT 1
+    install_software:
+      app_store_id: "5128675309"
+agent_options:
+reports:
+`), 0o644))
+
+	unassignedFile := filepath.Join(tmpDir, "unassigned.yml")
+	require.NoError(t, os.WriteFile(unassignedFile, []byte(`
+name: Unassigned
+policies:
+  - name: No-Team Package Policy
+    query: SELECT 1
+    install_software:
+      hash_sha256: eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111
+`), 0o644))
+
+	// Run gitops — should succeed because the synthetic software injection
+	// provides the server-side data for policy validation on both team and no-team.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", teamFile, "-f", unassignedFile})
+	require.NoError(t, err, "gitops should succeed when policies reference server-side software and software is excepted")
+	// Check that policies for "Test Fleet" contained the expected software title IDs.
+	testFleetPolicySpecs := policySpecsByTeam["Test Fleet"]
+	require.Len(t, testFleetPolicySpecs, 2, "expected 2 policies for Test Fleet")
+	for _, spec := range testFleetPolicySpecs {
+		switch spec.Name {
+		case "Package Policy":
+			assert.Equal(t, uint(10), *spec.SoftwareTitleID, "expected server-side software ID to be injected into Package Policy spec")
+		case "VPP Policy":
+			assert.Equal(t, uint(20), *spec.SoftwareTitleID, "expected server-side software ID to be injected into VPP Policy spec")
+		default:
+			t.Errorf("unexpected policy name: %s", spec.Name)
+		}
+	}
+	// Check that no-team policy also had the expected software title ID.
+	noTeamPolicySpecs := policySpecsByTeam["No team"]
+	require.Len(t, noTeamPolicySpecs, 1, "expected 1 no-team policy")
+	assert.Equal(t, uint(30), *noTeamPolicySpecs[0].SoftwareTitleID, "expected server-side software ID to be injected into no-team policy spec")
+}
+
+// TestGitOpsNoExceptionsClearOmittedKeys verifies that when exceptions are OFF,
+// omitting keys from YAML clears existing data.
+func TestGitOpsNoExceptionsClearOmittedKeys(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	// Tracking variables
+	appliedSecrets := []*fleet.EnrollSecret{
+		{Secret: "existing-secret"},
+		{Secret: "another-secret"},
+	}
+	var deletedLabels []string
+
+	savedTeam := &fleet.Team{
+		Name:    "TestTeam",
+		ID:      1,
+		Secrets: []*fleet.EnrollSecret{{Secret: "existing-secret"}},
+		Config: fleet.TeamConfig{
+			Software: &fleet.SoftwareSpec{
+				Packages:            optjson.SetSlice([]fleet.SoftwarePackageSpec{{URL: "http://example.com"}}),
+				FleetMaintainedApps: optjson.SetSlice([]fleet.MaintainedAppSpec{{Slug: "someapp"}}),
+				AppStoreApps:        optjson.SetSlice([]fleet.TeamSpecAppStoreApp{{AppStoreID: "someapp"}}),
+			},
+		},
+	}
+
+	// --- Shared mocks (all exceptions OFF) ---
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{}, // all false
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{savedTeam}, nil
+	}
+	setupDefaultTeamConfigMocks(ds)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		if filter.TeamID != nil && *filter.TeamID == 1 {
+			return []*fleet.LabelSpec{
+				{Name: "existing-team-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1", TeamID: ptr.Uint(1)},
+			}, nil
+		}
+		return []*fleet.LabelSpec{
+			{Name: "existing-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
+		}, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return errors.New("unexpected ApplyLabelSpecsWithAuthorFunc call - should not apply labels when all are deleted")
+	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{ID: 1, Name: name}, nil
+	}
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		deletedLabels = append(deletedLabels, name)
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{}, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		appliedSecrets = secrets
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		return nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		return false, nil
+	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return nil, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
+	}
+
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		return savedTeam, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Name == name {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error { return nil }
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = 1
+		savedTeam = newTeam
+		return newTeam, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return nil, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return nil, nil
+	}
+
+	// Global config that omits labels and secrets
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	require.NoError(t, err)
+
+	// Labels SHOULD have been deleted (not excepted, key omitted)
+	assert.Equal(t, []string{"existing-label"}, deletedLabels, "labels should be cleared when not excepted and key is omitted")
+	// Secrets SHOULD have been applied as empty (not excepted, key omitted)
+	assert.NotNil(t, appliedSecrets, "secrets should be cleared when not excepted and key is omitted")
+	assert.Empty(t, appliedSecrets, "secrets should be applied as empty list")
+
+	// Clear out deletedLabels
+	deletedLabels = nil
+	// Clear out appliedSecrets
+	appliedSecrets = nil
+
+	// Now test team config: omit secrets and software
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(`
+name: TestTeam
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	require.NoError(t, err)
+	// Check that secrets is empty on the saved team
+	assert.NotNil(t, savedTeam.Secrets, "team secrets should not be nil")
+	assert.Empty(t, savedTeam.Secrets, "team secrets should be cleared when not excepted and key is omitted")
+	// Labels SHOULD have been deleted (not excepted, key omitted)
+	assert.Equal(t, []string{"existing-team-label"}, deletedLabels, "labels should be cleared when not excepted and key is omitted")
+	// Software clearing requires enterprise setup, which is tested in the integration test TestOmittedTopLevelKeysFleet.
+}
+
 func TestGitOpsBasicTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -672,6 +1537,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 			KeyValueStore: testing_utils.NewMemKeyValueStore(),
 		},
 	)
+
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
 
 	const secret = "TestSecret"
 
@@ -704,7 +1572,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		return nil
 	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -842,11 +1710,11 @@ func TestGitOpsBasicTeam(t *testing.T) {
 controls:
   macos_updates:
     deadline: "2025-10-10"
-    minimum_version: "18.0"
+    minimum_version: "14.6.1"
     update_new_hosts: false
   ios_updates:
     deadline: "2024-10-10"
-    minimum_version: "18.0"
+    minimum_version: "17.6"
   ipados_updates:
     deadline: "2025-11-11"
     minimum_version: "17.6"
@@ -911,7 +1779,7 @@ software:
 	assert.True(t, savedTeam.Config.Features.EnableSoftwareInventory)
 
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
-	assert.Equal(t, "18.0", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	assert.Equal(t, "14.6.1", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 
 	// Ensure the default value (if deadline and minimum_version are set) can be overriden with explicit setting
 	assert.Equal(t, optjson.SetBool(false), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
@@ -998,7 +1866,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	policy.Name = "Policy to delete"
 	policyDeleted := false
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -1211,20 +2079,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedLabelSpecs, 0)
 	assert.Len(t, deletedLabels, 0)
 
-	// Dry run w/out top-level labels key
-	logs = RunAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml", "--dry-run"})
-	fmt.Printf("%s", logs)
-	fmt.Printf("-----------\n")
-	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
-	assert.Len(t, enrolledSecrets, 0)
-	assert.Len(t, appliedPolicySpecs, 0)
-	assert.Len(t, appliedQueries, 0)
-	assert.Len(t, appliedScripts, 0)
-	assert.Len(t, appliedMacProfiles, 0)
-	assert.Len(t, appliedWinProfiles, 0)
-	assert.Len(t, appliedLabelSpecs, 0)
-	assert.Len(t, deletedLabels, 0)
-
 	// Real run w/ top-level labels key
 	logs = RunAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths.yml"})
 	fmt.Printf("%s", logs)
@@ -1258,17 +2112,18 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
 	assert.True(t, savedAppConfig.WebhookSettings.ActivitiesWebhook.Enable)
 	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
-	assert.Len(t, appliedLabelSpecs, 2)
+	require.Len(t, appliedLabelSpecs, 3)
 	assert.Len(t, deletedLabels, 1)
-
-	// Reset labels arrays
-	deletedLabels = make([]string, 0)
-	appliedLabelSpecs = make([]*fleet.LabelSpec, 0)
-	// Real run w/out top-level labels key
-	logs = RunAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml"})
-	fmt.Printf("%s", logs)
-	assert.Len(t, appliedLabelSpecs, 0)
-	assert.Len(t, deletedLabels, 0)
+	// Label "d" is a manual label without hosts key — Hosts should be nil (preserve membership).
+	var labelD *fleet.LabelSpec
+	for _, l := range appliedLabelSpecs {
+		if l.Name == "d" {
+			labelD = l
+			break
+		}
+	}
+	require.NotNil(t, labelD, "label d should be in applied specs")
+	assert.Nil(t, labelD.Hosts, "omitting hosts key should result in nil Hosts (preserve membership)")
 }
 
 func TestGitOpsFullTeam(t *testing.T) {
@@ -1453,7 +2308,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	policy.TeamID = ptr.Uint(teamID)
 	policyDeleted := false
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		if teamID != 0 {
 			return []*fleet.Policy{&policy}, nil, nil
@@ -1765,7 +2620,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -1782,7 +2637,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
-	testing_utils.AddLabelMocks(ds)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return nil
+	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 	setupDefaultTeamConfigMocks(ds)
@@ -2093,6 +2953,10 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 			KeyValueStore: testing_utils.NewMemKeyValueStore(),
 		},
 	)
+
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -2175,7 +3039,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -2185,7 +3049,12 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, 0, nil, nil
 	}
-	testing_utils.AddLabelMocks(ds)
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return nil
+	}
 
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		job.ID = 1
@@ -2347,7 +3216,7 @@ software:
 controls:
   ipados_updates:
     deadline: "2023-03-03"
-    minimum_version: "18.0"
+    minimum_version: "17.6.1"
 policies:
 name: No team
 software:
@@ -2787,6 +3656,12 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	require.Len(t, enrolledTeamSecrets, 2)
 
 	t.Run("no-team.yml using relative paths", func(t *testing.T) {
+		// Override label mocks to return no existing labels, since these YAML files
+		// don't include `labels:` and multi-file deletion would cause dedup errors.
+		ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+			return nil, nil
+		}
+
 		globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
 		teamFileBasic := createTeamFileBasic(t, teamName)
 
@@ -3295,6 +4170,10 @@ software:
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			ds, savedAppConfigPtr, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+			// No existing labels — this test doesn't test label behavior.
+			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+				return nil, nil
+			}
 
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				if len(tt.tokens) > 0 {
@@ -3573,7 +4452,7 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 
 	// Override ListTeamPolicies to return the applied policies with IDs.
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (fleetPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return appliedPolicies, nil, nil
 	}
@@ -3666,7 +4545,7 @@ agent_options:
 		// Track how many times ListTeamPolicies is called.
 		listTeamPoliciesCalls := 0
 		ds.ListTeamPoliciesFunc = func(
-			ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+			ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 		) ([]*fleet.Policy, []*fleet.Policy, error) {
 			listTeamPoliciesCalls++
 			return appliedPolicies, nil, nil
@@ -5015,7 +5894,7 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) ([]*fleet.Policy, []*fleet.Policy, error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
 		return nil, nil, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
@@ -5215,10 +6094,11 @@ func TestComputeLabelChanges(t *testing.T) {
 		teamName        string
 		existingLabels  []*fleet.LabelSpec
 		specifiedLabels []*fleet.LabelSpec
+		labelsExcepted  bool
 		expected        []spec.LabelChange
 	}{
 		{
-			name:     "no specified labels removes all regular labels",
+			name:     "labels omitted removes all regular labels when not excepted",
 			filename: "config.yml",
 			teamName: "team1",
 			existingLabels: []*fleet.LabelSpec{
@@ -5226,20 +6106,36 @@ func TestComputeLabelChanges(t *testing.T) {
 				{Name: "built-in", LabelType: fleet.LabelTypeBuiltIn},
 			},
 			specifiedLabels: nil,
+			labelsExcepted:  false,
 			expected: []spec.LabelChange{
 				{Name: "label1", Op: "-", TeamName: "team1", FileName: "config.yml"},
 			},
 		},
 		{
-			name:     "empty list of specified labels is a no-op",
+			name:     "labels empty removes all regular labels when not excepted",
+			filename: "config.yml",
+			teamName: "team1",
+			existingLabels: []*fleet.LabelSpec{
+				{Name: "label1", LabelType: fleet.LabelTypeRegular},
+				{Name: "built-in", LabelType: fleet.LabelTypeBuiltIn},
+			},
+			specifiedLabels: []*fleet.LabelSpec{},
+			labelsExcepted:  false,
+			expected: []spec.LabelChange{
+				{Name: "label1", Op: "-", TeamName: "team1", FileName: "config.yml"},
+			},
+		},
+		{
+			name:     "labels omitted is a no-op when excepted",
 			filename: "config.yml",
 			teamName: "team1",
 			existingLabels: []*fleet.LabelSpec{
 				{Name: "label1", LabelType: fleet.LabelTypeRegular},
 			},
-			specifiedLabels: []*fleet.LabelSpec{},
+			specifiedLabels: nil,
+			labelsExcepted:  true,
 			expected: []spec.LabelChange{
-				{Name: "label1", Op: "=", TeamName: "team1", FileName: "config.yml"},
+				{Name: "label1", Op: "~", TeamName: "team1", FileName: "config.yml"},
 			},
 		},
 		{
@@ -5254,6 +6150,7 @@ func TestComputeLabelChanges(t *testing.T) {
 				{Name: "to-keep"},
 				{Name: "to-add"},
 			},
+			labelsExcepted: false,
 			expected: []spec.LabelChange{
 				{Name: "to-remove", Op: "-", TeamName: "team1", FileName: "config.yml"},
 				{Name: "to-keep", Op: "=", TeamName: "team1", FileName: "config.yml"},
@@ -5264,7 +6161,7 @@ func TestComputeLabelChanges(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels)
+			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels, tc.labelsExcepted)
 			require.ElementsMatch(t, tc.expected, changes)
 		})
 	}
@@ -5418,7 +6315,7 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) ([]*fleet.Policy, []*fleet.Policy, error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
 		return nil, nil, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
@@ -5707,6 +6604,9 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		},
 	)
 
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
 	const localTeamName = "Team1"
 	var savedTeam *fleet.Team
 	baseTeam := &fleet.Team{
@@ -5745,7 +6645,7 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) ([]*fleet.Policy, []*fleet.Policy, error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
 		return nil, nil, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
@@ -5924,11 +6824,11 @@ software:
 	t.Run("macos_updates", func(t *testing.T) {
 		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.0")
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "14.0"))
+			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "14.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5938,11 +6838,11 @@ software:
 
 		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.0")
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-04-04", "14.0"))
+			_, err = teamFile.WriteString(macOSYAML("2024-04-04", "14.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5952,11 +6852,11 @@ software:
 
 		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.0")
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "15.0"))
+			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "13.6.9"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5968,11 +6868,11 @@ software:
 	t.Run("ios_updates", func(t *testing.T) {
 		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.0"))
+			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5982,11 +6882,11 @@ software:
 
 		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-04-04", "17.0"))
+			_, err = teamFile.WriteString(iOSYAML("2024-04-04", "17.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5996,11 +6896,11 @@ software:
 
 		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "18.0"))
+			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -6012,11 +6912,11 @@ software:
 	t.Run("ipados_updates", func(t *testing.T) {
 		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.0"))
+			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -6026,11 +6926,11 @@ software:
 
 		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-04-04", "17.0"))
+			_, err = teamFile.WriteString(iPadOSYAML("2024-04-04", "17.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -6040,11 +6940,11 @@ software:
 
 		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "18.0"))
+			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -6102,7 +7002,7 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) ([]*fleet.Policy, []*fleet.Policy, error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
 		return nil, nil, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {

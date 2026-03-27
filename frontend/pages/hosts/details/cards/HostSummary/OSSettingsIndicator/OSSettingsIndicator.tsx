@@ -3,8 +3,8 @@ import React from "react";
 import { IHostMdmProfile, MdmProfileStatus } from "interfaces/mdm";
 
 import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "os-settings-indicator";
 
@@ -48,9 +48,13 @@ const countHostProfilesByStatus = (
       if (status === "failed") {
         acc.failed += 1;
       } else if (
-        ["pending", "action_required", "delivering", "delivered"].includes(
-          status
-        )
+        [
+          "pending",
+          "action_required",
+          "delivering",
+          "delivered",
+          "removing_enforcement",
+        ].includes(status)
       ) {
         acc.pending += 1;
       } else if (status === "verifying") {
@@ -118,16 +122,15 @@ const OSSettingsIndicator = ({
 
   const statusDisplayOption = STATUS_DISPLAY_OPTIONS[displayStatus];
 
+  // Using custom link for underline styling
   return (
     <span className={`${baseClass} info-flex__data`}>
       <Icon name={statusDisplayOption.iconName} />
-      <Button
-        onClick={onClick}
-        variant="text-link"
+      <CustomLink
+        text={displayStatus}
+        customClickHandler={onClick}
         className={`${baseClass}__button`}
-      >
-        {displayStatus}
-      </Button>
+      />
     </span>
   );
 };

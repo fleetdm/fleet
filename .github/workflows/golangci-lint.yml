@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
@@ -73,7 +73,7 @@ jobs:
         run: |
           # Don't forget to update
           # docs/Contributing/Testing-and-local-development.md when this version changes
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@a4b55ebc3471c9fbb763fd56eefede8050f99887 # v2.7.1
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@6008b81b81c690c046ffc3fd5bce896da715d5fd # v2.11.3
           SKIP_INCREMENTAL=1 make lint-go
 
       - name: Run cloner-check tool
@@ -122,7 +122,7 @@ jobs:
           fetch-depth: 0  # Fetch full history for accurate diff
 
       - name: Install Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
@@ -136,7 +136,7 @@ jobs:
         run: |
           # Don't forget to update
           # docs/Contributing/Testing-and-local-development.md when this version changes
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@a4b55ebc3471c9fbb763fd56eefede8050f99887 # v2.7.1
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@6008b81b81c690c046ffc3fd5bce896da715d5fd # v2.11.3
           # custom build of golangci-lint that incorporates nilaway - see .custom-gcl.yml
           golangci-lint custom
           ./custom-gcl run -c .golangci-incremental.yml --new-from-rev=origin/${{ github.base_ref }} --timeout 15m ./...

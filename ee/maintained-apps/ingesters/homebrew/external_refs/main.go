@@ -12,6 +12,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"brave-browser/darwin":          {BraveVersionTransformer},
 	"whatsapp/darwin":               {WhatsAppVersionShortener, WhatsAppInstallerURL},
 	"google-chrome/darwin":          {ChromePKGInstaller},
+	"google-drive/darwin":           {GoogleDriveVersionShortener},
 	"1password/darwin":              {OnePasswordPKGInstaller},
 	"zoom/darwin":                   {ZoomPKGInstaller},
 	"slack/darwin":                  {SlackPKGInstaller},
@@ -21,6 +22,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
 	"camtasia/darwin":               {CamtasiaVersionTransformer},
+	"warp/darwin":                   {WarpDirectInstaller},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

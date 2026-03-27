@@ -81,6 +81,7 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { strToBool } from "utilities/strings/stringUtils";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -311,6 +312,9 @@ const ManageHostsPage = ({
   const scriptBatchExecutionStatus: ScriptBatchHostCountV1 =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
+  const depProfileError = queryParams?.dep_profile_error;
+  /** URL converts to lowercase but API and UI requires uppercase */
+  const depAssignProfileResponse = queryParams?.dep_assign_profile_response?.toUpperCase();
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -351,7 +355,8 @@ const ManageHostsPage = ({
   // scriptBatchExecutionStatus
   // configProfileStatus ||
   // configProfileUUID
-
+  // depProfileError
+  // depAssignProfileResponse
   const runScriptBatchFilterNotSupported = !!(
     // all above, except acceptable filters
     (
@@ -388,7 +393,9 @@ const ManageHostsPage = ({
       scriptBatchExecutionId ||
       scriptBatchExecutionStatus ||
       configProfileStatus ||
-      configProfileUUID
+      configProfileUUID ||
+      depProfileError ||
+      depAssignProfileResponse
     )
   );
 
@@ -572,6 +579,8 @@ const ManageHostsPage = ({
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError: strToBool(depProfileError),
+        depAssignProfileResponse,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -1098,6 +1107,10 @@ const ManageHostsPage = ({
         newQueryParams[
           HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID
         ] = scriptBatchExecutionId;
+      } else if (depProfileError) {
+        newQueryParams.dep_profile_error = depProfileError;
+      } else if (depAssignProfileResponse) {
+        newQueryParams.dep_assign_profile_response = depAssignProfileResponse;
       }
 
       router.replace(
@@ -1143,6 +1156,8 @@ const ManageHostsPage = ({
       routeTemplate,
       routeParams,
       softwareStatus,
+      depProfileError,
+      depAssignProfileResponse,
     ]
   );
 
@@ -1337,6 +1352,8 @@ const ManageHostsPage = ({
           osSettings: osSettingsStatus,
           diskEncryptionStatus,
           vulnerability,
+          depProfileError,
+          depAssignProfileResponse,
         })
       : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1434,6 +1451,7 @@ const ManageHostsPage = ({
   const renderSecretEditorModal = () => (
     <SecretEditorModal
       selectedTeam={teamIdForApi || 0}
+      primoMode={isPrimoMode || false}
       teams={teams || []}
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
@@ -1839,7 +1857,9 @@ const ManageHostsPage = ({
       lowDiskSpaceHosts ||
       osSettingsStatus ||
       diskEncryptionStatus ||
-      vulnerability
+      vulnerability ||
+      depProfileError ||
+      depAssignProfileResponse
     );
 
     return (
@@ -1986,6 +2006,8 @@ const ManageHostsPage = ({
             scriptBatchExecutionId,
             scriptBatchRanAt: scriptBatchSummary?.created_at || null,
             scriptBatchScriptName: scriptBatchSummary?.script_name || null,
+            depProfileError,
+            depAssignProfileResponse,
           }}
           selectedLabel={selectedLabel}
           isOnlyObserver={isOnlyObserver}
