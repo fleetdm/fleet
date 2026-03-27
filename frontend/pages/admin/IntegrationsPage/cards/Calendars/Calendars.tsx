@@ -7,7 +7,6 @@ import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import paths from "router/paths";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
-import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -19,6 +18,8 @@ import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
 import SettingsSection from "pages/admin/components/SettingsSection";
+
+import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -208,7 +209,7 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
         "success",
         "Successfully saved calendar integration settings."
       );
-      queryClient.invalidateQueries(["config"]);
+      await queryClient.invalidateQueries(["config"]);
     } catch (e) {
       renderFlash("error", "Could not save calendar integration settings.");
     } finally {
