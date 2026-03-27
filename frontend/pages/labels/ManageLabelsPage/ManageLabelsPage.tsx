@@ -39,7 +39,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
   } = useContext(AppContext);
 
   const labelsGitOpsManaged =
-    !!config?.gitops.gitops_mode_enabled && !config?.gitops.exceptions.labels;
+    !!config?.gitops.gitops_mode_enabled && !config?.gitops.exceptions?.labels;
   const { renderFlash } = useContext(NotificationContext);
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
