@@ -124,7 +124,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		}
 	}
 
-	certificate, err := svc.estService.GetCertificate(ctx, estCA, csrForRequest)
+	certificate, err := svc.estService.GetCertificate(ctx, estCA, csrForRequest) //nolint (staticheck bug)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "EST certificate request failed", "ca_id", ca.ID, "err", err)
 		// Bad request may seem like a strange error here but there are many cases where a malformed

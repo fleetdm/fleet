@@ -3,7 +3,8 @@
     {
       "version": "10.31.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.zeplin.osx';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.zeplin.osx';",
+        "patch": ""
       },
       "installer_url": "https://pkg.zeplin.io/macos/latest/zeplin-darwin-universal.zip",
       "install_script_ref": "e5cfd99d",

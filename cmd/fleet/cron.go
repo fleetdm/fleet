@@ -2076,6 +2076,7 @@ func newRecoveryLockPasswordSchedule(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronSendRecoveryLockCommands)
@@ -2087,7 +2088,7 @@ func newRecoveryLockPasswordSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
-			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger)
+			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 
