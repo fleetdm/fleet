@@ -1310,13 +1310,15 @@ policies:
 	require.NoError(t, err, "gitops should succeed when policies reference server-side software and software is excepted")
 	// Check that policies for "Test Fleet" contained the expected software title IDs.
 	testFleetPolicySpecs := policySpecsByTeam["Test Fleet"]
-	require.Len(t, testFleetPolicySpecs, 2, "expected 2 policies for Test Fleet")
+	require.Len(t, testFleetPolicySpecs, 3, "expected 3 policies for Test Fleet")
 	for _, spec := range testFleetPolicySpecs {
 		switch spec.Name {
 		case "Package Policy":
 			assert.Equal(t, uint(10), *spec.SoftwareTitleID, "expected server-side software ID to be injected into Package Policy spec")
 		case "VPP Policy":
 			assert.Equal(t, uint(20), *spec.SoftwareTitleID, "expected server-side software ID to be injected into VPP Policy spec")
+		case "FMA Policy":
+			assert.Equal(t, uint(40), *spec.SoftwareTitleID, "expected server-side software ID to be injected into FMA Policy spec")
 		default:
 			t.Errorf("unexpected policy name: %s", spec.Name)
 		}
