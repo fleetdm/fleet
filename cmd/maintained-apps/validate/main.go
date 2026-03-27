@@ -37,91 +37,6 @@ type Config struct {
 	outputsPath                 string
 }
 
-func logDiskSpace(ctx context.Context, logger *slog.Logger, tmpDir string, label string) {
-	logger.InfoContext(ctx, fmt.Sprintf("--- Disk space check: %s ---", label))
-
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("wmic", "logicaldisk", "get", "size,freespace,caption")
-	} else {
-		cmd = exec.Command("df", "-h", "/")
-	}
-	if output, err := cmd.CombinedOutput(); err == nil {
-		logger.InfoContext(ctx, strings.TrimSpace(string(output)))
-	} else {
-		logger.WarnContext(ctx, fmt.Sprintf("Failed to get disk space: %v", err))
-	}
-
-	if runtime.GOOS == "darwin" {
-		if output, err := exec.Command("hdiutil", "info").CombinedOutput(); err == nil {
-			mounted := parseMountedDMGInfo(string(output))
-			if len(mounted) > 0 {
-				logger.WarnContext(ctx, fmt.Sprintf("Mounted DMG volumes (%d):", len(mounted)))
-				for _, m := range mounted {
-					logger.WarnContext(ctx, fmt.Sprintf("  %s (from %s)", m.mountPoint, m.imagePath))
-				}
-			}
-		}
-
-		if entries, err := os.ReadDir("/Volumes"); err == nil {
-			var names []string
-			for _, e := range entries {
-				names = append(names, e.Name())
-			}
-			logger.InfoContext(ctx, fmt.Sprintf("/Volumes: %v", names))
-		}
-	}
-
-	if matches, _ := filepath.Glob(filepath.Join(os.TempDir(), "fleet-temp-file-*")); len(matches) > 0 {
-		var totalSize int64
-		for _, m := range matches {
-			if info, err := os.Stat(m); err == nil {
-				totalSize += info.Size()
-			}
-		}
-		logger.WarnContext(ctx, fmt.Sprintf("Lingering fleet-temp-file-* in %s: %d files, %.2f MB", os.TempDir(), len(matches), float64(totalSize)/(1024*1024)))
-	}
-
-	if tmpDir != "" {
-		if entries, err := os.ReadDir(tmpDir); err == nil {
-			var totalSize int64
-			var fileDetails []string
-			for _, e := range entries {
-				if info, err := e.Info(); err == nil {
-					size := info.Size()
-					totalSize += size
-					fileDetails = append(fileDetails, fmt.Sprintf("  %s (%.2f MB, dir=%v)", e.Name(), float64(size)/(1024*1024), e.IsDir()))
-				}
-			}
-			logger.InfoContext(ctx, fmt.Sprintf("Validation tmpDir (%s): %d entries, %.2f MB", tmpDir, len(entries), float64(totalSize)/(1024*1024)))
-			for _, detail := range fileDetails {
-				logger.InfoContext(ctx, detail)
-			}
-		}
-	}
-}
-
-type mountedDMG struct {
-	imagePath  string
-	mountPoint string
-}
-
-func parseMountedDMGInfo(hdiutilOutput string) []mountedDMG {
-	var results []mountedDMG
-	var currentImage string
-	for _, line := range strings.Split(hdiutilOutput, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "image-path") {
-			currentImage = strings.TrimSpace(strings.TrimPrefix(line, "image-path      :"))
-		}
-		if strings.HasPrefix(line, "/dev/") && strings.Contains(line, "/Volumes/") {
-			mountPoint := line[strings.Index(line, "/Volumes/"):]
-			results = append(results, mountedDMG{imagePath: currentImage, mountPoint: mountPoint})
-		}
-	}
-	return results
-}
-
 func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
 	if runtime.GOOS != "darwin" {
 		return
@@ -130,18 +45,25 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
 	if err != nil {
 		return
 	}
-	mounted := parseMountedDMGInfo(string(output))
-	for _, m := range mounted {
-		logger.InfoContext(ctx, fmt.Sprintf("Force-detaching DMG: %s (image: %s)", m.mountPoint, m.imagePath))
-		if out, err := exec.Command("hdiutil", "detach", m.mountPoint, "-force").CombinedOutput(); err != nil {
-			logger.WarnContext(ctx, fmt.Sprintf("Failed to detach %s: %v (%s)", m.mountPoint, err, strings.TrimSpace(string(out))))
+	var currentImage string
+	for line := range strings.SplitSeq(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "image-path") {
+			currentImage = strings.TrimSpace(strings.TrimPrefix(line, "image-path      :"))
+		}
+		if strings.HasPrefix(line, "/dev/") && strings.Contains(line, "/Volumes/") {
+			mountPoint := line[strings.Index(line, "/Volumes/"):]
+			logger.InfoContext(ctx, fmt.Sprintf("Force-detaching DMG: %s (image: %s)", mountPoint, currentImage))
+			if out, err := exec.Command("hdiutil", "detach", mountPoint, "-force").CombinedOutput(); err != nil {
+				logger.WarnContext(ctx, fmt.Sprintf("Failed to detach %s: %v (%s)", mountPoint, err, strings.TrimSpace(string(out))))
+			}
 		}
 	}
 }
 
 func run(cfg *Config) error {
 	ctx := context.Background()
-	cleanupAppFiles := func(installerPath string) {
+	cleanupAppFiles := func(_ string) {
 		detachAllDMGs(ctx, cfg.logger)
 
 		entries, err := os.ReadDir(cfg.tmpDir)
@@ -150,15 +72,8 @@ func run(cfg *Config) error {
 			return
 		}
 		for _, e := range entries {
-			p := filepath.Join(cfg.tmpDir, e.Name())
-			var sizeStr string
-			if info, err := e.Info(); err == nil {
-				sizeStr = fmt.Sprintf("%.2f MB", float64(info.Size())/(1024*1024))
-			}
-			if err := os.RemoveAll(p); err != nil {
+			if err := os.RemoveAll(filepath.Join(cfg.tmpDir, e.Name())); err != nil {
 				cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to remove %s: %v", e.Name(), err))
-			} else {
-				cfg.logger.InfoContext(ctx, fmt.Sprintf("Cleaned up: %s (%s, dir=%v)", e.Name(), sizeStr, e.IsDir()))
 			}
 		}
 	}
@@ -181,8 +96,6 @@ func run(cfg *Config) error {
 		}
 	}()
 
-	logDiskSpace(ctx, cfg.logger, cfg.tmpDir, "initial state")
-
 	totalApps := 0
 	successfulApps := 0
 	appWithError := []string{}
@@ -195,7 +108,6 @@ func run(cfg *Config) error {
 
 		totalApps++
 
-		logDiskSpace(ctx, cfg.logger, cfg.tmpDir, fmt.Sprintf("before %s (%s)", app.Name, app.Slug))
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Validating app: %s (%s)", app.Name, app.Slug))
 		appLogger := cfg.logger.With("app", app.Name)
 		ac := &AppCommander{cfg: cfg, appLogger: appLogger}
@@ -321,8 +233,6 @@ func run(cfg *Config) error {
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("All checks passed for app: %s (%s)", ac.Name, ac.Slug))
 		successfulApps++
 	}
-
-	logDiskSpace(ctx, cfg.logger, cfg.tmpDir, "final state")
 
 	if len(frozenApps) > 0 {
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Some apps were skipped: %v", frozenApps))
