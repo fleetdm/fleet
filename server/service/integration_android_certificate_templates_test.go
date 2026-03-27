@@ -72,6 +72,8 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 	require.NotNil(t, profile, "Profile %s not found in host MDM profiles", certTemplateName)
 	require.NotNil(t, profile.Status)
 	require.Equal(t, string(expectedStatus), *profile.Status)
+	require.NotNil(t, profile.CertificateTemplateID, "certificate_template_id should not be nil for Android certificate profiles")
+	require.Equal(t, certificateTemplateID, *profile.CertificateTemplateID, "certificate_template_id should match")
 	if expectedDetail != "" {
 		require.Equal(t, expectedDetail, profile.Detail)
 	}
