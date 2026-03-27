@@ -306,7 +306,8 @@ SELECT
 	name,
 	status,
 	detail,
-	operation_type
+	operation_type,
+	certificate_template_id
 FROM host_certificate_templates
 WHERE host_uuid = ?`
 
