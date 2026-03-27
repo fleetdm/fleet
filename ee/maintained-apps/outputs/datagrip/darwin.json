@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2025.3.5",
+      "version": "2026.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.datagrip';",
         "patch": ""
       },
-      "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2025.3.5-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2026.1-aarch64.dmg",
       "install_script_ref": "8865055d",
       "uninstall_script_ref": "bdf3b6cd",
-      "sha256": "944d1bf2cdfb9811c9eded221df2925bff6fa44f7977ffb0a6322091c18372bf",
+      "sha256": "57b8a9d84afc6d02f47de2efa2f17fae926909360cfcc844cb035ac7dd45f069",
       "default_categories": [
         "Developer tools"
       ]
