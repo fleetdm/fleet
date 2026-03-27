@@ -4,3 +4,7 @@
   description: The host may have an outdated version of Slack, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality. You can also delete Slack if you are no longer using it."
   platform: darwin
+  calendar_events_enabled: false
+  install_software:
+    package_path:
+    fleet_maintained_app_slug: slack/darwin

@@ -12,3 +12,6 @@
 
     If the issue persists, please reach out in #help-it.
   platform: darwin
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/disk-cleanup.sh
