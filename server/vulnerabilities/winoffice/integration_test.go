@@ -2,6 +2,7 @@ package winoffice_test
 
 import (
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -23,10 +24,16 @@ func TestIntegrationCheckVersion(t *testing.T) {
 	require.NotEmpty(t, bulletin.Versions)
 	require.NotEmpty(t, bulletin.BuildPrefixes)
 
-	// Get the newest build prefix
+	// Get the newest build prefix (compare numerically, not lexically)
 	var testPrefix string
+	var maxPrefixNum int
 	for prefix := range bulletin.BuildPrefixes {
-		if prefix > testPrefix {
+		num, err := strconv.Atoi(prefix)
+		if err != nil {
+			continue
+		}
+		if num > maxPrefixNum {
+			maxPrefixNum = num
 			testPrefix = prefix
 		}
 	}
