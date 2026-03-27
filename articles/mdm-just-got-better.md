@@ -18,11 +18,11 @@ This delivers the most frictionless macOS authentication experience to date — 
 
 ## Managed device migration
 
-You can now move macOS devices between MDM servers in Apple Business Manager or School Manager. No need to erase, rely on scripts, or use a vendor migration app. For iOS and iPadOS, MDM migration is also available without erasing devices.
+You can now move macOS devices between MDM servers in Apple Business or School Manager. No need to erase, rely on scripts, or use a vendor migration app. For iOS and iPadOS, MDM migration is also available without erasing devices.
 
 Whether you’re switching providers, consolidating tools after an acquisition, or moving from cloud to on-prem (or vice versa), device migration is now native, scalable, and user-driven.
 
-Apple Business Manager and Apple School Manager introduce:
+Apple Business and Apple School Manager introduce:
 
 - Enforced migration deadlines with persistent user prompts  
 - Full-screen modals or reboot requirements if migration is delayed  
@@ -60,7 +60,7 @@ These updates may be under the radar but they make a real difference:
 
 Apple’s WWDC25 updates point to a future of frictionless onboarding, declarative management, and user transparency.
 
-**Fleet delivers that today**, supporting declarative MDM on macOS, iOS, and iPadOS, with zero-touch provisioning via Apple Business Manager and Windows Autopilot.
+**Fleet delivers that today**, supporting declarative MDM on macOS, iOS, and iPadOS, with zero-touch provisioning via Apple Business and Windows Autopilot.
 
 Fleet lets you manage macOS, Windows, and Linux devices from one open, cross-platform system. It’s open source, scalable to millions of devices, and trusted by enterprises with 5,000+ endpoints. With Fleet Desktop, end users can see exactly what’s being managed and what data is collected—helping IT teams build trust through visibility and manage everything as code.
 

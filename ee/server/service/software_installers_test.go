@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -895,5 +896,79 @@ func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *test
 		err := svc.SelfServiceInstallSoftwareTitle(t.Context(), fakeHost, 1)
 		require.Error(t, err, "expected error when installing on personally enrolled device for platform %s", platform)
 		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
+	}
+}
+
+func TestGetInstallScript(t *testing.T) {
+	t.Parallel()
+
+	defaultPkgScript := file.GetInstallScript("pkg")
+	defaultDebScript := file.GetInstallScript("deb")
+	fleetdScript := file.InstallPkgFleetdScript
+	customScript := "#!/bin/sh\necho custom"
+
+	tests := []struct {
+		name       string
+		extension  string
+		packageIDs []string
+		current    string
+		expected   string
+	}{
+		{
+			name:       "fleetd pkg returns fleetd script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    "",
+			expected:   fleetdScript,
+		},
+		{
+			name:       "fleetd pkg overrides default script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    defaultPkgScript,
+			expected:   fleetdScript,
+		},
+		{
+			name:       "fleetd pkg overrides custom script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    customScript,
+			expected:   fleetdScript,
+		},
+		{
+			name:       "non-fleetd pkg returns default script",
+			extension:  "pkg",
+			packageIDs: []string{"com.example.app"},
+			current:    "",
+			expected:   defaultPkgScript,
+		},
+		{
+			name:       "non-fleetd pkg preserves custom script",
+			extension:  "pkg",
+			packageIDs: []string{"com.example.app"},
+			current:    customScript,
+			expected:   customScript,
+		},
+		{
+			name:       "deb returns default script",
+			extension:  "deb",
+			packageIDs: []string{"some-package"},
+			current:    "",
+			expected:   defaultDebScript,
+		},
+		{
+			name:       "deb preserves custom script",
+			extension:  "deb",
+			packageIDs: []string{"some-package"},
+			current:    customScript,
+			expected:   customScript,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getInstallScript(tt.extension, tt.packageIDs, tt.current)
+			require.Equal(t, tt.expected, result)
+		})
 	}
 }

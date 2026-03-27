@@ -6,7 +6,7 @@ This article covers how ADE works, which devices qualify, security controls, and
 
 ## Automated Device Enrollment overview
 
-ADE links devices purchased through authorized channels to your organization in Apple Business Manager (ABM) before they reach employees, allowing them to ship directly to end users. When users power on their devices for the first time and connect to the internet, automatic MDM enrollment begins. Users complete Setup Assistant screens while device configuration applies from your [MDM server](https://fleetdm.com/device-management) in the background.
+ADE links devices purchased through authorized channels to your organization in Apple Business (AB) before they reach employees, allowing them to ship directly to end users. When users power on their devices for the first time and connect to the internet, automatic MDM enrollment begins. Users complete Setup Assistant screens while device configuration applies from your [MDM server](https://fleetdm.com/device-management) in the background.
 
 Apple originally launched this capability in 2014 as the Device Enrollment Program and rebranded it to Automated Device Enrollment (ADE) in December 2019 alongside the launch of ABM. The underlying technology remained the same, but the new name better describes what the system actually does. 
 
@@ -79,7 +79,7 @@ ADE is an enrollment mechanism configured through ABM, not a complete management
 
 When evaluating MDM vendors for ADE compatibility, you need to verify several technical requirements. Check that the platform supports Apple Push Notification certificate management with annual renewal processes, offers Setup Assistant customization options that let you control the enrollment experience, and can handle multiple MDM servers if your organization needs different management systems for different regions or business units.
 
-When migrating from one management service to another, if your devices are on older versions of Apple operating systems they may need to be completely erased to re-enroll. If possible, admins should ensure all devices are on the latest Apple OS version. [Managed Device Migration](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web) announced at [WWDC 2025](https://fleetdm.com/announcements/mdm-just-got-better) allows computers and mobile devices to be migrated without erasing simply by moving device records from one virtual MDM server to another in Apple Business manager. Limited tests of migration behavior on test devices before comitting to your entire fleet will determine if OS updates are needed.
+When migrating from one management service to another, if your devices are on older versions of Apple operating systems they may need to be completely erased to re-enroll. If possible, admins should ensure all devices are on the latest Apple OS version. [Managed Device Migration](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web) announced at [WWDC 2025](https://fleetdm.com/announcements/mdm-just-got-better) allows computers and mobile devices to be migrated without erasing simply by moving device records from one virtual MDM server to another in Apple Business. Limited tests of migration behavior on test devices before comitting to your entire fleet will determine if OS updates are needed.
 
 Cross-platform capabilities also matter if you manage more than just Apple devices. Organizations with mixed device environments benefit from MDM platforms that handle Mac, Windows, and [Linux](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet) from a single console rather than juggling separate management tools. [Fleet](http://fleetdm.com) supports ADE enrollment for Mac, iPhone, and iPad devices while also managing Windows and Linux endpoints. Its open-source model provides complete code transparency so you can verify exactly how devices are managed, and self-hosting options let you maintain full control over where device data lives.
 
@@ -89,13 +89,13 @@ Setting up ADE requires some upfront preparation to ensure smooth deployment. Yo
 
 You should start by confirming you have these essential prerequisites in place:
 
-* Apple Business Manager account with D-U-N-S number and domain verification  
+* Apple Business account with D-U-N-S number and domain verification  
 * [MDM vendor](http://fleetdm.com) supporting ADE enrollment and APNs certificate management  
 * Authorized reseller relationships for automatic device registration  
 * Network infrastructure permitting connections to Apple servers without SSL/TLS inspection  
 * Certificate renewal procedures using the same Apple ID for annual APNs renewal
 
-Beyond technical infrastructure, configuration planning determines how users experience enrollment. You need to define enrollment profiles that specify which Setup Assistant screens users see during initial setup, establish device naming conventions that make sense for your IT team, and create department-specific configurations for different user groups. Make sure to assign these profiles in Apple Business Manager before distributing devices so enrollment happens smoothly without last-minute troubleshooting.
+Beyond technical infrastructure, configuration planning determines how users experience enrollment. You need to define enrollment profiles that specify which Setup Assistant screens users see during initial setup, establish device naming conventions that make sense for your IT team, and create department-specific configurations for different user groups. Make sure to assign these profiles in Apple Business before distributing devices so enrollment happens smoothly without last-minute troubleshooting.
 
 ## Conclusion
 
