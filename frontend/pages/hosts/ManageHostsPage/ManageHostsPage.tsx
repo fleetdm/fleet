@@ -142,10 +142,6 @@ interface IRowProps extends Row {
   };
 }
 
-const LONG =
-  "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-
-const LONG2 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 const CSV_HOSTS_TITLE = "Hosts";
 const baseClass = "manage-hosts";
 
@@ -328,9 +324,6 @@ const ManageHostsPage = ({
     activeLabel && filters.push(activeLabel);
     return filters;
   }, [activeLabel, labelID]);
-
-  const LONG =
-    "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
 
   // All possible filter states - these align with ILoadHostsOptions, but state names here can
   // differ from param names there:
