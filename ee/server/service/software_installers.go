@@ -1887,7 +1887,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 
 	scriptContents := string(scriptBytes)
 
-	if err := fleet.ValidateHostScriptContents(scriptContents, false); err != nil {
+	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return &fleet.BadRequestError{
 			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
 			InternalErr: ctxerr.Wrap(ctx, err, "validating script contents"),
