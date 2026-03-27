@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
+import { addHours, parseISO, differenceInMinutes } from "date-fns";
 
 import { internationalTimeFormat } from "utilities/helpers";
 import {
@@ -46,7 +47,8 @@ interface IMDMStatusModal {
   onExit: () => void;
 }
 
-type ProfileStatusCode = "" | "removed" | "assigned" | "pushed";
+/** "" represents any other status not reported by apple to render fallback "---" */
+type ProfileStatusCode = "" | "empty" | "removed" | "assigned" | "pushed";
 
 type DepAssignProfileResponseErrors = Exclude<
   DepAssignProfileResponse,
@@ -59,8 +61,9 @@ const PROFILE_STATUS_UI_MAP: Record<
 > = {
   "": {
     label: DEFAULT_EMPTY_CELL_VALUE,
+    tooltip: "Unknown profile status reported by Apple.",
   },
-  Empty: {
+  empty: {
     label: "Empty",
     tooltip: "No profile assigned to this host.",
   },
@@ -84,48 +87,48 @@ const PROFILE_STATUS_UI_MAP: Record<
 };
 
 const getProfileStatusUI = (raw?: string | null) => {
-  const label = (raw ?? "") as ProfileStatusCode;
+  // If Apple sends some unexpected string (e.g., "abc"),
+  // treat it as "" so we use the DEFAULT_EMPTY_CELL_VALUE + unknown tooltip.
+  const label = (PROFILE_STATUS_UI_MAP[raw as ProfileStatusCode]
+    ? raw
+    : "") as ProfileStatusCode;
+
   return PROFILE_STATUS_UI_MAP[label] ?? PROFILE_STATUS_UI_MAP[""];
 };
 
-const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
-  Exclude<DepAssignProfileResponse, "SUCCESS" | undefined>,
-  { label: JSX.Element | string; tooltip: JSX.Element | string }
-> = {
-  THROTTLED: {
-    label: "Throttled",
-    tooltip: (
-      <>
-        Migration or new Mac setup won&apos;t work. Fleet hit Apple&apos;s API
-        rate limit when preparing the macOS Setup Assistant for this host. Fleet
-        will try again in 10 hours.
-      </>
-    ),
-  },
-  FAILED: {
-    label: "Failed",
-    tooltip: (
-      <>
-        Migration or new Mac setup won&apos;t work. Apple&apos;s servers
-        rejected the request to assign a profile to a host. Fleet will try again
-        every hour.
-      </>
-    ),
-  },
-  NOT_ACCESSIBLE: {
-    label: "Not accessible",
-    tooltip: (
-      <>
-        Migration or new Mac setup won&apos;t work. Details are not accessible
-        from Apple Business Manager (ABM). Verify the host is assigned to your
-        MDM server and Fleet has access permissions.
-      </>
-    ),
-  },
-};
+const getThrottleCopy = (responseUpdatedAt?: string | null) => {
+  if (!responseUpdatedAt) {
+    return "when available.";
+  }
 
-const getProfileAssignmentError = (raw?: DepAssignProfileResponseErrors) => {
-  return raw ? PROFILE_ASSIGNMENT_ERROR_UI_MAP[raw] : undefined;
+  const isoLike = responseUpdatedAt.replace(" ", "T");
+  const lastTime = parseISO(isoLike);
+
+  if (Number.isNaN(lastTime.getTime())) {
+    return "when available.";
+  }
+
+  const retryAt = addHours(lastTime, 24);
+  const now = new Date();
+
+  if (now >= retryAt) {
+    return "when available.";
+  }
+
+  // Use minutes to distinguish <1 hour vs >=1 hour
+  const minutesRemaining = differenceInMinutes(retryAt, now);
+
+  if (minutesRemaining <= 0) {
+    return "when available.";
+  }
+
+  if (minutesRemaining < 60) {
+    return "in <1 hour";
+  }
+
+  const hours = Math.floor(minutesRemaining / 60);
+
+  return `in ${hours} hour${hours === 1 ? "" : "s"}`;
 };
 
 interface IStatusRowItem {
@@ -316,6 +319,48 @@ const MDMStatusModal = ({
       );
     }
 
+    const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
+      Exclude<DepAssignProfileResponse, "SUCCESS" | undefined>,
+      { label: JSX.Element | string; tooltip: JSX.Element | string }
+    > = {
+      THROTTLED: {
+        label: "Throttled",
+        tooltip: (
+          <>
+            Migration or new Mac setup won&apos;t work. Fleet hit Apple&apos;s
+            API rate limit when preparing the macOS Setup Assistant for this
+            host. Fleet will try again{" "}
+            {getThrottleCopy(
+              depAssignmentData.host_dep_assignment.response_updated_at
+            )}
+          </>
+        ),
+      },
+      FAILED: {
+        label: "Failed",
+        tooltip: (
+          <>
+            Migration or new Mac setup won&apos;t work. Apple&apos;s servers
+            rejected the request to assign a profile to a host. Fleet will try
+            again every hour.
+          </>
+        ),
+      },
+      NOT_ACCESSIBLE: {
+        label: "Not accessible",
+        tooltip: (
+          <>
+            Migration or new Mac setup won&apos;t work. Details are not
+            accessible from Apple Business Manager (ABM). Verify the host is
+            assigned to your MDM server and Fleet has access permissions.
+          </>
+        ),
+      },
+    };
+
+    const getProfileAssignmentError = (raw?: DepAssignProfileResponseErrors) =>
+      raw ? PROFILE_ASSIGNMENT_ERROR_UI_MAP[raw] : undefined;
+
     const data: IProfileRowItem[] = [
       {
         id: "profile-assigned",
@@ -327,7 +372,7 @@ const MDMStatusModal = ({
             to this host in Apple Business Manager.
           </>
         ),
-        // Follow current pattern of international time formate for dates in UI
+        // Follow current pattern of international time format for dates in UI
         status: internationalTimeFormat(
           new Date(depAssignmentData.dep_device?.profile_assign_time)
         ),
@@ -342,7 +387,7 @@ const MDMStatusModal = ({
             host won&apos;t be able to turn on MDM.
           </>
         ),
-        // Follow current pattern of international time formate for dates in UI
+        // Follow current pattern of international time format for dates in UI
         status:
           depAssignmentData.dep_device.profile_push_time === ""
             ? DEFAULT_EMPTY_CELL_VALUE
@@ -367,12 +412,6 @@ const MDMStatusModal = ({
       const assignmentError = getProfileAssignmentError(
         depAssignmentData.host_dep_assignment
           .assign_profile_response as DepAssignProfileResponseErrors
-      );
-
-      console.log(
-        "component assign_profile_response",
-        depAssignmentData.host_dep_assignment.assign_profile_response,
-        assignmentError
       );
 
       if (assignmentError) {

@@ -233,6 +233,7 @@ describe("MDMStatusModal - component", () => {
       expect(router.push).toHaveBeenCalled();
       const firstCall = (router.push as jest.Mock).mock.calls[0][0];
       expect(firstCall).toContain(paths.MANAGE_HOSTS);
+      // Router navigation still uses uppercase responseParam
       expect(firstCall).toContain("dep_assign_profile_response=FAILED");
     });
   });
