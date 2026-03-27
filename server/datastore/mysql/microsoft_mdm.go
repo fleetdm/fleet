@@ -246,12 +246,32 @@ func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUU
 	})
 }
 
-func (ds *Datastore) mdmWindowsInsertCommandForHostsDB(ctx context.Context, tx sqlx.ExecerContext, hostUUIDsOrDeviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
-	// first, create the command entry
-	stmt := `
-		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
-		VALUES (?, ?, ?)
-  `
+func (ds *Datastore) mdmWindowsInsertCommandForHostsDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDsOrDeviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	// Resolve host UUIDs / device IDs to enrollment IDs using the general-purpose
+	// lookup (supports both host_uuid and mdm_device_id via subquery).
+	enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx, tx, hostUUIDsOrDeviceIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching enrollment IDs for command queue")
+	}
+	return ds.mdmWindowsInsertCommandForEnrollmentIDsDB(ctx, tx, enrollmentIDs, cmd)
+}
+
+// mdmWindowsInsertCommandForHostUUIDsDB is the fast path for bulk operations
+// that always have host UUIDs (not device IDs). Uses an indexed batch SELECT
+// instead of per-row subqueries.
+func (ds *Datastore) mdmWindowsInsertCommandForHostUUIDsDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDDB(ctx, tx, hostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching enrollment IDs by host UUID")
+	}
+	return ds.mdmWindowsInsertCommandForEnrollmentIDsDB(ctx, tx, enrollmentIDs, cmd)
+}
+
+// mdmWindowsInsertCommandForEnrollmentIDsDB inserts the command and queues it
+// for the given enrollment IDs.
+func (ds *Datastore) mdmWindowsInsertCommandForEnrollmentIDsDB(ctx context.Context, tx sqlx.ExtContext, enrollmentIDs []uint, cmd *fleet.MDMWindowsCommand) error {
+	// Create the command entry.
+	stmt := `INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`
 	if _, err := tx.ExecContext(ctx, stmt, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI); err != nil {
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
@@ -259,17 +279,18 @@ func (ds *Datastore) mdmWindowsInsertCommandForHostsDB(ctx context.Context, tx s
 		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
 	}
 
-	// create the command execution queue entries in batches
-	return common_mysql.BatchProcessSimple(hostUUIDsOrDeviceIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
-		valuesPart := strings.Repeat(
-			`((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1), ?),`,
-			len(batch),
-		)
+	if len(enrollmentIDs) == 0 {
+		return nil
+	}
+
+	// Batch insert into command queue.
+	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMProfileDeleteBatchSize, func(batch []uint) error {
+		valuesPart := strings.Repeat("(?, ?),", len(batch))
 		valuesPart = strings.TrimSuffix(valuesPart, ",")
 
-		args := make([]any, 0, len(batch)*3)
-		for _, id := range batch {
-			args = append(args, id, id, cmd.CommandUUID)
+		args := make([]any, 0, len(batch)*2)
+		for _, eid := range batch {
+			args = append(args, eid, cmd.CommandUUID)
 		}
 
 		batchStmt := `INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES ` + valuesPart
@@ -278,6 +299,45 @@ func (ds *Datastore) mdmWindowsInsertCommandForHostsDB(ctx context.Context, tx s
 		}
 		return nil
 	})
+}
+
+// getEnrollmentIDsByHostUUIDDB fetches enrollment IDs for a list of host UUIDs
+// using an indexed batch query. Returns the most recent enrollment per host.
+func (ds *Datastore) getEnrollmentIDsByHostUUIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) ([]uint, error) {
+	var allIDs []uint
+	err := common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(
+			`SELECT MAX(id) FROM mdm_windows_enrollments WHERE host_uuid IN (?) GROUP BY host_uuid`,
+			batch)
+		if err != nil {
+			return err
+		}
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, tx, &ids, stmt, args...); err != nil {
+			return err
+		}
+		allIDs = append(allIDs, ids...)
+		return nil
+	})
+	return allIDs, err
+}
+
+// getEnrollmentIDsByHostUUIDOrDeviceIDDB fetches enrollment IDs using a
+// per-row SELECT that supports both host_uuid and mdm_device_id lookups.
+// Used by the general-purpose command insertion path (typically 1-2 IDs).
+func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDsOrDeviceIDs []string) ([]uint, error) {
+	var allIDs []uint
+	for _, id := range hostUUIDsOrDeviceIDs {
+		var eid uint
+		err := sqlx.GetContext(ctx, tx, &eid,
+			`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`,
+			id, id)
+		if err != nil {
+			continue // skip hosts without enrollment
+		}
+		allIDs = append(allIDs, eid)
+	}
+	return allIDs, nil
 }
 
 // MDMWindowsGetPendingCommands retrieves all commands awaiting execution for a
@@ -425,7 +485,16 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmdWithSecret, enrichedSyncML.CmdRefUUIDToStatus,
 						enrolledDevice.HostUUID, cmdOperationTypes[cmd.CommandUUID] == fleet.MDMOperationTypeRemove)
 					if err != nil {
+						ds.logger.ErrorContext(ctx, "BuildMDMWindowsProfilePayloadFromMDMResponse error",
+							"err", err, "cmd_uuid", cmd.CommandUUID, "host_uuid", enrolledDevice.HostUUID)
 						return err
+					}
+					if pp == nil {
+						ds.logger.WarnContext(ctx, "BuildMDMWindowsProfilePayloadFromMDMResponse returned nil payload",
+							"cmd_uuid", cmd.CommandUUID, "host_uuid", enrolledDevice.HostUUID)
+					} else if pp.Status == nil {
+						ds.logger.WarnContext(ctx, "profile payload has nil status",
+							"cmd_uuid", cmd.CommandUUID, "host_uuid", enrolledDevice.HostUUID)
 					}
 					potentialProfilePayloads = append(potentialProfilePayloads, pp)
 				}
@@ -1131,7 +1200,7 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 			continue
 		}
 
-		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, target.hostUUIDs, deleteCmd); err != nil {
+		if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, target.hostUUIDs, deleteCmd); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting delete commands for hosts")
 		}
 		enqueuedTargets[profUUID] = target
@@ -2489,7 +2558,7 @@ ON DUPLICATE KEY UPDATE
 		if len(hostUUIDs) > 0 {
 			ds.logger.InfoContext(ctx, "sending delete commands for LocURIs removed from edited profile",
 				"profile.name", existing.Name, "profile.uuid", existing.ProfileUUID, "removed_loc_uris", len(removedURIs))
-			if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, hostUUIDs, deleteCmd); err != nil {
+			if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, hostUUIDs, deleteCmd); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "inserting delete commands for removed LocURIs")
 			}
 		}
