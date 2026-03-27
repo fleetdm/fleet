@@ -2555,7 +2555,11 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	// hostProfilesMap provides O(1) lookup for host profiles by host UUID and profile UUID
 	// Key format: "hostUUID|profileUUID"
 	hostProfilesMap := make(map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload, len(toInstall))
-	batchProfilesMap := make(map[string][]*fleet.MDMWindowsBulkUpsertHostProfilePayload) // profileUUID -> host profiles, used for batch updates during command creation
+
+	// batchProfileCmdsMap maps command UUID -> host profiles, used to fetch all host profiles associated
+	// with a given command UUID so all host_mdm_windows_profiles entries can be updated as the command
+	// is enqueued for hosts
+	batchProfileCmdsMap := make(map[string][]*fleet.MDMWindowsBulkUpsertHostProfilePayload)
 
 	// install are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
@@ -2593,7 +2597,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
 		// Add to map for fast lookup
 		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
-		batchProfilesMap[target.cmdUUID] = append(batchProfilesMap[target.cmdUUID], hp)
+		batchProfileCmdsMap[target.cmdUUID] = append(batchProfileCmdsMap[target.cmdUUID], hp)
 		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
@@ -2654,7 +2658,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 		if !variables.ContainsBytes(p.SyncML) {
 			// No Fleet variables, send the same command to all hosts
-			payloads, ok := batchProfilesMap[target.cmdUUID]
+			payloads, ok := batchProfileCmdsMap[target.cmdUUID]
 			if !ok {
 				logger.ErrorContext(ctx, "no host profiles found for command UUID", "command_uuid", target.cmdUUID)
 				continue

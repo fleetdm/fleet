@@ -230,11 +230,12 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsDeleteEnrolledDeviceWithDeviceID"))
 }
 
-// this function inserts both the host_mdm_windows_profile entries and the actual mdm_windows_command and queue entries for a given command and list of hosts.
-// We do this in a transaction to ensure that we don't end up with queued commands that don't have corresponding host profile entries, which would cause issues
-// when processing responses from the device. It is done in batches for performance reasons, the first batch being the one that inserts the actual command entry.
-// It need not be one big tranasaction as long as a given host's command queue entry and host profile entry are inserted in the same transaction
-// Note that unlike the insert command function below this does not work with device IDs, only host UUIDs
+// this function inserts both the host_mdm_windows_profile entries and the actual mdm_windows_command_queue entries for a given command and list of hosts.
+// We do the host-targeting pieces in a transaction to ensure that we don't end up with queued commands that don't have corresponding host profile entries,
+// which would previously cause issues when processing responses from the device if there was a long delay between enqueing the command and the host profile
+// entry insertion. It is done in batches for performance reasons and the command itself is inserted before the batches begin. It need not be one big tranasaction
+// as long as a given host's command queue entry and host profile entry are inserted in the same transaction. Note that unlike the insert command function below
+// this does not work with device IDs, only host UUIDs
 func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -290,6 +291,11 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 					return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", cmd.CommandUUID))
 				}
 				return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
+			}
+
+			// Should never happen but could in the case of a bug in the batching logic or if the caller supplied bad args(we warn in the logs for this case)
+			if len(profileArgs) == 0 {
+				return nil
 			}
 
 			// Upsert host profile entries.
