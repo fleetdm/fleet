@@ -9,12 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 )
-
-// BulletinMaxAge is the maximum age of releases to include in the bulletin.
-// Releases older than this are excluded to limit bulletin size.
-const BulletinMaxAge = 3 * 365 * 24 * time.Hour // 3 years
 
 const (
 	// SecurityUpdatesURL is the Microsoft Learn page with Windows Office security updates.
@@ -138,33 +133,8 @@ func addOrUpdateBranch(branches []VersionBranch, branch VersionBranch) []Version
 	return append(branches, branch)
 }
 
-// parseReleaseDate parses a date string like "March 10, 2026" into a time.Time.
-func parseReleaseDate(dateStr string) (time.Time, error) {
-	return time.Parse("January 2, 2006", dateStr)
-}
-
-// filterRecentReleases returns only releases within the specified duration from now.
-func filterRecentReleases(releases []SecurityRelease, maxAge time.Duration) []SecurityRelease {
-	cutoff := time.Now().Add(-maxAge)
-	var filtered []SecurityRelease
-	for _, rel := range releases {
-		releaseDate, err := parseReleaseDate(rel.Date)
-		if err != nil {
-			// If we can't parse the date, include it to be safe
-			filtered = append(filtered, rel)
-			continue
-		}
-		if releaseDate.After(cutoff) {
-			filtered = append(filtered, rel)
-		}
-	}
-	return filtered
-}
-
 // BuildBulletinFile creates a BulletinFile from scraped releases.
-// Only releases within BulletinMaxAge are included.
 func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
-	releases = filterRecentReleases(releases, BulletinMaxAge)
 
 	buildPrefixes := make(map[string]string)
 	cveToBuilds := make(map[string]map[string]string) // CVE → version → build
