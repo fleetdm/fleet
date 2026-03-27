@@ -754,6 +754,67 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 	})
 }
 
+func TestAddScriptPackageMetadataLargeScript(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	svc := newTestService(t, nil)
+
+	t.Run("large shell script within saved limit", func(t *testing.T) {
+		t.Parallel()
+		// Generate a script larger than UnsavedScriptMaxRuneLen (10K) but within
+		// SavedScriptMaxRuneLen (500K). Script packages are persisted via GitOps
+		// and should use the saved script limit.
+		scriptContents := "#!/bin/bash\n" + strings.Repeat("echo 'line'\n", 1000)
+		require.Greater(t, len(scriptContents), fleet.UnsavedScriptMaxRuneLen)
+		require.Less(t, len(scriptContents), fleet.SavedScriptMaxRuneLen)
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "large-install.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+
+	t.Run("large powershell script within saved limit", func(t *testing.T) {
+		t.Parallel()
+		scriptContents := strings.Repeat("Write-Host 'line'\r\n", 1000)
+		require.Greater(t, len(scriptContents), fleet.UnsavedScriptMaxRuneLen)
+		require.Less(t, len(scriptContents), fleet.SavedScriptMaxRuneLen)
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "large-install.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+}
+
 // TestInstallShScriptOnDarwin tests that .sh scripts (stored as platform='linux')
 // can be installed on darwin hosts.
 func TestInstallShScriptOnDarwin(t *testing.T) {
