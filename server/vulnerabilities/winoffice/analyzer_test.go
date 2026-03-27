@@ -59,6 +59,16 @@ func TestParseOfficeVersion(t *testing.T) {
 			version: "16.0.19725",
 			wantErr: true,
 		},
+		{
+			name:    "invalid version - wrong prefix",
+			version: "17.0.19725.20204",
+			wantErr: true,
+		},
+		{
+			name:    "invalid version - no prefix",
+			version: "19725.20204",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

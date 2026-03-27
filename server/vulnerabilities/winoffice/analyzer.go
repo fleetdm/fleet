@@ -15,6 +15,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
+// OfficeVersionPrefix is the major.minor version prefix for Microsoft Office products.
+// Office 2016, 2019, 2021, LTSC 2024, and Microsoft 365 all use "16.0" as their
+// version prefix. This has been consistent since Office 2016 was released in 2015.
+// Windows reports installed Office versions in this format via the "programs" source.
+// If Microsoft changes this in a future release, validation will fail safely rather
+// than silently miscomparing versions.
+const OfficeVersionPrefix = "16.0."
+
 // getLatestBulletin returns the most recent Windows Office bulletin (based on the date in the
 // filename) contained in 'vulnPath'.
 func getLatestBulletin(vulnPath string) (*BulletinFile, error) {
@@ -55,6 +63,9 @@ func isWindowsOffice(software *fleet.Software) bool {
 // parseOfficeVersion parses a Windows Office version string like "16.0.19725.20204"
 // and returns the build prefix and build suffix.
 func parseOfficeVersion(version string) (buildPrefix, buildSuffix string, err error) {
+	if !strings.HasPrefix(version, OfficeVersionPrefix) {
+		return "", "", fmt.Errorf("invalid Office version prefix: %s", version)
+	}
 	parts := strings.Split(version, ".")
 	if len(parts) < 4 {
 		return "", "", fmt.Errorf("invalid Office version format: %s", version)

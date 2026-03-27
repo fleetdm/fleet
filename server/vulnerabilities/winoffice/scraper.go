@@ -205,7 +205,7 @@ func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
 			versions[version].SecurityUpdates = append(versions[version].SecurityUpdates,
 				SecurityUpdate{
 					CVE:               cve,
-					ResolvedInVersion: "16.0." + build,
+					ResolvedInVersion: OfficeVersionPrefix + build,
 				})
 		}
 	}
@@ -243,7 +243,7 @@ func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
 					vb.SecurityUpdates = append(vb.SecurityUpdates,
 						SecurityUpdate{
 							CVE:               cve,
-							ResolvedInVersion: "16.0." + build,
+							ResolvedInVersion: OfficeVersionPrefix + build,
 						})
 					break
 				}
