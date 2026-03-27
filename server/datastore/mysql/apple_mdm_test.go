@@ -123,6 +123,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostRecoveryLockPasswordStatus", testGetHostRecoveryLockPasswordStatus},
 		{"ClaimHostsForRecoveryLockClear", testClaimHostsForRecoveryLockClear},
 		{"RecoveryLockRotation", testRecoveryLockRotation},
+		{"RecoveryLockAutoRotation", testRecoveryLockAutoRotation},
 	}
 
 	for _, c := range cases {
@@ -11207,7 +11208,7 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		// Try to initiate second rotation - should fail
 		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, "another-password")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "rotation already pending")
+		assert.ErrorIs(t, err, fleet.ErrRecoveryLockRotationPending)
 	})
 
 	t.Run("InitiateRecoveryLockRotation rejects pending status", func(t *testing.T) {
@@ -11220,7 +11221,7 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		// Try to initiate rotation on pending status - should fail
 		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, "new-password")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not eligible for rotation")
+		assert.ErrorIs(t, err, fleet.ErrRecoveryLockNotEligible)
 	})
 
 	t.Run("InitiateRecoveryLockRotation allows failed status", func(t *testing.T) {
@@ -11388,5 +11389,228 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		pending, err := ds.HasPendingRecoveryLockRotation(ctx, "non-existent-uuid")
 		require.NoError(t, err)
 		assert.False(t, pending)
+	})
+}
+
+func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Helper to set up a host with a verified recovery lock password
+	setupHostWithVerifiedPassword := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "2.3.4."+uuid[:3], name+"key", uuid, time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		return host
+	}
+
+	// Helper to get auto_rotate_at directly from DB
+	getAutoRotateAt := func(t *testing.T, hostUUID string) *time.Time {
+		t.Helper()
+		var autoRotateAt *time.Time
+		err := ds.writer(ctx).GetContext(ctx, &autoRotateAt, `
+			SELECT auto_rotate_at FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		require.NoError(t, err)
+		return autoRotateAt
+	}
+
+	t.Run("MarkRecoveryLockPasswordViewed sets auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "view-host1", "viewuuid0001")
+
+		// Initially no auto_rotate_at
+		autoRotateAt := getAutoRotateAt(t, host.UUID)
+		assert.Nil(t, autoRotateAt)
+
+		// Mark as viewed
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.False(t, rotateAt.IsZero())
+
+		// Verify auto_rotate_at is approximately 1 hour from now
+		expectedRotateAt := time.Now().Add(1 * time.Hour)
+		assert.WithinDuration(t, expectedRotateAt, rotateAt, 1*time.Minute)
+
+		// Verify via direct DB query
+		autoRotateAt = getAutoRotateAt(t, host.UUID)
+		require.NotNil(t, autoRotateAt)
+		assert.WithinDuration(t, expectedRotateAt, *autoRotateAt, 1*time.Minute)
+	})
+
+	t.Run("MarkRecoveryLockPasswordViewed updates existing auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "view-host2", "viewuuid0002")
+
+		// First view
+		firstRotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		time.Sleep(10 * time.Millisecond) // Small delay to ensure different timestamp
+
+		// Second view should update auto_rotate_at
+		secondRotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Second rotation time should be after first
+		assert.True(t, secondRotateAt.After(firstRotateAt), "second view should update auto_rotate_at")
+
+		// Verify the value was persisted in the database
+		pw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, pw.AutoRotateAt, "auto_rotate_at should be persisted")
+		assert.True(t, pw.AutoRotateAt.After(firstRotateAt), "persisted auto_rotate_at should be after first rotation time")
+	})
+
+	t.Run("MarkRecoveryLockPasswordViewed fails for non-existent host", func(t *testing.T) {
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, "non-existent-uuid")
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("MarkRecoveryLockPasswordViewed fails for remove operation", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "view-host3", "viewuuid0003")
+
+		// Change to remove operation type
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET operation_type = 'remove'
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Should fail because operation_type is not 'install'
+		_, err = ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	// Helper to check if a host UUID is in the rotation info list
+	containsHostUUID := func(hosts []fleet.HostAutoRotationInfo, uuid string) bool {
+		for _, h := range hosts {
+			if h.HostUUID == uuid {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("GetHostsForAutoRotation returns due hosts", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "auto-rotate-host1", "autorotateuuid1")
+
+		// Set auto_rotate_at to 2 hours ago (past due)
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET auto_rotate_at = DATE_SUB(NOW(6), INTERVAL 2 HOUR)
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Should be returned
+		hosts, err := ds.GetHostsForAutoRotation(ctx)
+		require.NoError(t, err)
+		assert.True(t, containsHostUUID(hosts, host.UUID), "host should be in auto-rotation list")
+	})
+
+	t.Run("GetHostsForAutoRotation excludes future auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "auto-rotate-host2", "autorotateuuid2")
+
+		// Set auto_rotate_at to 1 hour in the future
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET auto_rotate_at = DATE_ADD(NOW(6), INTERVAL 1 HOUR)
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Should NOT be returned
+		hosts, err := ds.GetHostsForAutoRotation(ctx)
+		require.NoError(t, err)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
+	})
+
+	t.Run("GetHostsForAutoRotation excludes hosts with pending rotation", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "auto-rotate-host3", "autorotateuuid3")
+
+		// Set auto_rotate_at to past due
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET auto_rotate_at = DATE_SUB(NOW(6), INTERVAL 2 HOUR)
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Initiate rotation (sets pending_encrypted_password)
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Should NOT be returned because pending rotation exists
+		hosts, err := ds.GetHostsForAutoRotation(ctx)
+		require.NoError(t, err)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
+	})
+
+	t.Run("GetHostsForAutoRotation excludes non-verified hosts", func(t *testing.T) {
+		host := test.NewHost(t, ds, "auto-rotate-host4", "2.3.4.104", "autorotate4key", "autorotateuuid4", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Status is "pending" after SetHostsRecoveryLockPasswords, NOT verified
+
+		// Set auto_rotate_at to past due
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET auto_rotate_at = DATE_SUB(NOW(6), INTERVAL 2 HOUR)
+			WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		// Should NOT be returned because status is not verified
+		hosts, err := ds.GetHostsForAutoRotation(ctx)
+		require.NoError(t, err)
+		assert.False(t, containsHostUUID(hosts, host.UUID), "host should not be in auto-rotation list")
+	})
+
+	t.Run("CompleteRecoveryLockRotation clears auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "complete-auto-rotate", "completeautorot")
+
+		// Mark as viewed to set auto_rotate_at
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify auto_rotate_at is set
+		autoRotateAt := getAutoRotateAt(t, host.UUID)
+		require.NotNil(t, autoRotateAt)
+
+		// Initiate and complete rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		err = ds.CompleteRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// auto_rotate_at should be cleared
+		autoRotateAt = getAutoRotateAt(t, host.UUID)
+		assert.Nil(t, autoRotateAt)
+	})
+
+	t.Run("GetHostRecoveryLockPassword includes auto_rotate_at", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "get-pw-auto-rotate", "getpwautorot")
+
+		// Initially no auto_rotate_at
+		pw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, pw.AutoRotateAt)
+
+		// Mark as viewed
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Now auto_rotate_at should be returned
+		pw, err = ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, pw.AutoRotateAt)
+		assert.WithinDuration(t, rotateAt, *pw.AutoRotateAt, 1*time.Second)
 	})
 }

@@ -313,6 +313,8 @@ const ManageHostsPage = ({
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
   const depProfileError = queryParams?.dep_profile_error;
+  /** URL converts to lowercase but API and UI requires uppercase */
+  const depAssignProfileResponse = queryParams?.dep_assign_profile_response?.toUpperCase();
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -354,7 +356,7 @@ const ManageHostsPage = ({
   // configProfileStatus ||
   // configProfileUUID
   // depProfileError
-
+  // depAssignProfileResponse
   const runScriptBatchFilterNotSupported = !!(
     // all above, except acceptable filters
     (
@@ -392,7 +394,8 @@ const ManageHostsPage = ({
       scriptBatchExecutionStatus ||
       configProfileStatus ||
       configProfileUUID ||
-      depProfileError
+      depProfileError ||
+      depAssignProfileResponse
     )
   );
 
@@ -577,6 +580,7 @@ const ManageHostsPage = ({
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
         depProfileError: strToBool(depProfileError),
+        depAssignProfileResponse,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -1105,6 +1109,8 @@ const ManageHostsPage = ({
         ] = scriptBatchExecutionId;
       } else if (depProfileError) {
         newQueryParams.dep_profile_error = depProfileError;
+      } else if (depAssignProfileResponse) {
+        newQueryParams.dep_assign_profile_response = depAssignProfileResponse;
       }
 
       router.replace(
@@ -1150,6 +1156,8 @@ const ManageHostsPage = ({
       routeTemplate,
       routeParams,
       softwareStatus,
+      depProfileError,
+      depAssignProfileResponse,
     ]
   );
 
@@ -1345,6 +1353,7 @@ const ManageHostsPage = ({
           diskEncryptionStatus,
           vulnerability,
           depProfileError,
+          depAssignProfileResponse,
         })
       : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1849,7 +1858,8 @@ const ManageHostsPage = ({
       osSettingsStatus ||
       diskEncryptionStatus ||
       vulnerability ||
-      depProfileError
+      depProfileError ||
+      depAssignProfileResponse
     );
 
     return (
@@ -1997,6 +2007,7 @@ const ManageHostsPage = ({
             scriptBatchRanAt: scriptBatchSummary?.created_at || null,
             scriptBatchScriptName: scriptBatchSummary?.script_name || null,
             depProfileError,
+            depAssignProfileResponse,
           }}
           selectedLabel={selectedLabel}
           isOnlyObserver={isOnlyObserver}

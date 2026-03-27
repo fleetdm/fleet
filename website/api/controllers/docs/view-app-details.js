@@ -19,7 +19,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/app-details'
+      viewTemplatePath: 'pages/docs/app-details'
     },
 
     badConfig: {

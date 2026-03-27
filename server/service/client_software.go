@@ -267,3 +267,15 @@ func (c *Client) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
 	}
 	return responseBody.FleetMaintainedApp, nil
 }
+
+func (c *Client) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error) {
+	verb, path := "GET", "/api/latest/fleet/software/fleet_maintained_apps"
+	query := fmt.Sprintf("fleet_id=%d", teamID)
+
+	var responseBody listFleetMaintainedAppsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.FleetMaintainedApps, nil
+}

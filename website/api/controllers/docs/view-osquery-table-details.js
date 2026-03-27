@@ -18,7 +18,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/osquery-table-details'
+      viewTemplatePath: 'pages/docs/osquery-table-details'
     },
     badConfig: { responseType: 'badConfig' },
     notFound: { responseType: 'notFound' },

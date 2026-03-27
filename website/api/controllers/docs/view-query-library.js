@@ -8,7 +8,7 @@ module.exports = {
 
 
   exits: {
-    success: { viewTemplatePath: 'pages/query-library' },
+    success: { viewTemplatePath: 'pages/docs/query-library' },
     badConfig: { responseType: 'badConfig' },
   },
 

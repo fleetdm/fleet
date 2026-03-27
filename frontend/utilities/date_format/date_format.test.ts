@@ -1,4 +1,10 @@
-import { dateAgo, monthDayYearFormat, addedFromNow, uploadedFromNow } from ".";
+import {
+  dateAgo,
+  monthDayYearFormat,
+  addedFromNow,
+  uploadedFromNow,
+  monthDayTimeFormat,
+} from ".";
 
 describe("date_format utilities", () => {
   describe("uploadedFromNow util", () => {
@@ -42,6 +48,19 @@ describe("date_format utilities", () => {
       date.setDate(date.getDate() - 2);
 
       expect(dateAgo(date)).toEqual("2 days ago");
+    });
+  });
+
+  describe("monthDayTimeFormat util", () => {
+    it("returns a formatted date string matching pattern 'Mon D, H:MM AM/PM'", () => {
+      const date = "2024-03-20T13:35:00Z";
+      const result = monthDayTimeFormat(date);
+      // Match pattern like "Mar 20, 1:35 PM" (exact time varies by timezone)
+      expect(result).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{1,2}:\d{2} (AM|PM)$/);
+    });
+
+    it("returns an empty string for invalid dates", () => {
+      expect(monthDayTimeFormat("invalid-date")).toEqual("");
     });
   });
 });

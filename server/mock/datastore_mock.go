@@ -1063,6 +1063,10 @@ type HasPendingRecoveryLockRotationFunc func(ctx context.Context, hostUUID strin
 
 type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) error
 
+type MarkRecoveryLockPasswordViewedFunc func(ctx context.Context, hostUUID string) (time.Time, error)
+
+type GetHostsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error)
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -1818,8 +1822,6 @@ type SetAndroidCertificateTemplatesForRenewalFunc func(ctx context.Context, temp
 type GetOrCreateFleetChallengeForCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (string, error)
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
-
-type UpdateOrDeleteHostMDMWindowsProfileFunc func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error
 
 type GetWindowsMDMCommandsForResendingFunc func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error)
 
@@ -3394,6 +3396,12 @@ type DataStore struct {
 	ResetRecoveryLockForRetryFunc        ResetRecoveryLockForRetryFunc
 	ResetRecoveryLockForRetryFuncInvoked bool
 
+	MarkRecoveryLockPasswordViewedFunc        MarkRecoveryLockPasswordViewedFunc
+	MarkRecoveryLockPasswordViewedFuncInvoked bool
+
+	GetHostsForAutoRotationFunc        GetHostsForAutoRotationFunc
+	GetHostsForAutoRotationFuncInvoked bool
+
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
 
@@ -4527,9 +4535,6 @@ type DataStore struct {
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
-
-	UpdateOrDeleteHostMDMWindowsProfileFunc        UpdateOrDeleteHostMDMWindowsProfileFunc
-	UpdateOrDeleteHostMDMWindowsProfileFuncInvoked bool
 
 	GetWindowsMDMCommandsForResendingFunc        GetWindowsMDMCommandsForResendingFunc
 	GetWindowsMDMCommandsForResendingFuncInvoked bool
@@ -8192,6 +8197,20 @@ func (s *DataStore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID stri
 	return s.ResetRecoveryLockForRetryFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
+	s.mu.Lock()
+	s.MarkRecoveryLockPasswordViewedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkRecoveryLockPasswordViewedFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+	s.mu.Lock()
+	s.GetHostsForAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostsForAutoRotationFunc(ctx)
+}
+
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 	s.mu.Lock()
 	s.InsertMDMAppleBootstrapPackageFuncInvoked = true
@@ -10836,13 +10855,6 @@ func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
 	s.GetCurrentTimeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCurrentTimeFunc(ctx)
-}
-
-func (s *DataStore) UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error {
-	s.mu.Lock()
-	s.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateOrDeleteHostMDMWindowsProfileFunc(ctx, profile)
 }
 
 func (s *DataStore) GetWindowsMDMCommandsForResending(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
