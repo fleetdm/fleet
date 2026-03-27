@@ -4,7 +4,7 @@
       "version": "4.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.lulu.app';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.lulu.app' AND version_compare(bundle_short_version, '4.3.1') < 0);"
       },
       "installer_url": "https://github.com/objective-see/LuLu/releases/download/v4.3.1/LuLu_4.3.1.dmg",
       "install_script_ref": "28946026",

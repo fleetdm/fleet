@@ -4,7 +4,7 @@
       "version": "5.2.16.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Krita_x64' AND publisher = 'Krita Foundation';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Krita_x64' AND publisher = 'Krita Foundation' AND version_compare(version, '5.2.16.0') < 0);"
       },
       "installer_url": "https://download.kde.org/stable/krita/5.2.16/krita-x64-5.2.16-setup.exe",
       "install_script_ref": "4899cb9d",

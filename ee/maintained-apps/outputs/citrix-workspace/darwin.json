@@ -4,7 +4,7 @@
       "version": "25.11.1.42",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrix.receiver.nomas';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrix.receiver.nomas' AND version_compare(bundle_short_version, '25.11.1.42') < 0);"
       },
       "installer_url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Mac/CitrixWorkspaceAppUniversal25.11.1.42.pkg",
       "install_script_ref": "c9efd126",

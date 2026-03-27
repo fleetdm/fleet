@@ -4,7 +4,7 @@
       "version": "149.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '149.0') < 0);"
       },
       "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/149.0/win64/en-US/Firefox%20Setup%20149.0.exe",
       "install_script_ref": "80fb9175",

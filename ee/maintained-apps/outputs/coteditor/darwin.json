@@ -4,7 +4,7 @@
       "version": "6.2.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor' AND version_compare(bundle_short_version, '6.2.6') < 0);"
       },
       "installer_url": "https://github.com/coteditor/CotEditor/releases/download/6.2.6/CotEditor_6.2.6.dmg",
       "install_script_ref": "3a03b258",

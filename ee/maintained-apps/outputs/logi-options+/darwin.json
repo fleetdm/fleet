@@ -4,7 +4,7 @@
       "version": "2.1.854976",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.optionsplus';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.optionsplus' AND version_compare(bundle_short_version, '2.1.854976') < 0);"
       },
       "installer_url": "https://download01.logi.com/web/ftp/pub/techsupport/optionsplus/logioptionsplus_installer.zip",
       "install_script_ref": "7a2d7dc9",

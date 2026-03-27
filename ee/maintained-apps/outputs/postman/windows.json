@@ -4,7 +4,7 @@
       "version": "12.3.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Postman x64 11.75.4' AND publisher = 'Postman';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Postman x64 11.75.4' AND publisher = 'Postman' AND version_compare(version, '12.3.4') < 0);"
       },
       "installer_url": "https://dl.pstmn.io/download/version/12.3.4/windows_64",
       "install_script_ref": "538f63bf",

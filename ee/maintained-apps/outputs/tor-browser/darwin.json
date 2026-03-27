@@ -4,7 +4,7 @@
       "version": "15.0.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.torproject.torbrowser';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.torproject.torbrowser' AND version_compare(bundle_short_version, '15.0.8') < 0);"
       },
       "installer_url": "https://www.torproject.org/dist/torbrowser/15.0.8/tor-browser-macos-15.0.8.dmg",
       "install_script_ref": "4530bdac",

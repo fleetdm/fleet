@@ -4,7 +4,7 @@
       "version": "8.0.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zotero' AND publisher = 'Corporation for Digital Scholarship';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zotero' AND publisher = 'Corporation for Digital Scholarship' AND version_compare(version, '8.0.4') < 0);"
       },
       "installer_url": "https://download.zotero.org/client/release/8.0.4/Zotero-8.0.4_x64_setup.exe",
       "install_script_ref": "d29b62d2",

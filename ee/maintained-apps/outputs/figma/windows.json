@@ -4,7 +4,7 @@
       "version": "126.2.10",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Figma' AND publisher = 'Figma, Inc.';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Figma' AND publisher = 'Figma, Inc.' AND version_compare(version, '126.2.10') < 0);"
       },
       "installer_url": "https://desktop.figma.com/win/build/Figma-126.2.10.exe",
       "install_script_ref": "442d71b3",

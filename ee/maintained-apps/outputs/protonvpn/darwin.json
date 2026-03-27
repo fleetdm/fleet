@@ -4,7 +4,7 @@
       "version": "6.4.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonvpn.mac';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonvpn.mac' AND version_compare(bundle_short_version, '6.4.0') < 0);"
       },
       "installer_url": "https://vpn.protondownload.com/download/macos/6.4.0/ProtonVPN_mac_v6.4.0.dmg",
       "install_script_ref": "de9bb4fb",

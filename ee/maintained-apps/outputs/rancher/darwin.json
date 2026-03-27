@@ -4,7 +4,7 @@
       "version": "1.22.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.rancherdesktop.app';",
-        "patch": ""
+        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.rancherdesktop.app' AND version_compare(bundle_short_version, '1.22.0') < 0);"
       },
       "installer_url": "https://github.com/rancher-sandbox/rancher-desktop/releases/download/v1.22.0/Rancher.Desktop-1.22.0.aarch64.dmg",
       "install_script_ref": "dc547e07",
