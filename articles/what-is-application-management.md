@@ -126,7 +126,7 @@ Your organization's specific requirements should determine which approach works 
 
 ### Platform-specific MDM with application management
 
-An Apple-focused MDM platform like Jamf Pro includes application management. It is focused on Apple devices with functions like Apple Business Manager integration, Apps and Books license management and managed app deployments, but, it only supports Apple devices.
+An Apple-focused MDM platform like Jamf Pro includes application management. It is focused on Apple devices with functions like Apple Business integration, Apps and Books license management and managed app deployments, but, it only supports Apple devices.
 
 Organizations with heterogeneous environments that include multiple device platforms (e.g., Apple, Linux, Windows, Chromebook, iOS / iPadOS, Android) require multiple management solutions, or, cross-platform managements solutions.
 

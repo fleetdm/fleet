@@ -57,7 +57,7 @@ Google should offer more granularity than on/off for third-party cookies, such a
 
 ### ADE in other countries
 
-First, we enrolled in ADE in the US. Once we had our customer numbers and Mobile Device Management (MDM) system linked up, we were ready to buy laptops in the US that would get configured out of the box. Then, we found a workaround for Canada. If you add Apple’s Reseller ID to [Apple Business Manager](https://business.apple.com/), you can order computers over the phone and have them linked to your business account. The Reseller ID part is critical. I learned that the hard way, by receiving a laptop ordered like this to find it not part of ADE. Fortunately, it was easy for me to [add it to ADE manually](https://support.apple.com/en-ca/guide/apple-configurator/welcome/ios).
+First, we enrolled in ADE in the US. Once we had our customer numbers and Mobile Device Management (MDM) system linked up, we were ready to buy laptops in the US that would get configured out of the box. Then, we found a workaround for Canada. If you add Apple’s Reseller ID to [Apple Business](https://business.apple.com/), you can order computers over the phone and have them linked to your business account. The Reseller ID part is critical. I learned that the hard way, by receiving a laptop ordered like this to find it not part of ADE. Fortunately, it was easy for me to [add it to ADE manually](https://support.apple.com/en-ca/guide/apple-configurator/welcome/ios).
 
 We will keep trying the same approach in every country where we need Macs, though we know it will not be possible everywhere. We will either obtain equipment from a nearby country or rely on manual MDM enrollment by end-users for those countries.
 

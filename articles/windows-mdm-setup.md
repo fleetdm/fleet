@@ -49,13 +49,18 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 ### Migrating from another MDM solution
 
-When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., ⁠400 or ⁠0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging).
+When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., 400 or 0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging). Local accounts can also become locked.
 
-These issues are caused by residual enrollment data, registry conflicts, tattooed policies, or third-party management agents from the previous MDM solution.
+These issues are usually caused by leftover enrollment data or third-party management agents from the previous MDM.
 
-[Run the combined remediation script](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details:
+To fix this:
 
-- [fix-windows-mdm-migration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-windows-mdm-migration.ps1): Comprehensive remediation script that detects and fixes common post-migration issues. Each fix only runs if the problem is detected. The script handles: incorrect MDM enrollment flags, stale enrollment records and caches, broken Workplace Join configuration, unreachable WSUS server configuration, orphaned EnterpriseMgmt scheduled tasks, and local account lockout caused by tattooed `LocalUsersAndGroups` policies.
+1. Run the [fix-windows-mdm-migration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-windows-mdm-migration.ps1) script on affected hosts.
+2. Reboot the device.
+3. In Fleet, open the host and select **Refetch** on the **Host details** page.
+
+Learn how to [run scripts in Fleet](https://fleetdm.com/guides/scripts#manually-run-scripts).
+
 
 **Conflicting RMM or management agents:** Third-party RMM agents (such as N-able/SolarWinds, ConnectWise, or Kaseya) installed alongside the previous MDM solution can interfere with Fleet's MDM enrollment and may cause Windows Update to stop functioning. Check for and remove any RMM agents that are no longer needed before or after migrating to Fleet.
 
