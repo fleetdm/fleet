@@ -95,22 +95,22 @@ interface IChildrenProp {
 
 type RenderResultWithUser = RenderResult & { user: UserEvent };
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      cacheTime: 0, // optional, makes tests more predictable
-    },
-  },
-});
-
 const addQueryProviderWrapper = (
   CustomWrapperComponent: ({ children }: IChildrenProp) => JSX.Element
 ) => {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false, // important: no automatic retries in tests
+        cacheTime: 0, // optional but makes behavior deterministic
+      },
+    },
+  });
+
   CustomWrapperComponent = createWrapperComponent(
     CustomWrapperComponent,
     QueryClientProvider,
-    { client: queryClient }
+    { client }
   );
 
   return CustomWrapperComponent;

@@ -1,11 +1,7 @@
 import React from "react";
 
 import { screen, waitFor } from "@testing-library/react";
-import {
-  createCustomRenderer,
-  createMockRouter,
-  queryClient,
-} from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { AxiosError } from "axios";
 
 import hostAPI from "services/entities/hosts";
@@ -53,7 +49,6 @@ describe("MDMStatusModal - component", () => {
 
   afterEach(() => {
     jest.resetAllMocks();
-    queryClient.clear();
   });
 
   it("renders MDM status row with enrollment status text", () => {

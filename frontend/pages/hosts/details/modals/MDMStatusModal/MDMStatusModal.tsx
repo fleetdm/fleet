@@ -58,6 +58,9 @@ const PROFILE_STATUS_UI_MAP: Record<
   { label: string; tooltip: JSX.Element | string }
 > = {
   "": {
+    label: DEFAULT_EMPTY_CELL_VALUE,
+  },
+  Empty: {
     label: "Empty",
     tooltip: "No profile assigned to this host.",
   },
