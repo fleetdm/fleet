@@ -1,6 +1,6 @@
 # 6 business benefits of Apple MDM, explained
 
-The Apple [Mobile Device Management](https://support.apple.com/guide/deployment/intro-to-apple-platform-deployment-dep2c1b2a43a/web) (MDM) protocol provides remote management capabilities organizations need to configure and secure Apple devices like Macs, iPhones, iPads, Apple TV and even Apple Watch. Combined with Apple Business Manager or Apple School Manager (ABM / ASM) organizations can achieve scalable zero-touch enrollment, automated provisioning and comprehensive security enforcement resulting in fast, simplified device deployment across distributed workforces.
+The Apple [Mobile Device Management](https://support.apple.com/guide/deployment/intro-to-apple-platform-deployment-dep2c1b2a43a/web) (MDM) protocol provides remote management capabilities organizations need to configure and secure Apple devices like Macs, iPhones, iPads, Apple TV and even Apple Watch. Combined with Apple Business or Apple School Manager (AB / ASM) organizations can achieve scalable zero-touch enrollment, automated provisioning and comprehensive security enforcement resulting in fast, simplified device deployment across distributed workforces.
 
 ## What is Apple Mobile Device Management (MDM)?
 
@@ -117,7 +117,7 @@ Employees think about their work rather than fighting with the device that been 
 
 ## Getting started with Apple MDM
 
-[Fleet](https://fleetdm.com/device-management) provides enterprise-grade MDM with API-first architecture, real-time device reporting, and cross-platform support for Mac, Windows, and Linux. It also integrates with Apple Business Manager for zero-touch deployment while maintaining complete data transparency. [Schedule a demo](https://fleetdm.com/contact) to see how open device management works without vendor lock-in.
+[Fleet](https://fleetdm.com/device-management) provides enterprise-grade MDM with API-first architecture, real-time device reporting, and cross-platform support for Mac, Windows, and Linux. It also integrates with Apple Business for zero-touch deployment while maintaining complete data transparency. [Schedule a demo](https://fleetdm.com/contact) to see how open device management works without vendor lock-in.
 
 <meta name="articleTitle" value="6 business benefits of Apple MDM, explained">
 <meta name="authorFullName" value="Brock Walters">
