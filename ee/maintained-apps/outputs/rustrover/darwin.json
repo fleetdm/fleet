@@ -3,7 +3,8 @@
     {
       "version": "2025.3.5",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rustrover';",
+        "patch": ""
       },
       "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2025.3.5-aarch64.dmg",
       "install_script_ref": "3ead0508",

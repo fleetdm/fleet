@@ -3,7 +3,8 @@
     {
       "version": "5.2602.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';",
+        "patch": ""
       },
       "installer_url": "https://officecdn.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/CompanyPortal_5.2602.0-Upgrade.pkg",
       "install_script_ref": "c4a7dbbd",
