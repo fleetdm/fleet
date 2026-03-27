@@ -22,9 +22,7 @@ const InstalledCertificateActivityItem = ({
         <>
           <b>Fleet</b> failed to install certificate{" "}
           <b>{activity.details?.certificate_name}</b> on this host.
-          {activity.details?.detail && (
-            <> Detail: {activity.details.detail}</>
-          )}
+          {activity.details?.detail && <> Detail: {activity.details.detail}</>}
         </>
       ) : (
         <>
