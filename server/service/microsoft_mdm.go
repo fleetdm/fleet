@@ -2654,16 +2654,21 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 		if !variables.ContainsBytes(p.SyncML) {
 			// No Fleet variables, send the same command to all hosts
+			payloads, ok := batchProfilesMap[target.cmdUUID]
+			if !ok {
+				logger.ErrorContext(ctx, "no host profiles found for command UUID", "command_uuid", target.cmdUUID)
+				continue
+			}
 			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
 			if err != nil {
 				logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID)
+				for _, payload := range payloads {
+					payload.Status = &fleet.MDMDeliveryFailed
+					payload.Detail = fmt.Sprintf("Failed to build command from profile: %s", err.Error())
+				}
 				continue
 			}
-			payloads, ok := batchProfilesMap[command.CommandUUID]
-			if !ok {
-				logger.ErrorContext(ctx, "no host profiles found for command UUID", "command_uuid", command.CommandUUID)
-				continue
-			}
+
 			// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
 			// the checksum we retrieved earlier. Update the checksums if needed.
 			for _, payload := range payloads {
@@ -2757,7 +2762,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 	for _, p := range hostProfilesToUpdate {
 		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
-			failedProfileHostUUIDs[p.ProfileUUID+p.HostUUID] = true
+			failedProfileHostUUIDs[p.HostUUID+"|"+p.ProfileUUID] = true
 			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
 		}
 	}
@@ -2768,7 +2773,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	// Run through managed certs and remove all those that belong to failed profiles
 	filteredManagedCerts := []*fleet.MDMManagedCertificate{}
 	for _, mc := range *managedCertificatePayloads {
-		if _, failed := failedProfileHostUUIDs[mc.ProfileUUID+mc.HostUUID]; !failed {
+		if _, failed := failedProfileHostUUIDs[mc.HostUUID+"|"+mc.ProfileUUID]; !failed {
 			filteredManagedCerts = append(filteredManagedCerts, mc)
 		}
 	}
