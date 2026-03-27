@@ -230,6 +230,129 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsDeleteEnrolledDeviceWithDeviceID"))
 }
 
+// this function inserts both the host_mdm_windows_profile entries and the actual mdm_windows_command and queue entries for a given command and list of hosts.
+// We do this in a transaction to ensure that we don't end up with queued commands that don't have corresponding host profile entries, which would cause issues
+// when processing responses from the device. It is done in batches for performance reasons, the first batch being the one that inserts the actual command entry.
+// It need not be one big tranasaction as long as a given host's command queue entry and host profile entry are inserted in the same transaction
+func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDsOrDeviceIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+	if len(hostUUIDsOrDeviceIDs) == 0 {
+		return nil
+	}
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+
+	// Insert the command once, outside of the batched transactions.
+	cmdStmt := `
+		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
+		VALUES (?, ?, ?)
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, cmdStmt, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI); err != nil {
+		if IsDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
+		}
+		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
+	}
+
+	// Build a map from host UUID to its corresponding profile payload for quick lookup.
+	payloadByHostUUID := make(map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload, len(payload))
+	for _, p := range payload {
+		payloadByHostUUID[p.HostUUID] = p
+	}
+
+	// Insert command queue entries and host profile entries in batches, each
+	// batch in its own transaction to limit lock contention. Each host gets
+	// one command queue row and one host_mdm_windows_profiles row, inserted
+	// together so they stay consistent within the batch.
+	var (
+		queueArgs   []any
+		queueSB     strings.Builder
+		profileArgs []any
+		profileSB   strings.Builder
+		batchCount  int
+	)
+
+	executeBatch := func() error {
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Insert command queue entries.
+			queueStmt := fmt.Sprintf(`
+				INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
+				VALUES %s`,
+				strings.TrimSuffix(queueSB.String(), ","),
+			)
+			if _, err := tx.ExecContext(ctx, queueStmt, queueArgs...); err != nil {
+				if IsDuplicate(err) {
+					return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", cmd.CommandUUID))
+				}
+				return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
+			}
+
+			// Upsert host profile entries.
+			profileStmt := fmt.Sprintf(`
+				INSERT INTO host_mdm_windows_profiles (
+					profile_uuid, host_uuid, status, operation_type,
+					detail, command_uuid, profile_name, checksum
+				)
+				VALUES %s
+				ON DUPLICATE KEY UPDATE
+					status = VALUES(status),
+					operation_type = VALUES(operation_type),
+					detail = VALUES(detail),
+					profile_name = VALUES(profile_name),
+					checksum = VALUES(checksum),
+					command_uuid = VALUES(command_uuid)`,
+				strings.TrimSuffix(profileSB.String(), ","),
+			)
+			if _, err := tx.ExecContext(ctx, profileStmt, profileArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "batch upserting host_mdm_windows_profiles")
+			}
+
+			return nil
+		})
+	}
+
+	resetBatch := func() {
+		batchCount = 0
+		queueArgs = queueArgs[:0]
+		queueSB.Reset()
+		profileArgs = profileArgs[:0]
+		profileSB.Reset()
+	}
+
+	for _, hostUUIDOrDeviceID := range hostUUIDsOrDeviceIDs {
+		// Command queue entry: resolve enrollment_id via subquery.
+		queueSB.WriteString(
+			"((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1), ?),",
+		)
+		queueArgs = append(queueArgs, hostUUIDOrDeviceID, hostUUIDOrDeviceID, cmd.CommandUUID)
+
+		// Host profile entry.
+		p := payloadByHostUUID[hostUUIDOrDeviceID]
+		profileSB.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
+		profileArgs = append(profileArgs, p.ProfileUUID, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.ProfileName, p.Checksum)
+
+		batchCount++
+
+		if batchCount >= batchSize {
+			if err := executeBatch(); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+	}
+
+	if batchCount > 0 {
+		if err := executeBatch(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDsOrDeviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
 	if len(hostUUIDsOrDeviceIDs) == 0 {
 		return nil
