@@ -233,8 +233,9 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 // We do this in a transaction to ensure that we don't end up with queued commands that don't have corresponding host profile entries, which would cause issues
 // when processing responses from the device. It is done in batches for performance reasons, the first batch being the one that inserts the actual command entry.
 // It need not be one big tranasaction as long as a given host's command queue entry and host profile entry are inserted in the same transaction
-func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDsOrDeviceIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
-	if len(hostUUIDsOrDeviceIDs) == 0 {
+// Note that unlike the insert command function below this does not work with device IDs, only host UUIDs
+func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+	if len(hostUUIDs) == 0 {
 		return nil
 	}
 
@@ -265,7 +266,8 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 	// Insert command queue entries and host profile entries in batches, each
 	// batch in its own transaction to limit lock contention. Each host gets
 	// one command queue row and one host_mdm_windows_profiles row, inserted
-	// together so they stay consistent within the batch.
+	// together so they stay consistent within the batch and so we don't end\
+	// up with queued commands that don't have corresponding host profile entries.
 	var (
 		queueArgs   []any
 		queueSB     strings.Builder
@@ -321,15 +323,15 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 		profileSB.Reset()
 	}
 
-	for _, hostUUIDOrDeviceID := range hostUUIDsOrDeviceIDs {
+	for _, hostUUID := range hostUUIDs {
 		// Command queue entry: resolve enrollment_id via subquery.
 		queueSB.WriteString(
-			"((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1), ?),",
+			"((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC LIMIT 1), ?),",
 		)
-		queueArgs = append(queueArgs, hostUUIDOrDeviceID, hostUUIDOrDeviceID, cmd.CommandUUID)
+		queueArgs = append(queueArgs, hostUUID, cmd.CommandUUID)
 
 		// Host profile entry.
-		p := payloadByHostUUID[hostUUIDOrDeviceID]
+		p := payloadByHostUUID[hostUUID]
 		profileSB.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
 		profileArgs = append(profileArgs, p.ProfileUUID, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.ProfileName, p.Checksum)
 
