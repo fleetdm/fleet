@@ -24,6 +24,7 @@ import { SoftwareAggregateStatus } from "interfaces/software";
 import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
+  DepAssignProfileResponse,
 } from "services/entities/hosts";
 import { ScriptBatchHostCountV1 } from "services/entities/scripts";
 
@@ -94,6 +95,7 @@ interface IHostsFilterBlockProps {
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
     depProfileError: string; // string "true" as we don't handle booleans
+    depAssignProfileResponse?: DepAssignProfileResponse;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -156,6 +158,7 @@ const HostsFilterBlock = ({
     scriptBatchRanAt,
     scriptBatchScriptName,
     depProfileError,
+    depAssignProfileResponse,
   },
   selectedLabel,
   isOnlyObserver,
@@ -618,6 +621,65 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderDepAssignProfileResponse = () => {
+    const renderLabel = () => {
+      switch (depAssignProfileResponse) {
+        case "SUCCESS":
+          return "Apple Business Manager (ABM) profile assignment successful";
+        case "FAILED":
+          return "Apple Business Manager (ABM) issue: Failed";
+        case "THROTTLED":
+          return "Apple Business Manager (ABM) issue: Throttled";
+        case "NOT_ACCESSIBLE":
+          return "Apple Business Manager (ABM) issue: Not accessible";
+        default:
+          return "Apple Business Manager (ABM) issues";
+      }
+    };
+
+    const renderTooltip = () => {
+      switch (depAssignProfileResponse) {
+        case "SUCCESS":
+          return "Hosts that had a successful response from Apple Business Manager (ABM) for profile assignment.";
+        case "FAILED":
+          return (
+            <>
+              Migration or new Mac setup won&apos;t work. Apple&apos;s servers
+              rejected the request to assign a profile to these hosts. Fleet
+              will try again every hour.
+            </>
+          );
+        case "THROTTLED":
+          return (
+            <>
+              Migration or new Mac setup won&apos;t work. Fleet hit Apple&apos;s
+              API rate limit when preparing the macOS Setup Assistant for these
+              hosts. Fleet will try again every hour.
+            </>
+          );
+        case "NOT_ACCESSIBLE":
+          return (
+            <>
+              Migration or new Mac setup won&apos;t work. Details are not
+              accessible from Apple Business Manager (ABM). Verify these hosts
+              are assigned to your MDM server and Fleet has access permissions.
+            </>
+          );
+        default:
+          return abmIssueTooltip();
+      }
+    };
+
+    return (
+      <FilterPill
+        className={`${baseClass}__abm-issue-filter-pill`}
+        label={renderLabel()}
+        tooltipDescription={renderTooltip()}
+        onClear={() => handleClearFilter(["dep_assign_profile_response"])}
+      />
+    );
+  };
+
   const showSelectedLabel =
     selectedLabel &&
     selectedLabel.type !== "all" &&
@@ -643,7 +705,8 @@ const HostsFilterBlock = ({
     vulnerability ||
     (configProfileStatus && configProfileUUID && configProfile) ||
     (scriptBatchExecutionStatus && scriptBatchExecutionId) ||
-    depProfileError
+    depProfileError ||
+    depAssignProfileResponse
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -719,6 +782,8 @@ const HostsFilterBlock = ({
           return renderScriptBatchExecutionBlock();
         case !!depProfileError:
           return renderDepProfileError();
+        case !!depAssignProfileResponse:
+          return renderDepAssignProfileResponse();
         default:
           return null;
       }

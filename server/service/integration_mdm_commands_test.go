@@ -561,7 +561,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			status, err := s.ds.GetHostLockWipeStatus(ctx, host)
 			require.NoError(t, err)
 
-			var orbitScriptResp orbitPostScriptResultResponse
+			var orbitScriptResp fleet.OrbitPostScriptResultResponse
 			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 				json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, status.LockScript.ExecutionID)),
 				http.StatusOK, &orbitScriptResp)

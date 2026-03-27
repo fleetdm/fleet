@@ -597,10 +597,14 @@ describe("VPP Install Details Modal", () => {
       />
     );
 
+    // Wait for the success state to render
     await waitFor(() => {
-      expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
+      // Just assert on the actual text we render in this mode
       expect(screen.getByText(/Keynote/i)).toBeInTheDocument();
+      expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
     });
+
+    // And still assert that the “stale uninstall” copy is omitted
     expect(
       screen.queryByText(
         /If you uninstalled it outside of Fleet it will still show as installed/i

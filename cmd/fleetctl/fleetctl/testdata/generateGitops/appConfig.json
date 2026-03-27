@@ -267,17 +267,7 @@
     "windows_settings": {
       "custom_settings": []
     },
-    "volume_purchasing_program": [
-      {
-        "location": "Fleet Device Management Inc.",
-        "teams": [
-          "💻 Workstations",
-          "💻🐣 Workstations (canary)",
-          "📱🏢 Company-owned mobile devices",
-          "📱🔐 Personal mobile devices"
-        ]
-      }
-    ],
+    "volume_purchasing_program": null,
     "android_enabled_and_configured": true,
     "android_settings": {
       "custom_settings": []
