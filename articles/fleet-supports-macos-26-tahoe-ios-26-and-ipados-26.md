@@ -17,7 +17,13 @@ All new features go through Fleet's [prioritization process](https://fleetdm.com
 
 With macOS Tahoe 26, iOS 26, and iPadOS 26, Apple introduces Device Management Migration: an improved workflow for migrating devices from one management service (MDM) to another. Learn more about configuring and the end user experience in the [Apple docs](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web).
 
-If you're planning a macOS migration with the Tahoe workflow, the best practice is to migrate devices in batches of ~100, alternating between Mondays and Wednesdays, with a 1–2 week deadline for each batch. Before the first batch, export a device list with each device's end user name and batch to a spreadsheet so stakeholders can adjust the rollout based on travel plans or other scheduling conflicts.
+If you're planning a macOS migration with the Tahoe workflow:
+
+- Migrate devices in batches of around 100.
+- Alternate batches between Mondays and Wednesdays.
+- Set a 1–2 week deadline for each batch.
+- Before the first batch, export a device list with each end user's name.
+- Group devices into batches in a spreadsheet so stakeholders can plan around travel or other conflicts.
 
 > If the MDM migration fails, don’t reassign the host to your old MDM in Apple Business Manager (ABM). Reassigning makes the host ineligible for migration. The host must stay actively enrolled in the MDM it’s migrating from. Once you change the ABM assignment, ABM treats the host as no longer enrolled, and the migration can’t continue.
 
