@@ -276,25 +276,14 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			// Generate a self-signed WSTEP certificate and key for Windows MDM
 			// and save them to the config directory for use in subsequent runs.
-			wstepConfigDir := filepath.Join(previewDir, "config")
-			if err := ensureWSTEPCerts(wstepConfigDir); err != nil {
+			if err := ensureWSTEPCerts(filepath.Join(previewDir, "config")); err != nil {
 				return fmt.Errorf("generating WSTEP certificates: %w", err)
 			}
-			// Only set default WSTEP certificate and key paths if the user has not
-			// already provided path-based configuration. The preview environment
-			// does not support bytes-based WSTEP configuration.
-			wstepCertSet := os.Getenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT") != ""
-			wstepKeySet := os.Getenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY") != ""
-
-			if !wstepCertSet && !wstepKeySet {
-				if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT", "/config/wstep.crt"); err != nil {
-					return fmt.Errorf("failed to set WSTEP cert path: %w", err)
-				}
-				if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY", "/config/wstep.key"); err != nil {
-					return fmt.Errorf("failed to set WSTEP key path: %w", err)
-				}
-			} else if wstepCertSet != wstepKeySet {
-				return fmt.Errorf("invalid Windows MDM WSTEP configuration: both certificate and key must be provided together")
+			if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT", "/config/wstep.crt"); err != nil {
+				return fmt.Errorf("failed to set WSTEP cert path: %w", err)
+			}
+			if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY", "/config/wstep.key"); err != nil {
+				return fmt.Errorf("failed to set WSTEP key path: %w", err)
 			}
 
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
@@ -587,7 +576,7 @@ func ensureWSTEPCerts(configDir string) error {
 	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
 		return fmt.Errorf("writing WSTEP certificate: %w", err)
 	}
-	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+	if err := os.WriteFile(keyPath, keyPEM, 0o644); err != nil {
 		return fmt.Errorf("writing WSTEP key: %w", err)
 	}
 
