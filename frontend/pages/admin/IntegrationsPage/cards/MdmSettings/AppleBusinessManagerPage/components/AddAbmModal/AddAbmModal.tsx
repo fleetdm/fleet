@@ -51,8 +51,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
   }, [tokenFile, renderFlash, onAdded, onCancel]);
 
   return (
-    <Modal className={baseClass} title="Add AB" onExit={onCancel} width="large"
-    >
+    <Modal className={baseClass} title="Add AB" onExit={onCancel} width="large">
       <ol className={`${baseClass}__setup-list`}>
         <li>
           <span>1.</span>
