@@ -10,6 +10,7 @@ Windows Office uses a version format: `16.0.<build_prefix>.<build_suffix>`
 - **Build suffix** identifies the specific build within that branch
 
 The package:
+
 1. Scrapes [Microsoft's Office security updates page](https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates)
 2. Builds a bulletin mapping CVEs to fixed versions
 3. Compares host software versions against the bulletin to detect vulnerabilities
@@ -28,20 +29,14 @@ Each version branch (e.g., `2602`) has a unique build prefix. The bulletin track
 
 ### Dropped Versions
 
-When Microsoft drops support for a version branch, hosts on that version become vulnerable to all new CVEs. The bulletin includes upgrade paths pointing to the oldest supported version that has fixes.
+When Microsoft drops support for a version branch, hosts on that version become vulnerable to all new CVEs. The bulletin includes a resolved version pointing to the oldest fixed version that is newer than the installed version.
 
 ### Vulnerability Detection
 
 A host is vulnerable if:
+
 1. **Same version branch**: Host's build suffix < fixed build suffix
 2. **Different version branch**: Host must upgrade to a newer version (the fix's build prefix differs from host's)
-
-## Files
-
-- `analyzer.go` - Main entry point for vulnerability scanning
-- `bulletin.go` - Data types for bulletin serialization
-- `scraper.go` - Scrapes Microsoft's page and builds the bulletin
-- `integration_test.go` - Tests against live Microsoft data
 
 ## Generating Bulletins
 
@@ -50,14 +45,4 @@ cd cmd/winoffice
 go run generate.go
 ```
 
-This creates a bulletin file in `winoffice_out/` with the naming format `winoffice-<date>.json`.
-
-## Testing
-
-```bash
-# Unit tests
-go test ./server/vulnerabilities/winoffice/...
-
-# Integration tests (requires network)
-NETWORK_TEST=1 go test ./server/vulnerabilities/winoffice/... -run TestIntegration
-```
+This creates a bulletin file in `winoffice_out/` with the naming format `fleet_winoffice_bulletin-YYYY_MM_DD.json`.
