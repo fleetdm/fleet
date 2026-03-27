@@ -332,13 +332,12 @@ func gitopsCommand() *cli.Command {
 				}
 				// When labels are excepted and the key is omitted, preserve
 				// existing labels (no-op). Otherwise delete/update as normal.
-				preserveLabels := appConfig.GitOpsConfig.Exceptions.Labels && !config.LabelsPresent
 				labelChanges[teamName] = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
 					config.Labels,
-					preserveLabels,
+					appConfig.GitOpsConfig.Exceptions.Labels,
 				)
 			}
 
@@ -754,7 +753,7 @@ func computeLabelChanges(
 	teamName string,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
-	preserveLabels bool,
+	labelsExcepted bool,
 ) []spec.LabelChange {
 	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
@@ -769,7 +768,7 @@ func computeLabelChanges(
 	// or else delete them all.
 	if len(specifiedLabels) == 0 {
 		op := "-"
-		if preserveLabels {
+		if labelsExcepted {
 			op = "~" // preserved (excepted from GitOps, no action needed)
 		}
 		for _, l := range regularLabels {

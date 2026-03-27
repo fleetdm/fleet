@@ -6089,37 +6089,51 @@ software:
 
 func TestComputeLabelChanges(t *testing.T) {
 	testCases := []struct {
-		name                  string
-		filename              string
-		teamName              string
-		existingLabels        []*fleet.LabelSpec
-		specifiedLabels       []*fleet.LabelSpec
-		preserveMissingLabels bool
-		expected              []spec.LabelChange
+		name            string
+		filename        string
+		teamName        string
+		existingLabels  []*fleet.LabelSpec
+		specifiedLabels []*fleet.LabelSpec
+		labelsExcepted  bool
+		expected        []spec.LabelChange
 	}{
 		{
-			name:     "labels present but empty removes all regular labels",
+			name:     "labels omitted removes all regular labels when not excepted",
 			filename: "config.yml",
 			teamName: "team1",
 			existingLabels: []*fleet.LabelSpec{
 				{Name: "label1", LabelType: fleet.LabelTypeRegular},
 				{Name: "built-in", LabelType: fleet.LabelTypeBuiltIn},
 			},
-			specifiedLabels:       nil,
-			preserveMissingLabels: false,
+			specifiedLabels: nil,
+			labelsExcepted:  false,
 			expected: []spec.LabelChange{
 				{Name: "label1", Op: "-", TeamName: "team1", FileName: "config.yml"},
 			},
 		},
 		{
-			name:     "labels absent is a no-op",
+			name:     "labels empty removes all regular labels when not excepted",
+			filename: "config.yml",
+			teamName: "team1",
+			existingLabels: []*fleet.LabelSpec{
+				{Name: "label1", LabelType: fleet.LabelTypeRegular},
+				{Name: "built-in", LabelType: fleet.LabelTypeBuiltIn},
+			},
+			specifiedLabels: []*fleet.LabelSpec{},
+			labelsExcepted:  false,
+			expected: []spec.LabelChange{
+				{Name: "label1", Op: "-", TeamName: "team1", FileName: "config.yml"},
+			},
+		},
+		{
+			name:     "labels omitted is a no-op when excepted",
 			filename: "config.yml",
 			teamName: "team1",
 			existingLabels: []*fleet.LabelSpec{
 				{Name: "label1", LabelType: fleet.LabelTypeRegular},
 			},
-			specifiedLabels:       nil,
-			preserveMissingLabels: true,
+			specifiedLabels: nil,
+			labelsExcepted:  true,
 			expected: []spec.LabelChange{
 				{Name: "label1", Op: "~", TeamName: "team1", FileName: "config.yml"},
 			},
@@ -6136,7 +6150,7 @@ func TestComputeLabelChanges(t *testing.T) {
 				{Name: "to-keep"},
 				{Name: "to-add"},
 			},
-			preserveMissingLabels: false,
+			labelsExcepted: false,
 			expected: []spec.LabelChange{
 				{Name: "to-remove", Op: "-", TeamName: "team1", FileName: "config.yml"},
 				{Name: "to-keep", Op: "=", TeamName: "team1", FileName: "config.yml"},
@@ -6147,7 +6161,7 @@ func TestComputeLabelChanges(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels, tc.preserveMissingLabels)
+			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels, tc.labelsExcepted)
 			require.ElementsMatch(t, tc.expected, changes)
 		})
 	}
