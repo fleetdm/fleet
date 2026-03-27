@@ -2,7 +2,7 @@ import React from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
-import { addHours, parseISO, differenceInMinutes } from "date-fns";
+import { addHours, differenceInMinutes } from "date-fns";
 
 import { internationalTimeFormat } from "utilities/helpers";
 import {
@@ -101,8 +101,8 @@ const getThrottleCopy = (responseUpdatedAt?: string | null) => {
     return "when available.";
   }
 
-  const isoLike = responseUpdatedAt.replace(" ", "T");
-  const lastTime = parseISO(isoLike);
+  // responseUpdatedAt is an ISO 8601 string with Z (UTC), e.g. "2026-03-25T20:15:19Z"
+  const lastTime = new Date(responseUpdatedAt);
 
   if (Number.isNaN(lastTime.getTime())) {
     return "when available.";
@@ -115,7 +115,6 @@ const getThrottleCopy = (responseUpdatedAt?: string | null) => {
     return "when available.";
   }
 
-  // Use minutes to distinguish <1 hour vs >=1 hour
   const minutesRemaining = differenceInMinutes(retryAt, now);
 
   if (minutesRemaining <= 0) {
@@ -127,7 +126,6 @@ const getThrottleCopy = (responseUpdatedAt?: string | null) => {
   }
 
   const hours = Math.floor(minutesRemaining / 60);
-
   return `in ${hours} hour${hours === 1 ? "" : "s"}`;
 };
 
