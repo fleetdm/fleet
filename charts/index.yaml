@@ -2,6 +2,30 @@ apiVersion: v1
 entries:
   fleet:
   - apiVersion: v2
+    appVersion: v4.82.2
+    created: "2026-03-28T03:32:41.283340282Z"
+    dependencies:
+    - condition: mysql.enabled
+      name: mysql
+      repository: https://charts.bitnami.com/bitnami
+      version: 9.12.5
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 18.1.6
+    description: A Helm chart for Fleet
+    digest: f79e945ed884034e65825f914be99aeac4a4514325dcfa818b50715676d21f2f
+    home: https://github.com/fleetdm/fleet
+    keywords:
+    - fleet
+    - osquery
+    name: fleet
+    sources:
+    - https://github.com/fleetdm/fleet.git
+    urls:
+    - https://fleetdm.github.io/fleet/charts/fleet-v6.8.7.tgz
+    version: v6.8.7
+  - apiVersion: v2
     appVersion: v4.82.1
     created: "2026-03-19T00:09:32.406546993Z"
     dependencies:
@@ -2608,9 +2632,9 @@ entries:
   tuf:
   - apiVersion: v2
     appVersion: 1.16.0
-    created: "2026-03-21T12:29:55.804925688Z"
+    created: "2026-03-28T03:32:41.28457334Z"
     description: A Helm chart for Kubernetes
-    digest: f0470991c74bfe2d6c91c833c27ba85d6d0974c53fdc8a9d57d11526812a7f9d
+    digest: 21b28192bffcaa578060239e0ac8f42c8e09d638904a223848b8409dfd63bd11
     name: tuf
     type: application
     urls:
@@ -2626,4 +2650,4 @@ entries:
     urls:
     - https://fleetdm.github.io/fleet/charts/tuf-0.1.0.tgz
     version: 0.1.0
-generated: "2026-03-21T12:29:55.794154413Z"
+generated: "2026-03-28T03:32:41.273462787Z"
