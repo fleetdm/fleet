@@ -55,10 +55,10 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
 		}
 		if strings.HasPrefix(line, "/dev/") {
 			var mountPoint string
-			for field := range strings.FieldsSeq(line) {
-				if strings.HasPrefix(field, "/") && !strings.HasPrefix(field, "/dev/") {
-					mountPoint = field
-					break
+			for part := range strings.SplitSeq(line, "\t") {
+				part = strings.TrimSpace(part)
+				if strings.HasPrefix(part, "/") && !strings.HasPrefix(part, "/dev/") {
+					mountPoint = part
 				}
 			}
 			if mountPoint == "" {
@@ -174,10 +174,18 @@ func run(cfg *Config) error {
 			continue
 		}
 
+		hadWarning := false
+		warnApp := func() {
+			if !hadWarning {
+				appWithWarning = append(appWithWarning, ac.Name)
+				hadWarning = true
+			}
+		}
+
 		err = ac.extractAppVersion(installerTFR)
 		if err != nil {
 			appLogger.WarnContext(ctx, fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
-			appWithWarning = append(appWithWarning, ac.Name)
+			warnApp()
 		}
 
 		hash, err := file.SHA256FromTempFileReader(installerTFR)
@@ -223,13 +231,13 @@ func run(cfg *Config) error {
 		}
 		ac.AppPath = appPath
 		if ac.AppPath == "" {
-			appWithWarning = append(appWithWarning, ac.Name)
+			warnApp()
 		}
 
 		err = postApplicationInstall(ctx, appLogger, ac.AppPath)
 		if err != nil {
 			appLogger.WarnContext(ctx, fmt.Sprintf("Error detected in post-installation steps: %v", err))
-			appWithWarning = append(appWithWarning, ac.Name)
+			warnApp()
 		}
 
 		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
@@ -262,8 +270,18 @@ func run(cfg *Config) error {
 	if len(frozenApps) > 0 {
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Some apps were skipped: %v", frozenApps))
 	}
-	if len(appWithWarning) > 0 {
-		cfg.logger.WarnContext(ctx, fmt.Sprintf("Some apps were validated with warnings: %v", appWithWarning))
+	errorSet := make(map[string]bool, len(appWithError))
+	for _, name := range appWithError {
+		errorSet[name] = true
+	}
+	warningsOnly := appWithWarning[:0]
+	for _, name := range appWithWarning {
+		if !errorSet[name] {
+			warningsOnly = append(warningsOnly, name)
+		}
+	}
+	if len(warningsOnly) > 0 {
+		cfg.logger.WarnContext(ctx, fmt.Sprintf("Some apps were validated with warnings: %v", warningsOnly))
 	}
 
 	if successfulApps == totalApps-len(frozenApps) {
