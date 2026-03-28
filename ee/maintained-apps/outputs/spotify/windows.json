@@ -9,7 +9,7 @@
       "installer_url": "https://download.scdn.co/SpotifyFullSetupX64.exe",
       "install_script_ref": "7e4727ac",
       "uninstall_script_ref": "48d55e3d",
-      "sha256": "3546bf93d3bf0f2996f85adc69ede39b767c1effe187d488cbf377ba5662417a",
+      "sha256": "46e61f81688bab5d7a59f01225522d1d50511293b0e63f225d97fdd61a9dd323",
       "default_categories": [
         "Productivity"
       ]
