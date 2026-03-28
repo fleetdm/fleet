@@ -350,7 +350,7 @@ func getAppJson(outputPath string, slug string) (*maintained_apps.FMAManifestFil
 
 func appFromJson(manifest *maintained_apps.FMAManifestFile) (fleet.MaintainedApp, error) {
 	if len(manifest.Versions) == 0 {
-		return fleet.MaintainedApp{}, fmt.Errorf("manifest has no versions")
+		return fleet.MaintainedApp{}, errors.New("manifest has no versions")
 	}
 
 	v := manifest.Versions[0]
