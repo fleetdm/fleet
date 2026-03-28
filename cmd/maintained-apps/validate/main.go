@@ -53,11 +53,20 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
 				currentImage = strings.TrimSpace(parts[1])
 			}
 		}
-		if idx := strings.Index(line, "/Volumes/"); strings.HasPrefix(line, "/dev/") && idx >= 0 {
+		if strings.HasPrefix(line, "/dev/") {
+			var mountPoint string
+			for _, field := range strings.Fields(line) {
+				if strings.HasPrefix(field, "/") && !strings.HasPrefix(field, "/dev/") {
+					mountPoint = field
+					break
+				}
+			}
+			if mountPoint == "" {
+				continue
+			}
 			if tmpDir == "" || !strings.HasPrefix(currentImage, tmpDir+string(os.PathSeparator)) {
 				continue
 			}
-			mountPoint := line[idx:]
 			logger.InfoContext(ctx, fmt.Sprintf("Force-detaching DMG: %s (image: %s)", mountPoint, currentImage))
 			if out, err := exec.CommandContext(ctx, "hdiutil", "detach", mountPoint, "-force").CombinedOutput(); err != nil {
 				logger.WarnContext(ctx, fmt.Sprintf("Failed to detach %s: %v (%s)", mountPoint, err, strings.TrimSpace(string(out))))
@@ -94,9 +103,11 @@ func run(cfg *Config) error {
 		cfg.logger.ErrorContext(ctx, fmt.Sprintf("Error creating temporary directory: %v", err))
 		return err
 	}
+	origTmpDir := cfg.tmpDir
 	cfg.tmpDir, err = filepath.EvalSymlinks(cfg.tmpDir)
 	if err != nil {
 		cfg.logger.ErrorContext(ctx, fmt.Sprintf("Error resolving temporary directory path: %v", err))
+		os.RemoveAll(origTmpDir)
 		return err
 	}
 	defer func() {
@@ -159,6 +170,7 @@ func run(cfg *Config) error {
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error downloading maintained app: %v", err))
 			appWithError = append(appWithError, ac.Name)
+			cleanupTmpDir()
 			continue
 		}
 
