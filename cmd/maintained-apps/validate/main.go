@@ -49,7 +49,9 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
 	for line := range strings.SplitSeq(string(output), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "image-path") {
-			currentImage = strings.TrimSpace(strings.TrimPrefix(line, "image-path      :"))
+			if parts := strings.SplitN(line, ":", 2); len(parts) == 2 {
+				currentImage = strings.TrimSpace(parts[1])
+			}
 		}
 		if idx := strings.Index(line, "/Volumes/"); strings.HasPrefix(line, "/dev/") && idx >= 0 {
 			if tmpDir == "" || !strings.HasPrefix(currentImage, tmpDir) {
@@ -385,6 +387,7 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 	_, err = io.Copy(out, installerTFR)
 	if err != nil {
 		installerTFR.Close()
+		out.Close()
 		os.Remove(filePath)
 		return nil, "", fmt.Errorf("failed to save file: %w", err)
 	}
@@ -392,6 +395,7 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 	err = installerTFR.Rewind()
 	if err != nil {
 		installerTFR.Close()
+		out.Close()
 		os.Remove(filePath)
 		return nil, "", fmt.Errorf("rewinding temp file: %w", err)
 	}
