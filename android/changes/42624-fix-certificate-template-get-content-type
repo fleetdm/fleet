@@ -1,0 +1,1 @@
+- Fixed certificate template fetch failing with misleading DNS errors by not sending Content-Type header on GET requests.

@@ -143,7 +143,6 @@ object ApiClient : CertificateApiClient {
                 requestMethod = method
                 useCaches = false
                 doInput = true
-                setRequestProperty("Content-Type", "application/json")
                 if (authorized) {
                     getNodeKeyOrEnroll().fold(
                         onFailure = { throwable -> return@withContext Result.failure(throwable) },
@@ -157,6 +156,7 @@ object ApiClient : CertificateApiClient {
 
                 if (body != null && method != "GET") {
                     requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
+                    setRequestProperty("Content-Type", "application/json")
                     doOutput = true
                     val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
                     outputStream.use { it.write(bodyJson.toByteArray()) }
@@ -262,19 +262,12 @@ object ApiClient : CertificateApiClient {
     }
 
     override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> = withReenrollOnUnauthorized {
-        val nodeKeyResult = getNodeKeyOrEnroll()
-        val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-            return@withReenrollOnUnauthorized Result.failure(error)
-        }
-
         val credentials = getEnrollmentCredentials()
             ?: return@withReenrollOnUnauthorized Result.failure(Exception("enroll credentials not set"))
 
-        makeRequest(
+        makeRequest<Unit, GetCertificateTemplateResponseWrapper>(
             endpoint = "/api/fleetd/certificates/$certificateId",
             method = "GET",
-            body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
-            bodySerializer = GetCertificateTemplateRequest.serializer(),
             responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
         ).fold(
             onSuccess = { wrapper ->
@@ -479,12 +472,6 @@ data class OrbitUpdateChannels(
 
     @SerialName("desktop")
     val desktop: String = "",
-)
-
-@Serializable
-private data class GetCertificateTemplateRequest(
-    @SerialName("orbit_node_key")
-    val orbitNodeKey: String,
 )
 
 @Serializable
