@@ -116,6 +116,8 @@ object ApiClient : CertificateApiClient {
         responseSerializer: KSerializer<T>,
         authorized: Boolean = true,
     ): Result<T> = withContext(Dispatchers.IO) {
+        require(method != "GET" || body == null) { "GET requests must not include a body" }
+
         var connection: HttpURLConnection? = null
         try {
             val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
@@ -154,7 +156,7 @@ object ApiClient : CertificateApiClient {
                 connectTimeout = 15000
                 readTimeout = 15000
 
-                if (body != null && method != "GET") {
+                if (body != null) {
                     requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
                     setRequestProperty("Content-Type", "application/json")
                     doOutput = true
