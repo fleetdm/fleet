@@ -37,11 +37,11 @@ type Config struct {
 	outputsPath                 string
 }
 
-func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
+func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
 	if runtime.GOOS != "darwin" {
 		return
 	}
-	output, err := exec.Command("hdiutil", "info").CombinedOutput()
+	output, err := exec.CommandContext(ctx, "hdiutil", "info").CombinedOutput()
 	if err != nil {
 		return
 	}
@@ -52,9 +52,12 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
 			currentImage = strings.TrimSpace(strings.TrimPrefix(line, "image-path      :"))
 		}
 		if idx := strings.Index(line, "/Volumes/"); strings.HasPrefix(line, "/dev/") && idx >= 0 {
+			if tmpDir == "" || !strings.HasPrefix(currentImage, tmpDir) {
+				continue
+			}
 			mountPoint := line[idx:]
 			logger.InfoContext(ctx, fmt.Sprintf("Force-detaching DMG: %s (image: %s)", mountPoint, currentImage))
-			if out, err := exec.Command("hdiutil", "detach", mountPoint, "-force").CombinedOutput(); err != nil {
+			if out, err := exec.CommandContext(ctx, "hdiutil", "detach", mountPoint, "-force").CombinedOutput(); err != nil {
 				logger.WarnContext(ctx, fmt.Sprintf("Failed to detach %s: %v (%s)", mountPoint, err, strings.TrimSpace(string(out))))
 			}
 		}
@@ -64,8 +67,8 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger) {
 func run(cfg *Config) error {
 	ctx := context.Background()
 	skipFiles := make(map[string]bool)
-	cleanupAppFiles := func(_ string) {
-		detachAllDMGs(ctx, cfg.logger)
+	cleanupTmpDir := func() {
+		detachAllDMGs(ctx, cfg.logger, cfg.tmpDir)
 
 		entries, err := os.ReadDir(cfg.tmpDir)
 		if err != nil {
@@ -116,7 +119,6 @@ func run(cfg *Config) error {
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Validating app: %s (%s)", app.Name, app.Slug))
 		appLogger := cfg.logger.With("app", app.Name)
 		ac := &AppCommander{cfg: cfg, appLogger: appLogger}
-		installerPath := ""
 
 		appJson, err := getAppJson(cfg.outputsPath, app.Slug)
 		if err != nil {
@@ -146,13 +148,12 @@ func run(cfg *Config) error {
 			continue
 		}
 
-		installerTFR, downloadedInstallerPath, err := DownloadMaintainedApp(cfg, maintainedApp)
+		installerTFR, _, err := DownloadMaintainedApp(cfg, maintainedApp)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error downloading maintained app: %v", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
-		installerPath = downloadedInstallerPath
 
 		err = ac.extractAppVersion(installerTFR)
 		if err != nil {
@@ -165,13 +166,13 @@ func run(cfg *Config) error {
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if sha256 hash matches: %v", err))
 			appWithError = append(appWithError, ac.Name)
-			cleanupAppFiles(installerPath)
+			cleanupTmpDir()
 			continue
 		}
 		if hash != maintainedApp.SHA256 && maintainedApp.SHA256 != "no_check" {
 			appLogger.ErrorContext(ctx, "SHA256 hash in manifest does not match installer file hash")
 			appWithError = append(appWithError, ac.Name)
-			cleanupAppFiles(installerPath)
+			cleanupTmpDir()
 			continue
 		}
 
@@ -198,7 +199,7 @@ func run(cfg *Config) error {
 		}
 		if changerError != nil {
 			appWithError = append(appWithError, ac.Name)
-			cleanupAppFiles(installerPath)
+			cleanupTmpDir()
 			continue
 		}
 		ac.AppPath = appPath
@@ -216,13 +217,13 @@ func run(cfg *Config) error {
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
-			cleanupAppFiles(installerPath)
+			cleanupTmpDir()
 			continue
 		}
 		if !existance {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("App version '%s' was not found by osquery", ac.Version))
 			appWithError = append(appWithError, ac.Name)
-			cleanupAppFiles(installerPath)
+			cleanupTmpDir()
 			continue
 		}
 
@@ -230,11 +231,11 @@ func run(cfg *Config) error {
 		uninstalled := ac.uninstallApp(ctx)
 		if !uninstalled {
 			appWithError = append(appWithError, ac.Name)
-			cleanupAppFiles(installerPath)
+			cleanupTmpDir()
 			continue
 		}
 
-		cleanupAppFiles(installerPath)
+		cleanupTmpDir()
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("All checks passed for app: %s (%s)", ac.Name, ac.Slug))
 		successfulApps++
 	}
@@ -384,12 +385,14 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 	_, err = io.Copy(out, installerTFR)
 	if err != nil {
 		installerTFR.Close()
+		os.Remove(filePath)
 		return nil, "", fmt.Errorf("failed to save file: %w", err)
 	}
 
 	err = installerTFR.Rewind()
 	if err != nil {
 		installerTFR.Close()
+		os.Remove(filePath)
 		return nil, "", fmt.Errorf("rewinding temp file: %w", err)
 	}
 
