@@ -54,7 +54,7 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
 			}
 		}
 		if idx := strings.Index(line, "/Volumes/"); strings.HasPrefix(line, "/dev/") && idx >= 0 {
-			if tmpDir == "" || !strings.HasPrefix(currentImage, tmpDir) {
+			if tmpDir == "" || !strings.HasPrefix(currentImage, tmpDir+string(os.PathSeparator)) {
 				continue
 			}
 			mountPoint := line[idx:]
@@ -68,7 +68,6 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
 
 func run(cfg *Config) error {
 	ctx := context.Background()
-	skipFiles := make(map[string]bool)
 	cleanupTmpDir := func() {
 		detachAllDMGs(ctx, cfg.logger, cfg.tmpDir)
 
@@ -78,12 +77,8 @@ func run(cfg *Config) error {
 			return
 		}
 		for _, e := range entries {
-			if skipFiles[e.Name()] {
-				continue
-			}
 			if err := os.RemoveAll(filepath.Join(cfg.tmpDir, e.Name())); err != nil {
 				cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to remove %s: %v", e.Name(), err))
-				skipFiles[e.Name()] = true
 			}
 		}
 	}
@@ -100,8 +95,8 @@ func run(cfg *Config) error {
 		return err
 	}
 	defer func() {
-		err := os.RemoveAll(cfg.tmpDir)
-		if err != nil {
+		detachAllDMGs(ctx, cfg.logger, cfg.tmpDir)
+		if err := os.RemoveAll(cfg.tmpDir); err != nil {
 			cfg.logger.ErrorContext(ctx, fmt.Sprintf("warning failed to remove temporary directory: %v", err))
 		}
 	}()
@@ -129,7 +124,12 @@ func run(cfg *Config) error {
 			continue
 		}
 
-		maintainedApp := appFromJson(appJson)
+		maintainedApp, err := appFromJson(appJson)
+		if err != nil {
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Error parsing app manifest: %v", err))
+			appWithError = append(appWithError, app.Name)
+			continue
+		}
 		ac.Name = app.Name
 		ac.Slug = app.Slug
 		ac.UniqueIdentifier = app.UniqueIdentifier
@@ -159,8 +159,8 @@ func run(cfg *Config) error {
 
 		err = ac.extractAppVersion(installerTFR)
 		if err != nil {
-			appLogger.ErrorContext(ctx, fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
-			appWithError = append(appWithError, ac.Name)
+			appLogger.WarnContext(ctx, fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
+			appWithWarning = append(appWithWarning, ac.Name)
 		}
 
 		hash, err := file.SHA256FromTempFileReader(installerTFR)
@@ -348,18 +348,23 @@ func getAppJson(outputPath string, slug string) (*maintained_apps.FMAManifestFil
 	return &manifest, nil
 }
 
-func appFromJson(manifest *maintained_apps.FMAManifestFile) fleet.MaintainedApp {
-	var app fleet.MaintainedApp
-	app.Version = manifest.Versions[0].Version
-	app.Platform = manifest.Versions[0].Platform()
-	app.InstallerURL = manifest.Versions[0].InstallerURL
-	app.SHA256 = manifest.Versions[0].SHA256
-	app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
-	app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
-	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
-	app.Categories = manifest.Versions[0].DefaultCategories
+func appFromJson(manifest *maintained_apps.FMAManifestFile) (fleet.MaintainedApp, error) {
+	if len(manifest.Versions) == 0 {
+		return fleet.MaintainedApp{}, fmt.Errorf("manifest has no versions")
+	}
 
-	return app
+	v := manifest.Versions[0]
+	app := fleet.MaintainedApp{
+		Version:               v.Version,
+		Platform:              v.Platform(),
+		InstallerURL:          v.InstallerURL,
+		SHA256:                v.SHA256,
+		InstallScript:         manifest.Refs[v.InstallScriptRef],
+		UninstallScript:       manifest.Refs[v.UninstallScriptRef],
+		AutomaticInstallQuery: v.Queries.Exists,
+		Categories:            v.DefaultCategories,
+	}
+	return app, nil
 }
 
 func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, string, error) {
