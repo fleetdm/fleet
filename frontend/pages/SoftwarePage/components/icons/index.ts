@@ -10,6 +10,7 @@ import BetterDisplay from "./BetterDisplay";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import KarabinerElements from "./KarabinerElements";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
@@ -313,6 +314,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "karabiner-elements": KarabinerElements,
   iina: Iina,
   kitty: Kitty,
   krita: Krita,

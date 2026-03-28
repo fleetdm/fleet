@@ -1,6 +1,7 @@
 package homebrew
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -170,7 +171,7 @@ func uninstallArtifactOrder(artifact *brewUninstall) int {
 		return PriorityLaunchctl
 	case len(artifact.Quit.String)+len(artifact.Quit.Other) > 0:
 		return PriorityQuit
-	case len(artifact.Signal.String)+len(artifact.Signal.Other) > 0:
+	case len(artifact.Signal) > 0:
 		return PrioritySignal
 	case len(artifact.LoginItem.String)+len(artifact.LoginItem.Other) > 0:
 		return PriorityLoginItem
@@ -225,12 +226,16 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		}
 	})
 
-	// per the spec, signals can't have a different format. In the homebrew
-	// source code an error is raised when the format is different.
-	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
-		addUserVar()
-		sb.AddFunction("send_signal", sendSignalFunc)
-		sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, u.Signal.Other[0], u.Signal.Other[1])
+	// Signal is stored as json.RawMessage; try to parse as a single pair
+	// ["signal","bundleId"]. Array-of-arrays formats (e.g. karabiner-elements)
+	// require a custom uninstall script and are not handled here.
+	if len(u.Signal) > 0 {
+		var singlePair []string
+		if err := json.Unmarshal(u.Signal, &singlePair); err == nil && len(singlePair) == 2 {
+			addUserVar()
+			sb.AddFunction("send_signal", sendSignalFunc)
+			sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, singlePair[0], singlePair[1])
+		}
 	}
 
 	if u.Script.IsOther {
