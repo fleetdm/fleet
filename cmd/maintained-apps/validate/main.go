@@ -94,6 +94,11 @@ func run(cfg *Config) error {
 		cfg.logger.ErrorContext(ctx, fmt.Sprintf("Error creating temporary directory: %v", err))
 		return err
 	}
+	cfg.tmpDir, err = filepath.EvalSymlinks(cfg.tmpDir)
+	if err != nil {
+		cfg.logger.ErrorContext(ctx, fmt.Sprintf("Error resolving temporary directory path: %v", err))
+		return err
+	}
 	defer func() {
 		detachAllDMGs(ctx, cfg.logger, cfg.tmpDir)
 		if err := os.RemoveAll(cfg.tmpDir); err != nil {
