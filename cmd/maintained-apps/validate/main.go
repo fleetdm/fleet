@@ -55,7 +55,7 @@ func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
 		}
 		if strings.HasPrefix(line, "/dev/") {
 			var mountPoint string
-			for _, field := range strings.Fields(line) {
+			for field := range strings.FieldsSeq(line) {
 				if strings.HasPrefix(field, "/") && !strings.HasPrefix(field, "/dev/") {
 					mountPoint = field
 					break
