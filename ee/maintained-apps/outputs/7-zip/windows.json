@@ -3,16 +3,14 @@
     {
       "version": "26.00",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = '7-Zip 25.01 (x64)' AND publisher = 'Igor Pavlov';",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov';",
         "patch": ""
       },
       "installer_url": "https://7-zip.org/a/7z2600-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "a94a6acc",
       "sha256": "c388d0444871ca11b21237001af158cfddad7e137851795e5b65cee69b518495",
-      "default_categories": [
-        "Productivity"
-      ],
+      "default_categories": ["Productivity"],
       "upgrade_code": "{23170F69-40C1-2702-0000-000004000000}"
     }
   ],

@@ -1,11 +1,79 @@
 package winget
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFuzzyMatchUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantEnabled bool
+		wantCustom  string
+		wantErr     bool
+	}{
+		{
+			name:        "boolean true",
+			input:       `{"fuzzy_match_name": true}`,
+			wantEnabled: true,
+			wantCustom:  "",
+		},
+		{
+			name:        "boolean false",
+			input:       `{"fuzzy_match_name": false}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:        "omitted defaults to disabled",
+			input:       `{}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:        "custom LIKE pattern string",
+			input:       `{"fuzzy_match_name": "Mozilla Firefox % ESR %"}`,
+			wantEnabled: true,
+			wantCustom:  "Mozilla Firefox % ESR %",
+		},
+		{
+			name:        "empty string treated as disabled",
+			input:       `{"fuzzy_match_name": ""}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:    "invalid type (number)",
+			input:   `{"fuzzy_match_name": 42}`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid type (array)",
+			input:   `{"fuzzy_match_name": [1,2]}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out struct {
+				FuzzyMatchName fuzzyMatch `json:"fuzzy_match_name"`
+			}
+			err := json.Unmarshal([]byte(tt.input), &out)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantEnabled, out.FuzzyMatchName.Enabled)
+			assert.Equal(t, tt.wantCustom, out.FuzzyMatchName.Custom)
+		})
+	}
+}
 
 func TestBuildUpgradeCodeBasedUninstallScript(t *testing.T) {
 	tests := []struct {

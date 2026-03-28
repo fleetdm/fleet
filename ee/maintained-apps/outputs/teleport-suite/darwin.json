@@ -3,16 +3,14 @@
     {
       "version": "18.7.3",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport';",
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh';",
         "patch": ""
       },
       "installer_url": "https://cdn.teleport.dev/teleport-18.7.3.pkg",
       "install_script_ref": "3435fc52",
       "uninstall_script_ref": "42474e69",
       "sha256": "ecec5030b99b5981d3d9be8e0478bfde21940ccf29e426fb2403de6211fc12a0",
-      "default_categories": [
-        "Developer tools"
-      ]
+      "default_categories": ["Developer tools"]
     }
   ],
   "refs": {

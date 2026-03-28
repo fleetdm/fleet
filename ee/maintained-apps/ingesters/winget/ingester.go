@@ -348,12 +348,26 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	// TODO - consider UpgradeCode here?
-	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
-	if input.FuzzyMatchName {
-		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"
+	var existsQuery string
+	switch {
+	case input.FuzzyMatchName.Custom != "":
+		existsQuery = fmt.Sprintf(
+			"SELECT 1 FROM programs WHERE name LIKE '%s' AND publisher = '%s';",
+			input.FuzzyMatchName.Custom, publisher,
+		)
+	case input.FuzzyMatchName.Enabled:
+		existsQuery = fmt.Sprintf(
+			"SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';",
+			name, publisher,
+		)
+	default:
+		existsQuery = fmt.Sprintf(
+			"SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';",
+			name, publisher,
+		)
 	}
 	out.Queries = maintained_apps.FMAQueries{
-		Exists: fmt.Sprintf(existsTemplate, name, publisher),
+		Exists: existsQuery,
 	}
 	out.InstallScript = installScript
 	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
@@ -433,6 +447,33 @@ func isFileType(installerType string) bool {
 	return ok
 }
 
+// fuzzyMatch supports three JSON representations:
+//   - false (or omitted): exact match on programs.name
+//   - true: automatic LIKE pattern  "name LIKE '<unique_identifier> %'"
+//   - "<pattern>": a custom LIKE pattern used verbatim, e.g. "Mozilla Firefox % ESR %"
+type fuzzyMatch struct {
+	Enabled bool   // true when the JSON value is the boolean `true`
+	Custom  string // non-empty when the JSON value is a string pattern
+}
+
+func (f *fuzzyMatch) UnmarshalJSON(data []byte) error {
+	// Try boolean first (handles true, false, and omitted-via-zero-value).
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		f.Enabled = b
+		f.Custom = ""
+		return nil
+	}
+	// Try string.
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		f.Custom = s
+		f.Enabled = s != ""
+		return nil
+	}
+	return fmt.Errorf("fuzzy_match_name must be a boolean or a string, got %s", string(data))
+}
+
 type inputApp struct {
 	Name string `json:"name"`
 	Slug string `json:"slug"`
@@ -440,16 +481,16 @@ type inputApp struct {
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
 	PackageIdentifier string `json:"package_identifier"`
 	// The value matching programs.name for the primary app package in osquery
-	UniqueIdentifier    string `json:"unique_identifier"`
-	InstallScriptPath   string `json:"install_script_path"`
-	UninstallScriptPath string `json:"uninstall_script_path"`
-	InstallerArch       string `json:"installer_arch"`
-	InstallerType       string `json:"installer_type"`
-	InstallerScope      string `json:"installer_scope"`
-	InstallerLocale     string `json:"installer_locale"`
-	ProgramPublisher    string `json:"program_publisher"`
-	UninstallType       string `json:"uninstall_type"`
-	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
+	UniqueIdentifier    string     `json:"unique_identifier"`
+	InstallScriptPath   string     `json:"install_script_path"`
+	UninstallScriptPath string     `json:"uninstall_script_path"`
+	InstallerArch       string     `json:"installer_arch"`
+	InstallerType       string     `json:"installer_type"`
+	InstallerScope      string     `json:"installer_scope"`
+	InstallerLocale     string     `json:"installer_locale"`
+	ProgramPublisher    string     `json:"program_publisher"`
+	UninstallType       string     `json:"uninstall_type"`
+	FuzzyMatchName      fuzzyMatch `json:"fuzzy_match_name"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
