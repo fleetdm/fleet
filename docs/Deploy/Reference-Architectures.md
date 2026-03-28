@@ -156,7 +156,7 @@ span multiple regions for more advanced configurations (_not included in the [re
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`, there can be benefits to read performance.
 
-**Note:Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
+**Note: Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
 
 #### Traffic load balancing
 Load balancing enables distributing request traffic over many instances of the backend application. Using [AWS Application
