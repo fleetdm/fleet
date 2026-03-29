@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "12.1.0.12141",
+      "version": "12.1.0.12143",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.expressvpn.ExpressVPN';",
         "patch": ""
       },
-      "installer_url": "https://www.expressvpn.works/clients/mac/expressvpn-macos-universal-12.1.0.12141_release.zip",
+      "installer_url": "https://www.expressvpn.works/clients/mac/expressvpn-macos-universal-12.1.0.12143_release.zip",
       "install_script_ref": "ebbdc77b",
       "uninstall_script_ref": "01200536",
-      "sha256": "427a1b5a9fcad0e202cfe237203d91d0f6e4cf143dc984a1b51254701f4b8b11",
+      "sha256": "d5831963c1560da6c56ffa078094c72ac4ba762c5d6ec45a4b57b069c2b8182b",
       "default_categories": [
         "Productivity"
       ]
