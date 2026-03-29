@@ -1,5 +1,5 @@
-// Package main provides the golangci-lint module plugin entry point.
-package main
+// Package gclplugin provides the golangci-lint module plugin entry point.
+package gclplugin
 
 import (
 	"github.com/fleetdm/fleet/v4/tools/ci/setboolcheck"

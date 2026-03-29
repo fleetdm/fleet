@@ -1,10 +1,11 @@
 // Package setboolcheck defines an analyzer that flags map[T]bool variables
 // used as sets, suggesting map[T]struct{} instead.
 //
-// The heuristic: a local variable of type map[T]bool is flagged when every
-// indexed assignment in the enclosing package uses the literal true as the
-// value. This avoids false positives on maps that genuinely store bool values
-// (e.g. map[string]bool{"a": true, "b": false}).
+// The heuristic: a map[T]bool variable (local or unexported package-level)
+// is flagged when, in the enclosing package, every observed write via
+// indexed assignments or composite literal elements uses the literal true
+// as the value. This avoids false positives on maps that genuinely store
+// bool values (e.g. map[string]bool{"a": true, "b": false}).
 package setboolcheck
 
 import (
@@ -28,14 +29,14 @@ var Analyzer = &analysis.Analyzer{
 
 // varInfo tracks analysis state for a single map[T]bool variable.
 type varInfo struct {
-	pos      token.Pos // declaration position (for diagnostics)
-	hasAssign bool     // at least one indexed assignment or composite literal element
-	allTrue  bool      // every assigned value is the literal true
-	tainted  bool      // variable was assigned from an unknown source
-	skip     bool      // function parameter or exported package-level var
+	pos       token.Pos // declaration position (for diagnostics)
+	hasAssign bool      // at least one indexed assignment or composite literal element
+	allTrue   bool      // every assigned value is the literal true
+	tainted   bool      // variable was assigned from an unknown source
+	skip      bool      // function parameter or exported package-level var
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	vars := make(map[*types.Var]*varInfo)
@@ -67,11 +68,22 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 	})
 
-	// Phase 2: scan all assignments for indexed writes and full reassignments.
-	assignFilter := []ast.Node{(*ast.AssignStmt)(nil)}
+	// Phase 2: scan assignments for indexed writes, full reassignments, and escapes.
+	escapeFilter := []ast.Node{
+		(*ast.AssignStmt)(nil),
+		(*ast.CallExpr)(nil),
+	}
 
-	insp.Preorder(assignFilter, func(n ast.Node) {
-		checkAssignment(pass, vars, n.(*ast.AssignStmt))
+	insp.Preorder(escapeFilter, func(n ast.Node) {
+		switch node := n.(type) {
+		case *ast.AssignStmt:
+			checkAssignment(pass, vars, node)
+			// Taint tracked maps that appear on the RHS of assignments (aliasing).
+			taintEscapedInAssign(pass, vars, node)
+		case *ast.CallExpr:
+			// Taint tracked maps passed as function arguments.
+			taintEscapedInCall(pass, vars, node)
+		}
 	})
 
 	// Phase 3: report.
@@ -120,8 +132,10 @@ func registerVarDecl(pass *analysis.Pass, vars map[*types.Var]*varInfo, decl *as
 				info.skip = true
 			}
 
-			if i < len(vs.Values) {
-				classifyInit(info, vs.Values[i])
+			if len(vs.Names) == len(vs.Values) && i < len(vs.Values) {
+				classifyInit(pass, info, vs.Values[i])
+			} else if len(vs.Values) > 0 {
+				info.tainted = true // multi-return or mismatched initializers
 			}
 			vars[obj] = info
 		}
@@ -141,7 +155,7 @@ func registerShortVarDecl(pass *analysis.Pass, vars map[*types.Var]*varInfo, stm
 		}
 		info := &varInfo{pos: ident.Pos(), allTrue: true}
 		if i < len(stmt.Rhs) {
-			classifyInit(info, stmt.Rhs[i])
+			classifyInit(pass, info, stmt.Rhs[i])
 		} else {
 			info.tainted = true // multi-return
 		}
@@ -167,16 +181,16 @@ func registerRangeVarDecl(pass *analysis.Pass, vars map[*types.Var]*varInfo, stm
 
 // classifyInit determines whether an initializer is safe (make, composite literal)
 // or unknown (function call, variable copy, etc.).
-func classifyInit(info *varInfo, expr ast.Expr) {
+func classifyInit(pass *analysis.Pass, info *varInfo, expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.CallExpr:
-		if ident, ok := e.Fun.(*ast.Ident); ok && ident.Name == "make" {
-			return // make(map[T]bool) — safe, no values yet
+		if isBuiltinMake(pass, e) {
+			return // make(map[T]bool) - safe, no values yet
 		}
 		info.tainted = true // some other function call
 
 	case *ast.CompositeLit:
-		checkCompositeLitValues(info, e)
+		checkCompositeLitValues(pass, info, e)
 
 	default:
 		info.tainted = true // variable copy, field access, etc.
@@ -184,7 +198,7 @@ func classifyInit(info *varInfo, expr ast.Expr) {
 }
 
 // checkCompositeLitValues checks that all values in a map literal are the literal true.
-func checkCompositeLitValues(info *varInfo, lit *ast.CompositeLit) {
+func checkCompositeLitValues(pass *analysis.Pass, info *varInfo, lit *ast.CompositeLit) {
 	for _, elt := range lit.Elts {
 		kv, ok := elt.(*ast.KeyValueExpr)
 		if !ok {
@@ -192,7 +206,7 @@ func checkCompositeLitValues(info *varInfo, lit *ast.CompositeLit) {
 			break
 		}
 		info.hasAssign = true
-		if !isTrueLiteral(kv.Value) {
+		if !isBuiltinTrue(pass, kv.Value) {
 			info.allTrue = false
 			break
 		}
@@ -216,7 +230,7 @@ func checkAssignment(pass *analysis.Pass, vars map[*types.Var]*varInfo, stmt *as
 			continue
 		}
 		info.hasAssign = true
-		if rhs := correspondingRHS(stmt, i); rhs == nil || !isTrueLiteral(rhs) {
+		if rhs := correspondingRHS(stmt, i); rhs == nil || !isBuiltinTrue(pass, rhs) {
 			info.allTrue = false
 		}
 	}
@@ -226,7 +240,7 @@ func checkAssignment(pass *analysis.Pass, vars map[*types.Var]*varInfo, stmt *as
 		return
 	}
 	for i, lhs := range stmt.Lhs {
-		// Skip index expressions — already handled above.
+		// Skip index expressions - already handled above.
 		if _, isIndex := lhs.(*ast.IndexExpr); isIndex {
 			continue
 		}
@@ -245,13 +259,53 @@ func checkAssignment(pass *analysis.Pass, vars map[*types.Var]*varInfo, stmt *as
 		}
 		switch e := rhs.(type) {
 		case *ast.CallExpr:
-			if id, ok2 := e.Fun.(*ast.Ident); ok2 && id.Name == "make" {
-				continue // re-init with make — safe
+			if isBuiltinMake(pass, e) {
+				continue // re-init with make - safe
 			}
 			info.tainted = true
 		case *ast.CompositeLit:
-			checkCompositeLitValues(info, e)
+			checkCompositeLitValues(pass, info, e)
 		default:
+			info.tainted = true
+		}
+	}
+}
+
+// taintEscapedInAssign taints tracked maps that appear on the RHS of an assignment
+// to another named variable, since the alias could be used to write non-true values.
+// Assignments to the blank identifier (_ = m) are ignored since they are no-ops.
+func taintEscapedInAssign(pass *analysis.Pass, vars map[*types.Var]*varInfo, stmt *ast.AssignStmt) {
+	for i, rhs := range stmt.Rhs {
+		obj := identVar(pass, rhs)
+		if obj == nil {
+			continue
+		}
+		if _, ok := vars[obj]; !ok {
+			continue
+		}
+		// Only taint if the LHS is a real named variable (not blank identifier).
+		if i < len(stmt.Lhs) {
+			if lhsIdent, ok := stmt.Lhs[i].(*ast.Ident); ok && lhsIdent.Name == "_" {
+				continue
+			}
+		}
+		vars[obj].tainted = true
+	}
+}
+
+// taintEscapedInCall taints tracked maps passed as function arguments,
+// since the callee could write non-true values through the reference.
+func taintEscapedInCall(pass *analysis.Pass, vars map[*types.Var]*varInfo, call *ast.CallExpr) {
+	// Skip the builtin make - its arguments are types, not map values.
+	if isBuiltinMake(pass, call) {
+		return
+	}
+	for _, arg := range call.Args {
+		obj := identVar(pass, arg)
+		if obj == nil {
+			continue
+		}
+		if info, ok := vars[obj]; ok {
 			info.tainted = true
 		}
 	}
@@ -291,10 +345,25 @@ func isBoolMap(t types.Type) bool {
 	return ok && b.Kind() == types.Bool
 }
 
-// isTrueLiteral reports whether expr is the unqualified identifier "true".
-func isTrueLiteral(expr ast.Expr) bool {
+// isBuiltinTrue reports whether expr is the predeclared identifier "true"
+// (not a shadowed local variable named "true").
+func isBuiltinTrue(pass *analysis.Pass, expr ast.Expr) bool {
 	ident, ok := expr.(*ast.Ident)
-	return ok && ident.Name == "true"
+	if !ok {
+		return false
+	}
+	obj := pass.TypesInfo.ObjectOf(ident)
+	return obj == types.Universe.Lookup("true")
+}
+
+// isBuiltinMake reports whether call is a call to the predeclared "make" function.
+func isBuiltinMake(pass *analysis.Pass, call *ast.CallExpr) bool {
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	obj := pass.TypesInfo.ObjectOf(ident)
+	return obj == types.Universe.Lookup("make")
 }
 
 // correspondingRHS returns the RHS expression matching LHS index i,

@@ -83,7 +83,7 @@ func boolMapParameter(m map[string]bool) {
 }
 
 func boolMapCopied() {
-	m := make(map[string]bool) // want `map\[string\]bool used as a set`
+	m := make(map[string]bool) // m escapes via alias, so not flagged
 	m["a"] = true
 	other := m // other is tainted (assigned from variable), so not flagged
 	_ = other
@@ -111,6 +111,23 @@ func boolMapAssignedVariable() {
 	_ = m
 }
 
-var ExportedMap = map[string]bool{"a": true} // exported package-level — skip
+var ExportedMap = map[string]bool{"a": true} // exported package-level - skip
+
+func boolMapPassedToFunc() {
+	m := make(map[string]bool) // m escapes via function call, so not flagged
+	m["a"] = true
+	consumeMap(m)
+}
+
+func consumeMap(_ map[string]bool) {}
+
+func multiReturnVar() {
+	var a, b = getMultiMap() // multi-return: both should be tainted
+	a["x"] = true
+	b["y"] = true
+	_, _ = a, b
+}
+
+func getMultiMap() (map[string]bool, map[string]bool) { return nil, nil }
 
 func getBoolMap() map[string]bool { return nil }
