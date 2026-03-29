@@ -88,9 +88,9 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
+	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
-	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -1656,6 +1656,147 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
+// fmaSlugResolver lazily fetches Fleet-maintained apps for a team via the API
+// and builds a map of FMA ID to slug for slug resolution.
+type fmaSlugResolver struct {
+	client   generateGitopsClient
+	teamID   uint
+	appsList []fleet.MaintainedApp
+	byID     map[uint]string
+}
+
+func (r *fmaSlugResolver) resolve(fmaID uint) (string, error) {
+	if r.byID == nil {
+		if r.appsList == nil {
+			var err error
+			r.appsList, err = r.client.ListFleetMaintainedApps(r.teamID)
+			if err != nil {
+				return "", err
+			}
+		}
+		r.byID = make(map[uint]string, len(r.appsList))
+		for _, a := range r.appsList {
+			r.byID[a.ID] = a.Slug
+		}
+	}
+	return r.byID[fmaID], nil
+}
+
+// isDuplicateInHouseApp returns true if this in-house app (.ipa) has already
+// been seen, tracking by filename. In-house apps generate two software titles
+// (one for iOS, one for iPadOS) so we deduplicate them.
+func isDuplicateInHouseApp(sw fleet.SoftwareTitleListResult, seen map[string]struct{}) bool {
+	if sw.SoftwarePackage == nil {
+		return false
+	}
+	if filepath.Ext(sw.SoftwarePackage.Name) != ".ipa" {
+		return false
+	}
+	if _, ok := seen[sw.SoftwarePackage.Name]; ok {
+		return true
+	}
+	seen[sw.SoftwarePackage.Name] = struct{}{}
+	return false
+}
+
+// generateSoftwareForValidation produces a minimal software spec from
+// server-side data for GitOps validation (policy install_software and patch
+// policy references). It only calls ListSoftwareTitles (not GetSoftwareTitleByID
+// per title), skipping scripts, icons, setup experience, labels, etc.
+// It also returns SoftwarePackageResponse/VPPAppResponse slices with title IDs
+// for policy title ID resolution in doGitOpsPolicies.
+func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet.EnrichedAppConfig, teamID uint) (
+	softwareSpec map[string]any,
+	installers []fleet.SoftwarePackageResponse,
+	vppApps []fleet.VPPAppResponse,
+	err error,
+) {
+	const perPage = 1000
+	var titles []fleet.SoftwareTitleListResult
+	for page := 0; ; page++ {
+		query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=%d&page=%d", teamID, perPage, page)
+		pageTitles, err := client.ListSoftwareTitles(query)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		titles = append(titles, pageTitles...)
+		if len(pageTitles) < perPage {
+			break
+		}
+	}
+	if len(titles) == 0 {
+		return nil, nil, nil, nil
+	}
+
+	result := make(map[string]any)
+	packages := make([]map[string]any, 0)
+	appStoreApps := make([]map[string]any, 0)
+	fmas := make([]map[string]any, 0)
+	dedupeInHouseApps := make(map[string]struct{})
+	slugResolver := &fmaSlugResolver{client: client, teamID: teamID}
+
+	for _, sw := range titles {
+		if isDuplicateInHouseApp(sw, dedupeInHouseApps) {
+			continue
+		}
+
+		spec := make(map[string]any)
+		titleID := sw.ID
+
+		switch {
+		case sw.SoftwarePackage != nil:
+			installer := fleet.SoftwarePackageResponse{TitleID: &titleID}
+			if sw.SoftwarePackage.PackageURL != nil {
+				installer.URL = *sw.SoftwarePackage.PackageURL
+			}
+			if sw.HashSHA256 != nil {
+				installer.HashSHA256 = *sw.HashSHA256
+			}
+
+			if sw.SoftwarePackage.FleetMaintainedAppID != nil {
+				slug, err := slugResolver.resolve(*sw.SoftwarePackage.FleetMaintainedAppID)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				spec["slug"] = slug
+				installer.Slug = slug
+				fmas = append(fmas, spec)
+			} else {
+				// hash_sha256 and url are only valid for packages, not FMAs.
+				if sw.HashSHA256 != nil {
+					spec["hash_sha256"] = *sw.HashSHA256
+				}
+				if sw.SoftwarePackage.PackageURL != nil {
+					spec["url"] = *sw.SoftwarePackage.PackageURL
+				}
+				packages = append(packages, spec)
+			}
+			installers = append(installers, installer)
+
+		case sw.AppStoreApp != nil:
+			spec["app_store_id"] = sw.AppStoreApp.AppStoreID
+			appStoreApps = append(appStoreApps, spec)
+			vppApps = append(vppApps, fleet.VPPAppResponse{
+				TitleID:    &titleID,
+				AppStoreID: sw.AppStoreApp.AppStoreID,
+				Platform:   fleet.InstallableDevicePlatform(sw.AppStoreApp.Platform),
+			})
+		}
+	}
+
+	if len(packages) > 0 {
+		result["packages"] = packages
+	}
+	if len(appStoreApps) > 0 {
+		result["app_store_apps"] = appStoreApps
+	}
+	if len(fmas) > 0 {
+		result["fleet_maintained_apps"] = fmas
+	}
+
+	return result, installers, vppApps, nil
+}
+
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool) (map[string]interface{}, error) {
 	if !cmd.AppConfig.License.IsPremium() {
 		return nil, nil // software is premium-only
@@ -1699,25 +1840,16 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	packages := make([]map[string]any, 0)
 	appStoreApps := make([]map[string]any, 0)
 	fmas := make([]map[string]any, 0)
-	var appsList []fleet.MaintainedApp
-
-	// in-house apps generate two software titles for the same gitops entry: one
-	// for iOS and one for iPadOS. Use this set to deduplicate them (by filename,
-	// which is unique for a given team and platform).
-	dedupeInHouseAppsByFilename := make(map[string]struct{})
-	var byFMAID map[uint]string
+	dedupeInHouseApps := make(map[string]struct{})
+	slugResolver := &fmaSlugResolver{client: cmd.Client, teamID: teamID}
 	for _, sw := range software {
+		if isDuplicateInHouseApp(sw, dedupeInHouseApps) {
+			continue
+		}
+
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
-			if isInHouseApp := filepath.Ext(sw.SoftwarePackage.Name) == ".ipa"; isInHouseApp {
-				if _, ok := dedupeInHouseAppsByFilename[sw.SoftwarePackage.Name]; ok {
-					// ignore duplicate in-house app
-					continue
-				}
-				dedupeInHouseAppsByFilename[sw.SoftwarePackage.Name] = struct{}{}
-			}
-
 			pkgName := ""
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
@@ -1772,22 +1904,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
-				if byFMAID == nil {
-					if appsList == nil {
-						var err error
-						// currently, the list FMA endpoint has no default pagination
-						appsList, err = cmd.Client.ListFleetMaintainedApps(teamID)
-						if err != nil {
-							return nil, err
-						}
-					}
-					byFMAID = make(map[uint]string, len(appsList))
-					for _, a := range appsList {
-						byFMAID[a.ID] = a.Slug
-					}
+				slug, err = slugResolver.resolve(*softwareTitle.SoftwarePackage.FleetMaintainedAppID)
+				if err != nil {
+					return nil, err
 				}
-
-				slug = byFMAID[*softwareTitle.SoftwarePackage.FleetMaintainedAppID]
 				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
 					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
 					Slug: slug,

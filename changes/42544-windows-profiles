@@ -1,0 +1,1 @@
+* Fixed an issue where Windows MDM profiles could remain in pending if hosts acknowledged them too quickly after upload

@@ -31,6 +31,7 @@ func TestMDMWindows(t *testing.T) {
 	}{
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
+		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
 		{"TestMDMWindowsGetPendingCommands", testMDMWindowsGetPendingCommands},
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
 		{"TestMDMWindowsCommandResultsWithPendingResult", testMDMWindowsCommandResultsWithPendingResult},
@@ -1337,6 +1338,256 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d3.MDMDeviceID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 3)
+}
+
+func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	newEnrolledDevice := func() *fleet.MDMWindowsEnrolledDevice {
+		return &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-1C3ARC1",
+			MDMEnrollType:          "ProgrammaticEnrollment",
+			MDMEnrollUserID:        "",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			MDMNotInOOBE:           false,
+			HostUUID:               uuid.NewString(),
+		}
+	}
+
+	d1 := newEnrolledDevice()
+	d2 := newEnrolledDevice()
+	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
+	require.NoError(t, err)
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
+	require.NoError(t, err)
+
+	getAllHostProfiles := func() []*fleet.MDMWindowsProfilePayload {
+		var hostProfiles []*fleet.MDMWindowsProfilePayload
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := `SELECT profile_uuid, host_uuid, status, operation_type, command_uuid, profile_name FROM host_mdm_windows_profiles ORDER BY host_uuid, profile_name`
+			return sqlx.SelectContext(ctx, q, &hostProfiles, stmt)
+		})
+		return hostProfiles
+	}
+
+	t.Run("empty host list is a noop", func(t *testing.T) {
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  uuid.NewString(),
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}
+		err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{}, cmd, nil)
+		require.NoError(t, err)
+	})
+
+	t.Run("inserts command and profiles for multiple hosts", func(t *testing.T) {
+		profUUID1 := InsertWindowsProfileForTest(t, ds, 0)
+		profUUID2 := InsertWindowsProfileForTest(t, ds, 0)
+
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}
+
+		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:   profUUID1,
+				ProfileName:   "prof1",
+				HostUUID:      d1.HostUUID,
+				CommandUUID:   cmdUUID,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      []byte("checksum1"),
+			},
+			{
+				ProfileUUID:   profUUID2,
+				ProfileName:   "prof2",
+				HostUUID:      d2.HostUUID,
+				CommandUUID:   cmdUUID,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      []byte("checksum2"),
+			},
+		}
+
+		err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID, d2.HostUUID}, cmd, payload)
+		require.NoError(t, err)
+
+		// Verify commands were enqueued
+		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+
+		// Verify host profiles were upserted
+		hostProfs := getAllHostProfiles()
+		require.Len(t, hostProfs, 2)
+		// Verify both profiles are present with expected values
+		for _, hp := range hostProfs {
+			require.Equal(t, fleet.MDMOperationTypeInstall, hp.OperationType)
+			require.Equal(t, &fleet.MDMDeliveryPending, hp.Status)
+			require.Equal(t, cmdUUID, hp.CommandUUID)
+		}
+	})
+
+	t.Run("duplicate command uuid returns already exists", func(t *testing.T) {
+		profUUID := InsertWindowsProfileForTest(t, ds, 0)
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}
+		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:   profUUID,
+				ProfileName:   "prof-dup",
+				HostUUID:      d1.HostUUID,
+				CommandUUID:   cmdUUID,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      []byte("checksum-dup"),
+			},
+		}
+
+		err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID}, cmd, payload)
+		require.NoError(t, err)
+
+		// Same command UUID again should fail with already exists
+		err = ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID}, cmd, payload)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "already exists")
+	})
+
+	t.Run("upserts update existing host profiles", func(t *testing.T) {
+		profUUID := InsertWindowsProfileForTest(t, ds, 0)
+		cmdUUID1 := uuid.NewString()
+		cmd1 := &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID1,
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}
+		payload1 := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:   profUUID,
+				ProfileName:   "prof-upsert",
+				HostUUID:      d1.HostUUID,
+				CommandUUID:   cmdUUID1,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      []byte("checksum-v1"),
+			},
+		}
+
+		err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID}, cmd1, payload1)
+		require.NoError(t, err)
+
+		// Now upsert with a new command and updated status
+		cmdUUID2 := uuid.NewString()
+		cmd2 := &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID2,
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}
+		payload2 := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:   profUUID,
+				ProfileName:   "prof-upsert-updated",
+				HostUUID:      d1.HostUUID,
+				CommandUUID:   cmdUUID2,
+				OperationType: fleet.MDMOperationTypeRemove,
+				Status:        &fleet.MDMDeliveryVerifying,
+				Checksum:      []byte("checksum-v2"),
+			},
+		}
+
+		err = ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID}, cmd2, payload2)
+		require.NoError(t, err)
+
+		// Verify the profile was updated (not duplicated)
+		var profiles []*fleet.MDMWindowsProfilePayload
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := `SELECT profile_uuid, host_uuid, status, operation_type, command_uuid, profile_name FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND host_uuid = ?`
+			return sqlx.SelectContext(ctx, q, &profiles, stmt, profUUID, d1.HostUUID)
+		})
+		require.Len(t, profiles, 1)
+		require.Equal(t, cmdUUID2, profiles[0].CommandUUID)
+		require.Equal(t, fleet.MDMOperationTypeRemove, profiles[0].OperationType)
+		require.Equal(t, &fleet.MDMDeliveryVerifying, profiles[0].Status)
+		require.Equal(t, "prof-upsert-updated", profiles[0].ProfileName)
+	})
+
+	t.Run("batching works correctly", func(t *testing.T) {
+		// Set a small batch size to force multiple batches
+		ds.testUpsertMDMDesiredProfilesBatchSize = 1
+
+		profUUID1 := InsertWindowsProfileForTest(t, ds, 0)
+		profUUID2 := InsertWindowsProfileForTest(t, ds, 0)
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}
+		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:   profUUID1,
+				ProfileName:   "prof-batch1",
+				HostUUID:      d1.HostUUID,
+				CommandUUID:   cmdUUID,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      []byte("checksum-batch1"),
+			},
+			{
+				ProfileUUID:   profUUID2,
+				ProfileName:   "prof-batch2",
+				HostUUID:      d2.HostUUID,
+				CommandUUID:   cmdUUID,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      []byte("checksum-batch2"),
+			},
+		}
+
+		err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID, d2.HostUUID}, cmd, payload)
+		require.NoError(t, err)
+
+		// Verify both hosts got their commands despite batching
+		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+		require.NoError(t, err)
+		found := false
+		for _, c := range cmds {
+			if c.CommandUUID == cmdUUID {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "expected command for d1")
+
+		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+		require.NoError(t, err)
+		found = false
+		for _, c := range cmds {
+			if c.CommandUUID == cmdUUID {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "expected command for d2")
+
+		// Reset batch size
+		ds.testUpsertMDMDesiredProfilesBatchSize = 0
+	})
 }
 
 func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
