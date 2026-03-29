@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +46,7 @@ func testOrbitEnrollAndConfigWithRequiredSignature(t *testing.T, s *Suite) {
 	cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
 
 	// Test enrollment first WITHOUT signature (should fail)
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
@@ -132,7 +133,7 @@ func testOsqueryEnrollFailsWithoutSignature(t *testing.T, s *Suite) {
 func testOrbitEnrollFailsWithoutSignature(t *testing.T, s *Suite) {
 	identifier := "orbit-enroll-without-signature-test"
 	// Test orbit enrollment without signature (should fail)
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + identifier,
 		HardwareSerial:    "test-serial-" + identifier,

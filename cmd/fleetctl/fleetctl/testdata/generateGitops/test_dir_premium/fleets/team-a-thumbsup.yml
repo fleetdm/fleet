@@ -171,6 +171,8 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
+  - self_service: true
+    slug: fma3/windows
   packages:
   - categories:
     - Browsers

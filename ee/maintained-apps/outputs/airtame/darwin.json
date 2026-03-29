@@ -3,7 +3,8 @@
     {
       "version": "4.15.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.airtame.airtame-application';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.airtame.airtame-application';",
+        "patch": ""
       },
       "installer_url": "https://downloads-cdn.airtame.com/app/latest/mac/Airtame-4.15.0.dmg",
       "install_script_ref": "e716fcb6",
