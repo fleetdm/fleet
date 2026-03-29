@@ -52,6 +52,8 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
+		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
+		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
 	}
 
 	for _, c := range cases {
@@ -4064,4 +4066,194 @@ func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
 	assert.Equal(t, string(fleet.MDMDeliveryPending), status, "Host profile status should be reset to pending on resend")
 	require.True(t, detail.Valid, "Host profile detail should be cleared on resend")
 	assert.Empty(t, detail.String, "Host profile detail should be cleared on resend")
+}
+
+func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := test.NewHost(t, ds, "host1", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	windowsEnroll(t, ds, h1)
+
+	h2 := test.NewHost(t, ds, "host2", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	windowsEnroll(t, ds, h2)
+
+	// Profile A: LocURIs X, Y. Profile B: LocURI Y (shared with A).
+	profA := &fleet.MDMWindowsConfigProfile{Name: "profA", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/X</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>1</Data></Item></Replace>`)}
+	profB := &fleet.MDMWindowsConfigProfile{Name: "profB", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>2</Data></Item></Replace>`)}
+
+	// Insert both profiles.
+	var profAUUID, profBUUID string
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profA, profB}, nil)
+		return err
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profAUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'profA'`)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profBUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'profB'`)
+	})
+
+	// Simulate both profiles installed on both hosts.
+	for _, hUUID := range []string{h1.UUID, h2.UUID} {
+		for _, pUUID := range []string{profAUUID, profBUUID} {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, operation_type, status, command_uuid, profile_name)
+					VALUES (?, ?, 'install', 'verified', ?, ?)`,
+					hUUID, pUUID, uuid.NewString(), "test")
+				return err
+			})
+		}
+	}
+
+	t.Run("shared LocURI not deleted when other profile uses it", func(t *testing.T) {
+		// Delete profile A. LocURI Y is shared with B, so only X should be deleted.
+		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profB}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		// Verify the delete command on BOTH hosts.
+		for _, h := range []*fleet.Host{h1, h2} {
+			var rawCmd []byte
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &rawCmd,
+					`SELECT wc.raw_command FROM windows_mdm_commands wc
+					JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
+					WHERE hwp.host_uuid = ? AND hwp.operation_type = 'remove'`, h.UUID)
+			})
+			require.NotEmpty(t, rawCmd, "host %s should have a delete command", h.Hostname)
+			rawStr := string(rawCmd)
+			assert.Contains(t, rawStr, "./Device/X", "host %s: should delete LocURI X", h.Hostname)
+			assert.NotContains(t, rawStr, "./Device/Y", "host %s: should NOT delete LocURI Y (protected by profB)", h.Hostname)
+		}
+	})
+}
+
+func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := test.NewHost(t, ds, "host-edit-1", "10.0.0.3", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	windowsEnroll(t, ds, h1)
+
+	t.Run("removed LocURI generates delete", func(t *testing.T) {
+		t.Cleanup(func() {
+			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
+		})
+
+		// Profile with two LocURIs.
+		prof := &fleet.MDMWindowsConfigProfile{Name: "edit-test", SyncML: []byte(`<Atomic><Replace><Item><Target><LocURI>./Device/Keep</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Remove</LocURI></Target><Data>1</Data></Item></Replace></Atomic>`)}
+
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		var profUUID string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &profUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'edit-test'`)
+		})
+
+		// Simulate profile installed on the host.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, operation_type, status, command_uuid, profile_name)
+				VALUES (?, ?, 'install', 'verified', ?, 'edit-test')`,
+				h1.UUID, profUUID, uuid.NewString())
+			return err
+		})
+
+		// Edit profile: remove ./Device/Remove.
+		profEdited := &fleet.MDMWindowsConfigProfile{Name: "edit-test", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Keep</LocURI></Target><Data>1</Data></Item></Replace>`)}
+
+		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profEdited}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		// A delete command should have been generated for ./Device/Remove.
+		var deleteCommands [][]byte
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &deleteCommands,
+				`SELECT wc.raw_command FROM windows_mdm_commands wc
+				JOIN windows_mdm_command_queue cq ON cq.command_uuid = wc.command_uuid
+				JOIN mdm_windows_enrollments mwe ON mwe.id = cq.enrollment_id
+				WHERE mwe.host_uuid = ?
+				ORDER BY wc.created_at DESC`, h1.UUID)
+		})
+
+		foundDelete := false
+		for _, cmd := range deleteCommands {
+			s := string(cmd)
+			if strings.Contains(s, "<Delete") && strings.Contains(s, "./Device/Remove") {
+				foundDelete = true
+				assert.NotContains(t, s, "./Device/Keep", "should not delete the kept LocURI")
+			}
+		}
+		assert.True(t, foundDelete, "expected a <Delete> command for ./Device/Remove")
+	})
+
+	t.Run("shared LocURI not deleted when editing", func(t *testing.T) {
+		t.Cleanup(func() {
+			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
+		})
+
+		// Profile A has LocURIs P, Q. Profile B has LocURI Q (shared).
+		profA := &fleet.MDMWindowsConfigProfile{Name: "edit-shared-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/P</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Q</LocURI></Target><Data>1</Data></Item></Replace>`)}
+		profBShared := &fleet.MDMWindowsConfigProfile{Name: "edit-shared-B", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Q</LocURI></Target><Data>2</Data></Item></Replace>`)}
+
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profA, profBShared}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		var profAUUID string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &profAUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'edit-shared-A'`)
+		})
+
+		// Simulate profile A installed on the host.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, operation_type, status, command_uuid, profile_name)
+				VALUES (?, ?, 'install', 'verified', ?, 'edit-shared-A')`,
+				h1.UUID, profAUUID, uuid.NewString())
+			return err
+		})
+
+		// Edit A to remove Q (shared with B), keep only P.
+		profAEdited := &fleet.MDMWindowsConfigProfile{Name: "edit-shared-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/P</LocURI></Target><Data>1</Data></Item></Replace>`)}
+
+		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profAEdited, profBShared}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		// Check that no delete was generated for Q (protected by B),
+		// and no delete was generated for P (still in the edited profile).
+		var deleteCommands [][]byte
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &deleteCommands,
+				`SELECT wc.raw_command FROM windows_mdm_commands wc
+				JOIN windows_mdm_command_queue cq ON cq.command_uuid = wc.command_uuid
+				JOIN mdm_windows_enrollments mwe ON mwe.id = cq.enrollment_id
+				WHERE mwe.host_uuid = ?
+				ORDER BY wc.created_at DESC`, h1.UUID)
+		})
+
+		for _, cmd := range deleteCommands {
+			s := string(cmd)
+			if strings.Contains(s, "<Delete") {
+				assert.NotContains(t, s, "./Device/Q", "should NOT delete Q (protected by edit-shared-B)")
+				assert.NotContains(t, s, "./Device/P", "should NOT delete P (still in edited profile)")
+			}
+		}
+	})
 }
