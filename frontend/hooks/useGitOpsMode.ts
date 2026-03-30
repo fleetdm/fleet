@@ -18,11 +18,11 @@ const useGitOpsMode = (
   entity?: keyof IGitOpsExceptions
 ): UseGitOpsModeResult => {
   const { config } = useContext(AppContext);
-  const enabled = !!config?.gitops.gitops_mode_enabled;
-  const excepted = entity ? !!config?.gitops.exceptions[entity] : false;
+  const enabled = !!config?.gitops?.gitops_mode_enabled;
+  const excepted = entity ? !!config?.gitops?.exceptions?.[entity] : false;
   return {
     gitOpsModeEnabled: enabled && !excepted,
-    repoURL: config?.gitops.repository_url,
+    repoURL: config?.gitops?.repository_url,
   };
 };
 
