@@ -383,6 +383,7 @@ controls:
     create_local_idp_user_account:
       sso_configuration_profile_path: ../lib/platform-sso.mobileconfig
       sso_software_package_path: ../lib/company-portal.package.yml
+      authentication_url: https://login.microsoftonline.com/common
     enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
@@ -484,6 +485,7 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 - `create_local_idp_user_account` specifies the Platform SSO configuration profile and SSO extension software package used to automatically create a local user account with IdP credentials when the user first sets up their macOS host. Requires `enable_end_user_authentication` to be `true`. Applies to macOS only.
   - `sso_configuration_profile_path` is the path to the Platform SSO configuration profile (.mobileconfig). The profile must have `com.apple.extensiblesso` PayloadType and include `EnableAuthorization` and `EnableCreateUserAtLogin` set to `true`.
   - `sso_software_package_path` is the path to the SSO extension software package (.package.yml) that is added to the fleet.
+  - `authentication_url` is the URL used to authenticate the user with the IdP during Platform SSO setup.
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
 - `macos_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
@@ -501,6 +503,7 @@ macos_setup:
   create_local_idp_user_account:
     sso_configuration_profile_path: "./platform-sso.mobileconfig"
     sso_software_package_path: "./company-portal.package.yml"
+    authentication_url: "https://login.microsoftonline.com/common"
   enable_release_device_manually: false
   macos_setup_assistant: "./setup_assistant.json"
   script: "./post_setup.sh"
