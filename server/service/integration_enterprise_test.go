@@ -5493,7 +5493,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 		"software_version_id", fmt.Sprint(swVersionID),
 		"team_id", fmt.Sprint(team2.ID),
 	)
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	require.NotNil(t, resp.Software, "software metadata should be returned even when no hosts match on this team")
 	assert.Equal(t, swVersionID, resp.Software.ID)
 	assert.Equal(t, testSw.Name, resp.Software.Name)
