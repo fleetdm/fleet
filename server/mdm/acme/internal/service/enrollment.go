@@ -6,12 +6,12 @@ import (
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 )
 
-func (s *Service) UpsertEnrollment(ctx context.Context, hostIdentifier string) (string, error) {
+func (s *Service) NewEnrollment(ctx context.Context, hostIdentifier string) (string, error) {
 	// skipauth: No authorization check needed; caller is authenticated via DEP device identity.
 	// TODO: confirm this is how we want to handle auth for this method
 	if az, ok := authz_ctx.FromContext(ctx); ok {
 		az.SetChecked()
 	}
 
-	return s.store.UpsertACMEEnrollment(ctx, hostIdentifier)
+	return s.store.NewEnrollment(ctx, hostIdentifier)
 }

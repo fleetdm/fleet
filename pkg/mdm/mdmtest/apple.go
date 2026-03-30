@@ -539,8 +539,6 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 		return fmt.Errorf("verifying OTA profile: %w", err)
 	}
 
-	fmt.Println("OTA profile content:", string(p7.Content))
-
 	var otaEnrollmentProfile struct {
 		PayloadContent struct {
 			URL string `plist:"URL"`
@@ -635,8 +633,6 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 		} `plist:"PayloadContent"`
 	}
 
-	fmt.Println("SCEP response content:", string(body))
-
 	err = plist.Unmarshal(body, &scepInfo)
 	if err != nil {
 		return fmt.Errorf("unmarshaling SCEP response: %w", err)
@@ -663,7 +659,6 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 		c.EnrollInfo.RawProfile = p7.Content
 		return nil
 	}
-	fmt.Println("Enrollment profile content:", string(p7.Content))
 	enrollInfo, err := ParseEnrollmentProfile(p7.Content)
 	if err != nil {
 		return fmt.Errorf("parse OTA SCEP profile: %w", err)
