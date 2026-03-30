@@ -6,6 +6,7 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 
@@ -29,7 +30,6 @@ interface IManageLabelsPageProps {
 
 const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
   const {
-    config,
     currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -38,8 +38,9 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     isAnyTeamTechnician,
   } = useContext(AppContext);
 
-  const labelsGitOpsManaged =
-    !!config?.gitops.gitops_mode_enabled && !config?.gitops.exceptions?.labels;
+  const { gitOpsModeEnabled: labelsGitOpsManaged, repoURL } = useGitOpsMode(
+    "labels"
+  );
   const { renderFlash } = useContext(NotificationContext);
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -114,7 +115,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         labels={labels}
         onClickAction={onClickAction}
         labelsGitOpsManaged={labelsGitOpsManaged}
-        repoURL={config?.gitops.repository_url}
+        repoURL={repoURL}
       />
     );
   }, [currentUser, error, isLoading, labels, onClickAction]);
