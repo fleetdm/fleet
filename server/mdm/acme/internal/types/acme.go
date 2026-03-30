@@ -83,10 +83,6 @@ type OrderResponse struct {
 
 	// Location is set in the header, pointing to the created order's URL.
 	Location string `json:"-"`
-
-	// Currently we always leave those empty in the response.
-	NotBefore *time.Time `json:"notBefore,omitempty"`
-	NotAfter  *time.Time `json:"notAfter,omitempty"`
 }
 
 type Authorization struct {
