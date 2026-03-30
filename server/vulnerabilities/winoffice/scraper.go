@@ -2,6 +2,7 @@ package winoffice
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -32,10 +33,10 @@ type SecurityRelease struct {
 }
 
 // ScrapeSecurityUpdates fetches and parses the Office security updates page
-func ScrapeSecurityUpdates(client *http.Client) ([]SecurityRelease, error) {
-	req, err := http.NewRequest("GET", SecurityUpdatesURL, nil)
+func ScrapeSecurityUpdates(ctx context.Context, client *http.Client) ([]SecurityRelease, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", SecurityUpdatesURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+		return nil, fmt.Errorf("creating request with context: %w", err)
 	}
 	// Request markdown format
 	req.Header.Set("Accept", "text/markdown")
@@ -175,7 +176,10 @@ func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
 	if len(deprecatedVersions) > 0 {
 		sortedVersions := sortedVersionKeys(versions)
 		for _, version := range deprecatedVersions {
-			vb := versions[version]
+			vb, ok := versions[version]
+			if !ok || vb == nil {
+				continue
+			}
 			existingCVEs := make(map[string]bool)
 			for _, su := range vb.SecurityUpdates {
 				existingCVEs[su.CVE] = true
@@ -186,6 +190,9 @@ func BuildBulletinFile(releases []SecurityRelease) *BulletinFile {
 
 	// Sort for deterministic output
 	for _, vb := range versions {
+		if vb == nil {
+			continue
+		}
 		sort.Slice(vb.SecurityUpdates, func(i, j int) bool {
 			return vb.SecurityUpdates[i].CVE < vb.SecurityUpdates[j].CVE
 		})
@@ -255,7 +262,7 @@ func findMinimumUpgrade(version string, sortedVersions []string, fixedBuilds map
 	return ""
 }
 
-// recordCVEFix records a CVE fix for each branch, keeping the first fix (earliest release).
+// recordCVEFix records a CVE fix for each branch, keeping the first seen fix per version.
 func recordCVEFix(cveToBuilds map[string]map[string]string, cve string, branches []VersionBranch) {
 	if cveToBuilds[cve] == nil {
 		cveToBuilds[cve] = make(map[string]string)
@@ -285,6 +292,10 @@ func compareBuildVersions(a, b string) int {
 	if len(partsA) >= 1 && len(partsB) >= 1 {
 		prefixA := partsA[0]
 		prefixB := partsB[0]
+		// Pad to same length for proper numeric comparison
+		maxLen := max(len(prefixA), len(prefixB))
+		prefixA = fmt.Sprintf("%0*s", maxLen, prefixA)
+		prefixB = fmt.Sprintf("%0*s", maxLen, prefixB)
 		if prefixA < prefixB {
 			return -1
 		}
@@ -313,8 +324,8 @@ func compareBuildVersions(a, b string) int {
 }
 
 // FetchBulletin scrapes and builds Office security bulletin
-func FetchBulletin(client *http.Client) (*BulletinFile, error) {
-	releases, err := ScrapeSecurityUpdates(client)
+func FetchBulletin(ctx context.Context, client *http.Client) (*BulletinFile, error) {
+	releases, err := ScrapeSecurityUpdates(ctx, client)
 	if err != nil {
 		return nil, err
 	}

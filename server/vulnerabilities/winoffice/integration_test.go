@@ -1,6 +1,7 @@
 package winoffice_test
 
 import (
+	"context"
 	"slices"
 	"strconv"
 	"testing"
@@ -19,7 +20,7 @@ func TestIntegrationCheckVersion(t *testing.T) {
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(60 * time.Second))
 
-	bulletin, err := winoffice.FetchBulletin(client)
+	bulletin, err := winoffice.FetchBulletin(context.Background(), client)
 	require.NoError(t, err)
 	require.NotEmpty(t, bulletin.Versions)
 	require.NotEmpty(t, bulletin.BuildPrefixes)
