@@ -146,63 +146,7 @@ func TestPreProcessUninstallScript(t *testing.T) {
 }
 
 func TestIngestValidations(t *testing.T) {
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
-			content := []github.RepositoryContent{{Name: ptr.String("Foo")}}
-			err := json.NewEncoder(w).Encode(content)
-			require.NoError(t, err)
-
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.installer.yaml":
-			manifest := installerManifest{
-				ProductCode:            "{ABCDEF}",
-				InstallerType:          "msi",
-				Scope:                  "machine",
-				PackageVersion:         "1.0",
-				AppsAndFeaturesEntries: []appsAndFeaturesEntries{{UpgradeCode: "{ABCDEF}"}},
-				Installers: []installer{
-					{
-						Architecture:  "x64",
-						InstallerType: "msi",
-						ProductCode:   "{ACBDEF}",
-						Scope:         "machine",
-					},
-				},
-			}
-			bytes, err := yaml.Marshal(manifest)
-			require.NoError(t, err)
-			stringManifest := string(bytes)
-
-			content := &github.RepositoryContent{Name: ptr.String("Foo"), Content: &stringManifest}
-			err = json.NewEncoder(w).Encode(content)
-			require.NoError(t, err)
-
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.locale.en-US.yaml":
-			lManifest := localeManifest{
-				PackageName: "foo",
-				Publisher:   "Bar, Inc.",
-			}
-			bytes, err := yaml.Marshal(lManifest)
-			require.NoError(t, err)
-			stringManifest := string(bytes)
-
-			content := &github.RepositoryContent{Name: ptr.String("Foo"), Content: &stringManifest}
-			err = json.NewEncoder(w).Encode(content)
-			require.NoError(t, err)
-
-		default:
-			w.WriteHeader(http.StatusBadRequest)
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-
-		err := json.NewEncoder(w).Encode("")
-		require.NoError(t, err)
-	}))
-	t.Cleanup(srv.Close)
-
 	ctx := context.Background()
-
 	tempDir := t.TempDir()
 
 	testInstallScriptContents := "this is a test install script"
@@ -212,27 +156,66 @@ func TestIngestValidations(t *testing.T) {
 	require.NoError(t, os.WriteFile(path.Join(tempDir, "uninstall_script.ps1"), []byte(testUninstallScriptContents), 0644))
 
 	cases := []struct {
+		name     string
 		wantErr  string
 		inputApp inputApp
+		cfg      serverConfig
 	}{
-		{"", inputApp{
-			Name:                "Foo",
-			UniqueIdentifier:    "Foo",
-			PackageIdentifier:   "Foo",
-			InstallerArch:       "x64",
-			Slug:                "foo/windows",
-			InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
-			UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
-			InstallerType:       "msi",
-			InstallerScope:      "machine",
-		}},
+		{
+			name:    "valid",
+			wantErr: "",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:    "wrong installer type",
+			wantErr: "failed to find installer for app",
+			inputApp: inputApp{
+				Name:              "Foo",
+				UniqueIdentifier:  "Foo",
+				PackageIdentifier: "Foo",
+				InstallerArch:     "x64",
+				Slug:              "foo/windows",
+				InstallerType:     "exe",
+				InstallerScope:    "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi", // mismatch here
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
 	}
 	for _, c := range cases {
-		t.Run(c.inputApp.Name, func(t *testing.T) {
+		t.Run(c.name, func(t *testing.T) {
+			srv := newTestServer(t, c.cfg)
+			t.Cleanup(srv.Close)
+
 			gc := github.NewClient(srv.Client())
 			url, err := url.Parse(srv.URL + "/")
-			gc.BaseURL = url
 			require.NoError(t, err)
+			gc.BaseURL = url
+
 			i := wingetIngester{
 				logger:       slog.New(slog.DiscardHandler),
 				githubClient: gc,
@@ -244,7 +227,75 @@ func TestIngestValidations(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-
 		})
 	}
+}
+
+type serverConfig struct {
+	productCode       string
+	installerType     string
+	installerScope    string
+	installerArch     string
+	installerProdCode string
+	upgradeCode       string
+}
+
+func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{{Name: ptr.String("Foo")}}
+			require.NoError(t, json.NewEncoder(w).Encode(content))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.installer.yaml":
+			manifest := installerManifest{
+				ProductCode:    cfg.productCode,
+				InstallerType:  cfg.installerType,
+				Scope:          cfg.installerScope,
+				PackageVersion: "1.0",
+				AppsAndFeaturesEntries: []appsAndFeaturesEntries{
+					{UpgradeCode: cfg.upgradeCode},
+				},
+				Installers: []installer{
+					{
+						Architecture:  cfg.installerArch,
+						InstallerType: cfg.installerType,
+						ProductCode:   cfg.installerProdCode,
+						Scope:         cfg.installerScope,
+					},
+				},
+			}
+
+			bytes, err := yaml.Marshal(manifest)
+			require.NoError(t, err)
+
+			str := string(bytes)
+			content := &github.RepositoryContent{
+				Name:    ptr.String("Foo"),
+				Content: &str,
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(content))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.locale.en-US.yaml":
+			lManifest := localeManifest{
+				PackageName: "foo",
+				Publisher:   "Bar, Inc.",
+			}
+
+			bytes, err := yaml.Marshal(lManifest)
+			require.NoError(t, err)
+
+			str := string(bytes)
+			content := &github.RepositoryContent{
+				Name:    ptr.String("Foo"),
+				Content: &str,
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(content))
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
 }
