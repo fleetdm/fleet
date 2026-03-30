@@ -36,7 +36,6 @@
 - Added AWS GovCloud RDS CA certificates to the RDS MySQL TLS bundle, enabling IAM authentication for Fleet deployments connecting to RDS in AWS GovCloud regions (us-gov-east-1, us-gov-west-1).
 - Added CVE alias for python visual studio code extension.
 - Added new activity for edited enroll secrets.
-- Added deny list for checking external urls the Fleet server will attempt to contact that are user submitted. Refer to pkg/fleethttp/ssrf.go for full list. In development, the --dev flag skips this check so that testing locally is not impacted. Certificate authorities is the first place this is implemented. 
 
 ### Other improvements and bug fixes
 - Renamed teams and queries to fleets and reports in the UI, API, CLI, and GitOps.
@@ -125,13 +124,20 @@
 - Fixed stale software titles list after deleting a software installer.
 - Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
 
+## Fleet 4.81.3 (Mar 20, 2026)
+
+### Bug fixes
+
+- Added configurable body size limits for the `/api/osquery/log` and `/api/osquery/distributed/write` endpoints.
+- Fixed false positive `PayloadTooLargeError` errors.
+
 ## Fleet 4.81.2 (Mar 06, 2026)
 
 ### Bug fixes
 
 - Fixed a bug where macOS systems previous enrolled in fleet wouldn't always go through setup experience after a wipe.
 - Fixed issue where policy automation retries were potentially reading stale data from replica database.
-- Updated the DEP syncer to properly reassign a profile when ABM unilaterally removes it
+- Updated the DEP syncer to properly reassign a profile when ABM unilaterally removes it.
 
 ## Fleet 4.81.1 (Mar 2, 2026)
 
@@ -238,6 +244,19 @@
 - Fixed unnecessary error logging when no CPE match is found for software items like VSCode extensions and JetBrains plugins.
 - Fixed created_at and updated_at timestamps on API responses for Label and Team creation.
 - Fixed issues where different variations of the same software weren't linked to the same software title.
+
+## Fleet 4.80.3 (Feb 20, 2026)
+
+### Bug fixes
+
+- Fixed validation and error handling issues.
+
+## Fleet 4.80.2 (Feb 11, 2026)
+
+### Bug fixes
+
+- Updated to Go 1.25.7.
+- Fix issue where MySQL read replicas were not using TLS.
 
 ## Fleet 4.80.1 (Feb 06, 2026)
 
