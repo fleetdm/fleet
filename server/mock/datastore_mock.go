@@ -575,6 +575,8 @@ type CheckConflictingInstallerExistsFunc func(ctx context.Context, teamID *uint,
 
 type CheckConflictingInHouseAppExistsFunc func(ctx context.Context, teamID *uint, bundleIdentifier string, platform string) (bool, error)
 
+type CheckAndroidWebAppNameExistsFunc func(ctx context.Context, name string) (bool, error)
+
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
 type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
@@ -2659,6 +2661,9 @@ type DataStore struct {
 
 	CheckConflictingInHouseAppExistsFunc        CheckConflictingInHouseAppExistsFunc
 	CheckConflictingInHouseAppExistsFuncInvoked bool
+
+	CheckAndroidWebAppNameExistsFunc        CheckAndroidWebAppNameExistsFunc
+	CheckAndroidWebAppNameExistsFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -6477,6 +6482,13 @@ func (s *DataStore) CheckConflictingInHouseAppExists(ctx context.Context, teamID
 	s.CheckConflictingInHouseAppExistsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CheckConflictingInHouseAppExistsFunc(ctx, teamID, bundleIdentifier, platform)
+}
+
+func (s *DataStore) CheckAndroidWebAppNameExists(ctx context.Context, name string) (bool, error) {
+	s.mu.Lock()
+	s.CheckAndroidWebAppNameExistsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CheckAndroidWebAppNameExistsFunc(ctx, name)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
