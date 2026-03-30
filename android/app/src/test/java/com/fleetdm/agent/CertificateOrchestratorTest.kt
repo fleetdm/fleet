@@ -1291,4 +1291,44 @@ class CertificateOrchestratorTest {
         assertEquals(CertificateStatus.INSTALLED, getStoredCertificates()[1]?.status)
         assertEquals(CertificateStatus.REMOVED_UNREPORTED, getStoredCertificates()[2]?.status)
     }
+
+    @Test
+    fun `enrollCertificate marks locally failed when server template status is failed`() = runTest {
+        val certificateId = 42
+        val uuid = "test-uuid"
+
+        // Arrange: configure API to return a template with status "failed"
+        fakeApiClient.getCertificateTemplateHandler = { certId ->
+            Result.success(
+                CertificateTemplateResult(
+                    template = TestCertificateTemplateFactory.create(
+                        id = certId,
+                        name = "cert-failed",
+                        status = "failed",
+                    ),
+                    scepUrl = TestCertificateTemplateFactory.DEFAULT_SCEP_URL,
+                ),
+            )
+        }
+
+        // Act
+        val result = orchestrator.enrollCertificate(context, certificateId, uuid, mockInstaller)
+
+        // Assert: returns PermanentlyFailed
+        assertTrue(
+            "Expected PermanentlyFailed but got: $result",
+            result is CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed,
+        )
+
+        // Assert: local state is FAILED so future runs skip this certificate
+        val stored = getStoredCertificates()
+        assertEquals(CertificateStatus.FAILED, stored[certificateId]?.status)
+        assertEquals(uuid, stored[certificateId]?.uuid)
+
+        // Assert: no SCEP enrollment was attempted
+        assertNull("SCEP client should not have been called", mockScepClient.capturedConfig)
+
+        // Assert: no status update sent to server (server already knows it failed)
+        assertTrue("No status update should be sent", fakeApiClient.updateStatusCalls.isEmpty())
+    }
 }
