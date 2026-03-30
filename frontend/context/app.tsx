@@ -361,10 +361,8 @@ const reducer = (state: InitialStateType, action: IAction) => {
           t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
       );
       if (user && permissions.isOnGlobalTeam(user)) {
-        sortedTeams.unshift(
-          APP_CONTEXT_ALL_TEAMS_SUMMARY,
-          APP_CONTEXT_NO_TEAM_SUMMARY
-        );
+        sortedTeams.unshift(APP_CONTEXT_ALL_TEAMS_SUMMARY);
+        sortedTeams.push(APP_CONTEXT_NO_TEAM_SUMMARY);
       }
 
       return {

@@ -221,8 +221,15 @@ const getDefaultTeam = ({
         defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
       }
       if (!defaultTeam && includeNoTeam) {
-        // default to No team when "All teams" not included and no team is included
-        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+        // prefer the real team with the lowest ID over "Unassigned"
+        const realTeams = userTeams.filter(
+          (t) => t.id > APP_CONTEXT_NO_TEAM_ID
+        );
+        if (realTeams.length > 0) {
+          defaultTeam = realTeams.reduce((min, t) => (t.id < min.id ? t : min));
+        } else {
+          defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+        }
       }
     }
 
