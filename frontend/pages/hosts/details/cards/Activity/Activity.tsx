@@ -58,6 +58,8 @@ interface IActivityProps {
    * upcoming activities and mdm commands. */
   upcomingCount: number;
   canCancelActivities: boolean;
+  /** When true, the Upcoming tab is disabled with a tooltip */
+  isUpcomingDisabled?: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -79,6 +81,7 @@ const Activity = ({
   className,
   upcomingCount,
   canCancelActivities,
+  isUpcomingDisabled = false,
   onChangeTab,
   onNextPage,
   onPreviousPage,
@@ -116,8 +119,18 @@ const Activity = ({
             <Tab>
               <TabText>Past</TabText>
             </Tab>
-            <Tab>
-              <TabText count={upcomingCount}>Upcoming</TabText>
+            <Tab disabled={isUpcomingDisabled}>
+              {isUpcomingDisabled ? (
+                <TooltipWrapper
+                  tipContent="Currently, upcoming activity is only supported for macOS, Windows, Linux, iOS, and iPadOS hosts."
+                  showArrow
+                  underline={false}
+                >
+                  <TabText>Upcoming</TabText>
+                </TooltipWrapper>
+              ) : (
+                <TabText count={upcomingCount}>Upcoming</TabText>
+              )}
             </Tab>
           </TabList>
           <TabPanel className={`${baseClass}__tab-panel`}>

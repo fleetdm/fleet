@@ -94,6 +94,9 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import CertificateInstallDetailsModal, {
+  ICertificateInstallDetails,
+} from "components/ActivityDetails/InstallDetails/CertificateInstallDetailsModal";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
@@ -268,6 +271,10 @@ const HostDetailsPage = ({
     activityVPPInstallDetails,
     setActivityVPPInstallDetails,
   ] = useState<IVppInstallDetails | null>(null);
+  const [
+    certificateInstallDetails,
+    setCertificateInstallDetails,
+  ] = useState<ICertificateInstallDetails | null>(null);
   const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
     null
   );
@@ -842,6 +849,15 @@ const HostDetailsPage = ({
             platform: details?.host_platform || host?.platform,
           });
           break;
+        case "installed_certificate":
+          setCertificateInstallDetails({
+            certificateName: details?.certificate_name || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+            status: details?.status || "",
+            detail: details?.detail || "",
+          });
+          break;
         default: // do nothing
       }
     },
@@ -1387,6 +1403,7 @@ const HostDetailsPage = ({
                     isHostTeamAdmin ||
                     isHostTeamMaintainer
                   }
+                  isUpcomingDisabled={isAndroidHost}
                   showMDMCommandsToggle={canGetMDMCommands}
                   showMDMCommands={showMDMCommands}
                   onShowMDMCommands={() => {
@@ -1641,6 +1658,12 @@ const HostDetailsPage = ({
             <VppInstallDetailsModal
               details={activityVPPInstallDetails}
               onCancel={onCancelVppInstallDetailsModal}
+            />
+          )}
+          {!!certificateInstallDetails && (
+            <CertificateInstallDetailsModal
+              details={certificateInstallDetails}
+              onCancel={() => setCertificateInstallDetails(null)}
             />
           )}
           {!!mdmCommandDetails && (

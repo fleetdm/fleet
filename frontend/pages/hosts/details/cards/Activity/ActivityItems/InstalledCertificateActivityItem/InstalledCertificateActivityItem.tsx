@@ -2,13 +2,14 @@ import React from "react";
 
 import ActivityItem from "components/ActivityItem";
 
-import { IHostActivityItemComponentProps } from "../../ActivityConfig";
+import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
 const baseClass = "installed-certificate-activity-item";
 
 const InstalledCertificateActivityItem = ({
   activity,
-}: IHostActivityItemComponentProps) => {
+  onShowDetails,
+}: IHostActivityItemComponentPropsWithShowDetails) => {
   const isFailed = activity.details?.status === "failed_install";
 
   return (
@@ -16,13 +17,13 @@ const InstalledCertificateActivityItem = ({
       className={baseClass}
       activity={activity}
       hideCancel
-      hideShowDetails
+      hideShowDetails={!isFailed}
+      onShowDetails={onShowDetails}
     >
       {isFailed ? (
         <>
           <b>Fleet</b> failed to install certificate{" "}
           <b>{activity.details?.certificate_name}</b> on this host.
-          {activity.details?.detail && <> Detail: {activity.details.detail}</>}
         </>
       ) : (
         <>
