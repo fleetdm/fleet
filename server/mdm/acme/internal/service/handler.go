@@ -45,6 +45,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 
 	ae.POST("/api/mdm/acme/{identifier}/new_account", createAccountEndpoint, api_http.JWSRequestContainer{})
 	ae.POST("/api/mdm/acme/{identifier}/new_order", createOrderEndpoint, api_http.JWSRequestContainer{})
+	// POST-as-GET for order endpoint, as per RFC.
+	ae.POST("/api/mdm/acme/{identifier}/orders/{order_id}", getOrderEndpoint, api_http.JWSRequestContainer{})
 }
 
 func skipStandardFleetAuth() endpoint.Middleware {
@@ -117,6 +119,25 @@ func createOrderEndpoint(ctx context.Context, request any, svc api.Service) plat
 	orderResp, err := svc.CreateOrder(ctx, newOrderRequest.Enrollment, newOrderRequest.Account, partialOrder)
 	if err != nil {
 		return &api_http.CreateNewOrderResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+	return &api_http.CreateNewOrderResponse{
+		Nonces:        svc.NoncesStore(),
+		OrderResponse: orderResp,
+	}
+}
+
+// getOrderEndpoint handles POST-as-GET /api/mdm/acme/{identifier}/orders/{id} requests.
+func getOrderEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.JWSRequestContainer)
+	orderRequest := &api_http.GetOrderRequest{OrderID: req.OrderID}
+	err := svc.AuthenticateMessageFromAccount(ctx, req, orderRequest)
+	if err != nil {
+		return &api_http.GetOrderResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+
+	orderResp, err := svc.GetOrder(ctx, orderRequest.Enrollment, orderRequest.Account, orderRequest.OrderID)
+	if err != nil {
+		return &api_http.GetOrderResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
 	return &api_http.CreateNewOrderResponse{
 		Nonces:        svc.NoncesStore(),

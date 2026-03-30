@@ -90,6 +90,18 @@ func TooManyOrdersError(detail string) *ACMEError {
 	}
 }
 
+// NOTE: surprisingly, the RFC does not document an error and status code for
+// a POST-as-GET to an order URL with an ID that does not exist, so this is a
+// Fleet custom error code.
+func OrderDoesNotExistError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "orderDoesNotExist",
+		Title:      "The request specified an order that does not exist",
+		Detail:     detail,
+		StatusCode: http.StatusNotFound,
+	}
+}
+
 func RejectedIdentifierError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "rejectedIdentifier",

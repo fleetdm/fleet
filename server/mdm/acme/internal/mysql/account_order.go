@@ -195,3 +195,40 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 	}
 	return order, nil
 }
+
+func (ds *Datastore) GetOrderByID(ctx context.Context, accountID, orderID uint) (*types.Order, []*types.Authorization, error) {
+	// condition is on both account and order ids, so that we don't get a match on
+	// just the order id that wouldn't be associated with the validated account from
+	// the request.
+	const getOrderStmt = `SELECT id, acme_account_id, finalized, certificate_signing_request, identifiers, status, issued_certificate_serial
+		FROM acme_orders WHERE acme_account_id = ? AND id = ?`
+
+	var dbOrder struct {
+		types.Order
+		RawIdentifiers []byte `db:"identifiers"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dbOrder, getOrderStmt, accountID, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = types.OrderDoesNotExistError(fmt.Sprintf("No order exists with id %d for this account", orderID))
+			return nil, nil, ctxerr.Wrap(ctx, err)
+		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "select acme order")
+	}
+
+	var identifiers []types.Identifier
+	if err := json.Unmarshal(dbOrder.RawIdentifiers, &identifiers); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal acme order identifiers")
+	}
+	dbOrder.Identifiers = identifiers
+
+	const listAuthorizationsStmt = `SELECT id, acme_order_id, identifier_type, identifier_value, status
+		FROM acme_authorizations WHERE acme_order_id = ?`
+	var authorizations []*types.Authorization
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &authorizations, listAuthorizationsStmt, orderID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select acme authorizations for order")
+	}
+
+	return &dbOrder.Order, authorizations, nil
+}
