@@ -216,9 +216,10 @@ func (svc *Service) SoftwareLiteByID(
 	ctx context.Context,
 	id uint,
 ) (fleet.SoftwareLite, error) {
-	// Skip auth, this data is okay to show to any user
-	systemCtx := viewer.NewSystemContext(ctx)
-	swLite, err := svc.ds.SoftwareLiteByID(systemCtx, id)
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+	swLite, err := svc.ds.SoftwareLiteByID(ctx, id)
 	if err != nil {
 		return fleet.SoftwareLite{}, err
 	}
