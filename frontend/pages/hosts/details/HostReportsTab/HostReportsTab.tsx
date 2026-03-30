@@ -189,7 +189,6 @@ const HostReportsTab = ({
     [router]
   );
 
-
   if (isLoading) {
     return <Spinner />;
   }
