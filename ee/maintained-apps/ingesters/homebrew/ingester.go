@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/ghodss/yaml"
 )
 
 func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
@@ -216,22 +215,11 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	external_refs.EnrichManifest(out)
 
 	// create patch policy
-	p := patch_policy.PolicyData{
-		Platform:         "darwin",
-		Version:          out.Version,
-		BundleIdentifier: out.UniqueIdentifier,
-	}
-	if input.PatchPolicyPath != "" {
-		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy path")
-		}
-
-		if err := yaml.Unmarshal(policyBytes, &p); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
-		}
-	}
-	out.Queries.Patch, err = patch_policy.GenerateQueryForManifest(p)
+	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "darwin",
+		Version:     out.Version,
+		ExistsQuery: out.Queries.Exists,
+	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}

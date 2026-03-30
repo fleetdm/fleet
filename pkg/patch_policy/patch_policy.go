@@ -10,40 +10,37 @@ import (
 
 type PolicyData struct {
 	Name        string
-	Query       string
 	Platform    string
 	Description string
 	Resolution  string
-	// Information required for query
-	Version          string
-	SoftwareTitle    string
-	BundleIdentifier string
-	Publisher        string
-	FuzzyMatchName   bool
+	Query       string
+	ExistsQuery string
+	Version     string
 }
 
-const versionVariable = "$FMA_VERSION"
+const (
+	templateStart      = "SELECT 1 WHERE NOT EXISTS ("
+	templateEndDarwin  = " AND version_compare(bundle_short_version, '%s') < 0);"
+	templateEndWindows = " AND version_compare(version, '%s') < 0);"
+)
 
 var (
 	ErrWrongPlatform = errors.New("platform should be darwin or windows")
+	ErrNoExistsQuery = errors.New("exists query was not provided")
 )
 
-// GenerateQueryForManifest either creates a default query or replaces the $FMA_VERSION variable in a given one
+// GenerateQueryForManifest wraps the "exists" query to create a patch policy query
 func GenerateQueryForManifest(p PolicyData) (string, error) {
-	if p.Query != "" {
-		// Version is extracted from the manifest so this should be safe to run as an osquery query
-		return strings.ReplaceAll(p.Query, versionVariable, p.Version), nil
+	if p.ExistsQuery == "" {
+		return "", ErrNoExistsQuery
 	}
+	before, _ := strings.CutSuffix(p.ExistsQuery, ";")
 
 	switch p.Platform {
 	case "darwin":
-		if p.Query == "" {
-			return defaultMacOSQuery(p.BundleIdentifier, p.Version), nil
-		}
+		return fmt.Sprintf(templateStart+before+templateEndDarwin, p.Version), nil
 	case "windows":
-		if p.Query == "" {
-			return defaultWindowsQuery(p.SoftwareTitle, p.Version, p.Publisher, p.FuzzyMatchName), nil
-		}
+		return fmt.Sprintf(templateStart+before+templateEndWindows, p.Version), nil
 	}
 	return "", ErrWrongPlatform
 }
@@ -74,7 +71,7 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 			p.Name = fmt.Sprintf("Windows - %s up to date", installer.SoftwareTitle)
 		}
 		if installer.PatchQuery == "" {
-			query = defaultWindowsQuery(installer.SoftwareTitle, installer.Version, "", false)
+			query = defaultWindowsQuery(installer.SoftwareTitle, installer.Version)
 		}
 	default:
 		return nil, ErrWrongPlatform
@@ -83,24 +80,12 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 	return &PolicyData{Query: query, Platform: installer.Platform, Name: p.Name, Description: p.Description, Resolution: p.Resolution}, nil
 }
 
-func defaultMacOSQuery(bundleIdentifier, version string) string {
-	return fmt.Sprintf(
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
-		bundleIdentifier,
-		version,
-	)
+func defaultMacOSQuery(bundleIdentifier string, version string) string {
+	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);"
+	return fmt.Sprintf(patchTemplate, bundleIdentifier, version)
 }
 
-func defaultWindowsQuery(softwareTitle, version, publisher string, fuzzyMatchName bool) string {
-	// TODO: use upgrade code to improve accuracy?
-	if publisher != "" {
-		patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s' AND version_compare(version, '%s') < 0);"
-		if fuzzyMatchName {
-			patchTemplate = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s' AND version_compare(version, '%s') < 0);"
-		}
-		return fmt.Sprintf(patchTemplate, softwareTitle, publisher, version)
-	}
-
+func defaultWindowsQuery(softwareTitle string, version string) string {
 	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);"
 	return fmt.Sprintf(patchTemplate, softwareTitle, version)
 }
