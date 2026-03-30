@@ -163,19 +163,19 @@ const IdentityProviderSection = () => {
         <PageDescription
           content={
             <>
-              Configure and manage integrations between Fleet and your identity
-              provider (IdP). Connecting your IdP enables mapping end users to
-              hosts and deleting{" "}
+              Connect your IdP to map end users to
+              hosts and delete{" "}
               <TooltipWrapper
                 tipContent={
                   <>
-                    A <strong>Fleet user</strong> is considered an IT admin.
+                    A <strong>Fleet user</strong> manages Fleet.
                   </>
                 }
               >
                 Fleet users
               </TooltipWrapper>{" "}
-              when they are removed from your IdP.
+              when they are removed from your IdP. To configure authentication 
+              for Fleet users and end users, head to <a>Single-sign on (SS)</a>
             </>
           }
           variant="right-panel"
