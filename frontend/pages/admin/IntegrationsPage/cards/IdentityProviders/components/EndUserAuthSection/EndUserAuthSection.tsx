@@ -136,17 +136,15 @@ const EndUserAuthSection = ({
     return (
       <form>
         <p>
-          If enabled in{" "}
+          After configuring, head to{" "}
           <strong>
             Controls &gt; Setup experience &gt; End user authentication
           </strong>
-          , end users will be required to authenticate when they first set up
-          their host.
+          to require end users to authenticate.
         </p>
         <div
-          className={`form ${
-            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-          }`}
+          className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+            }`}
         >
           <InputField
             label="Identity provider name"

@@ -181,6 +181,7 @@ const IdentityProviderSection = () => {
                 text="Single sign-on (SSO)"
                 url={PATHS.ADMIN_INTEGRATIONS_SSO}
               />
+              .
             </>
           }
           variant="right-panel"

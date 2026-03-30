@@ -215,9 +215,8 @@ const Sso = ({
       <form onSubmit={onFormSubmit} autoComplete="off">
         {/* "form" class applies global form styling to fields for free */}
         <div
-          className={`form ${
-            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-          }`}
+          className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+            }`}
         >
           <Checkbox
             onChange={onInputChange}
@@ -357,9 +356,8 @@ const Sso = ({
         content={
           <>
             Configure authentication for Fleet users logging into Fleet or end
-            users enrolling their hosts. To populate host vitals from your
-            identity provider and automatically delete Fleet users when they are
-            removed from your IdP, head to{" "}
+            users enrolling their hosts. To populate identity provider (IdP) host vitals
+            and automatically delete Fleet users, head to{" "}
             <CustomLink
               text="Identity provider (IdP)"
               url={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
