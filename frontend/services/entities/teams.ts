@@ -26,6 +26,7 @@ interface ILoadTeamsParams {
  */
 export interface ILoadTeamResponse {
   team: ITeamConfig;
+  fleet: ITeamConfig;
 }
 
 export interface ILoadTeamsResponse {

@@ -40,6 +40,14 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	return responseBody.AppleBM, err
 }
 
+// GetVPPTokens retrieves the List Volume Purchasing Program (VPP) tokens
+func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	verb, path := "GET", "/api/latest/fleet/vpp_tokens"
+	var responseBody getVPPTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Tokens, err
+}
+
 func (c *Client) CountABMTokens() (int, error) {
 	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
 	var responseBody countABMTokensResponse
