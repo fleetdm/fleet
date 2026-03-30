@@ -6309,16 +6309,16 @@ func RenewSCEPCertificates(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting device info for ACME renewal")
 		}
-		logErrs := []any{
-			"checking ACME requirement for hosts renewing SCEP certificates",
-			"require_hardware_attestation", appConfig.MDM.AppleRequireHardwareAttestation,
-		}
+		logErrs := []any{}
 		for _, info := range di {
 			if ok, err := isMacACMESupported(info.HardwareModel, info.OSVersion); err != nil {
 				logErrs = append(logErrs, "host_uuid", info.HostUUID, "error", err)
 			} else if ok {
 				acmeRequiredByHostUUID[info.HostUUID] = info
 			}
+		}
+		if len(logErrs) > 0 {
+			logger.ErrorContext(ctx, "checking ACME requirement for hosts renewing SCEP certificates", logErrs...)
 		}
 	}
 
@@ -6346,7 +6346,6 @@ func RenewSCEPCertificates(
 		}
 
 		if len(filteredAssocs) > 0 {
-			// logger.InfoContext(ctx, "renewing SCEP certificates for hosts without enrollment references", "count", len(filteredAssocs))
 			profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 				appConfig.OrgInfo.OrgName,
 				appConfig.MDMUrl(),
@@ -6431,7 +6430,7 @@ func RenewSCEPCertificates(
 		}
 	}
 
-	// generate and send enrollment profiles for hosts that require ACME renewal
+	// Generate and send enrollment profiles for hosts that require ACME renewal
 	for hostUUID, assoc := range acmeAssocsByHostUUID {
 		enrollURL := appConfig.MDMUrl()
 		if assoc.EnrollReference != "" {
