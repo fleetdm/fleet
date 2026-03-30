@@ -22,7 +22,6 @@ export const getErrorMessage = (err: unknown) => {
     isAxiosError(err) &&
     (err.response?.status === 504 || err.response?.status === 408);
   const reason = getErrorReason(err);
-
   if (isTimeout) {
     return REQUEST_TIMEOUT_ERROR_MESSAGE;
   }
@@ -69,6 +68,9 @@ export const getErrorMessage = (err: unknown) => {
   }
 
   if (reason) {
+    if (reason.startsWith("Couldn't add.")) {
+      return `${ensurePeriod(reason)}`;
+    }
     return `${ADD_SOFTWARE_ERROR_PREFIX} ${ensurePeriod(reason)}`;
   }
 
