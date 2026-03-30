@@ -3,7 +3,8 @@
     {
       "version": "7.3.2",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.yubioath';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.yubioath';",
+        "patch": ""
       },
       "installer_url": "https://developers.yubico.com/yubioath-flutter/Releases/yubico-authenticator-7.3.2-mac.dmg",
       "install_script_ref": "33361a95",

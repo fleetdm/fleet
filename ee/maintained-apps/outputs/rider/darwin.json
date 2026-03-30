@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "2025.3.3",
+      "version": "2025.3.4",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rider';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rider';",
+        "patch": ""
       },
-      "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2025.3.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2025.3.4-aarch64.dmg",
       "install_script_ref": "dcde12f6",
       "uninstall_script_ref": "c52923fe",
-      "sha256": "e8031c9e1647f21de3533ebe828c9c318dfdbe4ca859087fce6d9affd2a0b751",
+      "sha256": "a1600a029e932685b4555bb734eac3c6cd71456a08680ca005045ea3f43b7e4f",
       "default_categories": [
         "Developer tools"
       ]

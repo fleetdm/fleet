@@ -4,6 +4,7 @@ import { Column } from "react-table";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   IHostMdmProfile,
   isLinuxDiskEncryptionStatus,
@@ -47,6 +48,7 @@ const generateTableConfig = (
   canResendProfiles: boolean,
   resendRequest: (profileUUID: string) => Promise<void>,
   onProfileResent: () => void,
+  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>,
   canRotateRecoveryLockPassword?: boolean,
   rotateRecoveryLockPassword?: () => Promise<void>
 ): ITableColumnConfig[] => {
@@ -97,6 +99,10 @@ const generateTableConfig = (
         const isAppleMobileConfigProfile =
           isAppleDevice(platform) && !isDDMProfile(cellProps.row.original);
         const isWindowsProfile = platform === "windows";
+        const isAndroidCertificate =
+          platform === "android" &&
+          cellProps.row.original.profile_uuid ===
+            FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
 
         const isRecoveryLockRow =
           cellProps.row.original.profile_uuid ===
@@ -106,13 +112,16 @@ const generateTableConfig = (
           <OSSettingsErrorCell
             canResendProfiles={
               canResendProfiles &&
-              (isWindowsProfile || isAppleMobileConfigProfile)
+              (isWindowsProfile ||
+                isAppleMobileConfigProfile ||
+                isAndroidCertificate)
             }
             canRotateRecoveryLockPassword={
               isRecoveryLockRow && canRotateRecoveryLockPassword
             }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
+            resendCertificateRequest={resendCertificateRequest}
             rotateRecoveryLockPassword={rotateRecoveryLockPassword}
             onProfileResent={onProfileResent}
           />
@@ -176,12 +185,12 @@ const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
 
 const makeDarwinRows = ({
   profiles,
-  macos_settings,
+  apple_settings,
   os_settings,
 }: IHostMdmData) => {
   let rows: IHostMdmProfileWithAddedStatus[] = profiles ?? [];
 
-  if (macos_settings?.disk_encryption === "action_required") {
+  if (apple_settings?.disk_encryption === "action_required") {
     const dERow = profiles?.find(
       (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
     );

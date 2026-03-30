@@ -273,9 +273,16 @@ type DiskEncryptionConfig struct {
 	BitLockerPINRequired bool
 }
 
-type UIGitOpsModeConfig struct {
-	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
-	RepositoryURL     string `json:"repository_url"`
+type GitOpsExceptions struct {
+	Labels   bool `json:"labels"`
+	Software bool `json:"software"`
+	Secrets  bool `json:"secrets"`
+}
+
+type GitOpsConfig struct {
+	GitopsModeEnabled bool             `json:"gitops_mode_enabled"`
+	RepositoryURL     string           `json:"repository_url"`
+	Exceptions        GitOpsExceptions `json:"exceptions"`
 }
 
 func (c *AppConfig) MDMUrl() string {
@@ -673,7 +680,7 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
-	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
+	GitOpsConfig GitOpsConfig `json:"gitops"`
 
 	// Scripts is a slice of script file paths.
 	//
@@ -1063,6 +1070,10 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.SSOSettings = &ssoSettings
 
 	c.Features.ApplyDefaultsForNewInstalls()
+
+	c.GitOpsConfig.Exceptions.Secrets = true
+	c.GitOpsConfig.Exceptions.Labels = false
+	c.GitOpsConfig.Exceptions.Software = false
 
 	c.ApplyDefaults()
 }

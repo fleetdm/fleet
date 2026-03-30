@@ -159,7 +159,7 @@ func TestLabelsAuth(t *testing.T) {
 		case team2LabelID: // team2 label
 			return &fleet.LabelWithTeamName{Label: team2Label}, nil, nil
 		}
-		return nil, nil, ctxerr.Wrap(ctx, &notFoundErr{msg: "label"})
+		return nil, nil, ctxerr.Wrap(ctx, &notFoundErr{Msg: "label"})
 	}
 
 	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
@@ -713,6 +713,60 @@ func TestBatchValidateLabels(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	user := &fleet.User{
+		ID:         3,
+		Email:      "foo@bar.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{}, nil
+	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, namesToMove []string, user fleet.User) error {
+		return nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		return nil
+	}
+
+	// Manual label with nil hosts (omitted) should be accepted
+	err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "manual_no_hosts",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               nil,
+		},
+	}, nil, nil)
+	require.NoError(t, err)
+
+	// Manual label with empty hosts should also be accepted
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "manual_empty_hosts",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{},
+		},
+	}, nil, nil)
+	require.NoError(t, err)
+
+	// Dynamic label with hosts should still be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "dynamic_with_hosts",
+			Query:               "SELECT 1",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			Hosts:               []string{"host1"},
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as dynamic but contains `hosts` key")
 }
 
 func TestNewManualLabel(t *testing.T) {

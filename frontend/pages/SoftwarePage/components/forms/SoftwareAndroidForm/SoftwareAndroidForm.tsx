@@ -17,7 +17,9 @@ import {
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
+  isAndroidWebApp,
 } from "pages/SoftwarePage/helpers";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 
 import generateFormValidation from "./helpers";
 import { AndroidOptionsDescription } from "../SoftwareOptionsSelector/SoftwareOptionsSelector";
@@ -131,6 +133,21 @@ const SoftwareAndroidForm = ({
             disabled={gitOpsModeEnabled} // TODO: Confirm GitOps behavior
           />
         </div>
+        {isAndroidWebApp(formData.applicationID) && (
+          <InfoBanner
+            color="yellow"
+            cta={
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-web-apps-chrome-required`}
+                text="Learn more"
+                newTab
+              />
+            }
+          >
+            This is an Android web app and it requires Google Chrome to work.
+            Please make sure you add Google Chrome to this fleet.
+          </InfoBanner>
+        )}
         <div>
           <AndroidOptionsDescription />
         </div>

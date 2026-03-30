@@ -76,7 +76,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 
 func EnableClientDebug() ClientOption {
 	return func(c *Client) error {
-		httpClient, ok := c.http.(*http.Client)
+		httpClient, ok := c.HTTP.(*http.Client)
 		if !ok {
 			return errors.New("client is not *http.Client")
 		}
@@ -118,7 +118,7 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 	request, err := http.NewRequestWithContext(
 		ctx,
 		verb,
-		c.url(path, rawQuery).String(),
+		c.URL(path, rawQuery).String(),
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
@@ -134,7 +134,7 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 		request.Header.Set(k, v)
 	}
 
-	resp, err := c.http.Do(request)
+	resp, err := c.HTTP.Do(request)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "do request")
 	}
@@ -280,7 +280,7 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
-	return c.parseResponse(verb, path, response, responseDest)
+	return c.ParseResponse(verb, path, response, responseDest)
 }
 
 func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
@@ -676,10 +676,7 @@ func (c *Client) ApplyGroup(
 
 		// Keep any existing GitOps mode config rather than attempting to set via GitOps.
 		if appconfig != nil {
-			specs.AppConfig.(map[string]interface{})["gitops"] = fleet.UIGitOpsModeConfig{
-				GitopsModeEnabled: appconfig.UIGitOpsMode.GitopsModeEnabled,
-				RepositoryURL:     appconfig.UIGitOpsMode.RepositoryURL,
-			}
+			specs.AppConfig.(map[string]any)["gitops"] = appconfig.GitOpsConfig
 		}
 
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
@@ -925,8 +922,16 @@ func (c *Client) ApplyGroup(
 		}
 
 		// if setup_experience.software has some values, they must exist in the software
-		// packages or vpp apps.
+		// packages or vpp apps. When software is excepted from GitOps, the validation
+		// maps (tmSoftwarePackagesWithPaths/tmSoftwareAppsByAppID) are empty because
+		// the team spec doesn't include software. Additionally, setup_experience
+		// references packages by file path which server-side data doesn't have.
+		// The server will validate when the setup experience is applied.
+		softwareExcepted := viaGitOps && appconfig != nil && appconfig.GitOpsConfig.Exceptions.Software
 		for tmName, setupSw := range tmMacSetupSoftware {
+			if softwareExcepted {
+				continue
+			}
 			if err := validateTeamOrNoTeamMacOSSetupSoftware(tmName, setupSw, tmSoftwarePackagesWithPaths[tmName], tmSoftwareAppsByAppID[tmName]); err != nil {
 				return nil, nil, nil, nil, err
 			}
@@ -1881,6 +1886,28 @@ func (c *Client) DoGitOps(
 
 	group := spec.Group{} // as we parse the incoming gitops spec, we'll build out various group specs that will each be applied separately
 
+	// Check GitOps exception enforcement. When an entity type is excepted:
+	// - If the key is present in the YAML, fail with an error.
+	// - If the key is absent, it's a no-op (existing entities preserved).
+	// When an entity type is NOT excepted:
+	// - If the key is absent, all entities of that type are deleted.
+	var exceptions fleet.GitOpsExceptions
+	if appConfig != nil {
+		exceptions = appConfig.GitOpsConfig.Exceptions
+		if exceptions.Labels && incoming.LabelsPresent {
+			return nil, errors.New(
+				`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
+		}
+		if exceptions.Secrets && incoming.SecretsPresent {
+			return nil, errors.New(
+				`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
+		}
+		if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
+			return nil, errors.New(
+				`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+		}
+	}
+
 	if incoming.TeamName == nil {
 		// OrgSettings is the basis of the group AppConfig, but we will be adding and removing some
 		// items because the GitOps structure is not the same as the AppConfig structure.
@@ -1891,10 +1918,14 @@ func (c *Client) DoGitOps(
 
 		// Enroll secrets are managed separately in Client.ApplyGroup, so we remove them from the
 		// OrgSettings so that they are not applied as part of the AppConfig.
-		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok {
-			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
-			delete(incoming.OrgSettings, "secrets")
+		// If secrets are not excepted and key is absent, treat as delete-all.
+		if !exceptions.Secrets && !incoming.SecretsPresent {
+			incoming.OrgSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
+		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && !exceptions.Secrets {
+			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
+		}
+		delete(incoming.OrgSettings, "secrets")
 
 		// Certificate authorities are managed separately in Client.ApplyGroup, so we remove them from the
 		// OrgSettings so that they are not applied as part of the AppConfig.
@@ -1905,8 +1936,8 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
-		// Labels
-		if incoming.Labels == nil || len(incoming.Labels) > 0 {
+		// Update labels if there were any changes.
+		if incoming.LabelChangesSummary.HasChanges() {
 			err := c.doGitOpsLabels(incoming, logFn, dryRun)
 			if err != nil {
 				return nil, err
@@ -2115,11 +2146,21 @@ func (c *Client) DoGitOps(
 			team["features"] = features
 		}
 		team["scripts"] = scripts
-		team["software"] = map[string]any{}
-		team["software"].(map[string]any)["app_store_apps"] = incoming.Software.AppStoreApps
-		team["software"].(map[string]any)["packages"] = incoming.Software.Packages
-		team["software"].(map[string]any)["fleet_maintained_apps"] = incoming.Software.FleetMaintainedApps
-		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok {
+		// Software: skip if excepted (key already validated as absent above).
+		if !exceptions.Software {
+			team["software"] = map[string]any{}
+			team["software"].(map[string]any)["app_store_apps"] = incoming.Software.AppStoreApps
+			team["software"].(map[string]any)["packages"] = incoming.Software.Packages
+			team["software"].(map[string]any)["fleet_maintained_apps"] = incoming.Software.FleetMaintainedApps
+		}
+		// Secrets: if not excepted and key is absent, treat as delete-all.
+		if !exceptions.Secrets && !incoming.SecretsPresent {
+			if incoming.TeamSettings == nil {
+				incoming.TeamSettings = make(map[string]any)
+			}
+			incoming.TeamSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
+		}
+		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && !exceptions.Secrets {
 			team["secrets"] = teamSecrets
 		}
 
@@ -2391,7 +2432,7 @@ func (c *Client) DoGitOps(
 			teamVPPApps = teamsVPPApps[*incoming.TeamName]
 			teamScripts = teamsScripts[*incoming.TeamName]
 		} else {
-			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSetupAndSoftware(incoming, baseDir, appConfig, logFn, dryRun)
+			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSetupAndSoftware(incoming, baseDir, appConfig, exceptions.Software, logFn, dryRun)
 			if err != nil {
 				return nil, err
 			}
@@ -2399,8 +2440,15 @@ func (c *Client) DoGitOps(
 			if err := c.doGitOpsNoTeamWebhookSettings(incoming, appConfig, logFn, dryRun); err != nil {
 				return nil, fmt.Errorf("applying webhook settings for unassigned hosts: %w", err)
 			}
-			teamSoftwareInstallers = noTeamSoftwareInstallers
-			teamVPPApps = noTeamVPPApps
+			if exceptions.Software && !incoming.SoftwarePresent {
+				// Software is excepted and not present in YAML — use pre-fetched data
+				// for policy validation instead of the empty data from the parser.
+				teamSoftwareInstallers = teamsSoftwareInstallers[*incoming.TeamName]
+				teamVPPApps = teamsVPPApps[*incoming.TeamName]
+			} else {
+				teamSoftwareInstallers = noTeamSoftwareInstallers
+				teamVPPApps = noTeamVPPApps
+			}
 			teamScripts = teamsScripts["No team"]
 		}
 	}
@@ -2505,6 +2553,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	config *spec.GitOps,
 	baseDir string,
 	appconfig *fleet.EnrichedAppConfig,
+	softwareExcepted bool,
 	logFn func(format string, args ...interface{}),
 	dryRun bool,
 ) ([]fleet.SoftwarePackageResponse, []fleet.VPPAppResponse, error) {
@@ -2526,6 +2575,26 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 			return nil, nil, fmt.Errorf("applying setup_experience.macos_script for unassigned hosts: %w", err)
 		}
 		macosSetupScript = &fileContent{Filename: filepath.Base(macOSSetup.Script.Value), Content: b}
+	}
+
+	// Apply the setup experience script regardless of software exception status,
+	// since it's part of controls, not software.
+	if !dryRun {
+		if macosSetupScript != nil {
+			logFn("[+] applying macos setup experience script for unassigned hosts\n")
+			if err := c.uploadMacOSSetupScript(macosSetupScript.Filename, macosSetupScript.Content, nil); err != nil {
+				return nil, nil, fmt.Errorf("uploading setup experience script for unassigned hosts: %w", err)
+			}
+		} else if err := c.deleteMacOSSetupScript(nil); err != nil {
+			return nil, nil, fmt.Errorf("deleting setup experience script for unassigned hosts: %w", err)
+		}
+	}
+
+	// When software is excepted from GitOps, don't apply software for no-team
+	// (which would wipe existing software with an empty payload). The caller
+	// uses pre-fetched server data for policy validation instead.
+	if softwareExcepted && !config.SoftwarePresent {
+		return nil, nil, nil
 	}
 
 	noTeamSoftwareMacOSSetup, err := extractTeamOrNoTeamMacOSSetupSoftware(baseDir, macOSSetup.Software.Value)
@@ -2606,16 +2675,6 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	swPkgPayload, err := buildSoftwarePackagesPayload(packages, noTeamSoftwareMacOSSetup)
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
-	}
-	if !dryRun {
-		if macosSetupScript != nil {
-			logFn("[+] applying macos setup experience script for unassigned hosts\n")
-			if err := c.uploadMacOSSetupScript(macosSetupScript.Filename, macosSetupScript.Content, nil); err != nil {
-				return nil, nil, fmt.Errorf("uploading setup experience script for unassigned hosts: %w", err)
-			}
-		} else if err := c.deleteMacOSSetupScript(nil); err != nil {
-			return nil, nil, fmt.Errorf("deleting setup experience script for unassigned hosts: %w", err)
-		}
 	}
 
 	format := applyingTeamFormat

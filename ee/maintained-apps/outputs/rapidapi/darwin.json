@@ -3,7 +3,8 @@
     {
       "version": "4.5.4",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw';",
+        "patch": ""
       },
       "installer_url": "https://cdn-builds.paw.cloud/paw/RapidAPI-4.5.4.zip",
       "install_script_ref": "7bceabe3",

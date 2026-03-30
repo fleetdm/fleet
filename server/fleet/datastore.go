@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -583,7 +583,7 @@ type Datastore interface {
 	// host (nil for global). maxQueryReportRows is the configured report cap used to determine
 	// whether each query's report has been clipped. It returns the list of reports, the total
 	// count (without pagination), optional pagination metadata, and any error.
-	ListHostReports(ctx context.Context, hostID uint, teamID *uint, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
+	ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -1576,6 +1576,16 @@ type Datastore interface {
 	// This is used when a clear command fails with a transient error (not password mismatch).
 	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
+	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now.
+	// Called when the password is viewed and returns the scheduled rotation time.
+	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
+
+	// GetHostsForAutoRotation returns hosts where auto_rotate_at <= now
+	// and are eligible for rotation (verified status, no pending rotation).
+	// Returns host info needed for rotation and activity logging.
+	// Limited to 100 hosts per batch.
+	GetHostsForAutoRotation(ctx context.Context) ([]HostAutoRotationInfo, error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
@@ -1841,6 +1851,8 @@ type Datastore interface {
 	// target multiple hosts identified by their UUID, enqueuing one command
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
+
+	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsGetPendingCommands returns all the pending commands for a device
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
@@ -2744,6 +2756,8 @@ type Datastore interface {
 	// DeleteHostCertificateTemplate deletes a single host_certificate_template record
 	// identified by host_uuid and certificate_template_id.
 	DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error
+	// ResendHostCertificateTemplate queues a certificate template to be resent to a device
+	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
 	// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
 	// certificate templates in 'pending' status ready for delivery.
@@ -2788,8 +2802,6 @@ type Datastore interface {
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
-
-	UpdateOrDeleteHostMDMWindowsProfile(ctx context.Context, profile *HostMDMWindowsProfile) error
 
 	// GetWindowsMDMCommandsForResending retrieves Windows MDM commands that failed to be delivered
 	// and need to be resent based on their command IDs.

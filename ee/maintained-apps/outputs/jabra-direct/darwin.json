@@ -3,7 +3,8 @@
     {
       "version": "6.27.03702",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jabra.directonline';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jabra.directonline';",
+        "patch": ""
       },
       "installer_url": "https://jabraxpressonlineprdstor.blob.core.windows.net/jdo/JabraDirectSetup.dmg",
       "install_script_ref": "c5ead634",

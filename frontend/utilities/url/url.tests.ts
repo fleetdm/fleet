@@ -92,7 +92,7 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
     expect(
       reconcileMutuallyInclusiveHostParams({ macSettingsStatus, teamId })
     ).toEqual({
-      macos_settings: "pending",
+      apple_settings: "pending",
       fleet_id: 1,
     });
   });
@@ -105,7 +105,7 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
         teamId,
       })
     ).toEqual({
-      macos_settings: "pending",
+      apple_settings: "pending",
       fleet_id: 0,
     });
   });
@@ -117,10 +117,10 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
         macSettingsStatus,
         teamId,
       })
-    ).toEqual({ macos_settings: "pending", fleet_id: 0 });
+    ).toEqual({ apple_settings: "pending", fleet_id: 0 });
   });
 
-  it("does not add macos_settings when teamId is present and macSettingsStatus is not", () => {
+  it("does not add apple_settings when teamId is present and macSettingsStatus is not", () => {
     const [macSettingsStatus, teamId] = [undefined, 1];
     expect(
       reconcileMutuallyInclusiveHostParams({ macSettingsStatus, teamId })

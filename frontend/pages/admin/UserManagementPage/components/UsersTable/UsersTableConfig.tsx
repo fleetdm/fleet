@@ -22,7 +22,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IUser | IInvite;
+    original: IUserTableData;
   };
 }
 
@@ -56,7 +56,10 @@ export interface IUserTableData {
   teams: string;
   role: UserRole;
   actions: IDropdownOption[];
-  id: number;
+  /** Prefixed ID used as a unique react-table row key (e.g. "user-3", "invite-1") */
+  id: string;
+  /** Numeric ID used for API calls */
+  apiId: number;
   type: string;
   api_only: boolean;
 }
@@ -64,7 +67,7 @@ export interface IUserTableData {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, user: IUser | IInvite) => void,
+  actionSelectHandler: (value: string, user: IUserTableData) => void,
   isPremiumTier: boolean | undefined
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
@@ -276,7 +279,8 @@ const enhanceUserData = (
         false,
         user.sso_enabled
       ),
-      id: user.id,
+      id: `user-${user.id}`,
+      apiId: user.id,
       type: "user",
       api_only: user.api_only,
     };
@@ -292,7 +296,8 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       teams: generateTeam(invite.teams, invite.global_role),
       role: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(false, true, invite.sso_enabled),
-      id: invite.id,
+      id: `invite-${invite.id}`,
+      apiId: invite.id,
       type: "invite",
       api_only: false, // api only users are created through fleetctl and not invites
     };
