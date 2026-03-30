@@ -76,13 +76,17 @@ type Order struct {
 type OrderResponse struct {
 	ID             uint         `json:"id"`
 	Status         string       `json:"status"`
-	Expires        time.Time    `json:"expires"`
+	Expires        *time.Time   `json:"expires,omitempty"`
 	Identifiers    []Identifier `json:"identifiers"`
-	NotBefore      *time.Time   `json:"notBefore,omitempty"`
-	NotAfter       *time.Time   `json:"notAfter,omitempty"`
 	Authorizations []string     `json:"authorizations"`
 	Finalize       string       `json:"finalize"`
-	Location       string       `json:"-"`
+
+	// Location is set in the header, pointing to the created order's URL.
+	Location string `json:"-"`
+
+	// Currently we always leave those empty in the response.
+	NotBefore *time.Time `json:"notBefore,omitempty"`
+	NotAfter  *time.Time `json:"notAfter,omitempty"`
 }
 
 type Authorization struct {

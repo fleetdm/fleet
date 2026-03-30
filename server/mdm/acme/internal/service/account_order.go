@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
@@ -108,10 +107,8 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 	return &types.OrderResponse{
 		ID:             order.ID,
 		Status:         order.Status,
-		Expires:        time.Now(), // TODO(mna): what should this be set to?
+		Expires:        enrollment.NotValidAfter,
 		Identifiers:    order.Identifiers,
-		NotBefore:      nil, // TODO(mna): those are show in the example response in the docs, should we set them to something non-nil?
-		NotAfter:       nil,
 		Authorizations: []string{authzURL},
 		Finalize:       finalizeURL,
 		Location:       orderURL,
