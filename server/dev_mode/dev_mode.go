@@ -3,7 +3,6 @@ package dev_mode
 import (
 	"os"
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -11,9 +10,9 @@ import (
 // It must not be written from concurrent goroutines; SetOverride only affects enabledViaOverride/env overrides.
 var IsEnabled bool
 
-// enabledViaOverride is set atomically by SetOverride so that background goroutines
-// calling Env() do not race with test code that calls SetOverride().
-var enabledViaOverride atomic.Bool
+// enabledViaOverride is set by SetOverride and protected by mu so that it is
+// always observed consistently with envOverrides.
+var enabledViaOverride bool
 
 var mu sync.RWMutex
 
@@ -22,12 +21,12 @@ var envOverrides = map[string]string{}
 type GetEnv func(name string) string
 
 func Env(name string) string {
-	if !IsEnabled && !enabledViaOverride.Load() {
-		return ""
-	}
-
 	mu.RLock()
 	defer mu.RUnlock()
+
+	if !IsEnabled && !enabledViaOverride {
+		return ""
+	}
 
 	if override, ok := envOverrides[name]; ok {
 		return override
@@ -44,10 +43,10 @@ func SetOverride(name string, value string, cleanup ...*testing.T) { // optional
 		})
 	}
 
-	enabledViaOverride.Store(true) // if we're setting overrides, we're in a test environment, so allow Env() lookups via enabledViaOverride (without changing IsEnabled)
 	mu.Lock()
 	defer mu.Unlock()
 
+	enabledViaOverride = true // if we're setting overrides, we're in a test environment so want to turn dev mode on
 	envOverrides[name] = value
 }
 
