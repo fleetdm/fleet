@@ -44,7 +44,7 @@ func SetOverride(name string, value string, cleanup ...*testing.T) { // optional
 		})
 	}
 
-	enabledViaOverride.Store(true) // if we're setting overrides, we're in a test environment so want to turn dev mode on
+	enabledViaOverride.Store(true) // if we're setting overrides, we're in a test environment, so allow Env() lookups via enabledViaOverride (without changing IsEnabled)
 	mu.Lock()
 	defer mu.Unlock()
 
