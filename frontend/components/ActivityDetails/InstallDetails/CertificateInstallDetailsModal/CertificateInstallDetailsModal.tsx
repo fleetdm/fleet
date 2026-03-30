@@ -25,24 +25,11 @@ const CertificateInstallDetailsModal = ({
   details,
   onCancel,
 }: ICertificateInstallDetailsModalProps) => {
-  const { certificateName, hostDisplayName, status, detail } = details;
+  const { certificateName, hostDisplayName, detail } = details;
 
   const [showDetails, setShowDetails] = useState(false);
 
-  const isFailed = status === "failed_install";
-  const iconName = isFailed ? "error" : "success";
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
-
-  const statusMessage = isFailed ? (
-    <>
-      Fleet failed to install certificate <b>{certificateName}</b> on{" "}
-      {formattedHost}.
-    </>
-  ) : (
-    <>
-      Fleet installed certificate <b>{certificateName}</b> on {formattedHost}.
-    </>
-  );
 
   return (
     <Modal
@@ -54,10 +41,15 @@ const CertificateInstallDetailsModal = ({
       <div className={`${baseClass}__modal-content`}>
         <IconStatusMessage
           className={`${baseClass}__status-message`}
-          iconName={iconName}
-          message={<span>{statusMessage}</span>}
+          iconName="error"
+          message={
+            <span>
+              Fleet failed to install certificate <b>{certificateName}</b> on{" "}
+              {formattedHost}.
+            </span>
+          }
         />
-        {isFailed && detail && (
+        {detail && (
           <>
             <RevealButton
               isShowing={showDetails}
