@@ -230,6 +230,37 @@ func (s *integrationTestSuite) createAccountForOrder(t *testing.T, enrollment *t
 	return privateKey, accountURL, nextNonce
 }
 
+// getOrderURL returns the full URL for the get order endpoint.
+func (s *integrationTestSuite) getOrderURL(pathIdentifier string, orderID uint) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/orders/%d", s.server.URL, pathIdentifier, orderID)
+}
+
+// getOrder POSTs a JWS body to the order endpoint and returns the
+// order response or acme error and the raw response.
+func (s *integrationTestSuite) getOrder(t *testing.T, pathIdentifier string, orderID uint, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
+	t.Helper()
+	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/orders/%d", pathIdentifier, orderID) //nolint:gosec // test server URL is safe
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody))
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer drainAndCloseBody(resp)
+
+	if resp.StatusCode >= 300 {
+		var acmeErr types.ACMEError
+		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
+			return nil, &acmeErr, resp
+		}
+		return nil, nil, resp
+	}
+
+	var result types.OrderResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+	return &result, nil, resp
+}
+
 // createOrder POSTs a JWS body to the new_order endpoint and returns the
 // order response or acme error and the raw response.
 func (s *integrationTestSuite) createOrder(t *testing.T, pathIdentifier string, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
