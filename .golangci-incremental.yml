@@ -13,6 +13,7 @@ linters:
     - gosec
     - modernize
     - nilaway
+    - testifylint
   settings:
     gosec:
       # Only enable rules that are too noisy on existing code but valuable for new code.
