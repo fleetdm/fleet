@@ -138,4 +138,5 @@ type Datastore interface {
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)
 	CreateOrder(ctx context.Context, order *Order, authorization *Authorization, challenge *Challenge) (*Order, error)
 	GetOrderByID(ctx context.Context, accountID, orderID uint) (*Order, []*Authorization, error)
+	ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error)
 }

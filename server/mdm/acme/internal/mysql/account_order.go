@@ -245,3 +245,14 @@ func (ds *Datastore) GetOrderByID(ctx context.Context, accountID, orderID uint) 
 	}
 	return &dbOrder.Order, authorizations, nil
 }
+
+func (ds *Datastore) ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error) {
+	// must not include orders in status 'invalid'
+	const listOrderIDsStmt = `SELECT id FROM acme_orders WHERE acme_account_id = ? AND status != 'invalid'`
+	var ids []uint
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, listOrderIDsStmt, accountID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select acme order ids for account")
+	}
+	return ids, nil
+}

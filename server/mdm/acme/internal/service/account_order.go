@@ -146,3 +146,31 @@ func (s *Service) GetOrder(ctx context.Context, enrollment *types.Enrollment, ac
 	}
 	return s.createOrderResponse(ctx, enrollment, order, authorizations)
 }
+
+func (s *Service) ListAccountOrders(ctx context.Context, pathIdentifier string, account *types.Account) ([]string, error) {
+	// authorization is checked in the endpoint implementation for JWS-protected endpoints
+
+	orderIDs, err := s.store.ListAccountOrderIDs(ctx, account.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing account order IDs from datastore")
+	}
+
+	var orderURLs []string
+
+	if len(orderIDs) > 0 {
+		baseURL, err := s.getACMEBaseURL(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting base URL")
+		}
+
+		orderURLs = make([]string, len(orderIDs))
+		for i, orderID := range orderIDs {
+			orderURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, pathIdentifier, "orders", fmt.Sprint(orderID))
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "constructing order URL for account")
+			}
+			orderURLs[i] = orderURL
+		}
+	}
+	return orderURLs, nil
+}
