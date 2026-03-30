@@ -262,7 +262,7 @@ func findMinimumUpgrade(version string, sortedVersions []string, fixedBuilds map
 	return ""
 }
 
-// recordCVEFix records a CVE fix for each branch, keeping the first fix (earliest release).
+// recordCVEFix records a CVE fix for each branch, keeping the first seen fix per version.
 func recordCVEFix(cveToBuilds map[string]map[string]string, cve string, branches []VersionBranch) {
 	if cveToBuilds[cve] == nil {
 		cveToBuilds[cve] = make(map[string]string)
