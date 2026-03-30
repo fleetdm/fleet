@@ -990,35 +990,35 @@ This activity contains the following fields:
 
 ## enabled_macos_setup_create_local_idp_user_account
 
-Generated when a user turns on "Create local account from IdP" for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns on "Create local account from IdP" for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## disabled_macos_setup_create_local_idp_user_account
 
-Generated when a user turns off "Create local account from IdP" for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns off "Create local account from IdP" for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
