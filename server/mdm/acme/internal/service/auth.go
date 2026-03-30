@@ -124,10 +124,14 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 	if otherRequest != nil {
 		requestPayload = otherRequest
 	}
-	err = json.Unmarshal(payload, requestPayload)
-	if err != nil {
-		err = types.MalformedError(fmt.Sprintf("Failed to unmarshal JWS payload: %v", err))
-		return ctxerr.Wrap(ctx, err)
+	// From the RFC, for a POST-as-GET request, the payload is an empty JSON string,
+	// which would fail to unmarshal into an object, so we check it explicitly.
+	if string(payload) != `""` {
+		err = json.Unmarshal(payload, requestPayload)
+		if err != nil {
+			err = types.MalformedError(fmt.Sprintf("Failed to unmarshal JWS payload: %v", err))
+			return ctxerr.Wrap(ctx, err)
+		}
 	}
 
 	if createNewAccount != nil {

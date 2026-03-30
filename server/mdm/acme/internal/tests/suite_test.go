@@ -192,7 +192,10 @@ func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, nonce, accountURL, end
 		payloadBytes, err = json.Marshal(payload)
 		require.NoError(t, err)
 	} else {
-		payloadBytes = []byte("{}")
+		// as per the RFC:
+		// > [when doing a POST-as-GET] the "payload" field of the
+		// > JWS object MUST be present and set to the empty string ("").
+		payloadBytes = []byte(`""`)
 	}
 
 	jws, err := signer.Sign(payloadBytes)
