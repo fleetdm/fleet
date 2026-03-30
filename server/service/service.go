@@ -74,6 +74,9 @@ type Service struct {
 
 	// activitySvc is the activity bounded context service for write operations.
 	activitySvc fleet.ActivityWriteService
+
+	// acmeSvc is the ACME service module for write operations.
+	acmeSvc fleet.ACMEWriteService
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -199,6 +202,12 @@ func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
 // This should be called after NewService to inject the activity service dependency.
 func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	svc.activitySvc = activitySvc
+}
+
+// SetACMEService sets the ACME service module service for write operations.
+// This should be called after NewService to inject the ACME service dependency.
+func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
+	svc.acmeSvc = acmeSvc
 }
 
 type validationMiddleware struct {

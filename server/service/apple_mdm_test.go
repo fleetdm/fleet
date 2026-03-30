@@ -7113,11 +7113,32 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 		}{
 			{
 				name: "Apple Silicon Mac", mi: fleet.MDMAppleMachineInfo{
-					Product: "MacBookPro18,3", // major 18 >= threshold of 17 → Apple Silicon
-					Serial:  "MACSILSERIAL",
-					UDID:    "mac-sil-udid",
+					Product:   "MacBookPro18,3", // major 18 >= threshold of 17 → Apple Silicon
+					Serial:    "MACSILSERIAL",
+					UDID:      "mac-sil-udid",
+					OSVersion: "15.0", // macOS 15 >= 14 → eligible for ACME
 				},
 				expectACME: true,
+			},
+			{
+				// macOS < 14 disqualifies ACME even for Apple Silicon with DEP enrollment
+				name: "Apple Silicon Mac macOS 13", mi: fleet.MDMAppleMachineInfo{
+					Product:   "MacBookPro18,3", // Apple Silicon
+					Serial:    "MACSILSERIAL13",
+					UDID:      "mac-sil-13-udid",
+					OSVersion: "13.6.0", // macOS 13 < 14 → SCEP regardless of DEP assignment
+				},
+				expectACME: false,
+			},
+			{
+				// missing serial (account-driven user enrollment) disqualifies ACME regardless of device or DEP assignment
+				name: "Apple Silicon Mac without serial", mi: fleet.MDMAppleMachineInfo{
+					Product:   "MacBookPro18,3", // Apple Silicon
+					Serial:    "",               // no serial → SCEP without error
+					UDID:      "mac-sil-noserial-udid",
+					OSVersion: "15.0",
+				},
+				expectACME: false,
 			},
 			{
 				name: "Intel Mac",
@@ -7197,9 +7218,10 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 		// For these tests we can just use a single device type since we're not asserting on the
 		// profile content, just that errors are handled and returned properly.
 		machineInfo := fleet.MDMAppleMachineInfo{
-			Product: "MacBookPro18,3",
-			Serial:  "MACSILSERIAL",
-			UDID:    "mac-sil-udid",
+			Product:   "MacBookPro18,3",
+			Serial:    "MACSILSERIAL",
+			UDID:      "mac-sil-udid",
+			OSVersion: "15.0", // macOS 15 >= 14 so that the OSVersion check in isMDMAppleACMERequired passes through to the DEP check
 		}
 
 		t.Run("AppConfig error returns error", func(t *testing.T) {
@@ -7261,6 +7283,29 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 						require.Contains(t, err.Error(), "checking DEP assignment")
 					} else {
 						// when hardware attestation is not required, DEP assignment is not relevant since we always return SCEP, so an error here should not be returned
+						require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+						require.NoError(t, err)
+					}
+				})
+
+				t.Run("invalid OS version for Apple Silicon Mac returns error", func(t *testing.T) {
+					// restore foundProfileFunc in case a previous sub-test left a different func
+					ds.GetMDMAppleEnrollmentProfileByTokenFunc = foundProfileFunc
+					ds.GetHostDEPAssignmentsBySerialFuncInvoked = false // reset invocation flag
+					invalidOSMI := fleet.MDMAppleMachineInfo{
+						Product:   "MacBookPro18,3", // Apple Silicon — reaches the OSVersion check
+						Serial:    "MACSILSERIAL",
+						UDID:      "mac-sil-udid",
+						OSVersion: "not-a-valid-version",
+					}
+					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &invalidOSMI)
+					if hardwareAttestationRequired {
+						// isMDMAppleACMERequired is called and fails at the OSVersion check — DEP check is never reached
+						require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+						require.Error(t, err)
+						require.Contains(t, err.Error(), "checking if device is less than macOS 14")
+					} else {
+						// isMDMAppleACMERequired is never called, so OSVersion is irrelevant — SCEP is always returned
 						require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 						require.NoError(t, err)
 					}

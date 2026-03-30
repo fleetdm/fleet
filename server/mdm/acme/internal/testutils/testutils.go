@@ -1,4 +1,4 @@
-// Package testutils provides shared test utilities for the ACME bounded context.
+// Package testutils provides shared test utilities for the ACME service module.
 package testutils
 
 import (

@@ -48,6 +48,8 @@ type TestAppleMDMClient struct {
 	SerialNumber string
 	// Model is the model of the simulated device.
 	Model string
+	// OSVersion is the version of the operating system of the simulated device.
+	OSVersion string
 
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
@@ -449,9 +451,10 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
-		Serial:  c.SerialNumber,
-		UDID:    c.UUID,
-		Product: c.Model,
+		Serial:    c.SerialNumber,
+		UDID:      c.UUID,
+		Product:   c.Model,
+		OSVersion: c.OSVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -463,9 +466,10 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 	buf, err := MachineInfoAsPKCS7(fleet.MDMAppleMachineInfo{
-		Serial:  c.SerialNumber,
-		UDID:    c.UUID,
-		Product: c.Model,
+		Serial:    c.SerialNumber,
+		UDID:      c.UUID,
+		Product:   c.Model,
+		OSVersion: c.OSVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -1278,12 +1282,15 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 // ParseEnrollmentProfile parses the enrollment profile and returns the parsed information as EnrollInfo.
 func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 	var enrollmentProfile struct {
-		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+		PayloadContent []map[string]any `plist:"PayloadContent"`
 	}
 	if err := plist.Unmarshal(mobileConfig, &enrollmentProfile); err != nil {
 		return nil, fmt.Errorf("unmarshal enrollment profile: %w", err)
 	}
-	payloadContent := enrollmentProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})
+	payloadContent, ok := enrollmentProfile.PayloadContent[0]["PayloadContent"].(map[string]any)
+	if !ok {
+		return nil, errors.New("PayloadContent field not found")
+	}
 
 	scepChallenge, ok := payloadContent["Challenge"].(string)
 	if !ok || scepChallenge == "" {

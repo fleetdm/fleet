@@ -1,4 +1,4 @@
-// Package http provides HTTP request and response types for the ACME bounded context.
+// Package http provides HTTP request and response types for the ACME service module.
 // These types are used exclusively by the ACME endpoint handler.
 package http
 
@@ -29,7 +29,7 @@ func generateAndRenderNonce(ctx context.Context, nonces *redis_nonces_store.Redi
 
 type GetNewNonceRequest struct {
 	// HTTPMethod used to make this request, populated by the parse custom URL
-	// tag function of the ACME bounded context, which is one of the only ways
+	// tag function of the ACME service module, which is one of the only ways
 	// with our framework to access the *http.Request value.
 	HTTPMethod string `url:"http_method"`
 	Identifier string `url:"identifier"`
