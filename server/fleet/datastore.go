@@ -764,6 +764,11 @@ type Datastore interface {
 	// name already exists in the vpp_apps table (fleet-wide).
 	CheckAndroidWebAppNameExists(ctx context.Context, name string) (bool, error)
 
+	// InsertVPPAppForAndroidWebApp inserts a minimal vpp_apps record for an
+	// Android web app so that name uniqueness checks work immediately after
+	// creation. The full record is upserted later by InsertVPPAppWithTeam.
+	InsertVPPAppForAndroidWebApp(ctx context.Context, adamID, name string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 

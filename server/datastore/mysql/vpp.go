@@ -2754,3 +2754,12 @@ func (ds *Datastore) CheckAndroidWebAppNameExists(ctx context.Context, name stri
 	}
 	return exists, nil
 }
+
+func (ds *Datastore) InsertVPPAppForAndroidWebApp(ctx context.Context, adamID, name string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO vpp_apps (adam_id, platform, name)
+VALUES (?, 'android', ?)
+ON DUPLICATE KEY UPDATE name = VALUES(name)`,
+		adamID, name)
+	return ctxerr.Wrap(ctx, err, "insert vpp_apps for android web app")
+}

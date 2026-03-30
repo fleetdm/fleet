@@ -1306,7 +1306,7 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	}
 	if exists {
 		return "", fleet.ConflictError{
-			Message: fmt.Sprintf(`Couldn't add. Web app with this name ("%s") already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.`, title),
+			Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", title),
 		}
 	}
 
@@ -1339,5 +1339,13 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 		// not available to WebApps, we must know if somehow android changes how those get named.
 		svc.logger.ErrorContext(ctx, "created Android webApp does not have expected package name format", "package_name", createdApp.Name)
 	}
+
+	// Insert a minimal vpp_apps record immediately so that the duplicate name
+	// check above catches back-to-back creation attempts. The full record
+	// is upserted later when AddAppStoreApp is called.
+	if err := svc.ds.InsertVPPAppForAndroidWebApp(ctx, packageName, title); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "pre-inserting vpp_apps record for android web app")
+	}
+
 	return packageName, nil
 }

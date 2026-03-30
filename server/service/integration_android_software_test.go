@@ -1133,7 +1133,6 @@ func (s *integrationMDMTestSuite) TestAndroidWebApps() {
 		id := uuid.NewString()
 		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/%s", enterpriseID, id)}, nil
 	}
-
 	cases := []struct {
 		desc     string
 		title    string
@@ -1348,9 +1347,6 @@ func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
 		id := "dup" + fmt.Sprint(count)
 		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/com.google.enterprise.webapp.%s", enterpriseID, id)}, nil
 	}
-	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
-		return &androidmanagement.Application{IconUrl: "https://example.com/icon.jpg", Title: "Duplicate Web App"}, nil
-	}
 
 	// create a web app
 	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
@@ -1361,15 +1357,9 @@ func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&resp)
 	require.NoError(t, err)
-	webAppID := resp.AppStoreID
+	require.NotEmpty(t, resp.AppStoreID)
 
-	// add it to Fleet (populates vpp_apps)
-	var addResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
-		AppStoreID: webAppID, Platform: fleet.AndroidPlatform,
-	}, http.StatusOK, &addResp)
-
-	// create another web app with the same name
+	// create another web app with the same name immediately, should fail with 409
 	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 		"title": {"Duplicate Web App"},
 		"url":   {"https://different-url.com"},
