@@ -2,6 +2,7 @@ package winoffice
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -32,10 +33,10 @@ type SecurityRelease struct {
 }
 
 // ScrapeSecurityUpdates fetches and parses the Office security updates page
-func ScrapeSecurityUpdates(client *http.Client) ([]SecurityRelease, error) {
-	req, err := http.NewRequest("GET", SecurityUpdatesURL, nil)
+func ScrapeSecurityUpdates(ctx context.Context, client *http.Client) ([]SecurityRelease, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", SecurityUpdatesURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+		return nil, fmt.Errorf("creating request with context: %w", err)
 	}
 	// Request markdown format
 	req.Header.Set("Accept", "text/markdown")
@@ -319,8 +320,8 @@ func compareBuildVersions(a, b string) int {
 }
 
 // FetchBulletin scrapes and builds Office security bulletin
-func FetchBulletin(client *http.Client) (*BulletinFile, error) {
-	releases, err := ScrapeSecurityUpdates(client)
+func FetchBulletin(ctx context.Context, client *http.Client) (*BulletinFile, error) {
+	releases, err := ScrapeSecurityUpdates(ctx, client)
 	if err != nil {
 		return nil, err
 	}

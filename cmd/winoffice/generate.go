@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -31,7 +32,7 @@ func main() {
 	client := &http.Client{Timeout: 60 * time.Second}
 
 	fmt.Println("Scraping Windows Office security updates from Microsoft Learn...")
-	bulletin, err := winoffice.FetchBulletin(client)
+	bulletin, err := winoffice.FetchBulletin(context.Background(), client)
 	panicif(err)
 
 	fmt.Printf("Found %d versions\n", len(bulletin.Versions))
