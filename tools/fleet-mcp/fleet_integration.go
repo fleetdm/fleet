@@ -241,9 +241,15 @@ func platformToBuiltinLabel(platform string) string {
 	}
 }
 
-// GetEndpoints retrieves all endpoints from Fleet
-func (fc *FleetClient) GetEndpoints() ([]Endpoint, error) {
-	endpoint := "/api/v1/fleet/hosts?populate_labels=true"
+// GetEndpoints retrieves endpoints from Fleet with server-side pagination.
+// Pass 0 for perPage to use the Fleet API default.
+func (fc *FleetClient) GetEndpoints(perPage int) ([]Endpoint, error) {
+	params := url.Values{}
+	params.Set("populate_labels", "true")
+	if perPage > 0 {
+		params.Set("per_page", fmt.Sprintf("%d", perPage))
+	}
+	endpoint := "/api/v1/fleet/hosts?" + params.Encode()
 	resp, err := fc.makeFleetRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get endpoints: %w", err)
@@ -425,7 +431,7 @@ func (fc *FleetClient) GetFleetConfig() (map[string]interface{}, error) {
 
 // GetEndpointsWithAggregations retrieves all endpoints and performs aggregations
 func (fc *FleetClient) GetEndpointsWithAggregations() (*AggregateResponse, error) {
-	endpoints, err := fc.GetEndpoints()
+	endpoints, err := fc.GetEndpoints(0)
 	if err != nil {
 		return nil, err
 	}
@@ -529,7 +535,8 @@ func (fc *FleetClient) getTeamHosts(teamID uint) ([]Endpoint, error) {
 	return result.Hosts, nil
 }
 
-// resolveTeamNames resolves comma-separated team names to team IDs.
+// resolveTeamNames resolves team names to team IDs using exact case-insensitive
+// matching. On failure, lists available teams so the caller can retry.
 func (fc *FleetClient) resolveTeamNames(teamNames []string) ([]uint, error) {
 	teams, err := fc.GetTeams()
 	if err != nil {
@@ -537,15 +544,17 @@ func (fc *FleetClient) resolveTeamNames(teamNames []string) ([]uint, error) {
 	}
 
 	teamMap := make(map[string]uint)
+	var availableNames []string
 	for _, t := range teams {
 		teamMap[strings.ToLower(t.Name)] = t.ID
+		availableNames = append(availableNames, t.Name)
 	}
 
 	var ids []uint
 	for _, name := range teamNames {
 		id, ok := teamMap[strings.ToLower(strings.TrimSpace(name))]
 		if !ok {
-			return nil, fmt.Errorf("team not found: %s", name)
+			return nil, fmt.Errorf("fleet not found: %q (available fleets: %s)", name, strings.Join(availableNames, ", "))
 		}
 		ids = append(ids, id)
 	}
@@ -553,16 +562,23 @@ func (fc *FleetClient) resolveTeamNames(teamNames []string) ([]uint, error) {
 }
 
 // GetEndpointsWithFilters retrieves endpoints from Fleet with optional server-side filters.
-func (fc *FleetClient) GetEndpointsWithFilters(teamName, platform, status string) ([]Endpoint, error) {
+func (fc *FleetClient) GetEndpointsWithFilters(teamName, platform, status string, perPage int) ([]Endpoint, error) {
 	params := url.Values{}
 	params.Set("populate_labels", "true")
+	if perPage > 0 {
+		params.Set("per_page", fmt.Sprintf("%d", perPage))
+	}
 
 	if teamName != "" {
 		teamIDs, err := fc.resolveTeamNames([]string{teamName})
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve team: %w", err)
+			return nil, fmt.Errorf("failed to resolve fleet: %w", err)
 		}
 		params.Set("team_id", fmt.Sprintf("%d", teamIDs[0]))
+	}
+
+	if platform != "" {
+		params.Set("platform", normalizePlatform(platform))
 	}
 
 	if status != "" {
@@ -586,17 +602,6 @@ func (fc *FleetClient) GetEndpointsWithFilters(teamName, platform, status string
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode filtered endpoints response: %w", err)
-	}
-
-	if platform != "" {
-		p := normalizePlatform(platform)
-		filtered := result.Hosts[:0]
-		for _, ep := range result.Hosts {
-			if matchesPlatform(ep.Platform, p) {
-				filtered = append(filtered, ep)
-			}
-		}
-		result.Hosts = filtered
 	}
 
 	return result.Hosts, nil

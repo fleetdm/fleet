@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "1.2.85.519",
+      "version": "1.2.86.502",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.spotify.client';",
         "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.spotify.client' AND version_compare(bundle_short_version, '1.2.85.519') < 0);"

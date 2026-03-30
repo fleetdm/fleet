@@ -140,6 +140,7 @@ import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
+import MDMStatusModal from "../modals/MDMStatusModal";
 
 const baseClass = "host-details";
 
@@ -237,6 +238,7 @@ const HostDetailsPage = ({
   const [showLocationModal, setShowLocationModal] = useState<
     boolean | undefined
   >(false);
+  const [showMDMStatusModal, setShowMDMStatusModal] = useState(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -684,6 +686,10 @@ const HostDetailsPage = ({
     setShowLocationModal(!showLocationModal);
   }, [showLocationModal, setShowLocationModal]);
 
+  const toggleMDMStatusModal = useCallback(() => {
+    setShowMDMStatusModal(!showMDMStatusModal);
+  }, [showMDMStatusModal, setShowMDMStatusModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -1123,9 +1129,9 @@ const HostDetailsPage = ({
   );
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup?.bootstrap_package_status,
-    details: host?.mdm.macos_setup?.details,
-    name: host?.mdm.macos_setup?.bootstrap_package_name,
+    status: host?.mdm.setup_experience?.bootstrap_package_status,
+    details: host?.mdm.setup_experience?.details,
+    name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
   const isMacOSHost = isMacOS(host.platform);
@@ -1278,7 +1284,7 @@ const HostDetailsPage = ({
               mdmEnrollmentStatus={host?.mdm.enrollment_status}
               hostPlatform={host?.platform}
               macDiskEncryptionStatus={
-                host?.mdm.macos_settings?.disk_encryption
+                host?.mdm.apple_settings?.disk_encryption
               }
               connectedToFleetMdm={host?.mdm.connected_to_fleet}
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
@@ -1346,6 +1352,7 @@ const HostDetailsPage = ({
                     host.platform
                   )}
                   toggleLocationModal={toggleLocationModal}
+                  toggleMDMStatusModal={toggleMDMStatusModal}
                 />
                 {showActivityCard && (
                   <ActivityCard
@@ -1731,6 +1738,17 @@ const HostDetailsPage = ({
               setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
+          />
+        )}
+        {showMDMStatusModal && host.mdm.enrollment_status && (
+          <MDMStatusModal
+            fleetId={currentTeam?.id}
+            hostId={host.id}
+            enrollmentStatus={host.mdm.enrollment_status}
+            isPremiumTier={isPremiumTier}
+            isMacOSHost={isMacOSHost}
+            router={router}
+            onExit={toggleMDMStatusModal}
           />
         )}
       </>

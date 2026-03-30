@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.2.16.0",
+      "version": "5.3.0.100",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Krita_x64' AND publisher = 'Krita Foundation';",
         "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Krita_x64' AND publisher = 'Krita Foundation' AND version_compare(version, '5.2.16.0') < 0);"
       },
-      "installer_url": "https://download.kde.org/stable/krita/5.2.16/krita-x64-5.2.16-setup.exe",
+      "installer_url": "https://download.kde.org/stable/krita/5.3.0/krita-x64-5.3.0-setup.exe",
       "install_script_ref": "4899cb9d",
       "uninstall_script_ref": "1259500a",
-      "sha256": "95f7ecb8b5b5e9f85927548cf20ff993b812352b7ba2cba655d480d17e0e0168",
+      "sha256": "a68293c352ce8a196ab9574eecebd61032a6fac8181ede4d5b7be373991c2156",
       "default_categories": [
         "Productivity"
       ]
