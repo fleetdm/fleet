@@ -1389,7 +1389,7 @@ const HostDetailsPage = ({
                   isLoading={
                     activeActivityTab === "past"
                       ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
-                      : upcomingActivitiesIsError ||
+                      : upcomingActivitiesIsFetching ||
                         upcomingMDMCommandsIsFetching
                   }
                   isError={
