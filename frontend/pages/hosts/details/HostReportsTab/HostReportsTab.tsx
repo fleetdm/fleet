@@ -189,7 +189,6 @@ const HostReportsTab = ({
     [router]
   );
 
-  const selectedSortOption = SORT_OPTIONS.find((o) => o.value === sortOption);
 
   if (isLoading) {
     return <Spinner />;
@@ -226,7 +225,7 @@ const HostReportsTab = ({
           <DropdownWrapper
             name="sort-reports"
             options={SORT_OPTIONS}
-            value={selectedSortOption}
+            value={sortOption}
             onChange={onSortChange}
             className={`${baseClass}__sort-dropdown`}
             variant="table-filter"
