@@ -422,7 +422,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				PolicyData: fleet.PolicyData{
 					ID:          4,
 					Name:        "Team FMA install policy",
-					Query:       "SELECT * FROM team_policy WHERE id = 4",
+					Query:       "SELECT 1 FROM filevault_status WHERE status LIKE '%on%';",
 					Resolution:  ptr.String("Install the FMA"),
 					Description: "This is a team policy with FMA install automation",
 					Platform:    "darwin",
@@ -436,7 +436,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				PolicyData: fleet.PolicyData{
 					ID:          5,
 					Name:        "Team package install policy",
-					Query:       "SELECT * FROM team_policy WHERE id = 5",
+					Query:       "SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL) / blocks > 0.10;",
 					Resolution:  ptr.String("Install the package"),
 					Description: "This is a team policy with custom package install automation",
 					Platform:    "linux,windows",
@@ -457,7 +457,7 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 			{
 				ID:                 1,
 				Name:               "Global Query",
-				Query:              "SELECT * FROM global_query WHERE id = 1",
+				Query:              "SELECT * FROM os_version;",
 				Description:        "This is a global query",
 				Platform:           "darwin",
 				Interval:           3600,
@@ -477,7 +477,7 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 		{
 			ID:                 1,
 			Name:               "Team Query",
-			Query:              "SELECT * FROM team_query WHERE id = 1",
+			Query:              "SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';",
 			Description:        "This is a team query",
 			Platform:           "linux,windows",
 			Interval:           1800,

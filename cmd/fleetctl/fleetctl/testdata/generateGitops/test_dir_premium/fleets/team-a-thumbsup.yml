@@ -90,7 +90,7 @@ policies:
     fleet_maintained_app_slug: fma1/darwin
   name: Team FMA install policy
   platform: darwin
-  query: SELECT * FROM team_policy WHERE id = 4
+  query: SELECT 1 FROM filevault_status WHERE status LIKE '%on%';
   resolution: Install the FMA
   type: dynamic
   webhooks_and_tickets_enabled: false
@@ -102,7 +102,8 @@ policies:
     hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
   name: Team package install policy
   platform: linux,windows
-  query: SELECT * FROM team_policy WHERE id = 5
+  query: SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL)
+    / blocks > 0.10;
   resolution: Install the package
   type: dynamic
   webhooks_and_tickets_enabled: false
@@ -116,7 +117,7 @@ reports:
   name: Team Query
   observer_can_run: false
   platform: linux,windows
-  query: SELECT * FROM team_query WHERE id = 1
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
 settings:
   features:
     enable_host_users: true
