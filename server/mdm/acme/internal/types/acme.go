@@ -59,13 +59,15 @@ type AccountResponse struct {
 }
 
 type Order struct {
-	ID                        uint         `db:"id"`
-	ACMEAccountID             uint         `db:"acme_account_id"`
-	Finalized                 bool         `db:"finalized"`
-	CertificateSigningRequest string       `db:"certificate_signing_request"`
-	Identifiers               []Identifier `db:"identifiers"`
-	Status                    string       `db:"status"`
-	IssuedCertificateSerial   *uint        `db:"issued_certificate_serial"`
+	ID                        uint   `db:"id"`
+	ACMEAccountID             uint   `db:"acme_account_id"`
+	Finalized                 bool   `db:"finalized"`
+	CertificateSigningRequest string `db:"certificate_signing_request"`
+	// Identifiers is manually serialized to JSON when inserted, and should do the same
+	// when read (or we could implement sql.Scanner).
+	Identifiers             []Identifier `db:"-"`
+	Status                  string       `db:"status"`
+	IssuedCertificateSerial *uint        `db:"issued_certificate_serial"`
 
 	// NotBefore and NotAfter must not be set, we capture them so we can validate
 	// that they were indeed not provided.

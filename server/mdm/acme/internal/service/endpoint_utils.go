@@ -40,6 +40,7 @@ func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 		acmeErr = types.InternalServerError("") // not passing err.Error() as we don't want to leak internal details
 	}
 
+	w.Header().Set("Content-Type", "application/problem+json")
 	statusCode := acmeErr.StatusCode
 	if statusCode == 0 {
 		statusCode = http.StatusInternalServerError

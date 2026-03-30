@@ -655,7 +655,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotNil(t, acmeErr)
-		require.Contains(t, acmeErr.Type, "badCSR")
+		require.Contains(t, acmeErr.Type, "malformed")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Empty(t, resp.Header.Get("Location"))
 	})
@@ -676,7 +676,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotNil(t, acmeErr)
-		require.Contains(t, acmeErr.Type, "badCSR")
+		require.Contains(t, acmeErr.Type, "malformed")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Empty(t, resp.Header.Get("Location"))
 	})

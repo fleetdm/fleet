@@ -60,7 +60,7 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 	// notBefore and notAfter, which are optional, must not be set because fleet is going
 	// to control these and the Apple payload doesn't allow specification of them.
 	if partialOrder.NotBefore != nil || partialOrder.NotAfter != nil {
-		return nil, types.BadCSRError("notBefore and notAfter must not be set in the order request")
+		return nil, types.MalformedError("notBefore and notAfter must not be set in the order request")
 	}
 
 	identifiers := []types.Identifier{
