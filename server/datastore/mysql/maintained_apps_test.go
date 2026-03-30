@@ -711,7 +711,7 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: ptr.Uint(maintained3.ID),
+		FleetMaintainedAppID: new(maintained3.ID),
 	})
 	require.NoError(t, err)
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -725,7 +725,7 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: ptr.Uint(maintained4.ID),
+		FleetMaintainedAppID: new(maintained4.ID),
 	})
 	require.NoError(t, err)
 
