@@ -277,7 +277,7 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
 				SoftwarePackage:     softwarePackage,
-				InstallUUID:         *r.HostSoftwareInstallsExecutionID,
+				InstallUUID:         ptr.ValOrZero(r.HostSoftwareInstallsExecutionID),
 				Status:              "failed",
 				SelfService:         false,
 				Source:              source,

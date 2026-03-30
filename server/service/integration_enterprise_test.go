@@ -24047,9 +24047,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 
 	// The setup_experience/status endpoint doesn't return the various IDs for executions,
 	// so pull it out manually
-	ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost)
+	windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost)
 	require.NoError(t, err)
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -24058,8 +24058,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 			executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
 		}
 	}
-	require.NotEmpty(t, executionIDs["Fleet osquery"])
-	require.NotEmpty(t, executionIDs["Hello world"])
+
+	require.NotEmpty(t, executionIDs["Fleet osquery"]) // has started running because it's first alphabetically
+	require.Empty(t, executionIDs["Hello world"])      // not running yet
 
 	// Record a result for Fleet osquery.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -24074,7 +24075,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 		),
 	), http.StatusNoContent)
 
-	// Again get status of the "Setup experience" for the Windos host.
+	// Again get status of the "Setup experience" for the Windows host.
 	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
 		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
@@ -24082,9 +24083,16 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	require.NotNil(t, orbitRes.Results)
 	require.NotNil(t, orbitRes.Results)
 	require.Len(t, orbitRes.Results.Software, 2)
-	sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
-		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
-	})
+
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	for _, result := range results {
+		if result.HostSoftwareInstallsExecutionID != nil {
+			executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+		}
+	}
+
 	require.Equal(t, "Fleet osquery", orbitRes.Results.Software[0].Name)
 	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
 	require.Equal(t, "Hello world", orbitRes.Results.Software[1].Name)
@@ -24103,7 +24111,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 		),
 	), http.StatusNoContent)
 
-	// One last time get status of the "Setup experience" for the Ubuntu host.
+	// One last time get status of the "Setup experience" for the Windows host.
 	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
 		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -222,7 +223,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	}
 
 	switch {
-	case len(softwarePending) > 0:
+	case len(softwarePending) > 0 && softwareRunning == 0:
 		// Enqueue only the first pending software item (installer or VPP app).
 		// On the next call, this item will be in "running" state and the next
 		// pending item will be picked up. This ensures software is installed
@@ -290,6 +291,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					}
 				}
 			}
+			fmt.Printf("sw.Status: %v\n", sw.Status)
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 			}

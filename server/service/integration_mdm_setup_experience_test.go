@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -1881,6 +1882,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 
 	expectedApps := []*fleet.VPPApp{macOSApp1, macOSApp2, macOSApp3, macOSApp4, macOSApp5, macOSApp6}
 
+	slices.SortFunc(expectedApps, func(a, b *fleet.VPPApp) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
 	expectedAppsByName := map[string]*fleet.VPPApp{
 		macOSApp1.Name: macOSApp1,
 		macOSApp2.Name: macOSApp2,
@@ -2146,18 +2151,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 		if software.Name == macOSApp1.Name {
 			require.Equal(t, fleet.SetupExperienceStatusSuccess, software.Status)
 		} else {
-			require.Equal(t, fleet.SetupExperienceStatusRunning, software.Status)
+			require.Equal(t, fleet.SetupExperienceStatusPending, software.Status)
 		}
 		require.NotNil(t, software.SoftwareTitleID)
 		require.NotZero(t, *software.SoftwareTitleID)
 	}
 
-	// All apps should have an install record at this point
+	// Only 2 apps have an installation attempt at this point
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var count int
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_vpp_software_installs")
 		require.NoError(t, err)
-		require.Equal(t, 6, count)
+		require.Equal(t, 2, count)
 		return nil
 	})
 
@@ -2165,7 +2170,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 		macOSApp1.Name: {},
 	}
 
-	for _, app := range expectedApps {
+	for _, app := range expectedApps[1:] {
 		opts.softwareResultList = append(opts.softwareResultList, fleet.Software{
 			Name:             app.Name,
 			BundleIdentifier: app.BundleIdentifier,
@@ -2188,9 +2193,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 			require.True(t, ok)
 			_, shouldBeInstalled := installedApps[software.Name]
 			if shouldBeInstalled {
-				require.Equal(t, fleet.SetupExperienceStatusSuccess, software.Status, software.Name, software.Status)
-			} else {
-				require.Equal(t, fleet.SetupExperienceStatusRunning, software.Status)
+				require.Equalf(t, fleet.SetupExperienceStatusSuccess, software.Status, "software %s should have succeeded", software.Name)
 			}
 			require.NotNil(t, software.SoftwareTitleID)
 			require.NotZero(t, *software.SoftwareTitleID)
@@ -3276,7 +3279,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 			installUUIDs = append(installUUIDs, *r.HostSoftwareInstallsExecutionID)
 		}
 	}
-	require.Equal(t, len(installUUIDs), 3)
+	require.Equal(t, 1, len(installUUIDs))
 
 	// debugPrintActivities := func(activities []*fleet.UpcomingActivity) []string {
 	// 	var res []string
@@ -3318,10 +3321,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	// Since no results have been recorded, this shouldn't change any database state.
 	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	// Software is now running, script is still pending
+	// First software is now running, other software and script are still pending
 	require.Equal(t, len(statusResp.Results.Software), 3)
-	for _, softwareResult := range statusResp.Results.Software {
-		require.Equal(t, fleet.SetupExperienceStatusRunning, softwareResult.Status)
+	for i, softwareResult := range statusResp.Results.Software {
+		if i == 0 {
+			require.Equal(t, fleet.SetupExperienceStatusRunning, softwareResult.Status)
+			continue
+		}
+		require.Equal(t, fleet.SetupExperienceStatusPending, softwareResult.Status)
 	}
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
@@ -3336,6 +3343,17 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 					"install_script_output": "ok"
 				}`, *enrolledHost.OrbitNodeKey, installUUIDs[0])), http.StatusNoContent)
 
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, results, 4)
+	installUUIDs = []string{}
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			installUUIDs = append(installUUIDs, *r.HostSoftwareInstallsExecutionID)
+		}
+	}
+	require.Equal(t, 2, len(installUUIDs))
+
 	// status still shows script as pending
 	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
@@ -3348,9 +3366,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	require.Len(t, statusResp.Results.Software, 3)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
-	// Other two software should still be "running"
 	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Software[1].Status)
-	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Software[2].Status)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[2].Status)
 
 	// Record a failure for the second software.
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
@@ -3456,9 +3473,28 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	// Add the app with 1 licenses available
 	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "4", SelfService: true}, http.StatusOK)
 
-	// Add the VPP app to setup experience
+	// Set custom display names on the VPP apps so they sort alphabetically
+	// after DummyApp, with the no-license app sorting first among the VPP
+	// apps. This ensures the installer (DummyApp) installs first, then the
+	// VPP app with no license fails immediately, triggering the
+	// "require all software" cancel-on-failure flow after a successful
+	// installer install.
+	// Alphabetical order by display name: DummyApp < VPP AAA No License < VPP ZZZ Has License
+	//
+	// This also exercises the fix for #41741: setup experience ordering
+	// should use the custom display name when set.
 	vppTitleID := getSoftwareTitleID(t, s.ds, "App 5", "apps")
 	vppTitleID2 := getSoftwareTitleID(t, s.ds, "App 4", "apps")
+
+	var updateAppResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppTitleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, DisplayName: ptr.String("VPP ZZZ Has License")},
+		http.StatusOK, &updateAppResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppTitleID2),
+		&updateAppStoreAppRequest{TeamID: &team.ID, DisplayName: ptr.String("VPP AAA No License")},
+		http.StatusOK, &updateAppResp)
+
+	// Add the VPP apps to setup experience
 	installerTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 	var swInstallResp putSetupExperienceSoftwareResponse
 	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team.ID, TitleIDs: []uint{vppTitleID, vppTitleID2, installerTitleID}}, http.StatusOK, &swInstallResp)
@@ -3559,14 +3595,26 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 3)
+	// Ordered by display name: DummyApp (no display name), App 4 (display name
+	// "VPP AAA No License"), App 5 (display name "VPP ZZZ Has License").
+	// Note: Name stores the original st.name, ordering uses display name.
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
 	require.Equal(t, "App 4", statusResp.Results.Software[1].Name)
+	require.Equal(t, "VPP AAA No License", statusResp.Results.Software[1].DisplayName)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
 	require.Equal(t, "App 5", statusResp.Results.Software[2].Name)
+	require.Equal(t, "VPP ZZZ Has License", statusResp.Results.Software[2].DisplayName)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[2].Status)
+
+	// call /status endpoint again, DummyApp (first by display name) should be running
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Len(t, statusResp.Results.Software, 3)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name, "DummyApp should be first by display name")
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Software[0].Status)
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually
@@ -3611,11 +3659,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.Len(t, statusResp.Results.Software, 3)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
-	// App 4 has no licenses available, so it should fail and because we have "requre_all_software_macos" set,
-	// the other software and the script should be marked as failed too.
+	// App 4 (display name "VPP AAA No License") has no licenses available, so
+	// it should fail immediately. Because we have "require_all_software_macos"
+	// set, the remaining software (App 5) and the script should be marked as
+	// failed too.
 	require.Equal(t, "App 4", statusResp.Results.Software[1].Name)
+	require.Equal(t, "VPP AAA No License", statusResp.Results.Software[1].DisplayName)
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
 	require.Equal(t, "App 5", statusResp.Results.Software[2].Name)
+	require.Equal(t, "VPP ZZZ Has License", statusResp.Results.Software[2].DisplayName)
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[2].Status)
 
 	// Reset the setup experience items.
@@ -3631,8 +3683,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
 	require.Equal(t, "App 4", statusResp.Results.Software[1].Name)
+	require.Equal(t, "VPP AAA No License", statusResp.Results.Software[1].DisplayName)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
 	require.Equal(t, "App 5", statusResp.Results.Software[2].Name)
+	require.Equal(t, "VPP ZZZ Has License", statusResp.Results.Software[2].DisplayName)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[2].Status)
 }
 
