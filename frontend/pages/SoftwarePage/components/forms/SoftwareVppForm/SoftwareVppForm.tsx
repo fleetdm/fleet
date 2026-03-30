@@ -1,7 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
@@ -129,10 +129,7 @@ const SoftwareVppForm = ({
   onCancel,
   onClickPreviewEndUserExperience,
 }: ISoftwareVppFormProps) => {
-  const appConfig = useContext(AppContext).config;
-  const softwareExcepted = !!appConfig?.gitops.exceptions?.software;
-  const gitOpsModeEnabled =
-    appConfig?.gitops.gitops_mode_enabled && !softwareExcepted;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit

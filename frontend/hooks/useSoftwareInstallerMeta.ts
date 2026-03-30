@@ -1,5 +1,6 @@
 import { useContext, useMemo } from "react";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { isAndroid } from "interfaces/platform";
 import {
   ISoftwareTitleDetails,
@@ -51,6 +52,7 @@ export const useSoftwareInstaller = (
   softwareTitle: ISoftwareTitleDetails
 ): UseSoftwareInstallerResult | undefined => {
   const appContext = useContext(AppContext);
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   return useMemo(() => {
     if (!softwareTitle.software_package && !softwareTitle.app_store_app) {
@@ -122,16 +124,7 @@ export const useSoftwareInstaller = (
       isGlobalMaintainer,
       isTeamAdmin,
       isTeamMaintainer,
-      config,
     } = appContext;
-
-    const {
-      gitops_mode_enabled: configGitOpsModeEnabled,
-      repository_url: repoURL,
-    } = config?.gitops || {};
-
-    const softwareExcepted = !!config?.gitops.exceptions?.software;
-    const gitOpsModeEnabled = !!configGitOpsModeEnabled && !softwareExcepted;
 
     const canManageSoftware = !!(
       isGlobalAdmin ||
@@ -161,5 +154,5 @@ export const useSoftwareInstaller = (
         softwareInstaller,
       },
     };
-  }, [softwareTitle, appContext]);
+  }, [softwareTitle, appContext, gitOpsModeEnabled, repoURL]);
 };

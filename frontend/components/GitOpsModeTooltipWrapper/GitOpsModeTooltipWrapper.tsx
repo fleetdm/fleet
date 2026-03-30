@@ -1,9 +1,9 @@
 import TooltipWrapper, {
   ITooltipWrapper,
 } from "components/TooltipWrapper/TooltipWrapper";
-import { AppContext } from "context/app";
-import { GitOpsEntityType } from "interfaces/config";
-import React, { useContext } from "react";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IGitOpsExceptions } from "interfaces/config";
+import React from "react";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 interface IGitOpsModeTooltipWrapper {
@@ -13,7 +13,7 @@ interface IGitOpsModeTooltipWrapper {
   fixedPositionStrategy?: ITooltipWrapper["fixedPositionStrategy"];
   // When specified, the wrapper checks the exception for this entity type.
   // If the entity is excepted, children remain enabled even in GitOps mode.
-  entityType?: GitOpsEntityType;
+  entityType?: keyof IGitOpsExceptions;
 }
 
 const baseClass = "gitops-mode-tooltip-wrapper";
@@ -25,16 +25,9 @@ const GitOpsModeTooltipWrapper = ({
   fixedPositionStrategy,
   entityType,
 }: IGitOpsModeTooltipWrapper) => {
-  const { config } = useContext(AppContext);
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
-  const repoURL = config?.gitops.repository_url;
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode(entityType);
 
-  // If GitOps mode is off, or the specified entity type is excepted,
-  // render children without the tooltip and with no disabled state.
-  if (
-    !gitOpsModeEnabled ||
-    (entityType && config?.gitops.exceptions?.[entityType])
-  ) {
+  if (!gitOpsModeEnabled) {
     return <>{renderChildren()}</>;
   }
 

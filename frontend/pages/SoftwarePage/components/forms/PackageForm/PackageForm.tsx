@@ -2,7 +2,7 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { NotificationContext } from "context/notification";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
@@ -177,11 +177,7 @@ const PackageForm = ({
   gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const appConfig = useContext(AppContext).config;
-  const softwareExcepted = !!appConfig?.gitops.exceptions?.software;
-  const { gitops_mode_enabled: rawGitOpsModeEnabled, repository_url: repoURL } =
-    appConfig?.gitops || {};
-  const gitOpsModeEnabled = rawGitOpsModeEnabled && !softwareExcepted;
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,

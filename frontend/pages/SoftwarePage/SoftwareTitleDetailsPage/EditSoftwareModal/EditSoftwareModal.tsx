@@ -11,7 +11,7 @@ import {
   InstallerType,
 } from "interfaces/software";
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
@@ -77,11 +77,7 @@ const EditSoftwareModal = ({
   iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
-
-  const softwareExcepted = !!config?.gitops.exceptions?.software;
-  const gitOpsModeEnabled =
-    (config?.gitops.gitops_mode_enabled && !softwareExcepted) || false;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   // Viewing an FMA in GitOps mode only allows viewing options, not editing
   const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
 
