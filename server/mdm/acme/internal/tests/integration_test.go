@@ -496,8 +496,6 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		jwsBody := buildJWS(t, privateKey, nonce, "", "", nil)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
-		// TODO: 500 is returned because errors in DecodeBody do not go through
-		// the domain error encoder, it bypsases this in kithttp framework.
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotNil(t, acmeErr)
 		require.Contains(t, acmeErr.Type, "malformed")
