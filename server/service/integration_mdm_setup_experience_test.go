@@ -3279,7 +3279,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 			installUUIDs = append(installUUIDs, *r.HostSoftwareInstallsExecutionID)
 		}
 	}
-	require.Equal(t, 1, len(installUUIDs))
+	require.Len(t, len(installUUIDs), 1)
 
 	// debugPrintActivities := func(activities []*fleet.UpcomingActivity) []string {
 	// 	var res []string
@@ -3352,7 +3352,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 			installUUIDs = append(installUUIDs, *r.HostSoftwareInstallsExecutionID)
 		}
 	}
-	require.Equal(t, 2, len(installUUIDs))
+	require.Len(t, len(installUUIDs), 2)
 
 	// status still shows script as pending
 	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
