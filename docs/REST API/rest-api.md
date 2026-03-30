@@ -5617,7 +5617,7 @@ Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sen
 
 Retrieves the managed account password for a host.
 
-The host will only return a password if its managed account password status is "Verified."
+The host will only return a password if its managed account password status is "Verified".
 
 `GET /api/v1/fleet/hosts/:id/managed_account_password`
 
