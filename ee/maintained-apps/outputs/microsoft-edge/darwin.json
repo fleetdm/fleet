@@ -4,7 +4,7 @@
       "version": "146.0.3856.84",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac' AND version_compare(bundle_short_version, '146.0.3856.84') < 0);"
       },
       "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/ddd59c5c-4b7b-4a17-89db-fa98d5bdf41e/MicrosoftEdge-146.0.3856.84.dmg",
       "install_script_ref": "b9ba259a",

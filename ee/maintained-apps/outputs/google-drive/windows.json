@@ -4,7 +4,7 @@
       "version": "122.0.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Drive' AND publisher = 'Google LLC';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Drive' AND publisher = 'Google LLC' AND version_compare(version, '122.0.1.0') < 0);"
       },
       "installer_url": "https://dl.google.com/release2/drive-file-stream/mebnisjkqbeors7btjbik5rm6y_122.0.1.0/setup.exe",
       "install_script_ref": "fa36b892",

@@ -1300,6 +1300,16 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 		}
 	}
 
+	exists, err := svc.ds.CheckAndroidWebAppNameExists(ctx, title)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking android web app name")
+	}
+	if exists {
+		return "", fleet.ConflictError{
+			Message: fmt.Sprintf(`Couldn't add. Web app with this name ("%s") already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.`, title),
+		}
+	}
+
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get android enterprise")
