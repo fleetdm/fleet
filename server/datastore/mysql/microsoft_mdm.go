@@ -1386,7 +1386,6 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 			}
 		}
 
-
 		// Collect protected URIs for pass 2 (label-scoped check).
 		if len(protectedURIs) > 0 {
 			pass2Params = append(pass2Params, locURIProtectionParams{
