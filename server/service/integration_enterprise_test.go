@@ -23088,9 +23088,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.Equal(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.Equal(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
 	t.Run("ubuntu-software-edited-during-se", func(t *testing.T) {
@@ -23244,9 +23244,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.Equal(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.Equal(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
 	// Transfer the Ubuntu host to "No team".
