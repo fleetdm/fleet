@@ -449,7 +449,7 @@ func testGetExistingOrder(t *testing.T, env *testEnv) {
 
 	require.Len(t, gotAuths, 1)
 	require.Equal(t, authorization.ID, gotAuths[0].ID)
-	require.Equal(t, "pending", gotAuths[0].Status)
+	require.Equal(t, authorization.Identifier, gotAuths[0].Identifier)
 }
 
 func testGetOrderNotFound(t *testing.T, env *testEnv) {
