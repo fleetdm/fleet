@@ -11,8 +11,7 @@
 #   DOCKERHUB_ACCESS_TOKEN   Docker Hub access token (required)
 #   QUAY_REGISTRY_PASSWORD   Quay.io bearer token (required unless --skip-quay)
 #
-# This script is intended to be run manually by an engineer. It is NOT wired
-# into any CI workflow.
+# This script is intended to be run manually by an engineer.
 
 set -euo pipefail
 
