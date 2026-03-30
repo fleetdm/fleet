@@ -4,7 +4,7 @@
       "version": "26.032.0217.0003",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.OneDrive';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.OneDrive' AND version_compare(bundle_short_version, '26.032.0217.0003') < 0);"
       },
       "installer_url": "https://oneclient.sfx.ms/Mac/Installers/26.032.0217.0003/universal/OneDrive.pkg",
       "install_script_ref": "e12bc714",
