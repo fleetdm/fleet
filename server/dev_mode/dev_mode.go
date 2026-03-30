@@ -61,5 +61,6 @@ func ClearAllOverrides() {
 	mu.Lock()
 	defer mu.Unlock()
 
+	enabledViaOverride = false
 	envOverrides = map[string]string{}
 }
