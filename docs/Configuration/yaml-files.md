@@ -380,6 +380,9 @@ controls:
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
+    create_local_user_account:
+      configuration_profile_path: ../lib/platform-sso.mobileconfig
+      software_package_path: ../lib/company-portal.package.yml
     enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
@@ -477,7 +480,10 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android. 
+- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
+- `create_local_user_account` specifies the Platform SSO configuration profile and SSO extension software package used to automatically create a local user account with IdP credentials when the user first sets up their macOS host. Requires `enable_end_user_authentication` to be `true`. Applies to macOS only.
+  - `configuration_profile_path` is the path to the Platform SSO configuration profile (.mobileconfig). The profile must have `com.apple.extensiblesso` PayloadType and include `EnableRegistrationDuringSetup` set to `true`.
+  - `software_package_path` is the path to the SSO extension software package (.package.yml) that is [added to the team](#packages). The software must not already be selected as setup experience software.
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
 - `macos_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
@@ -492,6 +498,9 @@ macos_setup:
   bootstrap_package: "https://your-storage/package.pkg"
   manual_agent_install: false
   enable_end_user_authentication: true
+  create_local_user_account:
+    configuration_profile_path: "./platform-sso.mobileconfig"
+    software_package_path: "./company-portal.package.yml"
   enable_release_device_manually: false
   macos_setup_assistant: "./setup_assistant.json"
   script: "./post_setup.sh"
