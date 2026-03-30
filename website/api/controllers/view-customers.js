@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View testimonials',
+  friendlyName: 'View customers',
 
 
-  description: 'Display "Testimonials" page.',
+  description: 'Display "Customers" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/testimonials'
+      viewTemplatePath: 'pages/customers'
     }
 
   },
@@ -83,16 +83,25 @@ module.exports = {
         return article;
       }
     });
-
     // Sort the case study articles by the lowercase cardTitleForCustomersPage meta tag value.
     caseStudiesToCreateLinksFor = _.sortBy(caseStudiesToCreateLinksFor, (article)=>{
       return article.meta.cardTitleForCustomersPage.toLowerCase();
     });
 
+    // We want to show 12 links to case studies initially, so we'll find out how many cards we need to show when the page loads
+    let sizeOfFristBlockOfCaseStudyCards = 12 - (caseStudies.length - caseStudiesToCreateLinksFor.length);
+    // And remove that many case studies from the array of case studies to create links for.
+    let initalCaseStudyLinksToShow = caseStudiesToCreateLinksFor.splice(0, sizeOfFristBlockOfCaseStudyCards);
+    // And we'll break the rest of the array into smaller arrays of 12 case studies.
+    let blocksOfCaseStudies = _.chunk(caseStudiesToCreateLinksFor, 12);
+    let numberOfPagesOfCaseStudies = blocksOfCaseStudies.length + 1;
     return {
       testimonials: filteredTestimonialsForThisPage,
       testimonialsWithVideoLinks,
       caseStudiesToCreateLinksFor,
+      initalCaseStudyLinksToShow,
+      blocksOfCaseStudies,
+      numberOfPagesOfCaseStudies
     };
 
   }
