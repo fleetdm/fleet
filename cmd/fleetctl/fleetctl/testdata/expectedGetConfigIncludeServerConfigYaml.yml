@@ -193,6 +193,7 @@ spec:
     databases_path: ""
     disable_data_sync: false
     disable_win_os_vulnerabilities: false
+    osv_for_vulnerabilities: false
     periodicity: 0s
     recent_vulnerability_max_age: 0s
   vulnerability_settings:

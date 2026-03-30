@@ -205,7 +205,8 @@
       "current_instance_checks": "",
       "disable_data_sync": false,
       "recent_vulnerability_max_age": "0s",
-      "disable_win_os_vulnerabilities": false
+      "disable_win_os_vulnerabilities": false,
+      "osv_for_vulnerabilities": false
     },
     "license": {
       "tier": "free",
