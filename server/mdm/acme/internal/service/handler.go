@@ -139,7 +139,7 @@ func getOrderEndpoint(ctx context.Context, request any, svc api.Service) platfor
 	if err != nil {
 		return &api_http.GetOrderResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
-	return &api_http.CreateNewOrderResponse{
+	return &api_http.GetOrderResponse{
 		Nonces:        svc.NoncesStore(),
 		OrderResponse: orderResp,
 	}
