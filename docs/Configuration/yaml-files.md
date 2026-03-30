@@ -537,7 +537,7 @@ software:
       setup_experience: true
     - path: ../lib/software-name2.package.yml
   app_store_apps:
-    - app_store_id: "1091189122"
+    - app_store_id: "546505307"
       platform: ios
       labels_include_any: # Available in Fleet Premium
         - Product
@@ -548,6 +548,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "00:00"
       auto_update_window_end: "04:00"
+      configuration:
+        path: ../lib/software/zoom-config.xml
     - app_store_id: "us.zoom.videomeetings"
       platform: android
       self_service: true
