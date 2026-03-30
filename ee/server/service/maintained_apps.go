@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -103,6 +104,22 @@ func (svc *Service) AddFleetMaintainedApp(
 	uninstallScript = file.Dos2UnixNewlines(uninstallScript)
 	if uninstallScript == "" {
 		uninstallScript = app.UninstallScript
+	}
+
+	// Validate script contents (size, UTF-8, shebang for non-Windows platforms).
+	for _, sv := range []struct {
+		name    string
+		content string
+	}{
+		{"install script", installScript},
+		{"post-install script", postInstallScript},
+		{"uninstall script", uninstallScript},
+	} {
+		if err := fleet.ValidateSoftwareInstallerScript(sv.content, app.Platform); err != nil {
+			return 0, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", sv.name, err.Error()),
+			}
+		}
 	}
 
 	maintainedAppID := &app.ID

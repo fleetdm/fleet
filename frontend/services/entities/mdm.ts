@@ -54,8 +54,8 @@ export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
 interface IUpdateSetupExperienceBody {
   fleet_id?: number;
   enable_end_user_authentication?: boolean;
-  enable_release_device_manually?: boolean;
-  manual_agent_install?: boolean;
+  apple_enable_release_device_manually?: boolean;
+  macos_manual_agent_install?: boolean;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
@@ -291,7 +291,7 @@ const mdmService = {
 
     const body: IUpdateSetupExperienceBody = {
       fleet_id: teamId,
-      enable_release_device_manually: isEnabled,
+      apple_enable_release_device_manually: isEnabled,
     };
 
     if (teamId === API_NO_TEAM_ID) {

@@ -4423,6 +4423,176 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Profile is not compatible with host platform")
+
+	t.Run("edit_profile_removes_locuri_sends_delete", func(t *testing.T) {
+		// Editing a profile to remove a LocURI should send a <Delete> for the removed LocURI.
+		// Create a profile with two LocURIs via batch-set, then edit it to have only one.
+		// The device should receive a <Delete> for the removed LocURI plus an install for the updated profile.
+
+		// First, clean up: use batch-set with only our new test profile to remove all
+		// existing team profiles cleanly (this goes through the proper deletion path).
+		twoLocURIProfile := `<Atomic><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace></Atomic>`
+		// Also disable OS updates to simplify
+		tmResp := teamResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "edit-locuri-test", Contents: []byte(twoLocURIProfile)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Trigger profile sync: device gets the new profile + delete commands for old profiles.
+		// Drain all commands from the device without asserting exact counts (cleanup varies).
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+
+		// Drain any remaining commands until the device is clean.
+		verifyProfiles(mdmDevice, 0, false)
+
+		// Now edit the profile to remove AllowCortana, keeping only AllowCamera.
+		oneLocURIProfile := `<Atomic><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace></Atomic>`
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "edit-locuri-test", Contents: []byte(oneLocURIProfile)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Trigger profile sync: device should get:
+		// - 1 <Delete> for the removed AllowCortana LocURI (from batchSet edit diff)
+		// - 1 Atomic install for the updated profile (from reconciler checksum mismatch)
+		// Total: 2 Status + 1 Delete + 1 Atomic = 4 commands
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err = mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		require.Len(t, cmds, 4, "expected 2 status + 1 delete + 1 install")
+
+		var gotDelete, gotInstall bool
+		msgID, err = mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			switch c.Verb {
+			case "Delete":
+				gotDelete = true
+				require.Contains(t, c.Cmd.GetTargetURI(), "AllowCortana",
+					"Delete should target the removed LocURI")
+			case "Atomic":
+				if len(c.Cmd.ReplaceCommands) > 0 {
+					gotInstall = true
+					// Verify the install only has AllowCamera, not AllowCortana
+					var installURIs []string
+					for _, rc := range c.Cmd.ReplaceCommands {
+						installURIs = append(installURIs, rc.GetTargetURI())
+					}
+					require.Len(t, installURIs, 1)
+					require.Contains(t, installURIs[0], "AllowCamera")
+				}
+			}
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		require.True(t, gotDelete, "expected a Delete command for the removed LocURI")
+		require.True(t, gotInstall, "expected an install command for the updated profile")
+
+		cmds, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		require.Len(t, cmds, 1) // just the ack
+	})
+
+	t.Run("edit_profile_does_not_delete_locuri_used_by_another_profile", func(t *testing.T) {
+		// If profile A has LocURIs X, Y and profile B has LocURI Y,
+		// editing A to remove Y should NOT send a <Delete> for Y
+		// because profile B still enforces it.
+
+		// Set up two profiles that share a LocURI (AllowCamera).
+		profileA := `<Atomic><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace></Atomic>`
+		profileB := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>1</Data></Item></Replace>`
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "shared-locuri-A", Contents: []byte(profileA)},
+				{Name: "shared-locuri-B", Contents: []byte(profileB)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Drain install commands.
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		verifyProfiles(mdmDevice, 0, false)
+
+		// Edit profile A to remove AllowCamera (shared with B), keep only AllowCortana.
+		profileAEdited := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace>`
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "shared-locuri-A", Contents: []byte(profileAEdited)},
+				{Name: "shared-locuri-B", Contents: []byte(profileB)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Trigger sync: should get an install for the updated A, but NO delete
+		// for AllowCamera since profile B still uses it.
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err = mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+
+		msgID, err = mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			if c.Verb == "Delete" {
+				require.NotContains(t, c.Cmd.GetTargetURI(), "AllowCamera",
+					"should NOT delete AllowCamera because profile B still uses it")
+			}
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
