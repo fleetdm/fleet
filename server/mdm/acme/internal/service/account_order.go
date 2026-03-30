@@ -51,7 +51,7 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 	// The "identifiers" passed as part of the newOrder request must be an array with a
 	// single member of type "permanent-identifier" matching the serial specified in the
 	// acme_enrollment that this enrollment was created for.
-	if len(partialOrder.Identifiers) != 1 || partialOrder.Identifiers[0].Type != "permanent-identifier" {
+	if len(partialOrder.Identifiers) != 1 || partialOrder.Identifiers[0].Type != types.IdentifierTypePermanentIdentifier {
 		return nil, types.UnsupportedIdentifierError("A single identifier of type permanent-identifier must be provided in the order request")
 	}
 	if partialOrder.Identifiers[0].Value != enrollment.HostIdentifier {

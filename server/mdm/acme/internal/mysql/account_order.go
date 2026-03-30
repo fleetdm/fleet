@@ -180,7 +180,7 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 		lastInsertID, _ = res.LastInsertId() // can never fail for mysql
 		authorization.ID = uint(lastInsertID)
 
-		const insertChallengeStmt = `INSERT INTO acme_challenges (authorization_id, challenge_type, token, status) VALUES (?, ?, ?, ?)`
+		const insertChallengeStmt = `INSERT INTO acme_challenges (acme_authorization_id, challenge_type, token, status) VALUES (?, ?, ?, ?)`
 		res, err = tx.ExecContext(ctx, insertChallengeStmt, authorization.ID, challenge.ChallengeType, challenge.Token, challenge.Status)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme challenge")
