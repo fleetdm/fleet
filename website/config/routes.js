@@ -622,6 +622,8 @@ module.exports.routes = {
     action: 'landing-pages/view-jamf-alternative',
     locals: {
       currentSection: 'platform',
+      pageTitleForMeta: 'Replace Jamf with confidence',
+      pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
     }
   },
 
