@@ -71,8 +71,9 @@ jobs:
 
       - name: Sanitize branch name for Docker tag
         id: sanitize_branch
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          BRANCH="${{ github.head_ref || github.ref_name }}"
           SANITIZED="${BRANCH//\//-}"
           echo "DOCKER_IMAGE_TAG=$SANITIZED" >> $GITHUB_OUTPUT
 
