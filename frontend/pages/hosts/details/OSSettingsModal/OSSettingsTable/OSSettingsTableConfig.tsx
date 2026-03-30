@@ -185,12 +185,12 @@ const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
 
 const makeDarwinRows = ({
   profiles,
-  macos_settings,
+  apple_settings,
   os_settings,
 }: IHostMdmData) => {
   let rows: IHostMdmProfileWithAddedStatus[] = profiles ?? [];
 
-  if (macos_settings?.disk_encryption === "action_required") {
+  if (apple_settings?.disk_encryption === "action_required") {
     const dERow = profiles?.find(
       (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
     );

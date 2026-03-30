@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
@@ -12442,6 +12443,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			})
 		}
 
+		// upload with unsupported shebang in install script fails validation
+		payloadBadShebang := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+			Filename:      "ruby.deb",
+		}
+		s.uploadSoftwareInstaller(t, payloadBadShebang, http.StatusBadRequest, "Interpreter not supported")
+
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
@@ -12470,6 +12478,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
 			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
+		// update with unsupported shebang in install script fails validation
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript: ptr.String("#!/usr/bin/perl\nprint 'hello'"),
+			TitleID:       titleID,
+			TeamID:        nil,
+		}, http.StatusBadRequest, "Interpreter not supported")
+
 		// patch the software installer to change the labels
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 			"team_id":            {"0"},
@@ -13688,6 +13704,17 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Empty(t, errMsg)
+
+	// batch upload with unsupported shebang in install script fails validation
+	softwareToInstallBadShebang := []*fleet.SoftwareInstallerPayload{
+		{
+			URL:           rubyURL,
+			InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadShebang}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	message = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Contains(t, message, "Interpreter not supported")
 
 	// TODO(roberto): test with a variety of response codes
 
@@ -20069,6 +20096,16 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	assert.ElementsMatch(t, []string{"uninstall script"}, errNames)
 	require.Len(t, errReasons, 1)
 	assert.Contains(t, errReasons[0], "$FLEET_SECRET_INVALID3")
+
+	// Add with unsupported shebang in install script fails validation
+	reqBadShebang := &addFleetMaintainedAppRequest{
+		AppID:         1,
+		TeamID:        &team.ID,
+		InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+	}
+	respBadShebang := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqBadShebang, http.StatusBadRequest)
+	errMsg := extractServerErrorText(respBadShebang.Body)
+	require.Contains(t, errMsg, "Interpreter not supported")
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
@@ -27524,7 +27561,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		checkPolicies(listPolResp.Policies, "1.0")
 	})
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation() {
@@ -27723,6 +27759,91 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 			},
 		},
 	}, http.StatusOK, &applyResp)
+}
+
+// TestSoftwareInstallerUploadPayloadTooLarge verifies that uploading (or updating) a
+// software installer that exceeds the configured max size returns HTTP 400 with
+// a user-friendly error message, not a generic HTTP 413.
+//
+// In production, serve.go wraps the request body with http.MaxBytesReader. The
+// DecodeRequest methods in software_installers.go catch the resulting
+// MaxBytesError and return a fleet.BadRequestError. The fix being tested here
+// ensures that the BadRequestError does NOT wrap the original MaxBytesError in
+// InternalErr, which would cause MakeDecoder to convert it into a generic 413.
+func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadPayloadTooLarge() {
+	t := s.T()
+
+	// Wrap the test server's handler with the same MaxBytesReader middleware
+	// that serve.go applies in production, but with a tiny limit so we can
+	// trigger it with a small test file.
+	const maxSize int64 = 512 // 512 B
+	wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if (r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/fleet/software/package")) ||
+			(r.Method == http.MethodPatch && strings.HasSuffix(r.URL.Path, "/package") && strings.Contains(r.URL.Path, "/fleet/software/titles/")) {
+			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+			r = r.WithContext(installersize.NewContext(r.Context(), maxSize))
+		}
+		s.server.Config.Handler.ServeHTTP(w, r)
+	})
+	wrappedServer := httptest.NewServer(wrappedHandler)
+	defer wrappedServer.Close()
+
+	// doMultipartUpload builds a multipart request with a file exceeding the
+	// limit and sends it to the wrapped server.
+	doMultipartUpload := func(t *testing.T, method, path string) *http.Response {
+		t.Helper()
+
+		var b bytes.Buffer
+		w := multipart.NewWriter(&b)
+		fw, err := w.CreateFormFile("software", "test_installer.pkg")
+		require.NoError(t, err)
+		// Write content that, together with multipart overhead, exceeds maxSize.
+		_, err = fw.Write(bytes.Repeat([]byte("x"), int(maxSize)+1))
+		require.NoError(t, err)
+		require.NoError(t, w.WriteField("install_script", "echo install"))
+		w.Close()
+
+		req, err := http.NewRequest(method, wrappedServer.URL+path, &b)
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.token))
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		return resp
+	}
+
+	t.Run("upload", func(t *testing.T) {
+		resp := doMultipartUpload(t, "POST", "/api/latest/fleet/software/package")
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		errMsg := extractServerErrorText(resp.Body)
+		require.Contains(t, errMsg, "The maximum file size is")
+	})
+
+	t.Run("update", func(t *testing.T) {
+		// First upload a small installer via the normal (unwrapped) server so
+		// we have a valid title to update.
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo install",
+			Filename:      "ruby.deb",
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// Find the title ID of the uploaded installer.
+		var listResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "available_for_install", "true")
+		titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+		resp := doMultipartUpload(t, "PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID))
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		errMsg := extractServerErrorText(resp.Body)
+		require.Contains(t, errMsg, "The maximum file size is")
+	})
 }
 
 func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uint {

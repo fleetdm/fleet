@@ -1129,9 +1129,9 @@ const HostDetailsPage = ({
   );
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup?.bootstrap_package_status,
-    details: host?.mdm.macos_setup?.details,
-    name: host?.mdm.macos_setup?.bootstrap_package_name,
+    status: host?.mdm.setup_experience?.bootstrap_package_status,
+    details: host?.mdm.setup_experience?.details,
+    name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
   const isMacOSHost = isMacOS(host.platform);
@@ -1284,7 +1284,7 @@ const HostDetailsPage = ({
               mdmEnrollmentStatus={host?.mdm.enrollment_status}
               hostPlatform={host?.platform}
               macDiskEncryptionStatus={
-                host?.mdm.macos_settings?.disk_encryption
+                host?.mdm.apple_settings?.disk_encryption
               }
               connectedToFleetMdm={host?.mdm.connected_to_fleet}
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}

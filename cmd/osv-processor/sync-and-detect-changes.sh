@@ -15,13 +15,13 @@ set -euo pipefail
 # Configuration
 REPO_URL="https://github.com/canonical/ubuntu-security-notices.git"
 REPO_DIR="ubuntu-security-notices"
-DAYS_TO_KEEP=3 # how much git history to keep
+DAYS_TO_KEEP=3 # how much git history to get for initial clone
 
 echo "=== OSV Repository Sync ==="
 echo ""
 
 if [ -d "$REPO_DIR/.git" ]; then
-    echo "Repository exists, updating with rolling window..."
+    echo "Repository exists, fetching new commits..."
     cd "$REPO_DIR"
 
     git config core.sparseCheckout true
@@ -30,7 +30,7 @@ if [ -d "$REPO_DIR/.git" ]; then
     OLD_SHA=$(git rev-parse HEAD)
     OLD_COUNT=$(git log --oneline | wc -l | xargs)
 
-    git fetch --update-shallow --shallow-since="${DAYS_TO_KEEP} days ago" origin main
+    git fetch origin main
 
     NEW_SHA=$(git rev-parse origin/main)
 

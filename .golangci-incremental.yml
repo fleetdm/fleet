@@ -12,6 +12,7 @@ linters:
   enable:
     - gosec
     - modernize
+    - testifylint
     - nilaway
   settings:
     gosec:

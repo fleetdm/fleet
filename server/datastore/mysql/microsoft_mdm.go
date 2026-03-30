@@ -1288,7 +1288,8 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// so pass 2 can check per-host applicability.
 	locURIToProtectingProfiles := make(map[string][]string)
 	if len(profileUUIDs) > 0 {
-		// Get team IDs for the profiles being deleted.
+		// Get team IDs for the profiles being deleted. Use the hosts table
+		// with a single query instead of one per host.
 		teamIDStmt, teamIDArgs, err := sqlx.In(
 			`SELECT DISTINCT COALESCE(h.team_id, 0) FROM hosts h
 			JOIN host_mdm_windows_profiles hwp ON hwp.host_uuid = h.uuid
@@ -1384,6 +1385,7 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 				return ctxerr.Wrap(ctx, err, "cleaning up protected profile rows")
 			}
 		}
+
 
 		// Collect protected URIs for pass 2 (label-scoped check).
 		if len(protectedURIs) > 0 {
@@ -2871,6 +2873,7 @@ ON DUPLICATE KEY UPDATE
 	// The delete commands are best-effort and currently not visible to the
 	// IT admin in the UI or API. They are fire-and-forget MDM commands
 	// with no corresponding host_mdm_windows_profiles status entry.
+
 	// Two-pass LocURI protection for edited profiles:
 	// Pass 1 (team-wide): Build protection set from all retained profiles.
 	// Pass 2 (per-host): For protected LocURIs where the protector is
