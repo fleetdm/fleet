@@ -66,4 +66,4 @@ dockers:
       - fleetctl
     dockerfile: tools/fleet-docker/Dockerfile
     image_templates:
-      - "fleetdm/fleet:{{ .ShortCommit }}"
+      - "fleetdm/fleet:{{ .Env.DOCKER_IMAGE_TAG }}"
