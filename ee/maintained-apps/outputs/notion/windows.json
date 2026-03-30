@@ -4,7 +4,7 @@
       "version": "7.9.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Notion 6.1.0' AND publisher = 'Notion Labs, Inc';",
-        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notion 6.1.0' AND publisher = 'Notion Labs, Inc' AND version_compare(version, '7.9.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notion 6.1.0' AND publisher = 'Notion Labs, Inc' AND version_compare(version, '7.9.0') < 0);"
       },
       "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%207.9.0.exe",
       "install_script_ref": "0803ad8c",

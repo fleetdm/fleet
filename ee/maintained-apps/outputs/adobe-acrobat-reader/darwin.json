@@ -4,7 +4,7 @@
       "version": "25.001.21288",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';",
-        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '25.001.21288') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '25.001.21288') < 0);"
       },
       "installer_url": "https://ardownload2.adobe.com/pub/adobe/reader/mac/AcrobatDC/2500121288/AcroRdrDC_2500121288_MUI.dmg",
       "install_script_ref": "8e3ed951",

@@ -4,7 +4,7 @@
       "version": "8.31.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = '8x8 Work' AND publisher = '8x8 Inc.';",
-        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '8x8 Work' AND publisher = '8x8 Inc.' AND version_compare(version, '8.31.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '8x8 Work' AND publisher = '8x8 Inc.' AND version_compare(version, '8.31.3') < 0);"
       },
       "installer_url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-64-msi-v8.31.3-1.msi",
       "install_script_ref": "8959087b",

@@ -4,7 +4,7 @@
       "version": "1.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp';",
-        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp' AND version_compare(bundle_short_version, '1.15.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp' AND version_compare(bundle_short_version, '1.15.0') < 0);"
       },
       "installer_url": "https://egnyte-cdn.egnyte.com/desktopapp/mac/en-us/1.15.0/Egnyte_1.15.0_2329.dmg",
       "install_script_ref": "8aa688dd",

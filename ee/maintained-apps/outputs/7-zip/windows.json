@@ -4,7 +4,7 @@
       "version": "26.00",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = '7-Zip 25.01 (x64)' AND publisher = 'Igor Pavlov';",
-        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '7-Zip 25.01 (x64)' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.00') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '7-Zip 25.01 (x64)' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.00') < 0);"
       },
       "installer_url": "https://7-zip.org/a/7z2600-x64.msi",
       "install_script_ref": "8959087b",

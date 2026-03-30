@@ -4,7 +4,7 @@
       "version": "3.8.5.211",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.veertu.ankaview';",
-        "patch": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.veertu.ankaview' AND version_compare(bundle_short_version, '3.8.5.211') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.veertu.ankaview' AND version_compare(bundle_short_version, '3.8.5.211') < 0);"
       },
       "installer_url": "https://downloads.veertu.com/anka/Anka-3.8.5.211.pkg",
       "install_script_ref": "77fbcce4",
