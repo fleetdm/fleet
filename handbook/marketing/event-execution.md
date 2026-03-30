@@ -506,9 +506,9 @@ Here's the script:
 ```bash
 #!/bin/bash
 # --- Workshop specifics / details - change this
-WORKSHOP_SLUG="2606-GitOps-Workshop-Montreal"
-PLANNING_DOC_URL="https://docs.google.com/document/d/YOUR_PLANNING_DOC_ID/edit"
-REQUEST_ISSUE="#00000"
+WORKSHOP_SLUG="2606-GitOps-Workshop-Atlanta"
+PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.8is5oewuv3gg"
+REQUEST_ISSUE="#14488"
 
 # No need to change anything else to run the script
 
@@ -545,31 +545,14 @@ Master tracking issue for the GitOps Workshop: ${WORKSHOP_SLUG}.
 EXECUTION for request $REQUEST_ISSUE
 
 ## Executive Snapshot & Key Decisions
+- [ ] Update the working google doc for the ${EVENT_SLUG}
+See: Planing Doc: $PLANNING_DOC_URL 
 
-Use this section for a quick overview. If someone only reads this part, they should understand the scope and scale of our workshop.
+- [ ] Finalize sponsorship agreements
+- [ ] Assign child issues/tasks
 
-| Category | Details |
-|---|---|
-| Workshop Name | [e.g., GitOps Workshop — Atlanta] |
-| Date | [Date] |
-| Location | [City, Venue Name] |
-| Capacity | [Max Attendees] |
-| Lead Instructor | @[Name] |
-| Onsite DRI | @[Name] |
-| Marketing DRI | @[Name] |
-| Happy Hour? | Yes or No |
-| Planning Doc | $PLANNING_DOC_URL |
+## Progress Tracker - See SubIssues
 
-- [ ] Confirm workshop date and venue
-- [ ] Assign issues/tasks to DRIs
-
-## Progress Tracker
-- [ ] 1. Workshop Promotion & Registration Launch
-- [ ] 2. Venue Selection & Logistics
-- [ ] 3. Happy Hour Planning & Promotion
-- [ ] 4. Workshop Catering
-- [ ] 5. Travel & Staffing
-- [ ] 6. Post-Mortem & Follow-Up
 EOF
 
 PARENT_URL=$(gh issue create \
@@ -659,16 +642,18 @@ cat > "$BODY_FILE" << EOF
 **Description**
 Get the main workshop event live to start gathering leads.
 
-Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room isn't booked yet.
+Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room isn't booked yet- SEE TEMPLATE LINK BELOW
 
 **Who:** Marketing DRI
 
-- [ ] Create Workshop Landing Page on Eventbrite or Luma
-- [ ] Schedule Email Blast to target audience
-- [ ] Schedule LinkedIn and Twitter/X posts and request speaker graphics
-- [ ] Notify AEs and Partners to drive personal invites
-- [ ] Monitor registration — watch for waitlists or low attendance and adjust promo if needed
-- [ ] Update the $PLANNING_DOC_URL with "Promotion & Marketing Plan" details and registration link
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Create Workshop Landing Page on Eventbrite or Luma
+Link to [TEMPLATE in EventBrite](https://www.eventbrite.com/e/1985443830945?aff=oddtdtcreator)
+- Schedule Email Blast to target audience
+- Schedule LinkedIn and Twitter/X posts and request speaker graphics
+- Notify AEs and Partners to drive personal invites
+- Monitor registration — watch for waitlists or low attendance and adjust promo if needed
+- Update the $PLANNING_DOC_URL with "Promotion & Marketing Plan" details and registration link
 EOF
 create_sub_issue "1. Workshop Promotion & Registration Launch"
 
@@ -679,12 +664,12 @@ cat > "$BODY_FILE" << EOF
 Secure the physical space for the workshop. Once confirmed, notify attendees.
 
 **Who:** Onsite DRI
-
-- [ ] Secure venue — confirm availability for workshop date
-- [ ] Power audit — confirm every seat has access to power, or plan to bring extension cords
-- [ ] AV check — confirm projector/HDMI availability
-- [ ] Update Workshop Landing Page with the specific venue name and address
-- [ ] Update the $PLANNING_DOC_URL with "Venue Details" section
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Secure venue — confirm availability for workshop date
+- Power audit — confirm every seat has access to power, or plan to bring extension cords
+- AV check — confirm projector/HDMI availability
+- Update Workshop Landing Page with the specific venue name and address
+- Update the $PLANNING_DOC_URL with "Venue Details" section
 EOF
 create_sub_issue "2. Venue Selection & Logistics"
 
@@ -695,12 +680,10 @@ cat > "$BODY_FILE" << EOF
 Plan the post-workshop networking. This is treated as a separate event to allow for broader networking — invite people who couldn't make the workshop itself.
 
 **Who:** Onsite DRI
-
-- [ ] Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
-- [ ] Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
-- [ ] Create Happy Hour registration page on Eventbrite or Luma and promote separately
-- [ ] Schedule LinkedIn/Twitter posts promoting the Happy Hour
-- [ ] Update the $PLANNING_DOC_URL with "Post-Event Happy Hour" section including venue and registration link
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
+- Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
+- IF NEEDED: Create Happy Hour registration page on Eventbrite or Luma and promote separately
 EOF
 create_sub_issue "3. Happy Hour Planning & Promotion"
 
@@ -713,10 +696,10 @@ Finalize in-room food and drink orders.
 Wait to complete this until ~1 week before the event so you have an accurate headcount.
 
 **Who:** Onsite DRI
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Check registration count — confirm headcount from Registered and Waitlist to avoid over-ordering
+- Order food and drinks
 
-- [ ] Check registration count — confirm headcount from Registered and Waitlist to avoid over-ordering
-- [ ] Order food and drinks
-- [ ] Update the $PLANNING_DOC_URL with "Catering" section and order details
 EOF
 create_sub_issue "4. Workshop Catering"
 
@@ -727,11 +710,11 @@ cat > "$BODY_FILE" << EOF
 Ensure the instructor and support staff can get to the city and are prepared for the event.
 
 **Who:** Onsite DRI, Marketing DRI, Attendees
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Book flights for Lead Instructor and TA if traveling
+- Book hotel — ensure proximity to the venue
+- Confirm staffing assignments and attire
 
-- [ ] Book flights for Lead Instructor and TA if traveling
-- [ ] Book hotel — ensure proximity to the venue
-- [ ] Confirm staffing assignments and attire
-- [ ] Update the $PLANNING_DOC_URL with "Staff Travel" and "Logistics" sections
 EOF
 create_sub_issue "5. Travel & Staffing"
 
@@ -740,12 +723,12 @@ create_sub_issue "5. Travel & Staffing"
 cat > "$BODY_FILE" << EOF
 **Description**
 To be completed within 48 hours after the event. Close the loop on leads and technical feedback.
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Happy Hour
+- Log technical issues — document any WiFi drops or firewall blockers for future reference
+- CRM upload — upload attendee list to Salesforce/HubSpot
+- Send follow-up email with slides and repo links
 
-- [ ] Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Happy Hour
-- [ ] Log technical issues — document any WiFi drops or firewall blockers for future reference
-- [ ] CRM upload — upload attendee list to Salesforce/HubSpot
-- [ ] Send follow-up email with slides and repo links
-- [ ] Update the $PLANNING_DOC_URL with completed "Post-Mortem & Follow-Up" section
 EOF
 create_sub_issue "6. Post-Mortem & Follow-Up"
 
