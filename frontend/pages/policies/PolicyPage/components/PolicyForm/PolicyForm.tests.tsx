@@ -566,4 +566,198 @@ describe("PolicyForm - component", () => {
   });
   // TODO: Consider testing save button is disabled for a sql error
   // Trickiness is in modifying react-ace using react-testing library
+
+  describe("renderPolicyFleetName", () => {
+    it("does not render anything on free tier", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: false,
+            isSandboxMode: false,
+            isFreeTier: true,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: mockPolicy.query,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      render(<PolicyForm {...defaultProps} />);
+
+      expect(screen.queryByText(/policy for/i)).not.toBeInTheDocument();
+    });
+
+    it("shows 'Editing policy' when existing policy and user has save permissions", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true, // has save perms
+            isGlobalMaintainer: false,
+            isTeamMaintainerOrTeamAdmin: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: mockPolicy.query,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      render(<PolicyForm {...defaultProps} />);
+
+      expect(screen.getByText(/Editing policy for/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(createMockTeamSummary().name)
+      ).toBeInTheDocument();
+    });
+
+    it("shows 'Viewing policy' when existing policy and user has no save permissions", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: true, // no save perms
+            isGlobalAdmin: false,
+            isGlobalMaintainer: false,
+            isTeamMaintainerOrTeamAdmin: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: mockPolicy.query,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      render(<PolicyForm {...defaultProps} />);
+
+      expect(screen.getByText(/Viewing policy for/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(createMockTeamSummary().name)
+      ).toBeInTheDocument();
+    });
+
+    it("shows 'Creating a new policy' when there is no existing policy", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isTeamMaintainerOrTeamAdmin: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: null,
+            lastEditedQueryName: "",
+            lastEditedQueryDescription: "",
+            lastEditedQueryBody: "",
+            lastEditedQueryResolution: "",
+            lastEditedQueryCritical: false,
+            lastEditedQueryPlatform: undefined,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      render(
+        <PolicyForm
+          {...defaultProps}
+          policyIdForEdit={null}
+          storedPolicy={undefined}
+        />
+      );
+
+      expect(
+        screen.getByText(/Creating a new policy for/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(createMockTeamSummary().name)
+      ).toBeInTheDocument();
+    });
+  });
 });
