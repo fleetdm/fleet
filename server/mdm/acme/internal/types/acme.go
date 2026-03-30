@@ -89,10 +89,10 @@ type OrderResponse struct {
 }
 
 type Authorization struct {
-	ID         uint       `db:"id"`
-	OrderID    uint       `db:"order_id"`
-	Identifier Identifier `db:"-"`
-	Status     string     `db:"status"`
+	ID          uint       `db:"id"`
+	ACMEOrderID uint       `db:"acme_order_id"`
+	Identifier  Identifier `db:"-"`
+	Status      string     `db:"status"`
 }
 
 type Challenge struct {

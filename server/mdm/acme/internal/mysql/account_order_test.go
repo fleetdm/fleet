@@ -20,8 +20,8 @@ func generateTestJWK(t *testing.T) jose.JSONWebKey {
 	return jose.JSONWebKey{Key: key.Public()}
 }
 
-func TestCreateAccount(t *testing.T) {
-	tdb := testutils.SetupTestDB(t, "acme_create_account")
+func TestAccountOrder(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "acme_account_order")
 	ds := NewDatastore(tdb.Conns(), tdb.Logger)
 	env := &testEnv{TestDB: tdb, ds: ds}
 
@@ -36,6 +36,15 @@ func TestCreateAccount(t *testing.T) {
 		{"AccountCreationLimit", testAccountCreationLimit},
 		{"AccountRevoked", testAccountRevoked},
 		{"InvalidEnrollmentID", testInvalidEnrollmentID},
+
+		{"CreateNewOrder", testCreateNewOrder},
+		{"OrderCreationLimit", testOrderCreationLimit},
+		{"InvalidAccountID", testInvalidAccountID},
+		{"MultipleOrdersDifferentAccounts", testMultipleOrdersDifferentAccounts},
+
+		{"GetExistingOrder", testGetExistingOrder},
+		{"OrderNotFound", testGetOrderNotFound},
+		{"WrongAccountID", testGetOrderWrongAccountID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -252,28 +261,6 @@ func createTestAccountForOrder(t *testing.T, env *testEnv) (*types.Account, *typ
 	return created, enrollment
 }
 
-func TestCreateOrder(t *testing.T) {
-	tdb := testutils.SetupTestDB(t, "acme_create_order")
-	ds := NewDatastore(tdb.Conns(), tdb.Logger)
-	env := &testEnv{TestDB: tdb, ds: ds}
-
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, env *testEnv)
-	}{
-		{"CreateNewOrder", testCreateNewOrder},
-		{"OrderCreationLimit", testOrderCreationLimit},
-		{"InvalidAccountID", testInvalidAccountID},
-		{"MultipleOrdersDifferentAccounts", testMultipleOrdersDifferentAccounts},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer env.TruncateTables(t)
-			c.fn(t, env)
-		})
-	}
-}
-
 func testCreateNewOrder(t *testing.T, env *testEnv) {
 	account, _ := createTestAccountForOrder(t, env)
 
@@ -425,27 +412,6 @@ func testMultipleOrdersDifferentAccounts(t *testing.T, env *testEnv) {
 	require.NoError(t, err)
 	require.NotZero(t, result.ID)
 	require.Equal(t, account2.ID, result.ACMEAccountID)
-}
-
-func TestGetOrderByID(t *testing.T) {
-	tdb := testutils.SetupTestDB(t, "acme_get_order")
-	ds := NewDatastore(tdb.Conns(), tdb.Logger)
-	env := &testEnv{TestDB: tdb, ds: ds}
-
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, env *testEnv)
-	}{
-		{"GetExistingOrder", testGetExistingOrder},
-		{"OrderNotFound", testGetOrderNotFound},
-		{"WrongAccountID", testGetOrderWrongAccountID},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer env.TruncateTables(t)
-			c.fn(t, env)
-		})
-	}
 }
 
 func testGetExistingOrder(t *testing.T, env *testEnv) {

@@ -224,11 +224,24 @@ func (ds *Datastore) GetOrderByID(ctx context.Context, accountID, orderID uint) 
 
 	const listAuthorizationsStmt = `SELECT id, acme_order_id, identifier_type, identifier_value, status
 		FROM acme_authorizations WHERE acme_order_id = ?`
-	var authorizations []*types.Authorization
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &authorizations, listAuthorizationsStmt, orderID)
+	var dbAuthz []struct {
+		types.Authorization
+		IdentifierType  string `db:"identifier_type"`
+		IdentifierValue string `db:"identifier_value"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &dbAuthz, listAuthorizationsStmt, orderID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select acme authorizations for order")
 	}
 
+	authorizations := make([]*types.Authorization, len(dbAuthz))
+	for i, a := range dbAuthz {
+		authz := a.Authorization
+		authz.Identifier = types.Identifier{
+			Type:  a.IdentifierType,
+			Value: a.IdentifierValue,
+		}
+		authorizations[i] = &authz
+	}
 	return &dbOrder.Order, authorizations, nil
 }
