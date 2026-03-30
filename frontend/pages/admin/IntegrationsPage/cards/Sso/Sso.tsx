@@ -3,6 +3,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
@@ -352,6 +353,22 @@ const Sso = ({
 
   return (
     <SettingsSection title="Single sign-on (SSO)">
+      <PageDescription
+        content={
+          <>
+            Configure authentication for Fleet users logging into Fleet or end
+            users enrolling their hosts. To populate host vitals from your
+            identity provider and automatically delete Fleet users when they are
+            removed from your IdP, head to{" "}
+            <CustomLink
+              text="Identity provider (IdP)"
+              url={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
+            />
+            .
+          </>
+        }
+        variant="right-panel"
+      />
       <TabNav secondary>
         <Tabs
           selectedIndex={AUTH_TARGETS_BY_INDEX.indexOf(selectedAuthTarget)}

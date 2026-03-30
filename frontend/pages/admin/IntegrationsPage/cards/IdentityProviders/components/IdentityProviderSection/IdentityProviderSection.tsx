@@ -7,6 +7,8 @@ import { internationalTimeFormat } from "utilities/helpers";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import idpAPI from "services/entities/idp";
 
+import PATHS from "router/paths";
+
 import SettingsSection from "pages/admin/components/SettingsSection";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -163,8 +165,7 @@ const IdentityProviderSection = () => {
         <PageDescription
           content={
             <>
-              Connect your IdP to map end users to
-              hosts and delete{" "}
+              Connect your IdP to populate IdP host vitals and delete{" "}
               <TooltipWrapper
                 tipContent={
                   <>
@@ -174,8 +175,12 @@ const IdentityProviderSection = () => {
               >
                 Fleet users
               </TooltipWrapper>{" "}
-              when they are removed from your IdP. To configure authentication 
-              for Fleet users and end users, head to <a>Single-sign on (SS)</a>
+              when they are removed from your IdP. To configure authentication
+              for Fleet users and end users, head to{" "}
+              <CustomLink
+                text="Single sign-on (SSO)"
+                url={PATHS.ADMIN_INTEGRATIONS_SSO}
+              />
             </>
           }
           variant="right-panel"
