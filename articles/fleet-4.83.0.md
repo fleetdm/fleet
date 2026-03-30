@@ -23,7 +23,7 @@ GitHub issues: [#37497](https://github.com/fleetdm/fleet/issues/37497), [#37498]
 
 ### Patch policies for Fleet-maintained apps
 
-Fleet now supports patch policies for Fleet-maintained apps (FMAs). Unlike traditional policies where admins write and maintain the latest version in the SQL themselves, a patch policy automatically generates and updates the SQL when a new version of the app is released. This removes the maintenance burden of keeping patch policies in sync with new software versions. [Learn more](TODO).
+Fleet now supports patch policies for Fleet-maintained apps (FMAs). Unlike traditional policies where admins write and maintain the latest version in the SQL themselves, a patch policy automatically generates and updates the SQL when a new version of the app is released. This removes the maintenance burden of keeping patch policies in sync with new software versions. [Learn more](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet#patch-policies-for-fleet-maintained-apps).
 
 GitHub issue: [#31914](https://github.com/fleetdm/fleet/issues/31914)
 
