@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, trimStart } from "lodash";
+import { findLastIndex, sortBy, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
@@ -221,12 +221,12 @@ const getDefaultTeam = ({
         defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
       }
       if (!defaultTeam && includeNoTeam) {
-        // prefer the real team with the lowest ID over "Unassigned"
-        const realTeams = userTeams.filter(
+        // prefer the real fleet with the lowest ID over "Unassigned"
+        const realFleets = userTeams.filter(
           (t) => t.id > APP_CONTEXT_NO_TEAM_ID
         );
-        if (realTeams.length > 0) {
-          defaultTeam = realTeams.reduce((min, t) => (t.id < min.id ? t : min));
+        if (realFleets.length > 0) {
+          defaultTeam = sortBy(realFleets, (t) => t.id)[0];
         } else {
           defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
         }
