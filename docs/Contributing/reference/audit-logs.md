@@ -988,6 +988,40 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_macos_setup_create_local_idp_user_account
+
+Generated when a user turns on "Create local account from IdP" for macOS hosts that automatically enroll to a team (or no team). This enables Platform SSO local account creation with IdP credentials during macOS setup experience.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_macos_setup_create_local_idp_user_account
+
+Generated when a user turns off "Create local account from IdP" for macOS hosts that automatically enroll to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## enabled_windows_mdm
 
 Generated when a user turns on MDM features for all Windows hosts (servers excluded).
@@ -2346,6 +2380,23 @@ This activity contains the following fields:
 {
   "team_id": 1,
   "team_name": "Workstations",
+}
+```
+
+## created_local_idp_user_account
+
+Generated when a local user account is created from IdP credentials via Platform SSO during macOS setup experience.
+
+This activity contains the following fields:
+- "host_id": The ID of the host on which the local account was created.
+- "host_display_name": The display name of the host on which the local account was created.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
