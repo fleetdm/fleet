@@ -76,8 +76,8 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
-				InternalErr: err,
+				Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
+				// NOTE: Not wrapping `InternalErr: err` to prevent caller of DecodeRequest from returning a generic HTTP 413.
 			}
 		}
 		var nerr net.Error
@@ -282,8 +282,8 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
-				InternalErr: err,
+				Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
+				// NOTE: Not wrapping `InternalErr: err` to prevent caller of DecodeRequest from returning a generic HTTP 413.
 			}
 		}
 		var nerr net.Error

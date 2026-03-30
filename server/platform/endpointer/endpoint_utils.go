@@ -547,6 +547,8 @@ func MakeDecoder(
 				return nil, inner
 			}
 
+			// This is the DecodeRequest implementation returning http.MaxBytesError
+			// (e.g. there's a size limit when uploading installers.)
 			var maxBytesErr *http.MaxBytesError
 			if errors.As(err, &maxBytesErr) {
 				return nil, platform_http.PayloadTooLargeError{
