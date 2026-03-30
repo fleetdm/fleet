@@ -198,6 +198,8 @@ policies:
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
+> If using `labels_include_any`/`labels_exclude_any` for targeting, these keys are specified on the individual policies. Specifying at the top level of `policies` will _not_ apply the labels to each policy.
+
 
 ## reports
 
