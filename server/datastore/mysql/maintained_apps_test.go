@@ -27,6 +27,8 @@ func TestMaintainedApps(t *testing.T) {
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
 		{"SoftwareTitleRenaming", testSoftwareTitleRenaming},
+		{"GetFMANamesByIdentifier", testGetFMANamesByIdentifier},
+		{"UpsertMaintainedAppUpdatesSoftware", testUpsertMaintainedAppUpdatesSoftware},
 	}
 
 	for _, c := range cases {
@@ -736,4 +738,177 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 4)
 	require.Equal(t, sw[1].Name, "Goodbye 1.00 (x64)")
 	require.Equal(t, sw[2].Name, "Hello")
+}
+
+func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host to associate software with
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host",
+		Platform:        "darwin",
+		OsqueryHostID:   ptr.String("osquery-host-id"),
+		NodeKey:         ptr.String("node-key"),
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+
+	// Create software entries with osquery-reported name ("Code" instead of "Microsoft Visual Studio Code")
+	software := []fleet.Software{
+		{
+			Name:             "Code",
+			Version:          "1.85.0",
+			Source:           "apps",
+			BundleIdentifier: "com.microsoft.VSCode",
+		},
+		{
+			Name:             "Code",
+			Version:          "1.84.0",
+			Source:           "apps",
+			BundleIdentifier: "com.microsoft.VSCode",
+		},
+	}
+
+	// Insert software using the normal ingestion path
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// Verify the software and software_titles were created with the osquery name "Code"
+	var softwareNames []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &softwareNames,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
+	})
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, "Code", softwareNames[0])
+	require.Equal(t, "Code", softwareNames[1])
+
+	var titleName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleName,
+			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+	})
+	require.Equal(t, "Code", titleName)
+
+	// Now upsert an FMA with the canonical name
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	// Verify software entries were updated to use the FMA canonical name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &softwareNames,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
+	})
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[0])
+	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[1])
+
+	// Verify software_titles was also updated
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleName,
+			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+	})
+	require.Equal(t, "Microsoft Visual Studio Code", titleName)
+
+	// Verify upserting the same FMA again doesn't cause issues (idempotent)
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	// Names should still be the FMA canonical name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &softwareNames,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
+	})
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[0])
+	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[1])
+
+	// Verify Windows FMA does NOT update darwin software entries
+	// First create darwin software with a different bundle_id
+	software2 := []fleet.Software{
+		{
+			Name:             "Some App",
+			Version:          "1.0.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.someapp",
+		},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, append(software, software2...))
+	require.NoError(t, err)
+
+	// Upsert a Windows FMA - should not affect darwin software
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Some App Windows",
+		Slug:             "some-app/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "com.example.someapp", // Same identifier but different platform
+	})
+	require.NoError(t, err)
+
+	// The darwin software should NOT have been renamed
+	var someAppName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &someAppName,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.example.someapp'`)
+	})
+	require.Equal(t, "Some App", someAppName)
+}
+
+func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Initially empty
+	names, err := ds.GetFMANamesByIdentifier(ctx)
+	require.NoError(t, err)
+	require.Empty(t, names)
+
+	// Add some darwin FMAs
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "1Password",
+		Slug:             "1password/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.1password.1password",
+	})
+	require.NoError(t, err)
+
+	// Add a Windows FMA - should NOT be returned (only darwin)
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Microsoft Visual Studio Code",
+	})
+	require.NoError(t, err)
+
+	// Get FMA names - should only return darwin apps
+	names, err = ds.GetFMANamesByIdentifier(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", names["com.microsoft.VSCode"])
+	require.Equal(t, "1Password", names["com.1password.1password"])
+
+	// Windows identifier should not be present
+	_, ok := names["Microsoft Visual Studio Code"]
+	require.False(t, ok)
 }

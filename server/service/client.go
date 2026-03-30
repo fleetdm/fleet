@@ -2880,7 +2880,6 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
 
 			if !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
-				fmt.Printf("softwareTitleIDsBySlug: %v\n", softwareTitleIDsBySlug)
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
 				if !ok {
 					// Should not happen because FMAs are uploaded first.
@@ -2923,6 +2922,17 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					// Should not happen because software packages are uploaded first.
 					if !dryRun {
 						logFn("[!] software hash without software title ID: %s\n", config.Policies[i].InstallSoftware.Other.HashSHA256)
+					}
+					continue
+				}
+				config.Policies[i].SoftwareTitleID = &softwareTitleID
+			}
+			if config.Policies[i].InstallSoftware.Other.FleetMaintainedAppSlug != "" {
+				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].InstallSoftware.Other.FleetMaintainedAppSlug]
+				if !ok {
+					// Should not happen because FMAs are uploaded first.
+					if !dryRun {
+						logFn("[!] fleet-maintained app slug without software title ID: %s\n", config.Policies[i].InstallSoftware.Other.FleetMaintainedAppSlug)
 					}
 					continue
 				}

@@ -1553,6 +1553,8 @@ type GetMaintainedAppBySlugFunc func(ctx context.Context, slug string, teamID *u
 
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
+type GetFMANamesByIdentifierFunc func(ctx context.Context) (map[string]string, error)
+
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
 
 type GetAppleHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string, caName string) (*fleet.HostMDMCertificateProfile, error)
@@ -4132,6 +4134,9 @@ type DataStore struct {
 
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
+
+	GetFMANamesByIdentifierFunc        GetFMANamesByIdentifierFunc
+	GetFMANamesByIdentifierFuncInvoked bool
 
 	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
 	BulkUpsertMDMManagedCertificatesFuncInvoked bool
@@ -9915,6 +9920,13 @@ func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.Maintain
 	s.UpsertMaintainedAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpsertMaintainedAppFunc(ctx, app)
+}
+
+func (s *DataStore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
+	s.mu.Lock()
+	s.GetFMANamesByIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetFMANamesByIdentifierFunc(ctx)
 }
 
 func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
