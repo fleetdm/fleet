@@ -654,8 +654,8 @@ func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 	sw, _, _, err := ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, sw, 2)
-	require.Equal(t, sw[0].Name, "Goodbye 1.00 (x64)")
-	require.Equal(t, sw[1].Name, "Hello 1.00 (x64)")
+	require.Equal(t, "Goodbye 1.00 (x64)", sw[0].Name)
+	require.Equal(t, "Hello 1.00 (x64)", sw[1].Name)
 
 	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "goodbye",
@@ -675,8 +675,8 @@ func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, sw, 2)
-	require.Equal(t, sw[0].Name, "Goodbye 1.00 (x64)")
-	require.Equal(t, sw[1].Name, "Hello 1.00 (x64)")
+	require.Equal(t, "Goodbye 1.00 (x64)", sw[0].Name)
+	require.Equal(t, "Hello 1.00 (x64)", sw[1].Name)
 
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:                "Goodbye 1.00 (x64)",
@@ -711,8 +711,8 @@ func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, sw, 2)
-	require.Equal(t, sw[0].Name, "Goodbye 1.00 (x64)")
-	require.Equal(t, sw[1].Name, "Hello")
+	require.Equal(t, "Goodbye 1.00 (x64)", sw[0].Name)
+	require.Equal(t, "Hello", sw[1].Name)
 }
 
 func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
