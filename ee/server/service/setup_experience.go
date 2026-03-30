@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -291,7 +290,6 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					}
 				}
 			}
-			fmt.Printf("sw.Status: %v\n", sw.Status)
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 			}
