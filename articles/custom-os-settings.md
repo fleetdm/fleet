@@ -34,6 +34,8 @@ When a configuration profile is removed from Fleet or a host changes teams, Flee
 
 - **Windows:** Fleet sends SyncML `<Delete>` commands to reverse the settings applied by the profile. This is best-effort: most common CSPs (Policy, VPNv2) support `<Delete>` and revert to their defaults, but some CSPs (e.g. Firewall, WDATP) only accept `<Replace>` and return an error for `<Delete>`. Fleet treats these errors as success since the profile is no longer managed. The setting remains on the device at its last configured value but is no longer enforced by Fleet.
 
+If two Windows profiles configure the same setting (LocURI) and one is removed, Fleet preserves the setting on hosts where the other profile still applies. When the remaining profile is label-scoped, Fleet checks per-host whether it applies and only sends `<Delete>` to hosts outside the label scope. In rare cases involving batch operations that simultaneously add new label-scoped profiles and remove or edit existing ones, Fleet may be conservative and skip the `<Delete>` even on hosts where the new profile does not apply. The setting remains enforced on those hosts. To work around this rare case, re-add and then remove the setting in a separate operation.
+
 ### Device and user scope
 
 Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles. User-scoped declaration (DDM) profiles for macOS are coming soon.
