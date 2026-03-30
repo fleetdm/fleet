@@ -2447,6 +2447,11 @@ type Datastore interface {
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 
+	// GetFMANamesByIdentifier returns a map of unique_identifier -> canonical name
+	// for all Fleet-maintained apps on macOS. This is used during software ingestion
+	// to use the FMA name instead of the osquery-reported name.
+	GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate management
 
