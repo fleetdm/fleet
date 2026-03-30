@@ -38,7 +38,10 @@ When one of your uploaded ABM tokens has expired or is within 30 days of expirin
 2. Select your **account name** at the bottom left of the screen, then select **Preferences**.
 3. In the **Your MDM Servers** section, select your Fleet server, then select **Download Token** at the top.
 4. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-5. Under **Automatic enrollment**, select **Edit**, and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**.
+5. Under **Automatic enrollment**:
+  - Select **Edit**, and then find the token that you want to renew. 
+  - Select the **Actions** dropdown for the token and then select **Renew**.
+> **Note:** Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator.
 6. Upload the downloaded token (.p7m file).
    
 ### After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
