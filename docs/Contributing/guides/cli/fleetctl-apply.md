@@ -189,6 +189,7 @@ spec:
         custom_settings: []
       macos_setup:
         bootstrap_package: ""
+        create_local_idp_user_account: null
         enable_end_user_authentication: true
         enable_release_device_manually: false
         macos_setup_assistant: ""
