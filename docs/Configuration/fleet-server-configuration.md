@@ -3267,7 +3267,7 @@ You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business (AB) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and AB token](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and ABM token](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 
@@ -3283,7 +3283,7 @@ The number of days the signed SCEP client certificates will be valid.
 
 ### mdm.apple_dep_sync_periodicity
 
-The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business (AB) is configured.
+The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
 
 - Default value: 1m
 - Environment variable: `FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY`
