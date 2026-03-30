@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/winoffice"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"go.opentelemetry.io/otel/attribute"
@@ -195,6 +196,7 @@ func scanVulnerabilities(
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
@@ -219,10 +221,11 @@ func scanVulnerabilities(
 		trace.WithAttributes(attribute.String("automation_type", vulnAutomationEnabled)))
 	defer automationSpan.End()
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns)+len(winOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, winOfficeVulns...)
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
@@ -588,6 +591,45 @@ func checkMacOfficeVulnerabilities(
 
 	if err != nil {
 		errHandler(analyzeCtx, logger, "analyzing mac office products for vulnerabilities", err)
+	}
+	analyzeSpan.End()
+
+	return r
+}
+
+func checkWinOfficeVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_winoffice")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.winoffice.sync")
+		err := winoffice.SyncFromGithub(syncCtx, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating windows office bulletin", err)
+		}
+		syncSpan.End()
+
+		logger.DebugContext(ctx, "finished sync windows office bulletin")
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.winoffice.analyze")
+	start := time.Now()
+	r, err := winoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
+	elapsed := time.Since(start)
+
+	logger.DebugContext(analyzeCtx, "win-office-analysis-done",
+		"elapsed", elapsed,
+		"found new", len(r))
+
+	if err != nil {
+		errHandler(analyzeCtx, logger, "analyzing windows office products for vulnerabilities", err)
 	}
 	analyzeSpan.End()
 
