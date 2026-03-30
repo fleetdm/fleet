@@ -1397,7 +1397,8 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
-	newActivityFn NewActivityFunc) error {
+	newActivityFn NewActivityFunc,
+) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1409,7 +1410,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 
 	start := time.Now()
-	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Minute)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to refetch")
 	}
@@ -1511,7 +1512,8 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
-	error) {
+	error,
+) {
 	var e *APNSDeliveryError
 	if !errors.As(err, &e) {
 		return false, nil
