@@ -800,6 +800,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Google Credential Provider for Windows",
+      "slug": "google-credential-provider-for-windows/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Credential Provider for Windows",
+      "description": "Google Credential Provider for Windows is an app that allows users to sign in to Windows devices using their Google Workspace or Cloud Identity accounts."
+    },
+    {
       "name": "Google Drive",
       "slug": "google-drive/darwin",
       "platform": "darwin",

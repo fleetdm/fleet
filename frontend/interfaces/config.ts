@@ -70,16 +70,16 @@ export interface IMdmConfig {
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;
   ipados_updates: IAppleDeviceUpdates;
-  macos_settings: {
-    custom_settings: null | ICustomSetting[];
+  apple_settings: {
+    configuration_profiles: null | ICustomSetting[];
     enable_disk_encryption: boolean;
   };
-  macos_setup: {
-    bootstrap_package: string | null;
+  setup_experience: {
+    macos_bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
-    macos_setup_assistant: string | null;
-    enable_release_device_manually: boolean | null;
-    manual_agent_install: boolean | null;
+    apple_setup_assistant: string | null;
+    apple_enable_release_device_manually: boolean | null;
+    macos_manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
     lock_end_user_info: boolean | null;
   };
@@ -282,9 +282,16 @@ export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 export interface IUserSettings {
   hidden_host_columns: string[];
 }
+export interface IGitOpsExceptions {
+  labels: boolean;
+  software: boolean;
+  secrets: boolean;
+}
+
 export interface IGitOpsModeConfig {
   gitops_mode_enabled: boolean;
   repository_url: string;
+  exceptions: IGitOpsExceptions;
 }
 
 /** Check if Okta conditional access is configured (all 4 fields must be present) */

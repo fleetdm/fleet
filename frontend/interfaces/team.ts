@@ -55,16 +55,16 @@ export interface ITeam extends ITeamSummary {
     macos_updates: IAppleDeviceUpdates;
     ios_updates: IAppleDeviceUpdates;
     ipados_updates: IAppleDeviceUpdates;
-    macos_settings: {
-      custom_settings: null; // TODO: types?
+    apple_settings: {
+      configuration_profiles: null; // TODO: types?
       enable_disk_encryption: boolean;
     };
-    macos_setup: {
-      bootstrap_package: string | null;
+    setup_experience: {
+      macos_bootstrap_package: string | null;
       enable_end_user_authentication: boolean;
-      macos_setup_assistant: string | null;
-      enable_release_device_manually: boolean | null;
-      manual_agent_install: boolean | null;
+      apple_setup_assistant: string | null;
+      apple_enable_release_device_manually: boolean | null;
+      macos_manual_agent_install: boolean | null;
       require_all_software_macos: boolean | null;
       lock_end_user_info: boolean | null;
     };

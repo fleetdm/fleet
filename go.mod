@@ -93,7 +93,7 @@ require (
 	github.com/klauspost/compress v1.18.4
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.3.2
+	github.com/macadmins/osquery-extension v1.4.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
@@ -203,7 +203,7 @@ require (
 	github.com/Microsoft/hcsshim v0.11.7 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
-	github.com/antchfx/xpath v1.2.2 // indirect
+	github.com/antchfx/xpath v1.3.6 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.6.0-default-no-op // indirect
 	github.com/apache/thrift v0.22.0 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect

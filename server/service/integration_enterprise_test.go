@@ -12442,6 +12442,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			})
 		}
 
+		// upload with unsupported shebang in install script fails validation
+		payloadBadShebang := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+			Filename:      "ruby.deb",
+		}
+		s.uploadSoftwareInstaller(t, payloadBadShebang, http.StatusBadRequest, "Interpreter not supported")
+
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
@@ -12470,6 +12477,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
 			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
+		// update with unsupported shebang in install script fails validation
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript: ptr.String("#!/usr/bin/perl\nprint 'hello'"),
+			TitleID:       titleID,
+			TeamID:        nil,
+		}, http.StatusBadRequest, "Interpreter not supported")
+
 		// patch the software installer to change the labels
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 			"team_id":            {"0"},
@@ -13688,6 +13703,17 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Empty(t, errMsg)
+
+	// batch upload with unsupported shebang in install script fails validation
+	softwareToInstallBadShebang := []*fleet.SoftwareInstallerPayload{
+		{
+			URL:           rubyURL,
+			InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadShebang}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	message = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Contains(t, message, "Interpreter not supported")
 
 	// TODO(roberto): test with a variety of response codes
 
@@ -20069,6 +20095,16 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	assert.ElementsMatch(t, []string{"uninstall script"}, errNames)
 	require.Len(t, errReasons, 1)
 	assert.Contains(t, errReasons[0], "$FLEET_SECRET_INVALID3")
+
+	// Add with unsupported shebang in install script fails validation
+	reqBadShebang := &addFleetMaintainedAppRequest{
+		AppID:         1,
+		TeamID:        &team.ID,
+		InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+	}
+	respBadShebang := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqBadShebang, http.StatusBadRequest)
+	errMsg := extractServerErrorText(respBadShebang.Body)
+	require.Contains(t, errMsg, "Interpreter not supported")
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
