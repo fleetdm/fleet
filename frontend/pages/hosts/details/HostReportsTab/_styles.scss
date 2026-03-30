@@ -21,13 +21,13 @@
     align-items: center;
     gap: $pad-small;
 
-    &__sort-dropdown {
-      min-width: 160px;
-    }
-
     .input-icon-field .input-with-icon {
       min-width: 300px;
     }
+  }
+
+  &__sort-dropdown {
+    min-width: 160px;
   }
 
   @media screen and (max-width: $break-md) {
@@ -42,7 +42,7 @@
     }
 
     &__controls-right .search-field__tooltip-container {
-      flex: 1
+      flex: 1;
     }
   }
 
