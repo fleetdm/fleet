@@ -823,6 +823,8 @@ type AssertHasNoEncryptionKeyStoredFunc func(ctx context.Context, hostID uint) e
 
 type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error)
 
+type GetDeviceInfoForACMERenewalFunc func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error)
+
 type SetCommandForPendingSCEPRenewalFunc func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error
 
 type CleanSCEPRenewRefsFunc func(ctx context.Context, hostUUID string) error
@@ -3017,6 +3019,9 @@ type DataStore struct {
 
 	GetHostCertAssociationsToExpireFunc        GetHostCertAssociationsToExpireFunc
 	GetHostCertAssociationsToExpireFuncInvoked bool
+
+	GetDeviceInfoForACMERenewalFunc        GetDeviceInfoForACMERenewalFunc
+	GetDeviceInfoForACMERenewalFuncInvoked bool
 
 	SetCommandForPendingSCEPRenewalFunc        SetCommandForPendingSCEPRenewalFunc
 	SetCommandForPendingSCEPRenewalFuncInvoked bool
@@ -7310,6 +7315,13 @@ func (s *DataStore) GetHostCertAssociationsToExpire(ctx context.Context, expiryD
 	s.GetHostCertAssociationsToExpireFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostCertAssociationsToExpireFunc(ctx, expiryDays, limit)
+}
+
+func (s *DataStore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+	s.mu.Lock()
+	s.GetDeviceInfoForACMERenewalFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceInfoForACMERenewalFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
