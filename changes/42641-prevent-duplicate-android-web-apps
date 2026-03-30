@@ -1,0 +1,1 @@
+* Fixed an issue where Android web-clip apps with the same name could be added multiple times, creating duplicate software titles.
