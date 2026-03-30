@@ -43,7 +43,7 @@ func (a *Enrollment) IsValid() bool {
 
 type Account struct {
 	ID                   uint            `db:"id"`
-	EnrollmentID         uint            `db:"acme_enrollment_id"`
+	ACMEEnrollmentID     uint            `db:"acme_enrollment_id"`
 	JSONWebKey           jose.JSONWebKey `db:"-"`
 	JSONWebKeyThumbprint string          `db:"json_web_key_thumbprint"`
 	Revoked              bool            `db:"revoked"`
@@ -59,42 +59,47 @@ type AccountResponse struct {
 }
 
 type Order struct {
-	ID                        uint         `db:"id" json:"-"`
-	AccountID                 uint         `db:"account_id" json:"-"`
-	IssuedCertificateSerial   *int64       `db:"issued_certificate_serial" json:"-"`
-	CertificateSigningRequest string       `db:"certificate_signing_request" json:"-"`
-	Expires                   time.Time    `db:"-" json:"expires"`
-	Status                    string       `db:"status" json:"status"`
-	Identifiers               []Identifier `db:"-" json:"identifiers"`
-	Authorizations            []string     `db:"-" json:"authorizations"`
-	Finalize                  string       `db:"-" json:"finalize"`
-	Certificate               string       `db:"-" json:"certificate,omitempty"`
+	ID                        uint   `db:"id"`
+	ACMEAccountID             uint   `db:"acme_account_id"`
+	Finalized                 bool   `db:"finalized"`
+	CertificateSigningRequest string `db:"certificate_signing_request"`
+	// Identifiers is manually serialized to JSON when inserted, and should do the same
+	// when read (or we could implement sql.Scanner).
+	Identifiers             []Identifier `db:"-"`
+	Status                  string       `db:"status"`
+	IssuedCertificateSerial *uint        `db:"issued_certificate_serial"`
+
+	// NotBefore and NotAfter must not be set, we capture them so we can validate
+	// that they were indeed not provided.
+	NotBefore *time.Time `db:"-"`
+	NotAfter  *time.Time `db:"-"`
+}
+
+type OrderResponse struct {
+	ID             uint         `json:"id"`
+	Status         string       `json:"status"`
+	Expires        *time.Time   `json:"expires,omitempty"`
+	Identifiers    []Identifier `json:"identifiers"`
+	Authorizations []string     `json:"authorizations"`
+	Finalize       string       `json:"finalize"`
+
+	// Location is set in the header, pointing to the created order's URL.
+	Location string `json:"-"`
 }
 
 type Authorization struct {
-	ID         uint       `db:"id" json:"-"`
-	OrderID    uint       `db:"order_id" json:"-"`
-	Identifier Identifier `db:"-" json:"identifier"`
-	// TODO: We should just set this to the overall Enrollment's expires value for now, I think.
-	// we can always revisit later
-	Expires    time.Time   `db:"-" json:"expires"`
-	Status     string      `db:"status" json:"status"`
-	Challenges []Challenge `db:"-" json:"challenges"`
+	ID         uint       `db:"id"`
+	OrderID    uint       `db:"order_id"`
+	Identifier Identifier `db:"-"`
+	Status     string     `db:"status"`
 }
 
 type Challenge struct {
-	ID              uint `db:"id" json:"-"`
-	AuthorizationID uint `db:"authorization_id" json:"-"`
-
-	Type   string `db:"challenge_type" json:"type"`
-	Token  string `db:"token" json:"token"`
-	Status string `db:"status" json:"status"`
-	URL    string `db:"-" json:"url"`
-
-	// TODO: We may need to add this to the db or we can use the challenge's updated_at. It
-	// only needs to be returned if the challenge is status=valid, so we can set it in the
-	// service when the challenge is validated.
-	Validated *time.Time `db:"-" json:"validated,omitempty"`
+	ID                  uint   `db:"id"`
+	ACMEAuthorizationID uint   `db:"acme_authorization_id"`
+	ChallengeType       string `db:"challenge_type"`
+	Token               string `db:"token"`
+	Status              string `db:"status"`
 }
 
 const (
@@ -118,8 +123,8 @@ func (r *AccountAuthenticatedRequestBase) SetEnrollmentAndAccount(enrollment *En
 	r.Account = account
 }
 
-// Represents acme identifiers(not to be confused with enrollment identifiers) which, in our usecase, represent identifiers(e.g. serials)
-// that hosts control.
+// Represents acme identifiers (not to be confused with enrollment identifiers)
+// which, in our usecase, represent identifiers(e.g. serials) that hosts control.
 type Identifier struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
@@ -130,4 +135,5 @@ type Datastore interface {
 	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*Enrollment, error)
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)
+	CreateOrder(ctx context.Context, order *Order, authorization *Authorization, challenge *Challenge) (*Order, error)
 }

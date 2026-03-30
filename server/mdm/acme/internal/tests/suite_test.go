@@ -144,18 +144,28 @@ func (s *integrationTestSuite) getNonce(t *testing.T, pathIdentifier string) str
 	return nonce
 }
 
-// buildJWS constructs a JWS in flattened JSON serialization with the given parameters.
-func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, nonce, endpointURL string, payload any) []byte {
+// buildJWS constructs a JWS in flattened JSON serialization. When accountURL is
+// empty, the JWK is embedded in the header (for new-account requests). When
+// accountURL is set, it is used as the KeyID instead (for account-authenticated
+// requests like new-order).
+func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, nonce, accountURL, endpointURL string, payload any) []byte {
 	t.Helper()
+
+	opts := &jose.SignerOptions{
+		NonceSource: staticNonce{nonce: nonce},
+		ExtraHeaders: map[jose.HeaderKey]any{
+			"url": endpointURL,
+		},
+	}
+	if accountURL == "" {
+		opts.EmbedJWK = true
+	} else {
+		opts.ExtraHeaders["kid"] = accountURL
+	}
+
 	signer, err := jose.NewSigner(
 		jose.SigningKey{Algorithm: jose.ES256, Key: privateKey},
-		&jose.SignerOptions{
-			NonceSource: staticNonce{nonce: nonce},
-			EmbedJWK:    true,
-			ExtraHeaders: map[jose.HeaderKey]any{
-				"url": endpointURL,
-			},
-		},
+		opts,
 	)
 	require.NoError(t, err)
 
@@ -194,6 +204,53 @@ func (s *integrationTestSuite) createAccount(t *testing.T, pathIdentifier string
 	}
 
 	var result types.AccountResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+	return &result, nil, resp
+}
+
+// newOrderURL returns the full URL for the new_order endpoint.
+func (s *integrationTestSuite) newOrderURL(pathIdentifier string) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/new_order", s.server.URL, pathIdentifier)
+}
+
+// createAccountForOrder is a convenience helper that creates an account for an enrollment,
+// returning the private key, account URL, and a fresh nonce for subsequent requests.
+func (s *integrationTestSuite) createAccountForOrder(t *testing.T, enrollment *types.Enrollment) (*ecdsa.PrivateKey, string, string) {
+	t.Helper()
+	privateKey := generateTestKey(t)
+	nonce := s.getNonce(t, enrollment.PathIdentifier)
+	jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollment.PathIdentifier), nil)
+	_, _, resp := s.createAccount(t, enrollment.PathIdentifier, jwsBody)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+	accountURL := resp.Header.Get("Location")
+	require.NotEmpty(t, accountURL)
+	nextNonce := resp.Header.Get("Replay-Nonce")
+	require.NotEmpty(t, nextNonce)
+	return privateKey, accountURL, nextNonce
+}
+
+// createOrder POSTs a JWS body to the new_order endpoint and returns the
+// order response or acme error and the raw response.
+func (s *integrationTestSuite) createOrder(t *testing.T, pathIdentifier string, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
+	t.Helper()
+	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/new_order", pathIdentifier) //nolint:gosec // test server URL is safe
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody))
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer drainAndCloseBody(resp)
+
+	if resp.StatusCode >= 300 {
+		var acmeErr types.ACMEError
+		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
+			return nil, &acmeErr, resp
+		}
+		return nil, nil, resp
+	}
+
+	var result types.OrderResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
 	return &result, nil, resp

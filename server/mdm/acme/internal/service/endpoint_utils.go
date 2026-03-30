@@ -28,18 +28,19 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 			enc.SetIndent("", "  ")
 			return enc.Encode(response)
 		},
-		acmeErrorEncoder,
+		acmeDomainErrorEncoder,
 	)
 }
 
-func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *eu.JsonError) (handled bool) {
+func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 	var acmeErr *types.ACMEError
 	if !errors.As(err, &acmeErr) {
 		// if it's not already an ACME error, it is because it is an internal server
-		// error (or an dev error, for 4xx we should always return ACMEError).
+		// error (or a dev error, for 4xx we should always return ACMEError).
 		acmeErr = types.InternalServerError("") // not passing err.Error() as we don't want to leak internal details
 	}
 
+	w.Header().Set("Content-Type", "application/problem+json")
 	statusCode := acmeErr.StatusCode
 	if statusCode == 0 {
 		statusCode = http.StatusInternalServerError
@@ -47,6 +48,10 @@ func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc
 	w.WriteHeader(statusCode)
 	// ignoring error as response started being written at that point
 	_ = json.NewEncoder(w).Encode(acmeErr)
+}
+
+func acmeDomainErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *eu.JsonError) (handled bool) {
+	acmeErrorEncoder(ctx, err, w)
 	return true
 }
 

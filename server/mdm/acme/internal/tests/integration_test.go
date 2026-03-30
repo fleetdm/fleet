@@ -26,6 +26,7 @@ func TestIntegration(t *testing.T) {
 		{"NewNonce", testNewNonce},
 		{"GetDirectory", testGetDirectory},
 		{"CreateAccount", testCreateAccount},
+		{"CreateOrder", testCreateOrder},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -270,7 +271,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -291,7 +292,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		// create account
 		privateKey := generateTestKey(t)
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody1 := buildJWS(t, privateKey, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody1 := buildJWS(t, privateKey, nonce1, "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
 
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
@@ -301,7 +302,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		// create again with same key - should return existing (use the valid returned nonce)
 		nonce2 := resp1.Header.Get("Replay-Nonce")
-		jwsBody2 := buildJWS(t, privateKey, nonce2, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody2 := buildJWS(t, privateKey, nonce2, "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp2, _, resp2 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody2)
 
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
@@ -323,7 +324,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		nonce := s.getNonce(t, enrollForLimit.PathIdentifier)
 		for range 3 {
 			key := generateTestKey(t)
-			jwsBody := buildJWS(t, key, nonce, s.newAccountURL(enrollForLimit.PathIdentifier), nil)
+			jwsBody := buildJWS(t, key, nonce, "", s.newAccountURL(enrollForLimit.PathIdentifier), nil)
 			_, _, resp := s.createAccount(t, enrollForLimit.PathIdentifier, jwsBody)
 			require.Equal(t, http.StatusCreated, resp.StatusCode)
 			nonce = resp.Header.Get("Replay-Nonce")
@@ -331,7 +332,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		// 4th should fail
 		key := generateTestKey(t)
-		jwsBody := buildJWS(t, key, nonce, s.newAccountURL(enrollForLimit.PathIdentifier), nil)
+		jwsBody := buildJWS(t, key, nonce, "", s.newAccountURL(enrollForLimit.PathIdentifier), nil)
 		_, acmeErr, resp := s.createAccount(t, enrollForLimit.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -349,7 +350,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		// create an account
 		nonce := s.getNonce(t, enrollForRevoke.PathIdentifier)
-		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollForRevoke.PathIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollForRevoke.PathIdentifier), nil)
 		_, _, resp1 := s.createAccount(t, enrollForRevoke.PathIdentifier, jwsBody)
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
 
@@ -362,7 +363,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		// try to create again with the same key — should get accountRevoked error
 		nonce2 := resp1.Header.Get("Replay-Nonce")
-		jwsBody2 := buildJWS(t, privateKey, nonce2, s.newAccountURL(enrollForRevoke.PathIdentifier), nil)
+		jwsBody2 := buildJWS(t, privateKey, nonce2, "", s.newAccountURL(enrollForRevoke.PathIdentifier), nil)
 		_, acmeErr, resp2 := s.createAccount(t, enrollForRevoke.PathIdentifier, jwsBody2)
 
 		require.Equal(t, http.StatusBadRequest, resp2.StatusCode)
@@ -378,7 +379,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		// create account first
 		privateKey := generateTestKey(t)
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody1 := buildJWS(t, privateKey, nonce1, s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody1 := buildJWS(t, privateKey, nonce1, "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
 		require.Regexp(t, "/api/mdm/acme/"+enrollValid.PathIdentifier+`/accounts/\d+`, resp1.Header.Get("Location"))
 		location1 := resp1.Header.Get("Location")
@@ -387,7 +388,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		// lookup with onlyReturnExisting (use the valid returned nonce)
 		nonce2 := resp1.Header.Get("Replay-Nonce")
-		jwsBody2 := buildJWS(t, privateKey, nonce2, s.newAccountURL(enrollValid.PathIdentifier), map[string]any{"onlyReturnExisting": true})
+		jwsBody2 := buildJWS(t, privateKey, nonce2, "", s.newAccountURL(enrollValid.PathIdentifier), map[string]any{"onlyReturnExisting": true})
 		acctResp2, _, resp2 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody2)
 
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
@@ -405,7 +406,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		payload := map[string]any{"onlyReturnExisting": true}
-		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollValid.PathIdentifier), payload)
+		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollValid.PathIdentifier), payload)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -422,7 +423,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		badIdentifier := "no-such-identifier"
-		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(badIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(badIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, badIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -441,7 +442,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		// get nonce from valid enrollment, then try to create account on revoked
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollRevoked.PathIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollRevoked.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollRevoked.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -459,7 +460,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		privateKey := generateTestKey(t)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
-		jwsBody := buildJWS(t, privateKey, nonce, s.newAccountURL(enrollExpired.PathIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollExpired.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollExpired.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -476,12 +477,324 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		privateKey := generateTestKey(t)
-		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", s.newAccountURL(enrollValid.PathIdentifier), nil)
+		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.Contains(t, acmeErr.Type, "error:badNonce")
 		// it does generate a new valid nonce
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("empty url in JWS header", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
+		privateKey := generateTestKey(t)
+		nonce := s.getNonce(t, enrollValid.PathIdentifier)
+		jwsBody := buildJWS(t, privateKey, nonce, "", "", nil)
+		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "malformed")
+		// no nonce generated — decode error bypasses the endpoint handler
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("invalid url in JWS header", func(t *testing.T) {
+		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enrollValid)
+
+		privateKey := generateTestKey(t)
+		nonce := s.getNonce(t, enrollValid.PathIdentifier)
+		jwsBody := buildJWS(t, privateKey, nonce, "", "http://example.com", nil)
+		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "unauthorized")
+		// nonce is generated because the error occurs in the endpoint handler (not decode)
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+}
+
+func testCreateOrder(t *testing.T, s *integrationTestSuite) {
+	// create enrollments shared across sub-tests for error cases
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enrollRevoked)
+
+	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enrollExpired)
+
+	t.Run("create new order", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		orderResp, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+		require.Nil(t, acmeErr)
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+		require.NotEmpty(t, resp.Header.Get("Location"))
+		require.Regexp(t, "/api/mdm/acme/"+enroll.PathIdentifier+`/orders/\d+`, resp.Header.Get("Location"))
+
+		require.Equal(t, "pending", orderResp.Status)
+		require.Len(t, orderResp.Identifiers, 1)
+		require.Equal(t, "permanent-identifier", orderResp.Identifiers[0].Type)
+		require.Equal(t, enroll.HostIdentifier, orderResp.Identifiers[0].Value)
+		require.Len(t, orderResp.Authorizations, 1)
+		require.Regexp(t, "/api/mdm/acme/"+enroll.PathIdentifier+`/authorizations/\d+`, orderResp.Authorizations[0])
+		require.Regexp(t, "/api/mdm/acme/"+enroll.PathIdentifier+`/orders/\d+/finalize`, orderResp.Finalize)
+	})
+
+	t.Run("unsupported identifier type", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "dns", "value": "example.com"},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		_, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "unsupportedIdentifier")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("wrong identifier value", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": "wrong-host-identifier"},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		_, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "rejectedIdentifier")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("multiple identifiers", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+				{"type": "permanent-identifier", "value": "another"},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		_, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "unsupportedIdentifier")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("no identifiers", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		_, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "unsupportedIdentifier")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("notBefore set", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+			},
+			"notBefore": time.Now().UTC().Format(time.RFC3339),
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		_, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "malformed")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("notAfter set", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+			},
+			"notAfter": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339),
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		_, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "malformed")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("too many orders", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		// create 3 orders (the maximum allowed per account)
+		for range 3 {
+			payload := map[string]any{
+				"identifiers": []map[string]string{
+					{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+				},
+			}
+			jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+			_, _, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+			require.Equal(t, http.StatusCreated, resp.StatusCode)
+			nonce = resp.Header.Get("Replay-Nonce")
+		}
+
+		// 4th should fail
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		_, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "tooManyOrders")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("unknown identifier", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		badIdentifier := "no-such-identifier"
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(badIdentifier), payload)
+		orderResp, acmeErr, resp := s.createOrder(t, badIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Nil(t, orderResp)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "enrollmentNotFound")
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("revoked enrollment", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enrollRevoked.PathIdentifier), payload)
+		orderResp, acmeErr, resp := s.createOrder(t, enrollRevoked.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Nil(t, orderResp)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "enrollmentNotFound")
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("expired enrollment", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enrollExpired.PathIdentifier), payload)
+		orderResp, acmeErr, resp := s.createOrder(t, enrollExpired.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Nil(t, orderResp)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "enrollmentNotFound")
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+		require.Empty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("invalid nonce", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, _ := s.createAccountForOrder(t, enroll)
+
+		payload := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+			},
+		}
+		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+		_, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "badNonce")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Empty(t, resp.Header.Get("Location"))
 	})

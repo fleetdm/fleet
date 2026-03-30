@@ -6,6 +6,7 @@ import (
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
@@ -22,6 +23,7 @@ func GetRoutes(svc api.Service) eu.HandlerRoutesFunc {
 }
 
 func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerOption) {
+	opts = append(opts, kithttp.ServerErrorEncoder(acmeErrorEncoder))
 	ae := newEndpointerWithNoAuth(svc, opts, r)
 	// ACME endpoints use path identifier and JWS authn/z, so we use a middleware to mark
 	// the standard Fleet auth as skipped/done so the endpoints don't return a Forbidden
@@ -106,6 +108,18 @@ func createOrderEndpoint(ctx context.Context, request any, svc api.Service) plat
 	if err != nil {
 		return &api_http.CreateNewOrderResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
-	_ = newOrderRequest
-	panic("unimplemented")
+
+	partialOrder := &types.Order{
+		Identifiers: newOrderRequest.Identifiers,
+		NotBefore:   newOrderRequest.NotBefore,
+		NotAfter:    newOrderRequest.NotAfter,
+	}
+	orderResp, err := svc.CreateOrder(ctx, newOrderRequest.Enrollment, newOrderRequest.Account, partialOrder)
+	if err != nil {
+		return &api_http.CreateNewOrderResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+	return &api_http.CreateNewOrderResponse{
+		Nonces:        svc.NoncesStore(),
+		OrderResponse: orderResp,
+	}
 }
