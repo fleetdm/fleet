@@ -26,7 +26,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
-		{"SoftwareTitleRenaming", testSoftwareTitleRenaming},
+		{"SoftwareTitleRenamingWindows", testSoftwareTitleRenamingWindows},
 		{"GetFMANamesByIdentifier", testGetFMANamesByIdentifier},
 		{"UpsertMaintainedAppUpdatesSoftware", testUpsertMaintainedAppUpdatesSoftware},
 	}
@@ -634,25 +634,18 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 	require.Nil(t, apps[1].TitleID)
 }
 
-func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
+func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 
 	ctx := context.Background()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
 	software1 := []fleet.Software{
-		{Name: "Foo", Version: "1.0", Source: "apps", BundleIdentifier: "com.microsoft.foo"},
-		{Name: "Bar", Version: "1.0", Source: "apps", BundleIdentifier: "com.bar"},
-	}
-	software2 := []fleet.Software{
 		{Name: "Goodbye 1.00 (x64)", Version: "1.0", Source: "programs"},
 		{Name: "Hello 1.00 (x64)", Version: "1.0", Source: "programs", UpgradeCode: ptr.String("{123456}")},
 	}
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
-	require.NoError(t, err)
-	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
@@ -660,26 +653,10 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 	opts := fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{OrderKey: "name"}}
 	sw, _, _, err := ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
-	require.Len(t, sw, 4)
-	require.Equal(t, sw[0].Name, "Bar")
-	require.Equal(t, sw[1].Name, "Foo")
-	require.Equal(t, sw[2].Name, "Goodbye 1.00 (x64)")
-	require.Equal(t, sw[3].Name, "Hello 1.00 (x64)")
+	require.Len(t, sw, 2)
+	require.Equal(t, sw[0].Name, "Goodbye 1.00 (x64)")
+	require.Equal(t, sw[1].Name, "Hello 1.00 (x64)")
 
-	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "Microsoft Visual Foo",
-		Slug:             "foo/darwin",
-		Platform:         "darwin",
-		UniqueIdentifier: "com.microsoft.foo",
-	})
-	require.NoError(t, err)
-	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "Bar",
-		Slug:             "bar/darwin",
-		Platform:         "darwin",
-		UniqueIdentifier: "com.bar",
-	})
-	require.NoError(t, err)
 	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "goodbye",
 		Slug:             "goodbye/windows",
@@ -697,11 +674,9 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 
 	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
-	require.Len(t, sw, 4)
-	require.Equal(t, sw[0].Name, "Bar")
-	require.Equal(t, sw[1].Name, "Goodbye 1.00 (x64)")
-	require.Equal(t, sw[2].Name, "Hello 1.00 (x64)")
-	require.Equal(t, sw[3].Name, "Microsoft Visual Foo")
+	require.Len(t, sw, 2)
+	require.Equal(t, sw[0].Name, "Goodbye 1.00 (x64)")
+	require.Equal(t, sw[1].Name, "Hello 1.00 (x64)")
 
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:                "Goodbye 1.00 (x64)",
@@ -735,9 +710,9 @@ func testSoftwareTitleRenaming(t *testing.T, ds *Datastore) {
 	// keeps its name, and Hello 1.00 (x64) updates to just Hello as it has one.
 	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
 	require.NoError(t, err)
-	require.Len(t, sw, 4)
-	require.Equal(t, sw[1].Name, "Goodbye 1.00 (x64)")
-	require.Equal(t, sw[2].Name, "Hello")
+	require.Len(t, sw, 2)
+	require.Equal(t, sw[0].Name, "Goodbye 1.00 (x64)")
+	require.Equal(t, sw[1].Name, "Hello")
 }
 
 func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
