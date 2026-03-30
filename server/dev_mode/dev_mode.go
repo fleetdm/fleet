@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-// Do not write this variable from concurrent goroutines; use SetOverride instead.
+// IsEnabled should be configured once at process startup (e.g., via flags) and then treated as read-only.
+// It must not be written from concurrent goroutines; SetOverride only affects enabledViaOverride/env overrides.
 var IsEnabled bool
 
 // enabledViaOverride is set atomically by SetOverride so that background goroutines
