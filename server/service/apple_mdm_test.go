@@ -4721,13 +4721,13 @@ func TestRenewSCEPCertificatesMDMConfigNotSet(t *testing.T) {
 		appCfg.MDM.EnabledAndConfigured = false
 		return appCfg, nil
 	}
-	err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander)
+	err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander, &mock.MockACMEService{})
 	require.NoError(t, err)
 }
 
 func TestRenewSCEPCertificatesCommanderNil(t *testing.T) {
 	ctx, logger, ds, cfg, _, _ := setupTest(t)
-	err := RenewSCEPCertificates(ctx, logger, ds, cfg, nil)
+	err := RenewSCEPCertificates(ctx, logger, ds, cfg, nil, &mock.MockACMEService{})
 	require.NoError(t, err)
 }
 
@@ -5003,6 +5003,11 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, logger, ds, cfg, appleStorage, commander := setupTest(t)
 
+			acmeSvc := &mock.MockACMEService{}
+			acmeSvc.NewACMEEnrollmentFunc = func(ctx context.Context, hostIdentifier string) (string, error) {
+				return uuid.NewString(), nil
+			}
+
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				appCfg := &fleet.AppConfig{}
 				appCfg.OrgInfo.OrgName = "fl33t"
@@ -5041,12 +5046,13 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 
 			tc.customExpectations(t, ds, cfg, appleStorage, commander)
 
-			err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander)
+			err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander, acmeSvc)
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
+			require.False(t, acmeSvc.NewACMEEnrollmentFuncInvoked, "NewACMEEnrollment should not be called during SCEP cert renewal")
 		})
 	}
 }
