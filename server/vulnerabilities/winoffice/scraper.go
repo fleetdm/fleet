@@ -292,6 +292,10 @@ func compareBuildVersions(a, b string) int {
 	if len(partsA) >= 1 && len(partsB) >= 1 {
 		prefixA := partsA[0]
 		prefixB := partsB[0]
+		// Pad to same length for proper numeric comparison
+		maxLen := max(len(prefixA), len(prefixB))
+		prefixA = fmt.Sprintf("%0*s", maxLen, prefixA)
+		prefixB = fmt.Sprintf("%0*s", maxLen, prefixB)
 		if prefixA < prefixB {
 			return -1
 		}

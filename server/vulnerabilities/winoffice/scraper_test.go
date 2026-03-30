@@ -164,6 +164,8 @@ func TestCompareBuildVersions(t *testing.T) {
 		{"a less than b - same prefix", "19725.20170", "19725.20172", -1},
 		{"a greater than b - same prefix", "19725.20172", "19725.20170", 1},
 		{"different suffix lengths", "19725.20170", "19725.201720", -1},
+		{"different prefix lengths - a shorter", "9999.1", "10000.1", -1},
+		{"different prefix lengths - a longer", "10000.1", "9999.1", 1},
 	}
 
 	for _, tc := range tests {
