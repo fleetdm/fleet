@@ -7515,6 +7515,13 @@ Edit managed local account enforcement settings for eligible macOS hosts.
 
 `204`
 
+```json
+{
+  "fleet_id": 3,
+  "enable_managed_local_account": true
+}
+```
+
 ---
 
 ## Commands
