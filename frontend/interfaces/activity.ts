@@ -183,7 +183,8 @@ export type IHostPastActivityType =
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
   | ActivityType.CanceledUninstallSoftware
-  | ActivityType.InstalledCertificate;
+  | ActivityType.InstalledCertificate
+  | ActivityType.ResentCertificate;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
