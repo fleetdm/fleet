@@ -1471,6 +1471,16 @@ type KeyValueStore interface {
 	Get(ctx context.Context, key string) (*string, error)
 }
 
+type AdvancedKeyValueStore interface {
+	KeyValueStore
+
+	// MGet returns the values for the given keys.
+	// It returns a map of key to value, where the value is nil if the key doesn't exist.
+	// Important to use hashes for the keys to land in the same slot.
+	MGet(ctx context.Context, keys []string) (map[string]*string, error)
+	Delete(ctx context.Context, key string) error
+}
+
 const (
 	// BatchSetSoftwareInstallerStatusProcessing is the value returned for an ongoing BatchSetSoftwareInstallers operation.
 	BatchSetSoftwareInstallersStatusProcessing = "processing"
