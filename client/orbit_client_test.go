@@ -12,6 +12,52 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSSOWindowReopenTiming(t *testing.T) {
+	t.Run("opens window on first attempt", func(t *testing.T) {
+		oc := &OrbitClient{}
+		require.True(t, oc.lastSSOWindowOpen.IsZero(), "lastSSOWindowOpen should be zero initially")
+		require.True(t, oc.lastSSOWindowOpen.IsZero() || time.Since(oc.lastSSOWindowOpen) >= ssoWindowReopenInterval)
+	})
+
+	t.Run("suppresses window within reopen interval", func(t *testing.T) {
+		oc := &OrbitClient{}
+		oc.lastSSOWindowOpen = time.Now()
+		require.False(t, oc.lastSSOWindowOpen.IsZero() || time.Since(oc.lastSSOWindowOpen) >= ssoWindowReopenInterval)
+	})
+
+	t.Run("reopens window after interval expires", func(t *testing.T) {
+		oc := &OrbitClient{}
+		oc.lastSSOWindowOpen = time.Now().Add(-ssoWindowReopenInterval - time.Second)
+		require.True(t, oc.lastSSOWindowOpen.IsZero() || time.Since(oc.lastSSOWindowOpen) >= ssoWindowReopenInterval)
+	})
+
+	t.Run("tracks open time correctly via SetOpenSSOWindowFunc", func(t *testing.T) {
+		var openCount int
+		oc := &OrbitClient{}
+		oc.SetOpenSSOWindowFunc(func() error {
+			openCount++
+			return nil
+		})
+
+		shouldOpen := oc.lastSSOWindowOpen.IsZero() || time.Since(oc.lastSSOWindowOpen) >= ssoWindowReopenInterval
+		require.True(t, shouldOpen)
+		require.NoError(t, oc.openSSOWindow())
+		oc.lastSSOWindowOpen = time.Now()
+		require.Equal(t, 1, openCount)
+
+		shouldOpen = oc.lastSSOWindowOpen.IsZero() || time.Since(oc.lastSSOWindowOpen) >= ssoWindowReopenInterval
+		require.False(t, shouldOpen)
+
+		// Simulate interval expiry
+		oc.lastSSOWindowOpen = time.Now().Add(-ssoWindowReopenInterval - time.Second)
+		shouldOpen = oc.lastSSOWindowOpen.IsZero() || time.Since(oc.lastSSOWindowOpen) >= ssoWindowReopenInterval
+		require.True(t, shouldOpen)
+		require.NoError(t, oc.openSSOWindow())
+		oc.lastSSOWindowOpen = time.Now()
+		require.Equal(t, 2, openCount)
+	})
+}
+
 func TestGetConfig(t *testing.T) {
 	t.Run(
 		"config cache", func(t *testing.T) {
