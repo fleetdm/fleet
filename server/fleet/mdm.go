@@ -33,7 +33,7 @@ const (
 	StickyMDMEnrollmentTTL       = 30 * time.Minute
 
 	// MDMProfileProcessingKeyPrefix is used to indicate that a host is currently being processed for MDM profile installation.
-	// We wrap the key in braces to make Redis hash the keys to the same slot, avoding CrossSlot errors.
+	// We wrap the key in braces to make Redis hash the keys to the same slot, avoiding CrossSlot errors.
 	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
 	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
 )
