@@ -754,6 +754,10 @@ type Datastore interface {
 	CheckConflictingInstallerExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error)
 	CheckConflictingInHouseAppExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error)
 
+	// CheckAndroidWebAppNameExists checks if an Android web app with the given
+	// name already exists in the vpp_apps table (fleet-wide).
+	CheckAndroidWebAppNameExists(ctx context.Context, name string) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
