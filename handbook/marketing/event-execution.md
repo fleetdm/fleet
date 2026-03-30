@@ -16,6 +16,7 @@ It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confi
 | Q2 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9bojminke8bt) | 2026-04-07 | Minneapolis |
 | Q2 | [HappyHour-Apple](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.2lh2oum4rxur) | 2026-04-TBD | Austin |
 | Q2 | * **[MACAd-UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.u1lwe72sguc3)** | 2026-04-21 | Brighton, UK |
+| Q2 | * **[Gartner Digital Workplace UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9h2x1faopsyk)** | 2026-04-28 | London |
 | Q2 | * **[MacAdmins Europe](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.qg7ymw2g9ui8)** | 2026-04-30 | Leiden, Netherlands |
 | Q2 | * **[MacDevOpsYVR](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka)** | 2026-06-25 | Montreal |
 | Q2 | * **[PSU MacAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.yibj67h9z2xz)** | 2026-07-07 | PennState |
@@ -211,8 +212,8 @@ here's the script
 ```bash
 #!/bin/bash
 # --- Event specifics / details - change this
-EVENT_SLUG="2606-MacDevOpsYVR-Montreal"
-PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka"
+EVENT_SLUG="2026_04-MC-Gartner_UK"
+PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9h2x1faopsyk"
 REQUEST_ISSUE = "#14599"
 
 # No need to change anything else to run the script
@@ -247,35 +248,14 @@ Master tracking issue for ${EVENT_SLUG}.
 EXECUTION for request $REQUEST_ISSUE
 
 ## Executive Snapshot & Key Decisions 
-
-Use this section for a quick overview. If someone only reads this part, they should understand the scope and scale of our presence. 
-
-| Category | Details |
-|---|---|
-| Event Name | [e.g., KubeCon NA 2026] |
-| Dates | [Start Date] to [End Date] |
-| Location | [City, State, Venue Name] |
-| Event Website | [Link to official site] |
-| Budget Estimate | [Total estimated cost] |
-| Primary Goal | [e.g., Lead Gen (500 scans), Brand Awareness, Recruiting] |
-| Booth Size | [e.g., 10x20, Island, Tabletop] |
-| Speaking Slot? (details below) | Yes or No |
-| Workshop? | Yes or No |
-| DRI | [Name of person responsible] |
-| Onsite DRI | [Name of person responsible] |
-| Planing Doc | $PLANNING_DOC_URL |
+- [ ] Update the working google doc for the ${EVENT_SLUG}
+See: Planing Doc: $PLANNING_DOC_URL 
 
 - [ ] Finalize sponsorship agreements
-- [ ] Assign issues/tasks
+- [ ] Assign child issues/tasks
 
-## Progress Tracker
-- [ ] 1. Speaking Session & Workshop Details
-- [ ] 2. Promotion & Marketing Plan
-- [ ] 3. Booth Strategy & Messaging
-- [ ] 4. Staffing & Travel Logistics
-- [ ] 5. Execution, Logistics & Swag
-- [ ] 6 Lead Capture & Follow-Up Strategy
-- [ ] 7. Post-Mortem & ROI Analysis
+## Progress Tracker - See SubIssues
+
 EOF
 )
 
@@ -376,11 +356,12 @@ BODY=$(cat << EOF
 **Description**
 Track all details, deadlines, and requirements for any speaking slots or workshops we are hosting before, during, or after the event.
 
-- [ ] Confirm speaking session details (Title, Speaker, Date/Time, Room)
-- [ ] Submit Abstract Link and AV Requirements
-- [ ] Confirm workshop hosting and timing
-- [ ] Update Workshop Planning Doc, Registration Link, and Capacity
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Confirm speaking session details (Title, Speaker, Date/Time, Room)
+- Submit Abstract Link and AV Requirements
+- Confirm workshop hosting and timing
+- Update Workshop Planning Doc, Registration Link, and Capacity
+
 EOF
 )
 create_sub_issue "1. Speaking Session & Workshop Details" "$BODY"
@@ -391,13 +372,11 @@ BODY=$(cat << EOF
 **Description**
 Manage how we are driving traffic to our booth, session, or workshop.
 
-- [ ] Schedule Pre-Event Email Blast 
-- [ ] Schedule LinkedIn and Twitter/X Posts
-- [ ] Create Speaker Promo Graphics and Blog Post 
-- [ ] Assign Customer Invites
-- [ ] Assign Live Social Coverage during event 
-- [ ] Schedule Event App Push Notification
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Schedule Pre-Event Email Blast 
+- Work w/ Social Media Manager to schedule LinkedIn and Twitter/X Posts
+- Create Speaker Promo Graphics and Blog Post 
+- Assign Live Social Coverage during event 
 EOF
 )
 create_sub_issue "2. Promotion & Marketing Plan" "$BODY"
@@ -406,13 +385,13 @@ create_sub_issue "2. Promotion & Marketing Plan" "$BODY"
 # --- Child 3 ---
 BODY=$(cat << EOF
 **Description**
-Define the core purpose, layout, and messaging for our physical footprint on the show floor.
+Define the booth details.
 
-- [ ] Document Booth Number and Exhibit Hall Hours 
-- [ ] Define Core Messaging/Theme 
-- [ ] List Key Demos 
-- [ ] Document Key Requirements (internet, scanners, monitors)
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Document Booth Number and Exhibit Hall Hours 
+- Define Core Messaging/Theme 
+- Define Digital Booth Content (Videos, Slides, Demos)
+- Document Key Requirements (internet, scanners, monitors)
 EOF
 )
 create_sub_issue "3. Booth Strategy & Messaging" "$BODY"
@@ -423,12 +402,12 @@ BODY=$(cat << EOF
 **Description**
 Manage who is going, where they are staying, and when they are working the booth.
 
-- [ ] Assign Staff Manager and Attire 
-- [ ] Select Suggested Hotel 
-- [ ] Set Arrival and Departure Requirements 
-- [ ] Complete Staff Assignments table 
-- [ ] Create Booth Staffing Schedule
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Assign Staff Manager and Attire 
+- Select Suggested Hotel 
+- Set Arrival and Departure Requirements 
+- Complete Staff Assignments table 
+- Create Booth Staffing Schedule
 EOF
 )
 create_sub_issue "4. Staffing & Travel Logistics" "$BODY"
@@ -439,12 +418,12 @@ BODY=$(cat << EOF
 **Description**
 This section is for the operations team to handle on-site setup, booth build, and shipping.
 
-- [ ] Track Shipping & Handling deadlines and tracking numbers 
-- [ ] Create Return Shipping Label 
-- [ ] Confirm Booth Vendor, Graphics Deadline, and Furniture/Electrical 
-- [ ] Order Premium Swag, General Swag, and Raffle/Contest items 
-- [ ] Complete Key Points of Contact table
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Track Shipping & Handling deadlines and tracking numbers 
+- Create Return Shipping Label 
+- Confirm Booth Vendor, Graphics Deadline, and Furniture/Electrical 
+- Order Premium Swag, General Swag, and Raffle/Contest items 
+- Complete Key Points of Contact table
 EOF
 )
 create_sub_issue "5. Execution, Logistics & Swag" "$BODY"
@@ -455,12 +434,13 @@ BODY=$(cat << EOF
 **Description**
 Crucial for ROI. Track how we capture data and what happens next.
 
-- [ ] Define Capture Mechanics, Method, and Device Rental 
-- [ ] Define Incentive to Scan 
-- [ ] Write Qualifying Questions for Booth Staff 
-- [ ] Assign Lead Upload Owner and SLA 
-- [ ] Define Follow Up Strategy and Nurture Sequence
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Define Capture Mechanics, Method, and Device Rental 
+- Define Incentive to Scan 
+- Write Qualifying Questions for Booth Staff 
+- Assign Lead Upload Owner and SLA 
+- Define Follow Up Strategy and Nurture Sequence
+
 EOF
 )
 create_sub_issue "6. Lead Capture & Follow-Up Strategy" "$BODY"
@@ -471,11 +451,11 @@ BODY=$(cat << EOF
 **Description**
 To be filled out within 1 week of event conclusion to analyze performance and ROI.
 
-- [ ] Record The Numbers (Leads, MQLs, Spend, CPL) 
-- [ ] Complete Retrospective (What went well/wrong) 
-- [ ] Document Competitor Intel 
-- [ ] Upload Photo Archive
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Record The Numbers (Leads, MQLs, Spend, CPL) 
+- Complete Retrospective (What went well/wrong) 
+- Document Competitor Intel 
+- Upload Photo Archive
 EOF
 )
 create_sub_issue "7. Post-Mortem & ROI Analysis" "$BODY"
