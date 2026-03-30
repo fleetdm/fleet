@@ -10,7 +10,7 @@ const meta: Meta<typeof InfoBanner> = {
   argTypes: {
     color: {
       control: { type: "select" },
-      options: ["purple", "yellow", "grey"],
+      options: ["yellow", "grey"],
     },
     borderRadius: {
       control: { type: "select" },
@@ -59,7 +59,7 @@ export const Playground: Story = {
   args: {
     children: defaultChildren,
     cta: sampleCta,
-    color: "purple",
+    color: "grey",
     borderRadius: "medium",
     pageLevel: false,
     closable: true,
