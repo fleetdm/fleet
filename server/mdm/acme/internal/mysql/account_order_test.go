@@ -426,3 +426,104 @@ func testMultipleOrdersDifferentAccounts(t *testing.T, env *testEnv) {
 	require.NotZero(t, result.ID)
 	require.Equal(t, account2.ID, result.ACMEAccountID)
 }
+
+func TestGetOrderByID(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "acme_get_order")
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	env := &testEnv{TestDB: tdb, ds: ds}
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, env *testEnv)
+	}{
+		{"GetExistingOrder", testGetExistingOrder},
+		{"OrderNotFound", testGetOrderNotFound},
+		{"WrongAccountID", testGetOrderWrongAccountID},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer env.TruncateTables(t)
+			c.fn(t, env)
+		})
+	}
+}
+
+func testGetExistingOrder(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	order := &types.Order{
+		ACMEAccountID: account.ID,
+		Status:        "pending",
+		Identifiers: []types.Identifier{
+			{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
+		},
+	}
+	authorization := &types.Authorization{
+		Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
+		Status:     "pending",
+	}
+	challenge := &types.Challenge{
+		ChallengeType: "device-attest-01",
+		Token:         "test-token-123",
+		Status:        "pending",
+	}
+
+	created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+	require.NoError(t, err)
+
+	gotOrder, gotAuths, err := env.ds.GetOrderByID(t.Context(), account.ID, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, created.ID, gotOrder.ID)
+	require.Equal(t, account.ID, gotOrder.ACMEAccountID)
+	require.Equal(t, "pending", gotOrder.Status)
+	require.False(t, gotOrder.Finalized)
+	require.Len(t, gotOrder.Identifiers, 1)
+	require.Equal(t, types.IdentifierTypePermanentIdentifier, gotOrder.Identifiers[0].Type)
+	require.Equal(t, "serial-123", gotOrder.Identifiers[0].Value)
+
+	require.Len(t, gotAuths, 1)
+	require.Equal(t, authorization.ID, gotAuths[0].ID)
+	require.Equal(t, "pending", gotAuths[0].Status)
+}
+
+func testGetOrderNotFound(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	_, _, err := env.ds.GetOrderByID(t.Context(), account.ID, 99999)
+	require.Error(t, err)
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "orderDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
+}
+
+func testGetOrderWrongAccountID(t *testing.T, env *testEnv) {
+	account1, _ := createTestAccountForOrder(t, env)
+	account2, _ := createTestAccountForOrder(t, env)
+
+	order := &types.Order{
+		ACMEAccountID: account1.ID,
+		Status:        "pending",
+		Identifiers: []types.Identifier{
+			{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
+		},
+	}
+	authorization := &types.Authorization{
+		Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
+		Status:     "pending",
+	}
+	challenge := &types.Challenge{
+		ChallengeType: "device-attest-01",
+		Token:         "test-token-123",
+		Status:        "pending",
+	}
+
+	created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+	require.NoError(t, err)
+
+	// try to get the order using account2's ID — should fail
+	_, _, err = env.ds.GetOrderByID(t.Context(), account2.ID, created.ID)
+	require.Error(t, err)
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "orderDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
+}
