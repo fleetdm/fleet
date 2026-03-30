@@ -5625,7 +5625,7 @@ The host will only return a password if its managed account password status is "
 
 | Name | Type    | In   | Description                                                              |
 | ---- | ------- | ---- | ------------------------------------------------------------------------ |
-| id   | integer | path | **Required** The id of the host to get the managed account password for. |
+| id   | integer | path | **Required** The ID of the host to get the managed account password for. |
 
 
 #### Example
