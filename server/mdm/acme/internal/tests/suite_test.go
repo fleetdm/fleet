@@ -230,6 +230,25 @@ func (s *integrationTestSuite) createAccountForOrder(t *testing.T, enrollment *t
 	return privateKey, accountURL, nextNonce
 }
 
+// createOrderForGet is a convenience helper that creates an account and order for an enrollment,
+// returning the private key, account URL, order response, and a fresh nonce for subsequent requests.
+func (s *integrationTestSuite) createOrderForGet(t *testing.T, enroll *types.Enrollment) (*ecdsa.PrivateKey, string, *types.OrderResponse, string) {
+	t.Helper()
+	privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+	payload := map[string]any{
+		"identifiers": []map[string]string{
+			{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+		},
+	}
+	jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+	orderResp, _, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+	nextNonce := resp.Header.Get("Replay-Nonce")
+	require.NotEmpty(t, nextNonce)
+	return privateKey, accountURL, orderResp, nextNonce
+}
+
 // getOrderURL returns the full URL for the get order endpoint.
 func (s *integrationTestSuite) getOrderURL(pathIdentifier string, orderID uint) string {
 	return fmt.Sprintf("%s/api/mdm/acme/%s/orders/%d", s.server.URL, pathIdentifier, orderID)
