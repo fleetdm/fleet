@@ -3,8 +3,8 @@ import React from "react";
 import { IOsQueryTable } from "interfaces/osquery_table";
 import { osqueryTableNames } from "utilities/osquery_tables";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import FleetMarkdown from "components/FleetMarkdown";
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon/Icon";
@@ -40,22 +40,31 @@ const QuerySidePanel = ({
 
   const mdmRequired = name === "managed_policies";
 
-  const onSelectTable = (value: string) => {
-    onOsqueryTableSelect(value);
+  const onSelectTable = (option: CustomOptionType | null) => {
+    if (!option) {
+      return;
+    }
+
+    onOsqueryTableSelect(option.value);
   };
 
   const renderTableSelect = () => {
-    const tableNames = osqueryTableNames.map((tableName: string) => {
-      return { label: tableName, value: tableName };
-    });
+    const tableNames: CustomOptionType[] = osqueryTableNames.map(
+      (tableName: string) => ({
+        label: tableName,
+        value: tableName,
+      })
+    );
 
     return (
-      <Dropdown
+      <DropdownWrapper
+        name="osquery-table-select"
         options={tableNames}
         value={name}
         onChange={onSelectTable}
-        placeholder="Choose Table..."
+        placeholder="Select a table"
         className={`${baseClass}__table-select`}
+        isSearchable
       />
     );
   };
