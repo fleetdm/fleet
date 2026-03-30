@@ -96,11 +96,17 @@ func (s *integrationTestSuite) newNonce(t *testing.T, httpMethod, pathIdentifier
 	return result, resp
 }
 
-// getDirectory makes an HTTP request to get directory endpoint and returns the parsed response and the raw response.
-func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdentifier string) (*api_http.GetDirectoryResponse, *http.Response) {
+// doACMERequest is a generic helper that makes an HTTP request, decodes the
+// response into T on success, or into an ACMEError on failure (status >= 300).
+func doACMERequest[T any](t *testing.T, method, url string, body []byte) (*T, *types.ACMEError, *http.Response) {
 	t.Helper()
-	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/directory", pathIdentifier) //nolint:gosec // test server URL is safe
-	req, err := http.NewRequest(httpMethod, url, nil)
+
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+
+	req, err := http.NewRequest(method, url, bodyReader) //nolint:gosec // test server URL is safe
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -108,13 +114,25 @@ func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdenti
 	defer drainAndCloseBody(resp)
 
 	if resp.StatusCode >= 300 {
-		return nil, resp
+		var acmeErr types.ACMEError
+		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
+			return nil, &acmeErr, resp
+		}
+		return nil, nil, resp
 	}
 
-	var result api_http.GetDirectoryResponse
+	var result T
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
-	return &result, resp
+	return &result, nil, resp
+}
+
+// getDirectory makes an HTTP request to get directory endpoint and returns the parsed response and the raw response.
+func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdentifier string) (*api_http.GetDirectoryResponse, *http.Response) {
+	t.Helper()
+	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/directory", pathIdentifier) //nolint:gosec // test server URL is safe
+	result, _, resp := doACMERequest[api_http.GetDirectoryResponse](t, httpMethod, url, nil)
+	return result, resp
 }
 
 // staticNonce implements jose.NonceSource with a fixed nonce value.
@@ -188,25 +206,7 @@ func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, nonce, accountURL, end
 func (s *integrationTestSuite) createAccount(t *testing.T, pathIdentifier string, jwsBody []byte) (*types.AccountResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
 	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/new_account", pathIdentifier) //nolint:gosec // test server URL is safe
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody))
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer drainAndCloseBody(resp)
-
-	if resp.StatusCode >= 300 {
-		var acmeErr types.ACMEError
-		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
-			return nil, &acmeErr, resp
-		}
-		return nil, nil, resp
-	}
-
-	var result types.AccountResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-	return &result, nil, resp
+	return doACMERequest[types.AccountResponse](t, http.MethodPost, url, jwsBody)
 }
 
 // newOrderURL returns the full URL for the new_order endpoint.
@@ -259,25 +259,7 @@ func (s *integrationTestSuite) getOrderURL(pathIdentifier string, orderID uint) 
 func (s *integrationTestSuite) getOrder(t *testing.T, pathIdentifier string, orderID uint, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
 	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/orders/%d", pathIdentifier, orderID) //nolint:gosec // test server URL is safe
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody))
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer drainAndCloseBody(resp)
-
-	if resp.StatusCode >= 300 {
-		var acmeErr types.ACMEError
-		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
-			return nil, &acmeErr, resp
-		}
-		return nil, nil, resp
-	}
-
-	var result types.OrderResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-	return &result, nil, resp
+	return doACMERequest[types.OrderResponse](t, http.MethodPost, url, jwsBody)
 }
 
 // createOrder POSTs a JWS body to the new_order endpoint and returns the
@@ -285,23 +267,5 @@ func (s *integrationTestSuite) getOrder(t *testing.T, pathIdentifier string, ord
 func (s *integrationTestSuite) createOrder(t *testing.T, pathIdentifier string, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
 	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/new_order", pathIdentifier) //nolint:gosec // test server URL is safe
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody))
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer drainAndCloseBody(resp)
-
-	if resp.StatusCode >= 300 {
-		var acmeErr types.ACMEError
-		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
-			return nil, &acmeErr, resp
-		}
-		return nil, nil, resp
-	}
-
-	var result types.OrderResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-	return &result, nil, resp
+	return doACMERequest[types.OrderResponse](t, http.MethodPost, url, jwsBody)
 }
