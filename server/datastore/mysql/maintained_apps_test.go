@@ -25,6 +25,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
+		{"SharedBundleIdentifier", testSharedBundleIdentifier},
 	}
 
 	for _, c := range cases {
@@ -628,4 +629,81 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 	require.Equal(t, titleID, *apps[0].TitleID)
 	// the darwin app should not be matched by name
 	require.Nil(t, apps[1].TitleID)
+}
+
+func testSharedBundleIdentifier(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create two FMAs that share the same bundle identifier (like Firefox and Firefox ESR)
+	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Mozilla Firefox",
+		Slug:             "firefox/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+
+	firefoxESR, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Mozilla Firefox ESR",
+		Slug:             "firefox@esr/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "org.mozilla.firefox", // same bundle identifier
+	})
+	require.NoError(t, err)
+
+	// Neither should be marked as added yet
+	apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.Nil(t, apps[0].TitleID)
+	require.Nil(t, apps[1].TitleID)
+
+	// Add only Firefox (not ESR) as an FMA installer
+	_, firefoxTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Mozilla Firefox",
+		BundleIdentifier:     "org.mozilla.firefox",
+		Source:               "apps",
+		StorageID:            "firefox-storage",
+		Filename:             "Firefox.dmg",
+		Extension:            "dmg",
+		Platform:             "darwin",
+		Version:              "125.0",
+		UserID:               user.ID,
+		TeamID:               &team.ID,
+		InstallScript:        "echo install",
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &firefox.ID,
+	})
+	require.NoError(t, err)
+
+	// Only Firefox should show as added, NOT Firefox ESR
+	apps, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	// Find Firefox and Firefox ESR in results (order by id)
+	var gotFirefox, gotFirefoxESR fleet.MaintainedApp
+	for _, app := range apps {
+		if app.ID == firefox.ID {
+			gotFirefox = app
+		} else if app.ID == firefoxESR.ID {
+			gotFirefoxESR = app
+		}
+	}
+	require.NotNil(t, gotFirefox.TitleID, "Firefox should be marked as added")
+	require.Equal(t, firefoxTitleID, *gotFirefox.TitleID)
+	require.Nil(t, gotFirefoxESR.TitleID, "Firefox ESR should NOT be marked as added")
+
+	// Also verify GetMaintainedAppByID returns correct results
+	gotApp, err := ds.GetMaintainedAppByID(ctx, firefox.ID, &team.ID)
+	require.NoError(t, err)
+	require.NotNil(t, gotApp.TitleID)
+	require.Equal(t, firefoxTitleID, *gotApp.TitleID)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, firefoxESR.ID, &team.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotApp.TitleID, "Firefox ESR should NOT have a title ID when only Firefox was added")
 }
