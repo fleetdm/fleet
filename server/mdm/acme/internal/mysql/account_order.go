@@ -14,7 +14,10 @@ import (
 	"go.step.sm/crypto/jose"
 )
 
-const maxAccountsPerEnrollment = 3
+const (
+	maxAccountsPerEnrollment = 3
+	maxOrdersPerAccount      = 3
+)
 
 func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, onlyReturnExisting bool) (*types.Account, bool, error) {
 	var didCreate bool
@@ -23,7 +26,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 		// the same enrollment, so we can enforce limits on account creation
 		const lockEnrollmentStmt = `SELECT id FROM acme_enrollments WHERE id = ? FOR UPDATE`
 		var enrollmentID uint
-		err := sqlx.GetContext(ctx, tx, &enrollmentID, lockEnrollmentStmt, account.EnrollmentID)
+		err := sqlx.GetContext(ctx, tx, &enrollmentID, lockEnrollmentStmt, account.ACMEEnrollmentID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock acme enrollment")
 		}
@@ -39,7 +42,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 			ID      uint `db:"id"`
 			Revoked bool `db:"revoked"`
 		}
-		err = sqlx.GetContext(ctx, tx, &existingAccount, findExistingAccountStmt, account.EnrollmentID, thumbprint)
+		err = sqlx.GetContext(ctx, tx, &existingAccount, findExistingAccountStmt, account.ACMEEnrollmentID, thumbprint)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return ctxerr.Wrap(ctx, err, "check for existing account with same jwk thumbprint")
 		}
@@ -54,7 +57,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 
 		// If we got here we didn't find an existing account so, if requested by the caller, return a notFound
 		if onlyReturnExisting {
-			err = types.AccountDoesNotExistError(fmt.Sprintf("No account exists for enrollment id %d with the provided jwk", account.EnrollmentID))
+			err = types.AccountDoesNotExistError(fmt.Sprintf("No account exists for enrollment id %d with the provided jwk", account.ACMEEnrollmentID))
 			return ctxerr.Wrap(ctx, err)
 		}
 
@@ -77,7 +80,7 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 		}
 
 		const insertStmt = `INSERT INTO acme_accounts (acme_enrollment_id, json_web_key, json_web_key_thumbprint) VALUES (?, ?, ?)`
-		res, err := tx.ExecContext(ctx, insertStmt, account.EnrollmentID, jwkSerialized, thumbprint)
+		res, err := tx.ExecContext(ctx, insertStmt, account.ACMEEnrollmentID, jwkSerialized, thumbprint)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme account")
 		}
@@ -105,8 +108,8 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 // This method specifically requires an enrollment ID because
 // the caller should know it and have verified it.
 func (ds *Datastore) GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*types.Account, error) {
-	const stmt = `SELECT id, acme_enrollment_id, json_web_key, json_web_key_thumbprint 
-		FROM acme_accounts 
+	const stmt = `SELECT id, acme_enrollment_id, json_web_key, json_web_key_thumbprint
+		FROM acme_accounts
 		WHERE acme_enrollment_id = ? AND id = ? AND revoked = false`
 
 	var dbAcc struct {
@@ -134,23 +137,23 @@ func (ds *Datastore) GetAccountByID(ctx context.Context, enrollmentID uint, acco
 // NB: We are leaving it to the caller to set the proper status, token, etc on the order, authorization and challenge
 func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, authorization *types.Authorization, challenge *types.Challenge) (*types.Order, error) {
 	err := platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
-		lockAccountStmt := `SELECT id FROM acme_accounts WHERE id = ? FOR UPDATE`
-		var accountID uint
-
 		// Mark the account as locked to prevent concurrent order creation for the same account, so we can enforce limits on order creation
-		err := tx.QueryRowxContext(ctx, lockAccountStmt, order.AccountID).Scan(&accountID)
+		const lockAccountStmt = `SELECT id FROM acme_accounts WHERE id = ? FOR UPDATE`
+		var accountID uint
+		err := sqlx.GetContext(ctx, tx, &accountID, lockAccountStmt, order.ACMEAccountID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock acme account")
 		}
 
-		countOrdersStmt := `SELECT COUNT(*) FROM acme_orders WHERE acme_account_id = ?`
+		const countOrdersStmt = `SELECT COUNT(*) FROM acme_orders WHERE acme_account_id = ?`
 		var orderCount int
-		err = tx.QueryRowxContext(ctx, countOrdersStmt, order.AccountID).Scan(&orderCount)
+		err = sqlx.GetContext(ctx, tx, &orderCount, countOrdersStmt, order.ACMEAccountID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "count acme orders for account")
 		}
-		if orderCount >= 3 {
-			return ctxerr.Errorf(ctx, "order creation limit reached for account id %d", order.AccountID)
+		if orderCount >= maxOrdersPerAccount {
+			err = types.TooManyOrdersError(fmt.Sprintf("Account id %d already has %d orders, which is the maximum allowed", order.ACMEAccountID, orderCount))
+			return ctxerr.Wrap(ctx, err)
 		}
 
 		identifiersSerialized, err := json.Marshal(order.Identifiers)
@@ -158,38 +161,31 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 			return ctxerr.Wrap(ctx, err, "marshal order identifiers")
 		}
 
-		insertOrderStmt := `INSERT INTO acme_orders (acme_account_id, status, identifiers) VALUES (?, ?, ?)`
-		res, err := tx.ExecContext(ctx, insertOrderStmt, order.AccountID, order.Status, identifiersSerialized)
+		const insertOrderStmt = `INSERT INTO acme_orders (
+			acme_account_id, finalized, certificate_signing_request, identifiers, status, issued_certificate_serial
+		) VALUES (?, ?, ?, ?, ?, ?)`
+		res, err := tx.ExecContext(ctx, insertOrderStmt,
+			order.ACMEAccountID, order.Finalized, order.CertificateSigningRequest, identifiersSerialized, order.Status, order.IssuedCertificateSerial)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme order")
 		}
-		lastInsertID, err := res.LastInsertId()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get last insert id for acme order")
-		}
+		lastInsertID, _ := res.LastInsertId() // can never fail for mysql
 		order.ID = uint(lastInsertID)
 
-		insertAuthorizationStmt := `INSERT INTO acme_authorizations (acme_order_id, identifier_type, identifier_value, status) VALUES (?, ?, ?, ?)`
-
+		const insertAuthorizationStmt = `INSERT INTO acme_authorizations (acme_order_id, identifier_type, identifier_value, status) VALUES (?, ?, ?, ?)`
 		res, err = tx.ExecContext(ctx, insertAuthorizationStmt, order.ID, authorization.Identifier.Type, authorization.Identifier.Value, authorization.Status)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme authorization")
 		}
-		lastInsertID, err = res.LastInsertId()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get last insert id for acme authorization")
-		}
+		lastInsertID, _ = res.LastInsertId() // can never fail for mysql
 		authorization.ID = uint(lastInsertID)
 
-		insertChallengeStmt := `INSERT INTO acme_challenges (authorization_id, challenge_type, token, status) VALUES (?, ?, ?, ?)`
-		res, err = tx.ExecContext(ctx, insertChallengeStmt, authorization.ID, challenge.Type, challenge.Token, challenge.Status)
+		const insertChallengeStmt = `INSERT INTO acme_challenges (authorization_id, challenge_type, token, status) VALUES (?, ?, ?, ?)`
+		res, err = tx.ExecContext(ctx, insertChallengeStmt, authorization.ID, challenge.ChallengeType, challenge.Token, challenge.Status)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert acme challenge")
 		}
-		lastInsertID, err = res.LastInsertId()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get last insert id for acme challenge")
-		}
+		lastInsertID, _ = res.LastInsertId() // can never fail for mysql
 		challenge.ID = uint(lastInsertID)
 
 		return nil

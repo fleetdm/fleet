@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
@@ -123,10 +124,14 @@ func (r *CreateNewAccountResponse) Error() error { return r.Err }
 type CreateNewOrderRequest struct {
 	types.AccountAuthenticatedRequestBase
 	Identifiers []types.Identifier `json:"identifiers"`
+	// NotBefore and NotAfter must not be set, we capture them so we can validate
+	// that they were indeed not provided.
+	NotBefore *time.Time `json:"notBefore"`
+	NotAfter  *time.Time `json:"notAfter"`
 }
 
 type CreateNewOrderResponse struct {
-	*types.Order
+	*types.OrderResponse
 	Err    error                                `json:"error,omitempty"`
 	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
 }
@@ -144,10 +149,16 @@ func (r *CreateNewOrderResponse) BeforeRender(ctx context.Context, w http.Respon
 		r.Err = err
 		return
 	}
+	if r.OrderResponse != nil && r.OrderResponse.Location != "" {
+		w.Header().Set("Location", r.OrderResponse.Location)
+	}
 }
 
 // Error implements the platform_http.Errorer interface.
 func (r *CreateNewOrderResponse) Error() error { return r.Err }
+
+// Status implements the statuser interface.
+func (r *CreateNewOrderResponse) Status() int { return http.StatusCreated }
 
 // JWS Request container is a container for doing basic decoding and validation operations common to all
 // authenticated ACME requests, which come in the form of a JWS in flattened serialization syntax. This is

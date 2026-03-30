@@ -81,12 +81,48 @@ func TooManyAccountsError(detail string) *ACMEError {
 	}
 }
 
+func TooManyOrdersError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "tooManyOrders",
+		Title:      "Too many orders already exist for this account",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func RejectedIdentifierError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "rejectedIdentifier",
+		Title:      "The server will not issue certificates for the identifier",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func UnsupportedIdentifierError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "unsupportedIdentifier",
+		Title:      "An identifier is of an unsupported type",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
 func BadNonceError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "badNonce",
 		Title:      "The client sent an unacceptable anti-replay nonce",
 		Detail:     detail,
 		StatusCode: http.StatusBadRequest, // as per RFC https://datatracker.ietf.org/doc/html/rfc8555/#section-6.5
+	}
+}
+
+func BadCSRError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "badCSR",
+		Title:      "The CSR is unacceptable (e.g., due to a short key)",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
 	}
 }
 

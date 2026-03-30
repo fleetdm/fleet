@@ -51,14 +51,14 @@ func testCreateNewAccount(t *testing.T, env *testEnv) {
 
 	jwk1 := generateTestJWK(t)
 	account1 := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk1,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk1,
 	}
 
 	result1, didCreate, err := env.ds.CreateAccount(t.Context(), account1, false)
 	require.NoError(t, err)
 	require.NotZero(t, result1.ID)
-	require.Equal(t, enrollment.ID, result1.EnrollmentID)
+	require.Equal(t, enrollment.ID, result1.ACMEEnrollmentID)
 	require.True(t, didCreate)
 
 	// verify enrollment's not_valid_after was set
@@ -72,14 +72,14 @@ func testCreateNewAccount(t *testing.T, env *testEnv) {
 	// create another account
 	jwk2 := generateTestJWK(t)
 	account2 := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk2,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk2,
 	}
 
 	result2, didCreate, err := env.ds.CreateAccount(t.Context(), account2, false)
 	require.NoError(t, err)
 	require.NotZero(t, result2.ID)
-	require.Equal(t, enrollment.ID, result2.EnrollmentID)
+	require.Equal(t, enrollment.ID, result2.ACMEEnrollmentID)
 	require.NotEqual(t, result1.ID, result2.ID)
 	require.True(t, didCreate)
 
@@ -98,8 +98,8 @@ func testReturnExistingSameJWK(t *testing.T, env *testEnv) {
 	jwk := generateTestJWK(t)
 
 	account1 := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk,
 	}
 	result1, didCreate, err := env.ds.CreateAccount(t.Context(), account1, false)
 	require.NoError(t, err)
@@ -108,8 +108,8 @@ func testReturnExistingSameJWK(t *testing.T, env *testEnv) {
 
 	// create again with same JWK
 	account2 := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk,
 	}
 	result2, didCreate, err := env.ds.CreateAccount(t.Context(), account2, false)
 	require.NoError(t, err)
@@ -126,8 +126,8 @@ func testOnlyReturnExistingFound(t *testing.T, env *testEnv) {
 
 	// create the account first
 	account := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk,
 	}
 	created, didCreate, err := env.ds.CreateAccount(t.Context(), account, false)
 	require.NoError(t, err)
@@ -135,8 +135,8 @@ func testOnlyReturnExistingFound(t *testing.T, env *testEnv) {
 
 	// now look it up with onlyReturnExisting=true
 	lookup := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk,
 	}
 	found, didCreate, err := env.ds.CreateAccount(t.Context(), lookup, true)
 	require.NoError(t, err)
@@ -151,8 +151,8 @@ func testOnlyReturnExistingNotFound(t *testing.T, env *testEnv) {
 
 	jwk := generateTestJWK(t)
 	account := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk,
 	}
 
 	result, didCreate, err := env.ds.CreateAccount(t.Context(), account, true)
@@ -172,8 +172,8 @@ func testAccountCreationLimit(t *testing.T, env *testEnv) {
 	for range maxAccountsPerEnrollment {
 		jwk := generateTestJWK(t)
 		account := &types.Account{
-			EnrollmentID: enrollment.ID,
-			JSONWebKey:   jwk,
+			ACMEEnrollmentID: enrollment.ID,
+			JSONWebKey:       jwk,
 		}
 		_, _, err := env.ds.CreateAccount(t.Context(), account, false)
 		require.NoError(t, err)
@@ -182,8 +182,8 @@ func testAccountCreationLimit(t *testing.T, env *testEnv) {
 	// 4th should fail
 	jwk := generateTestJWK(t)
 	account := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk,
 	}
 	result, _, err := env.ds.CreateAccount(t.Context(), account, false)
 	require.Nil(t, result)
@@ -199,8 +199,8 @@ func testAccountRevoked(t *testing.T, env *testEnv) {
 
 	jwk := generateTestJWK(t)
 	account := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk,
 	}
 
 	created, didCreate, err := env.ds.CreateAccount(t.Context(), account, false)
@@ -214,8 +214,8 @@ func testAccountRevoked(t *testing.T, env *testEnv) {
 
 	// try to create again with the same JWK — should get accountRevoked error
 	account2 := &types.Account{
-		EnrollmentID: enrollment.ID,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: enrollment.ID,
+		JSONWebKey:       jwk,
 	}
 	_, _, err = env.ds.CreateAccount(t.Context(), account2, false)
 	require.Error(t, err)
@@ -227,8 +227,8 @@ func testAccountRevoked(t *testing.T, env *testEnv) {
 func testInvalidEnrollmentID(t *testing.T, env *testEnv) {
 	jwk := generateTestJWK(t)
 	account := &types.Account{
-		EnrollmentID: 99999,
-		JSONWebKey:   jwk,
+		ACMEEnrollmentID: 99999,
+		JSONWebKey:       jwk,
 	}
 
 	result, _, err := env.ds.CreateAccount(t.Context(), account, false)
