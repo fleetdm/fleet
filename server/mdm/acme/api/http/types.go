@@ -160,6 +160,36 @@ func (r *CreateNewOrderResponse) Error() error { return r.Err }
 // Status implements the statuser interface.
 func (r *CreateNewOrderResponse) Status() int { return http.StatusCreated }
 
+type GetAuthorizationRequest struct {
+	types.AccountAuthenticatedRequestBase
+	AuthorizationID uint
+}
+
+type GetAuthorizationResponse struct {
+	*types.AuthorizationResponse
+	Err    error                                `json:"error,omitempty"`
+	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
+}
+
+func (r *GetAuthorizationResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
+	// only generate a new nonce if there is no error
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
+	}
+	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
+		r.Err = err
+		return
+	}
+	if r.AuthorizationResponse != nil && r.AuthorizationResponse.Location != "" {
+		w.Header().Set("Location", r.AuthorizationResponse.Location)
+	}
+}
+
+func (r GetAuthorizationResponse) Error() error { return r.Err }
+
 // JWS Request container is a container for doing basic decoding and validation operations common to all
 // authenticated ACME requests, which come in the form of a JWS in flattened serialization syntax. This is
 // parsed into a jose.JSONWebSignature with some basic validation done on it and then the downstream
@@ -168,10 +198,11 @@ type JWSRequestContainer struct {
 	JWS          jose.JSONWebSignature
 	JWSHeaderURL string
 
-	Key        *jose.JSONWebKey
-	KeyID      *string
-	Identifier string `url:"identifier"`
-	HTTPPath   string `url:"http_path"`
+	Key             *jose.JSONWebKey
+	KeyID           *string
+	Identifier      string `url:"identifier"`
+	AuthorizationID uint   `url:"authorization,optional"`
+	HTTPPath        string `url:"http_path"`
 }
 
 func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {

@@ -289,7 +289,7 @@ func testCreateNewOrder(t *testing.T, env *testEnv) {
 		Status:     "pending",
 	}
 	challenge := &types.Challenge{
-		ChallengeType: "device-attest-01",
+		ChallengeType: types.DeviceAttestationChallengeType,
 		Token:         "test-token-123",
 		Status:        "pending",
 	}
@@ -322,7 +322,7 @@ func testOrderCreationLimit(t *testing.T, env *testEnv) {
 			Status:     "pending",
 		}
 		challenge := &types.Challenge{
-			ChallengeType: "device-attest-01",
+			ChallengeType: types.DeviceAttestationChallengeType,
 			Token:         "test-token",
 			Status:        "pending",
 		}
@@ -343,7 +343,7 @@ func testOrderCreationLimit(t *testing.T, env *testEnv) {
 		Status:     "pending",
 	}
 	challenge := &types.Challenge{
-		ChallengeType: "device-attest-01",
+		ChallengeType: types.DeviceAttestationChallengeType,
 		Token:         "test-token",
 		Status:        "pending",
 	}
@@ -368,7 +368,7 @@ func testInvalidAccountID(t *testing.T, env *testEnv) {
 		Status:     "pending",
 	}
 	challenge := &types.Challenge{
-		ChallengeType: "device-attest-01",
+		ChallengeType: types.DeviceAttestationChallengeType,
 		Token:         "test-token",
 		Status:        "pending",
 	}
@@ -396,7 +396,7 @@ func testMultipleOrdersDifferentAccounts(t *testing.T, env *testEnv) {
 			Status:     "pending",
 		}
 		challenge := &types.Challenge{
-			ChallengeType: "device-attest-01",
+			ChallengeType: types.DeviceAttestationChallengeType,
 			Token:         "test-token",
 			Status:        "pending",
 		}
@@ -417,7 +417,7 @@ func testMultipleOrdersDifferentAccounts(t *testing.T, env *testEnv) {
 		Status:     "pending",
 	}
 	challenge := &types.Challenge{
-		ChallengeType: "device-attest-01",
+		ChallengeType: types.DeviceAttestationChallengeType,
 		Token:         "test-token-2",
 		Status:        "pending",
 	}
