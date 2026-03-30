@@ -7504,7 +7504,7 @@ Edit managed local account enforcement settings for eligible macOS hosts.
 
 | Name                         | Type    | In    | Description                                                                          |
 | ---------------------------- | ------  | ----  | -------------------------------------------------------------------------------------|
-| team_id                      | integer | body  | The team ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
+| fleet_id                      | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
 | enable_managed_local_account | boolean | body  | Whether to enforce creating managed local accounts on eligible hosts.                |
 
 #### Example
