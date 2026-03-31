@@ -327,6 +327,18 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
 			}
 
+			if strings.HasPrefix(a.AdamID, fleet.AndroidWebAppPrefix) {
+				exists, err := svc.ds.CheckAndroidWebAppNameExistsOnTeam(ctx, teamID, androidApp.Title, a.AdamID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "checking for duplicate android web app name")
+				}
+				if exists {
+					return nil, fleet.ConflictError{
+						Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", androidApp.Title),
+					}
+				}
+			}
+
 			appStoreApps = append(appStoreApps, &fleet.VPPApp{
 				VPPAppTeam:       a,
 				BundleIdentifier: a.AdamID,
@@ -647,6 +659,18 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			IconURL:          androidApp.IconUrl,
 			Name:             androidApp.Title,
 			TeamID:           teamID,
+		}
+
+		if strings.HasPrefix(appID.AdamID, fleet.AndroidWebAppPrefix) {
+			exists, err := svc.ds.CheckAndroidWebAppNameExistsOnTeam(ctx, teamID, androidApp.Title, appID.AdamID)
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "checking for duplicate android web app name")
+			}
+			if exists {
+				return 0, fleet.ConflictError{
+					Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", androidApp.Title),
+				}
+			}
 		}
 
 	default:
@@ -1300,16 +1324,6 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 		}
 	}
 
-	exists, err := svc.ds.CheckAndroidWebAppNameExists(ctx, title)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "checking android web app name")
-	}
-	if exists {
-		return "", fleet.ConflictError{
-			Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", title),
-		}
-	}
-
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get android enterprise")
@@ -1338,13 +1352,6 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 		// logging this as an error, because the frontend uses the package name to hide some actions
 		// not available to WebApps, we must know if somehow android changes how those get named.
 		svc.logger.ErrorContext(ctx, "created Android webApp does not have expected package name format", "package_name", createdApp.Name)
-	}
-
-	// Insert a minimal vpp_apps record immediately so that the duplicate name
-	// check above catches back-to-back creation attempts. The full record
-	// is upserted later when AddAppStoreApp is called.
-	if err := svc.ds.InsertVPPAppForAndroidWebApp(ctx, packageName, title); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "pre-inserting vpp_apps record for android web app")
 	}
 
 	return packageName, nil

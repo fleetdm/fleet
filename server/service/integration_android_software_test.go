@@ -1347,37 +1347,55 @@ func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
 		id := "dup" + fmt.Sprint(count)
 		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/com.google.enterprise.webapp.%s", enterpriseID, id)}, nil
 	}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/icon.jpg", Title: "Duplicate Web App"}, nil
+	}
 
-	// create a web app
+	// create two web apps with the same title (this is fine — POST /web_apps is just a Google API wrapper)
 	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 		"title": {"Duplicate Web App"},
 		"url":   {"https://example.com"},
 	})
-	var resp createAndroidWebAppResponse
+	var resp1 createAndroidWebAppResponse
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
-	err = json.NewDecoder(res.Body).Decode(&resp)
+	err = json.NewDecoder(res.Body).Decode(&resp1)
 	require.NoError(t, err)
-	require.NotEmpty(t, resp.AppStoreID)
+	webAppID1 := resp1.AppStoreID
 
-	// create another web app with the same name immediately, should fail with 409
 	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 		"title": {"Duplicate Web App"},
 		"url":   {"https://different-url.com"},
 	})
-	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusConflict, headers)
+	var resp2 createAndroidWebAppResponse
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp2)
+	require.NoError(t, err)
+	webAppID2 := resp2.AppStoreID
+
+	// create a team to add the apps to
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// add the first web app to the team
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID1, Platform: fleet.AndroidPlatform, TeamID: &tm.ID,
+	}, http.StatusOK, &addResp)
+
+	// add the second web app (same name) to the same team
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID2, Platform: fleet.AndroidPlatform, TeamID: &tm.ID,
+	}, http.StatusConflict)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Couldn't add.`)
 	require.Contains(t, errMsg, `"Duplicate Web App"`)
 	require.Contains(t, errMsg, "already exists in this fleet")
 
-	// create a web app with a different name
-	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-		"title": {"Different Web App"},
-		"url":   {"https://example.com"},
-	})
-	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
-	var resp2 createAndroidWebAppResponse
-	err = json.NewDecoder(res.Body).Decode(&resp2)
+	// add the first web app to a different team
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
 	require.NoError(t, err)
-	require.NotEmpty(t, resp2.AppStoreID)
+	var addResp2 addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID1, Platform: fleet.AndroidPlatform, TeamID: &tm2.ID,
+	}, http.StatusOK, &addResp2)
 }
