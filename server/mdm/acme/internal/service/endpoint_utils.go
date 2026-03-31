@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -39,7 +38,6 @@ func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 		// TODO: If we can get access to a logger, we can log the details here, to help troubleshoot service errors.
 		// if it's not already an ACME error, it is because it is an internal server
 		// error (or a dev error, for 4xx we should always return ACMEError).
-		fmt.Printf("unexpected error type in ACME error encoder: %v\n", err)
 		acmeErr = types.InternalServerError("") // not passing err.Error() as we don't want to leak internal details
 	}
 
