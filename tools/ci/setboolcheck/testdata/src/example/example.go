@@ -65,6 +65,12 @@ func boolMapFromCompositeLiteral() {
 	_ = m
 }
 
+func boolMapFromCompositeLiteralWithChange() {
+	m := map[string]bool{"a": true, "b": true}
+	m["b"] = false
+	_ = m
+}
+
 func boolMapFromFunctionCall() {
 	m := getBoolMap()
 	m["x"] = true
