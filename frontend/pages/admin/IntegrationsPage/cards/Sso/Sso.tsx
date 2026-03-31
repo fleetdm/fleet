@@ -48,14 +48,8 @@ interface ISsoFormErrors {
 const validate = (formData: ISsoFormData) => {
   const errors: ISsoFormErrors = {};
 
-  const {
-    enableSso,
-    idpImageUrl,
-    metadata,
-    metadataUrl,
-    entityId,
-    idpName,
-  } = formData;
+  const { enableSso, idpImageUrl, metadata, metadataUrl, entityId, idpName } =
+    formData;
 
   if (enableSso) {
     if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
@@ -183,7 +177,7 @@ const Sso = ({
   };
 
   const [endUserFormData, setEndUserFormData] = useState<IFormDataIdp>(
-    newFormDataIdp(appConfig?.mdm?.end_user_authentication)
+    newFormDataIdp(appConfig?.mdm?.end_user_authentication),
   );
   const originalEndUserFormData = useRef(endUserFormData);
 
@@ -204,10 +198,10 @@ const Sso = ({
       router.push(
         newSubsection === "end-users"
           ? PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS
-          : PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS
+          : PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
       );
     },
-    [formDirty, router]
+    [formDirty, router],
   );
 
   const renderFleetSsoTab = () => {
@@ -215,8 +209,9 @@ const Sso = ({
       <form onSubmit={onFormSubmit} autoComplete="off">
         {/* "form" class applies global form styling to fields for free */}
         <div
-          className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-            }`}
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
         >
           <Checkbox
             onChange={onInputChange}
@@ -356,8 +351,8 @@ const Sso = ({
         content={
           <>
             Configure authentication for Fleet users logging into Fleet or end
-            users enrolling their hosts. To populate identity provider (IdP) host vitals
-            and automatically delete Fleet users, head to{" "}
+            users enrolling their hosts. To populate identity provider (IdP)
+            host vitals and automatically delete Fleet users, head to{" "}
             <CustomLink
               text="Identity provider (IdP)"
               url={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
