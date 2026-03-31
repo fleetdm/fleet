@@ -4,7 +4,7 @@
       "version": "26.001.21346",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe' AND version_compare(version, '26.001.21346') < 0);"
       },
       "installer_url": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600121346/AcroRdrDCx642600121346_MUI.exe",
       "install_script_ref": "7dc0b065",

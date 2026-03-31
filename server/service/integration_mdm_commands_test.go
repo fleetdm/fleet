@@ -239,8 +239,27 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	}))
 	s.setSkipWorkerJobs(t)
 
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", devices[0].SerialNumber)
 	iPadOSHost, iPadOSMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ipados", devices[1].SerialNumber)
+
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	// empty the command queue for both hosts
+	cmd, err := iosMDMClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = iosMDMClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	cmd, err = iPadOSMDMClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = iPadOSMDMClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
 
 	// We fake set installed_from_dep to emulate the devices was enrolled with DEP.
 	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
@@ -302,7 +321,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// Run device location handler
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 
 			// refresh the host's status, it is now locked
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
@@ -365,7 +384,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// Run device location handler
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 
 			// Get host data
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
