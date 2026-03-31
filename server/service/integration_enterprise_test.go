@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
@@ -3931,24 +3932,24 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	res.Body.Close()
 
 	// confirm that Orbit endpoint shows notification flag
-	var orbitResponse orbitGetConfigResponse
-	s.DoJSON("POST", "/api/fleet/orbit/config", orbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &orbitResponse)
+	var orbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &orbitResponse)
 	require.True(t, orbitResponse.Notifications.RunDiskEncryptionEscrow)
 
 	// confirm that second Orbit pull doesn't show notification flag
-	var secondOrbitResponse orbitGetConfigResponse
-	s.DoJSON("POST", "/api/fleet/orbit/config", orbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &secondOrbitResponse)
+	var secondOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &secondOrbitResponse)
 	require.False(t, secondOrbitResponse.Notifications.RunDiskEncryptionEscrow)
 
 	// set an error first; the successful write should overwrite that
-	s.Do("POST", "/api/fleet/orbit/luks_data", orbitPostLUKSRequest{
+	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
 		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
 		ClientError:  "Houston, we had a problem",
 	}, http.StatusNoContent)
 
 	// upload LUKS data
 	keySlot := ptr.Uint(1)
-	s.Do("POST", "/api/fleet/orbit/luks_data", orbitPostLUKSRequest{
+	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
 		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
 		Passphrase:   "whale makes pail rise",
 		Salt:         "the team i like lost",
@@ -3989,7 +3990,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	// upload LUKS data (no error, and no trigger, first this time)
 	keySlot = ptr.Uint(3)
-	s.Do("POST", "/api/fleet/orbit/luks_data", orbitPostLUKSRequest{
+	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{ // #nosec G101 - test data
 		OrbitNodeKey: *teamHost.OrbitNodeKey,
 		Passphrase:   "the mome raths outgrabe",
 		Salt:         "jabberwocky, but salty",
@@ -5907,7 +5908,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 		var headers map[string]string
 		switch {
 		case route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status":
-			params = getOrbitSetupExperienceStatusRequest{
+			params = fleet.GetOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
 
@@ -7439,7 +7440,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	}`), http.StatusOK, &acr)
 	})
 
-	var orbitResp orbitGetConfigResponse
+	var orbitResp fleet.OrbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
@@ -7467,7 +7468,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, []string{scriptResultResp.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
 
 	// the orbit endpoint to get a pending script to execute returns it
-	var orbitGetScriptResp orbitGetScriptResponse
+	var orbitGetScriptResp fleet.OrbitGetScriptResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitGetScriptResp)
@@ -7510,13 +7511,13 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, fleet.RunScriptAlreadyRunningErrMsg)
 
 	// save a result via the orbit endpoint
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
 
 	// verify that orbit does not receive any pending script anymore
-	orbitResp = orbitGetConfigResponse{}
+	orbitResp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
@@ -7724,7 +7725,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Empty(t, batchRes.BatchExecutionID)
 
 	// verify that no script was queued for orbit
-	var orbitRespHost1 orbitGetConfigResponse
+	var orbitRespHost1 fleet.OrbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
 		http.StatusOK, &orbitRespHost1)
@@ -7743,7 +7744,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		http.StatusOK, &orbitRespHost1)
 	require.Len(t, orbitRespHost1.Notifications.PendingScriptExecutionIDs, 1)
 
-	var orbitRespHost2 orbitGetConfigResponse
+	var orbitRespHost2 fleet.OrbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host2.OrbitNodeKey)),
 		http.StatusOK, &orbitRespHost2)
@@ -7849,7 +7850,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
 
 	// save a result via the orbit endpoint
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host1.OrbitNodeKey, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0])),
 		http.StatusOK, &orbitPostScriptResp)
@@ -8061,14 +8062,14 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Equal(t, savedNoTmScript.ID, *scriptResultResp.ScriptID)
 
 	// verify that orbit would get the notification that it has a script to run
-	var orbitResp orbitGetConfigResponse
+	var orbitResp fleet.OrbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
 	require.Equal(t, []string{scriptResultResp.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
 
 	// the orbit endpoint to get a pending script to execute returns it
-	var orbitGetScriptResp orbitGetScriptResponse
+	var orbitGetScriptResp fleet.OrbitGetScriptResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitGetScriptResp)
@@ -8081,7 +8082,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 
 	// save a result via the orbit endpoint
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
@@ -8097,7 +8098,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	)
 
 	// verify that orbit does not receive any pending script anymore
-	orbitResp = orbitGetConfigResponse{}
+	orbitResp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
@@ -8422,7 +8423,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
   }
 }`), http.StatusOK)
 
-	resp := orbitGetConfigResponse{}
+	resp := fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
 	"hello_mars_macos": {
@@ -8431,7 +8432,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 	}
   }`, string(resp.Extensions))
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
 	"hello_world_linux": {
@@ -8440,7 +8441,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 	}
   }`, string(resp.Extensions))
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, string(resp.Extensions))
 
@@ -8450,7 +8451,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 	}, time.Now(), false)
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
 	"hello_world_macos": {
@@ -8469,7 +8470,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 	}, time.Now(), false)
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, string(resp.Extensions))
 
@@ -10685,7 +10686,7 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
 	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost)
 	require.NoError(t, err)
 
-	var orbitScriptResp orbitPostScriptResultResponse
+	var orbitScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *linuxHost.OrbitNodeKey, status.LockScript.ExecutionID)),
 		http.StatusOK, &orbitScriptResp)
@@ -12442,6 +12443,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			})
 		}
 
+		// upload with unsupported shebang in install script fails validation
+		payloadBadShebang := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+			Filename:      "ruby.deb",
+		}
+		s.uploadSoftwareInstaller(t, payloadBadShebang, http.StatusBadRequest, "Interpreter not supported")
+
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
@@ -12470,6 +12478,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
 			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
+		// update with unsupported shebang in install script fails validation
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript: ptr.String("#!/usr/bin/perl\nprint 'hello'"),
+			TitleID:       titleID,
+			TeamID:        nil,
+		}, http.StatusBadRequest, "Interpreter not supported")
+
 		// patch the software installer to change the labels
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 			"team_id":            {"0"},
@@ -12532,7 +12548,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 		// orbit-downloading fails with invalid orbit node key
-		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  123,
 			OrbitNodeKey: uuid.NewString(),
 		}, http.StatusUnauthorized)
@@ -12683,7 +12699,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// create an orbit host that is not in the team
 		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
 		// downloading installer doesn't work if the host doesn't have a pending install request
-		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
 		}, http.StatusForbidden)
@@ -12696,7 +12712,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
 
 		// requesting download with alt != media fails
-		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusBadRequest)
@@ -12704,7 +12720,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.Contains(t, errMsg, "only alt=media is supported")
 
 		// valid download
-		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusOK)
@@ -12714,7 +12730,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 		// Installation complete, host no longer has access to software
-		s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 				HostID:                hostInTeam.ID,
@@ -12724,7 +12740,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			},
 		}, http.StatusNoContent)
 
-		_ = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		_ = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusForbidden)
@@ -12773,7 +12789,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// create an orbit host that is not in the team
 		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
 		// downloading installer fails because there's no install request
-		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
 		}, http.StatusForbidden)
@@ -12782,7 +12798,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		hostInTeam := createOrbitEnrolledHost(t, "linux", "orbit-host-team", s.ds)
 
 		// requesting download with alt != media fails
-		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusBadRequest)
@@ -12793,7 +12809,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
 
 		// valid download
-		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusOK)
@@ -12803,7 +12819,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 		// Installation complete, host no longer has access to software
-		s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 				HostID:                hostInTeam.ID,
@@ -12813,7 +12829,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			},
 		}, http.StatusNoContent)
 
-		_ = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		_ = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusForbidden)
@@ -13688,6 +13704,17 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Empty(t, errMsg)
+
+	// batch upload with unsupported shebang in install script fails validation
+	softwareToInstallBadShebang := []*fleet.SoftwareInstallerPayload{
+		{
+			URL:           rubyURL,
+			InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadShebang}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	message = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Contains(t, message, "Interpreter not supported")
 
 	// TODO(roberto): test with a variety of response codes
 
@@ -15009,7 +15036,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusOK)
 	status, err := s.ds.GetHostLockWipeStatus(context.Background(), h)
 	require.NoError(t, err)
-	var orbitScriptResp orbitPostScriptResultResponse
+	var orbitScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, status.LockScript.ExecutionID)),
 		http.StatusOK, &orbitScriptResp)
@@ -15066,7 +15093,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusBadRequest, &resp)
 
 	// expect uninstall script (uninstall software works via a script) to be pending
-	var orbitResp orbitGetConfigResponse
+	var orbitResp fleet.OrbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
@@ -15078,7 +15105,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should not be true yet")
 
 	// Host sends successful uninstall result
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey,
 			uninstallExecutionID)),
@@ -15322,7 +15349,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	require.Equal(t, "", uninstallResult.Output)
 
 	// Host sends successful uninstall result
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host1.OrbitNodeKey,
 			uninstallExecutionID)),
@@ -19454,7 +19481,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.Equal(t, "policy4Team2", activityJson["policy_name"])
 
 	// post script result response
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host3Team2.OrbitNodeKey, host3executionID)),
 		http.StatusOK, &orbitPostScriptResp)
@@ -19544,7 +19571,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 		return scripts[0]
 	}
 	submitScriptResult := func(executionID string, exitCode int) {
-		var orbitPostScriptResp orbitPostScriptResultResponse
+		var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 			json.RawMessage(
 				fmt.Sprintf(`
@@ -20069,6 +20096,16 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	assert.ElementsMatch(t, []string{"uninstall script"}, errNames)
 	require.Len(t, errReasons, 1)
 	assert.Contains(t, errReasons[0], "$FLEET_SECRET_INVALID3")
+
+	// Add with unsupported shebang in install script fails validation
+	reqBadShebang := &addFleetMaintainedAppRequest{
+		AppID:         1,
+		TeamID:        &team.ID,
+		InstallScript: "#!/usr/bin/perl\nprint 'hello'",
+	}
+	respBadShebang := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqBadShebang, http.StatusBadRequest)
+	errMsg := extractServerErrorText(respBadShebang.Body)
+	require.Contains(t, errMsg, "Interpreter not supported")
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
@@ -20836,7 +20873,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	})
 
 	// Host sends failed uninstall result
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "uninstall"}`, *host.OrbitNodeKey,
 			uninstallExecutionID)),
@@ -20990,14 +21027,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 	require.NotEmpty(t, runResp.ExecutionID)
 
 	// software install exec ID is returned in orbit notifications, but not script exec
-	var orbitResp orbitGetConfigResponse
+	var orbitResp fleet.OrbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
 	require.Equal(t, []string{swInstallExecID}, orbitResp.Notifications.PendingSoftwareInstallerIDs)
 	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
 
 	// simulate a failed orbit download of the installer - it sends an empty
 	// result (i.e. no result)
-	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
 		OrbitNodeKey: *host.OrbitNodeKey,
 		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 			InstallUUID: swInstallExecID,
@@ -21005,7 +21042,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 	}, http.StatusNoContent)
 
 	// software install exec ID is still returned in orbit notifications, but not script exec
-	orbitResp = orbitGetConfigResponse{}
+	orbitResp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
 	require.Equal(t, []string{swInstallExecID}, orbitResp.Notifications.PendingSoftwareInstallerIDs)
 	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
@@ -21018,7 +21055,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 	scriptExecID := listUpcomingAct.Activities[1].UUID
 
 	// record an actual result for the installer
-	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
 		OrbitNodeKey: *host.OrbitNodeKey,
 		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 			InstallUUID:           swInstallExecID,
@@ -21028,7 +21065,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 	}, http.StatusNoContent)
 
 	// now the script exec ID is returned in notifications
-	orbitResp = orbitGetConfigResponse{}
+	orbitResp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
 	require.Equal(t, []string{scriptExecID}, orbitResp.Notifications.PendingScriptExecutionIDs)
 	require.Empty(t, orbitResp.Notifications.PendingSoftwareInstallerIDs)
@@ -22589,16 +22626,16 @@ func (s *integrationEnterpriseTestSuite) TestOrbitSetupExperienceStatusChecksAut
 
 	// macOS host should fail with MDM not enabled and configured.
 	h1 := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
-	var orbitRes getOrbitSetupExperienceStatusResponse
+	var orbitRes fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h1.OrbitNodeKey}, http.StatusBadRequest, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h1.OrbitNodeKey}, http.StatusBadRequest, &orbitRes,
 	)
 
 	// Linux host should not fail with MDM not enabled and configured.
 	h2 := createOrbitEnrolledHost(t, "ubuntu", "h2", s.ds)
-	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h2.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h2.OrbitNodeKey}, http.StatusOK, &orbitRes,
 	)
 	require.Empty(t, orbitRes.Results)
 }
@@ -22729,10 +22766,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Empty(t, getDeviceStatusResponse.Results.Software)
 
 		// Trigger "Setup experience" for the Ubuntu host.
-		var orbitInitResponse orbitSetupExperienceInitResponse
+		var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 		s.DoJSON(
 			"POST",
-			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
 			}, http.StatusOK, &orbitInitResponse,
 		)
@@ -22854,10 +22891,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Empty(t, getDeviceStatusResponse.Results.Software)
 
 		// Trigger "Setup experience" for the Fedora host.
-		var orbitInitResponse orbitSetupExperienceInitResponse
+		var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 		s.DoJSON(
 			"POST",
-			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 				OrbitNodeKey: *fedoraHost.OrbitNodeKey,
 			}, http.StatusOK, &orbitInitResponse,
 		)
@@ -22971,10 +23008,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 
 	t.Run("ubuntu-canceled", func(t *testing.T) {
 		// Trigger "Setup experience" for the Ubuntu host (should clear any items from a previous setup experience).
-		var orbitInitResponse orbitSetupExperienceInitResponse
+		var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 		s.DoJSON(
 			"POST",
-			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
 			}, http.StatusOK, &orbitInitResponse,
 		)
@@ -23065,10 +23102,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 
 	t.Run("ubuntu-software-edited-during-se", func(t *testing.T) {
 		// Trigger "Setup experience" for the Ubuntu host (should clear any items from a previous setup experience).
-		var orbitInitResponse orbitSetupExperienceInitResponse
+		var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 		s.DoJSON(
 			"POST",
-			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
 			}, http.StatusOK, &orbitInitResponse,
 		)
@@ -23224,10 +23261,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 
 	t.Run("ubuntu-no-team", func(t *testing.T) {
 		// Trigger "Setup experience" for the Ubuntu host.
-		var orbitInitResponse orbitSetupExperienceInitResponse
+		var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 		s.DoJSON(
 			"POST",
-			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
 			}, http.StatusOK, &orbitInitResponse,
 		)
@@ -23347,17 +23384,17 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	ubuntuHost := createHost("ubuntu", "debian")
 
 	// Get status of the "Setup experience" for the Ubuntu host (nothing yet).
-	var orbitRes getOrbitSetupExperienceStatusResponse
+	var orbitRes fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
 	)
 	require.Empty(t, orbitRes.Results.Software)
 
 	// Trigger "Setup experience" for the Ubuntu host.
-	var orbitInitResponse orbitSetupExperienceInitResponse
+	var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 	s.DoJSON(
 		"POST",
-		"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+		"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 			OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
 		}, http.StatusOK, &orbitInitResponse,
 	)
@@ -23365,9 +23402,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	require.True(t, orbitInitResponse.Result.Enabled)
 
 	// Get status of the "Setup experience" now that it has been triggered.
-	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
 	)
 	require.NotNil(t, orbitRes.Results)
 	require.Len(t, orbitRes.Results.Software, 2)
@@ -23409,9 +23446,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	), http.StatusNoContent)
 
 	// Again get status of the "Setup experience" for the Ubuntu host.
-	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
 	)
 	require.NotNil(t, orbitRes.Results)
 	require.NotNil(t, orbitRes.Results)
@@ -23438,9 +23475,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	), http.StatusNoContent)
 
 	// One last time get status of the "Setup experience" for the Ubuntu host.
-	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
 	)
 	require.NotNil(t, orbitRes.Results)
 	require.NotNil(t, orbitRes.Results)
@@ -23589,10 +23626,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		require.Empty(t, getDeviceStatusResponse.Results.Software)
 
 		// Trigger "Setup experience" for the Windows host.
-		var orbitInitResponse orbitSetupExperienceInitResponse
+		var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 		s.DoJSON(
 			"POST",
-			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 				OrbitNodeKey: *windowsHost1.OrbitNodeKey,
 			}, http.StatusOK, &orbitInitResponse,
 		)
@@ -23704,9 +23741,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", teamPolicy.ID))
 
 		// Get status of the "Setup experience" via orbit (orbit will use it to mark the setup experience as done).
-		var orbitRes getOrbitSetupExperienceStatusResponse
+		var orbitRes fleet.GetOrbitSetupExperienceStatusResponse
 		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-			getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost1.OrbitNodeKey}, http.StatusOK, &orbitRes,
+			fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost1.OrbitNodeKey}, http.StatusOK, &orbitRes,
 		)
 		require.NotNil(t, orbitRes.Results)
 		require.Len(t, orbitRes.Results.Software, 2)
@@ -23808,10 +23845,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		require.Empty(t, getDeviceStatusResponse.Results.Software)
 
 		// Trigger "Setup experience" for the Windows host.
-		var orbitInitResponse orbitSetupExperienceInitResponse
+		var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 		s.DoJSON(
 			"POST",
-			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 				OrbitNodeKey: *windowsHost2.OrbitNodeKey,
 			}, http.StatusOK, &orbitInitResponse,
 		)
@@ -23923,9 +23960,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", globalPolicy.ID))
 
 		// Get status of the "Setup experience" via orbit (orbit will use it to mark the setup experience as done).
-		var orbitRes getOrbitSetupExperienceStatusResponse
+		var orbitRes fleet.GetOrbitSetupExperienceStatusResponse
 		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-			getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost2.OrbitNodeKey}, http.StatusOK, &orbitRes,
+			fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost2.OrbitNodeKey}, http.StatusOK, &orbitRes,
 		)
 		require.NotNil(t, orbitRes.Results)
 		require.Len(t, orbitRes.Results.Software, 2)
@@ -24020,10 +24057,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	windowsHost := createHost("windows", "windows")
 
 	// Trigger "Setup experience" for the Windows host.
-	var orbitInitResponse orbitSetupExperienceInitResponse
+	var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
 	s.DoJSON(
 		"POST",
-		"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+		"/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
 			OrbitNodeKey: *windowsHost.OrbitNodeKey,
 		}, http.StatusOK, &orbitInitResponse,
 	)
@@ -24031,9 +24068,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	require.True(t, orbitInitResponse.Result.Enabled)
 
 	// Get status of the "Setup experience" now that it has been triggered.
-	var orbitRes getOrbitSetupExperienceStatusResponse
+	var orbitRes fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
 	)
 	require.NotNil(t, orbitRes.Results)
 	require.Len(t, orbitRes.Results.Software, 2)
@@ -24075,9 +24112,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	), http.StatusNoContent)
 
 	// Again get status of the "Setup experience" for the Windos host.
-	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
 	)
 	require.NotNil(t, orbitRes.Results)
 	require.NotNil(t, orbitRes.Results)
@@ -24104,9 +24141,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	), http.StatusNoContent)
 
 	// One last time get status of the "Setup experience" for the Ubuntu host.
-	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
-		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
 	)
 	require.NotNil(t, orbitRes.Results)
 	require.NotNil(t, orbitRes.Results)
@@ -26337,7 +26374,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	})
 
 	// Download the installer via orbit — should get the v2.0 bytes ("def")
-	r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+	r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 		InstallerID:  installerID,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK)
@@ -26379,7 +26416,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	})
 
 	// Download the installer via orbit — should get the v3.0 bytes ("ghi")
-	r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+	r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 		InstallerID:  installerIDv3,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK)
@@ -27524,7 +27561,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		checkPolicies(listPolResp.Policies, "1.0")
 	})
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation() {
@@ -27723,6 +27759,91 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 			},
 		},
 	}, http.StatusOK, &applyResp)
+}
+
+// TestSoftwareInstallerUploadPayloadTooLarge verifies that uploading (or updating) a
+// software installer that exceeds the configured max size returns HTTP 400 with
+// a user-friendly error message, not a generic HTTP 413.
+//
+// In production, serve.go wraps the request body with http.MaxBytesReader. The
+// DecodeRequest methods in software_installers.go catch the resulting
+// MaxBytesError and return a fleet.BadRequestError. The fix being tested here
+// ensures that the BadRequestError does NOT wrap the original MaxBytesError in
+// InternalErr, which would cause MakeDecoder to convert it into a generic 413.
+func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadPayloadTooLarge() {
+	t := s.T()
+
+	// Wrap the test server's handler with the same MaxBytesReader middleware
+	// that serve.go applies in production, but with a tiny limit so we can
+	// trigger it with a small test file.
+	const maxSize int64 = 512 // 512 B
+	wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if (r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/fleet/software/package")) ||
+			(r.Method == http.MethodPatch && strings.HasSuffix(r.URL.Path, "/package") && strings.Contains(r.URL.Path, "/fleet/software/titles/")) {
+			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+			r = r.WithContext(installersize.NewContext(r.Context(), maxSize))
+		}
+		s.server.Config.Handler.ServeHTTP(w, r)
+	})
+	wrappedServer := httptest.NewServer(wrappedHandler)
+	defer wrappedServer.Close()
+
+	// doMultipartUpload builds a multipart request with a file exceeding the
+	// limit and sends it to the wrapped server.
+	doMultipartUpload := func(t *testing.T, method, path string) *http.Response {
+		t.Helper()
+
+		var b bytes.Buffer
+		w := multipart.NewWriter(&b)
+		fw, err := w.CreateFormFile("software", "test_installer.pkg")
+		require.NoError(t, err)
+		// Write content that, together with multipart overhead, exceeds maxSize.
+		_, err = fw.Write(bytes.Repeat([]byte("x"), int(maxSize)+1))
+		require.NoError(t, err)
+		require.NoError(t, w.WriteField("install_script", "echo install"))
+		w.Close()
+
+		req, err := http.NewRequest(method, wrappedServer.URL+path, &b)
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.token))
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		return resp
+	}
+
+	t.Run("upload", func(t *testing.T) {
+		resp := doMultipartUpload(t, "POST", "/api/latest/fleet/software/package")
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		errMsg := extractServerErrorText(resp.Body)
+		require.Contains(t, errMsg, "The maximum file size is")
+	})
+
+	t.Run("update", func(t *testing.T) {
+		// First upload a small installer via the normal (unwrapped) server so
+		// we have a valid title to update.
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo install",
+			Filename:      "ruby.deb",
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// Find the title ID of the uploaded installer.
+		var listResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "available_for_install", "true")
+		titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+		resp := doMultipartUpload(t, "PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID))
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		errMsg := extractServerErrorText(resp.Body)
+		require.Contains(t, errMsg, "The maximum file size is")
+	})
 }
 
 func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uint {

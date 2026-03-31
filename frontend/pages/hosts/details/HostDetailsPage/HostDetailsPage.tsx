@@ -140,6 +140,7 @@ import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
+import MDMStatusModal from "../modals/MDMStatusModal";
 
 const baseClass = "host-details";
 
@@ -237,6 +238,7 @@ const HostDetailsPage = ({
   const [showLocationModal, setShowLocationModal] = useState<
     boolean | undefined
   >(false);
+  const [showMDMStatusModal, setShowMDMStatusModal] = useState(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -684,6 +686,10 @@ const HostDetailsPage = ({
     setShowLocationModal(!showLocationModal);
   }, [showLocationModal, setShowLocationModal]);
 
+  const toggleMDMStatusModal = useCallback(() => {
+    setShowMDMStatusModal(!showMDMStatusModal);
+  }, [showMDMStatusModal, setShowMDMStatusModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -740,9 +746,19 @@ const HostDetailsPage = ({
   const resendProfile = useCallback(
     (profileUUID: string): Promise<void> => {
       if (!host?.id) {
-        return new Promise(() => undefined);
+        return Promise.resolve();
       }
       return hostAPI.resendProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const resendCertificate = useCallback(
+    (certificateTemplateId: number): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.resendCertificate(host.id, certificateTemplateId);
     },
     [host?.id]
   );
@@ -1113,9 +1129,9 @@ const HostDetailsPage = ({
   );
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup?.bootstrap_package_status,
-    details: host?.mdm.macos_setup?.details,
-    name: host?.mdm.macos_setup?.bootstrap_package_name,
+    status: host?.mdm.setup_experience?.bootstrap_package_status,
+    details: host?.mdm.setup_experience?.details,
+    name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
   const isMacOSHost = isMacOS(host.platform);
@@ -1125,7 +1141,7 @@ const HostDetailsPage = ({
   const isAppleDeviceHost = isAppleDevice(host.platform);
 
   const canResendProfiles =
-    (isAppleDeviceHost || isWindowsHost) &&
+    (isAppleDeviceHost || isWindowsHost || isAndroidHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalTechnician ||
@@ -1134,7 +1150,7 @@ const HostDetailsPage = ({
       isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
-
+  const showReportsTab = mdm?.enrollment_status !== "Pending";
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1268,7 +1284,7 @@ const HostDetailsPage = ({
               mdmEnrollmentStatus={host?.mdm.enrollment_status}
               hostPlatform={host?.platform}
               macDiskEncryptionStatus={
-                host?.mdm.macos_settings?.disk_encryption
+                host?.mdm.apple_settings?.disk_encryption
               }
               connectedToFleetMdm={host?.mdm.connected_to_fleet}
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
@@ -1336,6 +1352,7 @@ const HostDetailsPage = ({
                     host.platform
                   )}
                   toggleLocationModal={toggleLocationModal}
+                  toggleMDMStatusModal={toggleMDMStatusModal}
                 />
                 {showActivityCard && (
                   <ActivityCard
@@ -1468,6 +1485,7 @@ const HostDetailsPage = ({
                   </Tabs>
                 </TabNav>
               </TabPanel>
+
               <TabPanel>
                 <HostReportsTab
                   hostId={host.id}
@@ -1477,8 +1495,10 @@ const HostDetailsPage = ({
                   saveReportsDisabledInConfig={
                     config?.server_settings?.query_reports_disabled
                   }
+                  showReportsTab={showReportsTab}
                 />
               </TabPanel>
+
               <TabPanel>
                 <PoliciesCard
                   policies={host?.policies || []}
@@ -1546,6 +1566,7 @@ const HostDetailsPage = ({
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
               resendRequest={resendProfile}
+              resendCertificateRequest={resendCertificate}
               rotateRecoveryLockPassword={rotateRecoveryLockPassword}
               onProfileResent={refetchHostDetails}
             />
@@ -1717,6 +1738,17 @@ const HostDetailsPage = ({
               setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
+          />
+        )}
+        {showMDMStatusModal && host.mdm.enrollment_status && (
+          <MDMStatusModal
+            fleetId={currentTeam?.id}
+            hostId={host.id}
+            enrollmentStatus={host.mdm.enrollment_status}
+            isPremiumTier={isPremiumTier}
+            isMacOSHost={isMacOSHost}
+            router={router}
+            onExit={toggleMDMStatusModal}
           />
         )}
       </>

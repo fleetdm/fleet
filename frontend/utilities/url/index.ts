@@ -6,6 +6,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import {
+  DepAssignProfileResponse,
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
@@ -51,6 +52,7 @@ interface IMutuallyExclusiveHostParams {
   scriptBatchExecutionStatus?: string;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
+  depAssignProfileResponse?: DepAssignProfileResponse;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -186,9 +188,9 @@ export const reconcileMutuallyInclusiveHostParams = ({
   }
 
   if (macSettingsStatus) {
-    // ensure macos_settings filter is always applied in
+    // ensure apple_settings filter is always applied in
     // conjunction with a fleet_id, 0 (no fleets) by default
-    reconciled.macos_settings = macSettingsStatus;
+    reconciled.apple_settings = macSettingsStatus;
     reconciled.fleet_id = teamId ?? 0;
   }
   if (osSettings) {
@@ -226,6 +228,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   scriptBatchExecutionStatus,
   scriptBatchExecutionId,
   depProfileError,
+  depAssignProfileResponse,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -288,7 +291,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!diskEncryptionStatus:
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:
-      return { bootstrap_package: bootstrapPackageStatus };
+      return { macos_bootstrap_package: bootstrapPackageStatus };
     case !!configProfileUUID:
       return {
         profile_status: configProfileStatus,
@@ -301,6 +304,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
       };
     case !!depProfileError:
       return { dep_profile_error: true };
+    case !!depAssignProfileResponse:
+      return { dep_assign_profile_response: depAssignProfileResponse };
     default:
       return {};
   }

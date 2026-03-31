@@ -255,7 +255,8 @@ const ManageHostsPage = ({
   // ========= queryParams
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const macSettingsStatus = queryParams?.macos_settings;
+  const macSettingsStatus =
+    queryParams?.apple_settings ?? queryParams?.macos_settings;
   const softwareId =
     queryParams?.software_id !== undefined
       ? parseInt(queryParams.software_id, 10)
@@ -302,7 +303,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.bootstrap_package;
+    queryParams?.macos_bootstrap_package ?? queryParams?.bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
@@ -313,6 +314,8 @@ const ManageHostsPage = ({
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
   const depProfileError = queryParams?.dep_profile_error;
+  /** URL converts to lowercase but API and UI requires uppercase */
+  const depAssignProfileResponse = queryParams?.dep_assign_profile_response?.toUpperCase();
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -354,7 +357,7 @@ const ManageHostsPage = ({
   // configProfileStatus ||
   // configProfileUUID
   // depProfileError
-
+  // depAssignProfileResponse
   const runScriptBatchFilterNotSupported = !!(
     // all above, except acceptable filters
     (
@@ -392,7 +395,8 @@ const ManageHostsPage = ({
       scriptBatchExecutionStatus ||
       configProfileStatus ||
       configProfileUUID ||
-      depProfileError
+      depProfileError ||
+      depAssignProfileResponse
     )
   );
 
@@ -577,6 +581,7 @@ const ManageHostsPage = ({
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
         depProfileError: strToBool(depProfileError),
+        depAssignProfileResponse,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -832,7 +837,7 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, bootstrap_package: newStatus },
+        queryParams: { ...queryParams, macos_bootstrap_package: newStatus },
       })
     );
   };
@@ -892,7 +897,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          macos_settings: newMacSettingsStatus,
+          apple_settings: newMacSettingsStatus,
           page: 0, // resets page index
         },
       })
@@ -1050,7 +1055,7 @@ const ManageHostsPage = ({
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;
       } else if (macSettingsStatus) {
-        newQueryParams.macos_settings = macSettingsStatus;
+        newQueryParams.apple_settings = macSettingsStatus;
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
       } else if (softwareVersionId) {
@@ -1092,7 +1097,7 @@ const ManageHostsPage = ({
         // Premium feature only
         newQueryParams[PARAMS.DISK_ENCRYPTION] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
-        newQueryParams.bootstrap_package = bootstrapPackageStatus;
+        newQueryParams.macos_bootstrap_package = bootstrapPackageStatus;
       } else if (configProfileStatus && configProfileUUID) {
         newQueryParams.profile_status = configProfileStatus;
         newQueryParams.profile_uuid = configProfileUUID;
@@ -1105,6 +1110,8 @@ const ManageHostsPage = ({
         ] = scriptBatchExecutionId;
       } else if (depProfileError) {
         newQueryParams.dep_profile_error = depProfileError;
+      } else if (depAssignProfileResponse) {
+        newQueryParams.dep_assign_profile_response = depAssignProfileResponse;
       }
 
       router.replace(
@@ -1150,6 +1157,8 @@ const ManageHostsPage = ({
       routeTemplate,
       routeParams,
       softwareStatus,
+      depProfileError,
+      depAssignProfileResponse,
     ]
   );
 
@@ -1345,6 +1354,7 @@ const ManageHostsPage = ({
           diskEncryptionStatus,
           vulnerability,
           depProfileError,
+          depAssignProfileResponse,
         })
       : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1849,7 +1859,8 @@ const ManageHostsPage = ({
       osSettingsStatus ||
       diskEncryptionStatus ||
       vulnerability ||
-      depProfileError
+      depProfileError ||
+      depAssignProfileResponse
     );
 
     return (
@@ -1997,6 +2008,7 @@ const ManageHostsPage = ({
             scriptBatchRanAt: scriptBatchSummary?.created_at || null,
             scriptBatchScriptName: scriptBatchSummary?.script_name || null,
             depProfileError,
+            depAssignProfileResponse,
           }}
           selectedLabel={selectedLabel}
           isOnlyObserver={isOnlyObserver}

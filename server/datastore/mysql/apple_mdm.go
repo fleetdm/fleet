@@ -7323,11 +7323,12 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 }
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+	const stmt = `SELECT encrypted_password, updated_at, auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
-		EncryptedPassword []byte    `db:"encrypted_password"`
-		UpdatedAt         time.Time `db:"updated_at"`
+		EncryptedPassword []byte     `db:"encrypted_password"`
+		UpdatedAt         time.Time  `db:"updated_at"`
+		AutoRotateAt      *time.Time `db:"auto_rotate_at"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -7343,8 +7344,9 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 	}
 
 	return &fleet.HostRecoveryLockPassword{
-		Password:  string(decrypted),
-		UpdatedAt: row.UpdatedAt,
+		Password:     string(decrypted),
+		UpdatedAt:    row.UpdatedAt,
+		AutoRotateAt: row.AutoRotateAt,
 	}, nil
 }
 
@@ -7680,10 +7682,10 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID 
 		}
 
 		if dest.HasPending {
-			return ctxerr.Errorf(ctx, "rotation already pending for host %s", hostUUID)
+			return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockRotationPending, fmt.Sprintf("host %s", hostUUID))
 		}
 
-		return ctxerr.Errorf(ctx, "host %s not eligible for rotation (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String)
+		return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockNotEligible, fmt.Sprintf("host %s (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String))
 	}
 
 	return nil
@@ -7691,13 +7693,15 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID 
 
 func (ds *Datastore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error {
 	// Move pending password to active and clear pending columns.
+	// Also clear auto_rotate_at since rotation is now complete.
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET encrypted_password = pending_encrypted_password,
 		    pending_encrypted_password = NULL,
 		    pending_error_message = NULL,
 		    status = '%s',
-		    error_message = NULL
+		    error_message = NULL,
+		    auto_rotate_at = NULL
 		WHERE host_uuid = ?
 		  AND deleted = 0
 		  AND pending_encrypted_password IS NOT NULL
@@ -7838,4 +7842,63 @@ func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUI
 	}
 
 	return hasPending, nil
+}
+
+func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
+	// Set auto_rotate_at to 1 hour from now when password is viewed.
+	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
+	rotateAt := time.Now().Add(1 * time.Hour)
+
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET auto_rotate_at = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND operation_type = '%s'
+	`, fleet.MDMOperationTypeInstall)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, rotateAt, hostUUID)
+	if err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return time.Time{}, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return rotateAt, nil
+}
+
+func (ds *Datastore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+	// Return hosts where:
+	// - auto_rotate_at is in the past (due for rotation)
+	// - status is verified (password is confirmed working)
+	// - no pending rotation (pending_encrypted_password IS NULL)
+	// - operation_type is install (not in remove state)
+	// - not deleted
+	// Join with hosts table to get host ID and display name for activity logging.
+	stmt := fmt.Sprintf(`
+		SELECT
+			hrkp.host_uuid,
+			h.id AS host_id,
+			COALESCE(NULLIF(h.computer_name, ''), h.hostname) AS display_name
+		FROM host_recovery_key_passwords hrkp
+		JOIN hosts h ON h.uuid = hrkp.host_uuid
+		WHERE hrkp.auto_rotate_at IS NOT NULL
+		  AND hrkp.auto_rotate_at <= NOW(6)
+		  AND hrkp.status = '%s'
+		  AND hrkp.pending_encrypted_password IS NULL
+		  AND hrkp.operation_type = '%s'
+		  AND hrkp.deleted = 0
+		LIMIT 100
+	`, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall)
+
+	var hosts []fleet.HostAutoRotationInfo
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hosts for auto rotation")
+	}
+
+	return hosts, nil
 }

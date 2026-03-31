@@ -578,10 +578,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 	}
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
 	// run the cron to assign configuration profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var seenDeclarativeManagement bool
 	var cmds []*micromdm.CommandPayload
@@ -600,7 +601,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		/* switch cmd.Command.RequestType {
+		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
 		case "InstallEnterpriseApplication":
@@ -611,7 +612,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			}
 		default:
 			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		} */
+		}
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -705,6 +706,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 				return err
 			})
 
+			s.awaitRunAppleMDMWorkerSchedule()
 			s.runWorker()
 
 			// make the device process the commands, it should receive the
@@ -764,7 +766,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	enrolledHost.OrbitNodeKey = &orbitKey
 
 	// call the /config endpoint as fleetd would
-	var orbitConfigResp orbitGetConfigResponse
+	var orbitConfigResp fleet.OrbitGetConfigResponse
 	var caps fleet.CapabilityMap
 	if opts.UseOldFleetdFlow {
 		// important thing is that it doesn't have the CapabilitySetupExperience
@@ -805,7 +807,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 		// calling the orbit config endpoint again does NOT enqueue a new job, and doesn't
 		// return the RunSetupExperience notification anymore
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
 			http.StatusOK, map[string]string{fleet.CapabilitiesHeader: caps.String()})
 		b, err := io.ReadAll(res.Body)
@@ -823,6 +825,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			return err
 		})
 
+		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()
 
 	} else {
@@ -839,7 +842,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		})
 
 		// call the /status endpoint to automatically release the host
-		var statusResp getOrbitSetupExperienceStatusResponse
+		var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	}
 
@@ -894,10 +897,10 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
 
 	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, shouldReceive bool) {
-		// run the worker to process the DEP enroll request
-		s.runWorker()
-		// run the worker to assign configuration profiles
+		// ensure fleet profiles
 		s.awaitTriggerProfileSchedule(t)
+		// run the worker to process the DEP enroll request
+		s.awaitRunAppleMDMWorkerSchedule()
 
 		var seenDeclarativeManagement bool
 		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
@@ -1405,6 +1408,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// Simulate fleetd re-enrolling automatically.
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// The last activity should have `installed_from_dep=true`.
 	s.lastActivityMatches(
@@ -2123,6 +2127,7 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 
 	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, shouldReceive bool) {
 		// run the worker to process the DEP enroll request
+		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()
 		// run the worker to assign configuration profiles
 		s.awaitTriggerProfileSchedule(t)
@@ -2242,6 +2247,10 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 	mdmDevice.SerialNumber = devices[0].SerialNumber
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
+
+	// Ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Simulate an osquery enrollment too
 	// set an enroll secret
@@ -2942,7 +2951,7 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 			name:      "Orbit Enrollment",
 			enrollURL: "/api/fleet/orbit/enroll",
 			enrollRequest: func(host *fleet.Host, mdmDevice *mdmtest.TestAppleMDMClient) any {
-				return contract.EnrollOrbitRequest{
+				return fleet.EnrollOrbitRequest{
 					EnrollSecret:   teamEnrollSecret,
 					HardwareUUID:   host.UUID,
 					HardwareSerial: mdmDevice.SerialNumber,
@@ -3082,6 +3091,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 		mdmDevice.SerialNumber = devices[0].SerialNumber
 		err = mdmDevice.Enroll()
 		require.NoError(t, err)
+		s.awaitRunAppleMDMWorkerSchedule()
 
 		// Simulate an osquery enrollment too
 		// set an enroll secret
@@ -3185,7 +3195,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	installUUID := getLatestSoftwareInstallExecID(t, s.ds, h.ID)
 
 	// process installation successfully
-	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
 		OrbitNodeKey: *h.OrbitNodeKey,
 		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 			HostID:                h.ID,

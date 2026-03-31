@@ -32,6 +32,11 @@ type LabelChangesSummary struct {
 	LabelsMovements []LabelMovement
 }
 
+// HasChanges returns true if there are any label additions, removals, updates, or movements.
+func (s LabelChangesSummary) HasChanges() bool {
+	return len(s.LabelsToAdd) > 0 || len(s.LabelsToRemove) > 0 || len(s.LabelsToUpdate) > 0 || len(s.LabelsMovements) > 0
+}
+
 func NewLabelChangesSummary(changes []LabelChange, moves []LabelMovement) LabelChangesSummary {
 	r := LabelChangesSummary{
 		LabelsMovements: moves,
@@ -222,9 +227,10 @@ type PolicyRunScript struct {
 }
 
 type PolicyInstallSoftware struct {
-	PackagePath string `json:"package_path"`
-	AppStoreID  string `json:"app_store_id"`
-	HashSHA256  string `json:"hash_sha256"`
+	PackagePath            string `json:"package_path"`
+	AppStoreID             string `json:"app_store_id"`
+	HashSHA256             string `json:"hash_sha256"`
+	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
 }
 
 type Query struct {
@@ -335,6 +341,13 @@ type GitOps struct {
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
 	FleetSecrets map[string]string
+
+	// LabelsPresent indicates that the `labels:` key was explicitly present in the YAML file.
+	LabelsPresent bool
+	// SoftwarePresent indicates that the `software:` key was explicitly present in the YAML file.
+	SoftwarePresent bool
+	// SecretsPresent indicates that the `secrets:` key was explicitly present in the YAML file.
+	SecretsPresent bool
 }
 
 type GitOpsSoftware struct {
@@ -350,6 +363,13 @@ type GitOpsOptions struct {
 	// AllowUnknownKeys causes unknown key errors to be logged as warnings
 	// instead of returned as errors.
 	AllowUnknownKeys bool
+	// SyntheticSoftwareByTeam maps team names to JSON-encoded software specs
+	// from the server. When the software: key is excepted from GitOps and
+	// omitted from the YAML, this data is injected so that parseSoftware can
+	// populate result.Software for policy validation (install_software and
+	// patch policy references). SoftwarePresent remains false so that
+	// downstream exception enforcement still works correctly.
+	SyntheticSoftwareByTeam map[string]json.RawMessage
 }
 
 // GitOpsFromFile parses a GitOps yaml file.
@@ -457,9 +477,9 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	for _, topKey := range topKeys {
 		// "name" is handled later with special logic based on the filename.
-		// "labels" is a special case where omitting is a no-op, rather than a directive to clear settings.
-		// settings keys were handled above.
-		if topKey == "name" || topKey == "labels" || topKey == "settings" || topKey == "org_settings" {
+		// "labels" and "software" are special cases where omitting may be a no-op (based on exception settings),
+		// rather than a directive to clear settings. settings keys were handled above.
+		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "settings" || topKey == "org_settings" {
 			continue
 		}
 		// "controls" can be set on _either_ global or "no team" file, and we can't say which it is if both
@@ -478,12 +498,9 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	}
 
-	// Get the labels. If `labels:` is specified but no labels are listed, this will
-	// set Labels as nil.  If `labels:` isn't present at all, it will be set as an
-	// empty array.
-	if _, ok := top["labels"]; !ok {
-		result.Labels = make([]*fleet.LabelSpec, 0)
-	} else {
+	// Get the labels. LabelsPresent tracks whether the key was in the YAML.
+	if _, ok := top["labels"]; ok {
+		result.LabelsPresent = true
 		multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
 	}
 	// Get other top-level entities.
@@ -492,7 +509,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	multiError = parseReports(top, result, baseDir, logFn, filePath, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
-		multiError = parseSoftware(top, result, baseDir, filePath, multiError)
+		multiError = parseSoftware(top, result, baseDir, filePath, options, multiError)
 	}
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
@@ -777,6 +794,7 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 		// Any secrets present on the server will be retained.
 		return multiError
 	}
+	result.SecretsPresent = true
 	// When secrets slice is empty, all secrets are removed.
 	enrollSecrets := make([]*fleet.EnrollSecret, 0)
 	if rawSecrets != nil {
@@ -1403,7 +1421,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	multiError = multierror.Append(multiError, validateRawKeys(policiesRaw, reflect.TypeFor[[]Policy](), filePath, []string{"policies"})...)
 	for _, item := range policies {
 		if item.Path == nil {
-			if errs := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); errs != nil {
+			if errs := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps, fmasBySlug); errs != nil {
 				multiError = multierror.Append(multiError, errs...)
 				continue
 			}
@@ -1439,7 +1457,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							if errs := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps); errs != nil {
+							if errs := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps, fmasBySlug); errs != nil {
 								multiError = multierror.Append(multiError, errs...)
 								continue
 							}
@@ -1538,7 +1556,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 	return nil
 }
 
-func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp) []error {
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]struct{}) []error {
 	installSoftwareObj := policy.InstallSoftware.Other
 	if installSoftwareObj == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
@@ -1551,14 +1569,20 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	wrapErrs := func(err error) []error {
 		return []error{wrapErr(err)}
 	}
-	if (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "") && teamName == nil {
+	if (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "" || installSoftwareObj.HashSHA256 != "" || installSoftwareObj.FleetMaintainedAppSlug != "") && teamName == nil {
 		return wrapErrs(errors.New("install_software can only be set on team policies"))
 	}
-	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" {
-		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256"))
+	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" && installSoftwareObj.FleetMaintainedAppSlug == "" {
+		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug"))
 	}
-	if installSoftwareObj.PackagePath != "" && installSoftwareObj.AppStoreID != "" {
-		return wrapErrs(errors.New("install_software must have only one of package_path or app_store_id"))
+	setCount := 0
+	for _, s := range []string{installSoftwareObj.PackagePath, installSoftwareObj.AppStoreID, installSoftwareObj.HashSHA256, installSoftwareObj.FleetMaintainedAppSlug} {
+		if s != "" {
+			setCount++
+		}
+	}
+	if setCount > 1 {
+		return wrapErrs(errors.New("install_software must have only one of package_path, app_store_id, hash_sha256 or fleet_maintained_app_slug"))
 	}
 
 	var errs []error
@@ -1620,6 +1644,13 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		if !appOnTeamFound {
 			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
 		}
+	}
+
+	if installSoftwareObj.FleetMaintainedAppSlug != "" {
+		if _, ok := fmasBySlug[installSoftwareObj.FleetMaintainedAppSlug]; !ok {
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for team %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
+		}
+		policy.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
 	}
 
 	return errs
@@ -1721,14 +1752,29 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
 
-func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
+func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, options GitOpsOptions, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
+	if ok {
+		result.SoftwarePresent = true
+	}
 	if result.global() {
 		if ok && string(softwareRaw) != "null" {
 			return multierror.Append(multiError, errors.New("'software' cannot be set on global file"))
 		}
 	} else if !ok {
-		return multierror.Append(multiError, errors.New("'software' is required"))
+		// Software key is absent. If we have synthetic server-side data for this
+		// team (because software is excepted from GitOps), inject it so that
+		// policy install_software and patch policy references can be validated.
+		// SoftwarePresent remains false so downstream exception enforcement works.
+		if result.TeamName != nil && options.SyntheticSoftwareByTeam != nil {
+			if synthetic, hasSynthetic := options.SyntheticSoftwareByTeam[*result.TeamName]; hasSynthetic {
+				softwareRaw = synthetic
+				ok = true // allow processing below
+			}
+		}
+		if !ok {
+			return multiError
+		}
 	}
 	var software Software
 	if len(softwareRaw) > 0 {

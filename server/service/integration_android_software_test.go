@@ -94,7 +94,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
 		http.StatusUnprocessableEntity,
 	)
-	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. com.valid.app.id isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
+	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. \"com.valid.app.id\" isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
 
 	// Valid application ID format, but app isn't found: should fail
 	// Update mock to return a 404
@@ -108,7 +108,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID \"com.app.id.not.found\" isn't available in Play Store. Please find ID on the Play Store and try again.")
 
 	amapiConfig := struct {
 		AppIDsToNames                     map[string]string
@@ -137,7 +137,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid", Platform: fleet.MacOSPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. com.valid isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. \"com.valid\" isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
 
 	// Add Android app
 	s.DoJSON(
@@ -1328,4 +1328,66 @@ func (s *integrationMDMTestSuite) TestAndroidWebAppsCannotSetConfiguration() {
 			},
 		}, http.StatusOK, &batchResp)
 	require.Len(t, batchResp.Apps, 2)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	enterpriseID := s.enableAndroidMDM(t)
+	var count int
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		count++
+		id := "dup" + fmt.Sprint(count)
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/com.google.enterprise.webapp.%s", enterpriseID, id)}, nil
+	}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/icon.jpg", Title: "Duplicate Web App"}, nil
+	}
+
+	// create a web app
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Duplicate Web App"},
+		"url":   {"https://example.com"},
+	})
+	var resp createAndroidWebAppResponse
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	webAppID := resp.AppStoreID
+
+	// add it to Fleet (populates vpp_apps)
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID, Platform: fleet.AndroidPlatform,
+	}, http.StatusOK, &addResp)
+
+	// create another web app with the same name
+	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Duplicate Web App"},
+		"url":   {"https://different-url.com"},
+	})
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusConflict, headers)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add.`)
+	require.Contains(t, errMsg, `"Duplicate Web App"`)
+	require.Contains(t, errMsg, "already exists in this fleet")
+
+	// create a web app with a different name
+	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Different Web App"},
+		"url":   {"https://example.com"},
+	})
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	var resp2 createAndroidWebAppResponse
+	err = json.NewDecoder(res.Body).Decode(&resp2)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp2.AppStoreID)
 }
