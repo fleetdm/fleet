@@ -46,7 +46,14 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 		ServerSettings: fleet.ServerSettings{
 			ServerURL: "https://example.com", // will update with actual test server URL after it is started
 		},
-	})
+	},
+		map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {
+				Name:        fleet.MDMAssetCACert,
+				Value:       []byte("-----BEGIN CERTIFICATE-----\nroot\n-----END CERTIFICATE-----"),
+				MD5Checksum: "3a7bd3e2360a3d80c8c1b677fbbd9e5", // md5 of "root"
+			},
+		})
 
 	// Create service
 	svc := service.NewService(ds, pool, providers, tdb.Logger)
