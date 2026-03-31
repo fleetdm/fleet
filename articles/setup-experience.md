@@ -40,7 +40,7 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 
 To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
-Currently, a custom EULA is only supported for macOS hosts.
+Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business Manager (ABM).
 
 ## Bootstrap package
 
