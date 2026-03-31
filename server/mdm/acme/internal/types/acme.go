@@ -82,16 +82,17 @@ type OrderResponse struct {
 	Identifiers    []Identifier `json:"identifiers"`
 	Authorizations []string     `json:"authorizations"`
 	Finalize       string       `json:"finalize"`
+	Certificate    string       `json:"certificate,omitempty"`
 
 	// Location is set in the header, pointing to the created order's URL.
 	Location string `json:"-"`
 }
 
 type Authorization struct {
-	ID         uint       `db:"id"`
-	OrderID    uint       `db:"acme_order_id"`
-	Identifier Identifier `db:"-"`
-	Status     string     `db:"status"`
+	ID          uint       `db:"id"`
+	ACMEOrderID uint       `db:"acme_order_id"`
+	Identifier  Identifier `db:"-"`
+	Status      string     `db:"status"`
 }
 
 type AuthorizationResponse struct {
@@ -161,6 +162,8 @@ type Datastore interface {
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)
 	CreateOrder(ctx context.Context, order *Order, authorization *Authorization, challenge *Challenge) (*Order, error)
+	GetOrderByID(ctx context.Context, accountID, orderID uint) (*Order, []*Authorization, error)
+	ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error)
 	GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*Authorization, error)
 	GetChallengesByAuthorizationID(ctx context.Context, authorizationID uint) ([]*Challenge, error)
 }

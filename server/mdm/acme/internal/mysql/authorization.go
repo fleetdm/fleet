@@ -39,8 +39,8 @@ func (ds *Datastore) GetAuthorizationByID(ctx context.Context, accountID uint, a
 	}
 
 	return &types.Authorization{
-		ID:      dbAuthz.ID,
-		OrderID: dbAuthz.OrderID,
+		ID:          dbAuthz.ID,
+		ACMEOrderID: dbAuthz.ACMEOrderID,
 		Identifier: types.Identifier{
 			Type:  dbAuthz.IdentifierType,
 			Value: dbAuthz.IdentifierValue,

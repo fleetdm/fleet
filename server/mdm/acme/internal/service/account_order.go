@@ -85,7 +85,15 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating order in datastore")
 	}
+	return s.createOrderResponse(ctx, enrollment, order, []*types.Authorization{authz})
+}
 
+func (s *Service) createOrderResponse(
+	ctx context.Context,
+	enrollment *types.Enrollment,
+	order *types.Order,
+	authorizations []*types.Authorization,
+) (*types.OrderResponse, error) {
 	baseURL, err := s.getACMEBaseURL(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
@@ -95,13 +103,26 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "constructing order URL for account")
 	}
+
 	finalizeURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "finalize")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "constructing finalize URL for account")
 	}
-	authzURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "authorizations", fmt.Sprint(authz.ID))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "constructing authorization URL for account")
+
+	var authzURL string
+	if len(authorizations) == 1 {
+		authzURL, err = s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "authorizations", fmt.Sprint(authorizations[0].ID))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "constructing authorization URL for account")
+		}
+	}
+
+	var certURL string
+	if order.Finalized && order.Status == "valid" {
+		certURL, err = s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "certificate")
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "constructing certificate URL for account")
+		}
 	}
 
 	return &types.OrderResponse{
@@ -111,6 +132,44 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 		Identifiers:    order.Identifiers,
 		Authorizations: []string{authzURL},
 		Finalize:       finalizeURL,
+		Certificate:    certURL,
 		Location:       orderURL,
 	}, nil
+}
+
+func (s *Service) GetOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint) (*types.OrderResponse, error) {
+	// authorization is checked in the endpoint implementation for JWS-protected endpoints
+
+	order, authorizations, err := s.store.GetOrderByID(ctx, account.ID, orderID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get order from datastore")
+	}
+	return s.createOrderResponse(ctx, enrollment, order, authorizations)
+}
+
+func (s *Service) ListAccountOrders(ctx context.Context, pathIdentifier string, account *types.Account) ([]string, error) {
+	// authorization is checked in the endpoint implementation for JWS-protected endpoints
+
+	orderIDs, err := s.store.ListAccountOrderIDs(ctx, account.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing account order IDs from datastore")
+	}
+
+	var orderURLs []string
+	if len(orderIDs) > 0 {
+		baseURL, err := s.getACMEBaseURL(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting base URL")
+		}
+
+		orderURLs = make([]string, len(orderIDs))
+		for i, orderID := range orderIDs {
+			orderURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, pathIdentifier, "orders", fmt.Sprint(orderID))
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "constructing order URL for account")
+			}
+			orderURLs[i] = orderURL
+		}
+	}
+	return orderURLs, nil
 }

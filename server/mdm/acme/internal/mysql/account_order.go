@@ -195,3 +195,62 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 	}
 	return order, nil
 }
+
+func (ds *Datastore) GetOrderByID(ctx context.Context, accountID, orderID uint) (*types.Order, []*types.Authorization, error) {
+	// condition is on both account and order ids, so that we don't get a match on
+	// just the order id that wouldn't be associated with the validated account from
+	// the request.
+	const getOrderStmt = `SELECT id, acme_account_id, finalized, certificate_signing_request, identifiers, status, issued_certificate_serial
+		FROM acme_orders WHERE acme_account_id = ? AND id = ?`
+
+	var dbOrder struct {
+		types.Order
+		RawIdentifiers []byte `db:"identifiers"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dbOrder, getOrderStmt, accountID, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = types.OrderDoesNotExistError(fmt.Sprintf("No order exists with id %d for this account", orderID))
+			return nil, nil, ctxerr.Wrap(ctx, err)
+		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "select acme order")
+	}
+
+	if err := json.Unmarshal(dbOrder.RawIdentifiers, &dbOrder.Identifiers); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal acme order identifiers")
+	}
+
+	const listAuthorizationsStmt = `SELECT id, acme_order_id, identifier_type, identifier_value, status
+		FROM acme_authorizations WHERE acme_order_id = ?`
+	var dbAuthz []struct {
+		types.Authorization
+		IdentifierType  string `db:"identifier_type"`
+		IdentifierValue string `db:"identifier_value"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &dbAuthz, listAuthorizationsStmt, orderID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select acme authorizations for order")
+	}
+
+	authorizations := make([]*types.Authorization, len(dbAuthz))
+	for i, a := range dbAuthz {
+		authz := a.Authorization
+		authz.Identifier = types.Identifier{
+			Type:  a.IdentifierType,
+			Value: a.IdentifierValue,
+		}
+		authorizations[i] = &authz
+	}
+	return &dbOrder.Order, authorizations, nil
+}
+
+func (ds *Datastore) ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error) {
+	// must not include orders in status 'invalid'
+	const listOrderIDsStmt = `SELECT id FROM acme_orders WHERE acme_account_id = ? AND status != 'invalid'`
+	var ids []uint
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, listOrderIDsStmt, accountID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select acme order ids for account")
+	}
+	return ids, nil
+}
