@@ -82,7 +82,7 @@ const DISK_ENCRYPTION_MESSAGES = {
 
 const getHostDiskEncryptionTooltipMessage = (
   platform: DiskEncryptionSupportedPlatform, // TODO: improve this type
-  diskEncryptionEnabled = false
+  diskEncryptionEnabled = false,
 ) => {
   if (platform === "chrome") {
     return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
@@ -146,11 +146,8 @@ const Vitals = ({
 
     // Agent / Osquery
     if (!isIosOrIpadosHost && !isAndroidHost) {
-      const {
-        orbit_version,
-        osquery_version,
-        fleet_desktop_version,
-      } = vitalsData;
+      const { orbit_version, osquery_version, fleet_desktop_version } =
+        vitalsData;
 
       const isChromeOrVanillaOsqueryHost =
         isChromeHost || orbit_version === DEFAULT_EMPTY_CELL_VALUE;
@@ -217,7 +214,7 @@ const Vitals = ({
     if (platformSupportsDiskEncryption(platform, os_version)) {
       const tooltipMessage = getHostDiskEncryptionTooltipMessage(
         platform,
-        diskEncryptionEnabled
+        diskEncryptionEnabled,
       );
 
       let statusText;
@@ -425,7 +422,7 @@ const Vitals = ({
               }
             />
           ),
-        }
+        },
       );
     }
 
@@ -483,7 +480,7 @@ const Vitals = ({
       const osVersionRequirementMet =
         compareVersions(
           osVersionWithoutPrefix,
-          osVersionRequirement.minimum_version
+          osVersionRequirement.minimum_version,
         ) >= 0;
 
       vitals.push({
@@ -552,6 +549,16 @@ const Vitals = ({
               </TooltipWrapper>
             }
             value={<TooltipTruncatedText value={vitalsData.public_ip} />}
+          />
+        ),
+      });
+      vitals.push({
+        sortKey: "MAC address",
+        element: (
+          <DataSet
+            key="mac-address"
+            title="MAC address"
+            value={<TooltipTruncatedText value={vitalsData.primary_mac} />}
           />
         ),
       });
