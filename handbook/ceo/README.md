@@ -78,14 +78,17 @@ To check for pending connect requests, perform the following steps:
 ### Add LinkedIn connections to CRM
 
 To add the most recent connections from Linkedin to our CRM, follow these steps:
-  1. Log into the CEO's LinkedIn (if you're not already) and click "My Network", then "Connections" and open each person's LinkedIn page in a new tab.
-  2. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
-  3. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
-  4. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
-  5. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
-  6. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
-  7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
-  8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
+  1. Log into the CEO's LinkedIn (if you're not already).
+  2. Click "My Network".
+  3. Click "Connections".
+  4. Open each person's LinkedIn page in a new tab.
+  5. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
+  6. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
+  7. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
+  8. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
+  9. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
+  10. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
+  11. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
 
 
 ### Connect with active community members
