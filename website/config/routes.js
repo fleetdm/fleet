@@ -618,6 +618,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /partners': {
+    action: 'landing-pages/view-partners',
+    locals: {
+      pageTitleForMeta: 'Partners',
+      pageDescriptionForMeta: 'Join Fleet’s partner program. Sell, integrate, and deliver device management with open APIs, flexible deployment, and support from the Fleet team.'
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
