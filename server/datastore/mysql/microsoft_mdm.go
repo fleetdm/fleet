@@ -7,7 +7,9 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1183,6 +1185,14 @@ func deleteMDMWindowsConfigProfile(ctx context.Context, tx sqlx.ExtContext, prof
 //   - Phase 1: Delete rows that were never sent to the device (NULL status + install)
 //   - Phase 2: For rows that were sent (non-NULL status + install), generate SyncML
 //     <Delete> commands and enqueue them, then mark the rows for removal.
+//
+// IMPORTANT: All profileUUIDs must belong to the same team. The LocURI protection
+// set is built by querying all active profiles for the affected team(s). If profiles
+// from multiple teams were passed, a profile in team A could suppress deletes for
+// hosts in team B (over-protection), because the protection set would be the union
+// across teams rather than scoped per-team. All current callers (DeleteMDMWindowsConfigProfile,
+// DeleteMDMWindowsConfigProfileByTeamAndName, batchSetMDMWindowsProfilesDB) operate
+// on a single team.
 func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	ctx context.Context, tx sqlx.ExtContext,
 	profileUUIDs []string, profileContents map[string][]byte,
@@ -1263,10 +1273,20 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// Generate and enqueue <Delete> commands for each profile.
 	// Track which profiles were successfully enqueued so we only
 	// update rows that have a corresponding queued command.
-	// Collect LocURIs from OTHER active profiles in the same team(s) so we
+	// Collect LocURIs from OTHER active profiles so we
 	// don't send <Delete> for settings still enforced by a remaining profile.
 	// This prevents deleting one profile from undoing settings in another.
-	activeLocURIs := make(map[string]bool)
+	//
+	// This is a two-pass approach for performance:
+	// Pass 1 (team-wide): Build a global protection set from ALL other profiles
+	//   in the team. This is fast and handles the common case.
+	// Pass 2 (per-host, only if needed): For any LocURIs that were protected in
+	//   pass 1, check if the protecting profile actually applies to each host
+	//   (considering label scope). If it doesn't, send the <Delete> anyway.
+	activeLocURIs := make(map[string]struct{})
+	// Map each protected LocURI to the profile UUIDs that protect it,
+	// so pass 2 can check per-host applicability.
+	locURIToProtectingProfiles := make(map[string][]string)
 	if len(profileUUIDs) > 0 {
 		// Get team IDs for the profiles being deleted. Use the hosts table
 		// with a single query instead of one per host.
@@ -1281,18 +1301,31 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		if err := sqlx.SelectContext(ctx, tx, &teamIDs, teamIDStmt, teamIDArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting team IDs for LocURI protection")
 		}
+		if len(teamIDs) > 1 {
+			// All callers must operate on a single team. If multiple teams are
+			// found, the LocURI protection set would be the union across teams,
+			// letting a profile in team A suppress deletes for hosts in team B.
+			return ctxerr.Errorf(ctx, "cancelWindowsHostInstallsForDeletedMDMProfiles: expected profiles from 1 team, got %d", len(teamIDs))
+		}
 		if len(teamIDs) > 0 {
-			// Query all SyncML from profiles NOT being deleted in the same team(s).
+			// Query profile UUIDs and SyncML from profiles NOT being deleted.
 			const activeProfilesStmt = `
-				SELECT syncml FROM mdm_windows_configuration_profiles
+				SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles
 				WHERE team_id IN (?) AND profile_uuid NOT IN (?)`
 			apStmt, apArgs, apErr := sqlx.In(activeProfilesStmt, teamIDs, profileUUIDs)
 			if apErr == nil {
-				var activeProfiles [][]byte
+				var activeProfiles []struct {
+					ProfileUUID string `db:"profile_uuid"`
+					SyncML      []byte `db:"syncml"`
+				}
 				if err := sqlx.SelectContext(ctx, tx, &activeProfiles, apStmt, apArgs...); err == nil {
-					for _, syncML := range activeProfiles {
-						for _, uri := range fleet.ExtractLocURIsFromProfileBytes(syncML) {
-							activeLocURIs[uri] = true
+					for _, ap := range activeProfiles {
+						// Substitute SCEP variable so LocURIs are compared on
+						// resolved paths, consistent with the deleted profile side.
+						resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(ap.SyncML, []byte(ap.ProfileUUID))
+						for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolved) {
+							activeLocURIs[uri] = struct{}{}
+							locURIToProtectingProfiles[uri] = append(locURIToProtectingProfiles[uri], ap.ProfileUUID)
 						}
 					}
 				}
@@ -1301,25 +1334,47 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	}
 
 	enqueuedTargets := make(map[string]*removeTarget)
+	var pass2Params []locURIProtectionParams
 	for profUUID, target := range targets {
 		syncML, ok := profileContents[profUUID]
 		if !ok || len(syncML) == 0 {
-			// SyncML content not available — cannot generate delete command.
-			// This is best-effort, so we log and continue.
 			ds.logger.WarnContext(ctx, "skipping delete command generation: no SyncML content", "profile.uuid", profUUID)
 			continue
 		}
 
-		deleteCmd, err := fleet.BuildDeleteCommandFromProfileBytes(syncML, target.cmdUUID, profUUID, activeLocURIs)
+		// Extract all LocURIs from this profile (done once, reused for pass 2).
+		allURIs := fleet.ExtractLocURIsFromProfileBytes(
+			fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(syncML, []byte(profUUID)),
+		)
+
+		// Partition into safe (not protected) and protected (in activeLocURIs).
+		var safeURIs, protectedURIs []string
+		for _, uri := range allURIs {
+			if _, isProtected := activeLocURIs[uri]; isProtected {
+				protectedURIs = append(protectedURIs, uri)
+			} else {
+				safeURIs = append(safeURIs, uri)
+			}
+		}
+
+		// Generate <Delete> commands for the safe (unprotected) LocURIs.
+		deleteCmd, err := fleet.BuildDeleteCommandFromLocURIs(safeURIs, target.cmdUUID)
 		if err != nil {
-			ds.logger.WarnContext(ctx, "skipping delete command generation: build error",
+			ds.logger.ErrorContext(ctx, "skipping delete command generation: build error",
 				"profile.uuid", profUUID, "err", err)
+			ctxerr.Handle(ctx, err)
 			continue
 		}
-		if deleteCmd == nil {
-			// No delete command needed (profile only has Exec commands, or all
-			// LocURIs are protected by other active profiles).
-			// Delete the host-profile rows directly since no command is needed.
+		if deleteCmd != nil {
+			// Enqueue the primary delete command for unprotected LocURIs.
+			if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, target.hostUUIDs, deleteCmd); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting delete commands for hosts")
+			}
+			enqueuedTargets[profUUID] = target
+		} else {
+			// No primary delete command (all LocURIs protected or profile only
+			// has Exec commands). Delete the host-profile rows since the config
+			// profile is being removed and there's no command to track.
 			delSkipStmt, delSkipArgs, delSkipErr := sqlx.In(
 				`DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND host_uuid IN (?)`,
 				profUUID, target.hostUUIDs)
@@ -1329,13 +1384,25 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 			if _, err := tx.ExecContext(ctx, delSkipStmt, delSkipArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleaning up protected profile rows")
 			}
-			continue
 		}
 
-		if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, target.hostUUIDs, deleteCmd); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting delete commands for hosts")
+		// Collect protected URIs for pass 2 (label-scoped check).
+		if len(protectedURIs) > 0 {
+			pass2Params = append(pass2Params, locURIProtectionParams{
+				protectedURIs: protectedURIs,
+				hostUUIDs:     target.hostUUIDs,
+			})
 		}
-		enqueuedTargets[profUUID] = target
+	}
+
+	// Pass 2: For LocURIs that were protected in pass 1, check if the protecting
+	// profile is label-scoped and doesn't actually apply to some hosts. If so,
+	// send supplemental <Delete> commands for those specific hosts.
+	// This only runs when there are protected LocURIs, which is rare.
+	if len(pass2Params) > 0 {
+		if err := ds.checkAndEnqueueLabelScopedDeletes(ctx, tx, pass2Params, locURIToProtectingProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "label-scoped LocURI protection check")
+		}
 	}
 
 	// Update host-profile rows only for profiles that had delete commands enqueued.
@@ -1362,6 +1429,174 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		}
 	}
 
+	return nil
+}
+
+// checkAndEnqueueLabelScopedDeletes identifies which protecting profiles are
+// label-scoped and, if any, sends supplemental <Delete> commands for hosts
+// where the protector doesn't apply.
+func (ds *Datastore) checkAndEnqueueLabelScopedDeletes(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	toCheck []locURIProtectionParams,
+	locURIToProtectingProfiles map[string][]string,
+) error {
+	// Collect all protecting profile UUIDs.
+	allProtectingUUIDs := make(map[string]struct{})
+	for _, uuids := range locURIToProtectingProfiles {
+		for _, u := range uuids {
+			allProtectingUUIDs[u] = struct{}{}
+		}
+	}
+	if len(allProtectingUUIDs) == 0 {
+		return nil
+	}
+
+	// Check which are label-scoped.
+	lsStmt, lsArgs, lsErr := sqlx.In(
+		`SELECT DISTINCT windows_profile_uuid FROM mdm_configuration_profile_labels
+		WHERE windows_profile_uuid IN (?)`, slices.Collect(maps.Keys(allProtectingUUIDs)))
+	if lsErr != nil {
+		return ctxerr.Wrap(ctx, lsErr, "building IN for label-scoped profile check")
+	}
+	var labelScoped []string
+	if err := sqlx.SelectContext(ctx, tx, &labelScoped, lsStmt, lsArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "querying label-scoped profiles")
+	}
+
+	labelScopedProfiles := make(map[string]struct{})
+	for _, u := range labelScoped {
+		labelScopedProfiles[u] = struct{}{}
+	}
+	if len(labelScopedProfiles) == 0 {
+		return nil
+	}
+
+	return ds.enqueueSupplementalDeletesForLabelScopedProtection(
+		ctx, tx, toCheck, locURIToProtectingProfiles, labelScopedProfiles)
+}
+
+// locURIProtectionParams holds the data needed by enqueueSupplementalDeletesForLabelScopedProtection.
+type locURIProtectionParams struct {
+	// protectedURIs are the LocURIs from this profile that were filtered
+	// out by the team-wide protection in pass 1 (i.e., another profile in
+	// the team also targets them). Pass 2 checks per-host if the protector
+	// actually applies.
+	protectedURIs []string
+	hostUUIDs     []string
+}
+
+// enqueueSupplementalDeletesForLabelScopedProtection handles pass 2 of
+// LocURI protection. For each profile being deleted, it checks if any
+// protected LocURIs are only protected by label-scoped profiles. If a
+// label-scoped protector doesn't actually apply to a host, a supplemental
+// <Delete> is enqueued for that host.
+//
+// Label type handling (include-any, include-all, exclude-any): this function
+// does NOT re-implement label matching logic. Instead, it checks
+// host_mdm_windows_profiles for an existing install assignment. The reconciler
+// already evaluated all label types when it created those rows, so a row with
+// operation_type='install' means the profile applies to that host regardless
+// of how the label matching was computed.
+//
+// This is only called when there are protected LocURIs AND at least one
+// protecting profile is label-scoped, which is rare.
+func (ds *Datastore) enqueueSupplementalDeletesForLabelScopedProtection(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profilesToCheck []locURIProtectionParams,
+	locURIToProtectingProfiles map[string][]string,
+	labelScopedProfiles map[string]struct{},
+) error {
+	for _, p := range profilesToCheck {
+		if len(p.protectedURIs) == 0 || len(p.hostUUIDs) == 0 {
+			continue
+		}
+
+		// Filter to LocURIs where at least one protector is label-scoped.
+		var labelProtectedURIs []string
+		for _, uri := range p.protectedURIs {
+			for _, protector := range locURIToProtectingProfiles[uri] {
+				if _, isScoped := labelScopedProfiles[protector]; isScoped {
+					labelProtectedURIs = append(labelProtectedURIs, uri)
+					break
+				}
+			}
+		}
+		if len(labelProtectedURIs) == 0 {
+			continue
+		}
+
+		// Batch: get which label-scoped protecting profiles are installed on which hosts.
+		type hostProfile struct {
+			HostUUID    string `db:"host_uuid"`
+			ProfileUUID string `db:"profile_uuid"`
+		}
+		var hostProfs []hostProfile
+		hpStmt, hpArgs, hpErr := sqlx.In(
+			`SELECT host_uuid, profile_uuid FROM host_mdm_windows_profiles
+			WHERE host_uuid IN (?) AND profile_uuid IN (?) AND operation_type = 'install'`,
+			p.hostUUIDs, slices.Collect(maps.Keys(labelScopedProfiles)))
+		if hpErr != nil {
+			return ctxerr.Wrap(ctx, hpErr, "building IN for host-profile label check")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &hostProfs, hpStmt, hpArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "querying host-profile assignments for label check")
+		}
+
+		hostHasProfile := make(map[string]map[string]struct{})
+		for _, hp := range hostProfs {
+			if hostHasProfile[hp.HostUUID] == nil {
+				hostHasProfile[hp.HostUUID] = make(map[string]struct{})
+			}
+			hostHasProfile[hp.HostUUID][hp.ProfileUUID] = struct{}{}
+		}
+
+		// For each host, determine which protected LocURIs are safe to delete.
+		// Group hosts by their safe-URI set so we can batch the command insertion.
+		// Key: sorted comma-joined URIs; Value: list of host UUIDs.
+		hostsByURISet := make(map[string][]string)
+		for _, hostUUID := range p.hostUUIDs {
+			var hostSafeURIs []string
+			for _, uri := range labelProtectedURIs {
+				protectorApplies := false
+				for _, protectorUUID := range locURIToProtectingProfiles[uri] {
+					if _, isScoped := labelScopedProfiles[protectorUUID]; !isScoped {
+						protectorApplies = true // non-label profile, always applies
+						break
+					}
+					if _, ok := hostHasProfile[hostUUID][protectorUUID]; ok {
+						protectorApplies = true
+						break
+					}
+				}
+				if !protectorApplies {
+					hostSafeURIs = append(hostSafeURIs, uri)
+				}
+			}
+			if len(hostSafeURIs) > 0 {
+				slices.Sort(hostSafeURIs)
+				key := strings.Join(hostSafeURIs, ",")
+				hostsByURISet[key] = append(hostsByURISet[key], hostUUID)
+			}
+		}
+
+		// One command per unique URI set, shared across all hosts in the group.
+		for uriKey, hostUUIDs := range hostsByURISet {
+			uris := strings.Split(uriKey, ",")
+			cmdUUID := uuid.NewString()
+			deleteCmd, err := fleet.BuildDeleteCommandFromLocURIs(uris, cmdUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building supplemental delete command")
+			}
+			if deleteCmd == nil {
+				continue
+			}
+			if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, hostUUIDs, deleteCmd); err != nil {
+				return ctxerr.Wrap(ctx, err, "enqueuing supplemental delete for label-scoped LocURI")
+			}
+		}
+	}
 	return nil
 }
 
@@ -2637,21 +2872,70 @@ ON DUPLICATE KEY UPDATE
 	// The delete commands are best-effort and currently not visible to the
 	// IT admin in the UI or API. They are fire-and-forget MDM commands
 	// with no corresponding host_mdm_windows_profiles status entry.
-	// Collect all LocURIs across incoming profiles AND reserved profiles that
-	// are kept even when not in the incoming list (e.g. "Windows OS Updates").
-	// This prevents deleting LocURIs that are still enforced by any profile
-	// that will remain after the batch-set.
-	allRetainedURIs := make(map[string]bool)
+
+	// Two-pass LocURI protection for edited profiles:
+	// Pass 1 (team-wide): Build protection set from all retained profiles.
+	// Pass 2 (per-host): For protected LocURIs where the protector is
+	//   label-scoped, check per-host if it actually applies.
+	//
+	// Known limitation: pass 2 runs before the INSERT (line ~2967) and
+	// batchSetLabelAndVariableAssociations (line ~2987), so:
+	//  (a) Brand-new profiles don't have UUIDs yet (generated by MySQL on
+	//      INSERT), so they appear in allRetainedURIs (pass 1 protects their
+	//      LocURIs) but NOT in editLocURIProtectors. Pass 2 can't check their
+	//      label scope.
+	//  (b) Existing profiles whose label associations change in the same batch
+	//      are checked against stale mdm_configuration_profile_labels rows and
+	//      stale host_mdm_windows_profiles install rows.
+	// In both cases the result is over-protection: the delete is suppressed on
+	// all hosts even if the protector doesn't apply. The setting stays enforced
+	// on hosts outside the protector's label scope. Fixing this requires
+	// restructuring so pass 2 runs after the INSERT and label association.
+	allRetainedURIs := make(map[string]struct{})
+	// Track which profile UUID protects which LocURI for pass 2.
+	editLocURIProtectors := make(map[string][]string) // uri -> []profileUUID
+	// Build name-to-UUID lookup for incoming profiles.
+	incomingNameToUUID := make(map[string]string)
+	for _, ep := range existingProfiles {
+		incomingNameToUUID[ep.Name] = ep.ProfileUUID
+	}
 	for _, p := range incomingProfs {
-		for _, uri := range fleet.ExtractLocURIsFromProfileBytes(p.SyncML) {
-			allRetainedURIs[uri] = true
+		// Normalize SCEP placeholders so LocURIs are compared on resolved
+		// paths, consistent with the delete path in cancelWindowsHostInstallsForDeletedMDMProfiles.
+		resolvedSyncML := p.SyncML
+		if puuid, ok := incomingNameToUUID[p.Name]; ok {
+			resolvedSyncML = fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(p.SyncML, []byte(puuid))
+		}
+		for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolvedSyncML) {
+			allRetainedURIs[uri] = struct{}{}
+			if puuid, ok := incomingNameToUUID[p.Name]; ok {
+				editLocURIProtectors[uri] = append(editLocURIProtectors[uri], puuid)
+			}
 		}
 	}
-	// Include LocURIs from reserved profiles that are always kept.
-	for _, ep := range existingProfiles {
-		if _, isReserved := mdm.FleetReservedProfileNames()[ep.Name]; isReserved {
-			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(ep.SyncML) {
-				allRetainedURIs[uri] = true
+	// Include LocURIs from reserved profiles that are always kept. Reserved
+	// profiles may not be in existingProfiles (which only loads profiles
+	// matching incomingNames), so query them separately.
+	reservedNames := mdm.ListFleetReservedWindowsProfileNames()
+	if len(reservedNames) > 0 {
+		rpStmt, rpArgs, rpErr := sqlx.In(
+			`SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name IN (?)`,
+			profTeamID, reservedNames)
+		if rpErr != nil {
+			return false, ctxerr.Wrap(ctx, rpErr, "building IN for reserved profiles query")
+		}
+		var reservedProfiles []struct {
+			ProfileUUID string `db:"profile_uuid"`
+			SyncML      []byte `db:"syncml"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &reservedProfiles, rpStmt, rpArgs...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "querying reserved profiles for LocURI protection")
+		}
+		for _, rp := range reservedProfiles {
+			resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(rp.SyncML, []byte(rp.ProfileUUID))
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolved) {
+				allRetainedURIs[uri] = struct{}{}
+				editLocURIProtectors[uri] = append(editLocURIProtectors[uri], rp.ProfileUUID)
 			}
 		}
 	}
@@ -2662,45 +2946,66 @@ ON DUPLICATE KEY UPDATE
 			continue
 		}
 
-		oldURIs := fleet.ExtractLocURIsFromProfileBytes(existing.SyncML)
-		newURIs := fleet.ExtractLocURIsFromProfileBytes(incoming.SyncML)
+		// Normalize SCEP placeholders for consistent LocURI comparison.
+		resolvedOld := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(existing.SyncML, []byte(existing.ProfileUUID))
+		resolvedNew := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(incoming.SyncML, []byte(existing.ProfileUUID))
+		oldURIs := fleet.ExtractLocURIsFromProfileBytes(resolvedOld)
+		newURIs := fleet.ExtractLocURIsFromProfileBytes(resolvedNew)
 
 		newSet := make(map[string]bool, len(newURIs))
 		for _, u := range newURIs {
 			newSet[u] = true
 		}
 
+		// Pass 1: team-wide protection.
 		var removedURIs []string
+		var protectedURIs []string
 		for _, u := range oldURIs {
-			// Skip if the LocURI is still in the updated version of this profile,
-			// or if another profile in the batch still targets it.
-			if !newSet[u] && !allRetainedURIs[u] {
+			if newSet[u] {
+				continue // still in updated profile
+			}
+			if _, ok := allRetainedURIs[u]; ok {
+				protectedURIs = append(protectedURIs, u)
+			} else {
 				removedURIs = append(removedURIs, u)
 			}
 		}
 
-		if len(removedURIs) == 0 {
-			continue
-		}
-
-		cmdUUID := uuid.NewString()
-		deleteCmd, err := fleet.BuildDeleteCommandFromLocURIs(removedURIs, cmdUUID)
-		if err != nil || deleteCmd == nil {
-			continue
-		}
-
 		// Find hosts that have this profile installed (not pending removal).
 		var hostUUIDs []string
-		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs,
-			`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND operation_type = ? AND status IS NOT NULL`,
-			existing.ProfileUUID, fleet.MDMOperationTypeInstall); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "selecting hosts for edited profile LocURI cleanup")
+		if len(removedURIs) > 0 || len(protectedURIs) > 0 {
+			if err := sqlx.SelectContext(ctx, tx, &hostUUIDs,
+				`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND operation_type = ? AND status IS NOT NULL`,
+				existing.ProfileUUID, fleet.MDMOperationTypeInstall); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "selecting hosts for edited profile LocURI cleanup")
+			}
 		}
-		if len(hostUUIDs) > 0 {
-			ds.logger.InfoContext(ctx, "sending delete commands for LocURIs removed from edited profile",
-				"profile.name", existing.Name, "profile.uuid", existing.ProfileUUID, "removed_loc_uris", len(removedURIs))
-			if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, hostUUIDs, deleteCmd); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "inserting delete commands for removed LocURIs")
+
+		// Send deletes for unprotected LocURIs (applies to all hosts).
+		if len(removedURIs) > 0 && len(hostUUIDs) > 0 {
+			cmdUUID := uuid.NewString()
+			deleteCmd, err := fleet.BuildDeleteCommandFromLocURIs(removedURIs, cmdUUID)
+			if err == nil && deleteCmd != nil {
+				ds.logger.InfoContext(ctx, "sending delete commands for LocURIs removed from edited profile",
+					"profile.name", existing.Name, "profile.uuid", existing.ProfileUUID, "removed_loc_uris", len(removedURIs))
+				if err := ds.mdmWindowsInsertCommandForHostUUIDsDB(ctx, tx, hostUUIDs, deleteCmd); err != nil {
+					return false, ctxerr.Wrap(ctx, err, "inserting delete commands for removed LocURIs")
+				}
+			}
+		}
+
+		// Pass 2: for protected LocURIs where the protector is label-scoped,
+		// check per-host if the protector actually applies.
+		if len(protectedURIs) > 0 && len(hostUUIDs) > 0 {
+			if err := ds.checkAndEnqueueLabelScopedDeletes(
+				ctx, tx,
+				[]locURIProtectionParams{{
+					protectedURIs: protectedURIs,
+					hostUUIDs:     hostUUIDs,
+				}},
+				editLocURIProtectors,
+			); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "label-scoped LocURI protection check for edited profile")
 			}
 		}
 	}
