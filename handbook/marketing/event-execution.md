@@ -131,7 +131,8 @@ We use GitHub labels to organize the difference between overall event issues and
 We utilize two general event plans, which act as templates depending on the scale and type of the event:
 
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
-2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
+2. **Workshop/Dinner:** Used for our GitOps workshop series (which often includes a post workshop dinner).
+3. **Meetups/Happy Hours** ...wip
 
 ### **Execution process**
 
@@ -465,7 +466,7 @@ echo "Done."
 
 ## How to automate workshop creation
 
-The workshop tracking process uses the same GitHub parent/child issue structure as conferences, but with a smaller, workshop-specific set of tasks. Use this script instead of the conference script when running a GitOps workshop (with or without a happy hour).
+The workshop tracking process uses the same GitHub parent/child issue structure as conferences, but with a smaller, workshop-specific set of tasks. Use this script instead of the conference script when running a GitOps workshop.
 
 > If you haven't set up the GitHub CLI yet, follow the **Setup** steps in the [How to automate event creation](#how-to-automate-event-creation) section above before continuing.
 
@@ -682,9 +683,9 @@ Plan the post-workshop networking. This is treated as a separate event to allow 
 - [ ] Update the $PLANNING_DOC_URL with these details
 - Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
 - Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
-- IF NEEDED: Create Happy Hour registration page on Eventbrite or Luma and promote separately
+- IF NEEDED: Create Dinner registration page on Eventbrite or Luma and promote separately
 EOF
-create_sub_issue "3. Happy Hour Planning & Promotion"
+create_sub_issue "3. Dinner Planning"
 
 
 # --- Child 4 ---
