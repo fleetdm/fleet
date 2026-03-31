@@ -402,6 +402,9 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 	return result.RowsAffected()
 }
 
+// ResendHostCertificateTemplate resets a certificate template for re-delivery. It sets retry_count
+// to MaxCertificateInstallRetries so that the next failure is terminal with no automatic retry,
+// giving the resend exactly one attempt. This matches Apple resend behavior.
 func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
 	stmt := fmt.Sprintf(`
 		UPDATE

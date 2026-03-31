@@ -1618,18 +1618,23 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.NoError(t, err)
 		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after max retries")
 
-		// Verify failure activity was logged on the host
+		// Verify terminal failure activity was logged on the host with correct details
 		var hostActivitiesResp listActivitiesResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK,
 			&hostActivitiesResp, "per_page", "10")
-		foundFailActivity := false
+		foundTerminalFailActivity := false
 		for _, act := range hostActivitiesResp.Activities {
-			if act.Type == (fleet.ActivityTypeInstalledCertificate{}).ActivityName() {
-				foundFailActivity = true
-				break
+			if act.Type == (fleet.ActivityTypeInstalledCertificate{}).ActivityName() && act.Details != nil {
+				var details map[string]any
+				err = json.Unmarshal(*act.Details, &details)
+				require.NoError(t, err)
+				if details["status"] == "failed_install" && details["detail"] == terminalDetail {
+					foundTerminalFailActivity = true
+					break
+				}
 			}
 		}
-		require.True(t, foundFailActivity, "expected installed_certificate activity in host activities")
+		require.True(t, foundTerminalFailActivity, "expected installed_certificate activity with status=failed_install and terminal detail")
 
 		// Resend after terminal failure -- gets exactly one attempt (retry_count set to max)
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),

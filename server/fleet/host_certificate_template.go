@@ -6,7 +6,8 @@ import "time"
 const AndroidCertificateTemplateProfileID = "fleet-host-certificate-template"
 
 // MaxCertificateInstallRetries is the maximum number of automatic retries after the initial attempt
-// when the Android agent reports a certificate install failure.
+// when the Android agent reports a certificate install failure. Manual resend via the UI sets
+// retry_count to this value so the resend gets exactly one attempt with no automatic retry.
 const MaxCertificateInstallRetries uint = 3
 
 type HostCertificateTemplate struct {

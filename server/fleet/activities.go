@@ -167,6 +167,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedAndroidProfile{},
 	ActivityTypeEditedAndroidCertificate{},
 	ActivityTypeResentCertificate{},
+	ActivityTypeInstalledCertificate{},
 
 	ActivityTypeResentConfigurationProfile{},
 	ActivityTypeResentConfigurationProfileBatch{},
@@ -1825,4 +1826,29 @@ type ActivityTypeEditedEnrollSecrets struct {
 
 func (a ActivityTypeEditedEnrollSecrets) ActivityName() string {
 	return "edited_enroll_secrets"
+}
+
+type ActivityTypeInstalledCertificate struct {
+	HostID                uint   `json:"host_id"`
+	HostDisplayName       string `json:"host_display_name"`
+	CertificateTemplateID uint   `json:"certificate_template_id"`
+	CertificateName       string `json:"certificate_name"`
+	Status                string `json:"status"`
+	Detail                string `json:"detail,omitempty"`
+}
+
+func (a ActivityTypeInstalledCertificate) ActivityName() string {
+	return "installed_certificate"
+}
+
+func (a ActivityTypeInstalledCertificate) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeInstalledCertificate) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeInstalledCertificate) HostOnly() bool {
+	return true
 }

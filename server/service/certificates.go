@@ -696,7 +696,8 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 	// Fill in HostUUID from context
 	update.HostUUID = host.UUID
 
-	// Log activity for terminal install statuses only (not removals).
+	// Log activity for install statuses (not removals). Failures are logged on every attempt
+	// (including retries) so IT admins have visibility into retry attempts.
 	if update.OperationType == fleet.MDMOperationTypeInstall {
 		var actStatus fleet.CertificateActivityStatus
 		switch update.Status {
