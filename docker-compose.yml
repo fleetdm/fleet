@@ -112,7 +112,7 @@ services:
       - ServerOptions__TlsCertificatePrivateKey=/certs/fleet.key
 
   redis:
-    image: valkey/valkey:7-alpine
+    image: valkey/valkey:8-alpine
     ports:
       - "127.0.0.1:${FLEET_REDIS_PORT:-6379}:6379"
 
