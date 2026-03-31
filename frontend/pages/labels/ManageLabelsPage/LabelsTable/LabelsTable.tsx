@@ -16,10 +16,23 @@ interface ILabelsTable {
   labels: ILabel[];
   onClickAction: (action: string, label: ILabel) => void;
   currentUser: IUser;
+  labelsGitOpsManaged?: boolean;
+  repoURL?: string;
 }
 
-const LabelsTable = ({ labels, onClickAction, currentUser }: ILabelsTable) => {
-  const tableHeaders = generateTableHeaders(currentUser, onClickAction);
+const LabelsTable = ({
+  labels,
+  onClickAction,
+  currentUser,
+  labelsGitOpsManaged = false,
+  repoURL,
+}: ILabelsTable) => {
+  const tableHeaders = generateTableHeaders(
+    currentUser,
+    onClickAction,
+    labelsGitOpsManaged,
+    repoURL
+  );
 
   const tableData = generateDataSet(labels);
 
