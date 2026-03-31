@@ -54,7 +54,7 @@ func testGetChallengesWithNoChallengesForAuthorization(t *testing.T, env *testEn
 	challenges, err := env.ds.GetChallengesByAuthorizationID(t.Context(), authorization.ID)
 	var acmeError *types.ACMEError
 	require.ErrorAs(t, err, &acmeError)
-	require.Contains(t, acmeError.Type, "error/challengeDoesNotExist")
+	require.Contains(t, acmeError.Type, "error/challengeDoesNotExist") //nolint:nilaway // cannot be null due to previous require
 	require.Nil(t, challenges)
 }
 
@@ -62,7 +62,7 @@ func testGetChallengesWithInvalidAuthorizationID(t *testing.T, env *testEnv) {
 	challenges, err := env.ds.GetChallengesByAuthorizationID(t.Context(), 999999) // non-existent ID
 	var acmeError *types.ACMEError
 	require.ErrorAs(t, err, &acmeError)
-	require.Contains(t, acmeError.Type, "error/challengeDoesNotExist")
+	require.Contains(t, acmeError.Type, "error/challengeDoesNotExist") //nolint:nilaway // cannot be null due to previous require
 	require.Nil(t, challenges)
 }
 
@@ -70,6 +70,6 @@ func testGetChallengesWithZeroAuthorizationID(t *testing.T, env *testEnv) {
 	challenges, err := env.ds.GetChallengesByAuthorizationID(t.Context(), 0)
 	var acmeError *types.ACMEError
 	require.ErrorAs(t, err, &acmeError)
-	require.Contains(t, acmeError.Type, "malformed")
+	require.Contains(t, acmeError.Type, "malformed") //nolint:nilaway // cannot be null due to previous require
 	require.Nil(t, challenges)
 }

@@ -51,7 +51,7 @@ func testGetAuthorizationWithInvalidID(t *testing.T, env *testEnv) {
 	authResp, err := env.ds.GetAuthorizationByID(t.Context(), account.ID, 9999) // non-existent ID
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist")
+	require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist") //nolint:nilaway // cannot be null due to previous require
 	require.Nil(t, authResp)
 }
 
@@ -62,7 +62,7 @@ func testGetAuthorizationWithInvalidAccountID(t *testing.T, env *testEnv) {
 	authResp, err := env.ds.GetAuthorizationByID(t.Context(), 9999, authorization.ID) // non-existent account ID
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist")
+	require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist") //nolint:nilaway // cannot be null due to previous require
 	require.Nil(t, authResp)
 }
 
@@ -70,12 +70,12 @@ func testGetAuthorizationWithInvalidInputs(t *testing.T, env *testEnv) {
 	authResp, err := env.ds.GetAuthorizationByID(t.Context(), 0, 0) // zero account ID
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "malformed")
+	require.Contains(t, acmeErr.Type, "malformed") //nolint:nilaway // cannot be null due to previous require
 	require.Nil(t, authResp)
 
 	authResp, err = env.ds.GetAuthorizationByID(t.Context(), 1, 0) // zero authorization ID
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "malformed")
+	require.Contains(t, acmeErr.Type, "malformed") //nolint:nilaway // cannot be null due to previous require
 	require.Nil(t, authResp)
 }
 
