@@ -131,15 +131,6 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 		return nil, ctxerr.New(ctx, "no fma version cache provided")
 	}
 
-	// If version starts with a caret ^, do nothing (return early with no error?, use error to signify we can return early?), with errors.AsType. ORRRRR, get the latest version instead?
-
-	// Anyway, we might need another call to getFleetMaintainedVersionsByTitleIDs to get all the versions
-	// Error 1: If the user specifies a major version (with a caret) that is not stored in Fleet (not visible in Fleet UI), show the following error:
-	// Error 2: If the user specifies a version (with a caret) that is not major-only (e.g. ^20.0.3 or ^21.2), show the following error:
-
-	//
-	//
-	//
 	// If a specific version is requested and we have a cache, try the cache first.
 	if version != "" && cache != nil {
 		cached, err := cache.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, version)
