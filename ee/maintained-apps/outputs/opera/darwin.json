@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "129.0.5823.28",
+      "version": "129.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '129.0.5823.28') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '129.0') < 0);"
       },
       "installer_url": "https://get.geo.opera.com/pub/opera/desktop/129.0.5823.28/mac/Opera_129.0.5823.28_Setup.dmg",
       "install_script_ref": "7eb493ab",
