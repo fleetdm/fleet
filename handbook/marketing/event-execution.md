@@ -724,7 +724,7 @@ cat > "$BODY_FILE" << EOF
 **Description**
 To be completed within 48 hours after the event. Close the loop on leads and technical feedback.
 - [ ] Update the $PLANNING_DOC_URL with these details
-- Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Happy Hour
+- Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Dinner
 - Log technical issues — document any WiFi drops or firewall blockers for future reference
 - CRM upload — upload attendee list to Salesforce/HubSpot
 - Send follow-up email with slides and repo links
