@@ -158,16 +158,21 @@ class CertificateOrchestrator(
         storeCertificateState(context = context, certificateId = certificateId, certInstallInfo = newInfo)
     }
 
-    internal suspend fun recordEnrollmentAttemptFailure(context: Context, certificateId: Int, alias: String): CertificateState {
+    internal suspend fun recordEnrollmentAttemptFailure(
+        context: Context,
+        certificateId: Int,
+        alias: String,
+        uuid: String,
+    ): CertificateState {
         val existingInfo = getCertificateState(context = context, certificateId = certificateId)
-            ?: CertificateState(alias = alias, status = CertificateStatus.RETRY, retries = 0)
+            ?: CertificateState(alias = alias, status = CertificateStatus.RETRY, retries = 0, uuid = uuid)
 
         if (existingInfo.status != CertificateStatus.RETRY) {
             Log.d(TAG, "recordEnrollmentAttemptFailure: skipping cert $certificateId, status is ${existingInfo.status}")
             return existingInfo
         }
 
-        var newInfo = existingInfo.copy(retries = existingInfo.retries + 1)
+        var newInfo = existingInfo.copy(retries = existingInfo.retries + 1, uuid = uuid)
 
         if (newInfo.retries >= MAX_CERT_INSTALL_RETRIES) {
             newInfo = newInfo.copy(status = CertificateStatus.FAILED)
@@ -783,8 +788,20 @@ class CertificateOrchestrator(
                 }
             }
             is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
-                val updatedInfo = recordEnrollmentAttemptFailure(context = context, certificateId = certificateId, alias = template.name)
-                if (!updatedInfo.shouldRetry()) {
+                val shouldReportFailure = if (result.isRetryable) {
+                    val updatedInfo = recordEnrollmentAttemptFailure(
+                        context = context,
+                        certificateId = certificateId,
+                        alias = template.name,
+                        uuid = uuid,
+                    )
+                    !updatedInfo.shouldRetry()
+                } else {
+                    markCertificateForceFailed(context, certificateId, template.name, uuid)
+                    true
+                }
+
+                if (shouldReportFailure) {
                     FleetLog.e(TAG, "Certificate enrollment failed for ID $certificateId: ${result.reason}", result.exception)
                     apiClient.updateCertificateStatus(
                         certificateId = certificateId,

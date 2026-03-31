@@ -180,6 +180,8 @@ object ApiClient : CertificateApiClient {
                 Result.success(parsed)
             } else if (responseCode == 401) {
                 Result.failure(UnauthorizedException(response))
+            } else if (responseCode == 404) {
+                Result.failure(NotFoundException(response))
             } else {
                 Result.failure(Exception("HTTP $responseCode: $response"))
             }
@@ -195,6 +197,7 @@ object ApiClient : CertificateApiClient {
      * This typically indicates the node key has been invalidated (e.g., host was deleted).
      */
     class UnauthorizedException(message: String) : Exception("HTTP 401: $message")
+    class NotFoundException(message: String) : Exception("HTTP 404: $message")
 
     /**
      * Executes a request block with automatic re-enrollment on 401 Unauthorized.
@@ -321,8 +324,14 @@ object ApiClient : CertificateApiClient {
                 }
             },
             onFailure = { throwable ->
-                FleetLog.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
-                Result.failure(throwable)
+                if (throwable is NotFoundException) {
+                    // Certificate template was deleted from the server -- nothing to report to
+                    Log.i(TAG, "certificate template $certificateId no longer exists on server, nothing to report")
+                    Result.success(Unit)
+                } else {
+                    FleetLog.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
+                    Result.failure(throwable)
+                }
             },
         )
     }
