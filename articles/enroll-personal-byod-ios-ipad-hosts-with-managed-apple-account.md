@@ -41,7 +41,6 @@ Fleet's [best practice](https://fleetdm.com/guides/fleet#best-practice) is to cr
 
 You must enable end user authentication for this fleet. Go to **Controls > Setup experience > End user authentication** and enable it. If not enabled, User Enrollment with Managed Apple Account will fail.
 
-You must enable end user authentication for this fleet. Go to **Controls > Setup experience > End user authentication** and enable it. If not enabled, User Enrollment with Managed Apple Account will fail.
 
 In this fleet you can add custom OS settings that are compatible with hosts enrolled with Account-driven User Enrollment. To find out which payloads are compatible with User Enrollment, visit the [Apple documentation](https://support.apple.com/en-gb/guide/deployment/dep6ae3f1d5a/1/web/1.0).
 
