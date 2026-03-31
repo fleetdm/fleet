@@ -4,7 +4,7 @@ On BYOD Android devices, enrolling in an MDM installs a [Work Profile](https://s
 
 **Prerequisites**  
 - Set up [Android MDM](https://fleetdm.com/guides/android-mdm-setup) in Fleet.
-- Get a Fleet enrollment link for the team. Follow our [Enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui) for instructions on how to get this link.
+- Get a Fleet enrollment link for the fleet. Follow our [Enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui) for instructions on how to get this link.
 
 
 ## Remove the old Work Profile
@@ -24,7 +24,7 @@ Send the enrollment link to end users to open in a web browser. An easy alternat
 - If this option is missing, select the three dot menu icon on the right side of the toolbar > **Cast, Save, and Share** > **Create QR Code**.
 
 1. Open the enrollment link on the Android device.
-   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is set up for the team, authentication via SSO is required. After successfully authenticating, a page with an Enroll button will appear.
+   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is set up for the fleet, authentication via SSO is required. After successfully authenticating, a page with an Enroll button will appear.
 2. Select **Enroll**. A "Set up your work profile" screen will then appear.
 3. Select **Next**. The next screen will describe what a Work Profile is.
 4. Select **Accept & continue**.
