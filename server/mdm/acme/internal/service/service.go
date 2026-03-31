@@ -1,4 +1,4 @@
-// Package service provides the service implementation for the ACME bounded context.
+// Package service provides the service implementation for the ACME service module.
 package service
 
 import (

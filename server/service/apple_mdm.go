@@ -2081,25 +2081,41 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, appConfig *fleet
 		return false, ctxerr.New(ctx, "machine info is nil")
 	}
 
-	// we only require ACME for Apple Silicon Macs, so check the product to see if it's an Apple Silicon Mac before doing any further checks
+	// account-driven user enrollment does not include a serial number in the device info, so we can't require ACME without a serial number
+	if machineInfo.Serial == "" {
+		svc.logger.InfoContext(ctx, "missing serial number in machine info, skipping ACME requirement check")
+		return false, nil
+	}
+
+	// we only require ACME for Apple Silicon Macs
 	if isMacAppleSilicon, err := fleet.IsMacAppleSilicon(machineInfo.Product); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "checking if device is Apple Silicon")
 	} else if !isMacAppleSilicon {
 		return false, nil
 	}
 
-	// check dep assignment status, we only require ACME if the serial is DEP-assigned to Fleet
+	// we only require ACME for Apple Silicon Macs running macOS 14 or later
+	if isLessThanMacOS14, err := apple_mdm.IsLessThanVersion(machineInfo.OSVersion, "14.0"); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if device is less than macOS 14")
+	} else if isLessThanMacOS14 {
+		return false, nil
+	}
+
+	// we only require ACME if the serial is DEP-assigned to Fleet
 	assignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "checking DEP assignment status")
 	}
-	svc.logger.InfoContext(ctx, "device is Apple Silicon, checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(assignments))
+	svc.logger.InfoContext(ctx, "checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(assignments))
 
 	return len(assignments) > 0, nil
 }
 
 func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardwareSerial string, orgName string, mdmURL string, topic string) ([]byte, error) {
-	acmeIdent := "foobar" // TODO: replace this with call to upsert acme enrollments
+	acmeIdent, err := svc.acmeSvc.NewEnrollment(ctx, hardwareSerial)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating ACME enrollment")
+	}
 
 	b, err := apple_mdm.GenerateACMEEnrollmentProfileMobileconfig(
 		orgName,
@@ -7283,6 +7299,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
+	// NOTE: we don't offer ACME enrollment via OTA
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
 		mdmURL,

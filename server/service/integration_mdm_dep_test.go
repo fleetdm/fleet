@@ -3204,12 +3204,14 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	t := s.T()
 	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
 
-	// for our tests, we'll crete two devices: devices[0] will be enrolled with ACME and
-	// devices[1] will be enrolled with SCEP
+	// for our tests, we'll crete three DEP-assigned devices: devices[0] will be enrolled via DEP with ACME,
+	// devices[1] will be enrolled with SCEP, and devices[2] will be enrolled via OTA (no ACME).
 	devices := []godep.Device{
 		{SerialNumber: uuid.New().String(), Model: "MacBookPro17,1", OS: "osx", OpType: "added"},
 		{SerialNumber: uuid.New().String(), Model: "MacBookPro16,1", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBookPro17,1", OS: "osx", OpType: "added"},
 	}
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -3252,10 +3254,14 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 
+	enrollSecrets, err := s.ds.GetEnrollSecrets(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, enrollSecrets, 1)
+
 	// confirm that the devices were created
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 2)
+	require.Len(t, listHostsRes.Hosts, 3)
 	bySerial := make(map[string]*fleet.Host, len(devices))
 	for _, h := range listHostsRes.Hosts {
 		bySerial[h.HardwareSerial] = h.Host
@@ -3277,16 +3283,16 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	appleSiliconDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, mdmtest.WithSkipParseEnrollProf(true))
 	appleSiliconDevice.SerialNumber = devices[0].SerialNumber
 	appleSiliconDevice.Model = devices[0].Model
-	err := appleSiliconDevice.Enroll()
+	appleSiliconDevice.OSVersion = "14.0"
+	err = appleSiliconDevice.Enroll()
 	require.NoError(t, err)
 
 	var expectIdent string
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	stmt := `SELECT path_identifier FROM acme_enrollments WHERE host_identifier = ?`
-	// 	err := sqlx.GetContext(context.Background(), q, &expectIdent, stmt, appleSiliconDevice.SerialNumber)
-	// 	return err
-	// })
-	expectIdent = "foobar" // TODO: delete this and uncoment above
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `SELECT path_identifier FROM acme_enrollments WHERE host_identifier = ?`
+		err := sqlx.GetContext(context.Background(), q, &expectIdent, stmt, appleSiliconDevice.SerialNumber)
+		return err
+	})
 
 	require.Contains(t, string(appleSiliconDevice.EnrollInfo.RawProfile), "/api/mdm/acme/"+expectIdent+"/directory", "enrollment profile should contain the ACME directory URL")
 
@@ -3294,7 +3300,20 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	intelDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
 	intelDevice.SerialNumber = devices[1].SerialNumber
 	intelDevice.Model = devices[1].Model
+	intelDevice.OSVersion = "14.0"
 	err = intelDevice.Enroll()
 	require.NoError(t, err)
 	require.NotContains(t, string(intelDevice.EnrollInfo.RawProfile), "/api/mdm/acme/"+expectIdent+"/directory", "enrollment profile should not contain the ACME directory URL")
+
+	// otaAppleSiliconDevice enrolls through OTA gets SCEP (not ACME) even though it would enroll
+	// via ACME if it enrolled through DEP, because OTA enrollments should not require hardware attestation and thus should not require ACME
+	otaAppleSiliconDevice := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, enrollSecrets[0].Secret, devices[2].Model)
+	otaAppleSiliconDevice.SerialNumber = devices[2].SerialNumber
+	otaAppleSiliconDevice.Model = devices[2].Model
+	otaAppleSiliconDevice.OSVersion = "14.0"
+	err = otaAppleSiliconDevice.Enroll()
+	require.NoError(t, err)
+	// next assertion is superflous with checks that happen inside the test client, but we'll keep
+	// it here to be explicit about the expectation that OTA enrollments should not be ACME
+	require.NotContains(t, string(otaAppleSiliconDevice.EnrollInfo.RawProfile), "/api/mdm/acme/", "enrollment profile should not contain the ACME directory URL")
 }
