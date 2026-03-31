@@ -7,6 +7,8 @@
 #   -y  Skip confirmation prompt
 #   -a  Remove all matching certificates (including the newest)
 #   -u  Target a specific user's login keychain (required when running as root)
+#
+# Example: ./delete-scep-certs.sh "Fleet conditional access for Okta"
 
 set -e
 
