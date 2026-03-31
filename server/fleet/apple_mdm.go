@@ -659,6 +659,13 @@ type SCEPIdentityAssociation struct {
 	EnrollmentType string `db:"type"`
 }
 
+type DeviceInfoForACMERenewal struct {
+	HostUUID       string `db:"host_uuid"`
+	HardwareSerial string `db:"hardware_serial"`
+	HardwareModel  string `db:"hardware_model"`
+	OSVersion      string `db:"os_version"`
+}
+
 // MDMAppleDeclaration represents a DDM JSON declaration.
 type MDMAppleDeclaration struct {
 	// DeclarationUUID is the unique identifier of the declaration in

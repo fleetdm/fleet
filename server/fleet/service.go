@@ -654,6 +654,10 @@ type Service interface {
 	// This should be called after service creation to inject the ACME service dependency.
 	SetACMEService(acmeSvc ACMEWriteService)
 
+	// NewACMEEnrollment creates a new ACME enrollment using the ACME service module. It returns the
+	// ACME identifier for the new enrollment, which is used to track the enrollment process and link it to a host.
+	NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+
 	// NewActivity creates the given activity on the datastore.
 	//
 	// What we call "Activities" are administrative operations,

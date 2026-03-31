@@ -5,7 +5,7 @@ import "context"
 // ACMEWriteService is the subset of the ACME service module service
 // used by the legacy service layer for write operations.
 type ACMEWriteService interface {
-	// NewEnrollment creates a new enrollment in the acme_enrollments table with the specified
+	// NewACMEEnrollment creates a new enrollment in the acme_enrollments table with the specified
 	// host_uuid and returns a new path_identifier for the created row.
-	NewEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+	NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
 }

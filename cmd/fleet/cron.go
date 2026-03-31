@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -918,6 +919,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
+	acmeSvc acme_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1054,7 +1056,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"renew_scep_certificates",
 			func(ctx context.Context) error {
-				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
+				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander, acmeSvc)
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {

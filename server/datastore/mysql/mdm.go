@@ -1763,6 +1763,40 @@ LIMIT ?`, expiryDays, limit)
 	return uuids, nil
 }
 
+func (ds *Datastore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+	// TODO: refactor this to use hw model from host_dep_assignments once we have that fully in place
+	// TODO: confirm we can rely on host_operating_system and operating_systems tables for accurate OS version information
+	stmt := `
+SELECT
+	h.uuid AS host_uuid,
+	h.hardware_serial AS hardware_serial,
+	h.hardware_model AS hardware_model,
+	os.version AS os_version
+FROM
+	hosts h
+	JOIN host_dep_assignments hda ON hda.host_id = h.id
+	JOIN host_operating_system hos ON hos.host_id = h.id
+	JOIN operating_systems os ON os.id = hos.os_id
+WHERE
+	h.uuid IN(?)
+	AND hda.deleted_at IS NULL
+	AND os.name = 'macOS'`
+
+	stmt, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query for ACME hardware attestation")
+	}
+
+	var dest []fleet.DeviceInfoForACMERenewal
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host details for ACME hardware attestation")
+	}
+	return dest, nil
+}
+
 func (ds *Datastore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
 	if len(assocs) == 0 {
 		return nil
