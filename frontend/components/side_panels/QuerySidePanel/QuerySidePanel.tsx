@@ -73,7 +73,7 @@ const QuerySidePanel = ({
           }
         }}
       >
-        <Icon name="close" color="ui-fleet-black-50" size="small" />
+        <Icon name="close" color="ui-fleet-black-75" size="small" />
       </div>
       <div className={`${baseClass}__choose-table`}>
         <h2 className={`${baseClass}__header`}>

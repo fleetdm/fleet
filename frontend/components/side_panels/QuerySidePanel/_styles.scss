@@ -17,21 +17,25 @@
     cursor: pointer;
     z-index: 2;
 
-    &:focus {
-      border: 1px solid $core-vibrant-blue;
+    &:focus-visible {
+      border: 1px solid $core-focused-outline;
       outline: none;
 
       svg {
         path {
-          stroke: $core-vibrant-blue;
+          stroke: $ui-fleet-black-75-over;
         }
       }
     }
-
     &:hover {
+      background-color: $ui-fleet-black-5;
+
+      &:active {
+        background-color: $ui-fleet-black-5-down;
+      }
       svg {
         path {
-          stroke: $core-vibrant-blue-over;
+          stroke: $ui-fleet-black-75-over;
         }
       }
     }
