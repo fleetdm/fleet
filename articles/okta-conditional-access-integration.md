@@ -8,7 +8,7 @@ When a host fails a policy in Fleet, IT and Security teams can block access to t
 
 Conditional access with Okta requires an mTLS reverse proxy on a separate subdomain (e.g., `okta.fleet.example.com`). All other Fleet traffic continues to use your existing Fleet server URL. If you're a managed-cloud customer, please reach out to Fleet to set up the mTLS infrastructure for you.
 
-If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/tree/main/docs/contributing/guides/okta-conditional-access-testing).
+If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/okta-conditional-access-testing.md).
 
 If you use [fleet-terraform](https://github.com/fleetdm/fleet-terraform) modules for AWS hosting, see the [okta-conditional-access addon](https://github.com/fleetdm/fleet-terraform/tree/main/addons/okta-conditional-access) for streamlined mTLS proxy setup.
 
