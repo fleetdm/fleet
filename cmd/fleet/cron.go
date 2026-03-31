@@ -474,7 +474,7 @@ func checkOSVVulnerabilities(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	vulnPath string,
-	_ *config.VulnerabilitiesConfig,
+	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := tracer.Start(ctx, "vuln.check_osv")
@@ -488,8 +488,18 @@ func checkOSVVulnerabilities(
 		return nil
 	}
 
-	// TODO:: #41571
-	// downloaded, err := osv.Refresh(...)
+	if !config.DisableDataSync {
+		// Sync on disk OSV artifacts with current OS Versions
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.osv.refresh")
+		downloaded, err := osv.Refresh(refreshCtx, versions, vulnPath)
+		if err != nil {
+			errHandler(refreshCtx, logger, "updating OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(refreshCtx, "", "osv-sync-downloaded", d)
+		}
+		refreshSpan.End()
+	}
 
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.osv.analyze",
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))

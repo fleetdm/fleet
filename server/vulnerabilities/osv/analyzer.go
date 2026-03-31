@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
@@ -113,42 +114,21 @@ func Analyze(
 }
 
 // loadOSVArtifact loads the full OSV artifact for the given Ubuntu version
-func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, _ /*artifactPath*/ string, logger *slog.Logger) (*OSVArtifact, error) {
+func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, logger *slog.Logger) (*OSVArtifact, error) {
 	// Extract Ubuntu version (e.g., "22.04.8 LTS" -> "2204")
 	ubuntuVer := extractUbuntuVersion(ver.Version)
 	if ubuntuVer == "" {
 		return nil, fmt.Errorf("could not extract Ubuntu version from %s", ver.Version)
 	}
 
-	// TODO:: #41571
-	artifactsPath := "/Users/ksykulev/projects/fleet-main/cmd/osv-processor/test-artifacts-final"
-
-	// TODO:: Figure out how to see last run time
-	// If one exists, use the delta file else use the full artifact file.
-
-	// Find the latest OSV artifact file for this version
-	// Pattern: osv-ubuntu-2204-YYYY-MM-DD.json.gz
-	pattern := fmt.Sprintf("osv-ubuntu-%s-*.json.gz", ubuntuVer)
-	matches, err := filepath.Glob(filepath.Join(artifactsPath, pattern))
+	// Find the OSV artifact file for this version
+	fileName := osvFilename(ubuntuVer, time.Now())
+	artifactFile, err := utils.LatestFile(fileName, vulnPath)
 	if err != nil {
-		return nil, fmt.Errorf("globbing for OSV artifacts: %w", err)
+		return nil, fmt.Errorf("finding OSV artifact for Ubuntu %s: %w", ubuntuVer, err)
 	}
 
-	var fullArtifacts []string
-	// Pattern for deltas: osv-ubuntu-2204-delta-YYYY-MM-DD.json.gz
-	for _, match := range matches {
-		if !strings.Contains(filepath.Base(match), "-delta-") {
-			fullArtifacts = append(fullArtifacts, match)
-		}
-	}
-
-	if len(fullArtifacts) == 0 {
-		return nil, fmt.Errorf("no OSV artifact found for Ubuntu %s in %s", ubuntuVer, artifactsPath)
-	}
-
-	latestFile := fullArtifacts[len(fullArtifacts)-1]
-
-	f, err := os.Open(latestFile)
+	f, err := os.Open(artifactFile)
 	if err != nil {
 		return nil, fmt.Errorf("opening OSV artifact: %w", err)
 	}
@@ -166,7 +146,7 @@ func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, _ /*artifactPath*
 	}
 
 	logger.DebugContext(ctx, "loaded osv artifact",
-		"file", filepath.Base(latestFile),
+		"file", filepath.Base(artifactFile),
 		"ubuntu_version", artifact.UbuntuVersion,
 		"total_packages", artifact.TotalPackages,
 		"total_cves", artifact.TotalCVEs)
