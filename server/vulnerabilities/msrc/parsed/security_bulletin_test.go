@@ -1,6 +1,7 @@
 package parsed
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -103,6 +104,52 @@ func TestSecurityBulletin(t *testing.T) {
 
 			require.Equal(t, a.VendorFixes[1].ProductIDs, vf1.ProductIDs)
 			require.Equal(t, a.VendorFixes[2].ProductIDs, vf2.ProductIDs)
+		})
+	})
+
+	t.Run("#UnmarshalJSON", func(t *testing.T) {
+		t.Run("accepts new Vulnerabilities key", func(t *testing.T) {
+			data := `{
+				"ProductName": "Windows 10",
+				"Vulnerabilities": {
+					"CVE-2024-0001": {
+						"PublishedEpoch": 1706659200,
+						"ProductIDs": {"123": true},
+						"RemediatedBy": {"456": true}
+					}
+				}
+			}`
+			var b SecurityBulletin
+			require.NoError(t, json.Unmarshal([]byte(data), &b))
+			require.Len(t, b.Vulnerabilities, 1)
+			require.Contains(t, b.Vulnerabilities, "CVE-2024-0001")
+		})
+
+		t.Run("accepts old misspelled Vulnerabities key", func(t *testing.T) {
+			data := `{
+				"ProductName": "Windows 10",
+				"Vulnerabities": {
+					"CVE-2024-0001": {
+						"PublishedEpoch": 1706659200,
+						"ProductIDs": {"123": true},
+						"RemediatedBy": {"456": true}
+					}
+				}
+			}`
+			var b SecurityBulletin
+			require.NoError(t, json.Unmarshal([]byte(data), &b))
+			require.Len(t, b.Vulnerabilities, 1)
+			require.Contains(t, b.Vulnerabilities, "CVE-2024-0001")
+		})
+
+		t.Run("marshal uses correct spelling", func(t *testing.T) {
+			b := NewSecurityBulletin("Windows 10")
+			b.Vulnerabilities["CVE-2024-0001"] = NewVulnerability(ptr.Int64(123))
+
+			data, err := json.Marshal(b)
+			require.NoError(t, err)
+			require.Contains(t, string(data), `"Vulnerabilities"`)
+			require.NotContains(t, string(data), `"Vulnerabities"`)
 		})
 	})
 }

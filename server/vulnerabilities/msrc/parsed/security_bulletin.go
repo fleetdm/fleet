@@ -35,6 +35,26 @@ func NewSecurityBulletin(pName string) *SecurityBulletin {
 	}
 }
 
+// UnmarshalJSON implements custom JSON unmarshaling to support both the old
+// misspelled "Vulnerabities" key and the correct "Vulnerabilities" key for
+// backward compatibility with cached bulletin files.
+func (b *SecurityBulletin) UnmarshalJSON(data []byte) error {
+	type Alias SecurityBulletin
+	aux := &struct {
+		*Alias
+		Vulnerabities map[string]Vulnerability `json:"Vulnerabities"`
+	}{
+		Alias: (*Alias)(b),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if len(b.Vulnerabilities) == 0 && len(aux.Vulnerabities) > 0 {
+		b.Vulnerabilities = aux.Vulnerabities
+	}
+	return nil
+}
+
 func UnmarshalBulletin(fPath string) (*SecurityBulletin, error) {
 	payload, err := os.ReadFile(fPath)
 	if err != nil {
