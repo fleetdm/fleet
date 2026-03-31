@@ -477,6 +477,47 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.Empty(t, payload.InstallScript)
 	assert.Empty(t, payload.UninstallScript)
 	assert.False(t, payload.FleetMaintained)
+
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+		}, nil
+	}
+
+	// TODO: each test case should have its own GetFleetMaintainedVersionsByTitleID
+	// and GetCachedFMAInstallerMetadata mocks
+
+	versionTests := []struct {
+		name    string
+		version string
+	}{
+		{name: "valid", version: "^26"},
+		// {name: "invalid", version: "^"},
+	}
+
+	for _, vt := range versionTests {
+		t.Run(vt.version, func(t *testing.T) {
+			// semVer, err := fleet.VersionToSemverVersion(vt.version[1:])
+			// require.NoError(t, err)
+			// fmt.Println("major", semVer.Major())
+			// fmt.Println("minor", semVer.Minor())
+			// fmt.Println("patch", semVer.Patch())
+			// fmt.Println("original", semVer.Major())
+			//
+			payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin"), RollbackVersion: vt.version}
+			err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+			require.NoError(t, err)
+			// assert.NotEmpty(t, payload.URL)
+			// assert.Equal(t, onePasswordSHA, payload.SHA256)
+			// assert.NotEmpty(t, payload.InstallScript)
+			// assert.NotEmpty(t, payload.UninstallScript)
+			// assert.True(t, payload.FleetMaintained)
+		})
+	}
 }
 
 func TestGetInHouseAppManifest(t *testing.T) {
