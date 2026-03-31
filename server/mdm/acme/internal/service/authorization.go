@@ -8,6 +8,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 )
 
+// This file does not handle normal authentication, but the ACME concept of authorization as part of the protocol.
+
 func (s *Service) GetAuthorization(ctx context.Context, enrollment *types.Enrollment, account *types.Account, authorizationID uint) (*types.AuthorizationResponse, error) {
 	if authorizationID == 0 {
 		return nil, types.MalformedError("invalid authorization ID")

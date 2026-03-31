@@ -10,6 +10,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// This file does not handle normal authentication, but the ACME concept of authorization as part of the protocol.
+
 func (ds *Datastore) GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*types.Authorization, error) {
 	if accountID == 0 {
 		return nil, types.MalformedError("invalid account ID")

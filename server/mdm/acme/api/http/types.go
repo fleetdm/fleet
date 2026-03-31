@@ -203,11 +203,10 @@ type JWSRequestContainer struct {
 	JWS          jose.JSONWebSignature
 	JWSHeaderURL string
 
-	Key             *jose.JSONWebKey
-	KeyID           *string
-	Identifier      string `url:"identifier"`
-	AuthorizationID uint   `url:"authorization,optional"`
-	HTTPPath        string `url:"http_path"`
+	Key        *jose.JSONWebKey
+	KeyID      *string
+	Identifier string `url:"identifier"`
+	HTTPPath   string `url:"http_path"`
 }
 
 func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
