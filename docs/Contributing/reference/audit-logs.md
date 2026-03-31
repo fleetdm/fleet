@@ -993,8 +993,8 @@ This activity contains the following fields:
 Generated when a user turns on "Create local account from IdP" for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are unassigned.
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are unassigned.
 
 #### Example
 
