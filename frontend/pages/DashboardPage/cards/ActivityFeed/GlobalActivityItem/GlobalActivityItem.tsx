@@ -16,6 +16,7 @@ import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
@@ -1516,6 +1517,20 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  canceledSetupExperience: (activity: IActivity) => {
+    const {
+      software_title: title,
+      software_display_name: displayName,
+      host_display_name: hostName,
+    } = activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled setup experience on <b>{hostName}</b> because{" "}
+        <b>{getDisplayedSoftwareName(title, displayName)}</b> failed to install.
+      </>
+    );
+  },
   createdSavedQuery: (activity: IActivity) => {
     let teamText;
     if (activity.details?.team_id === -1) {
@@ -2155,6 +2170,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.CanceledUninstallSoftware: {
       return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
+    }
+    case ActivityType.CanceledSetupExperience: {
+      return TAGGED_TEMPLATES.canceledSetupExperience(activity);
     }
     case ActivityType.CreatedSavedQuery: {
       return TAGGED_TEMPLATES.createdSavedQuery(activity);
