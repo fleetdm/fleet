@@ -166,7 +166,7 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 
 	parsedCSR, err := parsePEMCSR(csr)
 	if err != nil {
-		return nil, types.BadCSRError(fmt.Sprintf("Error parsing PEM CSR: %w", err))
+		return nil, types.BadCSRError(fmt.Sprintf("Error parsing PEM CSR: %s", err))
 	}
 	if parsedCSR.Subject.CommonName != order.Identifiers[0].Value {
 		return nil, types.BadCSRError("CSR common name does not match identifier value")

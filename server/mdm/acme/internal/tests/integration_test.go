@@ -28,6 +28,7 @@ func TestIntegration(t *testing.T) {
 		{"CreateAccount", testCreateAccount},
 		{"CreateOrder", testCreateOrder},
 		{"GetAuthorization", testGetAuthorization},
+		{"FinalizeOrder", testFinalizeOrder},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -867,5 +868,127 @@ func testGetAuthorization(t *testing.T, s *integrationTestSuite) {
 		require.Nil(t, authResp)
 		require.NotNil(t, acmeErr)
 		require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist")
+	})
+}
+
+func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
+	t.Run("successful finalize", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		s.makeOrderReady(t, orderResp.ID)
+
+		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": csrPEM}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		result, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Nil(t, acmeErr)
+		require.NotNil(t, result)
+		require.Equal(t, "valid", result.Status)
+		require.NotEmpty(t, result.Certificate)
+		require.Regexp(t, "/api/mdm/acme/"+enroll.PathIdentifier+`/orders/\d+/certificate`, result.Certificate)
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.NotEmpty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("order not ready - pending status", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		// order is still in "pending" status (not made ready)
+
+		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": csrPEM}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+
+		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "orderNotReady")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("already finalized order", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		s.makeOrderReady(t, orderResp.ID)
+
+		// finalize the order first
+		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": csrPEM}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		_, _, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		nonce = resp.Header.Get("Replay-Nonce")
+
+		// try to finalize again
+		jwsBody2 := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		_, acmeErr, resp2 := s.finalizeOrder(t, finalizeURL, jwsBody2)
+
+		require.Equal(t, http.StatusForbidden, resp2.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "orderNotReady")
+		require.NotEmpty(t, resp2.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("CSR common name mismatch", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		s.makeOrderReady(t, orderResp.ID)
+
+		csrPEM := generateCSRPEM(t, "wrong-common-name")
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": csrPEM}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "badCSR")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("invalid CSR PEM", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		s.makeOrderReady(t, orderResp.ID)
+
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": "not-valid-pem"}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "badCSR")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("non-existing order", func(t *testing.T) {
+		enroll, privateKey, accountURL, _, nonce := s.createOrderForFinalize(t)
+
+		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, 99999)
+		payload := map[string]any{"csr": csrPEM}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+
+		require.True(t, resp.StatusCode >= 400)
+		require.NotNil(t, acmeErr)
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("invalid nonce", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, _ := s.createOrderForFinalize(t)
+		s.makeOrderReady(t, orderResp.ID)
+
+		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": csrPEM}
+		jwsBody := buildJWS(t, privateKey, "bad-nonce", accountURL, finalizeURL, payload)
+		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "badNonce")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 	})
 }

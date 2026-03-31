@@ -266,6 +266,11 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	return nil
 }
 
+type FinalizeOrderRequestContainer struct {
+	JWSRequestContainer
+	OrderID uint `url:"order_id"`
+}
+
 type FinalizeOrderRequest struct {
 	types.AccountAuthenticatedRequestBase
 	OrderID                   uint   `json:"-"`

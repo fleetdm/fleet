@@ -7,21 +7,26 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	"github.com/fleetdm/fleet/v4/server/mdm/acme"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"go.step.sm/crypto/jose"
@@ -48,9 +53,11 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 			ServerURL: "https://example.com", // will update with actual test server URL after it is started
 		},
 	},
-		// not needed for current tests, can implement if needed for future tests
 		acme.CSRSignerFunc(func(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-			return &x509.Certificate{}, nil
+			return &x509.Certificate{
+				SerialNumber: big.NewInt(1),
+				Raw:          []byte("mock-cert"),
+			}, nil
 		}),
 	)
 
@@ -262,6 +269,84 @@ func (s *integrationTestSuite) createOrder(t *testing.T, pathIdentifier string, 
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
 	return &result, nil, resp
+}
+
+// finalizeOrderURL returns the full URL for the finalize endpoint of a given order.
+func (s *integrationTestSuite) finalizeOrderURL(pathIdentifier string, orderID uint) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/orders/%d/finalize", s.server.URL, pathIdentifier, orderID)
+}
+
+// finalizeOrder POSTs a JWS body to the finalize endpoint and returns the
+// order response or acme error and the raw response.
+func (s *integrationTestSuite) finalizeOrder(t *testing.T, finalizeURL string, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPost, finalizeURL, bytes.NewReader(jwsBody))
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer drainAndCloseBody(resp)
+
+	if resp.StatusCode >= 300 {
+		var acmeErr types.ACMEError
+		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
+			return nil, &acmeErr, resp
+		}
+		return nil, nil, resp
+	}
+
+	var result types.OrderResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+	return &result, nil, resp
+}
+
+// createOrderForFinalize is a convenience helper that creates an enrollment, account, and order,
+// returning everything needed to test the finalize endpoint.
+func (s *integrationTestSuite) createOrderForFinalize(t *testing.T) (enroll *types.Enrollment, privateKey *ecdsa.PrivateKey, accountURL string, orderResp *types.OrderResponse, nonce string) {
+	t.Helper()
+	enroll = &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enroll)
+	privateKey, accountURL, nonce = s.createAccountForOrder(t, enroll)
+
+	payload := map[string]any{
+		"identifiers": []map[string]string{
+			{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+		},
+	}
+	jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+	orderResp, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+	require.Nil(t, acmeErr)
+	require.NotNil(t, orderResp)
+	nonce = resp.Header.Get("Replay-Nonce")
+	return enroll, privateKey, accountURL, orderResp, nonce
+}
+
+// makeOrderReady transitions the order's authorization and challenge to valid and the order to ready via direct DB updates.
+func (s *integrationTestSuite) makeOrderReady(t *testing.T, orderID uint) {
+	t.Helper()
+	ctx := t.Context()
+	_, err := s.DB.ExecContext(ctx, `UPDATE acme_challenges SET status = 'valid' WHERE acme_authorization_id IN (SELECT id FROM acme_authorizations WHERE acme_order_id = ?)`, orderID)
+	require.NoError(t, err)
+	_, err = s.DB.ExecContext(ctx, `UPDATE acme_authorizations SET status = 'valid' WHERE acme_order_id = ?`, orderID)
+	require.NoError(t, err)
+	_, err = s.DB.ExecContext(ctx, `UPDATE acme_orders SET status = 'ready' WHERE id = ?`, orderID)
+	require.NoError(t, err)
+}
+
+// generateCSRPEM creates a PEM-encoded ECDSA CSR with the given common name.
+func generateCSRPEM(t *testing.T, commonName string) string {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := &x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName: commonName,
+		},
+	}
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, template, key)
+	require.NoError(t, err)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER}))
 }
 
 func (s *integrationTestSuite) getAuthorization(t *testing.T, authUrl string, jwsBody []byte) (*types.AuthorizationResponse, *types.ACMEError, *http.Response) {
