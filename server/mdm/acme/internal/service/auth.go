@@ -118,6 +118,10 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 		err = types.UnauthorizedError(err.Error()) // I think it's safe to return the error as details here?
 		return ctxerr.Wrap(ctx, err)
 	}
+	if message.PostAsGet && len(payload) != 0 {
+		err = types.MalformedError("payload must be empty for POST-as-GET requests")
+		return ctxerr.Wrap(ctx, err)
+	}
 
 	var requestPayload any
 	requestPayload = createNewAccount

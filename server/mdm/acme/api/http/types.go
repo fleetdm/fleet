@@ -239,6 +239,10 @@ type JWSRequestContainer struct {
 	Key   *jose.JSONWebKey
 	KeyID *string
 
+	// PostAsGet indicates that this POST request is semantically a GET, and as
+	// such should not have any payload in the JWS.
+	PostAsGet bool
+
 	// Fields extracted from the URL path.
 	Identifier string `url:"identifier"`
 	HTTPPath   string `url:"http_path"`

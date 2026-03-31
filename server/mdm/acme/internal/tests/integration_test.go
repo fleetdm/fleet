@@ -835,6 +835,26 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 		require.Empty(t, gotOrder.Certificate)
 	})
 
+	t.Run("non-empty payload rejected for POST-as-GET", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+
+		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+		// POST-as-GET requests must have an empty payload; sending a non-empty
+		// one should be rejected with a malformed error.
+		nonEmptyPayload := map[string]any{"foo": "bar"}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getOrderURL(enroll.PathIdentifier, orderResp.ID), nonEmptyPayload)
+		gotOrder, acmeErr, resp := s.getOrder(t, enroll.PathIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.Nil(t, gotOrder)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "malformed")
+		require.Contains(t, acmeErr.Detail, "payload must be empty")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
 	t.Run("get finalized valid order includes certificate URL", func(t *testing.T) {
 		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)

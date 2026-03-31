@@ -132,6 +132,7 @@ func createOrderEndpoint(ctx context.Context, request any, svc api.Service) plat
 // getOrderEndpoint handles POST-as-GET /api/mdm/acme/{identifier}/orders/{id} requests.
 func getOrderEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.GetOrderRequest)
+	req.PostAsGet = true
 	orderRequest := &api_http.GetOrderDecodedRequest{OrderID: req.OrderID}
 	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, orderRequest)
 	if err != nil {
@@ -151,6 +152,7 @@ func getOrderEndpoint(ctx context.Context, request any, svc api.Service) platfor
 // listOrdersEndpoint handles POST-as-GET /api/mdm/acme/{identifier}/accounts/{id}/orders requests.
 func listOrdersEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.ListOrdersRequest)
+	req.PostAsGet = true
 	ordersRequest := &api_http.ListOrdersDecodedRequest{AccountID: req.AccountID}
 	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, ordersRequest)
 	if err != nil {

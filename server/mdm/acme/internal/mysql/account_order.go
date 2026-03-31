@@ -216,11 +216,9 @@ func (ds *Datastore) GetOrderByID(ctx context.Context, accountID, orderID uint) 
 		return nil, nil, ctxerr.Wrap(ctx, err, "select acme order")
 	}
 
-	var identifiers []types.Identifier
-	if err := json.Unmarshal(dbOrder.RawIdentifiers, &identifiers); err != nil {
+	if err := json.Unmarshal(dbOrder.RawIdentifiers, &dbOrder.Identifiers); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal acme order identifiers")
 	}
-	dbOrder.Identifiers = identifiers
 
 	const listAuthorizationsStmt = `SELECT id, acme_order_id, identifier_type, identifier_value, status
 		FROM acme_authorizations WHERE acme_order_id = ?`
