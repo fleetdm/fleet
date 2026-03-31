@@ -42,7 +42,6 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import FlashMessage from "components/FlashMessage";
-import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
@@ -616,7 +615,15 @@ const DeviceUserPage = ({
       return <Spinner {...(isMobileView && { variant: "mobile" })} />;
     }
     if (isErrorSetupSteps) {
-      return <DataError description="Could not get software setup status." />;
+      return (
+        <div className={`${baseClass} main-content`}>
+          <DeviceUserError
+            isMobileView={isMobileView}
+            isMobileDevice={isMobileDevice}
+            isErrorSetupSteps={isErrorSetupSteps}
+          />
+        </div>
+      );
     }
     if (
       checkForSetupExperienceSoftware &&
@@ -949,7 +956,6 @@ const DeviceUserPage = ({
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
-          platform={host?.platform}
         />
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
