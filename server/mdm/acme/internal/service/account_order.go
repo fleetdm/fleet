@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/pem"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"go.step.sm/crypto/jose"
 )
@@ -192,9 +194,21 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 		return "", types.OrderNotReadyError("Order is not finalized/in valid state, cannot get certificate")
 	}
 
-	cert, err := s.store.GetCertificatePEMByOrderID(ctx, accountID, orderID)
+	certPEM, err := s.store.GetCertificatePEMByOrderID(ctx, accountID, orderID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get certificate from datastore")
 	}
-	return cert, nil
+
+	// retrieve the root certificate
+	assets, err := s.providers.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert}, nil)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting Apple SCEP/ACME root certificate")
+	}
+	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return "", ctxerr.New(ctx, "failed to parse PEM block from root SCEP/ACME certificate")
+	}
+	rootPEM := string(pem.EncodeToMemory(block))
+
+	return certPEM + rootPEM, nil
 }

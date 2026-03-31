@@ -248,12 +248,12 @@ func (ds *Datastore) GetCertificatePEMByOrderID(ctx context.Context, accountID, 
 	// TODO(mna): not checking the not valid before/after in the query, as I think it's
 	// ok to return the cert regardless of those values, but I do check for non-revoked cert.
 	const getCertStmt = `SELECT certificate_pem
-		FROM 
+		FROM
 			identity_certificates ic
 			JOIN acme_orders o ON ic.serial = o.issued_certificate_serial
 		WHERE
-			o.acme_account_id = ? AND 
-			o.id = ? AND 
+			o.acme_account_id = ? AND
+			o.id = ? AND
 			ic.revoked IS FALSE`
 
 	var certPEM string

@@ -276,7 +276,6 @@ type GetCertificateRequest struct {
 type GetCertificateResponse struct {
 	// Certificate is the PEM-encoded certificate chain, will be rendered manually
 	// via HijackRender on success.
-	// TODO: implement the rendering, with content-type application/pem-certificate-chain
 	Certificate string                               `json:"-"`
 	Err         error                                `json:"error,omitempty"`
 	Nonces      *redis_nonces_store.RedisNoncesStore `json:"-"`
@@ -295,6 +294,11 @@ func (r *GetCertificateResponse) BeforeRender(ctx context.Context, w http.Respon
 		r.Err = err
 		return
 	}
+}
+
+func (r *GetCertificateResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/pem-certificate-chain")
+	_, _ = w.Write([]byte(r.Certificate))
 }
 
 // Error implements the platform_http.Errorer interface.
