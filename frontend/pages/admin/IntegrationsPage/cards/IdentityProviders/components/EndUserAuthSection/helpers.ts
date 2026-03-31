@@ -77,6 +77,13 @@ const validators = {
   metadata: errorMetadata,
 } as const;
 
+export const trimFormDataIdp = (data: IFormDataIdp): IFormDataIdp => ({
+  idp_name: data.idp_name.trim(),
+  entity_id: data.entity_id.trim(),
+  metadata_url: data.metadata_url.trim(),
+  metadata: data.metadata.trim(),
+});
+
 export type IFormErrorsIdp = Partial<Record<keyof IFormDataIdp, string>>;
 
 export const validateFormDataIdp = (

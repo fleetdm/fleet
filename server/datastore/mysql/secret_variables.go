@@ -458,6 +458,12 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "getting recovery lock password for host %s", enrollmentID)
 			}
 			secretValues[secretType] = password
+		case fleet.HostSecretRecoveryLockPendingPassword:
+			password, err := ds.getHostRecoveryLockPendingPasswordDecrypted(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting pending recovery lock password for host %s", enrollmentID)
+			}
+			secretValues[secretType] = password
 		default:
 			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
 		}
@@ -508,6 +514,28 @@ func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, h
 	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
+	}
+
+	return string(password), nil
+}
+
+// getHostRecoveryLockPendingPasswordDecrypted retrieves and decrypts the pending recovery lock
+// password for a host during password rotation.
+func (ds *Datastore) getHostRecoveryLockPendingPasswordDecrypted(ctx context.Context, hostUUID string) (string, error) {
+	var encryptedPassword []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
+		`SELECT pending_encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0 AND pending_encrypted_password IS NOT NULL`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted pending recovery lock password")
+	}
+
+	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting pending recovery lock password")
 	}
 
 	return string(password), nil

@@ -591,6 +591,47 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid parameters. The combination of %s is not allowed.", strings.Join(softwareErrorLabel, " and "))))
 	}
 
+	depProfileError := r.URL.Query().Get("dep_profile_error")
+	if depProfileError != "" {
+		boolVal, err := strconv.ParseBool(depProfileError)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid dep_profile_error: %s",
+						depProfileError,
+					),
+				),
+			)
+		}
+		hopt.DEPProfileErrorFilter = &boolVal
+	}
+
+	depAssignProfileResponse := r.URL.Query().Get("dep_assign_profile_response")
+	if depAssignProfileResponse != "" {
+		switch fleet.DEPAssignProfileResponseStatus(depAssignProfileResponse) {
+		case fleet.DEPAssignProfileResponseSuccess,
+			fleet.DEPAssignProfileResponseFailed,
+			fleet.DEPAssignProfileResponseThrottled,
+			fleet.DEPAssignProfileResponseNotAccessible:
+			resp := fleet.DEPAssignProfileResponseStatus(depAssignProfileResponse)
+			hopt.DEPAssignProfileResponseFilter = &resp
+		default:
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid dep_assign_profile_response: %s. Valid options are '%s', '%s', '%s', or '%s'.",
+						depAssignProfileResponse,
+						fleet.DEPAssignProfileResponseSuccess,
+						fleet.DEPAssignProfileResponseFailed,
+						fleet.DEPAssignProfileResponseThrottled,
+						fleet.DEPAssignProfileResponseNotAccessible,
+					),
+				),
+			)
+		}
+	}
+
 	return hopt, nil
 }
 

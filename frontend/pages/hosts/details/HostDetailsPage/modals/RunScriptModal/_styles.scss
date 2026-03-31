@@ -27,6 +27,12 @@
     }
   }
 
+  .button {
+    .truncated-tooltip {
+      font-weight: $regular; // Undo button font-weight of 600 to match other tooltips 400
+    }
+  }
+
   // style a basic span that doesn't use the dropdown component (which relies on react-select
   // and makes it difficult for us to style the disabled tooltip underline on the placeholder text.
   .run-script-action--disabled {

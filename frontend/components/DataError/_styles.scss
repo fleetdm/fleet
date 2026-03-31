@@ -46,6 +46,15 @@
       gap: $pad-small;
       margin-bottom: $pad-small;
     }
+
+    &__header-single-line {
+      display: flex;
+      color: $core-fleet-black;
+      font-size: $x-small;
+      gap: $pad-small;
+      padding: $pad-large;
+    }
+
     &__data {
       display: block;
       color: $core-fleet-black;

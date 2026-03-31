@@ -137,7 +137,7 @@ module "eks" {
       min_size       = 1
       max_size       = 1
       desired_size   = 1
-      instance_types = ["t3.2xlarge"]
+      instance_types = ["m6i.8xlarge"]
     }
   }
 
@@ -255,7 +255,7 @@ resource "helm_release" "signoz" {
   # Clickhouse storage configuration
   set {
     name  = "clickhouse.persistence.size"
-    value = "200Gi"
+    value = "600Gi"
   }
 
   set {
@@ -279,49 +279,48 @@ resource "helm_release" "signoz" {
   # Default 100m CPU and 200Mi memory are way too low for high-volume telemetry
   set {
     name  = "clickhouse.resources.requests.cpu"
-    value = "2000m"
+    value = "6000m"
   }
 
   set {
     name  = "clickhouse.resources.requests.memory"
-    value = "4Gi"
+    value = "12Gi"
   }
 
   set {
     name  = "clickhouse.resources.limits.cpu"
-    value = "4000m"
+    value = "12000m"
   }
 
   set {
     name  = "clickhouse.resources.limits.memory"
-    value = "8Gi"
+    value = "24Gi"
   }
 
   # OTEL Collector resource configuration for loadtest
   set {
     name  = "otelCollector.resources.requests.memory"
-    value = "8Gi"
+    value = "24Gi"
   }
 
   set {
     name  = "otelCollector.resources.limits.memory"
-    value = "12Gi"
+    value = "36Gi"
   }
 
   set {
     name  = "otelCollector.resources.requests.cpu"
-    value = "1000m"
+    value = "3000m"
   }
 
   set {
     name  = "otelCollector.resources.limits.cpu"
-    value = "4000m"
+    value = "12000m"
   }
 
-  # Only need 1 replica since we have 1 LoadBalancer endpoint
   set {
     name  = "otelCollector.replicaCount"
-    value = "1"
+    value = "3"
   }
 
   depends_on = [

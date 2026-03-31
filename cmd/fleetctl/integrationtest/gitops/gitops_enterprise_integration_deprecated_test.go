@@ -155,10 +155,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabe
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
-	lbl, err := s.DS.NewLabel(ctx, &fleet.Label{Name: "Label1", Query: "SELECT 1"})
-	require.NoError(t, err)
-	require.NotZero(t, lbl.ID)
-
 	profileFile, err := os.CreateTemp(t.TempDir(), "*.mobileconfig")
 	require.NoError(t, err)
 	_, err = profileFile.WriteString(test.GenerateMDMAppleProfile("test", "test", uuid.NewString()))
@@ -169,6 +165,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabe
 	const (
 		globalTemplate = `
 agent_options:
+labels:
+  - name: Label1
+    query: select 1
 controls:
   macos_settings:
     custom_settings:
@@ -280,13 +279,13 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabelsD
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
-	lbl, err := s.DS.NewLabel(ctx, &fleet.Label{Name: "Label1", Query: "SELECT 1"})
-	require.NoError(t, err)
-	require.NotZero(t, lbl.ID)
 
 	const (
 		globalTemplate = `
 agent_options:
+labels:
+  - name: Label1
+    query: select 1
 controls:
 org_settings:
   server_settings:
@@ -328,6 +327,10 @@ team_settings:
 `
 		withLabelsExcludeAny = `
       labels_exclude_any:
+        - Label1
+`
+		withLabelsIncludeAll = `
+      labels_include_all:
         - Label1
 `
 	)
@@ -392,6 +395,34 @@ team_settings:
 	require.Len(t, meta.LabelsExcludeAny, 1)
 	require.Equal(t, "Label1", meta.LabelsExcludeAny[0].LabelName)
 
+	// switch both to labels_include_all
+	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, withLabelsIncludeAll), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, withLabelsIncludeAll, teamName), 0o644)
+	require.NoError(t, err)
+
+	// Apply configs
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}), true)
+
+	// the installer is now scoped by labels_include_all for no team
+	meta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, meta.LabelsIncludeAny)
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Len(t, meta.LabelsIncludeAll, 1)
+	require.Equal(t, "Label1", meta.LabelsIncludeAll[0].LabelName)
+
+	// the installer is now scoped by labels_include_all for team
+	meta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, meta.LabelsIncludeAny)
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Len(t, meta.LabelsIncludeAll, 1)
+	require.Equal(t, "Label1", meta.LabelsIncludeAll[0].LabelName)
+
 	// remove the label conditions
 	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, emptyLabelsIncludeAny), 0o644)
 	require.NoError(t, err)
@@ -411,6 +442,7 @@ team_settings:
 	require.Equal(t, noTeamTitleID, *meta.TitleID)
 	require.Len(t, meta.LabelsExcludeAny, 0)
 	require.Len(t, meta.LabelsIncludeAny, 0)
+	require.Len(t, meta.LabelsIncludeAll, 0)
 
 	meta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
 	require.NoError(t, err)
@@ -418,6 +450,7 @@ team_settings:
 	require.Equal(t, teamTitleID, *meta.TitleID)
 	require.Len(t, meta.LabelsExcludeAny, 0)
 	require.Len(t, meta.LabelsIncludeAny, 0)
+	require.Len(t, meta.LabelsIncludeAll, 0)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestNoTeamWebhookSettingsDeprecated() {
@@ -944,6 +977,7 @@ team_settings:
 		require.True(t, meta.SelfService)
 		require.Empty(t, meta.LabelsExcludeAny)
 		require.Empty(t, meta.LabelsIncludeAny)
+		require.Empty(t, meta.LabelsIncludeAll)
 	}
 	require.ElementsMatch(t, []string{"ios_apps", "ipados_apps"}, sources)
 	require.ElementsMatch(t, []string{"ios", "ipados"}, platforms)
@@ -1000,6 +1034,7 @@ team_settings:
 		require.NoError(t, err)
 		require.False(t, meta.SelfService)
 		require.Empty(t, meta.LabelsExcludeAny)
+		require.Empty(t, meta.LabelsIncludeAll)
 		require.Len(t, meta.LabelsIncludeAny, 1)
 		require.Equal(t, lbl.ID, meta.LabelsIncludeAny[0].LabelID)
 		require.Empty(t, meta.InstallScript) // install script should be ignored for ipa apps
@@ -1039,6 +1074,7 @@ team_settings:
 		require.False(t, meta.SelfService)
 		require.Empty(t, meta.LabelsExcludeAny)
 		require.Empty(t, meta.LabelsIncludeAny)
+		require.Empty(t, meta.LabelsIncludeAll)
 	}
 	require.ElementsMatch(t, []string{"ios_apps", "ipados_apps"}, sources)
 	require.ElementsMatch(t, []string{"ios", "ipados"}, platforms)

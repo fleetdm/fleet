@@ -12,6 +12,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"brave-browser/darwin":          {BraveVersionTransformer},
 	"whatsapp/darwin":               {WhatsAppVersionShortener, WhatsAppInstallerURL},
 	"google-chrome/darwin":          {ChromePKGInstaller},
+	"google-drive/darwin":           {GoogleDriveVersionShortener},
 	"1password/darwin":              {OnePasswordPKGInstaller},
 	"zoom/darwin":                   {ZoomPKGInstaller},
 	"slack/darwin":                  {SlackPKGInstaller},

@@ -206,7 +206,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         />
         <div className="modal-cta-wrap">
           <Button onClick={onToggleApiTokenModal} type="button">
-            Done
+            Close
           </Button>
         </div>
       </Modal>

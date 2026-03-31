@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import { ITokenTeam } from "interfaces/mdm";
+import { getTeamDisplayName } from "interfaces/team";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { uniqueId } from "lodash";
@@ -24,7 +25,7 @@ const generateCell = (teams: ITokenTeam[] | null) => {
   let italicize = true;
   if (teams.length === 1) {
     italicize = false;
-    text = teams[0].name;
+    text = getTeamDisplayName(teams[0]);
   } else {
     text = `${teams.length} fleets`;
   }
@@ -37,7 +38,7 @@ const condenseTeams = (teams: ITokenTeam[]) => {
     (teams?.length &&
       teams
         .slice(-NUM_TEAMS_IN_TOOLTIP)
-        .map((team) => team.name)
+        .map((team) => getTeamDisplayName(team))
         .reverse()) ||
     [];
 
@@ -87,7 +88,7 @@ const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
   }
 
   if (teams.length === 1) {
-    return <TextCell value={teams[0].name} />;
+    return <TextCell value={getTeamDisplayName(teams[0])} />;
   }
 
   const cell = generateCell(teams);

@@ -31,7 +31,8 @@ export interface ICommandResult {
   /** Base64-encoded string containing the MDM command response */
   result: string;
   /** ResultsMetadata contains command-specific metadata.
-   * VPP install commands includes a "software_installed" boolean. */
+   * VPP install commands include a "software_installed" boolean and
+   * "vpp_verify_timeout_seconds" integer. */
   results_metadata?: Record<string, unknown>;
 }
 

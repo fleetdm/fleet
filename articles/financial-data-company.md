@@ -92,3 +92,4 @@ Fleet is the single endpoint management platform for macOS, iOS, Android, Window
 <meta name="publishedOn" value="2026-03-04">
 <meta name="description" value="A global financial data company uses Fleet to gain real-time visibility across 140,000 hosts running macOS, Windows, and Linux."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Financial data company">

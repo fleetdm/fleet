@@ -143,10 +143,14 @@ update_osquery_schema_and_flags () {
     git add ./tools/osquery-agent-options/main.go
     git add ./server/fleet/agent_options_generated.go
 
-    # 3. Check for manual changes.
+    # 3. Update osquery version used for dev/test.
+    "$GO_TOOLS_DIRECTORY/replace" ./tools/tuf/test/create_repository.sh "OSQUERY_VERSION=.+\n" "OSQUERY_VERSION=$version\n"
+    git add ./tools/tuf/test/create_repository.sh
+
+    # 4. Check for manual changes.
     prompt "Make sure to check for OS-specific osquery flags in $version. If there are any make sure to 'git add' them. See ./tools/osquery-agent-options/README.md"
 
-    # 4. Commit and PR.
+    # 5. Commit and PR.
     git commit -m "Update osquery schemas and flags to $version"
     git push origin "$branch_name"
     prompt "A PR will be created to update osquery schema and flags."

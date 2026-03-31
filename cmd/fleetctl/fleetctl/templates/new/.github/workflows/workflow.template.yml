@@ -1,0 +1,75 @@
+name: "Apply latest configuration to Fleet"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**"
+  pull_request:
+    paths:
+      - "**"
+  workflow_dispatch: # allows manual triggering
+  schedule:
+    - cron: "0 6 * * *" # Nightly 6AM UTC
+
+# Prevent concurrent runs of this workflow.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+# Limit permissions of GITHUB_TOKEN.
+permissions:
+  contents: read
+
+jobs:
+  fleet-gitops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+
+      - name: Make github action script executable
+        run: chmod +x ./.github/fleet-gitops/gitops.sh
+
+      - name: Apply latest configuration to Fleet
+        uses: ./.github/fleet-gitops
+        with:
+          # Run GitOps in dry-run mode for pull requests.
+          dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+
+        # These environment variables can be set as repository secrets,
+        # alongside any other environment variables mentioned in your .yml files.
+        env:
+          ###########################################################
+          # The server URL where Fleet is running.
+          #
+          #   • No trailing slash at the end
+          #   • `http://` or `https://` at the beginning.
+          #
+          # (You can copy this from the URL bar in your browser.)
+          #
+          # Warning: Careful not to change this URL after enrolling
+          # Apple devices with MDM pointed at Fleet. If this URL changes
+          # and Apple hosts already have MDM turned on, then end users
+          # will have to take action to restore MDM functionality (due
+          # to the way Apple's device management protocol works.)
+          ###########################################################
+          FLEET_URL: ${{ secrets.FLEET_URL && secrets.FLEET_URL || 'https://fleet.example.com' }}
+
+          ###########################################################
+          # A Fleet API token that your CI/CD builds will use
+          # to sync changes to Fleet.
+          #
+          # (You can copy your API token from the Fleet user interface
+          # by visiting "My account" > "Get API token".  Just remember,
+          # that token has an expiration date, so you'll eventually want
+          # to also follow the steps suggested on that screen to create
+          # an API-only user with a permanent token that is longer lived
+          # or that never expires.)
+          ###########################################################
+          FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}

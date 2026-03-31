@@ -3,7 +3,8 @@
     {
       "version": "26.0.4.15557",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Camtasia' AND publisher = 'TechSmith Corporation';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Camtasia' AND publisher = 'TechSmith Corporation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Camtasia' AND publisher = 'TechSmith Corporation' AND version_compare(version, '26.0.4.15557') < 0);"
       },
       "installer_url": "https://download.techsmith.com/camtasiastudio/releases/2604/camtasia.msi",
       "install_script_ref": "8959087b",

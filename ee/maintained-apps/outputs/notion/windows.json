@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.7.1",
+      "version": "7.9.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Notion 6.1.0' AND publisher = 'Notion Labs, Inc';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Notion 6.1.0' AND publisher = 'Notion Labs, Inc';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notion 6.1.0' AND publisher = 'Notion Labs, Inc' AND version_compare(version, '7.9.0') < 0);"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%207.7.1.exe",
+      "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%207.9.0.exe",
       "install_script_ref": "0803ad8c",
       "uninstall_script_ref": "a8fdd9b7",
-      "sha256": "14df02623d86ee77352a0c6729de5e119f79c24cbc6518f4132962cf064f4729",
+      "sha256": "f0d20c10a3d4da1c06a46024653b9eb2243c0b0855b554dc6bef3272aa11b436",
       "default_categories": [
         "Productivity"
       ]

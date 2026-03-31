@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -1204,6 +1204,8 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
 		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
+		hostDetailQueryPrefix + "disk_space_darwin":                       {},
+		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])

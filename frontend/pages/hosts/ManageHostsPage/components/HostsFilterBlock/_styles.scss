@@ -41,3 +41,11 @@
     gap: $pad-small;
   }
 }
+.hosts-filter-block__abm-issue-filter-pill {
+  .filter-pill__tooltip-text {
+    max-width: min-content; // Fit pill text without truncation
+  }
+  .react-tooltip {
+    max-width: 250px;
+  }
+}

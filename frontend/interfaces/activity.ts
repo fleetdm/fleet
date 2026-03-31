@@ -85,6 +85,7 @@ export enum ActivityType {
   DeletedAndroidProfile = "deleted_android_profile",
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
+  ResentCertificate = "resent_certificate",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -286,6 +287,8 @@ export interface IActivityDetails {
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
+  certificate_name?: string;
+  certificate_template_id?: number;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -400,7 +403,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   read_host_disk_encryption_key: "Viewed disk encryption key",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
-  rotated_host_recovery_lock_password: "Rotated Recovery Lock password",
+  rotated_host_recovery_lock_password:
+    "Triggered Recovery Lock password rotation",
   enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",
   disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
@@ -442,6 +446,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "GitOps: edited configuration profiles: Android",
   [ActivityType.EditedAndroidCertificate]:
     "GitOps: edited certificate templates: Android",
+  [ActivityType.ResentCertificate]: "Resent certificate",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
   [ActivityType.HostBypassedConditionalAccess]:
     "Host bypassed conditional access",

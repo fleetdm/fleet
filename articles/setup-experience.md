@@ -40,7 +40,7 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 
 To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
-Currently, a custom EULA is only supported for macOS hosts.
+Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business Manager (ABM).
 
 ## Bootstrap package
 
@@ -145,8 +145,6 @@ Add setup experience software:
 
 To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM)
 
-> Currently, if Android software is deleted from **Setup experience > Install software**, it still gets installed when Android hosts enroll. We'll improve this in [#36859](https://github.com/fleetdm/fleet/issues/36859).
-
 ### Retries
 
 For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
@@ -196,6 +194,8 @@ The Fleet setup experience for macOS will exit if any of the following occurs:
 * All setup steps complete successfully.
 * All setup steps complete, including failed installs or script runs, with the "Cancel setup if software install fails" option _not_ enabled (see ["Blocking setup on failed software installs"](https://fleetdm.com/guides/macos-setup-experience#install-software)).
 * The user presses Command (⌘) + Shift + X at any time during the setup process.
+
+> If the end user is stuck, you can send the [DeviceConfigured](https://developer.apple.com/documentation/devicemanagement/device-configured-command) using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the user through.
 
 ## Setup Assistant
 

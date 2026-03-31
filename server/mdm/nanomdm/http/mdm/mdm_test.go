@@ -35,6 +35,7 @@ func (c *testCertAuthRetriever) EnrollmentFromHash(ctx context.Context, hash str
 	}
 	return testID, nil
 }
+
 func TestCertWithEnrollmentIDMiddleware(t *testing.T) {
 	response := []byte("mock response")
 	// mock handler
@@ -174,7 +175,11 @@ func TestCheckinAndCommandHandler_ErrorHandling(t *testing.T) {
 					if isCheckin {
 						handler = CheckinHandler(mockSvc, log.NopLogger)
 						tokenUpdate := &mdm.TokenUpdate{
-							Enrollment:  mdm.Enrollment{UDID: "test-udid"},
+							TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+								Enrollment: mdm.Enrollment{
+									UDID: "test-udid",
+								},
+							},
 							MessageType: mdm.MessageType{MessageType: "TokenUpdate"},
 						}
 						body, err = plist.Marshal(tokenUpdate)
@@ -214,7 +219,9 @@ func TestErrorResponseBody(t *testing.T) {
 
 	handler := CheckinHandler(mockSvc, log.NopLogger)
 	tokenUpdate := &mdm.TokenUpdate{
-		Enrollment:  mdm.Enrollment{UDID: "test-udid"},
+		TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+			Enrollment: mdm.Enrollment{UDID: "test-udid"},
+		},
 		MessageType: mdm.MessageType{MessageType: "TokenUpdate"},
 	}
 	body, err := plist.Marshal(tokenUpdate)

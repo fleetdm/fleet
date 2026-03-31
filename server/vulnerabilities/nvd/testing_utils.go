@@ -68,5 +68,29 @@ const XmlCPETestDict = `
     <title xml:lang="en-US">Good Corp Correct Result 1.0</title>
     <cpe-23:cpe23-item name="cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:*:*:*"/>
   </cpe-item>
+  <cpe-item name="cpe:/a:python:requests:2.31.0">
+    <title xml:lang="en-US">Python Requests 2.31.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:python:requests:2.31.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:jenkins:requests:2.31.0">
+    <title xml:lang="en-US">Jenkins Requests 2.31.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:jenkins:requests:2.31.0:*:*:*:*:jenkins:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:duplicity_project:duplicity:0.8.0">
+    <title xml:lang="en-US">Duplicity Project Duplicity 0.8.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:duplicity_project:duplicity:0.8.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:debian:duplicity:0.8.0">
+    <title xml:lang="en-US">Debian Duplicity 0.8.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:debian:duplicity:0.8.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:openjsf:express:4.18.0">
+    <title xml:lang="en-US">OpenJS Foundation Express 4.18.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:openjsf:express:4.18.0:*:*:*:*:node.js:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:checkpoint:express:4.18.0">
+    <title xml:lang="en-US">Check Point Express 4.18.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:checkpoint:express:4.18.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
 </cpe-list>
 `
