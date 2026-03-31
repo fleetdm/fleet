@@ -194,8 +194,9 @@ func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, nonce, accountURL, end
 	} else {
 		// as per the RFC:
 		// > [when doing a POST-as-GET] the "payload" field of the
-		// > JWS object MUST be present and set to the empty string ("").
-		payloadBytes = []byte(`""`)
+		// > JWS object MUST be present and set to the empty string
+		// > [...]  a zero-length (and thus non-JSON) payload
+		payloadBytes = []byte("")
 	}
 
 	jws, err := signer.Sign(payloadBytes)
