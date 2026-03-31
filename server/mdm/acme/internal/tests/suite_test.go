@@ -60,7 +60,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 			require.NoError(t, err)
 			serialID, err := res.LastInsertId()
 			require.NoError(t, err)
-			_, err = tdb.DB.DB.Exec(`INSERT INTO identity_certificates (serial, not_valid_before, not_valid_after, certificate_pem) VALUES (?, NOW(), NOW(), ?)`, serialID, []byte(fmt.Sprintf("-----BEGIN CERTIFICATE-----\nmock-cert%d\n-----END CERTIFICATE-----", serialID)))
+			_, err = tdb.DB.DB.Exec(`INSERT INTO identity_certificates (serial, not_valid_before, not_valid_after, certificate_pem) VALUES (?, NOW(), NOW(), ?)`, serialID, fmt.Appendf(nil, "-----BEGIN CERTIFICATE-----\nmock-cert%d\n-----END CERTIFICATE-----", serialID))
 			require.NoError(t, err)
 			return &x509.Certificate{
 				SerialNumber: big.NewInt(serialID),
