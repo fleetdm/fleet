@@ -172,6 +172,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 16:44:57
 
+### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Possible vulnerability in SSO service providers, not in fleetctl command line tool.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/russellhaering/goxmldsig`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-31 09:54:45
+
 ### [CVE-2026-33186](https://nvd.nist.gov/vuln/detail/CVE-2026-33186)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
