@@ -95,12 +95,36 @@ type Authorization struct {
 	Status      string     `db:"status"`
 }
 
+type AuthorizationResponse struct {
+	Status     string              `json:"status"`
+	Expires    *time.Time          `json:"expires,omitempty"`
+	Identifier Identifier          `json:"identifier"`
+	Challenges []ChallengeResponse `json:"challenges"`
+
+	// Location is set in the header, pointing to the requested authorization's URL.
+	Location string `json:"-"`
+}
+
+const (
+	DeviceAttestationChallengeType string = "device-attest-01"
+)
+
 type Challenge struct {
 	ID                  uint   `db:"id"`
 	ACMEAuthorizationID uint   `db:"acme_authorization_id"`
 	ChallengeType       string `db:"challenge_type"`
 	Token               string `db:"token"`
 	Status              string `db:"status"`
+}
+
+type ChallengeResponse struct {
+	ChallengeType string `json:"type"`
+	Status        string `json:"status"`
+	Token         string `json:"token"`
+	URL           string `json:"url"`
+
+	// Validated is only set in the response when the challenge is valid and has been validated.
+	Validated *time.Time `json:"validated,omitempty"`
 }
 
 const (
@@ -140,4 +164,6 @@ type Datastore interface {
 	CreateOrder(ctx context.Context, order *Order, authorization *Authorization, challenge *Challenge) (*Order, error)
 	GetOrderByID(ctx context.Context, accountID, orderID uint) (*Order, []*Authorization, error)
 	ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error)
+	GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*Authorization, error)
+	GetChallengesByAuthorizationID(ctx context.Context, authorizationID uint) ([]*Challenge, error)
 }

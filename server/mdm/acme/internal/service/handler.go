@@ -50,6 +50,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 	ae.POST("/api/mdm/acme/{identifier}/orders/{order_id}", getOrderEndpoint, api_http.GetOrderRequest{})
 	// POST-as-GET for list orders endpoint, as per RFC.
 	ae.POST("/api/mdm/acme/{identifier}/accounts/{account_id}/orders", listOrdersEndpoint, api_http.ListOrdersRequest{})
+
+	ae.POST("/api/mdm/acme/{identifier}/authorizations/{authorization}", getAuthorizationEndpoint, api_http.GetAuthorizationRequest{})
+	ae.POST("/api/mdm/acme/{identifier}/challenges/{challenge}", getChallengeEndpoint, api_http.JWSRequestContainer{})
 }
 
 func skipStandardFleetAuth() endpoint.Middleware {
@@ -167,4 +170,38 @@ func listOrdersEndpoint(ctx context.Context, request any, svc api.Service) platf
 		Nonces: svc.NoncesStore(),
 		Orders: urls,
 	}
+}
+
+// getAuthorizationEndpoint handles POST /api/mdm/acme/{identifier}/authz/{authorization} requests.
+func getAuthorizationEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.GetAuthorizationRequest)
+
+	// TODO: Uncomment once test changes with "" has been made
+	/* payload := req.JWS.UnsafePayloadWithoutVerification()
+	isPostAsGet := string(payload) == "" // POST-as-GET requests MUST have an empty payload
+	if !isPostAsGet {
+		return &api_http.GetAuthorizationResponse{
+			Err:    types.MalformedError("Payload was not empty for POST-as-GET request to authorization endpoint"),
+			Nonces: svc.NoncesStore(),
+		}
+	} */
+	authzReq := &api_http.GetAuthorizationDecodedRequest{AuthorizationID: req.AuthorizationID}
+	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, authzReq)
+	if err != nil {
+		return &api_http.GetAuthorizationResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+
+	authzResp, err := svc.GetAuthorization(ctx, authzReq.Enrollment, authzReq.Account, authzReq.AuthorizationID)
+	if err != nil {
+		return &api_http.GetAuthorizationResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+
+	return &api_http.GetAuthorizationResponse{
+		AuthorizationResponse: authzResp,
+		Nonces:                svc.NoncesStore(),
+	}
+}
+
+func getChallengeEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	panic("not implemented")
 }

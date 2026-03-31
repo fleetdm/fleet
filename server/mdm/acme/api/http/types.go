@@ -194,6 +194,41 @@ func (r *GetOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWrit
 // Error implements the platform_http.Errorer interface.
 func (r *GetOrderResponse) Error() error { return r.Err }
 
+type GetAuthorizationRequest struct {
+	JWSRequestContainer
+	AuthorizationID uint `url:"authorization"`
+}
+
+type GetAuthorizationDecodedRequest struct {
+	types.AccountAuthenticatedRequestBase
+	AuthorizationID uint `json:"-"`
+}
+
+type GetAuthorizationResponse struct {
+	*types.AuthorizationResponse
+	Err    error                                `json:"error,omitempty"`
+	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
+}
+
+func (r *GetAuthorizationResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
+	// only generate a new nonce if there is no error
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
+	}
+	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
+		r.Err = err
+		return
+	}
+	if r.AuthorizationResponse != nil && r.AuthorizationResponse.Location != "" {
+		w.Header().Set("Location", r.AuthorizationResponse.Location)
+	}
+}
+
+func (r GetAuthorizationResponse) Error() error { return r.Err }
+
 type ListOrdersDecodedRequest struct {
 	types.AccountAuthenticatedRequestBase
 	AccountID uint `json:"-"`

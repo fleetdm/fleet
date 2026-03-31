@@ -77,7 +77,7 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 		Status:     "pending", // always pending at creation
 	}
 	challenge := &types.Challenge{
-		ChallengeType: "device-attest-01", // only supported challenge for now
+		ChallengeType: types.DeviceAttestationChallengeType, // only supported challenge for now
 		Token:         types.CreateNonceEncodedForHeader(),
 		Status:        "pending", // always pending at creation
 	}
