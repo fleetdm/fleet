@@ -204,7 +204,7 @@ const Sso = ({
       router.push(
         newSubsection === "end-users"
           ? PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS
-          : PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
+          : PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS
       );
     },
     [formDirty, router],
