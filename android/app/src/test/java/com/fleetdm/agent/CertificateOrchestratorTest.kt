@@ -1393,7 +1393,7 @@ class CertificateOrchestratorTest {
         assertTrue("Should not report FAILED yet", fakeApiClient.updateStatusCalls.isEmpty())
 
         // Act: exhaust remaining retries
-        for (i in 2..MAX_CERT_INSTALL_RETRIES) {
+        repeat(MAX_CERT_INSTALL_RETRIES - 1) {
             orchestrator.enrollCertificate(context, certificateId, uuid, mockInstaller)
         }
 
