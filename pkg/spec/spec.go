@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -22,6 +23,32 @@ import (
 )
 
 var yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
+
+var (
+	envOverridesMu sync.RWMutex
+	envOverrides   map[string]string
+)
+
+// SetEnvOverrides sets environment variable overrides that take precedence over
+// os.LookupEnv during env expansion in GitOps file parsing. Pass nil to clear.
+func SetEnvOverrides(overrides map[string]string) {
+	envOverridesMu.Lock()
+	defer envOverridesMu.Unlock()
+	envOverrides = overrides
+}
+
+// lookupEnv checks env overrides first, then falls back to os.LookupEnv.
+func lookupEnv(key string) (string, bool) {
+	envOverridesMu.RLock()
+	if envOverrides != nil {
+		if v, ok := envOverrides[key]; ok {
+			envOverridesMu.RUnlock()
+			return v, true
+		}
+	}
+	envOverridesMu.RUnlock()
+	return os.LookupEnv(key)
+}
 
 // Group holds a set of "specs" that can be applied to a Fleet server.
 type Group struct {
@@ -301,7 +328,7 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 			switch secretMode {
 			case secretsExpand:
 				// Expand secrets for client-side validation
-				v, ok := os.LookupEnv(env)
+				v, ok := lookupEnv(env)
 				if ok {
 					if !documentIsXML {
 						return v, true
@@ -334,7 +361,7 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 			}
 		}
 
-		v, ok := os.LookupEnv(env)
+		v, ok := lookupEnv(env)
 		if !ok {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 			return "", false
@@ -398,7 +425,7 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
 		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
 			// lookup the secret and save it, but don't replace
-			v, ok := os.LookupEnv(env)
+			v, ok := lookupEnv(env)
 			if !ok {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false

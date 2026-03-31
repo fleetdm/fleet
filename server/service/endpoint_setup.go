@@ -2,27 +2,17 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/pkg/startertemplates"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
-)
-
-const (
-	starterLibraryURL = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/starter-library/starter-library.yml"
-	scriptsBaseURL    = "https://raw.githubusercontent.com/fleetdm/fleet/main/"
 )
 
 type setupRequest struct {
@@ -40,8 +30,6 @@ type setupResponse struct {
 	Token        *string        `json:"token,omitempty"`
 	Err          error          `json:"error,omitempty"`
 }
-
-type applyGroupFunc func(context.Context, *spec.Group) error
 
 func (r setupResponse) Error() error { return r.Err }
 
@@ -99,9 +87,7 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger) endpoint.Endpoint
 					*req.ServerURL,
 					session.Key,
 					logger,
-					fleethttp.NewClient,
 					NewClient,
-					nil, // No mock ApplyGroup for production code
 				); err != nil {
 					logger.DebugContext(ctx, "setup apply starter library", "endpoint", "setup", "op", "applyStarterLibrary", "err", err)
 					// Continue even if there's an error applying the starter library
@@ -120,309 +106,132 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger) endpoint.Endpoint
 	}
 }
 
-// ApplyStarterLibrary downloads the starter library from GitHub
-// and applies it to the Fleet server using an authenticated client.
-// TODO: Move the apply starter library logic to use the serve command as an entry point to simplify and leverage the entire fleet.Service.
-// Entry point: https://github.com/fleetdm/fleet/blob/2dfadc0971c6ba45c19dad2f5f1f4cd0f1b89b20/cmd/fleet/serve.go#L1099-L1100
+// ApplyStarterLibrary renders the starter templates and applies them to the
+// Fleet server via the GitOps pipeline, producing the same result as running
+// `fleetctl new` followed by `fleetctl gitops`.
 func ApplyStarterLibrary(
 	ctx context.Context,
 	serverURL string,
 	token string,
 	logger *slog.Logger,
-	httpClientFactory func(opts ...fleethttp.ClientOpt) *http.Client,
 	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error),
-	// For testing only - if provided, this function will be used instead of client.ApplyGroup
-	mockApplyGroup func(ctx context.Context, specs *spec.Group) error,
 ) error {
 	logger.DebugContext(ctx, "Applying starter library")
 
-	// Create a request with context for downloading the starter library
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, starterLibraryURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request for starter library: %w", err)
-	}
-
-	// Download the starter library from GitHub using the provided HTTP client factory
-	httpClient := httpClientFactory(fleethttp.WithTimeout(5 * time.Second))
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to download starter library: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download starter library, status: %d", resp.StatusCode)
-	}
-
-	buf, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read starter library response body: %w", err)
-	}
-
-	// Create a temporary directory to store downloaded scripts
-	tempDir, err := os.MkdirTemp("", "fleet-scripts-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temporary directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir) // Clean up the temporary directory when done
-
-	logger.DebugContext(ctx, "Created temporary directory for scripts", "path", tempDir)
-
-	// Parse the YAML content into specs
-	specs, err := spec.GroupFromBytes(buf)
-	if err != nil {
-		return fmt.Errorf("failed to parse starter library: %w", err)
-	}
-
-	// Find all script references in the YAML and download them
-	scriptNames := ExtractScriptNames(specs)
-	logger.DebugContext(ctx, "Found script references in starter library", "count", len(scriptNames))
-
-	// Download scripts and update references in specs
-	if len(scriptNames) > 0 {
-		err = DownloadAndUpdateScripts(ctx, specs, scriptNames, tempDir, logger)
-		if err != nil {
-			return fmt.Errorf("failed to download and update scripts: %w", err)
-		}
-	}
-
-	// Create an authenticated client and apply specs using the provided client factory
+	// Create an authenticated client.
 	client, err := clientFactory(serverURL, true, "", "")
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 	client.SetToken(token)
 
-	// Always check if license is free and skip teams for free licenses
+	// Fetch app config to get the org name and license info.
 	appConfig, err := client.GetAppConfig()
 	if err != nil {
-		logger.DebugContext(ctx, "Error getting app config", "err", err)
-		// Continue even if there's an error getting the app config
-	} else if appConfig.License == nil || !appConfig.License.IsPremium() {
-		// Remove teams from specs to avoid applying them
-		logger.DebugContext(ctx, "Free license detected, skipping teams and team-related content in starter library")
-		specs.Teams = nil
+		return fmt.Errorf("failed to get app config: %w", err)
+	}
 
-		// Filter out policies that reference teams
-		if specs.Policies != nil {
-			var filteredPolicies []*fleet.PolicySpec
-			for _, policy := range specs.Policies {
-				// Keep only policies that don't reference a team
-				if policy.Team == "" {
-					filteredPolicies = append(filteredPolicies, policy)
-				}
-			}
-			specs.Policies = filteredPolicies
+	orgName := appConfig.OrgInfo.OrgName
+	if orgName == "" {
+		orgName = "Fleet"
+	}
+
+	// Render templates to a temp directory.
+	tempDir, err := startertemplates.RenderToTempDir(orgName)
+	if err != nil {
+		return fmt.Errorf("failed to render starter templates: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Set env overrides so GitOpsFromFile can expand $FLEET_URL without
+	// polluting the process environment.
+	spec.SetEnvOverrides(map[string]string{
+		"FLEET_URL": serverURL,
+	})
+	defer spec.SetEnvOverrides(nil)
+
+	logf := func(format string, a ...interface{}) {
+		logger.DebugContext(ctx, fmt.Sprintf(format, a...))
+	}
+
+	// Determine which files to process. Global config is always applied;
+	// team configs are only applied for premium licenses.
+	type configFile struct {
+		path     string
+		isGlobal bool
+	}
+	files := []configFile{
+		{path: filepath.Join(tempDir, "default.yml"), isGlobal: true},
+	}
+	if appConfig.License != nil && appConfig.License.IsPremium() {
+		fleetDir := filepath.Join(tempDir, "fleets")
+		entries, err := os.ReadDir(fleetDir)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to read fleets directory: %w", err)
 		}
-
-		// Note: QuerySpec doesn't have a Team field, so we can't filter queries by team
-
-		// Remove scripts from AppConfig if present
-		if specs.AppConfig != nil {
-			appConfigMap, ok := specs.AppConfig.(map[string]interface{})
-			if ok {
-				// Remove scripts from AppConfig
-				delete(appConfigMap, "scripts")
+		for _, entry := range entries {
+			if entry.IsDir() || filepath.Ext(entry.Name()) != ".yml" {
+				continue
 			}
+			files = append(files, configFile{
+				path:     filepath.Join(fleetDir, entry.Name()),
+				isGlobal: false,
+			})
 		}
 	}
 
-	// Log function for ApplyGroup (minimal logging)
-	logf := func(format string, a ...interface{}) {}
+	// Parse and apply each config file, global first.
+	teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+	teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
+	teamsScripts := make(map[string][]fleet.ScriptResponse)
 
-	// Assign the real implementation
-	var applyGroupFn applyGroupFunc = func(ctx context.Context, specs *spec.Group) error {
-		teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
-		teamsScripts := make(map[string][]fleet.ScriptResponse)
-		teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
+	for _, f := range files {
+		baseDir := filepath.Dir(f.path)
+		config, err := spec.GitOpsFromFile(f.path, baseDir, appConfig, logf)
+		if err != nil {
+			return fmt.Errorf("failed to parse %s: %w", filepath.Base(f.path), err)
+		}
 
-		_, _, _, _, err := client.ApplyGroup(
+		if f.isGlobal && !config.Controls.Set() {
+			// Controls are required for global config; the default.yml template
+			// includes an empty controls section so this shouldn't happen, but
+			// handle it gracefully.
+			logger.DebugContext(ctx, "global config missing controls section, skipping")
+		}
+
+		// Compute label changes. On a fresh instance there are no existing
+		// labels so every label in the template is an addition.
+		if len(config.Labels) > 0 {
+			var changes []spec.LabelChange
+			for _, l := range config.Labels {
+				changes = append(changes, spec.LabelChange{
+					Name:     l.Name,
+					Op:       "+",
+					TeamName: config.CoercedTeamName(),
+					FileName: filepath.Base(f.path),
+				})
+			}
+			config.LabelChangesSummary = spec.NewLabelChangesSummary(changes, nil)
+		}
+
+		_, err = client.DoGitOps(
 			ctx,
-			false,
-			specs,
-			tempDir,
+			config,
+			f.path,
 			logf,
-			nil,
-			fleet.ApplyClientSpecOptions{},
+			false, // not a dry run
+			nil,   // no dry run assumptions
+			appConfig,
 			teamsSoftwareInstallers,
 			teamsVPPApps,
 			teamsScripts,
-			nil,
+			nil, // no icon settings
 		)
-		return err
-	}
-
-	// Apply mock if mockApplyGroup is supplied
-	if mockApplyGroup != nil {
-		applyGroupFn = mockApplyGroup
-	}
-
-	if err := applyGroupFn(ctx, specs); err != nil {
-		return fmt.Errorf("failed to apply starter library: %w", err)
+		if err != nil {
+			return fmt.Errorf("failed to apply %s: %w", filepath.Base(f.path), err)
+		}
 	}
 
 	logger.DebugContext(ctx, "Starter library applied successfully")
-	return nil
-}
-
-// ExtractScriptNames extracts all script names from the specs
-func ExtractScriptNames(specs *spec.Group) []string {
-	var scriptNames []string
-	scriptMap := make(map[string]bool) // Use a map to deduplicate script names
-
-	// Process team specs
-	for _, teamRaw := range specs.Teams {
-		var teamData map[string]interface{}
-		if err := json.Unmarshal(teamRaw, &teamData); err != nil {
-			continue // Skip if we can't unmarshal
-		}
-
-		if scripts, ok := teamData["scripts"].([]interface{}); ok {
-			for _, script := range scripts {
-				if scriptName, ok := script.(string); ok && !scriptMap[scriptName] {
-					scriptMap[scriptName] = true
-					scriptNames = append(scriptNames, scriptName)
-				}
-			}
-		}
-	}
-
-	return scriptNames
-}
-
-// DownloadAndUpdateScripts downloads scripts from URLs and updates the specs to reference local files
-func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptNames []string, tempDir string, logger *slog.Logger) error {
-	// Create a single HTTP client to be reused for all requests
-	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
-
-	// Map to store local paths for each script
-	scriptPaths := make(map[string]string, len(scriptNames))
-
-	// Download each script sequentially
-	for _, scriptName := range scriptNames {
-		// Sanitize the script name to prevent path traversal
-		sanitizedName := filepath.Clean(scriptName)
-		if strings.HasPrefix(sanitizedName, "..") || filepath.IsAbs(sanitizedName) {
-			return fmt.Errorf("invalid script name %s: must be a relative path", scriptName)
-		}
-
-		localPath := filepath.Join(tempDir, sanitizedName)
-		scriptPaths[scriptName] = localPath
-
-		// Create parent directories if they don't exist
-		parentDir := filepath.Dir(localPath)
-		if err := os.MkdirAll(parentDir, 0o755); err != nil {
-			return fmt.Errorf("failed to create parent directories for script %s: %w", scriptName, err)
-		}
-
-		scriptURL := fmt.Sprintf("%s/%s", scriptsBaseURL, scriptName)
-		logger.DebugContext(ctx, "Downloading script", "name", scriptName, "url", scriptURL, "local_path", localPath)
-
-		// Create the request with context
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, scriptURL, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create request for script %s: %w", scriptName, err)
-		}
-
-		// Download the script using the shared HTTP client
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("failed to download script %s: %w", scriptName, err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("failed to download script %s, status: %d", scriptName, resp.StatusCode)
-		}
-
-		// Create the local file
-		file, err := os.Create(localPath)
-		if err != nil {
-			return fmt.Errorf("failed to create local file for script %s: %w", scriptName, err)
-		}
-		defer file.Close()
-
-		// Copy the content to the local file
-		_, err = io.Copy(file, resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to write script %s to local file: %w", scriptName, err)
-		}
-	}
-
-	// Read script contents and store them in memory
-	scriptContents := make(map[string][]byte, len(scriptNames))
-	for _, scriptName := range scriptNames {
-		localPath := scriptPaths[scriptName]
-		content, err := os.ReadFile(localPath)
-		if err != nil {
-			return fmt.Errorf("failed to read script %s from local file: %w", scriptName, err)
-		}
-		scriptContents[scriptName] = content
-	}
-
-	// Extract scripts from AppConfig if present
-	appConfigScripts := extractAppCfgScripts(specs.AppConfig)
-	if appConfigScripts != nil {
-		// Replace script paths with actual script contents
-		appScripts := make([]string, 0, len(appConfigScripts))
-		for _, scriptPath := range appConfigScripts {
-			if content, exists := scriptContents[scriptPath]; exists {
-				// Create a temporary file with the script content
-				tempFile, err := os.CreateTemp(tempDir, "script-*")
-				if err != nil {
-					return fmt.Errorf("failed to create temporary script file: %w", err)
-				}
-				if _, err := tempFile.Write(content); err != nil {
-					tempFile.Close()
-					return fmt.Errorf("failed to write script content to temporary file: %w", err)
-				}
-				tempFile.Close()
-
-				// Add the temporary file path to the list
-				appScripts = append(appScripts, tempFile.Name())
-			} else {
-				// Keep the original path if it's not one of our downloaded scripts
-				appScripts = append(appScripts, scriptPath)
-			}
-		}
-
-		// Update the AppConfig with the new script paths
-		if specs.AppConfig != nil {
-			specs.AppConfig.(map[string]interface{})["scripts"] = appScripts
-		}
-	}
-
-	// Update script references in the specs to point to local files
-	for i, teamRaw := range specs.Teams {
-		var teamData map[string]interface{}
-		if err := json.Unmarshal(teamRaw, &teamData); err != nil {
-			continue // Skip if we can't unmarshal
-		}
-
-		if scripts, ok := teamData["scripts"].([]interface{}); ok {
-			for j, script := range scripts {
-				if scriptName, ok := script.(string); ok {
-					// Update the script reference to the local path from our map
-					if localPath, exists := scriptPaths[scriptName]; exists {
-						scripts[j] = localPath
-					}
-				}
-			}
-
-			// Update the team data with modified scripts
-			teamData["scripts"] = scripts
-
-			// Marshal back to JSON
-			updatedTeamRaw, err := json.Marshal(teamData)
-			if err != nil {
-				logger.DebugContext(ctx, "Failed to marshal updated team data", "err", err)
-				continue
-			}
-
-			// Update the team in the specs
-			specs.Teams[i] = updatedTeamRaw
-		}
-	}
-
 	return nil
 }

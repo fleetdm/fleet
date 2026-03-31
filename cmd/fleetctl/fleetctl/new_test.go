@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/startertemplates"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -222,19 +223,19 @@ func TestRenderTemplate(t *testing.T) {
 	}
 
 	t.Run("replaces known vars", func(t *testing.T) {
-		result, err := renderTemplate([]byte(`app: <%= .name %> v<%= .version %>`), vars)
+		result, err := startertemplates.RenderTemplate([]byte(`app: <%= .name %> v<%= .version %>`), vars)
 		require.NoError(t, err)
 		assert.Equal(t, "app: Fleet v4.83.0", string(result))
 	})
 
 	t.Run("unknown vars produce no value", func(t *testing.T) {
-		result, err := renderTemplate([]byte(`<%= .unknown %>`), vars)
+		result, err := startertemplates.RenderTemplate([]byte(`<%= .unknown %>`), vars)
 		require.NoError(t, err)
 		assert.Equal(t, "<no value>", string(result))
 	})
 
 	t.Run("handles no vars", func(t *testing.T) {
-		result, err := renderTemplate([]byte("no vars here"), vars)
+		result, err := startertemplates.RenderTemplate([]byte("no vars here"), vars)
 		require.NoError(t, err)
 		assert.Equal(t, "no vars here", string(result))
 	})
