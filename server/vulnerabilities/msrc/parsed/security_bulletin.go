@@ -18,7 +18,7 @@ type SecurityBulletin struct {
 	// - Windows 10 Version 1909 for x64-based Systems
 	Products Products
 	// All vulnerabilities contained in this bulletin, by CVE
-	Vulnerabities map[string]Vulnerability
+	Vulnerabilities map[string]Vulnerability
 	// All vendor fixes for remediating the vulnerabilities contained in this bulletin, by KBID
 	VendorFixes map[uint]VendorFix
 
@@ -28,10 +28,10 @@ type SecurityBulletin struct {
 
 func NewSecurityBulletin(pName string) *SecurityBulletin {
 	return &SecurityBulletin{
-		ProductName:   pName,
-		Products:      make(map[string]Product),
-		Vulnerabities: make(map[string]Vulnerability),
-		VendorFixes:   make(map[uint]VendorFix),
+		ProductName:     pName,
+		Products:        make(map[string]Product),
+		Vulnerabilities: make(map[string]Vulnerability),
+		VendorFixes:     make(map[uint]VendorFix),
 	}
 }
 
@@ -66,8 +66,8 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	}
 
 	// Vulnerabilities
-	for cve, vuln := range other.Vulnerabities {
-		if _, ok := b.Vulnerabities[cve]; !ok {
+	for cve, vuln := range other.Vulnerabilities {
+		if _, ok := b.Vulnerabilities[cve]; !ok {
 			newVuln := NewVulnerability(vuln.PublishedEpoch)
 			for pID, v := range vuln.ProductIDs {
 				newVuln.ProductIDs[pID] = v
@@ -75,7 +75,7 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 			for rID, v := range vuln.RemediatedBy {
 				newVuln.RemediatedBy[rID] = v
 			}
-			b.Vulnerabities[cve] = newVuln
+			b.Vulnerabilities[cve] = newVuln
 		}
 	}
 

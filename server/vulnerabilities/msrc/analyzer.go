@@ -53,7 +53,7 @@ func Analyze(
 	// Run vulnerability detection for all hosts in this batch (hIDs)
 	// and store the results in 'found'.
 	var found []fleet.OSVulnerability
-	for cve, v := range bulletin.Vulnerabities {
+	for cve, v := range bulletin.Vulnerabilities {
 		// Check if this vulnerability targets the OS
 		if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
 			continue

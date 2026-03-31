@@ -38,7 +38,7 @@ func TestSecurityBulletin(t *testing.T) {
 			require.Equal(t, a.Products["980"], NewProductFromFullName("Windows 10 D"))
 		})
 
-		t.Run(".Vulnerabities", func(t *testing.T) {
+		t.Run(".Vulnerabilities", func(t *testing.T) {
 			cve1 := NewVulnerability(ptr.Int64(123))
 			cve1.ProductIDs = map[string]bool{"111": true, "222": true}
 			cve1.RemediatedBy = map[uint]bool{1: true}
@@ -56,29 +56,29 @@ func TestSecurityBulletin(t *testing.T) {
 			cve3.RemediatedBy = map[uint]bool{4: true}
 
 			a := NewSecurityBulletin("Windows 10")
-			a.Vulnerabities["cve-1"] = cve1
-			a.Vulnerabities["cve-2"] = cve2
+			a.Vulnerabilities["cve-1"] = cve1
+			a.Vulnerabilities["cve-2"] = cve2
 
 			b := NewSecurityBulletin("Windows 10")
-			b.Vulnerabities["cve-3"] = cve3
-			b.Vulnerabities["cve-4"] = cve4
+			b.Vulnerabilities["cve-3"] = cve3
+			b.Vulnerabilities["cve-4"] = cve4
 
 			require.NoError(t, a.Merge(b))
 
-			require.Equal(t, *a.Vulnerabities["cve-1"].PublishedEpoch, int64(123))
-			require.Equal(t, *a.Vulnerabities["cve-2"].PublishedEpoch, int64(456))
-			require.Equal(t, *a.Vulnerabities["cve-3"].PublishedEpoch, int64(555))
-			require.Equal(t, *a.Vulnerabities["cve-4"].PublishedEpoch, int64(777))
+			require.Equal(t, *a.Vulnerabilities["cve-1"].PublishedEpoch, int64(123))
+			require.Equal(t, *a.Vulnerabilities["cve-2"].PublishedEpoch, int64(456))
+			require.Equal(t, *a.Vulnerabilities["cve-3"].PublishedEpoch, int64(555))
+			require.Equal(t, *a.Vulnerabilities["cve-4"].PublishedEpoch, int64(777))
 
-			require.Equal(t, a.Vulnerabities["cve-1"].ProductIDs, cve1.ProductIDs)
-			require.Equal(t, a.Vulnerabities["cve-2"].ProductIDs, cve2.ProductIDs)
-			require.Equal(t, a.Vulnerabities["cve-3"].ProductIDs, cve3.ProductIDs)
-			require.Equal(t, a.Vulnerabities["cve-4"].ProductIDs, cve4.ProductIDs)
+			require.Equal(t, a.Vulnerabilities["cve-1"].ProductIDs, cve1.ProductIDs)
+			require.Equal(t, a.Vulnerabilities["cve-2"].ProductIDs, cve2.ProductIDs)
+			require.Equal(t, a.Vulnerabilities["cve-3"].ProductIDs, cve3.ProductIDs)
+			require.Equal(t, a.Vulnerabilities["cve-4"].ProductIDs, cve4.ProductIDs)
 
-			require.Equal(t, a.Vulnerabities["cve-1"].RemediatedBy, cve1.RemediatedBy)
-			require.Equal(t, a.Vulnerabities["cve-2"].RemediatedBy, cve2.RemediatedBy)
-			require.Equal(t, a.Vulnerabities["cve-3"].RemediatedBy, cve3.RemediatedBy)
-			require.Equal(t, a.Vulnerabities["cve-4"].RemediatedBy, cve4.RemediatedBy)
+			require.Equal(t, a.Vulnerabilities["cve-1"].RemediatedBy, cve1.RemediatedBy)
+			require.Equal(t, a.Vulnerabilities["cve-2"].RemediatedBy, cve2.RemediatedBy)
+			require.Equal(t, a.Vulnerabilities["cve-3"].RemediatedBy, cve3.RemediatedBy)
+			require.Equal(t, a.Vulnerabilities["cve-4"].RemediatedBy, cve4.RemediatedBy)
 		})
 
 		t.Run(".VendorFixes", func(t *testing.T) {
