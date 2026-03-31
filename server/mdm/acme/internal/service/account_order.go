@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -220,7 +221,10 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "constructing order URL for account")
 	}
-	s.store.FinalizeOrder(ctx, orderID, csr, cert.SerialNumber.Int64())
+	err = s.store.FinalizeOrder(ctx, orderID, csr, cert.SerialNumber.Int64())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "finalizing order")
+	}
 	finalizeURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "finalize")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "constructing finalize URL for account")
@@ -245,26 +249,18 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 func parsePEMCSR(pemCSR string) (*x509.CertificateRequest, error) {
 	block, _ := pem.Decode([]byte(pemCSR))
 	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block")
+		return nil, errors.New("no PEM blocks found")
 	}
 	if block.Type != "CERTIFICATE REQUEST" {
-		// TODO Bad CSR error
+		return nil, fmt.Errorf("unexpected PEM block type: %s", block.Type)
 	}
 
 	csr, err := x509.ParseCertificateRequest(block.Bytes)
 	if err != nil {
-		// TODO Bad CSR error
+		return nil, fmt.Errorf("error parsing certificate request: %w", err)
 	}
 
 	return csr, nil
-}
-
-func certificateToPEM(cert *x509.Certificate) string {
-	pemBlock := &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cert.Raw,
-	}
-	return string(pem.EncodeToMemory(pemBlock))
 }
 
 func (s *Service) GetOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint) (*types.OrderResponse, error) {
