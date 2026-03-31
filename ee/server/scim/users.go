@@ -1258,8 +1258,9 @@ func (u *UserHandler) patchName(ctx context.Context, v any, op scim.PatchOperati
 			}
 			user.FamilyName = &familyName
 		default:
-			u.logger.InfoContext(ctx, "unsupported patch value field", "field", nameAttr+"."+nameKey)
-			return scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			// Skip unrecognized name subattributes (e.g. formatted, middleName) rather than
+			// aborting — a single unknown subattribute must not discard the entire name update.
+			u.logger.WarnContext(ctx, "unsupported name subattribute", "field", nameAttr+"."+nameKey)
 		}
 	}
 	return nil
