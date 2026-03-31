@@ -459,7 +459,6 @@ const Vitals = ({
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
       const version = vitalsData.os_version;
-      // Parent class contains styling
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
         <>
           {version.slice(0, -8)}
