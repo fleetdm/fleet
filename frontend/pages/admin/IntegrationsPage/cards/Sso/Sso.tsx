@@ -48,8 +48,14 @@ interface ISsoFormErrors {
 const validate = (formData: ISsoFormData) => {
   const errors: ISsoFormErrors = {};
 
-  const { enableSso, idpImageUrl, metadata, metadataUrl, entityId, idpName } =
-    formData;
+  const {
+    enableSso,
+    idpImageUrl,
+    metadata,
+    metadataUrl,
+    entityId,
+    idpName,
+  } = formData;
 
   if (enableSso) {
     if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
