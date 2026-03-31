@@ -38,23 +38,8 @@ if [ -d "$REPO_DIR/.git" ]; then
     echo ""
     if [ "$OLD_SHA" = "$NEW_SHA" ]; then
         echo "No new commits (already at $NEW_SHA)"
-
-        > "../changed_files_today.txt"
-        > "../changed_files_yesterday.txt"
     else
         echo "Updating: $OLD_SHA -> $NEW_SHA"
-
-        # Use time-based approach to find files changed today and yesterday
-        TODAY_UTC=$(date -u +%Y-%m-%d)
-        YESTERDAY_UTC=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
-
-        # Get files changed today (since midnight UTC today)
-        git log --since="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
-            | sed '/^$/d' | sort -u > "../changed_files_today.txt"
-
-        # Get files changed yesterday (from midnight yesterday to midnight today UTC)
-        git log --since="${YESTERDAY_UTC}T00:00:00Z" --until="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
-            | sed '/^$/d' | sort -u > "../changed_files_yesterday.txt"
     fi
 
     NEW_COUNT=$(git log --oneline | wc -l | xargs)
