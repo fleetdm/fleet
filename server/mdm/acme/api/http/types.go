@@ -276,6 +276,7 @@ type GetCertificateRequest struct {
 type GetCertificateResponse struct {
 	// Certificate is the PEM-encoded certificate chain, will be rendered manually
 	// via HijackRender on success.
+	// TODO: implement the rendering, with content-type application/pem-certificate-chain
 	Certificate string                               `json:"-"`
 	Err         error                                `json:"error,omitempty"`
 	Nonces      *redis_nonces_store.RedisNoncesStore `json:"-"`
