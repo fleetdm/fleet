@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/jmoiron/sqlx"
 )
@@ -47,4 +48,15 @@ func (ds *Datastore) GetAuthorizationByID(ctx context.Context, accountID uint, a
 		},
 		Status: dbAuthz.Status,
 	}, nil
+}
+
+func (ds *Datastore) GetAuthorizationsByOrderID(ctx context.Context, orderID uint) ([]*types.Authorization, error) {
+	const stmt = `SELECT id, order_id, identifier_type, identifier_value, status FROM acme_authorizations WHERE order_id = ?`
+	var authorizations []*types.Authorization
+	err := ds.primary.SelectContext(ctx, &authorizations, stmt, orderID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get acme authorizations for order")
+	}
+
+	return authorizations, nil
 }

@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	"github.com/smallstep/scep"
 	"go.step.sm/crypto/jose"
 )
 
@@ -113,4 +116,135 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 		Finalize:       finalizeURL,
 		Location:       orderURL,
 	}, nil
+}
+
+func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollment, orderID uint, csr string) (*types.OrderResponse, error) {
+	order, err := s.store.GetOrder(ctx, enrollment.ID, orderID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting order from datastore")
+	}
+	if order.Status != types.OrderStatusReady || order.Finalized {
+		extra := ""
+		if order.Finalized {
+			extra = " and order has already been finalized"
+		}
+		return nil, types.OrderNotReadyError(fmt.Sprintf("Order is in status %s%s.", order.Status, extra))
+	}
+	authorizations, err := s.store.GetAuthorizationsByOrderID(ctx, orderID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting authorizations for order from datastore")
+	}
+
+	baseURL, err := s.getACMEBaseURL(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
+	}
+	authzURLs := make([]string, 0, len(authorizations))
+	for _, authz := range authorizations {
+		authzURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "authorizations", fmt.Sprint(authz.ID))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "constructing authorization URL for account")
+		}
+		authzURLs = append(authzURLs, authzURL)
+		if authz.Status != types.AuthorizationStatusValid {
+			return nil, types.OrderNotReadyError(fmt.Sprintf("Order has correct status but authorization %s has status %s.", authzURL, authz.Status))
+		}
+		challenges, err := s.store.GetChallengesByAuthorizationID(ctx, authz.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting challenges for authorization from datastore")
+		}
+		hasAValidChallenge := false
+		for _, chlg := range challenges {
+			if chlg.Status == types.ChallengeStatusValid {
+				hasAValidChallenge = true
+				break
+			}
+		}
+		if !hasAValidChallenge {
+			return nil, types.OrderNotReadyError(fmt.Sprintf("Order has correct status but no valid challenges for authorization %s.", authzURL))
+		}
+	}
+
+	parsedCSR, err := parsePEMCSR(csr)
+	if err != nil {
+		return nil, types.BadCSRError(fmt.Sprintf("Error parsing PEM CSR: %w", err))
+	}
+	if parsedCSR.Subject.CommonName != order.Identifiers[0].Value {
+		return nil, types.BadCSRError("CSR common name does not match identifier value")
+	}
+	// We only support ecdsa CSRs for now since that's what the Apple MDM protocol supports, so if it's not an ECDSA CSR we
+	// return a bad CSR error. We can always add support for more types later if needed. This mirrors the logic we use with
+	// the JWK
+	if parsedCSR.PublicKeyAlgorithm != x509.ECDSA {
+		return nil, types.BadCSRError("Public key is not an Elliptic Curve key as expected")
+	}
+	err = parsedCSR.CheckSignature()
+	if err != nil {
+		return nil, types.BadCSRError("CSR signature is invalid")
+	}
+	// Update the CSR common name and OU to match Fleet-issued SCEP certs
+	parsedCSR.Subject.CommonName = "Fleet Identity"
+	parsedCSR.Subject.OrganizationalUnit = []string{"fleet"}
+
+	signer, err := s.providers.CSRSigner(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting CSR signer")
+	}
+	fakeSCEPRequest := scep.CSRReqMessage{
+		CSR: parsedCSR,
+	}
+	cert, err := signer.SignCSRContext(ctx, &fakeSCEPRequest)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing CSR")
+	}
+
+	orderURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "constructing order URL for account")
+	}
+	s.store.FinalizeOrder(ctx, orderID, csr, cert.SerialNumber.Int64())
+	finalizeURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "finalize")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "constructing finalize URL for account")
+	}
+	certificateURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "certificate")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "constructing certificate URL for account")
+	}
+
+	return &types.OrderResponse{
+		ID:             order.ID,
+		Status:         types.OrderStatusValid,
+		Expires:        enrollment.NotValidAfter,
+		Identifiers:    order.Identifiers,
+		Authorizations: authzURLs,
+		Finalize:       finalizeURL,
+		Certificate:    certificateURL,
+		Location:       orderURL,
+	}, nil
+}
+
+func parsePEMCSR(pemCSR string) (*x509.CertificateRequest, error) {
+	block, _ := pem.Decode([]byte(pemCSR))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	if block.Type != "CERTIFICATE REQUEST" {
+		// TODO Bad CSR error
+	}
+
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		// TODO Bad CSR error
+	}
+
+	return csr, nil
+}
+
+func certificateToPEM(cert *x509.Certificate) string {
+	pemBlock := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	}
+	return string(pem.EncodeToMemory(pemBlock))
 }

@@ -48,6 +48,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 
 	ae.POST("/api/mdm/acme/{identifier}/authorizations/{authorization}", getAuthorizationEndpoint, api_http.GetAuthorizationRequest{})
 	ae.POST("/api/mdm/acme/{identifier}/challenges/{challenge}", getChallengeEndpoint, api_http.JWSRequestContainer{})
+	ae.POST("/api/mdm/acme/{identifier}/orders/{order_id}/finalize", finalizeOrderEndpoint, api_http.JWSRequestContainer{})
 }
 
 func skipStandardFleetAuth() endpoint.Middleware {
@@ -159,4 +160,20 @@ func getAuthorizationEndpoint(ctx context.Context, request any, svc api.Service)
 
 func getChallengeEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	panic("not implemented")
+}
+
+// finalizeOrderEndpoint handles POST /api/mdm/acme/{identifier}/orders/{order_id}/finalize requests.
+func finalizeOrderEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.JWSRequestContainer)
+	finalizeOrderRequest := &api_http.FinalizeOrderRequest{}
+	err := svc.AuthenticateMessageFromAccount(ctx, req, finalizeOrderRequest)
+	if err != nil {
+		return &api_http.FinalizeOrderResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+	order, err := svc.FinalizeOrder(ctx, finalizeOrderRequest.Enrollment, finalizeOrderRequest.OrderID, finalizeOrderRequest.CertificateSigningRequest)
+	if err != nil {
+		return &api_http.FinalizeOrderResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+
+	return &api_http.FinalizeOrderResponse{OrderResponse: order, Err: err, Nonces: svc.NoncesStore()}
 }

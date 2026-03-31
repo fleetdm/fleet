@@ -2,9 +2,11 @@ package tests
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/gorilla/mux"
+	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/require"
 	"go.step.sm/crypto/jose"
 )
@@ -44,7 +47,12 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 		ServerSettings: fleet.ServerSettings{
 			ServerURL: "https://example.com", // will update with actual test server URL after it is started
 		},
-	})
+	},
+		// not needed for current tests, can implement if needed for future tests
+		func(ctx context.Context, req *scep.CSRReqMessage) (*x509.Certificate, error) {
+			return &x509.Certificate{}, nil
+		},
+	)
 
 	// Create service
 	svc := service.NewService(ds, pool, providers, tdb.Logger)

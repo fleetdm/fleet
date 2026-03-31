@@ -15,6 +15,7 @@ import (
 // Certificate signed by the CA.
 type CSRSignerContext interface {
 	SignCSRContext(context.Context, *scep.CSRReqMessage) (*x509.Certificate, error)
+	Signx509CSRContext(context.Context, *x509.CertificateRequest) (*x509.Certificate, error)
 }
 
 // CSRSignerContextFunc is an adapter for CSR signing by the CA/RA.

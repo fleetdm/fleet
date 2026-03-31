@@ -7,6 +7,16 @@ import (
 	"go.step.sm/crypto/jose"
 )
 
+const (
+	OrderStatusPending = "pending"
+	OrderStatusReady   = "ready"
+	OrderStatusValid   = "valid"
+
+	AuthorizationStatusValid = "valid"
+
+	ChallengeStatusValid = "valid"
+)
+
 type Directory struct {
 	NewNonce   string `json:"newNonce"`
 	NewAccount string `json:"newAccount"`
@@ -82,6 +92,7 @@ type OrderResponse struct {
 	Identifiers    []Identifier `json:"identifiers"`
 	Authorizations []string     `json:"authorizations"`
 	Finalize       string       `json:"finalize"`
+	Certificate    string       `db:"-" json:"certificate,omitempty"`
 
 	// Location is set in the header, pointing to the created order's URL.
 	Location string `json:"-"`
@@ -161,6 +172,10 @@ type Datastore interface {
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)
 	CreateOrder(ctx context.Context, order *Order, authorization *Authorization, challenge *Challenge) (*Order, error)
+
 	GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*Authorization, error)
+	FinalizeOrder(ctx context.Context, orderID uint, csrPEM string, certSerial int64) error
+	GetOrder(ctx context.Context, enrollmentID uint, orderID uint) (*Order, error)
+	GetAuthorizationsByOrderID(ctx context.Context, orderID uint) ([]*Authorization, error)
 	GetChallengesByAuthorizationID(ctx context.Context, authorizationID uint) ([]*Challenge, error)
 }

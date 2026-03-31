@@ -13,4 +13,5 @@ type AccountService interface {
 	AuthenticateMessageFromAccount(ctx context.Context, message *api_http.JWSRequestContainer, request types.AccountAuthenticatedRequest) error
 	AuthenticateNewAccountMessage(ctx context.Context, message *api_http.JWSRequestContainer, request *api_http.CreateNewAccountRequest) error
 	CreateOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, partialOrder *types.Order) (*types.OrderResponse, error)
+	FinalizeOrder(ctx context.Context, enrollment *types.Enrollment, orderID uint, csr string) (*types.OrderResponse, error)
 }
