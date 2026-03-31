@@ -1391,11 +1391,11 @@ func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
 	require.Contains(t, errMsg, `"Duplicate Web App"`)
 	require.Contains(t, errMsg, "already exists in this fleet")
 
-	// add the first web app to a different team
+	// add the second web app (same name, rejected from team 1) to a different team
 	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
 	require.NoError(t, err)
 	var addResp2 addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
-		AppStoreID: webAppID1, Platform: fleet.AndroidPlatform, TeamID: &tm2.ID,
+		AppStoreID: webAppID2, Platform: fleet.AndroidPlatform, TeamID: &tm2.ID,
 	}, http.StatusOK, &addResp2)
 }

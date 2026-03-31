@@ -318,6 +318,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
 
+		seenWebAppNames := make(map[string]bool)
 		for _, a := range incomingAndroidApps {
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
@@ -328,15 +329,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 
 			if strings.HasPrefix(a.AdamID, fleet.AndroidWebAppPrefix) {
-				exists, err := svc.ds.CheckAndroidWebAppNameExistsOnTeam(ctx, teamID, androidApp.Title, a.AdamID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "checking for duplicate android web app name")
-				}
-				if exists {
+				lowerTitle := strings.ToLower(androidApp.Title)
+				if seenWebAppNames[lowerTitle] {
 					return nil, fleet.ConflictError{
 						Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", androidApp.Title),
 					}
 				}
+				seenWebAppNames[lowerTitle] = true
 			}
 
 			appStoreApps = append(appStoreApps, &fleet.VPPApp{

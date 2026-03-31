@@ -2744,11 +2744,8 @@ ORDER BY
 	return nil
 }
 
-func (ds *Datastore) CheckAndroidWebAppNameExistsOnTeam(ctx context.Context, teamID *uint, name, excludeAdamID string) (bool, error) {
-	globalOrTeamID := uint(0)
-	if teamID != nil {
-		globalOrTeamID = *teamID
-	}
+func (ds *Datastore) CheckAndroidWebAppNameExistsOnTeam(ctx context.Context, teamID *uint, name string, excludeAdamID string) (bool, error) {
+	globalOrTeamID := ptr.ValOrZero(teamID)
 	var exists bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
 SELECT EXISTS(

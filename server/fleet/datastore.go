@@ -763,7 +763,7 @@ type Datastore interface {
 	// CheckAndroidWebAppNameExistsOnTeam checks if a different Android web app
 	// with the given name already exists on the specified team (via vpp_apps_teams + vpp_apps).
 	// The excludeAdamID param excludes the app being added/updated from the check.
-	CheckAndroidWebAppNameExistsOnTeam(ctx context.Context, teamID *uint, name, excludeAdamID string) (bool, error)
+	CheckAndroidWebAppNameExistsOnTeam(ctx context.Context, teamID *uint, name string, excludeAdamID string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
