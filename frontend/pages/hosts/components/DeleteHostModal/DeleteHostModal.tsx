@@ -32,9 +32,8 @@ const DeleteHostModal = ({
 }: IDeleteHostModalProps): JSX.Element => {
   const hostText = () => {
     if (selectedHostIds) {
-      return `${selectedHostIds.length}${
-        isAllMatchingHostsSelected ? "+" : ""
-      } hosts`;
+      return `${selectedHostIds.length}${isAllMatchingHostsSelected ? "+" : ""
+        } hosts`;
     }
     return hostName;
   };
@@ -46,7 +45,7 @@ const DeleteHostModal = ({
     hostsCount >= 500;
 
   return (
-    <Modal title="Delete" onExit={onCancel} className={baseClass}>
+    <Modal title="Delete hosts" onExit={onCancel} className={baseClass}>
       <p>
         This will remove the record of <b>{hostText()}</b> and associated data
         such as unlock PINs and disk encryption keys.
