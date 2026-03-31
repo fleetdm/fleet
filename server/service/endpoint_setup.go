@@ -150,7 +150,7 @@ func ApplyStarterLibrary(
 	})
 	defer spec.SetEnvOverrides(nil)
 
-	logf := func(format string, a ...interface{}) {
+	logf := func(format string, a ...any) {
 		logger.DebugContext(ctx, fmt.Sprintf(format, a...))
 	}
 

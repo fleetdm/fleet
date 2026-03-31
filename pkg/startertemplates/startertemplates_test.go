@@ -64,14 +64,14 @@ func TestRenderToTempDir(t *testing.T) {
 
 	t.Run("creates fleet files", func(t *testing.T) {
 		_, err := os.Stat(filepath.Join(dir, "fleets", "workstations.yml"))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		_, err = os.Stat(filepath.Join(dir, "fleets", "personal-mobile-devices.yml"))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("creates label files", func(t *testing.T) {
 		_, err := os.Stat(filepath.Join(dir, "labels", "apple-silicon-macos-hosts.yml"))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("strips .template. from filenames", func(t *testing.T) {

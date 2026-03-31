@@ -32,16 +32,13 @@ func (s *starterLibraryIntegrationTestSuite) SetupSuite() {
 	s.WithDS.SetupSuite("starterLibraryIntegrationTestSuite")
 
 	appConf, err := s.DS.AppConfig(context.Background())
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	err = s.DS.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	fleetCfg := config.TestConfig()
 	fleetCfg.Osquery.EnrollCooldown = 0
 
-	require.NoError(s.T(), err)
 	redisPool := redistest.SetupRedis(s.T(), "starter_library", false, false, false)
 
 	serverConfig := service.TestServerOpts{
@@ -54,12 +51,12 @@ func (s *starterLibraryIntegrationTestSuite) SetupSuite() {
 	s.Users = users
 
 	appConf, err = s.DS.AppConfig(context.Background())
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	appConf.ServerSettings.ServerURL = server.URL
 	appConf.OrgInfo.OrgName = "Test Org"
 	appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{}
 	err = s.DS.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 }
 
 // TestApplyStarterLibraryFree verifies that ApplyStarterLibrary applies only

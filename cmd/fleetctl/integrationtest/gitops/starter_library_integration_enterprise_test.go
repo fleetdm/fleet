@@ -32,17 +32,14 @@ func (s *starterLibraryIntegrationEnterpriseTestSuite) SetupSuite() {
 	s.WithDS.SetupSuite("starterLibraryIntegrationEnterpriseTestSuite")
 
 	appConf, err := s.DS.AppConfig(context.Background())
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	err = s.DS.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	fleetCfg := config.TestConfig()
 	fleetCfg.Osquery.EnrollCooldown = 0
 
-	require.NoError(s.T(), err)
-	redisPool := redistest.SetupRedis(s.T(), "starter_library", false, false, false)
+	redisPool := redistest.SetupRedis(s.T(), "starter_library_enterprise", false, false, false)
 
 	serverConfig := service.TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -57,12 +54,12 @@ func (s *starterLibraryIntegrationEnterpriseTestSuite) SetupSuite() {
 	s.Users = users
 
 	appConf, err = s.DS.AppConfig(context.Background())
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	appConf.ServerSettings.ServerURL = server.URL
 	appConf.OrgInfo.OrgName = "Test Org"
 	appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{}
 	err = s.DS.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 }
 
 // TestApplyStarterLibraryPremium verifies that ApplyStarterLibrary applies the

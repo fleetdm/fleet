@@ -18,7 +18,7 @@ func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 	if strings.Contains(req.URL.String(), rt.origBaseURL) {
 		path := strings.TrimPrefix(req.URL.Path, "/")
 		newURL := fmt.Sprintf("%s/%s", rt.mockServer, path)
-		newReq, err := http.NewRequestWithContext(req.Context(), req.Method, newURL, req.Body)
+		newReq, err := http.NewRequestWithContext(req.Context(), req.Method, newURL, req.Body) //nolint:gosec // test helper, URL is from mock server
 		if err != nil {
 			return nil, err
 		}
