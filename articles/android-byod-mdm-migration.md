@@ -35,7 +35,7 @@ Send the enrollment link to end users to open in a web browser. An easy alternat
    - If **Skip** is selected at this screen, you will later be required to sign in to this Google account to access apps like Google Calendar.
 6. When enrollment is complete, the Work Profile screens will go away and you will be brought back to the web browser with the Fleet enrollment page. You can close this tab.
 
-Open the App Drawer (swipe up at the home screen, or select the Apps icon), and a separate tab at the bottom will appear for Work Profile apps. These apps have a briefcase icon in the bottom right corner of their icon.
+Open the App Drawer (swipe up at the home screen, or select the Apps icon), and a separate tab will appear for Work Profile apps. These apps have a briefcase icon in the bottom right corner of their icon.
 
 When signing in with a work Google account, if the device doesn't meet the requirements set up by the admin in Google Admin, you will be prompted to resolve these.
 
