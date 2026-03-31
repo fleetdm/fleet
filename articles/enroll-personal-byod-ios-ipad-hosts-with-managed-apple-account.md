@@ -52,9 +52,9 @@ Share these instructions with end users to enroll their personal iPhone or iPad:
 3. Tap **Sign In to Work or School Account**.
 4. Sign in with your IdP credentials (e.g., Okta, Microsoft Entra ID, or Google Workspace).
 
-After signing in, the device automatically enrolls in Fleet.
+After signing in, your device will enroll to Fleet. 
 
-> **Note:** Apple requires double sign-in: once to authenticate the end user to Fleet and once with their Managed Apple Account. The Managed Apple Account can be connected to IdP, so the second login can be an IdP login as well.
+Apple requires that you sign-in twice: once to Fleet, using your IdP credentials, and once to your Managed Apple Account using your Apple Account credentials. Some organizations connect their IdP to Apple. In this case, the credentials for both logins are the same. If you're not sure, ask your IT admin.
 
 ## Migration from other MDM
 
