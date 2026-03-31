@@ -120,6 +120,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
 		{"ListHostSoftwareShPackageForDarwin", testListHostSoftwareShPackageForDarwin},
 		{"HostSWPaginationWithMultipleFMAVersions", testHostSWPaginationWithMultipleFMAVersions},
+		{"SoftwareLiteByID", testSoftwareLiteByID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -8094,7 +8095,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
 
 	t.Run("include_all", func(t *testing.T) {
-
 		hostIncludeAll := test.NewHost(t, ds, "host_include_all", "", "host1key_include_all", "host1uuid_include_all", time.Now(), test.WithPlatform("darwin"))
 		nanoEnroll(t, ds, hostIncludeAll, false)
 
@@ -8150,7 +8150,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		// installer1 is now in scope; installer4 still absent (no labels on host match it)
 		checkSoftware(software, installer4.Filename)
 	})
-
 }
 
 func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
@@ -11985,5 +11984,30 @@ func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 2)                    // Even though there are multiple installer versions for this FMA, the title only appears once.
 	require.Equal(t, sw[0].Name, "file1")    // FMA
 	require.Equal(t, sw[1].Name, "pagsw-00") // "other" software
+}
 
+func testSoftwareLiteByID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "svnfhf-host", "", "svnfhf-key", "svnfhf-uuid", time.Now())
+
+	sw := []fleet.Software{
+		{Name: "GoLand.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 1)
+
+	swID := host.Software[0].ID
+
+	swLite, err := ds.SoftwareLiteByID(ctx, swID)
+	require.NoError(t, err)
+	assert.Equal(t, "GoLand.app", swLite.Name)
+	assert.Equal(t, "2024.3", swLite.Version)
+
+	// non-existent sw
+	_, err = ds.SoftwareLiteByID(ctx, 999999)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
