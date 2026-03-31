@@ -122,4 +122,4 @@ You can maintain Jamf or Iru (Kandji) for core device management while adding mu
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-03-24">
-<meta name="description" value="Compare Fleet, Jamf, and Iru (formerly Kandji) across platform support, pricing, GitOps, security, and API capabilities to find the right MDM for your team.">
+<meta name="description" value="Compare Fleet, Jamf, and Iru (fka Kandji) for platform support, pricing, GitOps, security, and API capabilities to find the right MDM for your team.">
