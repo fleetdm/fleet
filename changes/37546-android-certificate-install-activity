@@ -1,0 +1,1 @@
+- Added automatic retry (up to 3 times) when the Android agent reports a certificate install failure.

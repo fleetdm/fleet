@@ -403,7 +403,7 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 }
 
 func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		UPDATE
 			host_certificate_templates hct
 		INNER JOIN
@@ -415,11 +415,12 @@ func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID u
 			hct.not_valid_after = NULL,
 			hct.serial = NULL,
 			hct.detail = NULL,
+			hct.retry_count = %d,
 			hct.status = ?
 		WHERE
 			h.id = ? AND
 			hct.certificate_template_id = ?
-		`
+		`, fleet.MaxCertificateInstallRetries)
 
 	const deleteChallenge = `
 		DELETE c FROM
