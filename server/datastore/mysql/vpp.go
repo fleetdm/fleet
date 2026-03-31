@@ -2744,13 +2744,21 @@ ORDER BY
 	return nil
 }
 
-func (ds *Datastore) CheckAndroidWebAppNameExists(ctx context.Context, name string) (bool, error) {
+func (ds *Datastore) CheckAndroidWebAppNameExistsOnTeam(ctx context.Context, teamID *uint, name string, excludeAdamID string) (bool, error) {
+	globalOrTeamID := ptr.ValOrZero(teamID)
 	var exists bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists,
-		`SELECT EXISTS(SELECT 1 FROM vpp_apps WHERE name = ? AND adam_id LIKE ? AND platform = 'android')`,
-		name, fleet.AndroidWebAppPrefix+"%")
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
+SELECT EXISTS(
+    SELECT 1 FROM vpp_apps va
+    JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+    WHERE va.name = ?
+      AND va.adam_id LIKE ?
+      AND va.adam_id != ?
+      AND va.platform = 'android'
+      AND vat.global_or_team_id = ?
+)`, name, fleet.AndroidWebAppPrefix+"%", excludeAdamID, globalOrTeamID)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking android web app name exists")
+		return false, ctxerr.Wrap(ctx, err, "checking android web app name exists on team")
 	}
 	return exists, nil
 }
