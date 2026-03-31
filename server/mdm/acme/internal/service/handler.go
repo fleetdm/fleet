@@ -215,7 +215,7 @@ func finalizeOrderEndpoint(ctx context.Context, request any, svc api.Service) pl
 	if err != nil {
 		return &api_http.FinalizeOrderResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
-	order, err := svc.FinalizeOrder(ctx, finalizeOrderRequest.Enrollment, finalizeOrderRequest.OrderID, finalizeOrderRequest.CertificateSigningRequest)
+	order, err := svc.FinalizeOrder(ctx, finalizeOrderRequest.Enrollment, finalizeOrderRequest.Account, finalizeOrderRequest.OrderID, finalizeOrderRequest.CertificateSigningRequest)
 	if err != nil {
 		return &api_http.FinalizeOrderResponse{Err: err, Nonces: svc.NoncesStore()}
 	}

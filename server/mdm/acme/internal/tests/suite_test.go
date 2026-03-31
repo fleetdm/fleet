@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"math/big"
 	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -56,8 +56,14 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 		},
 	},
 		acme.CSRSignerFunc(func(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+			res, err := tdb.DB.DB.Exec(`INSERT INTO identity_serials () VALUES ()`) // insert a row to get an auto-incremented ID for the cert serial number
+			require.NoError(t, err)
+			serialID, err := res.LastInsertId()
+			require.NoError(t, err)
+			_, err = tdb.DB.DB.Exec(`INSERT INTO identity_certificates (serial, not_valid_before, not_valid_after, certificate_pem) VALUES (?, NOW(), NOW(), ?)`, serialID, []byte(fmt.Sprintf("-----BEGIN CERTIFICATE-----\nmock-cert%d\n-----END CERTIFICATE-----", serialID)))
+			require.NoError(t, err)
 			return &x509.Certificate{
-				SerialNumber: big.NewInt(1),
+				SerialNumber: big.NewInt(serialID),
 				Raw:          []byte("mock-cert"),
 			}, nil
 		}),

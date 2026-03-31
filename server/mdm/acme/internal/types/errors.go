@@ -207,7 +207,7 @@ func OrderNotReadyError(detail string) *ACMEError {
 		Type:       acmeErrorsURN + "orderNotReady",
 		Title:      "The request attempted to finalize an order that is not ready to be finalized",
 		Detail:     detail,
-		StatusCode: http.StatusBadRequest, // as per RFC https://datatracker.ietf.org/doc/html/rfc8555/#section-7.3.1
+		StatusCode: http.StatusForbidden, // as per RFC https://datatracker.ietf.org/doc/html/rfc8555/#section-6.7
 	}
 }
 

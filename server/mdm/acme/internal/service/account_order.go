@@ -140,8 +140,8 @@ func (s *Service) createOrderResponse(
 	}, nil
 }
 
-func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollment, orderID uint, csr string) (*types.OrderResponse, error) {
-	order, err := s.store.GetOrder(ctx, enrollment.ID, orderID)
+func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint, csr string) (*types.OrderResponse, error) {
+	order, authorizations, err := s.store.GetOrderByID(ctx, account.ID, orderID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting order from datastore")
 	}
@@ -151,10 +151,6 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 			extra = " and order has already been finalized"
 		}
 		return nil, types.OrderNotReadyError(fmt.Sprintf("Order is in status %s%s.", order.Status, extra))
-	}
-	authorizations, err := s.store.GetAuthorizationsByOrderID(ctx, orderID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting authorizations for order from datastore")
 	}
 
 	baseURL, err := s.getACMEBaseURL(ctx)
