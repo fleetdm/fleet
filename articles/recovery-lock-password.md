@@ -108,7 +108,7 @@ Then either:
 
 or:
 
-2. Click on the **OS settings* indicator in the host summary card.
+2. Click on the **OS settings** indicator in the host summary card.
 3. Hover over the Recovery Lock password row
 4. Click "Rotate"
 
