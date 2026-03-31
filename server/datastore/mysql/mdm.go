@@ -1789,9 +1789,6 @@ WHERE
 
 	var dest []fleet.DeviceInfoForACMERenewal
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
 		return nil, ctxerr.Wrap(ctx, err, "get host details for ACME hardware attestation")
 	}
 	return dest, nil
