@@ -27,26 +27,74 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  enable_disk_encryption: true
+  macos_settings:
+    custom_settings:
+      - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
+      - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-guest-account.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-guest-shares.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
+      - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
+      - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
+      - path: ../lib/macos/configuration-profiles/misc.mobileconfig
+      - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
+      - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
+      - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
+      - path: ../lib/macos/declaration-profiles/Passcode settings.json
+      - path: ../lib/macos/declaration-profiles/Software Update settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: 
+    macos_setup_assistant:
   macos_updates:
     deadline:
     minimum_version:
-  enable_disk_encryption: true
+  windows_settings:
+    custom_settings:
+      - path: ../lib/windows/configuration-profiles/Enable firewall.xml
+      - path: ../lib/windows/configuration-profiles/Password settings.xml
+      - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
+      - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
+      - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+  windows_updates:
+    deadline_days: 7
+    grace_period_days: 2
   scripts:
     # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     # Windows scripts
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - path: ../lib/windows/scripts/turn-off-mdm.ps1
+    - path: ../lib/windows/scripts/enable-ms-defender.ps1
     # Linux scripts
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   # macOS policies
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  - path: ../lib/macos/policies/latest-macos.yml
+  - path: ../lib/macos/policies/all-software-updates-installed.yml
+  - path: ../lib/macos/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/disk-space-check.yml
+  # Windows policies
+  - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
+  - path: ../lib/windows/policies/all-windows-updates-installed.yml
+  - path: ../lib/windows/policies/disk-encryption-check.yml
+  - path: ../lib/windows/policies/disk-space-check.yml
+  - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
+  - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
 software:
