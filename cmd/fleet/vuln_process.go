@@ -196,6 +196,14 @@ func getVulnFuncs(ds fleet.Datastore, logger *slog.Logger, config *config.Vulner
 			},
 		},
 		{
+			Name: "update_os_versions",
+			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.update_os_versions")
+				defer span.End()
+				return ds.UpdateOSVersions(ctx)
+			},
+		},
+		{
 			Name: "insert_kernel_software_mapping",
 			VulnFunc: func(ctx context.Context) error {
 				ctx, span := tracer.Start(ctx, "vuln.kernel_software_mapping")
