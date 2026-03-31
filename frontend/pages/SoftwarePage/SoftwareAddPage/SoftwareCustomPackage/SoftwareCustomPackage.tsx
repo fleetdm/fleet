@@ -11,6 +11,7 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 
 import FileProgressModal from "components/FileProgressModal";
@@ -41,9 +42,9 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier, config } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
   const queryClient = useQueryClient();
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
@@ -177,7 +178,7 @@ const SoftwareCustomPackage = ({
     return (
       <>
         {gitOpsModeEnabled && (
-          <InfoBanner color="grey" borderRadius="medium">
+          <InfoBanner borderRadius="medium">
             Add custom packages in GitOps mode so Fleet can host your software.
             After adding, copy its SHA-256 hash into your YAML so the next
             GitOps workflow doesn&apos;t delete it.

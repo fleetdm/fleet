@@ -4,7 +4,7 @@
       "version": "9.6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre' AND version_compare(bundle_short_version, '9.6.0') < 0);"
       },
       "installer_url": "https://download.calibre-ebook.com/9.6.0/calibre-9.6.0.dmg",
       "install_script_ref": "41fb296a",

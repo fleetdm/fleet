@@ -16,35 +16,34 @@
     margin: $pad-xxxlarge 0;
   }
 
-  .info {
+  &__content {
     display: flex;
     flex-direction: column;
     gap: $pad-large;
     max-width: 333px;
     padding: $pad-small;
+  }
+  &__header {
+    display: block;
+    gap: $pad-large;
+    color: $core-fleet-black;
+    font-weight: $bold;
+    font-size: $x-small;
+    text-align: center;
 
-    &__header {
-      display: block;
-      gap: $pad-large;
-      color: $core-fleet-black;
-      font-weight: $bold;
-      font-size: $x-small;
-      text-align: center;
-
-      .icon {
-        vertical-align: sub;
-        margin-right: $pad-small;
-        position: relative;
-        bottom: 1px;
-      }
+    .icon {
+      vertical-align: sub;
+      margin-right: $pad-small;
+      position: relative;
+      bottom: 1px;
     }
-    &__data {
-      display: block;
-      color: $core-fleet-black;
-      font-weight: normal;
-      font-size: $x-small;
-      text-align: center;
-      line-height: 21px; // Matches design
-    }
+  }
+  &__description {
+    display: block;
+    color: $core-fleet-black;
+    font-weight: normal;
+    font-size: $x-small;
+    text-align: center;
+    line-height: 21px; // Matches design
   }
 }

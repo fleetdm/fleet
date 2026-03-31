@@ -212,10 +212,9 @@
   }
 
   .Select-menu-outer {
-    position: relative;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
     z-index: 6;
-    overflow: auto;
+    overflow: hidden;
     max-height: 198px; // Fits 4 options without scrolling
     border: 0;
     margin: 1px 0 0;

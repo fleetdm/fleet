@@ -327,6 +327,14 @@ export const generateCustomDropdownStyles = (
         ...(variant === "button" && buttonVariantPlaceholder),
       };
     },
+    input: (provided) => {
+      return {
+        ...provided,
+        fontSize: "13px",
+        margin: 0,
+        padding: 0,
+      };
+    },
     singleValue: (provided) => ({
       ...provided,
       fontSize: "13px",

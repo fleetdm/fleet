@@ -695,7 +695,41 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 
 	// Fill in HostUUID from context
 	update.HostUUID = host.UUID
-	return svc.ds.UpsertCertificateStatus(ctx, update)
+	if err := svc.ds.UpsertCertificateStatus(ctx, update); err != nil {
+		return err
+	}
+
+	// Log activity for terminal install statuses only (not removals).
+	if update.OperationType == fleet.MDMOperationTypeInstall {
+		var actStatus fleet.CertificateActivityStatus
+		switch update.Status {
+		case fleet.MDMDeliveryVerified:
+			actStatus = fleet.CertificateActivityInstalled
+		case fleet.MDMDeliveryFailed:
+			actStatus = fleet.CertificateActivityFailedInstall
+		}
+		if actStatus != "" {
+			detail := ""
+			if update.Detail != nil {
+				detail = *update.Detail
+			}
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledCertificate{
+				HostID:                host.ID,
+				HostDisplayName:       host.DisplayName(),
+				CertificateTemplateID: update.CertificateTemplateID,
+				CertificateName:       record.Name,
+				Status:                string(actStatus),
+				Detail:                detail,
+			}); err != nil {
+				// Log and continue since we don't want the client to retry.
+				svc.logger.ErrorContext(ctx, "failed to create certificate install activity", "host.id", host.ID, "activity.status", actStatus,
+					"err", err)
+				ctxerr.Handle(ctx, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

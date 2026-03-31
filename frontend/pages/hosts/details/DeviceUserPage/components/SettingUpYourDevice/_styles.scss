@@ -2,10 +2,6 @@
   &__header {
     display: flex;
     justify-content: space-between;
-
-    .info-button {
-      padding-top: 0;
-    }
   }
   &__title {
     font-weight: $bold;

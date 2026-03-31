@@ -4,7 +4,7 @@
       "version": "3.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox' AND version_compare(bundle_short_version, '3.4.1') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.4.1.78303-arm64.dmg",
       "install_script_ref": "787d9a02",

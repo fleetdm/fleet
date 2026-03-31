@@ -94,6 +94,9 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import CertificateInstallDetailsModal, {
+  ICertificateInstallDetails,
+} from "components/ActivityDetails/InstallDetails/CertificateInstallDetailsModal";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
@@ -268,6 +271,10 @@ const HostDetailsPage = ({
     activityVPPInstallDetails,
     setActivityVPPInstallDetails,
   ] = useState<IVppInstallDetails | null>(null);
+  const [
+    certificateInstallDetails,
+    setCertificateInstallDetails,
+  ] = useState<ICertificateInstallDetails | null>(null);
   const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
     null
   );
@@ -842,6 +849,15 @@ const HostDetailsPage = ({
             platform: details?.host_platform || host?.platform,
           });
           break;
+        case "installed_certificate":
+          setCertificateInstallDetails({
+            certificateName: details?.certificate_name || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+            status: details?.status || "",
+            detail: details?.detail || "",
+          });
+          break;
         default: // do nothing
       }
     },
@@ -1129,9 +1145,9 @@ const HostDetailsPage = ({
   );
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup?.bootstrap_package_status,
-    details: host?.mdm.macos_setup?.details,
-    name: host?.mdm.macos_setup?.bootstrap_package_name,
+    status: host?.mdm.setup_experience?.bootstrap_package_status,
+    details: host?.mdm.setup_experience?.details,
+    name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
   const isMacOSHost = isMacOS(host.platform);
@@ -1151,7 +1167,6 @@ const HostDetailsPage = ({
 
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsTab = mdm?.enrollment_status !== "Pending";
-  const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
@@ -1284,7 +1299,7 @@ const HostDetailsPage = ({
               mdmEnrollmentStatus={host?.mdm.enrollment_status}
               hostPlatform={host?.platform}
               macDiskEncryptionStatus={
-                host?.mdm.macos_settings?.disk_encryption
+                host?.mdm.apple_settings?.disk_encryption
               }
               connectedToFleetMdm={host?.mdm.connected_to_fleet}
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
@@ -1354,64 +1369,62 @@ const HostDetailsPage = ({
                   toggleLocationModal={toggleLocationModal}
                   toggleMDMStatusModal={toggleMDMStatusModal}
                 />
-                {showActivityCard && (
-                  <ActivityCard
-                    className={
-                      showAgentOptionsCard
-                        ? tripleHeightCardClass
-                        : defaultCardClass
-                    }
-                    activeTab={activeActivityTab}
-                    activities={
-                      activeActivityTab === "past"
-                        ? pastActivities
-                        : upcomingActivities
-                    }
-                    commands={
-                      activeActivityTab === "past"
-                        ? pastMDMCommands
-                        : upcomingMDMCommands
-                    }
-                    isLoading={
-                      activeActivityTab === "past"
-                        ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
-                        : upcomingActivitiesIsFetching ||
-                          upcomingMDMCommandsIsFetching
-                    }
-                    isError={
-                      activeActivityTab === "past"
-                        ? pastActivitiesIsError || pastMDMCommandsIsError
-                        : upcomingActivitiesIsError ||
-                          upcomingMDMCommandsIsError
-                    }
-                    canCancelActivities={
-                      isGlobalAdmin ||
-                      isGlobalMaintainer ||
-                      isHostTeamAdmin ||
-                      isHostTeamMaintainer
-                    }
-                    showMDMCommandsToggle={canGetMDMCommands}
-                    showMDMCommands={showMDMCommands}
-                    onShowMDMCommands={() => {
-                      setActivityPage(0);
-                      setShowMDMCommands(true);
-                    }}
-                    onHideMDMCommands={() => {
-                      setActivityPage(0);
-                      setShowMDMCommands(false);
-                    }}
-                    upcomingCount={
-                      (upcomingActivities?.count || 0) +
-                      (upcomingMDMCommands?.count || 0)
-                    }
-                    onChangeTab={onChangeActivityTab}
-                    onNextPage={() => setActivityPage(activityPage + 1)}
-                    onPreviousPage={() => setActivityPage(activityPage - 1)}
-                    onShowDetails={onShowActivityDetails}
-                    onShowCommandDetails={setMdmCommandDetails}
-                    onCancel={onCancelActivity}
-                  />
-                )}
+                <ActivityCard
+                  className={
+                    showAgentOptionsCard
+                      ? tripleHeightCardClass
+                      : defaultCardClass
+                  }
+                  activeTab={activeActivityTab}
+                  activities={
+                    activeActivityTab === "past"
+                      ? pastActivities
+                      : upcomingActivities
+                  }
+                  commands={
+                    activeActivityTab === "past"
+                      ? pastMDMCommands
+                      : upcomingMDMCommands
+                  }
+                  isLoading={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
+                      : upcomingActivitiesIsFetching ||
+                        upcomingMDMCommandsIsFetching
+                  }
+                  isError={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsError || pastMDMCommandsIsError
+                      : upcomingActivitiesIsError || upcomingMDMCommandsIsError
+                  }
+                  canCancelActivities={
+                    isGlobalAdmin ||
+                    isGlobalMaintainer ||
+                    isHostTeamAdmin ||
+                    isHostTeamMaintainer
+                  }
+                  isUpcomingDisabled={isAndroidHost}
+                  showMDMCommandsToggle={canGetMDMCommands}
+                  showMDMCommands={showMDMCommands}
+                  onShowMDMCommands={() => {
+                    setActivityPage(0);
+                    setShowMDMCommands(true);
+                  }}
+                  onHideMDMCommands={() => {
+                    setActivityPage(0);
+                    setShowMDMCommands(false);
+                  }}
+                  upcomingCount={
+                    (upcomingActivities?.count || 0) +
+                    (upcomingMDMCommands?.count || 0)
+                  }
+                  onChangeTab={onChangeActivityTab}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onShowDetails={onShowActivityDetails}
+                  onShowCommandDetails={setMdmCommandDetails}
+                  onCancel={onCancelActivity}
+                />
                 <UserCard
                   className={defaultCardClass}
                   endUsers={host.end_users ?? []}
@@ -1430,11 +1443,7 @@ const HostDetailsPage = ({
                   }}
                 />
                 <LabelsCard
-                  className={
-                    !showActivityCard && !showAgentOptionsCard
-                      ? fullWidthCardClass
-                      : defaultCardClass
-                  }
+                  className={defaultCardClass}
                   labels={host?.labels || []}
                   onLabelClick={onLabelClick}
                 />
@@ -1649,6 +1658,12 @@ const HostDetailsPage = ({
             <VppInstallDetailsModal
               details={activityVPPInstallDetails}
               onCancel={onCancelVppInstallDetailsModal}
+            />
+          )}
+          {!!certificateInstallDetails && (
+            <CertificateInstallDetailsModal
+              details={certificateInstallDetails}
+              onCancel={() => setCertificateInstallDetails(null)}
             />
           )}
           {!!mdmCommandDetails && (
