@@ -67,10 +67,11 @@ export const getErrorMessage = (err: unknown) => {
     );
   }
 
+  if (reason.startsWith("Couldn't add.")) {
+    return `${ensurePeriod(reason)}`;
+  }
+
   if (reason) {
-    if (reason.startsWith("Couldn't add.")) {
-      return `${ensurePeriod(reason)}`;
-    }
     return `${ADD_SOFTWARE_ERROR_PREFIX} ${ensurePeriod(reason)}`;
   }
 
