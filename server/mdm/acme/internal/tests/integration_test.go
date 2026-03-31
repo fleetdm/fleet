@@ -27,6 +27,7 @@ func TestIntegration(t *testing.T) {
 		{"GetDirectory", testGetDirectory},
 		{"CreateAccount", testCreateAccount},
 		{"CreateOrder", testCreateOrder},
+		{"GetAuthorization", testGetAuthorization},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -797,5 +798,74 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 		require.Contains(t, acmeErr.Type, "badNonce")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Empty(t, resp.Header.Get("Location"))
+	})
+}
+
+func testGetAuthorization(t *testing.T, s *integrationTestSuite) {
+	enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enroll)
+	payload := map[string]any{
+		"identifiers": []map[string]string{
+			{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+		},
+	}
+	privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+	jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+	orderResp, acmeErr, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+	require.Nil(t, acmeErr)
+	require.NotNil(t, orderResp)
+	require.Len(t, orderResp.Authorizations, 1) // We only expect one authorization for any given order
+	nextNonce := resp.Header.Get("Replay-Nonce")
+
+	t.Run("successful authorization retrieval", func(t *testing.T) {
+		authURL := orderResp.Authorizations[0]
+		jws := buildJWS(t, privateKey, nextNonce, accountURL, authURL, nil)
+		authResp, acmeErr, _ := s.getAuthorization(t, authURL, jws)
+		require.Nil(t, acmeErr)
+		require.NotNil(t, authResp)
+		require.Equal(t, "pending", authResp.Status)
+		require.Equal(t, "permanent-identifier", authResp.Identifier.Type)
+		require.Equal(t, enroll.HostIdentifier, authResp.Identifier.Value)
+		require.Len(t, authResp.Challenges, 1)
+		require.Regexp(t, "/api/mdm/acme/"+enroll.PathIdentifier+`/challenges/\d+`, authResp.Challenges[0].URL)
+		require.Equal(t, types.DeviceAttestationChallengeType, authResp.Challenges[0].ChallengeType)
+	})
+
+	t.Run("valid auth but for a different enrollment", func(t *testing.T) {
+		// create a second enrollment and order to get a different auth URL
+		enroll2 := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll2)
+		privateKey2, accountURL2, nonce2 := s.createAccountForOrder(t, enroll2)
+		payload2 := map[string]any{
+			"identifiers": []map[string]string{
+				{"type": "permanent-identifier", "value": enroll2.HostIdentifier},
+			},
+		}
+		jwsBody2 := buildJWS(t, privateKey2, nonce2, accountURL2, s.newOrderURL(enroll2.PathIdentifier), payload2)
+		orderResp2, acmeErr2, resp2 := s.createOrder(t, enroll2.PathIdentifier, jwsBody2)
+		require.Nil(t, acmeErr2)
+		require.NotNil(t, orderResp2)
+		require.Len(t, orderResp2.Authorizations, 1)
+		authURL2 := orderResp2.Authorizations[0]
+		nextNonce2 := resp2.Header.Get("Replay-Nonce")
+
+		// try to use the auth URL from enroll2's order with enroll1's account/key
+		jws := buildJWS(t, privateKey, nextNonce2, accountURL, authURL2, nil)
+		authResp, acmeErr, resp := s.getAuthorization(t, authURL2, jws)
+		nextNonce = resp.Header.Get("Replay-Nonce")
+
+		require.Nil(t, authResp)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "unauthorized")
+	})
+
+	t.Run("non existing auth", func(t *testing.T) {
+		authURL := s.server.URL + "/api/mdm/acme/" + enroll.PathIdentifier + "/authorizations/99999"
+		jws := buildJWS(t, privateKey, nextNonce, accountURL, authURL, nil)
+		authResp, acmeErr, _ := s.getAuthorization(t, authURL, jws)
+
+		require.Nil(t, authResp)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist")
 	})
 }

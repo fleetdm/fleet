@@ -255,3 +255,26 @@ func (s *integrationTestSuite) createOrder(t *testing.T, pathIdentifier string, 
 	require.NoError(t, err)
 	return &result, nil, resp
 }
+
+func (s *integrationTestSuite) getAuthorization(t *testing.T, authUrl string, jwsBody []byte) (*types.AuthorizationResponse, *types.ACMEError, *http.Response) {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPost, authUrl, bytes.NewReader(jwsBody))
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer drainAndCloseBody(resp)
+
+	if resp.StatusCode >= 300 {
+		var acmeErr types.ACMEError
+		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
+			return nil, &acmeErr, resp
+		}
+		return nil, nil, resp
+	}
+
+	var result types.AuthorizationResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	require.NoError(t, err)
+	return &result, nil, resp
+}

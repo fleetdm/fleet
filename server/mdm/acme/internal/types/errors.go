@@ -171,6 +171,25 @@ func MalformedError(detail string) *ACMEError {
 	}
 }
 
+// Custom Fleet error code, as RFC does not document what to return.
+func AuthorizationDoesNotExistError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "authorizationDoesNotExist",
+		Title:      "The specified authorization does not exist for the account",
+		Detail:     detail,
+		StatusCode: http.StatusNotFound,
+	}
+}
+
+func ChallengeDoesNotExistError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "challengeDoesNotExist",
+		Title:      "The specified challenge does not exist for the authorization",
+		Detail:     detail,
+		StatusCode: http.StatusNotFound,
+	}
+}
+
 func (e *ACMEError) Error() string {
 	s := e.Type
 	if e.Title != "" {
