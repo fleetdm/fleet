@@ -51,7 +51,7 @@ func testGetAuthorizationWithInvalidID(t *testing.T, env *testEnv) {
 	authResp, err := env.ds.GetAuthorizationByID(t.Context(), account.ID, 9999) // non-existent ID
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "unauthorized")
+	require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist")
 	require.Nil(t, authResp)
 }
 
@@ -62,7 +62,7 @@ func testGetAuthorizationWithInvalidAccountID(t *testing.T, env *testEnv) {
 	authResp, err := env.ds.GetAuthorizationByID(t.Context(), 9999, authorization.ID) // non-existent account ID
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
-	require.Contains(t, acmeErr.Type, "unauthorized")
+	require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist")
 	require.Nil(t, authResp)
 }
 

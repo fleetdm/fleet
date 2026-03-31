@@ -46,7 +46,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 	ae.POST("/api/mdm/acme/{identifier}/new_account", createAccountEndpoint, api_http.JWSRequestContainer{})
 	ae.POST("/api/mdm/acme/{identifier}/new_order", createOrderEndpoint, api_http.JWSRequestContainer{})
 
-	ae.POST("/api/mdm/acme/{identifier}/authorizations/{authorization}", getAuthorizationEndpoint, api_http.JWSRequestContainer{})
+	ae.POST("/api/mdm/acme/{identifier}/authorizations/{authorization}", getAuthorizationEndpoint, api_http.GetAuthorizationRequest{})
 	ae.POST("/api/mdm/acme/{identifier}/challenges/{challenge}", getChallengeEndpoint, api_http.JWSRequestContainer{})
 }
 
@@ -129,7 +129,7 @@ func createOrderEndpoint(ctx context.Context, request any, svc api.Service) plat
 
 // getAuthorizationEndpoint handles POST /api/mdm/acme/{identifier}/authz/{authorization} requests.
 func getAuthorizationEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
-	req := request.(*api_http.JWSRequestContainer)
+	req := request.(*api_http.GetAuthorizationRequest)
 
 	// TODO: Uncomment once test changes with "" has been made
 	/* payload := req.JWS.UnsafePayloadWithoutVerification()
@@ -140,8 +140,8 @@ func getAuthorizationEndpoint(ctx context.Context, request any, svc api.Service)
 			Nonces: svc.NoncesStore(),
 		}
 	} */
-	authzReq := &api_http.GetAuthorizationRequest{AuthorizationID: req.AuthorizationID}
-	err := svc.AuthenticateMessageFromAccount(ctx, req, authzReq)
+	authzReq := &api_http.GetAuthorizationDecodedRequest{AuthorizationID: req.AuthorizationID}
+	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, authzReq)
 	if err != nil {
 		return &api_http.GetAuthorizationResponse{Err: err, Nonces: svc.NoncesStore()}
 	}

@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -36,7 +35,6 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 	var acmeErr *types.ACMEError
 	if !errors.As(err, &acmeErr) {
-		fmt.Println(err)
 		// if it's not already an ACME error, it is because it is an internal server
 		// error (or a dev error, for 4xx we should always return ACMEError).
 		acmeErr = types.InternalServerError("") // not passing err.Error() as we don't want to leak internal details

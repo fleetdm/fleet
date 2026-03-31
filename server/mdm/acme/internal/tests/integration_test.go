@@ -866,6 +866,6 @@ func testGetAuthorization(t *testing.T, s *integrationTestSuite) {
 
 		require.Nil(t, authResp)
 		require.NotNil(t, acmeErr)
-		require.Contains(t, acmeErr.Type, "unauthorized")
+		require.Contains(t, acmeErr.Type, "error/authorizationDoesNotExist")
 	})
 }

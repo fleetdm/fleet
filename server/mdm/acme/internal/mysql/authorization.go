@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/jmoiron/sqlx"
@@ -30,8 +31,7 @@ func (ds *Datastore) GetAuthorizationByID(ctx context.Context, accountID uint, a
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dbAuthz, query, authorizationID, accountID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// TODO: What should we return here to avoid authorization enumeration and not leak details?
-			return nil, types.UnauthorizedError("")
+			return nil, types.AuthorizationDoesNotExistError(fmt.Sprintf("ACME authorization with ID %d not found for account ID %d", authorizationID, accountID))
 		}
 		return nil, err
 	}

@@ -22,12 +22,9 @@ func (ds *Datastore) GetChallengesByAuthorizationID(ctx context.Context, authori
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting challenges by authorization ID")
 	}
-	// TODO: What if we have no rows? That shouldn't happen since we validated the authorization, so probably fine to return service error
 	if len(challenges) == 0 {
-		return nil, ctxerr.New(ctx, "no challenges found for authorization ID")
+		return nil, types.ChallengeDoesNotExistError(fmt.Sprintf("No challenges found for authorization ID %d", authorizationID))
 	}
-
-	fmt.Printf("%#v\n", challenges)
 
 	return challenges, nil
 }

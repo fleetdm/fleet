@@ -9,14 +9,6 @@ import (
 )
 
 func (s *Service) GetAuthorization(ctx context.Context, enrollment *types.Enrollment, account *types.Account, authorizationID uint) (*types.AuthorizationResponse, error) {
-	if account == nil {
-		return nil, types.UnauthorizedError("account information missing from context")
-	}
-
-	if enrollment == nil {
-		return nil, types.UnauthorizedError("enrollment information missing from context")
-	}
-
 	if authorizationID == 0 {
 		return nil, types.MalformedError("invalid authorization ID")
 	}

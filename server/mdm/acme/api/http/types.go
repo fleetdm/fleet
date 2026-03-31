@@ -161,8 +161,13 @@ func (r *CreateNewOrderResponse) Error() error { return r.Err }
 func (r *CreateNewOrderResponse) Status() int { return http.StatusCreated }
 
 type GetAuthorizationRequest struct {
+	JWSRequestContainer
+	AuthorizationID uint `url:"authorization"`
+}
+
+type GetAuthorizationDecodedRequest struct {
 	types.AccountAuthenticatedRequestBase
-	AuthorizationID uint
+	AuthorizationID uint `json:"-"`
 }
 
 type GetAuthorizationResponse struct {
