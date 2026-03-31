@@ -45,6 +45,11 @@ func TestAccountOrder(t *testing.T) {
 		{"GetExistingOrder", testGetExistingOrder},
 		{"OrderNotFound", testGetOrderNotFound},
 		{"WrongAccountID", testGetOrderWrongAccountID},
+
+		{"ListOrderIDs", testListOrderIDs},
+		{"ListOrderIDsExcludesInvalid", testListOrderIDsExcludesInvalid},
+		{"ListOrderIDsEmpty", testListOrderIDsEmpty},
+		{"ListOrderIDsInvalidAccount", testListOrderIDsInvalidAccount},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -492,4 +497,86 @@ func testGetOrderWrongAccountID(t *testing.T, env *testEnv) {
 	var acmeErr *types.ACMEError
 	require.ErrorAs(t, err, &acmeErr)
 	require.Contains(t, acmeErr.Type, "orderDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
+}
+
+func testListOrderIDs(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	// create a couple of orders
+	var expectedIDs []uint
+	for range 2 {
+		order := &types.Order{
+			ACMEAccountID: account.ID,
+			Status:        "pending",
+			Identifiers: []types.Identifier{
+				{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
+			},
+		}
+		authorization := &types.Authorization{
+			Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
+			Status:     "pending",
+		}
+		challenge := &types.Challenge{
+			ChallengeType: "device-attest-01",
+			Token:         "test-token",
+			Status:        "pending",
+		}
+		created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+		require.NoError(t, err)
+		expectedIDs = append(expectedIDs, created.ID)
+	}
+
+	ids, err := env.ds.ListAccountOrderIDs(t.Context(), account.ID)
+	require.NoError(t, err)
+	require.Equal(t, expectedIDs, ids)
+}
+
+func testListOrderIDsExcludesInvalid(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	// create two orders
+	var allIDs []uint
+	for range 2 {
+		order := &types.Order{
+			ACMEAccountID: account.ID,
+			Status:        "pending",
+			Identifiers: []types.Identifier{
+				{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
+			},
+		}
+		authorization := &types.Authorization{
+			Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
+			Status:     "pending",
+		}
+		challenge := &types.Challenge{
+			ChallengeType: "device-attest-01",
+			Token:         "test-token",
+			Status:        "pending",
+		}
+		created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+		require.NoError(t, err)
+		allIDs = append(allIDs, created.ID)
+	}
+
+	// mark the first order as invalid directly in the DB
+	_, err := env.DB.ExecContext(t.Context(), `UPDATE acme_orders SET status = 'invalid' WHERE id = ?`, allIDs[0])
+	require.NoError(t, err)
+
+	ids, err := env.ds.ListAccountOrderIDs(t.Context(), account.ID)
+	require.NoError(t, err)
+	require.Equal(t, []uint{allIDs[1]}, ids)
+}
+
+func testListOrderIDsEmpty(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	ids, err := env.ds.ListAccountOrderIDs(t.Context(), account.ID)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+}
+
+func testListOrderIDsInvalidAccount(t *testing.T, env *testEnv) {
+	ids, err := env.ds.ListAccountOrderIDs(t.Context(), 99999)
+	require.NoError(t, err)
+	require.Empty(t, ids)
 }
