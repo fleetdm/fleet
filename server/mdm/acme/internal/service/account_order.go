@@ -210,5 +210,5 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 	}
 	rootPEM := string(pem.EncodeToMemory(block))
 
-	return certPEM + rootPEM, nil
+	return certPEM + "\n" + rootPEM, nil
 }

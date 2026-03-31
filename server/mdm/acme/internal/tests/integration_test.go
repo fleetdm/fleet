@@ -29,6 +29,7 @@ func TestIntegration(t *testing.T) {
 		{"CreateOrder", testCreateOrder},
 		{"GetOrder", testGetOrder},
 		{"ListAccountOrders", testListAccountOrders},
+		{"GetCertificate", testGetCertificate},
 		{"GetAuthorization", testGetAuthorization},
 	}
 	for _, c := range cases {
@@ -1185,6 +1186,188 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 		listURL := s.listOrdersURL(enroll.PathIdentifier, accountID)
 		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", accountURL, listURL, nil)
 		_, acmeErr, resp := s.listOrders(t, enroll.PathIdentifier, accountID, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "badNonce")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+}
+
+func testGetCertificate(t *testing.T, s *integrationTestSuite) {
+	// create enrollments shared across sub-tests for error cases
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enrollRevoked)
+
+	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	s.InsertACMEEnrollment(t, enrollExpired)
+
+	t.Run("happy path", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+
+		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+		testCertPEM := "-----BEGIN CERTIFICATE-----\ntest-cert-pem\n-----END CERTIFICATE-----"
+		s.finalizeOrderWithCert(t, orderResp.ID, 5001, testCertPEM)
+
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getCertificateURL(enroll.PathIdentifier, orderResp.ID), nil)
+		certBody, acmeErr, resp := s.getCertificate(t, enroll.PathIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Nil(t, acmeErr)
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+		require.Equal(t, "application/pem-certificate-chain", resp.Header.Get("Content-Type"))
+
+		expectedRootPEM := "-----BEGIN CERTIFICATE-----\nroot\n-----END CERTIFICATE-----\n"
+		require.Equal(t, testCertPEM+"\n"+expectedRootPEM, certBody)
+	})
+
+	t.Run("non-empty payload rejected for POST-as-GET", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+
+		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+		testCertPEM := "-----BEGIN CERTIFICATE-----\ntest-cert-pem-2\n-----END CERTIFICATE-----"
+		s.finalizeOrderWithCert(t, orderResp.ID, 5002, testCertPEM)
+
+		nonEmptyPayload := map[string]any{"foo": "bar"}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getCertificateURL(enroll.PathIdentifier, orderResp.ID), nonEmptyPayload)
+		_, acmeErr, resp := s.getCertificate(t, enroll.PathIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "malformed")
+		require.Contains(t, acmeErr.Detail, "payload must be empty")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("order not finalized (pending)", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+
+		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getCertificateURL(enroll.PathIdentifier, orderResp.ID), nil)
+		_, acmeErr, resp := s.getCertificate(t, enroll.PathIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "orderNotReady")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("order in invalid state", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+
+		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+		_, err := s.DB.ExecContext(t.Context(),
+			`UPDATE acme_orders SET status = 'invalid' WHERE id = ?`, orderResp.ID)
+		require.NoError(t, err)
+
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getCertificateURL(enroll.PathIdentifier, orderResp.ID), nil)
+		_, acmeErr, resp := s.getCertificate(t, enroll.PathIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "orderDoesNotExist")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("order does not exist", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		nonExistentOrderID := uint(99999)
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getCertificateURL(enroll.PathIdentifier, nonExistentOrderID), nil)
+		_, acmeErr, resp := s.getCertificate(t, enroll.PathIdentifier, nonExistentOrderID, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "orderDoesNotExist")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("order belongs to different account", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+
+		// create account A and an order under it
+		_, _, orderResp, _ := s.createOrderForGet(t, enroll)
+
+		// create account B (different key)
+		privateKeyB := generateTestKey(t)
+		nonceB := s.getNonce(t, enroll.PathIdentifier)
+		jwsBodyB := buildJWS(t, privateKeyB, nonceB, "", s.newAccountURL(enroll.PathIdentifier), nil)
+		_, _, respB := s.createAccount(t, enroll.PathIdentifier, jwsBodyB)
+		require.Equal(t, http.StatusCreated, respB.StatusCode)
+		accountURLB := respB.Header.Get("Location")
+		nonceB = respB.Header.Get("Replay-Nonce")
+
+		// try to GET account A's order's certificate using account B's credentials
+		jwsBody := buildJWS(t, privateKeyB, nonceB, accountURLB, s.getCertificateURL(enroll.PathIdentifier, orderResp.ID), nil)
+		_, acmeErr, resp := s.getCertificate(t, enroll.PathIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "orderDoesNotExist")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("unknown identifier", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+		badIdentifier := "no-such-identifier"
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getCertificateURL(badIdentifier, orderResp.ID), nil)
+		_, acmeErr, resp := s.getCertificate(t, badIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "enrollmentNotFound")
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("revoked enrollment", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getCertificateURL(enrollRevoked.PathIdentifier, orderResp.ID), nil)
+		_, acmeErr, resp := s.getCertificate(t, enrollRevoked.PathIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "enrollmentNotFound")
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("expired enrollment", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.getCertificateURL(enrollExpired.PathIdentifier, orderResp.ID), nil)
+		_, acmeErr, resp := s.getCertificate(t, enrollExpired.PathIdentifier, orderResp.ID, jwsBody)
+
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "enrollmentNotFound")
+		require.Empty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("invalid nonce", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, orderResp, _ := s.createOrderForGet(t, enroll)
+
+		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", accountURL, s.getCertificateURL(enroll.PathIdentifier, orderResp.ID), nil)
+		_, acmeErr, resp := s.getCertificate(t, enroll.PathIdentifier, orderResp.ID, jwsBody)
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotNil(t, acmeErr)
