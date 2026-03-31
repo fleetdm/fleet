@@ -15,6 +15,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,11 +113,17 @@ func (s *integrationTestSuite) newNonce(t *testing.T, httpMethod, pathIdentifier
 	return result, resp
 }
 
-// getDirectory makes an HTTP request to get directory endpoint and returns the parsed response and the raw response.
-func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdentifier string) (*api_http.GetDirectoryResponse, *http.Response) {
+// doACMERequest is a generic helper that makes an HTTP request, decodes the
+// response into T on success, or into an ACMEError on failure (status >= 300).
+func doACMERequest[T any](t *testing.T, method, url string, body []byte) (*T, *types.ACMEError, *http.Response) {
 	t.Helper()
-	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/directory", pathIdentifier) //nolint:gosec // test server URL is safe
-	req, err := http.NewRequest(httpMethod, url, nil)
+
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+
+	req, err := http.NewRequest(method, url, bodyReader) //nolint:gosec // test server URL is safe
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -123,13 +131,25 @@ func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdenti
 	defer drainAndCloseBody(resp)
 
 	if resp.StatusCode >= 300 {
-		return nil, resp
+		var acmeErr types.ACMEError
+		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
+			return nil, &acmeErr, resp
+		}
+		return nil, nil, resp
 	}
 
-	var result api_http.GetDirectoryResponse
+	var result T
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
-	return &result, resp
+	return &result, nil, resp
+}
+
+// getDirectory makes an HTTP request to get directory endpoint and returns the parsed response and the raw response.
+func (s *integrationTestSuite) getDirectory(t *testing.T, httpMethod, pathIdentifier string) (*api_http.GetDirectoryResponse, *http.Response) {
+	t.Helper()
+	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/directory", pathIdentifier) //nolint:gosec // test server URL is safe
+	result, _, resp := doACMERequest[api_http.GetDirectoryResponse](t, httpMethod, url, nil)
+	return result, resp
 }
 
 // staticNonce implements jose.NonceSource with a fixed nonce value.
@@ -189,7 +209,11 @@ func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, nonce, accountURL, end
 		payloadBytes, err = json.Marshal(payload)
 		require.NoError(t, err)
 	} else {
-		payloadBytes = []byte("{}")
+		// as per the RFC:
+		// > [when doing a POST-as-GET] the "payload" field of the
+		// > JWS object MUST be present and set to the empty string
+		// > [...]  a zero-length (and thus non-JSON) payload
+		payloadBytes = []byte("")
 	}
 
 	jws, err := signer.Sign(payloadBytes)
@@ -203,25 +227,7 @@ func buildJWS(t *testing.T, privateKey *ecdsa.PrivateKey, nonce, accountURL, end
 func (s *integrationTestSuite) createAccount(t *testing.T, pathIdentifier string, jwsBody []byte) (*types.AccountResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
 	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/new_account", pathIdentifier) //nolint:gosec // test server URL is safe
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody))
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer drainAndCloseBody(resp)
-
-	if resp.StatusCode >= 300 {
-		var acmeErr types.ACMEError
-		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
-			return nil, &acmeErr, resp
-		}
-		return nil, nil, resp
-	}
-
-	var result types.AccountResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-	return &result, nil, resp
+	return doACMERequest[types.AccountResponse](t, http.MethodPost, url, jwsBody)
 }
 
 // newOrderURL returns the full URL for the new_order endpoint.
@@ -245,30 +251,70 @@ func (s *integrationTestSuite) createAccountForOrder(t *testing.T, enrollment *t
 	return privateKey, accountURL, nextNonce
 }
 
+// createOrderForGet is a convenience helper that creates an account and order for an enrollment,
+// returning the private key, account URL, order response, and a fresh nonce for subsequent requests.
+func (s *integrationTestSuite) createOrderForGet(t *testing.T, enroll *types.Enrollment) (*ecdsa.PrivateKey, string, *types.OrderResponse, string) {
+	t.Helper()
+	privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+	payload := map[string]any{
+		"identifiers": []map[string]string{
+			{"type": "permanent-identifier", "value": enroll.HostIdentifier},
+		},
+	}
+	jwsBody := buildJWS(t, privateKey, nonce, accountURL, s.newOrderURL(enroll.PathIdentifier), payload)
+	orderResp, _, resp := s.createOrder(t, enroll.PathIdentifier, jwsBody)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+	nextNonce := resp.Header.Get("Replay-Nonce")
+	require.NotEmpty(t, nextNonce)
+	return privateKey, accountURL, orderResp, nextNonce
+}
+
+// getOrderURL returns the full URL for the get order endpoint.
+func (s *integrationTestSuite) getOrderURL(pathIdentifier string, orderID uint) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/orders/%d", s.server.URL, pathIdentifier, orderID)
+}
+
+// getOrder POSTs a JWS body to the order endpoint and returns the
+// order response or acme error and the raw response.
+func (s *integrationTestSuite) getOrder(t *testing.T, pathIdentifier string, orderID uint, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
+	t.Helper()
+	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/orders/%d", pathIdentifier, orderID) //nolint:gosec // test server URL is safe
+	return doACMERequest[types.OrderResponse](t, http.MethodPost, url, jwsBody)
+}
+
 // createOrder POSTs a JWS body to the new_order endpoint and returns the
 // order response or acme error and the raw response.
 func (s *integrationTestSuite) createOrder(t *testing.T, pathIdentifier string, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
 	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/new_order", pathIdentifier) //nolint:gosec // test server URL is safe
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody))
-	require.NoError(t, err)
+	return doACMERequest[types.OrderResponse](t, http.MethodPost, url, jwsBody)
+}
 
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer drainAndCloseBody(resp)
+// listOrdersURL returns the full URL for the list orders endpoint.
+func (s *integrationTestSuite) listOrdersURL(pathIdentifier string, accountID uint) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/accounts/%d/orders", s.server.URL, pathIdentifier, accountID)
+}
 
-	if resp.StatusCode >= 300 {
-		var acmeErr types.ACMEError
-		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
-			return nil, &acmeErr, resp
-		}
-		return nil, nil, resp
-	}
+// listOrders POSTs a JWS body to the list orders endpoint and returns the
+// list orders response or acme error and the raw response.
+func (s *integrationTestSuite) listOrders(t *testing.T, pathIdentifier string, accountID uint, jwsBody []byte) (*api_http.ListOrdersResponse, *types.ACMEError, *http.Response) {
+	t.Helper()
+	url := s.listOrdersURL(pathIdentifier, accountID)
+	return doACMERequest[api_http.ListOrdersResponse](t, http.MethodPost, url, jwsBody)
+}
 
-	var result types.OrderResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
+// parseAccountID extracts the numeric account ID from an account URL like
+// ".../accounts/123" or ".../accounts/123/orders".
+func parseAccountID(t *testing.T, accountURL string) uint {
+	t.Helper()
+	// strip trailing "/orders" if present
+	u := strings.TrimSuffix(accountURL, "/orders")
+	parts := strings.Split(u, "/")
+	idStr := parts[len(parts)-1]
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	require.NoError(t, err)
-	return &result, nil, resp
+	return uint(id)
 }
 
 // finalizeOrderURL returns the full URL for the finalize endpoint of a given order.

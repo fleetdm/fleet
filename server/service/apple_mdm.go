@@ -2048,7 +2048,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 
 	var requireACME bool
 	if appConfig.MDM.AppleRequireHardwareAttestation {
-		requireACME, err = svc.isMDMAppleACMERequired(ctx, appConfig, machineInfo)
+		requireACME, err = svc.isMDMAppleACMERequired(ctx, machineInfo)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if ACME enrollment is required")
 		}
@@ -2076,7 +2076,18 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	return signed, nil
 }
 
-func (svc *Service) isMDMAppleACMERequired(ctx context.Context, appConfig *fleet.AppConfig, machineInfo *fleet.MDMAppleMachineInfo) (bool, error) {
+func (svc *Service) NewACMEEnrollment(ctx context.Context, hardwareSerial string) (string, error) {
+	// TODO: sort out auth for this method, it should only be called by the renewal cron or the
+	// enroll endpoints
+	//
+	// skipauth: The enroll profile endpoint is unauthenticated, and this method is only called from
+	// there or the renewal cron
+	svc.authz.SkipAuthorization(ctx)
+
+	return svc.acmeSvc.NewACMEEnrollment(ctx, hardwareSerial)
+}
+
+func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo) (bool, error) {
 	if machineInfo == nil {
 		return false, ctxerr.New(ctx, "machine info is nil")
 	}
@@ -2087,17 +2098,11 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, appConfig *fleet
 		return false, nil
 	}
 
-	// we only require ACME for Apple Silicon Macs
-	if isMacAppleSilicon, err := fleet.IsMacAppleSilicon(machineInfo.Product); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking if device is Apple Silicon")
-	} else if !isMacAppleSilicon {
-		return false, nil
-	}
-
-	// we only require ACME for Apple Silicon Macs running macOS 14 or later
-	if isLessThanMacOS14, err := apple_mdm.IsLessThanVersion(machineInfo.OSVersion, "14.0"); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking if device is less than macOS 14")
-	} else if isLessThanMacOS14 {
+	isSupported, err := isMacACMESupported(machineInfo.Product, machineInfo.OSVersion)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if device is capable of ACME")
+	} else if !isSupported {
+		svc.logger.InfoContext(ctx, "ACME not supported, skipping ACME requirement", "serial", machineInfo.Serial, "model_identifier", machineInfo.Product, "os_version", machineInfo.OSVersion)
 		return false, nil
 	}
 
@@ -2111,8 +2116,29 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, appConfig *fleet
 	return len(assignments) > 0, nil
 }
 
+// isMacACMESupported checks if the device is supported for ACME enrollment. Fleet only
+// supports ACME enrollment for Apple Silicon Macs running macOS 14 or later. Other Apple devices
+// may support ACME enrollment (e.g., iOS on Apple Silicon), but they are not currently supported by Fleet.
+func isMacACMESupported(modelIdentifier string, osVersion string) (bool, error) {
+	// we only require ACME for Apple Silicon Macs
+	if isMacAppleSilicon, err := fleet.IsMacAppleSilicon(modelIdentifier); err != nil {
+		return false, fmt.Errorf("checking if device is Apple Silicon: %w", err)
+	} else if !isMacAppleSilicon {
+		return false, nil
+	}
+
+	// we only require ACME for Apple Silicon Macs running macOS 14 or later
+	if isLessThanMacOS14, err := apple_mdm.IsLessThanVersion(osVersion, "14.0"); err != nil {
+		return false, fmt.Errorf("checking if device is less than macOS 14: %w", err)
+	} else if isLessThanMacOS14 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardwareSerial string, orgName string, mdmURL string, topic string) ([]byte, error) {
-	acmeIdent, err := svc.acmeSvc.NewEnrollment(ctx, hardwareSerial)
+	acmeIdent, err := svc.acmeSvc.NewACMEEnrollment(ctx, hardwareSerial)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating ACME enrollment")
 	}
@@ -6198,6 +6224,7 @@ func RenewSCEPCertificates(
 	ds fleet.Datastore,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
+	acmeService fleet.ACMEWriteService,
 ) error {
 	renewalDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE")
 	if exists && (strings.EqualFold(renewalDisable, "true") || renewalDisable == "1") {
@@ -6229,6 +6256,8 @@ func RenewSCEPCertificates(
 		logger.DebugContext(ctx, "no certs to renew")
 		return nil
 	}
+	// maybeACMEUUIDs stores a subset of host UUIDs that we want to check for ACME renewal requirements.
+	maybeACMEUUIDs := make([]string, 0, len(certAssociations))
 
 	// assocsWithRefs stores hosts that have enrollment references on their
 	// enrollment profiles. This is the case for ADE-enrolled hosts using
@@ -6256,6 +6285,11 @@ func RenewSCEPCertificates(
 			continue
 		}
 
+		// Note we don't want to check ACME renewal requirements for hosts that were enrolled from
+		// migration or using account driven user enrollment. Now that those are ruled out we can
+		// append maybeACMEUUIDs.
+		maybeACMEUUIDs = append(maybeACMEUUIDs, assoc.HostUUID)
+
 		if assoc.EnrollReference != "" {
 			assocsWithRefs = append(assocsWithRefs, assoc)
 			continue
@@ -6268,6 +6302,26 @@ func RenewSCEPCertificates(
 		return ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
 	}
 
+	acmeRequiredByHostUUID := make(map[string]fleet.DeviceInfoForACMERenewal)
+	if appConfig.MDM.AppleRequireHardwareAttestation {
+		// get info needed to determine whether ACME is required
+		di, err := ds.GetDeviceInfoForACMERenewal(ctx, maybeACMEUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting device info for ACME renewal")
+		}
+		logErrs := []any{}
+		for _, info := range di {
+			if ok, err := isMacACMESupported(info.HardwareModel, info.OSVersion); err != nil {
+				logErrs = append(logErrs, "host_uuid", info.HostUUID, "error", err)
+			} else if ok {
+				acmeRequiredByHostUUID[info.HostUUID] = info
+			}
+		}
+		if len(logErrs) > 0 {
+			logger.ErrorContext(ctx, "checking ACME requirement for hosts renewing SCEP certificates", logErrs...)
+		}
+	}
+
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetSCEPChallenge,
 	}, nil)
@@ -6276,23 +6330,38 @@ func RenewSCEPCertificates(
 	}
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
 
-	// send a single command for all the hosts without references.
+	// acmeAssocsByHostUUID will store the associations for hosts that require ACME renewal, which
+	// will be handled separately since they require a different enrollment profile.
+	acmeAssocsByHostUUID := make(map[string]fleet.SCEPIdentityAssociation)
+
+	// Filter for ACME requirements then send a single command for all the hosts without references.
 	if len(assocsWithoutRefs) > 0 {
-		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
-			appConfig.OrgInfo.OrgName,
-			appConfig.MDMUrl(),
-			scepChallenge,
-			mdmPushCertTopic,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+		var filteredAssocs []fleet.SCEPIdentityAssociation
+		for _, assoc := range assocsWithoutRefs {
+			if _, ok := acmeRequiredByHostUUID[assoc.HostUUID]; ok {
+				acmeAssocsByHostUUID[assoc.HostUUID] = assoc
+				continue
+			}
+			filteredAssocs = append(filteredAssocs, assoc)
 		}
 
-		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsWithoutRefs, profile); err != nil {
-			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+		if len(filteredAssocs) > 0 {
+			profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+				appConfig.OrgInfo.OrgName,
+				appConfig.MDMUrl(),
+				scepChallenge,
+				mdmPushCertTopic,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+			}
+			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, filteredAssocs, profile); err != nil {
+				return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+			}
 		}
 	}
 
+	// Note we don't screen userDeviceAssocs for ACME requirements.
 	if len(userDeviceAssocs) > 0 {
 		hostUUIDs := make([]string, 0, len(userDeviceAssocs))
 		for i := 0; i < len(userDeviceAssocs); i++ {
@@ -6327,14 +6396,19 @@ func RenewSCEPCertificates(
 			}
 
 			// each host with association needs a different enrollment profile, and thus a different command.
-			if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending account driven enrollment profile renewal to hosts")
 			}
 		}
 	}
 
-	// send individual commands for each host with a reference
+	// Filter for ACME requirement, then send individual commands for each host with a reference
 	for _, assoc := range assocsWithRefs {
+		if _, ok := acmeRequiredByHostUUID[assoc.HostUUID]; ok {
+			acmeAssocsByHostUUID[assoc.HostUUID] = assoc
+			continue
+		}
+
 		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), assoc.EnrollReference)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
@@ -6351,11 +6425,50 @@ func RenewSCEPCertificates(
 		}
 
 		// each host with association needs a different enrollment profile, and thus a different command.
-		if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 		}
 	}
 
+	// Generate and send enrollment profiles for hosts that require ACME renewal
+	for hostUUID, assoc := range acmeAssocsByHostUUID {
+		enrollURL := appConfig.MDMUrl()
+		if assoc.EnrollReference != "" {
+			var err error
+			enrollURL, err = apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), assoc.EnrollReference)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "adding reference to fleet URL for ACME renewal")
+			}
+		}
+
+		di, ok := acmeRequiredByHostUUID[hostUUID]
+		if !ok {
+			logger.ErrorContext(ctx, "host missing from ACME renewal map, skipping ACME renewal for this host", "host_uuid", hostUUID)
+			continue
+		}
+
+		acmeIdent, err := acmeService.NewACMEEnrollment(ctx, di.HardwareSerial)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating new ACME enrollment")
+		}
+
+		profile, err := apple_mdm.GenerateACMEEnrollmentProfileMobileconfig(
+			appConfig.OrgInfo.OrgName,
+			enrollURL,
+			acmeIdent,
+			di.HardwareSerial,
+			mdmPushCertTopic,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts requiring ACME renewal")
+		}
+
+		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+			return ctxerr.Wrap(ctx, err, "sending ACME enrollment profile to hosts")
+		}
+	}
+
+	// Note we don't screen assocsFromMigration for ACME requirements.
 	decodedMigrationEnrollmentProfile, err := base64.StdEncoding.DecodeString(os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE"))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to decode silent migration enrollment profile")
@@ -6368,7 +6481,7 @@ func RenewSCEPCertificates(
 	}
 	if migrationEnrollmentProfile != "" && hasAssocsFromMigration {
 		profileBytes := []byte(migrationEnrollmentProfile)
-		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsFromMigration, profileBytes); err != nil {
+		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, assocsFromMigration, profileBytes); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts from migration")
 		}
 	}
@@ -6376,7 +6489,7 @@ func RenewSCEPCertificates(
 	return nil
 }
 
-func renewSCEPWithProfile(
+func renewMDMAppleEnrollmentProfile(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,

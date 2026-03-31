@@ -20,8 +20,8 @@ func generateTestJWK(t *testing.T) jose.JSONWebKey {
 	return jose.JSONWebKey{Key: key.Public()}
 }
 
-func TestCreateAccount(t *testing.T) {
-	tdb := testutils.SetupTestDB(t, "acme_create_account")
+func TestAccountOrder(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "acme_account_order")
 	ds := NewDatastore(tdb.Conns(), tdb.Logger)
 	env := &testEnv{TestDB: tdb, ds: ds}
 
@@ -36,6 +36,20 @@ func TestCreateAccount(t *testing.T) {
 		{"AccountCreationLimit", testAccountCreationLimit},
 		{"AccountRevoked", testAccountRevoked},
 		{"InvalidEnrollmentID", testInvalidEnrollmentID},
+
+		{"CreateNewOrder", testCreateNewOrder},
+		{"OrderCreationLimit", testOrderCreationLimit},
+		{"InvalidAccountID", testInvalidAccountID},
+		{"MultipleOrdersDifferentAccounts", testMultipleOrdersDifferentAccounts},
+
+		{"GetExistingOrder", testGetExistingOrder},
+		{"OrderNotFound", testGetOrderNotFound},
+		{"WrongAccountID", testGetOrderWrongAccountID},
+
+		{"ListOrderIDs", testListOrderIDs},
+		{"ListOrderIDsExcludesInvalid", testListOrderIDsExcludesInvalid},
+		{"ListOrderIDsEmpty", testListOrderIDsEmpty},
+		{"ListOrderIDsInvalidAccount", testListOrderIDsInvalidAccount},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -252,48 +266,27 @@ func createTestAccountForOrder(t *testing.T, env *testEnv) (*types.Account, *typ
 	return created, enrollment
 }
 
-func TestCreateOrder(t *testing.T) {
-	tdb := testutils.SetupTestDB(t, "acme_create_order")
-	ds := NewDatastore(tdb.Conns(), tdb.Logger)
-	env := &testEnv{TestDB: tdb, ds: ds}
-
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, env *testEnv)
-	}{
-		{"CreateNewOrder", testCreateNewOrder},
-		{"OrderCreationLimit", testOrderCreationLimit},
-		{"InvalidAccountID", testInvalidAccountID},
-		{"MultipleOrdersDifferentAccounts", testMultipleOrdersDifferentAccounts},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer env.TruncateTables(t)
-			c.fn(t, env)
-		})
-	}
+func buildTestOrder(accountID uint, identifierValue string) (*types.Order, *types.Authorization, *types.Challenge) {
+	return &types.Order{
+			ACMEAccountID: accountID,
+			Status:        "pending",
+			Identifiers: []types.Identifier{
+				{Type: types.IdentifierTypePermanentIdentifier, Value: identifierValue},
+			},
+		}, &types.Authorization{
+			Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: identifierValue},
+			Status:     "pending",
+		}, &types.Challenge{
+			ChallengeType: "device-attest-01",
+			Token:         "test-token",
+			Status:        "pending",
+		}
 }
 
 func testCreateNewOrder(t *testing.T, env *testEnv) {
 	account, _ := createTestAccountForOrder(t, env)
 
-	order := &types.Order{
-		ACMEAccountID: account.ID,
-		Status:        "pending",
-		Identifiers: []types.Identifier{
-			{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-		},
-	}
-	authorization := &types.Authorization{
-		Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-		Status:     "pending",
-	}
-	challenge := &types.Challenge{
-		ChallengeType: types.DeviceAttestationChallengeType,
-		Token:         "test-token-123",
-		Status:        "pending",
-	}
-
+	order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
 	result, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
 	require.NoError(t, err)
 	require.NotZero(t, result.ID)
@@ -310,43 +303,13 @@ func testOrderCreationLimit(t *testing.T, env *testEnv) {
 
 	// create maxOrdersPerAccount orders (the max)
 	for range maxOrdersPerAccount {
-		order := &types.Order{
-			ACMEAccountID: account.ID,
-			Status:        "pending",
-			Identifiers: []types.Identifier{
-				{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-			},
-		}
-		authorization := &types.Authorization{
-			Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-			Status:     "pending",
-		}
-		challenge := &types.Challenge{
-			ChallengeType: types.DeviceAttestationChallengeType,
-			Token:         "test-token",
-			Status:        "pending",
-		}
+		order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
 		_, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
 		require.NoError(t, err)
 	}
 
 	// the next order should fail
-	order := &types.Order{
-		ACMEAccountID: account.ID,
-		Status:        "pending",
-		Identifiers: []types.Identifier{
-			{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-		},
-	}
-	authorization := &types.Authorization{
-		Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-		Status:     "pending",
-	}
-	challenge := &types.Challenge{
-		ChallengeType: types.DeviceAttestationChallengeType,
-		Token:         "test-token",
-		Status:        "pending",
-	}
+	order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
 	result, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
 	require.Nil(t, result)
 	require.Error(t, err)
@@ -356,23 +319,7 @@ func testOrderCreationLimit(t *testing.T, env *testEnv) {
 }
 
 func testInvalidAccountID(t *testing.T, env *testEnv) {
-	order := &types.Order{
-		ACMEAccountID: 99999,
-		Status:        "pending",
-		Identifiers: []types.Identifier{
-			{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-		},
-	}
-	authorization := &types.Authorization{
-		Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-		Status:     "pending",
-	}
-	challenge := &types.Challenge{
-		ChallengeType: types.DeviceAttestationChallengeType,
-		Token:         "test-token",
-		Status:        "pending",
-	}
-
+	order, authorization, challenge := buildTestOrder(99999, "serial-123")
 	result, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
 	require.Nil(t, result)
 	require.Error(t, err)
@@ -384,45 +331,115 @@ func testMultipleOrdersDifferentAccounts(t *testing.T, env *testEnv) {
 
 	// create max orders for account1
 	for range maxOrdersPerAccount {
-		order := &types.Order{
-			ACMEAccountID: account1.ID,
-			Status:        "pending",
-			Identifiers: []types.Identifier{
-				{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-			},
-		}
-		authorization := &types.Authorization{
-			Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-			Status:     "pending",
-		}
-		challenge := &types.Challenge{
-			ChallengeType: types.DeviceAttestationChallengeType,
-			Token:         "test-token",
-			Status:        "pending",
-		}
+		order, authorization, challenge := buildTestOrder(account1.ID, "serial-123")
 		_, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
 		require.NoError(t, err)
 	}
 
 	// account2 should still be able to create orders independently
-	order := &types.Order{
-		ACMEAccountID: account2.ID,
-		Status:        "pending",
-		Identifiers: []types.Identifier{
-			{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-456"},
-		},
-	}
-	authorization := &types.Authorization{
-		Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-456"},
-		Status:     "pending",
-	}
-	challenge := &types.Challenge{
-		ChallengeType: types.DeviceAttestationChallengeType,
-		Token:         "test-token-2",
-		Status:        "pending",
-	}
+	order, authorization, challenge := buildTestOrder(account2.ID, "serial-456")
 	result, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
 	require.NoError(t, err)
 	require.NotZero(t, result.ID)
 	require.Equal(t, account2.ID, result.ACMEAccountID)
+}
+
+func testGetExistingOrder(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
+	created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+	require.NoError(t, err)
+
+	gotOrder, gotAuths, err := env.ds.GetOrderByID(t.Context(), account.ID, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, created.ID, gotOrder.ID)
+	require.Equal(t, account.ID, gotOrder.ACMEAccountID)
+	require.Equal(t, "pending", gotOrder.Status)
+	require.False(t, gotOrder.Finalized)
+	require.Len(t, gotOrder.Identifiers, 1)
+	require.Equal(t, types.IdentifierTypePermanentIdentifier, gotOrder.Identifiers[0].Type)
+	require.Equal(t, "serial-123", gotOrder.Identifiers[0].Value)
+
+	require.Len(t, gotAuths, 1)
+	require.Equal(t, authorization.ID, gotAuths[0].ID)
+	require.Equal(t, authorization.Identifier, gotAuths[0].Identifier)
+}
+
+func testGetOrderNotFound(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	_, _, err := env.ds.GetOrderByID(t.Context(), account.ID, 99999)
+	require.Error(t, err)
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "orderDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
+}
+
+func testGetOrderWrongAccountID(t *testing.T, env *testEnv) {
+	account1, _ := createTestAccountForOrder(t, env)
+	account2, _ := createTestAccountForOrder(t, env)
+
+	order, authorization, challenge := buildTestOrder(account1.ID, "serial-123")
+	created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+	require.NoError(t, err)
+
+	// try to get the order using account2's ID — should fail
+	_, _, err = env.ds.GetOrderByID(t.Context(), account2.ID, created.ID)
+	require.Error(t, err)
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "orderDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
+}
+
+func testListOrderIDs(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	// create a couple of orders
+	var expectedIDs []uint
+	for range 2 {
+		order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
+		created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+		require.NoError(t, err)
+		expectedIDs = append(expectedIDs, created.ID)
+	}
+
+	ids, err := env.ds.ListAccountOrderIDs(t.Context(), account.ID)
+	require.NoError(t, err)
+	require.Equal(t, expectedIDs, ids)
+}
+
+func testListOrderIDsExcludesInvalid(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	// create two orders
+	allIDs := make([]uint, 0, 2)
+	for range cap(allIDs) {
+		order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
+		created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+		require.NoError(t, err)
+		allIDs = append(allIDs, created.ID)
+	}
+
+	// mark the first order as invalid directly in the DB
+	_, err := env.DB.ExecContext(t.Context(), `UPDATE acme_orders SET status = 'invalid' WHERE id = ?`, allIDs[0])
+	require.NoError(t, err)
+
+	ids, err := env.ds.ListAccountOrderIDs(t.Context(), account.ID)
+	require.NoError(t, err)
+	require.Equal(t, []uint{allIDs[1]}, ids)
+}
+
+func testListOrderIDsEmpty(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	ids, err := env.ds.ListAccountOrderIDs(t.Context(), account.ID)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+}
+
+func testListOrderIDsInvalidAccount(t *testing.T, env *testEnv) {
+	ids, err := env.ds.ListAccountOrderIDs(t.Context(), 99999)
+	require.NoError(t, err)
+	require.Empty(t, ids)
 }

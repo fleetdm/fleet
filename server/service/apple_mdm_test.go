@@ -4721,17 +4721,19 @@ func TestRenewSCEPCertificatesMDMConfigNotSet(t *testing.T) {
 		appCfg.MDM.EnabledAndConfigured = false
 		return appCfg, nil
 	}
-	err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander)
+	err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander, &mock.MockACMEService{})
 	require.NoError(t, err)
 }
 
 func TestRenewSCEPCertificatesCommanderNil(t *testing.T) {
 	ctx, logger, ds, cfg, _, _ := setupTest(t)
-	err := RenewSCEPCertificates(ctx, logger, ds, cfg, nil)
+	err := RenewSCEPCertificates(ctx, logger, ds, cfg, nil, &mock.MockACMEService{})
 	require.NoError(t, err)
 }
 
 func TestRenewSCEPCertificatesBranches(t *testing.T) {
+	// NOTE: These tests assume appConfig.MDM.AppleRequireHardwareAttestation is false.
+	// They do not cover ACME renewal logic.
 	tests := []struct {
 		name               string
 		customExpectations func(*testing.T, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore, *apple_mdm.MDMAppleCommander)
@@ -5003,6 +5005,11 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, logger, ds, cfg, appleStorage, commander := setupTest(t)
 
+			acmeSvc := &mock.MockACMEService{}
+			acmeSvc.NewACMEEnrollmentFunc = func(ctx context.Context, hostIdentifier string) (string, error) {
+				return uuid.NewString(), nil
+			}
+
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				appCfg := &fleet.AppConfig{}
 				appCfg.OrgInfo.OrgName = "fl33t"
@@ -5041,7 +5048,302 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 
 			tc.customExpectations(t, ds, cfg, appleStorage, commander)
 
-			err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander)
+			err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander, acmeSvc)
+			if tc.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.False(t, acmeSvc.NewACMEEnrollmentFuncInvoked, "NewACMEEnrollment should not be called during SCEP cert renewal")
+		})
+	}
+}
+
+func TestRenewACMECertificatesBranches(t *testing.T) {
+	// These tests cover the ACME renewal branch in RenewSCEPCertificates, specifically when
+	// AppConfig.MDM.AppleRequireHardwareAttestation is true and eligible devices require ACME.
+	const (
+		appleSiliconModel = "Mac13,1"   // Apple Silicon (Mac Studio); satisfies IsMacAppleSilicon
+		intelMacModel     = "MacPro7,1" // Intel Mac Pro; IsMacAppleSilicon returns false
+		acmeMacOSVersion  = "14.0"
+	)
+
+	tests := []struct {
+		name               string
+		customExpectations func(*testing.T, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore, *apple_mdm.MDMAppleCommander, *mock.MockACMEService)
+		expectedError      bool
+	}{
+		{
+			name: "AppleRequireHardwareAttestation false skips ACME check",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander, acmeSvc *mock.MockACMEService) {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					appCfg := &fleet.AppConfig{}
+					appCfg.OrgInfo.OrgName = "fl33t"
+					appCfg.ServerSettings.ServerURL = "https://foo.example.com"
+					appCfg.MDM.EnabledAndConfigured = true
+					appCfg.MDM.AppleRequireHardwareAttestation = false
+					return appCfg, nil
+				}
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					return map[string]error{}, nil
+				}
+				t.Cleanup(func() {
+					require.False(t, ds.GetDeviceInfoForACMERenewalFuncInvoked, "GetDeviceInfoForACMERenewal should not be called when AppleRequireHardwareAttestation is false")
+					require.False(t, acmeSvc.NewACMEEnrollmentFuncInvoked, "NewACMEEnrollment should not be called when AppleRequireHardwareAttestation is false")
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "GetDeviceInfoForACMERenewal errors",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander, acmeSvc *mock.MockACMEService) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
+				}
+				ds.GetDeviceInfoForACMERenewalFunc = func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+					return nil, errors.New("database error")
+				}
+			},
+			expectedError: true,
+		},
+		{
+			name: "Non-Apple-Silicon device gets regular SCEP renewal, no ACME",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander, acmeSvc *mock.MockACMEService) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
+				}
+				ds.GetDeviceInfoForACMERenewalFunc = func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+					require.Equal(t, []string{"hostUUID1"}, hostUUIDs)
+					return []fleet.DeviceInfoForACMERenewal{{
+						HostUUID:       "hostUUID1",
+						HardwareSerial: "INTEL001",
+						HardwareModel:  intelMacModel,
+						OSVersion:      acmeMacOSVersion,
+					}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					return map[string]error{}, nil
+				}
+				t.Cleanup(func() {
+					require.True(t, ds.GetDeviceInfoForACMERenewalFuncInvoked, "GetDeviceInfoForACMERenewal should be called when AppleRequireHardwareAttestation is true")
+					require.False(t, acmeSvc.NewACMEEnrollmentFuncInvoked, "NewACMEEnrollment should not be called for non-Apple-Silicon device")
+					require.True(t, appleStore.EnqueueCommandFuncInvoked, "EnqueueCommand should be called for regular SCEP renewal")
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "Apple Silicon macOS 14+ host without enrollment reference gets ACME profile",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander, acmeSvc *mock.MockACMEService) {
+				const serial = "APPLESILICON001"
+				var wantCommandUUID string
+				acmeSvc.NewACMEEnrollmentFunc = func(ctx context.Context, hostIdentifier string) (string, error) {
+					require.Equal(t, serial, hostIdentifier)
+					return "acme-ident-001", nil
+				}
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
+				}
+				ds.GetDeviceInfoForACMERenewalFunc = func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+					require.Equal(t, []string{"hostUUID1"}, hostUUIDs)
+					return []fleet.DeviceInfoForACMERenewal{{
+						HostUUID:       "hostUUID1",
+						HardwareSerial: serial,
+						HardwareModel:  appleSiliconModel,
+						OSVersion:      acmeMacOSVersion,
+					}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					wantCommandUUID = cmd.CommandUUID
+					// Verify the profile is an ACME profile by checking it contains the device serial
+					var fullCmd micromdm.CommandPayload
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(serial)), "ACME profile should contain the device serial number as ClientIdentifier")
+					require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte("com.apple.security.acme")), "profile should be of ACME payload type")
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Equal(t, "hostUUID1", assocs[0].HostUUID)
+					require.Equal(t, wantCommandUUID, cmdUUID)
+					return nil
+				}
+				t.Cleanup(func() {
+					require.True(t, acmeSvc.NewACMEEnrollmentFuncInvoked, "NewACMEEnrollment should be called for Apple Silicon macOS 14+ device")
+					require.True(t, appleStore.EnqueueCommandFuncInvoked, "EnqueueCommand should be called to send the ACME profile")
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked, "SetCommandForPendingSCEPRenewal should be called")
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "Apple Silicon macOS 14+ host with enrollment reference gets ACME profile",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander, acmeSvc *mock.MockACMEService) {
+				const serial = "APPLESILICON002"
+				const enrollRef = "ref123"
+				var wantCommandUUID string
+				acmeSvc.NewACMEEnrollmentFunc = func(ctx context.Context, hostIdentifier string) (string, error) {
+					require.Equal(t, serial, hostIdentifier)
+					return "acme-ident-002", nil
+				}
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID2", EnrollReference: enrollRef}}, nil
+				}
+				ds.GetDeviceInfoForACMERenewalFunc = func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+					require.Equal(t, []string{"hostUUID2"}, hostUUIDs)
+					return []fleet.DeviceInfoForACMERenewal{{
+						HostUUID:       "hostUUID2",
+						HardwareSerial: serial,
+						HardwareModel:  appleSiliconModel,
+						OSVersion:      acmeMacOSVersion,
+					}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					wantCommandUUID = cmd.CommandUUID
+					var fullCmd micromdm.CommandPayload
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(serial)), "ACME profile should contain the device serial number as ClientIdentifier")
+					require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte("com.apple.security.acme")), "profile should be of ACME payload type")
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Equal(t, "hostUUID2", assocs[0].HostUUID)
+					require.Equal(t, wantCommandUUID, cmdUUID)
+					return nil
+				}
+				t.Cleanup(func() {
+					require.True(t, acmeSvc.NewACMEEnrollmentFuncInvoked, "NewACMEEnrollment should be called for Apple Silicon macOS 14+ device with enrollment reference")
+					require.True(t, appleStore.EnqueueCommandFuncInvoked, "EnqueueCommand should be called to send the ACME profile")
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked, "SetCommandForPendingSCEPRenewal should be called")
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "NewACMEEnrollment errors returns error",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander, acmeSvc *mock.MockACMEService) {
+				acmeSvc.NewACMEEnrollmentFunc = func(ctx context.Context, hostIdentifier string) (string, error) {
+					return "", errors.New("ACME service unavailable")
+				}
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
+				}
+				ds.GetDeviceInfoForACMERenewalFunc = func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+					return []fleet.DeviceInfoForACMERenewal{{
+						HostUUID:       "hostUUID1",
+						HardwareSerial: "SERIAL001",
+						HardwareModel:  appleSiliconModel,
+						OSVersion:      acmeMacOSVersion,
+					}}, nil
+				}
+			},
+			expectedError: true,
+		},
+		{
+			name: "Mixed hosts: Apple Silicon gets ACME profile, Intel Mac gets regular SCEP profile",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander, acmeSvc *mock.MockACMEService) {
+				const acmeSerial = "APPLESILICON003"
+				acmeEnrollmentCallCount := 0
+				acmeSvc.NewACMEEnrollmentFunc = func(ctx context.Context, hostIdentifier string) (string, error) {
+					require.Equal(t, acmeSerial, hostIdentifier)
+					acmeEnrollmentCallCount++
+					return "acme-ident-003", nil
+				}
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{
+						{HostUUID: "hostUUID-acme", EnrollReference: ""},
+						{HostUUID: "hostUUID-scep", EnrollReference: ""},
+					}, nil
+				}
+				ds.GetDeviceInfoForACMERenewalFunc = func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+					require.Len(t, hostUUIDs, 2)
+					return []fleet.DeviceInfoForACMERenewal{
+						{
+							HostUUID:       "hostUUID-acme",
+							HardwareSerial: acmeSerial,
+							HardwareModel:  appleSiliconModel,
+							OSVersion:      acmeMacOSVersion,
+						},
+						{
+							HostUUID:       "hostUUID-scep",
+							HardwareSerial: "INTELMAC003",
+							HardwareModel:  intelMacModel,
+							OSVersion:      acmeMacOSVersion,
+						},
+					}, nil
+				}
+				enqueuedHostUUIDs := make(map[string]bool)
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					for _, hostUUID := range id {
+						enqueuedHostUUIDs[hostUUID] = true
+					}
+					return map[string]error{}, nil
+				}
+				t.Cleanup(func() {
+					require.Equal(t, 1, acmeEnrollmentCallCount, "NewACMEEnrollment should be called exactly once for the Apple Silicon host")
+					require.True(t, enqueuedHostUUIDs["hostUUID-acme"], "ACME host should have an InstallProfile command enqueued")
+					require.True(t, enqueuedHostUUIDs["hostUUID-scep"], "SCEP host should have an InstallProfile command enqueued")
+				})
+			},
+			expectedError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, logger, ds, cfg, appleStorage, commander := setupTest(t)
+
+			acmeSvc := &mock.MockACMEService{}
+			acmeSvc.NewACMEEnrollmentFunc = func(ctx context.Context, hostIdentifier string) (string, error) {
+				return uuid.NewString(), nil
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				appCfg := &fleet.AppConfig{}
+				appCfg.OrgInfo.OrgName = "fl33t"
+				appCfg.ServerSettings.ServerURL = "https://foo.example.com"
+				appCfg.MDM.EnabledAndConfigured = true
+				appCfg.MDM.AppleRequireHardwareAttestation = true
+				return appCfg, nil
+			}
+
+			ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+				return []fleet.SCEPIdentityAssociation{}, nil
+			}
+
+			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+				return nil
+			}
+
+			appleStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
+				pushes := make(map[string]*mdm.Push, len(targets))
+				for _, id := range targets {
+					pushes[id] = &mdm.Push{
+						PushMagic: "magic" + id,
+						Token:     []byte("token" + id),
+						Topic:     "topic" + id,
+					}
+				}
+				return pushes, nil
+			}
+
+			appleStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+				apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+				require.NoError(t, err)
+				cert, err := tls.X509KeyPair(apnsCert, apnsKey)
+				return &cert, "", err
+			}
+
+			tc.customExpectations(t, ds, cfg, appleStorage, commander, acmeSvc)
+
+			err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander, acmeSvc)
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {
