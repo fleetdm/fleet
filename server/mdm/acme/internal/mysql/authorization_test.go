@@ -80,23 +80,7 @@ func testGetAuthorizationWithInvalidInputs(t *testing.T, env *testEnv) {
 }
 
 func createTestOrderForAccount(t *testing.T, account *types.Account, env *testEnv) (*types.Order, *types.Authorization, *types.Challenge) {
-	order := &types.Order{
-		ACMEAccountID: account.ID,
-		Status:        "pending",
-		Identifiers: []types.Identifier{
-			{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-		},
-	}
-	authorization := &types.Authorization{
-		Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: "serial-123"},
-		Status:     "pending",
-	}
-	challenge := &types.Challenge{
-		ChallengeType: types.DeviceAttestationChallengeType,
-		Token:         "test-token-123",
-		Status:        "pending",
-	}
-
+	order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
 	result, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
 	require.NoError(t, err)
 

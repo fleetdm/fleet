@@ -32,8 +32,8 @@ ZwFEh9bhKjJ+5VQ9/Do1os0u3LEkgN/r
 -----END CERTIFICATE-----`
 
 var (
-	oidAppleSerialNumber = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 8, 9, 1}
-	oidAppleNonce        = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 8, 11, 1}
+	OIDAppleSerialNumber = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 8, 9, 1}
+	OIDAppleNonce        = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 8, 11, 1}
 )
 
 func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrollment, account *types.Account, challengeID uint, payload string) (*types.ChallengeResponse, error) {
@@ -49,7 +49,11 @@ func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrol
 	var validationErr error
 	switch challenge.ChallengeType {
 	case types.DeviceAttestationChallengeType:
-		challenge, validationErr = s.validateDeviceAttestationChallenge(ctx, enrollment, challenge, payload)
+		updatedChallenge, err := s.validateDeviceAttestationChallenge(ctx, enrollment, challenge, payload)
+		if updatedChallenge != nil {
+			challenge = updatedChallenge
+		}
+		validationErr = err
 	default:
 		return nil, types.InternalServerError(fmt.Sprintf("unsupported challenge type %s", challenge.ChallengeType))
 	}
@@ -124,16 +128,19 @@ func (s *Service) validateDeviceAttestationChallenge(ctx context.Context, enroll
 
 // Challenge status is updated by reference
 func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, enrollment *types.Enrollment, challenge *types.Challenge, attStmt types.AppleDeviceAttestationStatement) error {
-	roots := x509.NewCertPool()
-	rootCABlock, _ := pem.Decode([]byte(appleEnterpriseAttestationRootCA))
-	if rootCABlock == nil {
-		return types.BadAttestationStatementError("Failed to parse Apple Enterprise Attestation Root CA certificate")
+	roots := s.appleRootCAs
+	if roots == nil {
+		roots = x509.NewCertPool()
+		rootCABlock, _ := pem.Decode([]byte(appleEnterpriseAttestationRootCA))
+		if rootCABlock == nil {
+			return types.BadAttestationStatementError("Failed to parse Apple Enterprise Attestation Root CA certificate")
+		}
+		rootCA, err := x509.ParseCertificate(rootCABlock.Bytes)
+		if err != nil {
+			return types.BadAttestationStatementError(fmt.Sprintf("Failed to parse Apple Enterprise Attestation Root CA certificate: %s", err.Error()))
+		}
+		roots.AddCert(rootCA)
 	}
-	rootCA, err := x509.ParseCertificate(rootCABlock.Bytes)
-	if err != nil {
-		return types.BadAttestationStatementError(fmt.Sprintf("Failed to parse Apple Enterprise Attestation Root CA certificate: %s", err.Error()))
-	}
-	roots.AddCert(rootCA)
 
 	leaf, err := x509.ParseCertificate(attStmt.X5C[0])
 	if err != nil {
@@ -166,9 +173,9 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 	}{}
 
 	for _, ext := range leaf.Extensions {
-		if ext.Id.Equal(oidAppleSerialNumber) {
+		if ext.Id.Equal(OIDAppleSerialNumber) {
 			appleData.SerialNumber = string(ext.Value)
-		} else if ext.Id.Equal(oidAppleNonce) {
+		} else if ext.Id.Equal(OIDAppleNonce) {
 			appleData.Nonce = ext.Value
 		}
 	}
@@ -176,7 +183,7 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 	sha256Token := sha256.Sum256([]byte(challenge.Token))
 	if subtle.ConstantTimeCompare(appleData.Nonce, sha256Token[:]) != 1 {
 		challenge.Status = "invalid"
-		return types.BadAttestationStatementError("Nonce does not match challenge token")
+		return types.BadAttestationStatementError("Apple freshness nonce does not match challenge token")
 	}
 
 	if appleData.SerialNumber != enrollment.HostIdentifier {

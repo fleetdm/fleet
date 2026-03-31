@@ -21,6 +21,12 @@ func TestACMEChallenge(t *testing.T) {
 		{"NoChallengesForAuthorization", testGetChallengesWithNoChallengesForAuthorization},
 		{"GetChallengesWithInvalidAuthorizationID", testGetChallengesWithInvalidAuthorizationID},
 		{"GetChallengesWithZeroAuthorizationID", testGetChallengesWithZeroAuthorizationID},
+
+		{"GetChallengeByIDWithValidID", testGetChallengeByIDWithValidID},
+		{"GetChallengeByIDWithInvalidID", testGetChallengeByIDWithInvalidID},
+		{"GetChallengeByIDWithInvalidAccountID", testGetChallengeByIDWithInvalidAccountID},
+
+		{"UpdateChallengeHappyPath", testUpdateChallengeHappyPath},
 	}
 
 	for _, c := range cases {
@@ -72,4 +78,62 @@ func testGetChallengesWithZeroAuthorizationID(t *testing.T, env *testEnv) {
 	require.ErrorAs(t, err, &acmeError)
 	require.Contains(t, acmeError.Type, "malformed") //nolint:nilaway // cannot be null due to previous require
 	require.Nil(t, challenges)
+}
+
+func testGetChallengeByIDWithValidID(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+	_, _, challenge := createTestOrderForAccount(t, account, env)
+
+	challenge, err := env.ds.GetChallengeByID(t.Context(), account.ID, challenge.ID)
+	require.NoError(t, err)
+	require.NotNil(t, challenge)
+	require.Equal(t, "pending", challenge.Status)
+	require.Equal(t, types.DeviceAttestationChallengeType, challenge.ChallengeType)
+	require.Equal(t, account.ID, challenge.ACMEAuthorizationID)
+}
+
+func testGetChallengeByIDWithInvalidID(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	challenge, err := env.ds.GetChallengeByID(t.Context(), account.ID, 9999) // non-existent ID
+	var acmeError *types.ACMEError
+	require.ErrorAs(t, err, &acmeError)
+	require.Contains(t, acmeError.Type, "error/challengeDoesNotExist") //nolint:nilaway // cannot be null due to previous require
+	require.Nil(t, challenge)
+}
+
+func testGetChallengeByIDWithInvalidAccountID(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+	_, _, challenge := createTestOrderForAccount(t, account, env)
+
+	challenge, err := env.ds.GetChallengeByID(t.Context(), 9999, challenge.ID) // non-existent account ID
+	var acmeError *types.ACMEError
+	require.ErrorAs(t, err, &acmeError)
+	require.Contains(t, acmeError.Type, "error/challengeDoesNotExist") //nolint:nilaway // cannot be null due to previous require
+	require.Nil(t, challenge)
+}
+
+func testUpdateChallengeHappyPath(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+	_, _, challenge := createTestOrderForAccount(t, account, env)
+
+	challenge.Status = "valid"
+	updatedChallenge, err := env.ds.UpdateChallenge(t.Context(), challenge)
+	require.NoError(t, err)
+	require.NotNil(t, updatedChallenge)
+	require.Equal(t, "valid", updatedChallenge.Status)
+	require.Equal(t, challenge.ID, updatedChallenge.ID)
+
+	// Verify that the authorization and order status were updated as well
+	var authStatus string
+	err = env.TestDB.DB.GetContext(t.Context(), &authStatus, "SELECT status FROM acme_authorizations WHERE id = ?", challenge.ACMEAuthorizationID)
+	require.NoError(t, err)
+	require.Equal(t, "valid", authStatus)
+
+	var orderStatus string
+	err = env.TestDB.DB.GetContext(t.Context(), &orderStatus, `SELECT o.status FROM acme_orders o
+	INNER JOIN acme_authorizations a ON o.id = a.acme_order_id
+	WHERE a.id = ?`, challenge.ACMEAuthorizationID)
+	require.NoError(t, err)
+	require.Equal(t, "ready", orderStatus)
 }
