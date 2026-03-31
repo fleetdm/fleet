@@ -254,10 +254,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -781,8 +782,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 	mdmDevice.SerialNumber = teamDevice.SerialNumber
 	require.NoError(t, mdmDevice.Enroll())
 
-	s.runWorker()
+	// Ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	// Drain the initial MDM commands (InstallProfile × 3 + InstallEnterpriseApplication × 1).
 	var cmds []*micromdm.CommandPayload
@@ -948,10 +951,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -1147,10 +1151,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -1377,10 +1382,12 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// run the worker to assign fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -1575,10 +1582,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -1902,10 +1909,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// run the worker to ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -2772,11 +2780,12 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	require.NoError(t, err)
 	require.True(t, awaitingConfiguration)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-
 	// run the cron to assign configuration profiles
 	s.awaitTriggerProfileSchedule(t)
+
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -2791,7 +2800,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	var profileCustomSeen, profileFleetCASeen, unexpectedProfileSeen bool
 
 	// Can be useful for debugging
-	logCommands := false
+	logCommands := true
 	for cmd != nil {
 		if cmd.Command.RequestType == "DeclarativeManagement" {
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -2963,6 +2972,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 		return err
 	})
 
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 
 	// make the device process the commands, it should receive the VPP Verify.
@@ -3023,6 +3033,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 		return err
 	})
 
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 
 	// make the device process the commands, it should receive the
@@ -3144,10 +3155,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -3460,10 +3472,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -3788,10 +3801,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
