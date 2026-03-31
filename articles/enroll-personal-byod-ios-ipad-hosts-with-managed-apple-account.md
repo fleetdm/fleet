@@ -50,7 +50,7 @@ Share these instructions with end users to enroll their personal iPhone or iPad:
 1. Open the **Settings** app.
 2. Go to **General > VPN & Device Management**.
 3. Tap **Sign In to Work or School Account**.
-4. Sign in with your IdP credentials (e.g., Google Workspace or Microsoft Entra ID).
+4. Sign in with your IdP credentials (e.g., Okta, Microsoft Entra ID, or Google Workspace).
 
 After signing in, the device automatically enrolls in Fleet.
 
