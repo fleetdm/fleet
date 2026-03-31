@@ -207,7 +207,7 @@ const Sso = ({
           : PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS
       );
     },
-    [formDirty, router],
+    [formDirty, router]
   );
 
   const renderFleetSsoTab = () => {
