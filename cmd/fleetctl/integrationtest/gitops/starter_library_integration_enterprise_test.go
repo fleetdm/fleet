@@ -17,19 +17,19 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestIntegrationsStarterLibrary(t *testing.T) {
-	testingSuite := new(starterLibraryIntegrationTestSuite)
+func TestIntegrationsEnterpriseStarterLibrary(t *testing.T) {
+	testingSuite := new(starterLibraryIntegrationEnterpriseTestSuite)
 	testingSuite.WithServer.Suite = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
-type starterLibraryIntegrationTestSuite struct {
+type starterLibraryIntegrationEnterpriseTestSuite struct {
 	suite.Suite
 	integrationtest.WithServer
 }
 
-func (s *starterLibraryIntegrationTestSuite) SetupSuite() {
-	s.WithDS.SetupSuite("starterLibraryIntegrationTestSuite")
+func (s *starterLibraryIntegrationEnterpriseTestSuite) SetupSuite() {
+	s.WithDS.SetupSuite("starterLibraryIntegrationEnterpriseTestSuite")
 
 	appConf, err := s.DS.AppConfig(context.Background())
 	require.NoError(s.T(), err)
@@ -45,6 +45,9 @@ func (s *starterLibraryIntegrationTestSuite) SetupSuite() {
 	redisPool := redistest.SetupRedis(s.T(), "starter_library", false, false, false)
 
 	serverConfig := service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
 		FleetConfig: &fleetCfg,
 		Pool:        redisPool,
 	}
@@ -62,9 +65,9 @@ func (s *starterLibraryIntegrationTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 }
 
-// TestApplyStarterLibraryFree verifies that ApplyStarterLibrary applies only
-// the global config (no teams) when using a free license.
-func (s *starterLibraryIntegrationTestSuite) TestApplyStarterLibraryFree() {
+// TestApplyStarterLibraryPremium verifies that ApplyStarterLibrary applies the
+// global config and team configs when using a premium license.
+func (s *starterLibraryIntegrationEnterpriseTestSuite) TestApplyStarterLibraryPremium() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -85,10 +88,16 @@ func (s *starterLibraryIntegrationTestSuite) TestApplyStarterLibraryFree() {
 	require.NoError(t, err)
 	assert.Equal(t, "Test Org", appConfig.OrgInfo.OrgName)
 
-	// Verify that no teams were created for a free license.
+	// Verify that the teams from the starter templates were created.
 	teams, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}}, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Empty(t, teams)
+
+	teamNames := make([]string, len(teams))
+	for i, tm := range teams {
+		teamNames[i] = tm.Name
+	}
+	assert.Contains(t, teamNames, "💻 Workstations")
+	assert.Contains(t, teamNames, "📱🔐 Personal mobile devices")
 
 	// Verify labels were created (global labels, team_id=0).
 	labelSpecs, err := s.DS.GetLabelSpecs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}})
