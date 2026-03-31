@@ -47,9 +47,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 	ae.POST("/api/mdm/acme/{identifier}/new_order", createOrderEndpoint, api_http.JWSRequestContainer{})
 
 	// POST-as-GET for order endpoint, as per RFC.
-	ae.POST("/api/mdm/acme/{identifier}/orders/{order_id}", getOrderEndpoint, api_http.JWSRequestContainer{})
+	ae.POST("/api/mdm/acme/{identifier}/orders/{order_id}", getOrderEndpoint, api_http.GetOrderRequest{})
 	// POST-as-GET for list orders endpoint, as per RFC.
-	ae.POST("/api/mdm/acme/{identifier}/accounts/{account_id}/orders", listOrdersEndpoint, api_http.JWSRequestContainer{})
+	ae.POST("/api/mdm/acme/{identifier}/accounts/{account_id}/orders", listOrdersEndpoint, api_http.ListOrdersRequest{})
 }
 
 func skipStandardFleetAuth() endpoint.Middleware {
@@ -131,9 +131,9 @@ func createOrderEndpoint(ctx context.Context, request any, svc api.Service) plat
 
 // getOrderEndpoint handles POST-as-GET /api/mdm/acme/{identifier}/orders/{id} requests.
 func getOrderEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
-	req := request.(*api_http.JWSRequestContainer)
-	orderRequest := &api_http.GetOrderRequest{OrderID: req.OrderID}
-	err := svc.AuthenticateMessageFromAccount(ctx, req, orderRequest)
+	req := request.(*api_http.GetOrderRequest)
+	orderRequest := &api_http.GetOrderDecodedRequest{OrderID: req.OrderID}
+	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, orderRequest)
 	if err != nil {
 		return &api_http.GetOrderResponse{Err: err, Nonces: svc.NoncesStore()}
 	}
@@ -150,9 +150,9 @@ func getOrderEndpoint(ctx context.Context, request any, svc api.Service) platfor
 
 // listOrdersEndpoint handles POST-as-GET /api/mdm/acme/{identifier}/accounts/{id}/orders requests.
 func listOrdersEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
-	req := request.(*api_http.JWSRequestContainer)
-	ordersRequest := &api_http.ListOrdersRequest{AccountID: req.AccountID}
-	err := svc.AuthenticateMessageFromAccount(ctx, req, ordersRequest)
+	req := request.(*api_http.ListOrdersRequest)
+	ordersRequest := &api_http.ListOrdersDecodedRequest{AccountID: req.AccountID}
+	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, ordersRequest)
 	if err != nil {
 		return &api_http.ListOrdersResponse{Err: err, Nonces: svc.NoncesStore()}
 	}

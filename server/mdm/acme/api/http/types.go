@@ -160,9 +160,14 @@ func (r *CreateNewOrderResponse) Error() error { return r.Err }
 // Status implements the statuser interface.
 func (r *CreateNewOrderResponse) Status() int { return http.StatusCreated }
 
-type GetOrderRequest struct {
+type GetOrderDecodedRequest struct {
 	types.AccountAuthenticatedRequestBase
 	OrderID uint `json:"-"`
+}
+
+type GetOrderRequest struct {
+	JWSRequestContainer
+	OrderID uint `url:"order_id,optional"`
 }
 
 type GetOrderResponse struct {
@@ -189,9 +194,14 @@ func (r *GetOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWrit
 // Error implements the platform_http.Errorer interface.
 func (r *GetOrderResponse) Error() error { return r.Err }
 
-type ListOrdersRequest struct {
+type ListOrdersDecodedRequest struct {
 	types.AccountAuthenticatedRequestBase
 	AccountID uint `json:"-"`
+}
+
+type ListOrdersRequest struct {
+	JWSRequestContainer
+	AccountID uint `url:"account_id,optional"`
 }
 
 type ListOrdersResponse struct {
@@ -231,8 +241,6 @@ type JWSRequestContainer struct {
 
 	// Fields extracted from the URL path.
 	Identifier string `url:"identifier"`
-	OrderID    uint   `url:"order_id,optional"`
-	AccountID  uint   `url:"account_id,optional"`
 	HTTPPath   string `url:"http_path"`
 }
 
