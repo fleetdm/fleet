@@ -549,8 +549,11 @@ func (s *integrationMDMTestSuite) recordAppleHostStatus(
 ) ([]*micromdm.CommandPayload, getHostMDMSummaryResponse, getHostMDMResponseTest) {
 	t := s.T()
 
-	s.runWorkerUntilDone()
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run worker to process the enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorkerUntilDone()
 
 	var cmds []*micromdm.CommandPayload
 
@@ -857,8 +860,8 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	)
 	expectedProfiles := 4 // Fleetd configuration, Fleet root cert, N1, N2
 
-	s.runWorker()
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	ackAllCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, wantFleetdInstall, wantBootstrapInstall bool) int {
 		var count int
@@ -916,6 +919,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	err = manualEnrolledDevice.Enroll()
 	require.NoError(t, err)
 
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	s.awaitTriggerProfileSchedule(t)
 	require.Equal(t, expectedProfiles+1, ackAllCommands(manualEnrolledDevice, true, false)) // re-enrolled device gets the same commands as before
@@ -1115,6 +1119,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	iPadMdmDevice := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, enrollSecrets[0].Secret, "iPad8,1", mdmtest.WithLegacyIDeviceEnrollRef("some-legacy-ref"))
 	require.NoError(t, iPadMdmDevice.Enroll())
 
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	s.awaitTriggerProfileSchedule(t)
 	require.Equal(t, expectedProfiles-1, ackAllCommands(iPadMdmDevice, false, false))
@@ -1353,7 +1358,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 		hwModel,
 	)
 	require.NoError(t, mdmDevice.Enroll())
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 	// mu.Lock()

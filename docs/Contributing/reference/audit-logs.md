@@ -1714,6 +1714,43 @@ This activity contains the following fields:
 }
 ```
 
+## installed_certificate
+
+Generated when a certificate is installed on a host or fails to install.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "certificate_template_id": ID of the certificate template.
+- "certificate_name": Name of the certificate.
+- "status": Status of the certificate installation ("installed" or "failed_install").
+- "detail": Details of the failure. Only present when status is "failed_install".
+
+#### Example (success)
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Samsung SM-F946U",
+  "certificate_template_id": 19,
+  "certificate_name": "cert-6",
+  "status": "installed"
+}
+```
+
+#### Example (failure)
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Samsung SM-F946U",
+  "certificate_template_id": 19,
+  "certificate_name": "cert-6",
+  "status": "failed_install",
+  "detail": "Network error during SCEP enrollment: Failed to communicate with SCEP server"
+}
+```
+
 ## edited_app_store_app
 
 Generated when an App Store app is updated in Fleet.
