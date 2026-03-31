@@ -183,7 +183,7 @@ const Sso = ({
   };
 
   const [endUserFormData, setEndUserFormData] = useState<IFormDataIdp>(
-    newFormDataIdp(appConfig?.mdm?.end_user_authentication),
+    newFormDataIdp(appConfig?.mdm?.end_user_authentication)
   );
   const originalEndUserFormData = useRef(endUserFormData);
 
