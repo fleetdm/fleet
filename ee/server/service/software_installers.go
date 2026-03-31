@@ -2162,6 +2162,11 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	return requestUUID, nil
 }
 
+var (
+	errNonMajorVersion      = errors.New("only the major version can be specified with a caret (^), without including minor and patch versions. For example, \"^32\".")
+	errMajorVersionNotFound = errors.New("specified major version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
+)
+
 func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
 	slug := payload.Slug
 	if slug == nil || *slug == "" {
@@ -2182,14 +2187,14 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 
 	majorVersionString, usesCaret := strings.CutPrefix(payload.RollbackVersion, "^")
-
 	if usesCaret {
 		if len(majorVersionString) == 0 {
 			return ctxerr.Wrap(ctx, errors.New("no version number provided"), "reading Fleet-maintained app pinned version")
 		}
 		if parts := strings.Split(payload.RollbackVersion, "."); len(parts) > 1 {
-			return fleet.NewUserMessageError(errors.New("only the major version can be specified with a caret (^), without including minor and patch versions. For example, \"^32\"."), http.StatusNotFound)
+			return fleet.NewUserMessageError(errNonMajorVersion, http.StatusBadRequest)
 		}
+		// unset rollback version to avoid getting a cached installer
 		payload.RollbackVersion = ""
 	}
 
@@ -2211,9 +2216,12 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		if downloadedSemVer.Major() != majorVersion {
 			// We cannot use the FMA we just got the manifest for since it is on a different major
 			// version, so we try to find the latest cached version and use that instead.
+			if app.TitleID == nil {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
 			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID, true)
 			if err != nil {
-				return fleet.NewUserMessageError(errors.New("specified major version is not available. Available versions are listed in the Fleet UI under Actions > Edit software."), http.StatusNotFound)
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
 
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,

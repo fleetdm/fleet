@@ -27945,3 +27945,32 @@ func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uin
 	})
 	return id
 }
+
+func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
+	t := s.T()
+
+	t.Run("pin major version", func(t *testing.T) {
+		teamName := ""
+		states := make(map[string]*fmaTestState, 1)
+		states["/zoom/windows.json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/zoom.msi",
+		}
+		startFMAServers(t, s.ds, states)
+
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: teamName},
+			http.StatusAccepted, &resp,
+			"team_name", teamName, "team_id", "0",
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
+
+		var titleResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &titleResp, "team_id", "0")
+		require.Len(t, titleResp.SoftwareTitles, 1)
+		fmt.Println(titleResp.SoftwareTitles)
+	})
+
+}
