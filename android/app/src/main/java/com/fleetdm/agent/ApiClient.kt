@@ -1,6 +1,7 @@
 package com.fleetdm.agent
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -10,10 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -64,6 +62,7 @@ object ApiClient : CertificateApiClient {
     private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var appContext: Context
     private val API_KEY = stringPreferencesKey("api_key")
     private val SERVER_URL_KEY = stringPreferencesKey("server_url")
     private val ENROLL_SECRET = stringPreferencesKey("enroll_secret")
@@ -74,8 +73,9 @@ object ApiClient : CertificateApiClient {
 
     fun initialize(context: Context) {
         Log.d(TAG, "initializing api client")
+        appContext = context.applicationContext
         if (!::dataStore.isInitialized) {
-            dataStore = context.applicationContext.prefDataStore
+            dataStore = appContext.prefDataStore
         }
     }
 
@@ -139,7 +139,7 @@ object ApiClient : CertificateApiClient {
             }
 
             val url = URL("$baseUrl$endpoint")
-            connection = url.openConnection() as HttpURLConnection
+            connection = openConnectionOnActiveNetwork(url)
 
             connection.apply {
                 requestMethod = method
@@ -198,6 +198,25 @@ object ApiClient : CertificateApiClient {
      */
     class UnauthorizedException(message: String) : Exception("HTTP 401: $message")
     class NotFoundException(message: String) : Exception("HTTP 404: $message")
+
+    /**
+     * Opens an HTTP connection bound to the active network when available. This ensures DNS resolution uses
+     * the active network's DNS servers, avoiding failures when Android reports connectivity before DNS is ready.
+     * Falls back to a default connection if no active network is available.
+     */
+    internal fun openConnectionOnActiveNetwork(url: URL): HttpURLConnection {
+        if (useActiveNetworkBinding) {
+            val connectivityManager = appContext.getSystemService(ConnectivityManager::class.java)
+            val activeNetwork = connectivityManager?.activeNetwork
+            if (activeNetwork != null) {
+                return activeNetwork.openConnection(url) as HttpURLConnection
+            }
+        }
+        return url.openConnection() as HttpURLConnection
+    }
+
+    // Disabled in tests where Network.openConnection is not available (Robolectric)
+    internal var useActiveNetworkBinding = true
 
     /**
      * Executes a request block with automatic re-enrollment on 401 Unauthorized.

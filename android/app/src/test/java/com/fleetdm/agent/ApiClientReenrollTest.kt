@@ -43,6 +43,7 @@ class ApiClientReenrollTest {
         mockWebServer.start()
 
         ApiClient.initialize(context)
+        ApiClient.useActiveNetworkBinding = false
         clearDataStore()
 
         // Set up enrollment credentials pointing to mock server
