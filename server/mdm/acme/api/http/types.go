@@ -281,8 +281,6 @@ type JWSRequestContainer struct {
 	// Fields extracted from the URL path.
 	Identifier string `url:"identifier"`
 	HTTPPath   string `url:"http_path"`
-
-	URLValues url.Values `json:"-"`
 }
 
 func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
@@ -334,8 +332,6 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 		return ctxerr.Wrap(ctx, err)
 	}
 	req.JWSHeaderURL = headerURL
-
-	req.URLValues = u
 
 	return nil
 }
