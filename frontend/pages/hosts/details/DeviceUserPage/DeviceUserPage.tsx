@@ -467,9 +467,9 @@ const DeviceUserPage = ({
   );
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup?.bootstrap_package_status,
-    details: host?.mdm.macos_setup?.details,
-    name: host?.mdm.macos_setup?.bootstrap_package_name,
+    status: host?.mdm.setup_experience?.bootstrap_package_status,
+    details: host?.mdm.setup_experience?.details,
+    name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
   const toggleOSSettingsModal = useCallback(() => {
@@ -674,7 +674,7 @@ const DeviceUserPage = ({
       );
     }
 
-    const hasAnyCriticalFailingCAPolicy = host?.policies.some(
+    const hasAnyCriticalFailingCAPolicy = host?.policies?.some(
       (p) => p.response === "fail" && p.conditional_access_enabled && p.critical
     );
 
@@ -688,10 +688,10 @@ const DeviceUserPage = ({
             mdmEnabledAndConfigured={!!globalConfig?.mdm.enabled_and_configured}
             connectedToFleetMdm={!!host.mdm.connected_to_fleet}
             macDiskEncryptionStatus={
-              host.mdm.macos_settings?.disk_encryption ?? null
+              host.mdm.apple_settings?.disk_encryption ?? null
             }
             diskEncryptionActionRequired={
-              host.mdm.macos_settings?.action_required ?? null
+              host.mdm.apple_settings?.action_required ?? null
             }
             onClickCreatePIN={() => setShowBitLockerPINModal(true)}
             onClickTurnOnMdm={onClickTurnOnMdm}

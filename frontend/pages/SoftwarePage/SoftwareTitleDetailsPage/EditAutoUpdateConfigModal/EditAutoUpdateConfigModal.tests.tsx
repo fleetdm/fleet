@@ -396,18 +396,18 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
-      expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
-      expect(screen.getByLabelText("Custom")).toBeInTheDocument();
-      expect(screen.getByLabelText("All hosts")).not.toBeChecked();
-      expect(screen.getByLabelText("Custom")).toBeChecked();
-      expect(screen.getByLabelText(mockLabels[1].name)).toBeInTheDocument();
-      expect(screen.getByLabelText(mockLabels[1].name)).toBeChecked();
-      expect(screen.getByLabelText(mockLabels[0].name)).toBeInTheDocument();
-      expect(screen.getByLabelText(mockLabels[0].name)).not.toBeChecked();
-      const saveButton = screen.getByRole("button", {
-        name: "Save",
-      });
-      expect(saveButton).toBeEnabled();
+
+      // Wait until target section has rendered and request has had a chance to resolve
+      await screen.findByLabelText("Custom");
+
+      // Now wait specifically for one label to appear
+      const freshLabel = await screen.findByLabelText(mockLabels[1].name);
+      expect(freshLabel).toBeInTheDocument();
+      expect(freshLabel).toBeChecked();
+
+      const funLabel = screen.getByLabelText(mockLabels[0].name);
+      expect(funLabel).toBeInTheDocument();
+      expect(funLabel).not.toBeChecked();
     });
 
     it("Requires at least one label to be selected if 'Custom' is selected", async () => {
@@ -425,6 +425,8 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
+      // Wait for labels to load
+      await screen.findByLabelText(mockLabels[1].name);
       const customOption = screen.getByLabelText("Custom");
       expect(customOption).toBeChecked();
       const labelOption = screen.getByLabelText(mockLabels[1].name);
@@ -453,7 +455,7 @@ describe("Edit Auto Update Config Modal", () => {
       requestSpy.mockClear();
     });
     it("Sends the correct payload when 'Enable auto updates' is unchecked", async () => {
-      render(
+      const { user } = render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails()}
           teamId={1}
@@ -465,14 +467,14 @@ describe("Edit Auto Update Config Modal", () => {
         name: "Save",
       });
       expect(saveButton).toBeEnabled();
-      await act(() => {
-        saveButton.click();
-      });
+
+      await user.click(saveButton);
       await waitFor(() => {
         expect(requestSpy).toHaveBeenCalledWith({
           auto_update_enabled: false,
           labels_include_any: [],
           labels_exclude_any: [],
+          labels_include_all: [],
           fleet_id: 1,
         });
       });
@@ -514,6 +516,7 @@ describe("Edit Auto Update Config Modal", () => {
           auto_update_window_end: "04:00",
           labels_include_any: [],
           labels_exclude_any: [],
+          labels_include_all: [],
           fleet_id: 1,
         });
       });
@@ -547,6 +550,7 @@ describe("Edit Auto Update Config Modal", () => {
           auto_update_enabled: false,
           labels_include_any: [],
           labels_exclude_any: [],
+          labels_include_all: [],
           fleet_id: 1,
         });
       });

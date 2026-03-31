@@ -492,7 +492,7 @@ const (
 	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 
 	// Scripts
-	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Bash) and .ps1 (PowerShell) file types are allowed."
+	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
 	RunScriptHostOfflineErrMsg             = "Script can't run on offline host."
 	RunScriptForbiddenErrMsg               = "You don't have the right permissions in Fleet to run the script."
 	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
@@ -501,7 +501,7 @@ const (
 	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
 	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
 	RunScriptAsyncScriptEnqueuedMsg        = "Script is running or will run when the host comes online."
-	RunScripSavedMaxLenErrMsg              = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
+	RunScriptSavedMaxLenErrMsg             = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
 	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
 	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
 
@@ -532,6 +532,11 @@ const (
 var (
 	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarSCEPRenewalID)
 	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarSCEPRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+)
+
+const (
+	// DeleteCAReferencedByTemplatesErrMsg is the error substring used when a CA cannot be deleted because certificate templates still reference it.
+	DeleteCAReferencedByTemplatesErrMsg = "Certificate templates still reference it"
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

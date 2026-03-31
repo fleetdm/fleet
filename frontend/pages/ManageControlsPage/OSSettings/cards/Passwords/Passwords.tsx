@@ -14,9 +14,12 @@ import {
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";
 
+import PATHS from "router/paths";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -41,7 +44,11 @@ const RECOVERY_LOCK_TOOLTIP_CONTENT = (
   </>
 );
 
-const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
+const Passwords = ({
+  currentTeamId,
+  router,
+  onMutation,
+}: IOSSettingsCommonProps) => {
   const {
     isPremiumTier,
     config,
@@ -51,6 +58,9 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
+
+  // Recovery Lock is macOS only, so we only check for macOS MDM
+  const mdmEnabled = config?.mdm.enabled_and_configured;
 
   const [enableRecoveryLockPassword, setEnableRecoveryLockPassword] = useState<
     boolean | undefined
@@ -67,7 +77,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (res) => {
         setEnableRecoveryLockPassword(
           res.mdm?.enable_recovery_lock_password ?? false
@@ -132,8 +142,18 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
         content="Manage passwords used for recovery, security, or administrative access across supported platforms."
       />
       {!isPremiumTier && <PremiumFeatureMessage />}
-      {isPremiumTier && showLoading && <Spinner />}
-      {isPremiumTier && !showLoading && !isTechnician && (
+      {isPremiumTier && mdmEnabled === undefined && <Spinner />}
+      {isPremiumTier && mdmEnabled === false && (
+        <GenericMsgWithNavButton
+          header="Manage your hosts"
+          buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
+          router={router}
+          info="MDM must be turned on to apply password settings."
+        />
+      )}
+      {isPremiumTier && mdmEnabled === true && showLoading && <Spinner />}
+      {isPremiumTier && mdmEnabled === true && !showLoading && !isTechnician && (
         <div className="form passwords-content">
           <div className={`${baseClass}__recovery-lock-header`}>
             <TooltipWrapper tipContent={RECOVERY_LOCK_TOOLTIP_CONTENT}>

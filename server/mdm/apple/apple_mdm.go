@@ -1609,7 +1609,7 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 	return nil
 }
 
-func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) map[string]error {
+func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) (map[string]string, error) {
 	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
 	if m, ok := any(settings).(fleet.MDM); ok {
 		macOSUpdates = m.MacOSUpdates
@@ -1620,25 +1620,25 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		iOSUpdates = t.IOSUpdates
 		iPadOSUpdates = t.IPadOSUpdates
 	} else {
-		return nil
+		return nil, errors.New("invalid settings type")
 	}
 
 	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
-		return nil
+		return nil, nil
 	}
 
 	am, err := gdmf.GetAssetMetadata()
 	if err != nil {
-		return map[string]error{"mdm": fmt.Errorf("fetching Apple asset metadata: %w", err)}
+		return nil, fmt.Errorf("fetching Apple asset metadata: %w", err)
 	} else if am == nil {
 		// this should never happen, but just in case, return an error indicating that the metadata is not available instead of panicking with a nil pointer dereference
-		return map[string]error{"mdm": errors.New("Apple asset metadata is not available")}
+		return nil, errors.New("Apple asset metadata is not available")
 	}
 
-	errs := make(map[string]error, 3)
+	invalid := make(map[string]string, 3)
 	if macOSUpdates.MinimumVersion.Value != "" {
 		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
-			errs["mdm.macos_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
 	if iOSUpdates.MinimumVersion.Value != "" {
@@ -1646,22 +1646,24 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
 		// and we want to avoid breaking workflows for users in that event
 		if ok := am.IsSupportedIOSVersion(iOSUpdates.MinimumVersion.Value, "iphone", excludeNonPublicAssetSets); !ok {
-			errs["mdm.ios_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
 	if iPadOSUpdates.MinimumVersion.Value != "" {
 		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
-			errs["mdm.ipados_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
 
-	return errs
+	return invalid, nil
 }
 
 // RecoveryLockCommander defines the interface for sending recovery lock commands.
 // This interface is implemented by MDMAppleCommander and allows for testing.
 type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -1674,11 +1676,48 @@ func SendRecoveryLockCommands(
 	ds fleet.Datastore,
 	commander *MDMAppleCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) error {
-	return sendRecoveryLockCommandsWithCommander(ctx, ds, commander, logger)
+	return sendRecoveryLockCommandsWithCommander(ctx, ds, commander, logger, newActivityFn)
 }
 
 func sendRecoveryLockCommandsWithCommander(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) error {
+	var result *multierror.Error
+
+	// Restore hosts that were in "pending remove" state but feature was re-enabled.
+	// This transitions them back to "verified install" to preserve the existing password.
+	restored, err := ds.RestoreRecoveryLockForReenabledHosts(ctx)
+	if err != nil {
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "restore recovery lock for re-enabled hosts"))
+	} else if restored > 0 {
+		logger.InfoContext(ctx, "restored recovery lock for re-enabled hosts", "count", restored)
+	}
+
+	// Handle SET password operations (hosts that need a recovery lock password)
+	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	// Handle CLEAR password operations (hosts that need their recovery lock cleared)
+	if err := sendClearRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	// Handle AUTO-ROTATION for viewed passwords (password viewed 1+ hour ago)
+	if err := sendAutoRotationCommands(ctx, ds, commander, logger, newActivityFn); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	return result.ErrorOrNil()
+}
+
+func sendSetRecoveryLockCommands(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander RecoveryLockCommander,
@@ -1754,6 +1793,7 @@ func sendRecoveryLockCommandsWithCommander(
 				"host_count", len(hostUUIDs),
 				"error", clearErr,
 			)
+			err = multierror.Append(err, clearErr)
 		}
 		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
 	}
@@ -1764,6 +1804,176 @@ func sendRecoveryLockCommandsWithCommander(
 	)
 
 	return nil
+}
+
+func sendClearRecoveryLockCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock clear action")
+	}
+
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no hosts need ClearRecoveryLock")
+		return nil
+	}
+
+	logger.InfoContext(ctx, "sending ClearRecoveryLock commands", "count", len(hosts))
+
+	// Enqueue clear command. The CurrentPassword placeholder will be expanded at
+	// delivery time by ExpandHostSecrets (which looks up by host UUID).
+	cmdUUID := uuid.NewString()
+	if err := commander.ClearRecoveryLock(ctx, hosts, cmdUUID); err != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			// Command was persisted but push notification failed - log warning but don't fail.
+			logger.WarnContext(ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
+				"host_count", len(hosts),
+				"command_uuid", cmdUUID,
+				"error", err,
+			)
+			return nil
+		}
+
+		// Persistence failed - reset status to NULL so hosts will be picked up again.
+		logger.ErrorContext(ctx, "failed to enqueue ClearRecoveryLock commands",
+			"host_count", len(hosts),
+			"error", err,
+		)
+		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hosts); clearErr != nil {
+			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+				"host_count", len(hosts),
+				"error", clearErr,
+			)
+			err = multierror.Append(err, clearErr)
+		}
+		return ctxerr.Wrap(ctx, err, "enqueue ClearRecoveryLock commands")
+	}
+
+	logger.InfoContext(ctx, "sent ClearRecoveryLock commands",
+		"host_count", len(hosts),
+		"command_uuid", cmdUUID,
+	)
+
+	return nil
+}
+
+func sendAutoRotationCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) error {
+	hosts, err := ds.GetHostsForAutoRotation(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get hosts for auto rotation")
+	}
+
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no hosts need auto-rotation")
+		return nil
+	}
+
+	logger.InfoContext(ctx, "performing auto-rotation for viewed passwords", "count", len(hosts))
+
+	var result *multierror.Error
+	for _, host := range hosts {
+		newPassword := GenerateRecoveryLockPassword()
+
+		// Initiate rotation - stores pending password and validates eligibility
+		if err := ds.InitiateRecoveryLockRotation(ctx, host.HostUUID, newPassword); err != nil {
+			// Check for benign race conditions where host state changed between
+			// GetHostsForAutoRotation and now (e.g., manual rotation started,
+			// password removed, host deleted, etc.)
+			if fleet.IsNotFound(err) ||
+				errors.Is(err, fleet.ErrRecoveryLockRotationPending) ||
+				errors.Is(err, fleet.ErrRecoveryLockNotEligible) {
+				logger.DebugContext(ctx, "host lost eligibility for auto-rotation",
+					"host_uuid", host.HostUUID,
+					"error", err,
+				)
+				continue
+			}
+
+			logger.ErrorContext(ctx, "failed to initiate auto-rotation",
+				"host_uuid", host.HostUUID,
+				"error", err,
+			)
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		// Enqueue RotateRecoveryLock command
+		cmdUUID := uuid.NewString()
+		if err := commander.RotateRecoveryLock(ctx, host.HostUUID, cmdUUID); err != nil {
+			var apnsErr *APNSDeliveryError
+			if errors.As(err, &apnsErr) {
+				// Command was persisted but push notification failed - log activity and continue.
+				// The command will be retried when the device checks in.
+				logAutoRotationActivity(ctx, logger, newActivityFn, host)
+				logger.WarnContext(ctx, "auto-rotation command enqueued but APNs push failed",
+					"host_uuid", host.HostUUID,
+					"command_uuid", cmdUUID,
+					"error", err,
+				)
+				continue
+			}
+
+			// Persistence failed - clear pending rotation so host can be retried
+			logger.ErrorContext(ctx, "failed to enqueue auto-rotation command",
+				"host_uuid", host.HostUUID,
+				"error", err,
+			)
+			if clearErr := ds.ClearRecoveryLockRotation(ctx, host.HostUUID); clearErr != nil {
+				logger.ErrorContext(ctx, "failed to clear pending rotation after enqueue failure",
+					"host_uuid", host.HostUUID,
+					"error", clearErr,
+				)
+				result = multierror.Append(result, clearErr)
+			}
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		// Log activity for auto-rotation (Fleet-initiated)
+		logAutoRotationActivity(ctx, logger, newActivityFn, host)
+
+		logger.DebugContext(ctx, "sent auto-rotation command",
+			"host_uuid", host.HostUUID,
+			"command_uuid", cmdUUID,
+		)
+	}
+
+	return result.ErrorOrNil()
+}
+
+// logAutoRotationActivity logs the rotation activity for auto-rotations.
+// It uses the same activity type as manual rotations but marks it as Fleet-initiated.
+func logAutoRotationActivity(
+	ctx context.Context,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+	host fleet.HostAutoRotationInfo,
+) {
+	if newActivityFn == nil {
+		return
+	}
+
+	if err := newActivityFn(ctx, nil, fleet.ActivityTypeRotatedHostRecoveryLockPassword{
+		HostID:          host.HostID,
+		HostDisplayName: host.DisplayName,
+		FleetInitiated:  true,
+	}); err != nil {
+		logger.WarnContext(ctx, "auto-rotation: failed to create activity",
+			"host_uuid", host.HostUUID,
+			"err", err,
+		)
+	}
 }
 
 // RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)

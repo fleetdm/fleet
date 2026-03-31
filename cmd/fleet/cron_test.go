@@ -26,10 +26,11 @@ func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	ds := new(mock.Store)
+	kv := new(mock.AdvancedKVStore)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, nil)
 	logger := slog.New(slog.DiscardHandler)
 
-	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, logger)
+	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, kv, logger, 0)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }

@@ -109,6 +109,7 @@ Here's why Fleet uses a wireframe-first approach:
 - But wireframes don't have to be high fidelity.  It is OK to communicate ideas for changes using ugly, marked-up screenshots, a photo of a piece of paper.  Fleet's [drafting process](https://fleetdm.com/handbook/company/development-groups#making-changes) helps turn these rough wireframes into product changes that can be implemented quickly with minimal UX and technical debt.
 - Wireframes created to describe individual changes are disposable and may have slight stylistic inconsistencies.  Fleet's user interface styleguide in Figma is the source of truth for overarching design decisions like spacing, typography, and colors.
 - While the "wireframe first" practice is [still sometimes misunderstood](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall), today many modern high-performing teams now use a [wireframe-first methodology](https://speakerdeck.com/mikermcneil/i-love-apis), including [startups](https://www.forbes.com/sites/danwoods/2015/10/19/dont-get-ubered-apis-hold-key-to-digital-transformation/?sh=50112fea182c#:~:text=One%20recommendation%20that,deep%20experience) and [publicly-traded companies](https://about.gitlab.com/handbook/product-development-flow/#validation-phase-3-design).
+- Much like [Pixar's storyboarding process](https://www.linkedin.com/posts/richardking001_this-is-why-product-marketer-matters-activity-7381678524186775552-m2Jk), wireframing lets us inexpensively storyboard what a user journey is going to be like before locking in decisions that are prohibitively expensive to change post-production.
 
 
 ## Why do we use one repo?
@@ -440,6 +441,11 @@ The device management industry has long suffered under the "cross platform" myth
 
 While Fleet aims to normalize across platforms where possible, there are inevitably times you need to go deeper.  In Fleet, rather than pretend that the world is truly "cross-platform", by using the phrase "multi-platform", we can communicate how Fleet supports the best in breed functionality for each platform, all the way down to the bare metal.
   
+
+## Why no project management function?
+
+At Fleet, every functional manager is responsible for managing the flow of work for their team.  The best managers think about their department's output like a factory, taking direct responsibility over results instead of delegating that responsibility to a separate project management function.  This is inspired by Andy Grove's [High Output Management](https://www.audible.com/pd/High-Output-Management-Audiobook/B015WXKRIS), Eliyahu Goldratt's [The Goal](https://www.audible.com/pd/The-Goal-Audiobook/B00IFGGDA2) and [The Phoenix Project](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32), and Sid Sijbrandij's [writings on management](https://handbook.gitlab.com) during his time as CEO of GitLab.
+
 
 #### Stubs
 

@@ -113,3 +113,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-03">
 <meta name="description" value="How a global technology platform uses Fleet to improve software inventory and prioritize real vulnerabilities across thousands of devices."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Global technology platform">
+<meta name="cardBodyForCustomersPage" value="Global technology platform improves vulnerability intelligence with Fleet.">

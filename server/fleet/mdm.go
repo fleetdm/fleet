@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -30,6 +31,11 @@ const (
 
 	StickyMDMEnrollmentKeyPrefix = "sticky_mdm_enrollment_" // + host UUID
 	StickyMDMEnrollmentTTL       = 30 * time.Minute
+
+	// MDMProfileProcessingKeyPrefix is used to indicate that a host is currently being processed for MDM profile installation.
+	// We wrap the key in braces to make Redis hash the keys to the same slot, avoiding CrossSlot errors.
+	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
+	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -82,6 +88,22 @@ const (
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
 )
+
+// HasCAVariables returns true if any of the given Fleet variable names
+// (as returned by variables.Find, without the FLEET_VAR_ prefix) correspond
+// to a certificate authority variable.
+func HasCAVariables(fleetVars []string) bool {
+	for _, v := range fleetVars {
+		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
+			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
+			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
+			return true
+		}
+	}
+	return false
+}
 
 var (
 	// Fleet variable regexp patterns
@@ -351,7 +373,8 @@ type MDMCommandResult struct {
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
 	// ResultsMetadata contains command-specific metadata.
-	// VPP install commands includes a "software_installed" boolean.
+	// VPP install commands include a "software_installed" boolean and
+	// "vpp_verify_timeout_seconds" integer.
 	ResultsMetadata map[string]any `json:"results_metadata,omitempty" db:"-"`
 }
 
@@ -448,17 +471,18 @@ type MDMProfilesSummary struct {
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID            string           `db:"-" json:"-"`
-	CommandUUID         string           `db:"-" json:"-"`
-	ProfileUUID         string           `db:"-" json:"profile_uuid"`
-	Name                string           `db:"-" json:"name"`
-	Identifier          string           `db:"-" json:"-"`
-	Status              *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
-	OperationType       MDMOperationType `db:"-" json:"operation_type"`
-	Detail              string           `db:"-" json:"detail"`
-	Platform            string           `db:"-" json:"platform"`
-	Scope               *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
-	ManagedLocalAccount *string          `db:"-" json:"managed_local_account"`
+	HostUUID              string           `db:"-" json:"-"`
+	CommandUUID           string           `db:"-" json:"-"`
+	ProfileUUID           string           `db:"-" json:"profile_uuid"`
+	Name                  string           `db:"-" json:"name"`
+	Identifier            string           `db:"-" json:"-"`
+	Status                *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
+	OperationType         MDMOperationType `db:"-" json:"operation_type"`
+	Detail                string           `db:"-" json:"detail"`
+	Platform              string           `db:"-" json:"platform"`
+	Scope                 *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount   *string          `db:"-" json:"managed_local_account"`
+	CertificateTemplateID *uint            `db:"-" json:"certificate_template_id,omitempty"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -474,7 +498,7 @@ type MDMDeliveryStatus string
 //     command failed to enqueue in ReconcileProfile (it resets the status to
 //     NULL). A failure in the asynchronous actual response of the MDM command
 //     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
-//     a retry of mdm.MaxProfileRetries times and if it still reports as failed
+//     a retry of mdm.MaxAppleProfileRetries times (or mdm.MaxWindowsProfileRetries for Windows) and if it still reports as failed
 //     it will be set to failed permanently.
 //
 //   - verified: the MDM command was successfully applied, and Fleet has
@@ -678,7 +702,8 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
-	Path string `json:"path,omitempty"`
+	Path  string `json:"path,omitempty"`
+	Paths string `json:"paths,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to
@@ -697,6 +722,39 @@ type MDMProfileSpec struct {
 	// member of in order to receive the profile. It must not be a member of any
 	// of the listed labels.
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+}
+
+// Implement the SupportsFileInclude interface so that MDMProfileSpec
+// can support globs in GitOps.
+
+// GetBaseItem converts MDMProfileSpec's string Path/Paths to a BaseItem.
+// Nil pointers are returned for empty strings.
+func (p *MDMProfileSpec) GetBaseItem() BaseItem {
+	var b BaseItem
+	if p.Path != "" {
+		path := p.Path
+		b.Path = &path
+	}
+	if p.Paths != "" {
+		paths := p.Paths
+		b.Paths = &paths
+	}
+	return b
+}
+
+// SetBaseItem updates MDMProfileSpec's Path/Paths from a BaseItem.
+// Nil pointers become empty strings.
+func (p *MDMProfileSpec) SetBaseItem(v BaseItem) {
+	if v.Path != nil {
+		p.Path = *v.Path
+	} else {
+		p.Path = ""
+	}
+	if v.Paths != nil {
+		p.Paths = *v.Paths
+	} else {
+		p.Paths = ""
+	}
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to add backwards

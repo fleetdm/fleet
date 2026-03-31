@@ -72,3 +72,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-14">
 <meta name="description" value="Fleet gives a fintech company real-time infrastructure visibility across laptops and cloud systems."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Financial technology company">
+<meta name="cardBodyForCustomersPage" value="Fleet gives a fintech company real-time infrastructure visibility across laptops and cloud systems.">

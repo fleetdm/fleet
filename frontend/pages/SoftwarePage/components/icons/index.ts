@@ -7,15 +7,20 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
+import Kitty from "./Kitty";
+import Krita from "./Krita";
 import LastPass from "./LastPass";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import Proxifier from "./Proxifier";
+import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
@@ -39,6 +44,7 @@ import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
+import ArduinoIde from "./ArduinoIde";
 import Asana from "./Asana";
 import Audacity from "./Audacity";
 import AvastSecureBrowser from "./AvastSecureBrowser";
@@ -199,6 +205,7 @@ import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
 import SuspiciousPackage from "./SuspiciousPackage";
+import Swiftdialog from "./Swiftdialog";
 import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
@@ -211,6 +218,7 @@ import TextExpander from "./TextExpander";
 import TheUnarchiver from "./TheUnarchiver";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
+import TorBrowser from "./TorBrowser";
 import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
@@ -270,6 +278,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
+  "arduino ide": ArduinoIde,
   asana: Asana,
   audacity: Audacity,
   avast: AvastSecureBrowser,
@@ -288,6 +297,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
+  charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
   "cisco jabber": CiscoJabber,
@@ -304,7 +314,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
+  kitty: Kitty,
+  krita: Krita,
   lastpass: LastPass,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
@@ -420,6 +433,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "proton mail": ProtonMail,
   protonvpn: ProtonVpn,
   proxifier: Proxifier,
+  proxyman: Proxyman,
   putty: Putty,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
@@ -451,6 +465,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "sublime text": SublimeText,
   surfshark: Surfshark,
   "suspicious package": SuspiciousPackage,
+  swiftdialog: Swiftdialog,
   tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
@@ -464,6 +479,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "the unarchiver": TheUnarchiver,
   thunderbird: Thunderbird,
   todoist: Todoist,
+  "tor browser": TorBrowser,
   tower: Tower,
   transmit: Transmit,
   tunnelblick: Tunnelblick,

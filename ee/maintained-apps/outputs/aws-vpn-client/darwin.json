@@ -3,7 +3,8 @@
     {
       "version": "5.3.4",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx' AND version_compare(bundle_short_version, '5.3.4') < 0);"
       },
       "installer_url": "https://d20adtppz83p9s.cloudfront.net/OSX_ARM64/5.3.4/AWS_VPN_Client_ARM64.pkg",
       "install_script_ref": "9e61c2b8",

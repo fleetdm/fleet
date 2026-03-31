@@ -71,6 +71,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	if !ok {
 		return nil, errors.New("user must be authenticated to create fleet policies")
 	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
@@ -206,7 +207,7 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (
 		return 0, err
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery)
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "")
 	if err != nil {
 		return 0, err
 	}
@@ -332,6 +333,8 @@ type modifyGlobalPolicyResponse struct {
 }
 
 func (r modifyGlobalPolicyResponse) Error() error { return r.Err }
+
+const errPolicyAllFleetsForConditionalAccess = "\"All fleets\" policy cannot have conditional_access_enabled set"
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyGlobalPolicyRequest)
@@ -564,6 +567,12 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 	// After the authorization check, check the policy fields.
 	for _, policy := range policies {
+		if policy.Team == "" && policy.ConditionalAccessEnabled {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForConditionalAccess),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),

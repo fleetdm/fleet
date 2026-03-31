@@ -73,7 +73,7 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 #### Configuration
 
-Currently, editing configuration is only supported for Android apps only. And, currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+Currently, editing configuration is only supported for Android apps. And currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 

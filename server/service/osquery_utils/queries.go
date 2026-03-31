@@ -132,9 +132,9 @@ AND blocks_size > 0
 
 -- exclude external storage
 AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
-  
+
 -- exclude device drivers
-AND path NOT LIKE '/dev%' 
+AND path NOT LIKE '/dev%'
 
 -- exclude kernel-related mounts
 AND path NOT LIKE '/proc%'
@@ -145,7 +145,7 @@ AND path NOT LIKE '/run%'
 AND path NOT LIKE '/var/run%'
 
 -- exclude boot files
-AND path NOT LIKE '/boot%' 
+AND path NOT LIKE '/boot%'
 
 -- exclude snap packages
 AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
@@ -155,21 +155,21 @@ AND path NOT LIKE '/var/lib/docker%'
 AND path NOT LIKE '/var/lib/containers%'
 
 AND type IN (
-'ext4', 
-'ext3', 
-'ext2', 
-'xfs', 
-'btrfs', 
-'ntfs', 
+'ext4',
+'ext3',
+'ext2',
+'xfs',
+'btrfs',
+'ntfs',
 'vfat',
 'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
 'zfs' --also valid storage
 )
 AND (
-device LIKE '/dev/sd%' 
-OR device LIKE '/dev/hd%' 
-OR device LIKE '/dev/vd%' 
-OR device LIKE '/dev/nvme%' 
+device LIKE '/dev/sd%'
+OR device LIKE '/dev/hd%'
+OR device LIKE '/dev/vd%'
+OR device LIKE '/dev/nvme%'
 OR device LIKE '/dev/mapper%'
 OR device LIKE '/dev/md%'
 OR device LIKE '/dev/dm-%'
@@ -261,18 +261,26 @@ var hostDetailQueries = map[string]DetailQuery{
 			SELECT data AS ubr
 			FROM registry
 			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+		),
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
 		)
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
 		LEFT JOIN
-			ubr_table u`,
+			ubr_table u
+		LEFT JOIN
+			installation_type_table it`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -285,6 +293,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
 			s = strings.TrimSpace(s)
+			if strings.EqualFold(rows[0]["installation_type"], "Server Core") {
+				s += " (Server Core)"
+			}
 			s += " " + rows[0]["version"]
 			host.OSVersion = s
 
@@ -437,7 +448,30 @@ var hostDetailQueries = map[string]DetailQuery{
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
 					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
-		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		Platforms:        fleet.HostLinuxOSs,
+		DirectIngestFunc: directIngestDiskSpace,
+	},
+
+	"disk_space_darwin": {
+		Query: `
+SELECT
+    ROUND(bytes_available * 100.0 / bytes_total, 2) AS percent_disk_space_available,
+    ROUND(bytes_available * 10e-10, 2) AS gigs_disk_space_available,
+    ROUND(bytes_total * 10e-10, 2) AS gigs_total_disk_space
+FROM disk_space LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("disk_space"),
+		DirectIngestFunc: directIngestDiskSpace,
+	},
+
+	"disk_space_darwin_legacy": {
+		Query: `
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (%s);`, discoveryTable("disk_space")),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 
@@ -677,6 +711,11 @@ var extraDetailQueries = map[string]DetailQuery{
 	SELECT data AS ubr
 	FROM registry
 	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+	),
+	installation_type_table AS (
+	SELECT data AS installation_type
+	FROM registry
+	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
 	)
 	SELECT
 		os.name,
@@ -684,14 +723,17 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version
+		COALESCE(d.display_version, '') AS display_version,
+		COALESCE(it.installation_type, '') AS installation_type
 	FROM
 		os_version os,
 		kernel_info k
 	LEFT JOIN
 		display_version_table d
 	LEFT JOIN
-		ubr_table u`,
+		ubr_table u
+	LEFT JOIN
+		installation_type_table it`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -946,13 +988,21 @@ var windowsUpdateHistory = DetailQuery{
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
-// entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
-var entraIDDetails = DetailQuery{
+// macOSEntraIDDetails holds the query and ingestion function for macOS for Microsoft "Conditional access" feature.
+var macOSEntraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
 	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
 	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
+	DirectIngestFunc: directIngestEntraIDDetails,
+}
+
+// windowsEntraIDDetails holds the query and ingestion function for Windows for Microsoft "Conditional access" feature.
+var windowsEntraIDDetails = DetailQuery{
+	// The query ingests Entra's Device ID of Windows devices that logged in to Entra via "Access work or school".
+	Query:            "SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;",
+	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
@@ -1126,6 +1176,25 @@ SELECT
 FROM fleetd_pacman_packages`,
 	Platforms: fleet.HostLinuxOSs,
 	Discovery: discoveryTable("fleetd_pacman_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+var softwareGoBinaries = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'go_binaries' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  installed_path AS installed_path
+FROM go_binaries`,
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("go_binaries"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -1695,17 +1764,22 @@ func directIngestOSWindows(ctx context.Context, logger *slog.Logger, host *fleet
 	}
 
 	hostOS := fleet.OperatingSystem{
-		Name:          rows[0]["name"],
-		Arch:          rows[0]["arch"],
-		KernelVersion: rows[0]["version"],
-		Platform:      rows[0]["platform"],
-		Version:       rows[0]["version"],
+		Name:             rows[0]["name"],
+		Arch:             rows[0]["arch"],
+		KernelVersion:    rows[0]["version"],
+		Platform:         rows[0]["platform"],
+		Version:          rows[0]["version"],
+		InstallationType: rows[0]["installation_type"],
 	}
 
 	displayVersion := rows[0]["display_version"]
 	if displayVersion != "" {
 		hostOS.Name += " " + displayVersion
 		hostOS.DisplayVersion = displayVersion
+	}
+
+	if strings.EqualFold(hostOS.InstallationType, "Server Core") {
+		hostOS.Name += " (Server Core)"
 	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
@@ -1911,10 +1985,13 @@ func directIngestEntraIDDetails(
 	if deviceID == "" {
 		return ctxerr.New(ctx, "empty Entra ID device_id")
 	}
-	userPrincipalName := row["user_principal_name"]
+
 	// userPrincipalName can be empty on macOS workstations with e.g. two accounts:
-	// one logged in to Entra and the other one not logged in.
-	// While the second one is logged in, it would report the same Device ID but empty user principal name.
+	// One logged in to Entra and the other one not logged in. While the second one is
+	// logged in, it would report the same Device ID but empty user principal name.
+	//
+	// userPrincipalName is empty on Windows devices.
+	userPrincipalName := row["user_principal_name"]
 
 	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
@@ -2105,9 +2182,9 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 var (
 	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	// jetbrainsNameVersion extracts version from JetBrains product names like "GoLand 2025.3.3"
-	// or "IntelliJ IDEA 2025.3.1.1" (supports 3 or 4 part versions)
-	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+\.\d+(?:\.\d+)?)$`)
+	// jetbrainsNameVersion extracts version from JetBrains product names like "WebStorm 2025.1",
+	// "GoLand 2025.3.3", or "IntelliJ IDEA 2025.3.1.1" (supports 2, 3, or 4 part versions)
+	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+(?:\.\d+){0,2})$`)
 	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
@@ -3102,6 +3179,7 @@ func GetDetailQueries(
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
+		generatedMap["software_go_binaries"] = softwareGoBinaries
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
@@ -3150,7 +3228,8 @@ func GetDetailQueries(
 	}
 
 	if integrations.ConditionalAccessMicrosoft {
-		generatedMap["conditional_access_microsoft_device_id"] = entraIDDetails
+		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
+		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
 	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {

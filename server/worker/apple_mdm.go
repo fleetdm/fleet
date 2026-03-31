@@ -112,6 +112,13 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
+	if err != nil {
+		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
+		// We do not return here, as we want to continue with the rest of the logic, and then the reconciler will just pick up the remaining work.
+		// We do this since this is a speed optimization and not critical to complete enrollment itself.
+	}
+
 	if isMacOS(args.Platform) {
 		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
@@ -188,6 +195,16 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 		awaitCmdUUIDs = append(awaitCmdUUIDs, commandUUIDs...)
 	}
+
+	cmdUUIDs, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
+	if err != nil {
+		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
+		// We do not return here, as we want to continue with the rest of the logic, and then the reconciler will just pick up the remaining work.
+		// We do this since this is a speed optimization and not critical to complete enrollment itself, as we have other backing logic.
+		cmdUUIDs = []string{}
+	}
+
+	awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUIDs...)
 
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.InfoContext(ctx, "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
@@ -674,6 +691,116 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 		}
 	}
 	return url
+}
+
+// installProfilesForEnrollingHost installs all configuration profiles for the host immediately after enrollment
+// to speed up the setup experience process. This runs before the reconciler cycle.
+func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID string) ([]string, error) {
+	// Get all profiles that need to be installed for this host
+	profilesToInstall, err := a.Datastore.ListMDMAppleProfilesToInstall(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing profiles to install for host")
+	}
+
+	profilesToInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesToInstall)
+
+	// Filter out user-scoped profiles as they require special handling
+	profilesToInstall = fleet.FilterOutUserScopedProfiles(profilesToInstall)
+
+	if len(profilesToInstall) == 0 {
+		a.Log.InfoContext(ctx, "no profiles to install", "host_uuid", hostUUID)
+		return nil, nil
+	}
+
+	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID, "profile_count", len(profilesToInstall))
+
+	appConfig, err := a.Datastore.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading app config")
+	}
+
+	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(profilesToInstall))
+	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(profilesToInstall))
+	installTargets := make(map[string]*fleet.CmdTarget, len(profilesToInstall))
+	for _, profile := range profilesToInstall {
+		target := &fleet.CmdTarget{
+			CmdUUID:           uuid.NewString(),
+			ProfileIdentifier: profile.ProfileIdentifier,
+			EnrollmentIDs:     []string{hostUUID},
+		}
+		installTargets[profile.ProfileUUID] = target
+		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileUUID:       profile.ProfileUUID,
+			ProfileIdentifier: profile.ProfileIdentifier,
+			ProfileName:       profile.ProfileName,
+			HostUUID:          hostUUID,
+			CommandUUID:       target.CmdUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            nil, // intentionally nil here, to avoid stuck pending, but we need to upsert before processing so inner code can match rows for failures
+			Checksum:          profile.Checksum,
+			SecretsUpdatedAt:  profile.SecretsUpdatedAt,
+			Scope:             profile.Scope,
+		}
+		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profile.ProfileUUID}] = hostProfile
+		hostProfiles = append(hostProfiles, hostProfile)
+	}
+
+	if err := a.Datastore.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk upsert host profiles before installation")
+	}
+
+	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(ctx, a.Datastore, a.Log, appConfig, a.Commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build cmdUUID→profile index AFTER preprocessing has rewritten CommandUUIDs.
+	profileByCmdUUID := make(map[string]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(hostProfilesToInstallMap))
+	for _, hp := range hostProfilesToInstallMap {
+		if hp.CommandUUID != "" {
+			profileByCmdUUID[hp.CommandUUID] = hp
+		}
+	}
+
+	// Log failures
+	for cmdUUID, enqErr := range enqueueResult.FailedCmdUUIDs {
+		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
+			a.Log.ErrorContext(ctx, "failed to install profile", "host_uuid", hostUUID, "profile_uuid", profile.ProfileUUID, "error", enqErr)
+		}
+	}
+
+	// Collect successes for bulk upsert
+	var cmdUUIDs []string
+	var bulkPayloads []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	for _, cmdUUID := range enqueueResult.SucceededCmdUUIDs {
+		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
+			profile.Status = &fleet.MDMDeliveryPending
+			cmdUUIDs = append(cmdUUIDs, cmdUUID)
+			bulkPayloads = append(bulkPayloads, profile)
+		}
+	}
+
+	// Bulk update database to track all profile installations
+	if len(bulkPayloads) > 0 {
+		if err := a.Datastore.BulkUpsertMDMAppleHostProfiles(ctx, bulkPayloads); err != nil {
+			a.Log.ErrorContext(ctx, "failed to bulk update profile statuses", "host_uuid", hostUUID, "error", err)
+			// Continue even if database update fails - the commands were sent
+		}
+	}
+
+	a.Log.InfoContext(ctx, "successfully queued profiles from apple mdm worker", "host_uuid", hostUUID, "profiles_sent", len(cmdUUIDs))
+
+	// send a DeclarativeManagement command to start a sync, we don't block on DDM missing, and the declarations might not have been reconciled
+	// We can come back to this if we want to include DDM declarations here in the future.
+	declarativeManagementCmdUUID := uuid.NewString()
+	if err := a.Commander.DeclarativeManagement(ctx, []string{hostUUID}, declarativeManagementCmdUUID); err != nil {
+		a.Log.ErrorContext(ctx, "failed to send DeclarativeManagement command after installing profiles for enrolling host", "host_uuid", hostUUID, "error", err)
+		// Make sure we return the profile commands even if DDM fails
+		return cmdUUIDs, nil
+	}
+	cmdUUIDs = append(cmdUUIDs, declarativeManagementCmdUUID)
+
+	return cmdUUIDs, nil
 }
 
 // QueueAppleMDMJob queues a apple_mdm job for one of the supported tasks, to
