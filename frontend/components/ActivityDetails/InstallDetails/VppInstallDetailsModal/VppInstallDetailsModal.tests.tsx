@@ -444,17 +444,17 @@ describe("getStatusMessage helper function", () => {
 });
 
 describe("VPP Install Details Modal - ModalButtons component", () => {
-  it("renders Done button by default", async () => {
+  it("renders Close button by default", async () => {
     const onCancel = jest.fn();
 
     const { user } = renderWithSetup(
       <ModalButtons displayStatus="installed" onCancel={onCancel} />
     );
 
-    const doneButton = screen.getByRole("button", { name: /done/i });
-    expect(doneButton).toBeInTheDocument();
+    const closeButton = screen.getByRole("button", { name: /close/i });
+    expect(closeButton).toBeInTheDocument();
 
-    await user.click(doneButton);
+    await user.click(closeButton);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
@@ -561,50 +561,5 @@ describe("VPP Install Details Modal", () => {
         /If the app is installed later, Fleet will update the status when the host is refetched/i
       )
     ).toBeInTheDocument();
-  });
-
-  it("does not render the stale uninstall sentence on My device", async () => {
-    mockServer.use(getDeviceVppCommandResultHandler);
-
-    const hostSoftware = createMockHostSoftware({
-      id: 123,
-      status: "installed",
-      name: "Keynote",
-      display_name: "Keynote",
-      installed_versions: [],
-      source: "apps",
-      app_store_app: createMockHostAppStoreApp({
-        platform: "darwin",
-        last_install: {
-          command_uuid: "acknowledged-uuid",
-          installed_at: "2025-08-10T12:00:00Z",
-        },
-      }),
-    });
-
-    renderWithBackend(
-      <VppInstallDetailsModal
-        details={{
-          fleetInstallStatus: "installed",
-          hostDisplayName: "Marko's MacBook Pro",
-          appName: "Keynote",
-          commandUuid: "acknowledged-uuid",
-          platform: "darwin",
-        }}
-        deviceAuthToken="device-token"
-        hostSoftware={hostSoftware}
-        onCancel={jest.fn()}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
-      expect(screen.getByText(/Keynote/i)).toBeInTheDocument();
-    });
-    expect(
-      screen.queryByText(
-        /If you uninstalled it outside of Fleet it will still show as installed/i
-      )
-    ).not.toBeInTheDocument();
   });
 });

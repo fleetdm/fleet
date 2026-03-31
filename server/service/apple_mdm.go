@@ -3320,7 +3320,7 @@ type MDMAppleCheckinAndCommandService struct {
 	vppInstaller    fleet.AppleMDMVPPInstaller
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
-	keyValueStore   fleet.KeyValueStore
+	keyValueStore   fleet.AdvancedKeyValueStore
 	newActivityFn   mdmlifecycle.NewActivityFunc
 	isPremium       bool
 }
@@ -3331,7 +3331,7 @@ func NewMDMAppleCheckinAndCommandService(
 	vppInstaller fleet.AppleMDMVPPInstaller,
 	isPremium bool,
 	logger *slog.Logger,
-	keyValueStore fleet.KeyValueStore,
+	keyValueStore fleet.AdvancedKeyValueStore,
 	newActivityFn mdmlifecycle.NewActivityFunc,
 ) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivityFn)
@@ -3406,14 +3406,20 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		return err
 	}
 
-	if !scepRenewalInProgress {
-		if svc.keyValueStore != nil {
+	if svc.keyValueStore != nil {
+		if !scepRenewalInProgress {
 			// Set sticky key for MDM enrollments to avoid updating team id on orbit enrollments
 			err = svc.keyValueStore.Set(r.Context, fleet.StickyMDMEnrollmentKeyPrefix+r.ID, "1", fleet.StickyMDMEnrollmentTTL)
 			if err != nil {
 				// We do not want to fail here, just log the error to notify
 				svc.logger.ErrorContext(r.Context, "failed to set sticky mdm enrollment key", "err", err, "host_uuid", r.ID)
 			}
+		}
+
+		// Set profile processing flag, is being handled by the apple_mdm worker, it will be cleared later if it's a SCEP renewal.
+		if err := svc.keyValueStore.Set(r.Context, fleet.MDMProfileProcessingKeyPrefix+":"+r.ID, "1", fleet.MDMProfileProcessingTTL); err != nil {
+			svc.logger.ErrorContext(r.Context, "failed to set mdm profile processing key", "err", err, "host_uuid", r.ID)
+			// We do not want to fail here, just log the error to notify of issues
 		}
 	}
 
@@ -3444,6 +3450,13 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if !m.AwaitingConfiguration {
 			// Normal SCEP renewal - device is NOT at Setup Assistant. Clean refs and short-circuit.
 			svc.logger.InfoContext(r.Context, "cleaned SCEP refs, skipping setup experience and mdm lifecycle turn on action", "host_uuid", r.ID)
+
+			// Clean up redis key for profile processing if set.
+			if svc.keyValueStore != nil {
+				if err := svc.keyValueStore.Delete(r.Context, fleet.MDMProfileProcessingKeyPrefix+":"+r.ID); err != nil {
+					svc.logger.ErrorContext(r.Context, "failed to delete mdm profile processing key", "err", err, "host_uuid", r.ID)
+				}
+			}
 			return nil
 		}
 
@@ -4895,7 +4908,9 @@ func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
+	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
+	certProfilesLimit int,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -5000,6 +5015,36 @@ func ReconcileAppleProfiles(
 	// Index host profiles to install by host and profile UUID, for easier bulk error processing
 	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
 
+	// When a certificate profiles limit is configured, fetch profile contents to classify
+	// profiles as CA/non-CA so we can throttle CA profile installations. The fetched contents
+	// are reused later by ProcessAndEnqueueProfiles to avoid a duplicate database call.
+	var caProfileUUIDs map[string]bool
+	var prefetchedContents map[string]mobileconfig.Mobileconfig
+	if certProfilesLimit > 0 {
+		uniqueUUIDs := make(map[string]struct{}, len(toInstall))
+		for _, p := range toInstall {
+			uniqueUUIDs[p.ProfileUUID] = struct{}{}
+		}
+		uuids := make([]string, 0, len(uniqueUUIDs))
+		for u := range uniqueUUIDs {
+			uuids = append(uuids, u)
+		}
+		var err error
+		prefetchedContents, err = ds.GetMDMAppleProfilesContents(ctx, uuids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting profile contents for CA classification")
+		}
+		caProfileUUIDs = make(map[string]bool, len(prefetchedContents))
+		for pUUID, content := range prefetchedContents {
+			fleetVars := variables.Find(string(content))
+			if fleet.HasCAVariables(fleetVars) {
+				caProfileUUIDs[pUUID] = true
+			}
+		}
+	}
+
+	var caInstallCount int
+	throttledHostsByProfile := make(map[string][]string)
 	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
@@ -5051,6 +5096,17 @@ func ReconcileAppleProfiles(
 			continue
 		}
 
+		// Throttle CA profile installations when a limit is configured.
+		// Skipped profiles remain in NULL status and will be picked up on the next reconciler tick.
+		// Recently enrolled hosts (within 1 hour) bypass throttling so that setup experience
+		// and initial profile delivery are not delayed.
+		recentlyEnrolled := p.DeviceEnrolledAt != nil && time.Since(*p.DeviceEnrolledAt) < 1*time.Hour
+		isThrottledCA := certProfilesLimit > 0 && caProfileUUIDs[p.ProfileUUID] && !recentlyEnrolled
+		if isThrottledCA && caInstallCount >= certProfilesLimit {
+			throttledHostsByProfile[p.ProfileUUID] = append(throttledHostsByProfile[p.ProfileUUID], p.HostUUID)
+			continue
+		}
+
 		toGetContents[p.ProfileUUID] = true
 
 		target := installTargets[p.ProfileUUID]
@@ -5098,6 +5154,11 @@ func ReconcileAppleProfiles(
 		} else {
 			target.EnrollmentIDs = append(target.EnrollmentIDs, p.HostUUID)
 		}
+
+		// Only count against the CA throttle limit after confirming the profile will actually be queued.
+		if isThrottledCA {
+			caInstallCount++
+		}
 		toGetContents[p.ProfileUUID] = true
 
 		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -5114,6 +5175,20 @@ func ReconcileAppleProfiles(
 		}
 		hostProfiles = append(hostProfiles, hostProfile)
 		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
+	}
+
+	// Log throttled hosts in batches to avoid exceeding log line size limits (e.g. 1MB Kinesis/Firehose limit).
+	const throttleLogBatchSize = 1000
+	for profileUUID, hostUUIDs := range throttledHostsByProfile {
+		for i := 0; i < len(hostUUIDs); i += throttleLogBatchSize {
+			end := min(i+throttleLogBatchSize, len(hostUUIDs))
+			logger.InfoContext(ctx, "throttled CA certificate profile installation",
+				"profile.uuid", profileUUID,
+				"mdm.target.host.uuids", hostUUIDs[i:end],
+				"mdm.certificate.profiles.limit", certProfilesLimit,
+				"batch", fmt.Sprintf("%d-%d/%d", i+1, end, len(hostUUIDs)),
+			)
+		}
 	}
 
 	for _, p := range toRemove {
@@ -5178,6 +5253,61 @@ func ReconcileAppleProfiles(
 		})
 	}
 
+	// check if some of the hosts to install already is handled by the apple setup worker
+	// we want to batch check for 1k hosts at a time to avoid hitting query parameter limits
+	const isBeingSetupBatchSize = 1000
+	for i := 0; i < len(hostProfiles); i += isBeingSetupBatchSize {
+		end := min(i+isBeingSetupBatchSize, len(hostProfiles))
+		batch := hostProfiles[i:end]
+		hostUUIDs := make([]string, len(batch))
+		hostUUIDToHostProfiles := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(batch))
+		for j, hp := range batch {
+			hostUUIDs[j] = fleet.MDMProfileProcessingKeyPrefix + ":" + hp.HostUUID
+			hostUUIDToHostProfiles[hp.HostUUID] = append(hostUUIDToHostProfiles[hp.HostUUID], hp)
+		}
+
+		setupHostUUIDs, err := redisKeyValue.MGet(ctx, hostUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "filtering hosts being set up")
+		}
+		for keyedHostUUID, exists := range setupHostUUIDs {
+			if exists != nil {
+				hostUUID := strings.TrimPrefix(keyedHostUUID, fleet.MDMProfileProcessingKeyPrefix+":")
+				logger.DebugContext(ctx, "skipping profile reconciliation for host being set up", "host_uuid", hostUUID)
+				hps, ok := hostUUIDToHostProfiles[hostUUID]
+				if !ok {
+					logger.DebugContext(ctx, "expected host uuid to be present but was not, do not skip profile reconciliation", "host_uuid", hostUUID)
+					continue
+				}
+				for _, hp := range hps {
+					// Clear out host profile status and commandUUID to avoid updating the DB with a pending status
+					hp.Status = nil
+					hp.CommandUUID = ""
+					hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}] = hp
+
+					// Also remove this host from installTargets to prevent sending MDM commands for this host.
+					// Note: user-scoped profiles use user enrollment IDs (not host UUIDs) in EnrollmentIDs, so
+					// the removal below is a no-op for those profiles, which is acceptable, since they are not enqueued via the worker.
+					if hp.OperationType == fleet.MDMOperationTypeInstall {
+						if target, ok := installTargets[hp.ProfileUUID]; ok {
+							var newEnrollmentIDs []string
+							for _, id := range target.EnrollmentIDs {
+								if id != hp.HostUUID {
+									newEnrollmentIDs = append(newEnrollmentIDs, id)
+								}
+							}
+							if len(newEnrollmentIDs) == 0 {
+								delete(installTargets, hp.ProfileUUID)
+							} else {
+								target.EnrollmentIDs = newEnrollmentIDs
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// delete all profiles that have a matching identifier to be installed.
 	// This is to prevent sending both a `RemoveProfile` and an
 	// `InstallProfile` for the same identifier, which can cause race
@@ -5225,6 +5355,7 @@ func ReconcileAppleProfiles(
 		removeTargets,
 		hostProfilesToInstallMap,
 		userEnrollmentsToHostUUIDsMap,
+		prefetchedContents,
 	)
 	if err != nil {
 		// revert the status of all pending profiles to null so they get picked up again in the next cron run.
@@ -6547,6 +6678,7 @@ func NewSetRecoveryLockResultsHandler(
 				if err := ds.CompleteRecoveryLockRotation(ctx, hostUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: complete rotation")
 				}
+
 				logger.InfoContext(ctx, "RotateRecoveryLock acknowledged, password rotated",
 					"host_uuid", hostUUID,
 				)

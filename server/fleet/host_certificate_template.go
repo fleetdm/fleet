@@ -29,13 +29,15 @@ func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
 	}
 
 	status := string(p.Status)
+	certTemplateID := p.CertificateTemplateID
 	profile := HostMDMProfile{
-		HostUUID:      p.HostUUID,
-		Name:          p.Name,
-		Platform:      "android",
-		Status:        &status,
-		OperationType: p.OperationType,
-		ProfileUUID:   AndroidCertificateTemplateProfileID,
+		HostUUID:              p.HostUUID,
+		Name:                  p.Name,
+		Platform:              "android",
+		Status:                &status,
+		OperationType:         p.OperationType,
+		ProfileUUID:           AndroidCertificateTemplateProfileID,
+		CertificateTemplateID: &certTemplateID,
 	}
 	if p.Detail != nil {
 		profile.Detail = *p.Detail

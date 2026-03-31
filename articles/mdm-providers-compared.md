@@ -102,7 +102,6 @@ Fleet and Workspace ONE each provide MDM enrollment, configuration management, a
 Fleet supports MDM migration without requiring device wipes, allowing organizations to transition devices from an existing MDM with minimal disruption. The migration process preserves device enrollment and user data while transferring management to Fleet. Organizations can migrate gradually, running Fleet alongside an existing tool during the transition period.
 
 <meta name="articleTitle" value="MDM Providers Compared: Fleet vs Workspace ONE">
-<meta name="articleSubtitle" value="Choosing the right MDM solution">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="comparison">

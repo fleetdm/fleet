@@ -120,6 +120,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
 		{"ListHostSoftwareShPackageForDarwin", testListHostSoftwareShPackageForDarwin},
 		{"HostSWPaginationWithMultipleFMAVersions", testHostSWPaginationWithMultipleFMAVersions},
+		{"SoftwareLiteByID", testSoftwareLiteByID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4436,13 +4437,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 								platform,
 								self_service,
 								package_ids,
-								is_active
+								is_active,
+								patch_query
 							)
 						VALUES
-							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
 				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), "pkg", fmt.Sprintf("v%d.0.0", i), scriptContentID,
 				uninstallScriptContentID,
-				[]byte("test"), "darwin", i < 2, "[]")
+				[]byte("test"), "darwin", i < 2, "[]", "")
 			if err != nil {
 				return err
 			}
@@ -5326,13 +5328,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 									platform,
 									self_service,
 									package_ids,
-									is_active
+									is_active,
+									patch_query
 								)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
 			darwinHost.TeamID, 0, softwareAlreadyInstalled.TitleID, "DummyApp.pkg", "pkg", "2.0.0",
 			scriptContentID, uninstallScriptContentID,
-			[]byte("test"), "darwin", true, "[]")
+			[]byte("test"), "darwin", true, "[]", "")
 		if err != nil {
 			return err
 		}
@@ -5463,13 +5466,14 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 									platform,
 									self_service,
 									package_ids,
-									is_active
+									is_active,
+									patch_query
 								)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
 				nil, 0, titleID, installer.Filename, installer.Extension, "2.0.0",
 				scriptContentID, scriptContentID,
-				[]byte("test"), "linux", true, "[]")
+				[]byte("test"), "linux", true, "[]", "")
 			require.NoError(t, err)
 		}
 
@@ -6367,10 +6371,10 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 
 		res, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, package_ids)
+				(title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, package_ids, patch_query)
 			VALUES
-				(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			titleID, "installer.pkg", "pkg", "v1.0.0", scriptContentID, uninstallScriptContentID, []byte("test"), "darwin", "[]")
+				(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			titleID, "installer.pkg", "pkg", "v1.0.0", scriptContentID, uninstallScriptContentID, []byte("test"), "darwin", "[]", "")
 		if err != nil {
 			return err
 		}
@@ -8091,7 +8095,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
 
 	t.Run("include_all", func(t *testing.T) {
-
 		hostIncludeAll := test.NewHost(t, ds, "host_include_all", "", "host1key_include_all", "host1uuid_include_all", time.Now(), test.WithPlatform("darwin"))
 		nanoEnroll(t, ds, hostIncludeAll, false)
 
@@ -8147,7 +8150,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		// installer1 is now in scope; installer4 still absent (no labels on host match it)
 		checkSoftware(software, installer4.Filename)
 	})
-
 }
 
 func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
@@ -11806,8 +11808,8 @@ func testListHostSoftwarePaginationWithMultipleInstallers(t *testing.T, ds *Data
 			if _, err := q.ExecContext(ctx, `
 				INSERT INTO software_installers
 					(team_id, global_or_team_id, title_id, filename, extension, version,
-					 install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
-				VALUES (NULL, 0, ?, ?, 'pkg', ?, ?, ?, ?, 'darwin', 0, '[]')`,
+					 install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids, patch_query)
+				VALUES (NULL, 0, ?, ?, 'pkg', ?, ?, ?, ?, 'darwin', 0, '[]', '')`,
 				titleID, fmt.Sprintf("installer-%s.pkg", version), version,
 				installScriptID, uninstallScriptID, fmt.Appendf(nil, "storage-%s", version),
 			); err != nil {
@@ -11982,5 +11984,30 @@ func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 2)                    // Even though there are multiple installer versions for this FMA, the title only appears once.
 	require.Equal(t, sw[0].Name, "file1")    // FMA
 	require.Equal(t, sw[1].Name, "pagsw-00") // "other" software
+}
 
+func testSoftwareLiteByID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "svnfhf-host", "", "svnfhf-key", "svnfhf-uuid", time.Now())
+
+	sw := []fleet.Software{
+		{Name: "GoLand.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 1)
+
+	swID := host.Software[0].ID
+
+	swLite, err := ds.SoftwareLiteByID(ctx, swID)
+	require.NoError(t, err)
+	assert.Equal(t, "GoLand.app", swLite.Name)
+	assert.Equal(t, "2024.3", swLite.Version)
+
+	// non-existent sw
+	_, err = ds.SoftwareLiteByID(ctx, 999999)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }

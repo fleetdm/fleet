@@ -3,7 +3,8 @@
     {
       "version": "1.96.2",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.tailscale.ipn.macsys';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.tailscale.ipn.macsys';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.tailscale.ipn.macsys' AND version_compare(bundle_short_version, '1.96.2') < 0);"
       },
       "installer_url": "https://pkgs.tailscale.com/stable/Tailscale-1.96.2-macos.pkg",
       "install_script_ref": "ccc9b628",

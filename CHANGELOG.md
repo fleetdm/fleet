@@ -1,3 +1,23 @@
+## Fleet 4.82.2 (Mar 27, 2026)
+
+### Bug fixes
+
+- Fixed the metadata extraction for `.pkg` macOS installers, which was introduced in `4.77.0` and could prevent updating some installers that were added in a previous Fleet version.
+    * **NOTE**: the fix may cause some installers that were added in Fleet `4.77.0` and later to fail to update with the message "The selected package is for different software". In this case, you will have to delete and re-add the installer. This will not only make it possible to update it successfully later, it will also create it with the correct metadata (name, version, bundle identifier).
+- Fixed FMA apps not showing up for a fleet when added via GitOps after an automated FMA version update with an unchanged binary.
+
+## Fleet 4.82.1 (Mar 18, 2026)
+
+### Bug fixes
+
+- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.
+- Stopped duplicate Fleet-maintained app entries from showing up in setup experience.
+- Reduced database contention during the vulnerability cron.
+- Added a secondary index on `host_software(software_id)` to improve query performance.
+- Fixed an issue where the "add Fleet-maintained app" endpoint incorrectly added software to the Unassigned fleet.
+- Muted deprecation warnings for body params when the "deprecated-field-names" topic is not enabled.
+- Fixed custom app icons not getting set via GitOps when the same software title exists in multiple teams.
+
 ## Fleet 4.82.0 (Mar 11, 2026)
 
 ### IT Admins
@@ -104,13 +124,20 @@
 - Fixed stale software titles list after deleting a software installer.
 - Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
 
+## Fleet 4.81.3 (Mar 20, 2026)
+
+### Bug fixes
+
+- Added configurable body size limits for the `/api/osquery/log` and `/api/osquery/distributed/write` endpoints.
+- Fixed false positive `PayloadTooLargeError` errors.
+
 ## Fleet 4.81.2 (Mar 06, 2026)
 
 ### Bug fixes
 
 - Fixed a bug where macOS systems previous enrolled in fleet wouldn't always go through setup experience after a wipe.
 - Fixed issue where policy automation retries were potentially reading stale data from replica database.
-- Updated the DEP syncer to properly reassign a profile when ABM unilaterally removes it
+- Updated the DEP syncer to properly reassign a profile when ABM unilaterally removes it.
 
 ## Fleet 4.81.1 (Mar 2, 2026)
 
