@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
 	"go.step.sm/crypto/jose"
 )
 
@@ -125,6 +126,8 @@ type Challenge struct {
 	ChallengeType       string `db:"challenge_type"`
 	Token               string `db:"token"`
 	Status              string `db:"status"`
+	// UpdatedAt is used as validated timestamp if the challenge is valid
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 type ChallengeResponse struct {
@@ -135,6 +138,20 @@ type ChallengeResponse struct {
 
 	// Validated is only set in the response when the challenge is valid and has been validated.
 	Validated *time.Time `json:"validated,omitempty"`
+
+	// Location is set in the header, pointing to the requested challenge's URL.
+	Location string `json:"-"`
+}
+
+// https://www.w3.org/TR/webauthn-2/#sctn-attestation, but we don't use authData as per the ACME RFC.
+type AttestationObject struct {
+	Format               string          `cbor:"fmt"`
+	AttestationStatement cbor.RawMessage `cbor:"attStmt"`
+}
+
+// https://www.w3.org/TR/webauthn-2/#sctn-apple-anonymous-attestation
+type AppleDeviceAttestationStatement struct {
+	X5C [][]byte `cbor:"x5c"`
 }
 
 const (
@@ -177,4 +194,7 @@ type Datastore interface {
 	GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*Authorization, error)
 	FinalizeOrder(ctx context.Context, orderID uint, csrPEM string, certSerial int64) error
 	GetChallengesByAuthorizationID(ctx context.Context, authorizationID uint) ([]*Challenge, error)
+	GetChallengeByID(ctx context.Context, accountID, challengeID uint) (*Challenge, error)
+	// Update challenge handles updating the challenge status, and the authorization status as well as moving the order status.
+	UpdateChallenge(ctx context.Context, challenge *Challenge) (*Challenge, error)
 }

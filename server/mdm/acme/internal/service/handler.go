@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
@@ -176,16 +177,7 @@ func listOrdersEndpoint(ctx context.Context, request any, svc api.Service) platf
 // getAuthorizationEndpoint handles POST /api/mdm/acme/{identifier}/authz/{authorization} requests.
 func getAuthorizationEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.GetAuthorizationRequest)
-
-	// TODO: Uncomment once test changes with "" has been made
-	/* payload := req.JWS.UnsafePayloadWithoutVerification()
-	isPostAsGet := string(payload) == "" // POST-as-GET requests MUST have an empty payload
-	if !isPostAsGet {
-		return &api_http.GetAuthorizationResponse{
-			Err:    types.MalformedError("Payload was not empty for POST-as-GET request to authorization endpoint"),
-			Nonces: svc.NoncesStore(),
-		}
-	} */
+	req.PostAsGet = true
 	authzReq := &api_http.GetAuthorizationDecodedRequest{AuthorizationID: req.AuthorizationID}
 	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, authzReq)
 	if err != nil {
@@ -204,7 +196,29 @@ func getAuthorizationEndpoint(ctx context.Context, request any, svc api.Service)
 }
 
 func getChallengeEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
-	panic("not implemented")
+	req := request.(*api_http.DoChallengeRequest)
+	decodedReq := &api_http.DoChallengeDecodedRequest{ChallengeID: req.ChallengeID}
+	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, decodedReq)
+	if err != nil {
+		return &api_http.DoChallengeResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+
+	if decodedReq.AttestError != "" {
+		return &api_http.DoChallengeResponse{
+			Err:    types.UnauthorizedError(fmt.Sprintf("Attestation failure: %s", decodedReq.AttestError)),
+			Nonces: svc.NoncesStore(),
+		}
+	}
+
+	challengeResp, err := svc.ValidateChallenge(ctx, decodedReq.Enrollment, decodedReq.Account, decodedReq.ChallengeID, decodedReq.AttestationObject)
+	if err != nil {
+		return &api_http.DoChallengeResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+
+	return &api_http.DoChallengeResponse{
+		ChallengeResponse: challengeResp,
+		Nonces:            svc.NoncesStore(),
+	}
 }
 
 // finalizeOrderEndpoint handles POST /api/mdm/acme/{identifier}/orders/{order_id}/finalize requests.

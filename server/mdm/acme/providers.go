@@ -25,4 +25,5 @@ func (f CSRSignerFunc) SignCSR(ctx context.Context, csr *x509.CertificateRequest
 type DataProviders interface {
 	AppConfig(ctx context.Context) (*fleet.AppConfig, error)
 	CSRSigner(ctx context.Context) (CSRSigner, error)
+	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error)
 }
