@@ -173,3 +173,28 @@ func (s *Service) ListAccountOrders(ctx context.Context, pathIdentifier string, 
 	}
 	return orderURLs, nil
 }
+
+func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (string, error) {
+	// authorization is checked in the endpoint implementation for JWS-protected endpoints
+
+	order, _, err := s.store.GetOrderByID(ctx, accountID, orderID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get order from datastore")
+	}
+	if !order.Finalized || order.Status != "valid" {
+		if order.Status == "invalid" {
+			// TODO(mna): tempted to return OrderDoesNotExist in that case, as is will not show
+			// up in list account orders endpoint when in an invalid state.
+			return "", types.OrderDoesNotExistError("Order is in invalid state, cannot get certificate")
+		}
+		// TODO(mna): this error type is defined to be returned on /finalize requests when it's not ready to be finalized,
+		// but it seems like a good error type for this endpoint too? No specific error mentioned in the RFC AFAICS.
+		return "", types.OrderNotReadyError("Order is not finalized/in valid state, cannot get certificate")
+	}
+
+	cert, err := s.store.GetCertificatePEMByOrderID(ctx, accountID, orderID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get certificate from datastore")
+	}
+	return cert, nil
+}

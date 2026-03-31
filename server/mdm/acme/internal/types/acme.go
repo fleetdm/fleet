@@ -67,7 +67,7 @@ type Order struct {
 	// when read (or we could implement sql.Scanner).
 	Identifiers             []Identifier `db:"-"`
 	Status                  string       `db:"status"`
-	IssuedCertificateSerial *uint        `db:"issued_certificate_serial"`
+	IssuedCertificateSerial *uint64      `db:"issued_certificate_serial"`
 
 	// NotBefore and NotAfter must not be set, we capture them so we can validate
 	// that they were indeed not provided.
@@ -166,4 +166,5 @@ type Datastore interface {
 	ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error)
 	GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*Authorization, error)
 	GetChallengesByAuthorizationID(ctx context.Context, authorizationID uint) ([]*Challenge, error)
+	GetCertificatePEMByOrderID(ctx context.Context, accountID, orderID uint) (string, error)
 }
