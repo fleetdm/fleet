@@ -118,16 +118,24 @@ func (s *Service) commonAuthenticateMessage(ctx context.Context, message *api_ht
 		err = types.UnauthorizedError(err.Error()) // I think it's safe to return the error as details here?
 		return ctxerr.Wrap(ctx, err)
 	}
+	if message.PostAsGet && len(payload) != 0 {
+		err = types.MalformedError("payload must be empty for POST-as-GET requests")
+		return ctxerr.Wrap(ctx, err)
+	}
 
 	var requestPayload any
 	requestPayload = createNewAccount
 	if otherRequest != nil {
 		requestPayload = otherRequest
 	}
-	err = json.Unmarshal(payload, requestPayload)
-	if err != nil {
-		err = types.MalformedError(fmt.Sprintf("Failed to unmarshal JWS payload: %v", err))
-		return ctxerr.Wrap(ctx, err)
+	// From the RFC, for a POST-as-GET request, the payload is an empty string (absent),
+	// which would fail to unmarshal into an object, so we check it explicitly.
+	if len(payload) != 0 {
+		err = json.Unmarshal(payload, requestPayload)
+		if err != nil {
+			err = types.MalformedError(fmt.Sprintf("Failed to unmarshal JWS payload: %v", err))
+			return ctxerr.Wrap(ctx, err)
+		}
 	}
 
 	if createNewAccount != nil {

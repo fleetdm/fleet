@@ -10,5 +10,6 @@ type Service interface {
 	DirectoryNonceService
 	AccountService
 	EnrollmentService
+	AuthorizationService
 	NoncesStore() *redis_nonces_store.RedisNoncesStore
 }
