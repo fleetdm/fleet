@@ -1598,7 +1598,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		}
 
 		// Fail MaxCertificateInstallRetries times -- each should auto-retry (status resets to pending)
-		for i := uint(0); i < fleet.MaxCertificateInstallRetries; i++ {
+		for i := range fleet.MaxCertificateInstallRetries {
 			deliverCert()
 			detail := fmt.Sprintf("SCEP failure %d", i+1)
 			reportCertStatus(string(fleet.MDMDeliveryFailed), &detail)
