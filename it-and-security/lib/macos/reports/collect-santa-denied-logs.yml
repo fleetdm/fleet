@@ -7,5 +7,3 @@
   observer_can_run: true
   platform: "darwin"
   query: SELECT * FROM santa_denied;
-  labels_include_any:
-    - Santa test devices

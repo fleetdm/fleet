@@ -158,10 +158,10 @@ func (e *Enrollment) GenAuthenticate() (io.Reader, error) {
 // GenTokenUpdate creates an XML Plist TokenUpdate check-in message.
 func (e *Enrollment) GenTokenUpdate() (io.Reader, error) {
 	t := &mdm.TokenUpdate{
-		Enrollment:  e.enrollment,
-		MessageType: mdm.MessageType{MessageType: "TokenUpdate"},
-		Push:        e.push,
-		UnlockToken: e.unlockToken,
+		TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{Enrollment: e.enrollment},
+		MessageType:           mdm.MessageType{MessageType: "TokenUpdate"},
+		Push:                  e.push,
+		UnlockToken:           e.unlockToken,
 	}
 	return test.PlistReader(t)
 }

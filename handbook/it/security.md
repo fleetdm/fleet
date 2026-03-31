@@ -586,6 +586,22 @@ provider](https://github.com/integrations/terraform-provider-github) for GitHub.
 this will be similar to what [this blog post](https://oops.computer/posts/github_automation/) describes.
 
 
+### Requesting pull request deletion
+
+Only GitHub Support can permanently delete a pull request — this cannot be done through the GitHub UI or API. Follow these steps to request deletion:
+
+1. **Confirm the PR is closed.** The pull request must be closed (not merged) before GitHub Support can delete it.
+2. **Go to GitHub Support.** Visit https://support.github.com/ and sign in with an account that has admin access to the repository.
+3. **Open a support ticket.** Select "Contact Support" and choose the category most relevant to repository management or pull requests.
+4. **Provide the required details.** In the ticket, include:
+   - The full URL of the pull request to be deleted (e.g., `https://github.com/fleetdm/fleet/pull/12345`).
+   - A clear request asking GitHub Support to permanently delete the pull request.
+   - The reason for deletion (e.g., sensitive data was accidentally included, or the PR was created in error).
+5. **Wait for confirmation.** GitHub Support will review the request and confirm once the pull request has been permanently deleted. This may take a few business days.
+
+> **Important:** The requester must have admin access to the repository. Deletion is permanent and cannot be undone. Merged pull requests generally cannot be deleted.
+
+
 ## Google Workspace security
 
 Google Workspace is our collaboration tool and the source of truth for our user identities.
@@ -1928,13 +1944,13 @@ We ask for vulnerabilities reported by researchers and prefer to perform coordin
 For other vulnerabilities affecting Fleet or code used in Fleet, the Head of Security, CTO and CEO can accept the risk of patching them according to custom timelines, depending on the risk and possible temporary mitigations.
 
 
-### Mapping of CVSSv3 scores to Fleet severity
+### Mapping of CVSSv4 scores to Fleet severity
 
 Fleet adapts the severity assigned to vulnerabilities when needed.
 
 The features we use in a library, for example, can mean that some vulnerabilities in the library are unexploitable. In other cases, it might make the vulnerability easier to exploit. In those cases, Fleet would first categorize the vulnerability using publicly available information, then lower or increase the severity based on additional context.
 
-When using externally provided CVSSv3 scores, Fleet maps them like this:
+When using externally provided CVSSv4 scores, Fleet maps them like this:
 
 | CVSSv3 score                       | Fleet severity                      |
 | ---------------------------------- | ----------------------------------- |

@@ -64,6 +64,7 @@ Interested to learn more? [Read Faire’s article](https://craft.faire.com/using
 
 <meta name="category" value="case study">
 <meta name="articleTitle" value="Faire secures Macs with CIS benchmarks and Fleet">
+<meta name="description" value="Faire replaced their previous MDM with Fleet, managing Macs and iPads through GitOps and enforcing CIS benchmarks to improve device security.">
 
 
 <meta name="publishedOn" value="2025-12-11">

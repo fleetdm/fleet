@@ -311,8 +311,8 @@ const SaveNewQueryModal = ({
         <RevealButton
           isShowing={showAdvancedOptions}
           className="advanced-options-toggle"
-          hideText="Hide advanced options"
-          showText="Show advanced options"
+          hideText="Advanced options"
+          showText="Advanced options"
           caretPosition="after"
           onClick={toggleAdvancedOptions}
         />

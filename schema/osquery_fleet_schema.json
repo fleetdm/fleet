@@ -7476,6 +7476,32 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/disk_info.yml"
   },
   {
+    "name": "disk_space",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey, which includes purgeable space and matches what macOS reports in Finder's \"Get Info\" dialog. For Windows disk space, use the [`logical_drives`](https://fleetdm.com/tables/logical_drives) table. For Linux, use the [`mounts`](https://fleetdm.com/tables/mounts) table.",
+    "examples": "```\nSELECT * FROM disk_space;\n```",
+    "columns": [
+      {
+        "name": "bytes_available",
+        "type": "bigint",
+        "required": false,
+        "description": "Available disk capacity in bytes, including purgeable space (matches macOS \"Get Info\" available space)."
+      },
+      {
+        "name": "bytes_total",
+        "type": "bigint",
+        "required": false,
+        "description": "Total disk capacity in bytes."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/disk_space",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/disk_space.yml"
+  },
+  {
     "name": "dns_cache",
     "description": "Enumerate the DNS cache using the undocumented DnsGetCacheDataTable function in dnsapi.dll.",
     "url": "https://fleetdm.com/tables/dns_cache",
@@ -12187,6 +12213,58 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
   {
+    "name": "go_binaries",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "description": "Go binaries installed via `go install` in `$HOME/go/bin`.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "The filename of the Go binary."
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "The module version of the binary (e.g. v1.2.3). Shows \"(devel)\" for binaries built with `go build`."
+      },
+      {
+        "name": "module_path",
+        "type": "text",
+        "required": false,
+        "description": "The Go module path that produced this binary (e.g. github.com/user/repo)."
+      },
+      {
+        "name": "import_path",
+        "type": "text",
+        "required": false,
+        "description": "The import path of the main package (e.g. github.com/user/repo/cmd/tool)."
+      },
+      {
+        "name": "go_version",
+        "type": "text",
+        "required": false,
+        "description": "The version of the Go toolchain used to build this binary (e.g. go1.22.3)."
+      },
+      {
+        "name": "installed_path",
+        "type": "text",
+        "required": false,
+        "description": "The absolute filesystem path to the binary."
+      }
+    ],
+    "examples": "List all Go binaries:\n\n```\nSELECT * FROM go_binaries;\n```\n\nList Go binaries with real versions (installed via `go install`):\n\n```\nSELECT * FROM go_binaries WHERE version <> '(devel)';\n```\n\nFind all Go binaries for a specific module:\n\n```\nSELECT * FROM go_binaries WHERE module_path LIKE 'github.com/hashicorp/%';\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nGo binaries compiled with Go 1.18+ embed build information that this table extracts\nusing Go's debug/buildinfo package. Binaries built with `go build` will show \"(devel)\"\nas the version, while those installed via `go install module@version` will show the\nactual version.\n\nThe table scans each user's ~/go/bin directory for Go binaries.",
+    "url": "https://fleetdm.com/tables/go_binaries",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/go_binaries.yml"
+  },
+  {
     "name": "google_chrome_profiles",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Profiles configured in Google Chrome.",
@@ -16376,6 +16454,79 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
   },
   {
+    "name": "macadmins_wifi_network",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about the currently connected Wi-Fi network.",
+    "columns": [
+      {
+        "name": "ssid",
+        "type": "text",
+        "required": false,
+        "description": "The SSID (network name) of the current Wi-Fi network."
+      },
+      {
+        "name": "interface",
+        "type": "text",
+        "required": false,
+        "description": "The network interface name (e.g., en0)."
+      },
+      {
+        "name": "rssi",
+        "type": "text",
+        "required": false,
+        "description": "Received Signal Strength Indicator (signal strength, e.g., -50)."
+      },
+      {
+        "name": "noise",
+        "type": "text",
+        "required": false,
+        "description": "Noise level in dBm."
+      },
+      {
+        "name": "channel",
+        "type": "text",
+        "required": false,
+        "description": "Wi-Fi channel number."
+      },
+      {
+        "name": "channel_width",
+        "type": "text",
+        "required": false,
+        "description": "Channel width (e.g., 20, 40, 80 MHz)."
+      },
+      {
+        "name": "channel_band",
+        "type": "text",
+        "required": false,
+        "description": "Channel band (e.g., 2.4 GHz, 5 GHz, 6 GHz)."
+      },
+      {
+        "name": "transmit_rate",
+        "type": "text",
+        "required": false,
+        "description": "Transmit rate (e.g., 300 Mbps)."
+      },
+      {
+        "name": "security_type",
+        "type": "text",
+        "required": false,
+        "description": "Security type (e.g., WPA2 Personal, WPA3 Personal)."
+      },
+      {
+        "name": "mode",
+        "type": "text",
+        "required": false,
+        "description": "Wi-Fi mode (e.g., Station)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/macadmins_wifi_network",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_wifi_network.yml"
+  },
+  {
     "name": "macos_profiles",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "High level information on installed profiles enrollment.",
@@ -16473,6 +16624,86 @@
     ],
     "url": "https://fleetdm.com/tables/macos_rsr",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
+  },
+  {
+    "name": "macos_soc_power",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Power draw in milliwatts for the CPU, GPU, Apple Neural Engine (ANE), and total System on a Chip (SoC), plus GPU active ratio, sampled via powermetrics. Requires root.",
+    "columns": [
+      {
+        "name": "cpu_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the CPU."
+      },
+      {
+        "name": "gpu_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the GPU."
+      },
+      {
+        "name": "ane_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the Apple Neural Engine."
+      },
+      {
+        "name": "combined_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the total System on a Chip."
+      },
+      {
+        "name": "gpu_active_ratio",
+        "type": "text",
+        "required": false,
+        "description": "Percentage of time a GPU is actively processing commands rather than idling."
+      },
+      {
+        "name": "interval",
+        "type": "integer",
+        "required": false,
+        "description": "Sampling duration in milliseconds. Longer intervals produce more accurate averages. (Default: 3000.)\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/macos_soc_power",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_soc_power.yml"
+  },
+  {
+    "name": "macos_thermal_pressure",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Reports whether macOS is thermally throttling the device, via powermetrics. Returns thermal_pressure (Nominal/Light/Moderate/Heavy/Sleeping) and a derived is_throttling integer (1 if not Nominal). Requires root.",
+    "columns": [
+      {
+        "name": "thermal_pressure",
+        "type": "text",
+        "required": false,
+        "description": "Nominal/Light/Moderate/Heavy/Sleeping."
+      },
+      {
+        "name": "is_throttling",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if thermal_pressure is not Nominal."
+      },
+      {
+        "name": "interval",
+        "type": "integer",
+        "required": false,
+        "description": "Sampling duration in milliseconds. (Default 1000.)\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/macos_thermal_pressure",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_thermal_pressure.yml"
   },
   {
     "name": "macos_user_profiles",
@@ -29883,79 +30114,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/vscode_extensions.yml"
   },
   {
-    "name": "wifi_network",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about the currently connected Wi-Fi network.",
-    "columns": [
-      {
-        "name": "ssid",
-        "type": "text",
-        "required": false,
-        "description": "The SSID (network name) of the current Wi-Fi network."
-      },
-      {
-        "name": "interface",
-        "type": "text",
-        "required": false,
-        "description": "The network interface name (e.g., en0)."
-      },
-      {
-        "name": "rssi",
-        "type": "text",
-        "required": false,
-        "description": "Received Signal Strength Indicator (signal strength, e.g., -50)."
-      },
-      {
-        "name": "noise",
-        "type": "text",
-        "required": false,
-        "description": "Noise level in dBm."
-      },
-      {
-        "name": "channel",
-        "type": "text",
-        "required": false,
-        "description": "Wi-Fi channel number."
-      },
-      {
-        "name": "channel_width",
-        "type": "text",
-        "required": false,
-        "description": "Channel width (e.g., 20, 40, 80 MHz)."
-      },
-      {
-        "name": "channel_band",
-        "type": "text",
-        "required": false,
-        "description": "Channel band (e.g., 2.4 GHz, 5 GHz, 6 GHz)."
-      },
-      {
-        "name": "transmit_rate",
-        "type": "text",
-        "required": false,
-        "description": "Transmit rate (e.g., 300 Mbps)."
-      },
-      {
-        "name": "security_type",
-        "type": "text",
-        "required": false,
-        "description": "Security type (e.g., WPA2 Personal, WPA3 Personal)."
-      },
-      {
-        "name": "mode",
-        "type": "text",
-        "required": false,
-        "description": "Wi-Fi mode (e.g., Station)."
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/wifi_network",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/wifi_network.yml"
-  },
-  {
     "name": "wifi_networks",
     "description": "Wi-Fi networks previously connected to by this Mac, or that are otherwise in this computer's known/remembered Wi-Fi networks list.",
     "url": "https://fleetdm.com/tables/wifi_networks",
@@ -30389,7 +30547,7 @@
   },
   {
     "name": "winbaseobj",
-    "description": "Lists named Windows objects in the default object directories, across all terminal services sessions.  Example Windows ojbect types include Mutexes, Events, Jobs and Semaphors.",
+    "description": "Lists named Windows objects in the default object directories, across all terminal services sessions.  Example Windows object types include Mutexes, Events, Jobs and Semaphors.",
     "url": "https://fleetdm.com/tables/winbaseobj",
     "platforms": [
       "windows"

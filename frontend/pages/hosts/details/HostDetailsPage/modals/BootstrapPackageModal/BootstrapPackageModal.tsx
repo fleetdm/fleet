@@ -30,7 +30,7 @@ const BootstrapPackageModal = ({
 
       <div className="modal-cta-wrap">
         <Button type="button" onClick={onClose} className="delete-loading">
-          Done
+          Close
         </Button>
       </div>
     </Modal>

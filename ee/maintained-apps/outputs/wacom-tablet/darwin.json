@@ -3,7 +3,8 @@
     {
       "version": "6.4.12-3",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.wacom.WacomCenter';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.wacom.WacomCenter';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.wacom.WacomCenter' AND version_compare(bundle_short_version, '6.4.12-3') < 0);"
       },
       "installer_url": "https://cdn.wacom.com/u/productsupport/drivers/mac/professional/WacomTablet_6.4.12-3.dmg",
       "install_script_ref": "6c315349",

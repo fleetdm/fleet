@@ -1,0 +1,1 @@
+* Added `go_binaries` table to detect Go binaries installed via `go install` in user directories.

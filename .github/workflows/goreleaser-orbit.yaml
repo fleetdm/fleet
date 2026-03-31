@@ -52,7 +52,7 @@ jobs:
           rm certificate.p12
 
       - name: Set up Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: "go.mod"
 
@@ -100,7 +100,7 @@ jobs:
         run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: "go.mod"
 
@@ -145,7 +145,7 @@ jobs:
         run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: "go.mod"
 
@@ -187,7 +187,7 @@ jobs:
         run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: "go.mod"
 
@@ -241,7 +241,7 @@ jobs:
         run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: "go.mod"
 

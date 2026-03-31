@@ -1314,7 +1314,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	"Type": %q,
 	"Payload": {
 		"TargetOSVersion": %q,
-		"TargetLocalDateTime": "%sT19:00:00"
+		"TargetLocalDateTime": "%sT12:00:00"
 	}
 }`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
 

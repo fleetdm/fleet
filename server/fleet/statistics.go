@@ -39,7 +39,7 @@ type StatisticsPayload struct {
 	NumWeeklyPolicyViolationDaysActual int `json:"numWeeklyPolicyViolationDaysActual"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of possible policy violation
 	// days. The count is incremented by the organization's total number of policies
-	// mulitplied by the total number of hosts as of the time the count is incremented. The count
+	// multiplied by the total number of hosts as of the time the count is incremented. The count
 	// increments once per 24-hour interval and resets each week.
 	NumWeeklyPolicyViolationDaysPossible int                                `json:"numWeeklyPolicyViolationDaysPossible"`
 	HostsEnrolledByOperatingSystem       map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
@@ -65,8 +65,14 @@ type StatisticsPayload struct {
 	// FleetMaintainedAppsWindows is an array of Fleet-maintained app slugs being used on Windows
 	FleetMaintainedAppsWindows []string `json:"fleetMaintainedAppsWindows,omitempty"`
 
+	// ConditionalAccessEnabled indicates whether any team has conditional access enabled.
+	ConditionalAccessEnabled bool `json:"conditionalAccessEnabled"`
+	// OktaConditionalAccessConfigured indicates if the Okta conditional access integration is configured.
 	OktaConditionalAccessConfigured bool `json:"oktaConditionalAccessConfigured"`
+	// ConditionalAccessBypassDisabled indicates if bypass is disabled for Okta.
 	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
+	// EntraConditionalAccessConfigured indicates if the Entra conditional access integration is configured.
+	EntraConditionalAccessConfigured bool `json:"entraConditionalAccessConfigured"`
 }
 
 type HostsCountByOrbitVersion struct {

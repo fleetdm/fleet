@@ -36,3 +36,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="Gaming tech company manages 1,600+ devices with GitOps automation, on-prem control, and faster vulnerability response across Mac, Windows, and Linux.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Gaming technology company">
