@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -272,4 +274,30 @@ func (s *integrationTestSuite) createOrder(t *testing.T, pathIdentifier string, 
 	t.Helper()
 	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/new_order", pathIdentifier) //nolint:gosec // test server URL is safe
 	return doACMERequest[types.OrderResponse](t, http.MethodPost, url, jwsBody)
+}
+
+// listOrdersURL returns the full URL for the list orders endpoint.
+func (s *integrationTestSuite) listOrdersURL(pathIdentifier string, accountID uint) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/accounts/%d/orders", s.server.URL, pathIdentifier, accountID)
+}
+
+// listOrders POSTs a JWS body to the list orders endpoint and returns the
+// list orders response or acme error and the raw response.
+func (s *integrationTestSuite) listOrders(t *testing.T, pathIdentifier string, accountID uint, jwsBody []byte) (*api_http.ListOrdersResponse, *types.ACMEError, *http.Response) {
+	t.Helper()
+	url := s.listOrdersURL(pathIdentifier, accountID)
+	return doACMERequest[api_http.ListOrdersResponse](t, http.MethodPost, url, jwsBody)
+}
+
+// parseAccountID extracts the numeric account ID from an account URL like
+// ".../accounts/123" or ".../accounts/123/orders".
+func parseAccountID(t *testing.T, accountURL string) uint {
+	t.Helper()
+	// strip trailing "/orders" if present
+	u := strings.TrimSuffix(accountURL, "/orders")
+	parts := strings.Split(u, "/")
+	idStr := parts[len(parts)-1]
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	require.NoError(t, err)
+	return uint(id)
 }

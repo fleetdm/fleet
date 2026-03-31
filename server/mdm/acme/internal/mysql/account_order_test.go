@@ -413,8 +413,8 @@ func testListOrderIDsExcludesInvalid(t *testing.T, env *testEnv) {
 	account, _ := createTestAccountForOrder(t, env)
 
 	// create two orders
-	var allIDs []uint
-	for range 2 {
+	allIDs := make([]uint, 0, 2)
+	for range cap(allIDs) {
 		order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
 		created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
 		require.NoError(t, err)
