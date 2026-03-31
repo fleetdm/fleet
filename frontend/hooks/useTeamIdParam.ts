@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, trimStart } from "lodash";
+import { findLastIndex, sortBy, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
@@ -221,8 +221,15 @@ const getDefaultTeam = ({
         defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
       }
       if (!defaultTeam && includeNoTeam) {
-        // default to No team when "All teams" not included and no team is included
-        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+        // prefer the real fleet with the lowest ID over "Unassigned"
+        const realFleets = userTeams.filter(
+          (t) => t.id > APP_CONTEXT_NO_TEAM_ID
+        );
+        if (realFleets.length > 0) {
+          defaultTeam = sortBy(realFleets, (t) => t.id)[0];
+        } else {
+          defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+        }
       }
     }
 
