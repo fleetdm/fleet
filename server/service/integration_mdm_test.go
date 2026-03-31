@@ -84,6 +84,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -109,20 +110,23 @@ func TestIntegrationsMDM(t *testing.T) {
 type integrationMDMTestSuite struct {
 	suite.Suite
 	withServer
-	fleetCfg                   config.FleetConfig
-	fleetDMNextCSRStatus       atomic.Value
-	pushProvider               *mock.APNSPushProvider
-	depStorage                 nanodep_storage.AllDEPStorage
-	profileSchedule            *schedule.Schedule
-	androidProfileSchedule     *schedule.Schedule
-	integrationsSchedule       *schedule.Schedule
-	cleanupsSchedule           *schedule.Schedule
-	onProfileJobDone           func() // function called when profileSchedule.Trigger() job completed
-	onAndroidProfileJobDone    func() // function called when androidProfileSchedule.Trigger() job completed
-	onIntegrationsScheduleDone func() // function called when integrationsSchedule.Trigger() job completed
-	onCleanupScheduleDone      func() // function called when cleanupsSchedule.Trigger() job completed
-	mdmStorage                 *mysql.NanoMDMStorage
-	worker                     *worker.Worker
+	fleetCfg                     config.FleetConfig
+	fleetDMNextCSRStatus         atomic.Value
+	pushProvider                 *mock.APNSPushProvider
+	depStorage                   nanodep_storage.AllDEPStorage
+	profileSchedule              *schedule.Schedule
+	androidProfileSchedule       *schedule.Schedule
+	integrationsSchedule         *schedule.Schedule
+	cleanupsSchedule             *schedule.Schedule
+	appleMDMWorkerSchedule       *schedule.Schedule
+	onProfileJobDone             func() // function called when profileSchedule.Trigger() job completed
+	onAndroidProfileJobDone      func() // function called when androidProfileSchedule.Trigger() job completed
+	onIntegrationsScheduleDone   func() // function called when integrationsSchedule.Trigger() job completed
+	onCleanupScheduleDone        func() // function called when cleanupsSchedule.Trigger() job completed
+	onAppleMDMWorkerScheduleDone func() // function called when appleMDMWorkerSchedule.Trigger() job completed
+	mdmStorage                   *mysql.NanoMDMStorage
+	worker                       *worker.Worker
+	appleMDMWorker               *worker.Worker
 	// Flag to skip jobs processing by worker
 	skipWorkerJobs            atomic.Bool
 	mdmCommander              *apple_mdm.MDMAppleCommander
@@ -140,6 +144,7 @@ type integrationMDMTestSuite struct {
 	proxyCallbackURL          string
 	jwtSigningKey             *rsa.PrivateKey
 	softwareInstallerStore    fleet.SoftwareInstallerStore
+	keyValueStore             fleet.AdvancedKeyValueStore
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -260,9 +265,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
-	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
+	workr.Register(macosJob, vppVerifyJob, softwareWorker)
 
 	s.worker = workr
+
+	appleMDMWorker := worker.NewWorker(s.ds, wlog)
+	appleMDMWorker.TestIgnoreUnknownJobs = true
+	appleMDMWorker.Register(appleMDMJob)
+
+	s.appleMDMWorker = appleMDMWorker
 
 	// clear the jobs queue of any pending jobs generated via DB migrations
 	mysql.ExecAdhocSQL(s.T(), s.ds, func(q sqlx.ExtContext) error {
@@ -274,6 +285,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	var profileSchedule *schedule.Schedule
 	var cleanupsSchedule *schedule.Schedule
 	var androidProfileSchedule *schedule.Schedule
+	var appleMDMWorkerSchedule *schedule.Schedule
 	cronLog := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = slog.New(slog.DiscardHandler)
@@ -302,6 +314,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	softwareTitleIconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
 	require.NoError(s.T(), err)
 
+	keyValueStore := redis_key_value.New(s.redisPool)
+
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
@@ -321,6 +335,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		BootstrapPackageStore:  bootstrapPackageStore,
 		androidMockClient:      androidMockClient,
 		androidModule:          androidSvc,
+		KeyValueStore:          keyValueStore,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -338,7 +353,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger, 0)
+							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, keyValueStore, logger, 0)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -370,6 +385,24 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						}),
 					)
 					return profileSchedule, nil
+				}
+			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronAppleMDMWorker)
+					logger := cronLog
+					appleMDMWorkerSchedule = schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("apple_mdm_worker", func(ctx context.Context) error {
+							if s.onAppleMDMWorkerScheduleDone != nil {
+								defer s.onAppleMDMWorkerScheduleDone()
+							}
+
+							return s.appleMDMWorker.ProcessJobs(ctx)
+						}),
+					)
+					return appleMDMWorkerSchedule, nil
 				}
 			},
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
@@ -494,10 +527,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.profileSchedule = profileSchedule
 	s.cleanupsSchedule = cleanupsSchedule
 	s.androidProfileSchedule = androidProfileSchedule
+	s.appleMDMWorkerSchedule = appleMDMWorkerSchedule
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
 	s.androidAPIClient = androidMockClient
+	s.keyValueStore = keyValueStore
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -925,6 +960,35 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM android_app_configurations;")
+		return err
+	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_enrollment_queue")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_command_results")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_cert_auth_associations")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_commands")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_enrollments")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_users")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_devices")
 		return err
 	})
 
@@ -1434,7 +1498,7 @@ func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.Te
 	origPush := s.pushProvider.PushFunc
 	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		require.Len(t, pushes, 1)
-		require.Equal(t, pushes[0].PushMagic, "pushmagic"+mdmDevice.SerialNumber)
+		require.Equal(t, "pushmagic"+mdmDevice.SerialNumber, pushes[0].PushMagic)
 		res := map[string]*push.Response{
 			pushes[0].Token.String(): {
 				Id:  uuid.New().String(),
@@ -4335,6 +4399,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		err := d.device.Enroll() // queues DEP post-enrollment worker job
 		require.NoError(t, err)
 
+		s.awaitRunAppleMDMWorkerSchedule()
 		// process worker jobs
 		s.runWorker()
 
@@ -5757,7 +5822,7 @@ func (s *integrationMDMTestSuite) assertHostAppleConfigProfiles(want map[*fleet.
 			gp := gotProfs[i]
 			require.Equal(t, wp.Identifier, gp.Identifier, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
-			require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
+			require.Equal(t, *wp.Status, *gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 		}
 	}
 }
@@ -6414,7 +6479,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	// Enroll generated the TokenUpdate request to Fleet and enqueued the
 	// Post-DEP enrollment job, it needs to be processed.
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// ask for commands and verify that we get AccountConfiguration
 	var accCmd *mdm.Command
@@ -6668,6 +6733,7 @@ func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, usernam
 func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
 
 	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile, false)
@@ -6745,7 +6811,10 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	// Enroll generated the TokenUpdate request to Fleet and enqueued the
 	// Post-DEP enrollment job, it needs to be processed.
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	// Simulate TTL expiration
+	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+mdmDevice.UUID))
 
 	// ask for commands and verify that we get AccountConfiguration
 	var accCmd *mdm.Command
@@ -10702,6 +10771,40 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	<-ch
 }
 
+func (s *integrationMDMTestSuite) awaitRunAppleMDMWorkerSchedule() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	s.onAppleMDMWorkerScheduleDone = wg.Done
+
+	var (
+		didTrigger bool
+		err        error
+	)
+	for range 10 {
+		_, didTrigger, err = s.appleMDMWorkerSchedule.Trigger(s.T().Context())
+		require.NoError(s.T(), err)
+		if didTrigger {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	require.True(s.T(), didTrigger, "apple MDM worker schedule did not trigger after 1 second of retries")
+
+	// Add timeout detection
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Completed successfully
+	case <-time.After(5 * time.Minute):
+		s.T().Fatalf("Apple MDM worker schedule jobs timed out after 5 minutes")
+	}
+}
+
 func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -10992,6 +11095,9 @@ func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
 func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	t := s.T()
 
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	// create a device that's not enrolled into Fleet, it should get a command to
 	// install fleetd
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -11001,7 +11107,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	}, "MacBookPro16,1")
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 	// create a device that's enrolled into Fleet before turning on MDM features,
@@ -11014,7 +11120,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	mdmDevice.UUID = host.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 }
 
@@ -11321,6 +11427,11 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 
 	// Create a host and a couple of profiles
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
@@ -11499,9 +11610,16 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	require.NotZero(t, createTeamResp.Team.ID)
 	team.ID = createTeamResp.Team.ID
 
-	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// Ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
 
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.awaitRunAppleMDMWorkerSchedule()
 	ident := uuid.NewString()
+
+	// simulate TTL expiration
+	err := s.keyValueStore.Delete(context.Background(), fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	mdmDeviceRespond := func(device *mdmtest.TestAppleMDMClient) {
 		cmd, err := device.Idle()
@@ -11586,6 +11704,8 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	// Test case where the profile never makes it to the host at all
 	host, _ = createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	ident = uuid.NewString()
+	err = s.keyValueStore.Delete(context.Background(), fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	globalProfiles = [][]byte{
 		mobileconfigForTest("N3", ident),
@@ -11972,6 +12092,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	// explicitly run the worker, which will send the install fleetd command
 	// because the device is ADE-enrolled (due to the simulation of it being
 	// ingested from ABM)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 
 	var installEnterpriseCount int
@@ -11980,10 +12101,17 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.NoError(t, err)
 
 	for cmd != nil {
+		if cmd.Command.RequestType == "DeclarativeManagement" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+
 		if cmd.Command.RequestType == "InstallEnterpriseApplication" {
 			installEnterpriseCount++
 		} else {
 			require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+			t.Logf("Received InstallProfile command with payload:\n%s", string(cmd.Raw))
 			installs = append(installs, cmd.Raw)
 		}
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -12030,6 +12158,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	t := s.T()
 	ctx := context.Background()
+	kv := redis_key_value.New(s.redisPool)
 
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
@@ -12038,12 +12167,16 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}}, http.StatusNoContent)
 
 	// macOS host, MDM on
-	_, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// windows host, MDM on
 	createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// linux and darwin, MDM off
 	createOrbitEnrolledHost(t, "linux", "linux_host", s.ds)
 	createOrbitEnrolledHost(t, "darwin", "mac_not_enrolled", s.ds)
+
+	// Delete the key to let the reconciler pick up the profiles
+	err := kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+macHost.UUID)
+	require.NoError(t, err)
 
 	// we're going to modify this mock, make sure we restore its default
 	originalPushMock := s.pushProvider.PushFunc
@@ -12059,13 +12192,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// trigger the reconciliation schedule
-	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, 0)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// triggering the schedule again doesn't send any more pushes
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, 0)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -12097,6 +12230,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	t := s.T()
 	ctx := context.Background()
+	kv := redis_key_value.New(s.redisPool)
 
 	// macOS host, MDM on
 	_, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -12105,6 +12239,10 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	// linux and darwin, MDM off
 	createOrbitEnrolledHost(t, "linux", "linux_host", s.ds)
 	createOrbitEnrolledHost(t, "darwin", "mac_not_enrolled", s.ds)
+
+	// Delete the key to let the reconciler pick up the profiles
+	err := kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+macDevice.UUID)
+	require.NoError(t, err)
 
 	// we're going to modify this mock, make sure we restore its default
 	originalPushMock := s.pushProvider.PushFunc
@@ -12120,7 +12258,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}
 
 	// trigger the reconciliation schedule
-	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, 0)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -12141,7 +12279,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}}, http.StatusNoContent)
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, 0)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -12161,7 +12299,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, 0)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -12873,7 +13011,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
 	t := s.T()
 	_, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	cmd, err := device.Acknowledge("foo")
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
@@ -13263,8 +13401,20 @@ func checkInstallFleetdCommandSent(t *testing.T, mdmDevice *mdmtest.TestAppleMDM
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
+		if cmd.Command.RequestType == "DeclarativeManagement" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue // Do not add to commands as it's not a XML file, so we use a bool to see it once.
+		}
+
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		if fullCmd.Command.RequestType != "InstallEnterpriseApplication" {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue
+		}
+
 		if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
 			foundInstallFleetdCommand = true
 			require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
@@ -13908,10 +14058,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, selfServiceHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, selfServiceDevice, true)
 	selfServiceToken := "selfservicetoken"
@@ -13921,6 +14073,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	iPadOSHost, iPadOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ipados")
 	// ensure a valid alternate device token for self-service status access checking later
 	updateDeviceTokenForHost(t, s.ds, mdmHost.ID, "foobar")
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial,
@@ -14674,9 +14827,11 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 	mdmHost2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice2, true)
 	key := setOrbitEnrollment(t, mdmHost2, s.ds)
@@ -15172,6 +15327,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.Equal(t, uint(1), countPendingInstalls)
 
 	// send an idle request to grab the command uuid
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	var cmdUUID string
 	cmd, err := mdmDevice.Idle()
@@ -15509,6 +15665,9 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	signedReqBody, err := signedData.Finish()
 	require.NoError(t, err)
 
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	t.Run("errors", func(t *testing.T) {
 		t.Run("if no enroll secret is provided", func(t *testing.T) {
 			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusForbidden)
@@ -15627,7 +15786,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
@@ -15648,7 +15807,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "ipados", enrollTime)
@@ -15665,7 +15824,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
@@ -15693,7 +15852,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
@@ -15957,7 +16116,9 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
 	// trigger a profile sync
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.awaitTriggerProfileSchedule(t)
+	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
 	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 2)
@@ -16248,8 +16409,10 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
-	// trigger a profile sync
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
 	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 2)
@@ -16725,6 +16888,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	setupPusher(s, t, mdmDevice)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 0)
@@ -16739,6 +16903,9 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
+
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	// Add a profile with a bad CA
 	profile := digiCertForTest("N1", "BadCA", "badName")
@@ -17087,6 +17254,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 	setupPusher(s, t, mdmDevice)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 0)
@@ -17101,6 +17269,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	// ////////////////////////////////
 	// Test DigiCert CA with HOST_PLATFORM Fleet variable
@@ -17528,6 +17698,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 
 func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	t := s.T()
+	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
@@ -17625,11 +17796,13 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		require.EqualValues(t, fleet.MDMDeliveryVerified, *prof.Status)
 	}
 
+	s.awaitTriggerProfileSchedule(t)
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
 	// trigger a profile sync
-	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 	// Receive enrollment profiles (we are not checking/testing these here)
 	for {
 		cmd, err := mdmDevice.Idle()
@@ -17640,6 +17813,9 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
+
+	err := s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	// /////////////////////////////////////////
 	// Upload a profile without defining the CA
@@ -19333,6 +19509,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	key := setOrbitEnrollment(t, mdmHost, s.ds)
 	mdmHost.OrbitNodeKey = &key
 
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 

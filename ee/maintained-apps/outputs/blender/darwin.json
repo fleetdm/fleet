@@ -4,7 +4,7 @@
       "version": "5.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.blenderfoundation.blender';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.blenderfoundation.blender' AND version_compare(bundle_short_version, '5.1.0') < 0);"
       },
       "installer_url": "https://download.blender.org/release/Blender5.1/blender-5.1.0-macos-arm64.dmg",
       "install_script_ref": "fb43bb5d",

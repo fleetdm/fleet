@@ -4,7 +4,7 @@
       "version": "1.1.9493",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop' AND version_compare(bundle_short_version, '1.1.9493') < 0);"
       },
       "installer_url": "https://downloads.claude.ai/releases/darwin/universal/1.1.9493/Claude-b58a0b815ba4d85fb147f437ce5f11a5450ef3e8.zip",
       "install_script_ref": "eef78d20",

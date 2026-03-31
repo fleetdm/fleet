@@ -4,7 +4,7 @@
       "version": "12.1.0.12143",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.expressvpn.ExpressVPN';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.expressvpn.ExpressVPN' AND version_compare(bundle_short_version, '12.1.0.12143') < 0);"
       },
       "installer_url": "https://www.expressvpn.works/clients/mac/expressvpn-macos-universal-12.1.0.12143_release.zip",
       "install_script_ref": "ebbdc77b",

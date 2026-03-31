@@ -3,6 +3,7 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -24,9 +25,6 @@ func TestIngestValidations(t *testing.T) {
 
 	testUninstallScriptContents := "this is a test uninstall script"
 	require.NoError(t, os.WriteFile(path.Join(tempDir, "uninstall_script.sh"), []byte(testUninstallScriptContents), 0644))
-
-	testPatchPolicyContents := `query: "SELECT 1;"`
-	require.NoError(t, os.WriteFile(path.Join(tempDir, "policy.yml"), []byte(testPatchPolicyContents), 0644))
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var cask brewCask
@@ -126,7 +124,6 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"cannot provide pre-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_pre", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PreUninstallScripts: []string{"foo", "bar"}}},
 		{"cannot provide post-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_post", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PostUninstallScripts: []string{"foo", "bar"}}},
-		{"", inputApp{Token: "patch_policy_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", PatchPolicyPath: path.Join(tempDir, "policy.yml")}},
 	}
 	for _, c := range cases {
 		t.Run(c.inputApp.Token, func(t *testing.T) {
@@ -152,9 +149,10 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, testUninstallScriptContents, out.UninstallScript)
 			}
 
-			if c.inputApp.PatchPolicyPath != "" {
-				require.Equal(t, "SELECT 1;", out.Queries.Patch)
-			}
+			require.Equal(t,
+				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
+				out.Queries.Patched,
+			)
 
 		})
 	}

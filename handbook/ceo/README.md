@@ -142,8 +142,11 @@ The CEO's calendar should reflect the following schedule for travel:
  - Location: Address to destination
  - Calendar event name if CEO is going home: Travel home
 - If the CEO is checking into a hotel, they need a time block to check-in,
+ - If the CEO will arrive to the hotel before their check-in time, call the hotel ahead of time to request early check-in. If early check-in is not available, schedule the check-in time block at the hotel's check-in time.
+ - If the hotel says early check-in is possible, but depends on the hotel's availability, have the CEO try to check-in. 
  - 30 minutes
  - Calendar event: Check-in at hotel
+ - Calednar event for CEO to try and check-in: Try to check-in
 
 
 ### Schedule CEO interview
