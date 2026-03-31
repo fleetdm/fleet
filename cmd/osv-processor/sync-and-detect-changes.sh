@@ -33,13 +33,13 @@ if [ -d "$REPO_DIR/.git" ]; then
     git fetch origin main
 
     NEW_SHA=$(git rev-parse origin/main)
+    git reset --hard origin/main
 
     echo ""
     if [ "$OLD_SHA" = "$NEW_SHA" ]; then
         echo "No new commits (already at $NEW_SHA)"
     else
         echo "Updating: $OLD_SHA -> $NEW_SHA"
-        git reset --hard origin/main
     fi
 
     NEW_COUNT=$(git log --oneline | wc -l | xargs)
@@ -70,13 +70,14 @@ fi
 
 cd "$REPO_DIR"
 
-# Get files changed today (since midnight UTC today)
 TODAY_UTC=$(date -u +%Y-%m-%d)
+YESTERDAY_UTC=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
+
+# Get files changed today (since midnight UTC today)
 git log --since="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
     | sed '/^$/d' | sort -u > "../changed_files_today.txt"
 
 # Get files changed yesterday (from midnight yesterday to midnight today UTC)
-YESTERDAY_UTC=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
 git log --since="${YESTERDAY_UTC}T00:00:00Z" --until="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
     | sed '/^$/d' | sort -u > "../changed_files_yesterday.txt"
 
