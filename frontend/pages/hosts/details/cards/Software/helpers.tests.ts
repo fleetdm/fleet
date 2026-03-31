@@ -541,3 +541,100 @@ describe("getSoftwareSubheader", () => {
     expect(result).toBe("Software installed on this host.");
   });
 });
+
+describe("getUiStatus - multiple installed versions (stale copy scenario)", () => {
+  it("returns update_available when ALL installed versions are older", () => {
+    const software = createMockHostSoftware({
+      status: null,
+      installed_versions: [
+        {
+          version: "1.107.1",
+          bundle_identifier: "com.microsoft.VSCode",
+          vulnerabilities: null,
+          installed_paths: ["/Applications/Visual Studio Code.app"],
+        },
+      ],
+      software_package: createMockHostSoftwarePackage({
+        version: "1.111.0",
+        last_install: null,
+      }),
+    });
+    expect(getUiStatus(software, true)).toBe("update_available");
+  });
+
+  it("does NOT return update_available when any installed version >= available", () => {
+    // Stale copy at 1.107.1, current copy at 1.113.0, FMA offers 1.111.0
+    const software = createMockHostSoftware({
+      status: null,
+      installed_versions: [
+        {
+          version: "1.107.1",
+          bundle_identifier: "com.microsoft.VSCode",
+          vulnerabilities: null,
+          installed_paths: ["/Users/Shared/vm-shared/Visual Studio Code.app"],
+        },
+        {
+          version: "1.113.0",
+          bundle_identifier: "com.microsoft.VSCode",
+          vulnerabilities: null,
+          installed_paths: ["/Applications/Visual Studio Code.app"],
+        },
+      ],
+      software_package: createMockHostSoftwarePackage({
+        version: "1.111.0",
+        last_install: null,
+      }),
+    });
+    expect(getUiStatus(software, true)).not.toBe("update_available");
+  });
+
+  it("returns update_available when multiple versions ALL older than available", () => {
+    const software = createMockHostSoftware({
+      status: null,
+      installed_versions: [
+        {
+          version: "1.107.1",
+          bundle_identifier: "com.microsoft.VSCode",
+          vulnerabilities: null,
+          installed_paths: ["/Users/Shared/vm-shared/Visual Studio Code.app"],
+        },
+        {
+          version: "1.109.0",
+          bundle_identifier: "com.microsoft.VSCode",
+          vulnerabilities: null,
+          installed_paths: ["/Applications/Visual Studio Code.app"],
+        },
+      ],
+      software_package: createMockHostSoftwarePackage({
+        version: "1.111.0",
+        last_install: null,
+      }),
+    });
+    expect(getUiStatus(software, true)).toBe("update_available");
+  });
+
+  it("returns installing (not updating) when pending and any version >= available", () => {
+    const software = createMockHostSoftware({
+      status: "pending_install",
+      installed_versions: [
+        {
+          version: "1.107.1",
+          bundle_identifier: "com.microsoft.VSCode",
+          vulnerabilities: null,
+          installed_paths: ["/Users/Shared/vm-shared/Visual Studio Code.app"],
+        },
+        {
+          version: "1.113.0",
+          bundle_identifier: "com.microsoft.VSCode",
+          vulnerabilities: null,
+          installed_paths: ["/Applications/Visual Studio Code.app"],
+        },
+      ],
+      software_package: createMockHostSoftwarePackage({
+        version: "1.111.0",
+        last_install: null,
+      }),
+    });
+    expect(getUiStatus(software, true)).toBe("installing");
+  });
+});

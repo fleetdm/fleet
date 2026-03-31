@@ -570,6 +570,8 @@ const quitApplicationFunc = `quit_application() {
 
 // quitAndTrackApplicationFunc quits a running application and tracks whether it was running
 // so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
+// Uses System Events to verify visible windows before marking for relaunch, preventing
+// false-positive detection from background helper processes (e.g., VS Code's Code Helper).
 const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
@@ -577,6 +579,19 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
   # check if the application is running
   if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+    eval "export $var_name=0"
+    return
+  fi
+
+  # verify the app has visible windows via System Events (not just background helpers)
+  local window_count
+  window_count=$(osascript -e 'tell application "System Events"
+    set appRunning to (bundle identifier of processes) contains "'"$bundle_id"'"
+    if not appRunning then return 0
+    return count of windows of (first process whose bundle identifier is "'"$bundle_id"'")
+  end tell' 2>/dev/null || echo "0")
+  if [[ "$window_count" -eq 0 ]]; then
+    echo "Application '$bundle_id' has no visible windows; skipping quit and relaunch."
     eval "export $var_name=0"
     return
   fi
@@ -589,7 +604,7 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
     return
   fi
 
-  # App was running, mark it for relaunch
+  # App was running with visible windows, mark it for relaunch
   eval "export $var_name=1"
   echo "Application '$bundle_id' was running; will relaunch after installation."
 
@@ -600,7 +615,8 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
     if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
+      # check via System Events if the app process is still registered
+      if ! osascript -e 'tell application "System Events" to (bundle identifier of processes) contains "'"$bundle_id"'"' 2>/dev/null; then
         echo "Application '$bundle_id' quit successfully."
         quit_success=true
         break

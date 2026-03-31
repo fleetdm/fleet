@@ -224,9 +224,9 @@ export const getUiStatus = (
 
   // 1. Failed install states
   if (status === "failed_install") {
-    if (installerVersion && installed_versions) {
+    if (installerVersion && installed_versions && installed_versions.length > 0) {
       if (
-        installed_versions.some(
+        installed_versions.every(
           (iv) => compareVersions(iv.version, installerVersion) === -1
         )
       ) {
@@ -241,9 +241,9 @@ export const getUiStatus = (
 
   // 2. Failed uninstall states
   if (status === "failed_uninstall") {
-    if (installerVersion && installed_versions) {
+    if (installerVersion && installed_versions && installed_versions.length > 0) {
       if (
-        installed_versions.some(
+        installed_versions.every(
           (iv) => compareVersions(iv.version, installerVersion) === -1
         )
       ) {
@@ -263,7 +263,7 @@ export const getUiStatus = (
       installed_versions.length > 0 &&
       installerVersion
     ) {
-      const isUpdate = installed_versions.some(
+      const isUpdate = installed_versions.every(
         (iv) => compareVersions(iv.version, installerVersion) === -1
       );
       if (isUpdate) {
@@ -295,7 +295,8 @@ export const getUiStatus = (
   if (
     installerVersion &&
     installed_versions &&
-    installed_versions.some(
+    installed_versions.length > 0 &&
+    installed_versions.every(
       (iv) => compareVersions(iv.version, installerVersion) === -1
     )
   ) {
