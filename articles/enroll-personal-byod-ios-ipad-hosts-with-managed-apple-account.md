@@ -58,6 +58,8 @@ After signing in, the device automatically enrolls in Fleet.
 
 If you're migrating from another MDM, configure your previous MDM to remove managed apps during unenrollment. If apps from the previous MDM aren't removed, Fleet can't install or update those apps until the end user manually uninstalls them.
 
+If you or the end user (via self-service) tries to install an app that is already installed, you'll see an error on the **Host details > Activity feed > Past**.
+
 ## Self-host a service discovery file (well-known resource)
 
 - If your iOS/iPadOS hosts are running version 18.2 or later, skip this step. Fleet manages service discovery automatically for these versions.
