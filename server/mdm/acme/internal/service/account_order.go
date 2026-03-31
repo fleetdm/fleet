@@ -156,7 +156,6 @@ func (s *Service) ListAccountOrders(ctx context.Context, pathIdentifier string, 
 	}
 
 	var orderURLs []string
-
 	if len(orderIDs) > 0 {
 		baseURL, err := s.getACMEBaseURL(ctx)
 		if err != nil {
