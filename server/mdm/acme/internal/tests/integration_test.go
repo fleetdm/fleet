@@ -1046,8 +1046,8 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 		accountID := parseAccountID(t, accountURL)
 
 		// create 2 orders
-		var orderIDs []uint
-		for range 2 {
+		orderIDs := make([]uint, 0, 2)
+		for range cap(orderIDs) {
 			payload := map[string]any{
 				"identifiers": []map[string]string{
 					{"type": "permanent-identifier", "value": enroll.HostIdentifier},
