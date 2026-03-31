@@ -27949,6 +27949,13 @@ func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uin
 func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 	t := s.T()
 
+	resetFMAState := func(state *fmaTestState, version string, installerBytes []byte, patchQuery string) {
+		state.version = version
+		state.installerBytes = installerBytes
+		state.ComputeSHA(installerBytes)
+		state.patchQuery = patchQuery
+	}
+
 	t.Run("pin major version", func(t *testing.T) {
 		teamName := ""
 		states := make(map[string]*fmaTestState, 1)
@@ -27967,10 +27974,104 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
-		var titleResp listSoftwareTitlesResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &titleResp, "team_id", "0")
-		require.Len(t, titleResp.SoftwareTitles, 1)
-		fmt.Println(titleResp.SoftwareTitles)
+		var listTitlesResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listTitlesResp, "team_id", "0")
+		require.Len(t, listTitlesResp.SoftwareTitles, 1)
+		require.Equal(t, "zoom.msi", listTitlesResp.SoftwareTitles[0].SoftwarePackage.Name)
+		require.Equal(t, "1.0", listTitlesResp.SoftwareTitles[0].SoftwarePackage.Version)
+		titleID := listTitlesResp.SoftwareTitles[0].ID
+
+		// pin version to ^1, call batch, should get 1.0
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
+			http.StatusAccepted, &resp,
+			"team_name", teamName, "team_id", "0",
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		require.NotNil(t, titleResp.SoftwareTitle)
+		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.Version)
+
+		// update manifest to 1.1, FleetMaintainedVersions should have 1.0, 1.1
+		// installer version should be 1.1, while still pinned to ^1
+		resetFMAState(states["/zoom/windows.json"], "1.1", []byte("abc"), "")
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
+			http.StatusAccepted, &resp,
+			"team_name", teamName, "team_id", "0",
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		require.NotNil(t, titleResp.SoftwareTitle)
+		require.Len(t, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions, 2)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
+		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].Version)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
+
+		// pin version to 1.0? then pin to ^1, installer should be 1.1. if fleet keeps enough versions we need to test this.
+		// maybe unnecessary test, can remove to speed it up
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "1.0"}}, TeamName: teamName},
+			http.StatusAccepted, &resp,
+			"team_name", teamName, "team_id", "0",
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		require.NotNil(t, titleResp.SoftwareTitle)
+		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.Version)
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
+			http.StatusAccepted, &resp,
+			"team_name", teamName, "team_id", "0",
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		require.NotNil(t, titleResp.SoftwareTitle)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
+
+		// update manifesst to 2.0, installer should be 1.1
+		resetFMAState(states["/zoom/windows.json"], "2.0", []byte("abc"), "")
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
+			http.StatusAccepted, &resp,
+			"team_name", teamName, "team_id", "0",
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		require.NotNil(t, titleResp.SoftwareTitle)
+		require.Len(t, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions, 2)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
+		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].Version)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
 	})
 
+	// Test pinning ^1 for the first time when only 2.0 is available from manifest
+	t.Run("add installer first time with version pin", func(t *testing.T) {
+		teamName := ""
+		states := make(map[string]*fmaTestState, 1)
+		// use a different installer that isn't available yet
+		states["/1password/darwin.json"] = &fmaTestState{
+			version:        "2.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/1password.pkg",
+		}
+		startFMAServers(t, s.ds, states)
+
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("1password/darwin"), RollbackVersion: "^1"}}, TeamName: teamName},
+			http.StatusNotFound, &resp,
+			"team_name", teamName, "team_id", "0",
+		)
+	})
 }

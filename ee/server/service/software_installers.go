@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -2173,7 +2172,9 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return nil
 	}
 
-	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
+	// convert nil teamID to 0 to get correct titleID
+	tmID := ptr.ValOrZero(teamID)
+	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, &tmID)
 	if err != nil {
 		// Return user-friendly message for generic not found error
 		if fleet.IsNotFound(err) {
@@ -2208,12 +2209,13 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "extracting semver version")
 		}
-		majorVersion, err := strconv.ParseUint(majorVersionString, 10, 64)
+
+		majorVersion, err := fleet.VersionToSemverVersion(majorVersionString)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "extracting pinned major version")
+			return ctxerr.Wrap(ctx, err, "extracting pinnged major version")
 		}
 
-		if downloadedSemVer.Major() != majorVersion {
+		if downloadedSemVer.Major() != majorVersion.Major() {
 			// We cannot use the FMA we just got the manifest for since it is on a different major
 			// version, so we try to find the latest cached version and use that instead.
 			if app.TitleID == nil {
@@ -2231,6 +2233,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 				return ctxerr.Wrap(ctx, err, "getting software installer")
 			}
 
+			app.Version = installer.Version
 			app.InstallerURL = installer.InstallerURL
 			app.SHA256 = installer.SHA256
 			app.InstallScript = installer.InstallScript
