@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
@@ -43,6 +44,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
@@ -527,7 +529,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	// Wire real ACME service module if DBConns is provided (overrides the mock set in newTestServiceWithConfig).
 	if len(opts) > 0 && opts[0].DBConns != nil {
-		acmeSvc, _ := acme_bootstrap.New(opts[0].DBConns, redisPool, ds, logger)
+		acmeSvc, _ := acme_bootstrap.New(opts[0].DBConns, redisPool, &testACMEDataProviders{Datastore: ds}, logger)
 		svc.SetACMEService(acmeSvc)
 	}
 
@@ -1510,4 +1512,15 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		installerServer.Close()
 	})
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+}
+
+// testACMEDataProviders wraps fleet.Datastore to satisfy acme.DataProviders in tests.
+type testACMEDataProviders struct {
+	fleet.Datastore
+}
+
+func (t *testACMEDataProviders) CSRSigner(_ context.Context) (acme.CSRSigner, error) {
+	return acme.CSRSignerFunc(func(_ context.Context, _ *x509.CertificateRequest) (*x509.Certificate, error) {
+		return nil, nil
+	}), nil
 }

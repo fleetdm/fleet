@@ -21,8 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	"github.com/gorilla/mux"
-	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/require"
 	"go.step.sm/crypto/jose"
 )
@@ -49,9 +49,9 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 		},
 	},
 		// not needed for current tests, can implement if needed for future tests
-		func(ctx context.Context, req *scep.CSRReqMessage) (*x509.Certificate, error) {
+		acme.CSRSignerFunc(func(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
 			return &x509.Certificate{}, nil
-		},
+		}),
 	)
 
 	// Create service

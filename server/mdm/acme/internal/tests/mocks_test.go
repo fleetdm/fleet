@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 )
 
 // Mock implementations for dependencies outside the bounded context
@@ -12,10 +12,10 @@ import (
 // mockDataProviders combines all provider interfaces for testing.
 type mockDataProviders struct {
 	appCfg *fleet.AppConfig
-	signer scepserver.CSRSignerContext
+	signer acme.CSRSigner
 }
 
-func newMockDataProviders(appCfg *fleet.AppConfig, signer scepserver.CSRSignerContextFunc) *mockDataProviders {
+func newMockDataProviders(appCfg *fleet.AppConfig, signer acme.CSRSigner) *mockDataProviders {
 	return &mockDataProviders{appCfg: appCfg, signer: signer}
 }
 
@@ -23,6 +23,6 @@ func (m *mockDataProviders) AppConfig(ctx context.Context) (*fleet.AppConfig, er
 	return m.appCfg, nil
 }
 
-func (m *mockDataProviders) CSRSigner(ctx context.Context) (scepserver.CSRSignerContext, error) {
+func (m *mockDataProviders) CSRSigner(ctx context.Context) (acme.CSRSigner, error) {
 	return m.signer, nil
 }

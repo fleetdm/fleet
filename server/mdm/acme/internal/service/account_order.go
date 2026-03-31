@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	"github.com/smallstep/scep"
 	"go.step.sm/crypto/jose"
 )
 
@@ -190,10 +189,7 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting CSR signer")
 	}
-	fakeSCEPRequest := scep.CSRReqMessage{
-		CSR: parsedCSR,
-	}
-	cert, err := signer.SignCSRContext(ctx, &fakeSCEPRequest)
+	cert, err := signer.SignCSR(ctx, parsedCSR)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing CSR")
 	}
