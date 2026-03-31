@@ -167,7 +167,7 @@ type GetOrderDecodedRequest struct {
 
 type GetOrderRequest struct {
 	JWSRequestContainer
-	OrderID uint `url:"order_id,optional"`
+	OrderID uint `url:"order_id"`
 }
 
 type GetOrderResponse struct {
@@ -201,7 +201,7 @@ type ListOrdersDecodedRequest struct {
 
 type ListOrdersRequest struct {
 	JWSRequestContainer
-	AccountID uint `url:"account_id,optional"`
+	AccountID uint `url:"account_id"`
 }
 
 type ListOrdersResponse struct {
