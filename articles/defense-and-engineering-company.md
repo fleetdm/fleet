@@ -63,6 +63,6 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-03-31">
-<meta name="description" value="This company improves Linux visibility with Fleet, reducing tool fragmentation and improving monitoring.."> 
+<meta name="description" value="This company improves Linux visibility with Fleet, reducing tool fragmentation and improving monitoring."> 
 <meta name="useBasicArticleTemplate" value="true">
-<meta name="cardTitleForCustomersPage" value="Defense and engineering company">
+<meta name="cardTitleForCustomersPage" value="This company improves Linux visibility with Fleet, reducing tool fragmentation and improving monitoring.">
