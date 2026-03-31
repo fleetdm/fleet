@@ -76,3 +76,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-14">
 <meta name="description" value="An identity platform improves Linux visibility with Fleet, bringing unmanaged systems into centralized device management."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Identity platform">

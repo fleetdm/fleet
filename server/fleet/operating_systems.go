@@ -24,6 +24,8 @@ type OperatingSystem struct {
 	Platform string `json:"platform" db:"platform"`
 	// DisplayVersion is the display version of a Windows operating system, e.g. "22H2"
 	DisplayVersion string `json:"display_version" db:"display_version"`
+	// InstallationType is the Windows installation type, e.g. "Client", "Server", or "Server Core"
+	InstallationType string `json:"installation_type" db:"installation_type"`
 	// OSVersionID is a unique Name/Version combination for the operating system
 	OSVersionID uint `json:"os_version_id" db:"os_version_id"`
 }

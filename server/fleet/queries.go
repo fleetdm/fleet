@@ -492,8 +492,8 @@ type HostQueryReportResult struct {
 
 // HostReport represents a query/report entry as returned by the list-reports-for-host endpoint.
 type HostReport struct {
-	// QueryID is the unique identifier of the query.
-	QueryID uint `json:"query_id" renameto:"report_id"`
+	// ReportID is the unique identifier of the query backing this report.
+	ReportID uint `json:"report_id"`
 	// Name is the name of the query.
 	Name string `json:"name"`
 	// Description is the description of the query.

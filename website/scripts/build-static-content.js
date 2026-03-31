@@ -733,6 +733,10 @@ module.exports = {
                         }
                       }
                     }
+                  } else {
+                    if(!embeddedMetadata.cardTitleForCustomersPage) {
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "cardTitleForCustomersPage" meta tag at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, add a "cardTitleForCustomersPage" meta tag with the title of this article when it is linked to from the /customers page. (e.g., "AI security company")`);
+                    }
                   }
                 }
                 // If this is a whitepaper article, we'll check to make sure it has a whitepaperFilename and TODO metatags
@@ -748,10 +752,6 @@ module.exports = {
                 }
                 // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
                 if(embeddedMetadata.category === 'comparison') {
-                  if(!embeddedMetadata.articleSubtitle){
-                    throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSubtitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSubtitle meta tag and try running this script again.`);
-                  }
-
                   if(!embeddedMetadata.articleSlugInCategory){
                     throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSlugInCategory" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSlugInCategory meta tag and try running this script again.`);
                   }

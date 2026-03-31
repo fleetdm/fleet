@@ -71,5 +71,6 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-03-17">
-<meta name="description" value="A national research lab scales host visibility with Fleet, improving reporting and reducing manual work."> 
+<meta name="description" value="A national research lab scales host visibility with Fleet, improving reporting and reducing manual work.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="National research lab">

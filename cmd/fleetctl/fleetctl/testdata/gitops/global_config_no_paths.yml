@@ -9,7 +9,10 @@ labels:
     label_membership_type: manual
     hosts:
       - host1
-      - host2        
+      - host2
+  - name: d
+    description: A manual label without hosts key
+    label_membership_type: manual
 controls: # Controls added to "No team"
   macos_settings:
     custom_settings:

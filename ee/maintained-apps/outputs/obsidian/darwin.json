@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.12.4",
+      "version": "1.12.7",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian' AND version_compare(bundle_short_version, '1.12.7') < 0);"
       },
-      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.12.4/Obsidian-1.12.4.dmg",
+      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.12.7/Obsidian-1.12.7.dmg",
       "install_script_ref": "0303141d",
       "uninstall_script_ref": "66aef495",
-      "sha256": "7ad9b42528e2e47e841ba8e07227b8fd0c4036c7c4271fb36731cba4504dbbba",
+      "sha256": "3b85c13b4ce55512e86e170a7cd2a494e2db695ac888c0601e153cb85b77881b",
       "default_categories": [
         "Productivity"
       ]

@@ -83,3 +83,4 @@ The decision to purchase Fleet was driven by the need for a more reliable, compr
 <meta name="articleTitle" value="Vehicle manufacturer transitions to Fleet for endpoint security">
 <meta name="description" value="Vehicle manufacturer transitions to Fleet for endpoint security">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Electric vehicle manufacturer">

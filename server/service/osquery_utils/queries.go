@@ -261,18 +261,26 @@ var hostDetailQueries = map[string]DetailQuery{
 			SELECT data AS ubr
 			FROM registry
 			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+		),
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
 		)
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
 		LEFT JOIN
-			ubr_table u`,
+			ubr_table u
+		LEFT JOIN
+			installation_type_table it`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -285,6 +293,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
 			s = strings.TrimSpace(s)
+			if strings.EqualFold(rows[0]["installation_type"], "Server Core") {
+				s += " (Server Core)"
+			}
 			s += " " + rows[0]["version"]
 			host.OSVersion = s
 
@@ -700,6 +711,11 @@ var extraDetailQueries = map[string]DetailQuery{
 	SELECT data AS ubr
 	FROM registry
 	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+	),
+	installation_type_table AS (
+	SELECT data AS installation_type
+	FROM registry
+	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
 	)
 	SELECT
 		os.name,
@@ -707,14 +723,17 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version
+		COALESCE(d.display_version, '') AS display_version,
+		COALESCE(it.installation_type, '') AS installation_type
 	FROM
 		os_version os,
 		kernel_info k
 	LEFT JOIN
 		display_version_table d
 	LEFT JOIN
-		ubr_table u`,
+		ubr_table u
+	LEFT JOIN
+		installation_type_table it`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -1745,17 +1764,22 @@ func directIngestOSWindows(ctx context.Context, logger *slog.Logger, host *fleet
 	}
 
 	hostOS := fleet.OperatingSystem{
-		Name:          rows[0]["name"],
-		Arch:          rows[0]["arch"],
-		KernelVersion: rows[0]["version"],
-		Platform:      rows[0]["platform"],
-		Version:       rows[0]["version"],
+		Name:             rows[0]["name"],
+		Arch:             rows[0]["arch"],
+		KernelVersion:    rows[0]["version"],
+		Platform:         rows[0]["platform"],
+		Version:          rows[0]["version"],
+		InstallationType: rows[0]["installation_type"],
 	}
 
 	displayVersion := rows[0]["display_version"]
 	if displayVersion != "" {
 		hostOS.Name += " " + displayVersion
 		hostOS.DisplayVersion = displayVersion
+	}
+
+	if strings.EqualFold(hostOS.InstallationType, "Server Core") {
+		hostOS.Name += " (Server Core)"
 	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
@@ -2158,9 +2182,9 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 var (
 	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	// jetbrainsNameVersion extracts version from JetBrains product names like "GoLand 2025.3.3"
-	// or "IntelliJ IDEA 2025.3.1.1" (supports 3 or 4 part versions)
-	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+\.\d+(?:\.\d+)?)$`)
+	// jetbrainsNameVersion extracts version from JetBrains product names like "WebStorm 2025.1",
+	// "GoLand 2025.3.3", or "IntelliJ IDEA 2025.3.1.1" (supports 2, 3, or 4 part versions)
+	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+(?:\.\d+){0,2})$`)
 	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string

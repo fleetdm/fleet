@@ -542,7 +542,13 @@ const modifyOptions = (
     );
     if (rlpOption) {
       rlpOption.disabled = true;
-      rlpOption.tooltipContent = <>Recovery Lock password is not available.</>;
+      rlpOption.tooltipContent = (
+        <>
+          Recovery Lock password is unavailable
+          <br />
+          while pending or has failed.
+        </>
+      );
     }
   }
 

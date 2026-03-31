@@ -24,7 +24,7 @@ describe("SoftwareUpdateModal", () => {
     expect(screen.getByText("Update details")).toBeVisible();
 
     expect(
-      screen.queryByRole("button", { name: "Done" })
+      screen.queryByRole("button", { name: "Close" })
     ).not.toBeInTheDocument();
 
     // Click Update: both handlers called
@@ -39,7 +39,7 @@ describe("SoftwareUpdateModal", () => {
     expect(onUpdate).toHaveBeenCalledTimes(1); // shouldn't increment from previous
   });
 
-  it("shows 'Done' button and not update/cancel when status is pending_install", () => {
+  it("shows 'Close' button and not update/cancel when status is pending_install", () => {
     const mockSoftware = createMockHostSoftware({ status: "pending_install" });
 
     render(
@@ -56,7 +56,7 @@ describe("SoftwareUpdateModal", () => {
     expect(
       screen.queryByRole("button", { name: "Update" })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
   it("renders correct status message for 'pending_install'", () => {

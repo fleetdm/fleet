@@ -50,6 +50,7 @@
     "Chart": true,
     "gtag": true,
     "ace": true,
+    'qualified': true,
     // ...etc.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

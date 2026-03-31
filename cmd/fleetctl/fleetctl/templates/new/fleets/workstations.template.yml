@@ -1,0 +1,195 @@
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#
+# workstations.yml
+#
+# Use this fleet manifest to configure controls, software,
+# automations, policies, and reports that apply only to
+# computing devices (hosts) in this particular fleet.
+#
+# > Note: By convention, the "💻 Workstations" fleet is
+# > where all company-owned laptops, PCs, and other
+# > productivity endpoints (i.e. computers) are enrolled.
+#
+# To see all supported options, check out:
+#   • https://fleetdm.com/docs/configuration/yaml-files
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+name: "💻 Workstations"
+controls:
+  setup_experience:
+    ###########################################################
+    # Configure the macOS setup experience
+    #
+    # (Optional) edit the automatic enrollment profile referenced
+    # here to change which items are skipped during macOS setup
+    # and other aspects of the end user's experience during
+    # their first few minutes with their new Mac.
+    #
+    # Note: This requires activating MDM in your Fleet instance.
+    #
+    # For more, see:
+    #   • https://fleetdm.com/guides/apple-mdm-setup
+    #   • https://fleetdm.com/docs/configuration/yaml-files#macos-setup
+    #   • https://developer.apple.com/documentation/devicemanagement/profile
+    #   • https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web
+    ###########################################################
+    # apple_setup_assistant: ../platforms/macos/enrollment-profiles/automatic-enrollment.dep.json
+
+    ###########################################################
+    # Uncomment to use single-sign on (SSO) to authenticate
+    # end users during first-time setup of new computers.
+    #
+    # Read more:
+    #   • https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication
+    #   • https://fleetdm.com/guides/setup-experience#end-user-authentication
+    ###########################################################
+    # enable_end_user_authentication: true
+
+  ###########################################################
+  # Configuration profiles
+  #
+  # Note: This requires activating MDM in your Fleet instance.
+  #
+  # For more, see:
+  #   • https://fleetdm.com/guides/apple-mdm-setup    
+  #   • https://fleetdm.com/guides/windows-mdm-setup
+  #   • https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings
+  #
+  # Profiles can be scoped using labels.  For example:
+  # ```
+  # - path: ../platforms/macos/configuration-profiles/1password-managed-settings.mobileconfig
+  #   labels_include_any:
+  #     - "Macs with 1Password installed"
+  # - paths: ../platforms/windows/configuration-profiles/*.xml
+  #   labels_include_all:
+  #     - "x86-based Windows hosts"
+  # ```  
+  ###########################################################
+  apple_settings:
+    configuration_profiles:
+      - paths: ../platforms/macos/declaration-profiles/*.json
+      - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
+  windows_settings:
+    configuration_profiles:
+      - paths: ../platforms/windows/configuration-profiles/*.xml
+
+  ###########################################################
+  # Managed disk encryption
+  #
+  # To enable and enforce disk encryption with key escrow on
+  # all supported platforms, uncomment `enable_disk_encryption`.
+  #
+  # Read more here:
+  #   • https://fleetdm.com/guides/enforce-disk-encryption
+  ###########################################################
+  # enable_disk_encryption: true
+
+  ###########################################################
+  # Managed OS updates
+  #
+  # To enable and enforce managed OS updates on macOS/Windows,
+  # uncomment `macos_updates` and `windows_updates`.
+  #
+  # See also:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#macos-updates
+  #   • https://fleetdm.com/docs/configuration/yaml-files#windows-updates
+  #   • https://fleetdm.com/guides/enforce-os-updates
+  ###########################################################
+  # macos_updates:
+  #   deadline: "2030-04-01"
+  #   minimum_version: "26.0"
+  #   update_new_hosts: true
+  # windows_updates:
+  #   deadline_days: 7
+  #   grace_period_days: 2
+
+  ###########################################################
+  # Script library
+  #
+  # Note: You probably don't need to change the next few lines.
+  #
+  # > To make a script available for use with Fleet for helpdesk
+  # > use cases and in your custom automations, just include it
+  # > in the appropriate folder for the primary platform where it
+  # > is intended to run.  It will be included automatically
+  # > using `paths` below.
+  ###########################################################
+  scripts:
+    - paths: ../platforms/macos/scripts/*.sh
+    - paths: ../platforms/windows/scripts/*.ps1
+    - paths: ../platforms/linux/scripts/*.sh
+
+###########################################################
+# Reports
+#
+# Note: You probably don't need to change the next few lines.
+#
+# > To set up a report in Fleet for collecting data, include
+# > it as a .yml file in `platforms/all/reports/` or if it
+# > is specific to a particular platform, then in the appropriate
+# > folder for that platform.  It will be included automatically
+# > using `paths` below.
+###########################################################
+reports:
+  - paths: ../platforms/all/reports/*.yml
+  - paths: ../platforms/macos/reports/*.yml
+  - paths: ../platforms/windows/reports/*.yml
+  - paths: ../platforms/linux/reports/*.yml
+
+###########################################################
+# Policies & automations
+#
+# Note: You probably don't need to change the next few lines.
+#
+# > To set up a policy in Fleet to implement automations or
+# > ensure compliance with organizational security standards
+# > or regulations, include it as a .yml file in the
+# > appropriate folder for the primary platform where it
+# > is intended to run.  It will be included automatically
+# > using `paths` below.
+###########################################################
+policies:
+  - paths: ../platforms/macos/policies/*.yml
+  - paths: ../platforms/windows/policies/*.yml
+  - paths: ../platforms/linux/policies/*.yml
+
+###########################################################
+# Software available for install
+#
+# Read more here:
+#   •  https://fleetdm.com/docs/configuration/yaml-files#software
+###########################################################
+software:
+  fleet_maintained_apps:
+    # macOS apps
+    # …
+    # - slug: slack/darwin # Slack for macOS
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Communication
+    #     - Productivity
+
+    # Windows apps
+    # …
+    # - slug: slack/windows # Slack for Windows
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Productivity
+    #     - Communication
+    #   labels_include_any:
+    #     - "x86-based Windows hosts"
+
+  packages: # Custom packages (if any)
+    # macOS custom packages
+    # …
+
+    # Windows custom packages
+    # …
+
+    # Linux custom packages
+    # …
+
+  app_store_apps: # Apps to install via VPP from the macOS App Store, if any
+    # …

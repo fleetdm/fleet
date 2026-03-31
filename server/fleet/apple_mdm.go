@@ -18,6 +18,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
+// Sentinel errors for recovery lock rotation
+var (
+	// ErrRecoveryLockRotationPending indicates a rotation is already in progress for the host.
+	ErrRecoveryLockRotationPending = errors.New("recovery lock rotation already pending")
+
+	// ErrRecoveryLockNotEligible indicates the host is not eligible for rotation
+	// (e.g., wrong status, operation type, or no existing password).
+	ErrRecoveryLockNotEligible = errors.New("host not eligible for recovery lock rotation")
+)
+
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
@@ -526,22 +536,29 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 // HostDEPAssignment represents a row in the host_dep_assignments table.
 type HostDEPAssignment struct {
 	// HostID is the id of the host in Fleet.
-	HostID uint `db:"host_id"`
+	HostID uint `db:"host_id" json:"-"`
 	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
 	// server in Apple Busines Manager (ABM).
-	AddedAt time.Time `db:"added_at"`
+	AddedAt time.Time `db:"added_at" json:"added_at"`
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
 	// MDM server in Apple Busines Manager (ABM).
-	DeletedAt *time.Time `db:"deleted_at"`
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
-	ABMTokenID *uint `db:"abm_token_id"`
+	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id"`
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
-	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline"`
+	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`
 	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its last
 	// Migration. Not a timestamp but a marker that the host completed the Migration for a given
 	// date.
-	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed"`
+	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed" json:"mdm_migration_completed,omitempty"`
+	// ProfileUUID is the UUID of the enrollment profile last assigned by Fleet via ABM.
+	ProfileUUID *string `db:"profile_uuid" json:"profile_uuid,omitempty"`
+	// AssignProfileResponse is the status returned by Apple when Fleet last
+	// assigned the enrollment profile (SUCCESS, FAILED, NOT_ACCESSIBLE, THROTTLED).
+	AssignProfileResponse *DEPAssignProfileResponseStatus `db:"assign_profile_response" json:"assign_profile_response,omitempty"`
+	// ResponseUpdatedAt is the timestamp when AssignProfileResponse was last updated.
+	ResponseUpdatedAt *time.Time `db:"response_updated_at" json:"response_updated_at,omitempty"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -1137,8 +1154,9 @@ type HostLocationData struct {
 
 // HostRecoveryLockPassword represents a recovery lock password for a host.
 type HostRecoveryLockPassword struct {
-	Password  string
-	UpdatedAt time.Time
+	Password     string
+	UpdatedAt    time.Time
+	AutoRotateAt *time.Time // When auto-rotation is scheduled (1 hour after password is viewed)
 }
 
 // HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.
@@ -1155,4 +1173,11 @@ type HostRecoveryLockRotationStatus struct {
 	OperationType       string  // install or remove
 	HasPendingRotation  bool    // pending_encrypted_password is not null
 	PendingErrorMessage *string // error from failed rotation
+}
+
+// HostAutoRotationInfo contains the minimal host data needed for auto-rotation activity logging.
+type HostAutoRotationInfo struct {
+	HostUUID    string `db:"host_uuid"`
+	HostID      uint   `db:"host_id"`
+	DisplayName string `db:"display_name"`
 }

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -2523,25 +2523,6 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-// ndesChallengeErrorToDetail translates NDES-specific error types into user-friendly messages
-// for profile failure details. Used by both Apple and Windows NDES profile processing.
-func ndesChallengeErrorToDetail(err error) string {
-	varName := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
-	switch {
-	case errors.As(err, &eeservice.NDESInvalidError{}):
-		return fmt.Sprintf("Invalid NDES admin credentials. Fleet couldn't populate %s. "+
-			"Please update credentials in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol.", varName)
-	case errors.As(err, &eeservice.NDESPasswordCacheFullError{}):
-		return fmt.Sprintf("The NDES password cache is full. Fleet couldn't populate %s. "+
-			"Please increase the number of cached passwords in NDES and try again.", varName)
-	case errors.As(err, &eeservice.NDESInsufficientPermissionsError{}):
-		return fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate %s. "+
-			"Please update the account with NDES SCEP enroll permissions and try again.", varName)
-	default:
-		return fmt.Sprintf("Fleet couldn't populate %s. %s", varName, err.Error())
-	}
-}
-
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2575,6 +2556,11 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	// Key format: "hostUUID|profileUUID"
 	hostProfilesMap := make(map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload, len(toInstall))
 
+	// batchProfileCmdsMap maps command UUID -> host profiles, used to fetch all host profiles associated
+	// with a given command UUID so all host_mdm_windows_profiles entries can be updated as the command
+	// is enqueued for hosts
+	batchProfileCmdsMap := make(map[string][]*fleet.MDMWindowsBulkUpsertHostProfilePayload)
+
 	// install are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
@@ -2585,6 +2571,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		hostUUIDs []string
 	}
 	installTargets := make(map[string]*cmdTarget)
+	removeTargets := make(map[string]*cmdTarget)
 
 	for _, p := range toInstall {
 		toGetContents[p.ProfileUUID] = true
@@ -2610,7 +2597,26 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
 		// Add to map for fast lookup
 		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
+		batchProfileCmdsMap[target.cmdUUID] = append(batchProfileCmdsMap[target.cmdUUID], hp)
 		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+	}
+
+	// Build remove targets: profiles that need to be removed from hosts (e.g. host moved teams, label membership changed).
+	// We only collect targets here; host_mdm_windows_profiles entries are
+	// created after the delete command is successfully built and enqueued.
+	removePayloadData := make(map[string][]*fleet.MDMWindowsProfilePayload) // profUUID -> payloads
+	for _, p := range toRemove {
+		toGetContents[p.ProfileUUID] = true
+		target := removeTargets[p.ProfileUUID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID: uuid.New().String(),
+				profID:  p.ProfileUUID,
+			}
+			removeTargets[p.ProfileUUID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+		removePayloadData[p.ProfileUUID] = append(removePayloadData[p.ProfileUUID], p)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2628,7 +2634,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	scepConfigSvc := eeservice.NewSCEPConfigService(logger, nil)
+	scepConfigSvc := scep.NewSCEPConfigService(logger, nil)
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
 	deps := microsoft_mdm.ProfilePreprocessDependencies{
 		Context:                    ctx,
@@ -2640,7 +2646,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		ManagedCertificatePayloads: managedCertificatePayloads,
 		NDESConfig:                 groupedCAs.NDESSCEP,
 		GetNDESSCEPChallenge:       scepConfigSvc.GetNDESSCEPChallenge,
-		NDESChallengeErrorToDetail: ndesChallengeErrorToDetail,
+		NDESChallengeErrorToDetail: scep.NDESChallengeErrorToDetail,
 	}
 
 	for profUUID, target := range installTargets {
@@ -2652,12 +2658,27 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 		if !variables.ContainsBytes(p.SyncML) {
 			// No Fleet variables, send the same command to all hosts
+			payloads, ok := batchProfileCmdsMap[target.cmdUUID]
+			if !ok {
+				logger.ErrorContext(ctx, "no host profiles found for command UUID", "command_uuid", target.cmdUUID)
+				continue
+			}
 			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
 			if err != nil {
 				logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID)
+				for _, payload := range payloads {
+					payload.Status = &fleet.MDMDeliveryFailed
+					payload.Detail = fmt.Sprintf("Failed to build command from profile: %s", err.Error())
+				}
 				continue
 			}
-			if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
+
+			// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
+			// the checksum we retrieved earlier. Update the checksums if needed.
+			for _, payload := range payloads {
+				payload.Checksum = p.Checksum
+			}
+			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, target.hostUUIDs, command, payloads); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
 			}
 		} else {
@@ -2699,51 +2720,99 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 					continue
 				}
 
+				// Update the command UUID for this specific host
+				hp.CommandUUID = hostCmdUUID
+				// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
+				// the checksum we retrieved earlier. Update the checksum if needed.
+				hp.Checksum = p.Checksum
 				// Insert the command for this specific host
-				if err := ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, command); err != nil {
+				if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{hostUUID}, command, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{hp}); err != nil {
 					logger.ErrorContext(ctx, "inserting command for host", "err", err, "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())
 					continue
 				}
-
-				// Update the command UUID for this specific host
-				hp.CommandUUID = hostCmdUUID
 			}
 		}
 	}
 
-	// Store list of failed profiles (profile UUID + host UUID to create uniqueness) to avoid updating other stuff for that, such as managed certs.
-	failedProfileHostUUIDs := make(map[string]bool)
-
-	// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
-	// the checksum we retrieved earlier. Update the checksums if needed.
-	for _, p := range hostProfilesToUpdate {
-		if _, ok := profileContents[p.ProfileUUID]; ok {
-			p.Checksum = profileContents[p.ProfileUUID].Checksum
+	// Generate and enqueue <Delete> commands for profiles being removed from hosts.
+	for profUUID, target := range removeTargets {
+		p, ok := profileContents[profUUID]
+		if !ok {
+			// Profile was deleted between list and fetch. (The deletion path already called cancelWindowsHostInstallsForDeletedMDMProfiles)
+			continue
+		}
+		// Collect LocURIs from all OTHER profiles still being installed to
+		// avoid deleting settings enforced by a remaining profile.
+		activeLocURIs := make(map[string]bool)
+		for otherUUID, otherContent := range profileContents {
+			if otherUUID == profUUID {
+				continue // skip the profile being deleted
+			}
+			if _, isBeingRemoved := removeTargets[otherUUID]; isBeingRemoved {
+				continue // also being removed, don't protect its URIs
+			}
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(otherContent.SyncML) {
+				activeLocURIs[uri] = true
+			}
 		}
 
-		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
-			failedProfileHostUUIDs[p.ProfileUUID+p.HostUUID] = true
+		command, err := fleet.BuildDeleteCommandFromProfileBytes(p.SyncML, target.cmdUUID, profUUID, activeLocURIs)
+		if err != nil {
+			logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
+			continue
 		}
-	}
+		if command == nil {
+			// All LocURIs are protected by other active profiles; skip.
+			continue
+		}
 
-	// Windows profiles are just deleted from the DB, the notion of sending
-	// a command to remove a profile doesn't exist.
-	if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, toRemove); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
+		removePayloadsForCommand := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
+		for _, rp := range removePayloadData[profUUID] {
+			// Remove operations don't need a checksum; use a zero value if none exists (defensive coding).
+			checksum := rp.Checksum
+			if len(checksum) == 0 {
+				checksum = make([]byte, 16)
+			}
+			hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				ProfileUUID:   rp.ProfileUUID,
+				HostUUID:      rp.HostUUID,
+				ProfileName:   rp.ProfileName,
+				CommandUUID:   target.cmdUUID,
+				OperationType: fleet.MDMOperationTypeRemove,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      checksum,
+			}
+			removePayloadsForCommand = append(removePayloadsForCommand, hp)
+			logger.DebugContext(ctx, "removing profile", "profile.uuid", rp.ProfileUUID, "host.uuid", rp.HostUUID, "profile.name", rp.ProfileName)
+		}
+		if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, target.hostUUIDs, command, removePayloadsForCommand); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+		}
 	}
 
 	// Upsert the host profiles we need to track.
-	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfilesToUpdate); err != nil {
+	// Store list of failed profiles (profile UUID + host UUID to create uniqueness) to avoid updating other stuff for that, such as managed certs.
+	failedProfileHostUUIDs := make(map[string]bool)
+	// Create a final pass list of the failed profiles to update at the end. We already updated the pending ones during command processing
+	hostProfilesForFinalUpdate := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
+
+	for _, p := range hostProfilesToUpdate {
+		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
+			failedProfileHostUUIDs[p.HostUUID+"|"+p.ProfileUUID] = true
+			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
+		}
+	}
+	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfilesForFinalUpdate); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
 	// Run through managed certs and remove all those that belong to failed profiles
 	filteredManagedCerts := []*fleet.MDMManagedCertificate{}
 	for _, mc := range *managedCertificatePayloads {
-		if _, failed := failedProfileHostUUIDs[mc.ProfileUUID+mc.HostUUID]; !failed {
+		if _, failed := failedProfileHostUUIDs[mc.HostUUID+"|"+mc.ProfileUUID]; !failed {
 			filteredManagedCerts = append(filteredManagedCerts, mc)
 		}
 	}

@@ -36,6 +36,7 @@ const (
 
 const (
 	// Error Codes
+	ErrorCodeInvalidArg                 int32 = -2147024809 // E_INVALIDARG: encryption flags conflict with Group Policy
 	ErrorCodeIODevice                   int32 = -2147023779
 	ErrorCodeDriveIncompatibleVolume    int32 = -2144272206
 	ErrorCodeNoTPMWithPassphrase        int32 = -2144272212
