@@ -4,5 +4,6 @@
   "unique_identifier": "com.microsoft.VSCode",
   "token": "visual-studio-code",
   "installer_format": "zip",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/visual-studio-code-install.sh",
   "default_categories": ["Developer tools"]
 }
