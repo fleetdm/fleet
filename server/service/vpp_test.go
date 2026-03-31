@@ -117,10 +117,6 @@ func TestVPPAuth(t *testing.T) {
 			ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
 				return &android.Enterprise{}, nil
 			}
-			ds.CheckAndroidWebAppNameExistsFunc = func(ctx context.Context, name string) (bool, error) {
-				return false, nil
-			}
-
 			// Note: these calls always return an error because they're attempting to unmarshal a
 			// non-existent VPP token.
 			_, err := svc.GetAppStoreApps(ctx, tt.teamID)
