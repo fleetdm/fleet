@@ -35,7 +35,8 @@ const UpcomingTooltip = () => {
           Failure of one activity won&apos;t cancel other activities.
           <br />
           <br />
-          Currently, only software and scripts are guaranteed to run in order.
+          Software and scripts are always processed in order. Each waits until
+          the previous one completes.
         </>
       }
       className={`${baseClass}__upcoming-tooltip`}
