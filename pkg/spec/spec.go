@@ -34,7 +34,14 @@ var (
 func SetEnvOverrides(overrides map[string]string) {
 	envOverridesMu.Lock()
 	defer envOverridesMu.Unlock()
-	envOverrides = overrides
+	if overrides == nil {
+		envOverrides = nil
+		return
+	}
+	envOverrides = make(map[string]string, len(overrides))
+	for k, v := range overrides {
+		envOverrides[k] = v
+	}
 }
 
 // lookupEnv checks env overrides first, then falls back to os.LookupEnv.
