@@ -156,6 +156,7 @@ func NewGithubClientWithToken(token string, opts ...ClientOpt) *http.Client {
 		Base:   baseTransport,
 	}
 
+	//nolint:gocritic
 	cli := &http.Client{
 		Transport: otelhttp.NewTransport(oauthTransport),
 		Timeout:   co.timeout,
