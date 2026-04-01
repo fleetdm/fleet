@@ -196,7 +196,7 @@ func (r *GetOrderResponse) Error() error { return r.Err }
 
 type GetAuthorizationRequest struct {
 	JWSRequestContainer
-	AuthorizationID uint `url:"authorization"`
+	AuthorizationID uint `url:"authorization_id"`
 }
 
 type GetAuthorizationDecodedRequest struct {
@@ -264,7 +264,7 @@ func (r ListOrdersResponse) Error() error { return r.Err }
 
 type DoChallengeRequest struct {
 	JWSRequestContainer
-	ChallengeID uint `url:"challenge"`
+	ChallengeID uint `url:"challenge_id"`
 }
 
 type DoChallengeDecodedRequest struct {

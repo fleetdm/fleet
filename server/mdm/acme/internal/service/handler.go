@@ -52,8 +52,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 	// POST-as-GET for list orders endpoint, as per RFC.
 	ae.POST("/api/mdm/acme/{identifier}/accounts/{account_id}/orders", listOrdersEndpoint, api_http.ListOrdersRequest{})
 
-	ae.POST("/api/mdm/acme/{identifier}/authorizations/{authorization}", getAuthorizationEndpoint, api_http.GetAuthorizationRequest{})
-	ae.POST("/api/mdm/acme/{identifier}/challenges/{challenge}", getChallengeEndpoint, api_http.JWSRequestContainer{})
+	ae.POST("/api/mdm/acme/{identifier}/authorizations/{authorization_id}", getAuthorizationEndpoint, api_http.GetAuthorizationRequest{})
+	ae.POST("/api/mdm/acme/{identifier}/challenges/{challenge_id}", getChallengeEndpoint, api_http.DoChallengeRequest{})
 	ae.POST("/api/mdm/acme/{identifier}/orders/{order_id}/finalize", finalizeOrderEndpoint, api_http.FinalizeOrderRequestContainer{})
 }
 

@@ -55,8 +55,21 @@ func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrol
 		return nil, types.InternalServerError(fmt.Sprintf("unsupported challenge type %s", challenge.ChallengeType))
 	}
 
-	if updatedChallenge.Status == "pending" && validationErr != nil {
-		// Don't update to invalid if we failed on other causes
+	if validationErr != nil && updatedChallenge == nil {
+		return nil, validationErr
+	}
+
+	var validatedAt *time.Time
+	// We always call UpdateChallenge here since we update it's validity by reference
+	// this internally updates challenge status, authorization status and order status, which we can
+	// confidently do with only one authorization and one challenge per order, if we add more we need to re-work this.
+	if updatedChallenge, err := s.store.UpdateChallenge(ctx, updatedChallenge); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating challenge status")
+	} else if updatedChallenge != nil && updatedChallenge.Status == "valid" {
+		validatedAt = &updatedChallenge.UpdatedAt
+	}
+
+	if validationErr != nil {
 		return nil, validationErr
 	}
 
@@ -64,19 +77,7 @@ func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrol
 		ChallengeType: updatedChallenge.ChallengeType,
 		Status:        updatedChallenge.Status,
 		Token:         updatedChallenge.Token,
-	}
-
-	// We always call UpdateChallenge here since we update it's validity by reference
-	// this internally updates challenge status, authorization status and order status, which we can
-	// confidently do with only one authorization and one challenge per order, if we add more we need to re-work this.
-	if updatedChallenge, err := s.store.UpdateChallenge(ctx, updatedChallenge); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "updating challenge status")
-	} else if updatedChallenge != nil && updatedChallenge.Status == "valid" {
-		challengeResponse.Validated = &updatedChallenge.UpdatedAt
-	}
-
-	if validationErr != nil {
-		return nil, validationErr
+		Validated:     validatedAt,
 	}
 
 	baseURL, err := s.getACMEBaseURL(ctx)
