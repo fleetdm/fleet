@@ -3293,7 +3293,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 		return err
 	})
 
-	require.Contains(t, string(appleSiliconDevice.EnrollInfo.ACMEURL), "/api/mdm/acme/"+expectIdent+"/directory", "ACME URL should be populated and contain the directory path")
+	require.Contains(t, appleSiliconDevice.EnrollInfo.ACMEURL, "/api/mdm/acme/"+expectIdent+"/directory", "ACME URL should be populated and contain the directory path")
 
 	// Intel Mac enrolls via SCEP, should not contain ACME directory URL in the profile
 	intelDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
