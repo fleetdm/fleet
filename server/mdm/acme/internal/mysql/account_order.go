@@ -195,20 +195,6 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 	return order, nil
 }
 
-func (ds *Datastore) GetOrder(ctx context.Context, enrollmentID uint, orderID uint) (*types.Order, error) {
-	order := &types.Order{}
-	const stmt = `SELECT o.id, o.acme_account_id, o.finalized, o.certificate_signing_request, o.identifiers, o.status, o.issued_certificate_serial
-	FROM acme_orders o
-	JOIN acme_accounts a ON o.acme_account_id = a.id
-	WHERE a.acme_enrollment_id = ? AND o.id = ?`
-	// Use the primary here in case this was very recently modified(and because this should be a relatively low-traffic query)
-	err := sqlx.GetContext(ctx, ds.writer(ctx), order, stmt, enrollmentID, orderID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get acme order")
-	}
-	return order, nil
-}
-
 func (ds *Datastore) FinalizeOrder(ctx context.Context, orderID uint, csrPEM string, certSerial int64) error {
 	const stmt = `UPDATE acme_orders SET status = ?, finalized=1, certificate_signing_request = ?, issued_certificate_serial = ? WHERE id = ?`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, types.OrderStatusValid, csrPEM, certSerial, orderID)

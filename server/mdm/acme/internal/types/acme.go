@@ -176,6 +176,5 @@ type Datastore interface {
 	ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error)
 	GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*Authorization, error)
 	FinalizeOrder(ctx context.Context, orderID uint, csrPEM string, certSerial int64) error
-	GetAuthorizationsByOrderID(ctx context.Context, orderID uint) ([]*Authorization, error)
 	GetChallengesByAuthorizationID(ctx context.Context, authorizationID uint) ([]*Challenge, error)
 }

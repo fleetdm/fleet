@@ -1363,8 +1363,9 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
 		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
 
-		require.True(t, resp.StatusCode >= 400)
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "orderDoesNotExist")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 	})
 
