@@ -5586,7 +5586,7 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx,
 			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
 			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')
-			WHERE h.uuid = ?`, mdmLockCleanupMinutes+1), host.UUID)
+			WHERE h.uuid = ?`, MDMLockCleanupMinutes+1), host.UUID)
 		return err
 	})
 
