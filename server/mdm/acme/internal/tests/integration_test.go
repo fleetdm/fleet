@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,6 +34,7 @@ func TestIntegration(t *testing.T) {
 		{"GetCertificate", testGetCertificate},
 		{"GetAuthorization", testGetAuthorization},
 		{"FinalizeOrder", testFinalizeOrder},
+		{"DoChallengeDeviceAttestation", testDoChallengeDeviceAttestation},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1566,5 +1569,221 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		require.NotNil(t, acmeErr)
 		require.Contains(t, acmeErr.Type, "badNonce")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+}
+
+func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
+	t.Run("successful device attestation", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "valid-serial"}
+		s.InsertACMEEnrollment(t, enroll)
+
+		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
+		leafCert := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
+		payload := buildAppleDeviceAttestationPayload(t, leafCert, s.attestCA)
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		challengeResp, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.Nil(t, acmeErr)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NotNil(t, challengeResp)
+		require.Equal(t, "valid", challengeResp.Status)
+	})
+
+	t.Run("challenge not pending", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "valid-serial"}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
+
+		// first do a successful challenge to move it out of pending state
+		leafCert := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
+		payload := buildAppleDeviceAttestationPayload(t, leafCert, s.attestCA)
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		challengeResp, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+		require.Nil(t, acmeErr)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NotNil(t, challengeResp)
+		require.Equal(t, "valid", challengeResp.Status)
+		nonce = resp.Header.Get("Replay-Nonce")
+
+		// try to do the challenge again with the same JWS body
+		jwsBody = buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		challengeResp2, acmeErr2, resp2 := s.doChallenge(t, challengeURL, jwsBody)
+		require.NotNil(t, acmeErr2)
+		require.Equal(t, http.StatusBadRequest, resp2.StatusCode)
+		require.Nil(t, challengeResp2)
+		require.Contains(t, acmeErr2.Type, "invalidChallengeStatus")
+		require.Contains(t, acmeErr2.Detail, "not pending and can not be validated")
+	})
+
+	t.Run("device attestation error", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
+		payload := map[string]any{
+			"error": "device attestation failed",
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "unauthorized")
+	})
+
+	t.Run("bad base64 payload", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
+		// JWS with invalid base64 payload
+		body := map[string]any{
+			"attObj": "not a valid base64 string",
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, body)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Detail, "illegal base64 data")
+		require.Contains(t, acmeErr.Type, "malformed")
+	})
+
+	t.Run("bad CBOR payload", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
+		// JWS with base64 that decodes but is not valid CBOR
+		body := map[string]any{
+			"attObj": base64.RawURLEncoding.EncodeToString([]byte("not valid CBOR data")),
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, body)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Detail, "not correctly CBOR formatted")
+		require.Contains(t, acmeErr.Type, "badAttestationStatement")
+	})
+
+	t.Run("unsupported format", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
+		// JWS with base64 that decodes to CBOR but has an unsupported format
+		cborData, err := cbor.Marshal(map[string]any{"fmt": "unsupported-format"})
+		require.NoError(t, err)
+		body := map[string]any{
+			"attObj": base64.RawURLEncoding.EncodeToString(cborData),
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, body)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Detail, "Unsupported device attestation format")
+		require.Contains(t, acmeErr.Type, "badAttestationStatement")
+	})
+
+	t.Run("invalid cert chain", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
+
+		// build a cert chain that is not valid (leaf signed by unknown CA)
+		cert, key := generateTestAttestationCA(t)
+		leafCert := buildAttestationLeafCert(t, cert, key, enroll.HostIdentifier, challengeToken)
+		payload := buildAppleDeviceAttestationPayload(t, leafCert, cert)
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.NotNil(t, acmeErr)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.Contains(t, acmeErr.Type, "badAttestationStatement")
+		require.Contains(t, acmeErr.Detail, "Failed to verify Apple Root CA is part of certificate chain")
+	})
+
+	t.Run("freshness nonce mismatch", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
+
+		leaf := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll.HostIdentifier, "dummy-challenge-token")
+		payload := buildAppleDeviceAttestationPayload(t, leaf, s.attestCA)
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.NotNil(t, acmeErr)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.Contains(t, acmeErr.Type, "badAttestationStatement")
+		require.Contains(t, acmeErr.Detail, "Apple freshness nonce does not match challenge token")
+	})
+
+	t.Run("device serial mismatch", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
+
+		leaf := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, "some-other-serial", challengeToken)
+		payload := buildAppleDeviceAttestationPayload(t, leaf, s.attestCA)
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.NotNil(t, acmeErr)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.Contains(t, acmeErr.Type, "badAttestationStatement")
+		require.Contains(t, acmeErr.Detail, "Serial number in certificate does not match enrollment's host identifier")
+	})
+
+	t.Run("missing DEP assignment", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial-without-dep"}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
+
+		leaf := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
+		payload := buildAppleDeviceAttestationPayload(t, leaf, s.attestCA)
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.NotNil(t, acmeErr)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.Contains(t, acmeErr.Type, "badAttestationStatement")
+		require.Contains(t, acmeErr.Detail, "No DEP assignments found for serial number in certificate")
+	})
+
+	t.Run("non existing challenge", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
+
+		challengeURL := s.server.URL + "/api/mdm/acme/" + enroll.PathIdentifier + "/challenges/99999"
+		payload := map[string]any{
+			"attObj": "fake",
+		}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
+
+		require.NotNil(t, acmeErr)
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Contains(t, acmeErr.Type, "challengeDoesNotExist")
+		require.Contains(t, acmeErr.Detail, "Challenge with ID 99999 not found")
+	})
+
+	t.Run("challenge for different enrollment fails", func(t *testing.T) {
+		enroll1 := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial1"}
+		enroll2 := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial2"}
+		s.InsertACMEEnrollment(t, enroll1)
+		s.InsertACMEEnrollment(t, enroll2)
+
+		privateKey1, accountURL1, challengeURL1, challengeToken1, nonce := s.createOrderForChallenge(t, enroll1)
+
+		// try to do enroll1's challenge with a payload built from enroll2's device cert
+		leaf := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll2.HostIdentifier, challengeToken1)
+		payload := buildAppleDeviceAttestationPayload(t, leaf, s.attestCA)
+		jwsBody := buildJWS(t, privateKey1, nonce, accountURL1, challengeURL1, payload)
+		_, acmeErr, resp := s.doChallenge(t, challengeURL1, jwsBody)
+
+		require.NotNil(t, acmeErr)
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.Contains(t, acmeErr.Type, "badAttestationStatement")
+		require.Contains(t, acmeErr.Detail, "Serial number in certificate does not match enrollment's host identifier")
 	})
 }

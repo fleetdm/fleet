@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -21,7 +22,12 @@ type Service struct {
 	nonces    *redis_nonces_store.RedisNoncesStore
 	providers acme.DataProviders
 	logger    *slog.Logger
+
+	// Field to set for testing, if not set it will use the hardcoded Apple Enterprise Attestation Root CA
+	testAppleRootCAs *x509.CertPool
 }
+
+type ServiceOption func(*Service)
 
 // NewService creates a new activity service.
 func NewService(
@@ -29,13 +35,24 @@ func NewService(
 	redisPool fleet.RedisPool,
 	providers acme.DataProviders,
 	logger *slog.Logger,
+	opts ...ServiceOption,
 ) *Service {
 	noncesStore := redis_nonces_store.New(redisPool)
-	return &Service{
+	svc := &Service{
 		store:     store,
 		nonces:    noncesStore,
 		providers: providers,
 		logger:    logger,
+	}
+	for _, opt := range opts {
+		opt(svc)
+	}
+	return svc
+}
+
+func WithTestAppleRootCAs(rootCAs *x509.CertPool) ServiceOption {
+	return func(svc *Service) {
+		svc.testAppleRootCAs = rootCAs
 	}
 }
 

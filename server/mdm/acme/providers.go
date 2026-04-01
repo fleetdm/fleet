@@ -28,4 +28,5 @@ type DataProviders interface {
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 	CSRSigner(ctx context.Context) (CSRSigner, error)
+	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error)
 }

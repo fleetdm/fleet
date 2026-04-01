@@ -20,8 +20,6 @@ func (s *Service) GetAuthorization(ctx context.Context, enrollment *types.Enroll
 		return nil, ctxerr.Wrap(ctx, err, "getting authorization by ID")
 	}
 
-	// TODO: Should we check the auth status here? Or will that happen when we validate a challenge for an auth?
-
 	challenges, err := s.store.GetChallengesByAuthorizationID(ctx, authz.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting challenges by authorization ID")
@@ -39,12 +37,18 @@ func (s *Service) GetAuthorization(ctx context.Context, enrollment *types.Enroll
 			return nil, ctxerr.Wrap(ctx, err, "constructing challenge URL")
 		}
 
-		challengeResponses = append(challengeResponses, types.ChallengeResponse{
+		challengeResponse := types.ChallengeResponse{
 			ChallengeType: c.ChallengeType,
 			Status:        c.Status,
 			Token:         c.Token,
 			URL:           challengeURL,
-		})
+		}
+
+		if c.Status == "valid" {
+			challengeResponse.Validated = &c.UpdatedAt
+		}
+
+		challengeResponses = append(challengeResponses, challengeResponse)
 	}
 
 	authzURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "authorizations", fmt.Sprint(authz.ID))

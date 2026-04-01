@@ -39,6 +39,9 @@ type integrationTestSuite struct {
 	*testutils.TestDB
 	ds     *mysql.Datastore
 	server *httptest.Server
+
+	attestCA    *x509.Certificate
+	attestCAKey *ecdsa.PrivateKey
 }
 
 // setupIntegrationTest creates a new test suite with a real database and HTTP server.
@@ -48,6 +51,9 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	tdb := testutils.SetupTestDB(t, "acme_integration")
 	pool := redistest.SetupRedis(t, "acme_integration", false, false, false)
 	ds := mysql.NewDatastore(tdb.Conns(), tdb.Logger)
+	cert, key := generateTestAttestationCA(t)
+	rootPool := x509.NewCertPool()
+	rootPool.AddCert(cert)
 
 	// Create mocks
 	providers := newMockDataProviders(&fleet.AppConfig{
@@ -75,8 +81,9 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 			},
 		})
 
+	opts := service.WithTestAppleRootCAs(rootPool)
 	// Create service
-	svc := service.NewService(ds, pool, providers, tdb.Logger)
+	svc := service.NewService(ds, pool, providers, tdb.Logger, opts)
 
 	// Create router with routes
 	router := mux.NewRouter()
@@ -91,9 +98,11 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	ac.ServerSettings.ServerURL = server.URL
 
 	return &integrationTestSuite{
-		TestDB: tdb,
-		ds:     ds,
-		server: server,
+		TestDB:      tdb,
+		ds:          ds,
+		server:      server,
+		attestCA:    cert,
+		attestCAKey: key,
 	}
 }
 
@@ -282,6 +291,24 @@ func (s *integrationTestSuite) createOrderForGet(t *testing.T, enroll *types.Enr
 	return privateKey, accountURL, orderResp, nextNonce
 }
 
+// createOrderForChallenge is a convenience helper that creates account+order+fetches
+// authorization, returning: privateKey, accountURL, challengeURL, challengeToken, nonce.
+func (s *integrationTestSuite) createOrderForChallenge(t *testing.T, enroll *types.Enrollment) (privateKey *ecdsa.PrivateKey, accountURL, challengeURL, challengeToken, nonce string) {
+	t.Helper()
+	privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
+
+	require.Len(t, orderResp.Authorizations, 1)
+	authURL := orderResp.Authorizations[0]
+
+	authResp, _, resp := s.getAuthorization(t, authURL, buildJWS(t, privateKey, nonce, accountURL, authURL, nil))
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Len(t, authResp.Challenges, 1)
+	challenge := authResp.Challenges[0]
+	nonce = resp.Header.Get("Replay-Nonce")
+	require.NotEmpty(t, nonce)
+	return privateKey, accountURL, challenge.URL, challenge.Token, nonce
+}
+
 // getOrderURL returns the full URL for the get order endpoint.
 func (s *integrationTestSuite) getOrderURL(pathIdentifier string, orderID uint) string {
 	return fmt.Sprintf("%s/api/mdm/acme/%s/orders/%d", s.server.URL, pathIdentifier, orderID)
@@ -467,25 +494,12 @@ func generateCSRPEM(t *testing.T, commonName string) string {
 	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER}))
 }
 
-func (s *integrationTestSuite) getAuthorization(t *testing.T, authUrl string, jwsBody []byte) (*types.AuthorizationResponse, *types.ACMEError, *http.Response) {
+func (s *integrationTestSuite) getAuthorization(t *testing.T, authUrl string, jwsBody []byte) (*api_http.GetAuthorizationResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
-	req, err := http.NewRequest(http.MethodPost, authUrl, bytes.NewReader(jwsBody))
-	require.NoError(t, err)
+	return doACMERequest[api_http.GetAuthorizationResponse](t, http.MethodPost, authUrl, jwsBody)
+}
 
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer drainAndCloseBody(resp)
-
-	if resp.StatusCode >= 300 {
-		var acmeErr types.ACMEError
-		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
-			return nil, &acmeErr, resp
-		}
-		return nil, nil, resp
-	}
-
-	var result types.AuthorizationResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-	return &result, nil, resp
+func (s *integrationTestSuite) doChallenge(t *testing.T, challengeURL string, jwsBody []byte) (*api_http.DoChallengeResponse, *types.ACMEError, *http.Response) {
+	t.Helper()
+	return doACMERequest[api_http.DoChallengeResponse](t, http.MethodPost, challengeURL, jwsBody)
 }

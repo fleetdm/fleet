@@ -11,5 +11,6 @@ type Service interface {
 	AccountService
 	EnrollmentService
 	AuthorizationService
+	ChallengeService
 	NoncesStore() *redis_nonces_store.RedisNoncesStore
 }
