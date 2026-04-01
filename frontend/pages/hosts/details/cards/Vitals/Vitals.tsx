@@ -146,10 +146,10 @@ const Vitals = ({
 
     // Agent / Osquery
     if (!isIosOrIpadosHost && !isAndroidHost) {
-      const { 
+      const {
         orbit_version,
         osquery_version,
-        fleet_desktop_version
+        fleet_desktop_version,
       } = vitalsData;
 
       const isChromeOrVanillaOsqueryHost =
