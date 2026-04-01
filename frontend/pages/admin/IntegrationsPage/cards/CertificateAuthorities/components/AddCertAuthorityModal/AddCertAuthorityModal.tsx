@@ -289,16 +289,14 @@ const AddCertAuthorityModal = ({
       onExit={onExit}
       isContentDisabled={isAdding}
     >
-      <>
-        <Dropdown
-          options={dropdownOptions}
-          value={certAuthorityType}
-          className={`${baseClass}__cert-authority-dropdown`}
-          onChange={onChangeDropdown}
-          searchable={false}
-        />
-        {renderForm()}
-      </>
+      <Dropdown
+        options={dropdownOptions}
+        value={certAuthorityType}
+        className={`${baseClass}__cert-authority-dropdown`}
+        onChange={onChangeDropdown}
+        searchable={false}
+      />
+      {renderForm()}
     </Modal>
   );
 };

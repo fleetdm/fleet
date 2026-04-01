@@ -1,0 +1,12 @@
+{
+  "name": "Ollama",
+  "slug": "ollama/windows",
+  "package_identifier": "Ollama.Ollama",
+  "unique_identifier": "Ollama",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/ollama_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/ollama_uninstall.ps1"
+}

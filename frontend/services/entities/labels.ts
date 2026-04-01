@@ -115,13 +115,13 @@ export default {
 
     const queryStringParams = {
       include_host_counts: false,
-      team_id: null as null | number | string,
+      fleet_id: null as null | number | string,
     };
     if (teamID === 0) {
-      queryStringParams.team_id = "global";
+      queryStringParams.fleet_id = "global";
     } else if (teamID !== null && teamID > 0) {
       // filter out "all teams" -1
-      queryStringParams.team_id = teamID;
+      queryStringParams.fleet_id = teamID;
     }
 
     const queryString = buildQueryStringFromParams(queryStringParams);
@@ -142,12 +142,12 @@ export default {
     const { LABELS_SUMMARY } = endpoints;
 
     const queryStringParams = {
-      team_id: null as null | number | string,
+      fleet_id: null as null | number | string,
     };
     if (teamID === 0 || (teamID === -1 && treatAllTeamsAsGlobalOnly)) {
-      queryStringParams.team_id = "global";
+      queryStringParams.fleet_id = "global";
     } else if (teamID !== null && teamID > 0) {
-      queryStringParams.team_id = teamID;
+      queryStringParams.fleet_id = teamID;
     }
 
     const queryString = buildQueryStringFromParams(queryStringParams);

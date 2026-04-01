@@ -70,7 +70,7 @@ const ScriptBatchProgress = ({
   const DEFAULT_PAGE_SIZE = 10;
 
   const queryKey = {
-    team_id: teamId,
+    fleet_id: teamId,
     status: selectedStatus,
     page: pageNumber,
     per_page: DEFAULT_PAGE_SIZE,

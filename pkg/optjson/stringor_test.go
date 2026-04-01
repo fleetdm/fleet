@@ -135,3 +135,120 @@ func TestStringOr(t *testing.T) {
 		})
 	}
 }
+
+func TestBoolOr(t *testing.T) {
+	type child struct {
+		Name string `json:"name"`
+	}
+
+	type target struct {
+		Field BoolOr[*child]   `json:"field"`
+		Array []BoolOr[*child] `json:"array"`
+	}
+
+	type nested struct {
+		Inception BoolOr[*target] `json:"inception"`
+	}
+
+	cases := []struct {
+		name         string
+		getVar       func() any
+		src          string // json source to unmarshal into the value returned by getVar
+		marshalAs    string // how the value should marshal back to json
+		unmarshalErr string // if non-empty, unmarshal should fail with this error
+	}{
+		{
+			name:      "simple bool",
+			getVar:    func() any { var s BoolOr[int]; return &s },
+			src:       `true`,
+			marshalAs: `true`,
+		},
+		{
+			name:      "simple integer",
+			getVar:    func() any { var s BoolOr[int]; return &s },
+			src:       `123`,
+			marshalAs: `123`,
+		},
+		{
+			name:      "field bool",
+			getVar:    func() any { var s target; return &s },
+			src:       `{"field":true}`,
+			marshalAs: `{"field":true, "array": null}`,
+		},
+		{
+			name:      "field object",
+			getVar:    func() any { var s target; return &s },
+			src:       `{"field":{"name": "field object"}}`,
+			marshalAs: `{"field":{"name": "field object"}, "array": null}`,
+		},
+		{
+			name:      "field empty object",
+			getVar:    func() any { var s target; return &s },
+			src:       `{"field":{}}`,
+			marshalAs: `{"field":{"name": ""}, "array": null}`,
+		},
+		{
+			name:         "field invalid array",
+			getVar:       func() any { var s target; return &s },
+			src:          `{"field":[]}`,
+			unmarshalErr: "cannot unmarshal array into Go struct field target.field of type optjson.child",
+		},
+		{
+			name:      "array field null",
+			getVar:    func() any { var s target; return &s },
+			src:       `{"array":null}`,
+			marshalAs: `{"array":null, "field": false}`,
+		},
+		{
+			name:      "array field empty",
+			getVar:    func() any { var s target; return &s },
+			src:       `{"array":[]}`,
+			marshalAs: `{"array":[], "field": false}`,
+		},
+		{
+			name:      "array field single",
+			getVar:    func() any { var s target; return &s },
+			src:       `{"array":[{"name": "array child"}]}`,
+			marshalAs: `{"array":[{"name": "array child"}], "field": false}`,
+		},
+		{
+			name:      "array field empty child",
+			getVar:    func() any { var s target; return &s },
+			src:       `{"array":[{}]}`,
+			marshalAs: `{"array":[{"name":""}], "field": false}`,
+		},
+		{
+			name:      "inception bool",
+			getVar:    func() any { var s nested; return &s },
+			src:       `{"inception":true}`,
+			marshalAs: `{"inception":true}`,
+		},
+		{
+			name:      "inception target field",
+			getVar:    func() any { var s nested; return &s },
+			src:       `{"inception":{"field":{"name":""}}}`,
+			marshalAs: `{"inception":{"field":{"name": ""}, "array": null}}`,
+		},
+		{
+			name:      "inception target field and array",
+			getVar:    func() any { var s nested; return &s },
+			src:       `{"inception":{"field":{"name":"inception field"}, "array": [{"name": "x"}]}}`,
+			marshalAs: `{"inception":{"field":{"name":"inception field"}, "array": [{"name": "x"}]}}`,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			target := c.getVar()
+			err := json.Unmarshal([]byte(c.src), target)
+			if c.unmarshalErr != "" {
+				require.ErrorContains(t, err, c.unmarshalErr)
+				return
+			}
+			require.NoError(t, err)
+
+			data, err := json.Marshal(target)
+			require.NoError(t, err)
+			require.JSONEq(t, c.marshalAs, string(data))
+		})
+	}
+}

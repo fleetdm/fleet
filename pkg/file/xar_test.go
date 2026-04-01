@@ -340,6 +340,8 @@ func TestIsValidAppFilePath(t *testing.T) {
 		{"Applications/Foo with spaces.app", true},
 		{"Applications/foo", false},
 		{"foo", true},
+		{"Applications/foo.app/bar.app", false},
+		{"Applications/foo.app/Helpers/bar.app", false},
 	}
 
 	for _, test := range tests {

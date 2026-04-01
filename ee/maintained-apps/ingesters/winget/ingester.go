@@ -16,6 +16,7 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/google/go-github/v37/github"
@@ -366,6 +367,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	external_refs.EnrichManifest(&out)
 
+	// create patch policy
+	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "windows",
+		Version:     out.Version,
+		ExistsQuery: out.Queries.Exists,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+	}
+
 	return &out, nil
 }
 
@@ -377,6 +388,9 @@ func buildUpgradeCodeBasedUninstallScript(upgradeCode string) (string, error) {
 }
 
 func preProcessUninstallScript(uninstallScript, productCode string) (string, error) {
+	if productCode == "" {
+		return uninstallScript, nil
+	}
 	if err := file.ValidatePackageIdentifiers([]string{productCode}, ""); err != nil {
 		return "", err
 	}
@@ -430,6 +444,7 @@ type inputApp struct {
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
+	PatchPolicyPath   string   `json:"patch_policy_path"`
 }
 
 type installerManifest struct {

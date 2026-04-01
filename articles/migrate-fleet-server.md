@@ -121,6 +121,8 @@ Once the migration is stable and all hosts have reconnected, you can raise your 
 
 ## Troubleshooting
 
+For additiion information on troubleshooting Fleet, see: https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins#basic-article - discover how to access Fleet logs and a link to our step-by-step MDM troubleshooting guide used internally for engineering support escalations.
+
 **Hosts aren't checking in**
 
 Hosts will reconnect as their DNS cache expires, which depends on your DNS TTL setting. If you didn't lower the TTL before migration and it's set to a high value (like 24 hours), hosts may take up to that long to start connecting to the new server.

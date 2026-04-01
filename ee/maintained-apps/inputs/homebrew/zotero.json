@@ -1,0 +1,8 @@
+{
+  "name": "Zotero",
+  "unique_identifier": "org.zotero.zotero",
+  "token": "zotero",
+  "installer_format": "dmg",
+  "slug": "zotero/darwin",
+  "default_categories": ["Productivity"]
+}

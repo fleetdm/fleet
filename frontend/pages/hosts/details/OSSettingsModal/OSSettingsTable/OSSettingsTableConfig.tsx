@@ -4,6 +4,7 @@ import { Column } from "react-table";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   IHostMdmProfile,
   isLinuxDiskEncryptionStatus,
@@ -20,7 +21,9 @@ import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 import {
   generateLinuxDiskEncryptionSetting,
+  generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
+  REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
 
 export interface IHostMdmProfileWithAddedStatus
@@ -44,7 +47,10 @@ export type OsSettingsTableStatusValue =
 const generateTableConfig = (
   canResendProfiles: boolean,
   resendRequest: (profileUUID: string) => Promise<void>,
-  onProfileResent: () => void
+  onProfileResent: () => void,
+  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>,
+  canRotateRecoveryLockPassword?: boolean,
+  rotateRecoveryLockPassword?: () => Promise<void>
 ): ITableColumnConfig[] => {
   return [
     {
@@ -93,15 +99,30 @@ const generateTableConfig = (
         const isAppleMobileConfigProfile =
           isAppleDevice(platform) && !isDDMProfile(cellProps.row.original);
         const isWindowsProfile = platform === "windows";
+        const isAndroidCertificate =
+          platform === "android" &&
+          cellProps.row.original.profile_uuid ===
+            FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
+
+        const isRecoveryLockRow =
+          cellProps.row.original.profile_uuid ===
+          REC_LOCK_SYNTHETIC_PROFILE_UUID;
 
         return (
           <OSSettingsErrorCell
             canResendProfiles={
               canResendProfiles &&
-              (isWindowsProfile || isAppleMobileConfigProfile)
+              (isWindowsProfile ||
+                isAppleMobileConfigProfile ||
+                isAndroidCertificate)
+            }
+            canRotateRecoveryLockPassword={
+              isRecoveryLockRow && canRotateRecoveryLockPassword
             }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
+            resendCertificateRequest={resendCertificateRequest}
+            rotateRecoveryLockPassword={rotateRecoveryLockPassword}
             onProfileResent={onProfileResent}
           />
         );
@@ -162,22 +183,31 @@ const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
   return rows;
 };
 
-const makeDarwinRows = ({ profiles, macos_settings }: IHostMdmData) => {
-  if (!profiles) {
-    return null;
+const makeDarwinRows = ({
+  profiles,
+  apple_settings,
+  os_settings,
+}: IHostMdmData) => {
+  let rows: IHostMdmProfileWithAddedStatus[] = profiles ?? [];
+
+  if (apple_settings?.disk_encryption === "action_required") {
+    const dERow = profiles?.find(
+      (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
+    );
+    if (dERow) {
+      // a reference to the original object in rows, so successfully updates it
+      dERow.status = "action_required";
+    }
   }
 
-  let rows: IHostMdmProfileWithAddedStatus[] = profiles;
-  if (macos_settings?.disk_encryption === "action_required") {
-    rows = profiles.map((p) => {
-      // TODO: this is a brittle check for the filevault profile
-      // it would be better to match on the identifier but it is not
-      // currently available in the API response
-      if (p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME) {
-        return { ...p, status: "action_required" };
-      }
-      return p;
-    });
+  if (os_settings?.recovery_lock_password?.status) {
+    rows = [
+      ...rows,
+      generateRecoveryLockPasswordSetting(
+        os_settings.recovery_lock_password.status,
+        os_settings.recovery_lock_password.detail
+      ),
+    ];
   }
 
   return rows;

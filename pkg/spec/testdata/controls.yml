@@ -7,6 +7,7 @@ windows_settings:
 scripts:
   - path: ./lib/collect-fleetd-logs.sh
 enable_disk_encryption: true
+enable_recovery_lock_password: true
 macos_migration:
   enable: false
   mode: ""

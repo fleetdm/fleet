@@ -56,7 +56,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	}
 
 	if len(tokens) == 0 {
-		return nil, notFoundError{}
+		return nil, &notFoundError{}
 	}
 
 	if len(tokens) > 1 {
@@ -212,6 +212,22 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.LockEndUserInfo != nil {
+		if ac.MDM.MacOSSetup.LockEndUserInfo.Value != *payload.LockEndUserInfo {
+			ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(*payload.LockEndUserInfo)
+			didUpdate = true
+		}
+	}
+
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
+	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
+		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(ac.MDM.MacOSSetup.EnableEndUserAuthentication)
+	}
+
+	if !ac.MDM.MacOSSetup.EnableEndUserAuthentication && ac.MDM.MacOSSetup.LockEndUserInfo.Value {
+		return fleet.NewUserMessageError(errors.New(`Couldn't edit. "enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`), http.StatusUnprocessableEntity)
+	}
+
 	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
 		ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
 		didUpdate = true
@@ -234,17 +250,17 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 			}
 			// Otherwise if we got a not found error, we can't enable manual agent install.
 			if *payload.ManualAgentInstall && err != nil {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."), http.StatusUnprocessableEntity)
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting setup experience information")
 			}
 			if sec.Installers != 0 || sec.VPP != 0 {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
 			}
 			if sec.Scripts != 0 {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
 			}
 			ac.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
 			didUpdate = true
@@ -300,7 +316,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
 			// config are available
 			return fleet.NewInvalidArgumentError("enable_end_user_authentication",
-				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+				`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`)
 		}
 
 		hasCustomConfigurationWebURL, err := svc.HasCustomSetupAssistantConfigurationWebURL(ctx, payload.TeamID)
@@ -309,7 +325,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		}
 
 		if hasCustomConfigurationWebURL {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
 		}
 	}
 
@@ -1129,6 +1145,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 					// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
 					EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
 					EnableReleaseDeviceManually: ac.MDM.MacOSSetup.EnableReleaseDeviceManually,
+					LockEndUserInfo:             optjson.SetBool(ac.MDM.MacOSSetup.LockEndUserInfo.Value),
 				},
 			},
 		}
@@ -1297,7 +1314,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	"Type": %q,
 	"Payload": {
 		"TargetOSVersion": %q,
-		"TargetLocalDateTime": "%sT19:00:00"
+		"TargetLocalDateTime": "%sT12:00:00"
 	}
 }`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
 

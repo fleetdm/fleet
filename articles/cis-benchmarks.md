@@ -12,7 +12,7 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 - Windows 10 Enterprise
 - Windows 11 Enterprise
 
-[Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](https://fleetdm.com/docs/rest-api/rest-api#policies) in Fleet. 
+[Where possible](#limitations), each CIS Benchmark is implemented with a [policy](https://fleetdm.com/docs/rest-api/rest-api#policies) in Fleet. 
 
 These policy queries are intended to assess your organization's security posture against the CIS benchmarks. Because the policy queries alone do not remediate security issues, a host may fail a CIS Benchmark policy if there is no device profile or script in place to enforce the setting. By enabling [automations](https://fleetdm.com/guides/automations#basic-article) in Fleet, these policy queries can be used as the basis for managing security compliance and remediation in Fleet.
 
@@ -100,7 +100,7 @@ done
 
 3. The converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.
 
-If you're using `fleetctl apply`, you can apply the policies to a specific team use the `--policies-team` flag:
+If you're using `fleetctl apply`, you can apply the policies to a specific fleet use the `--policies-team` flag:
 ```sh
 fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 ```

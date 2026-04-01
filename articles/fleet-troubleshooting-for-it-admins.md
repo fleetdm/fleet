@@ -31,14 +31,7 @@ Debug mode can be helpful by providing more information in the logs.
 
 When [generating an installer package](https://fleetdm.com/guides/enroll-hosts#cli) with `fleetctl package`, add the `--debug` argument to enable debug mode for the agent installer.
 
-If you're trying to troubleshoot macOS hosts, you can [run a script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/manage-orbit-debug.sh) on the host to turn on debug mode. After you're done, you can run the script again to disable debug mode on the host.
-
-1. Run the script on the affected host.
-2. Wait ~10 min.
-3. Refetch the host.
-4. Wait another ~10 min.
-5. Run the script again to disable debug logging.
-6. Grab the logs from `/var/log/orbit/orbit.stderr.log`.
+If you've already installed Fleet on the device, you can [run a script on macOS](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/toggle-fleetd-debug.sh) or [Windows](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/toggle-fleetd-debug.ps1) devices to turn on debug mode. After you're done, run the script again to disable debug mode on the device.
 
 
 ## Checking MDM commands

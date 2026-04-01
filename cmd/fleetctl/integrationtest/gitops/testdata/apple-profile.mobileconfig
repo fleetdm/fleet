@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+                <key>PayloadContent</key>
+                <dict>
+                    <key>com.fleet.idp.info</key>
+                    <dict>
+                        <key>Forced</key>
+                        <array>
+                            <dict>
+                                <key>mcx_preference_settings</key>
+                                <dict>
+                                    <key>fleet secret</key>
+                                    <string>$FLEET_SECRET_PASSWORD</string>
+                                    <key>api key</key>
+                                    <string>$API_KEY</string>
+                                </dict>
+                            </dict>
+                        </array>
+                    </dict>
+                </dict>
+                <key>PayloadDisplayName</key>
+                <string>Managed Preferences Username</string>
+                <key>PayloadIdentifier</key>
+                <string>com.apple.ManagedClient.preferences.99AA78CD-F89B-41D0-850F-3CA29300E6FB</string>
+                <key>PayloadType</key>
+                <string>com.apple.ManagedClient.preferences</string>
+                <key>PayloadUUID</key>
+                <string>99AA78CD-F89B-41D0-850F-3CA29300E6FB</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+            </dict>
+        </array>
+        <key>PayloadDisplayName</key>
+        <string>Managed Preferences</string>
+        <key>PayloadIdentifier</key>
+        <string>fleet.9913C522-DF69-45CA-9113-B1843E6145BC</string>
+        <key>PayloadOrganization</key>
+        <string>Fleet</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>9913C522-DF69-45CA-9113-B1843E6145BC</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+    </dict>
+</plist>

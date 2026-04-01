@@ -118,7 +118,7 @@ const ReportUpdatedCell = ({
   const onClick = () => {
     hostId &&
       queryId &&
-      browserHistory.push(PATHS.HOST_QUERY_REPORT(hostId, queryId));
+      browserHistory.push(PATHS.HOST_REPORT_RESULTS(hostId, queryId));
   };
 
   return (

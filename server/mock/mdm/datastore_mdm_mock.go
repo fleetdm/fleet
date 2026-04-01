@@ -37,6 +37,10 @@ type RetrieveBootstrapTokenFunc func(r *mdm.Request, msg *mdm.GetBootstrapToken)
 
 type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
 
+type ExpandHostSecretsFunc func(ctx context.Context, document string, enrollmentID string) (string, error)
+
+type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
+
 type RetrievePushInfoFunc func(ctx context.Context, ids []string) (map[string]*mdm.Push, error)
 
 type IsPushCertStaleFunc func(ctx context.Context, topic string, staleToken string) (bool, error)
@@ -106,6 +110,12 @@ type MDMAppleStore struct {
 
 	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
 	ExpandEmbeddedSecretsFuncInvoked bool
+
+	ExpandHostSecretsFunc        ExpandHostSecretsFunc
+	ExpandHostSecretsFuncInvoked bool
+
+	SetRecoveryLockFailedFunc        SetRecoveryLockFailedFunc
+	SetRecoveryLockFailedFuncInvoked bool
 
 	RetrievePushInfoFunc        RetrievePushInfoFunc
 	RetrievePushInfoFuncInvoked bool
@@ -239,6 +249,20 @@ func (fs *MDMAppleStore) ExpandEmbeddedSecrets(ctx context.Context, document str
 	fs.ExpandEmbeddedSecretsFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.ExpandEmbeddedSecretsFunc(ctx, document)
+}
+
+func (fs *MDMAppleStore) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	fs.mu.Lock()
+	fs.ExpandHostSecretsFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.ExpandHostSecretsFunc(ctx, document, enrollmentID)
+}
+
+func (fs *MDMAppleStore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	fs.mu.Lock()
+	fs.SetRecoveryLockFailedFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.SetRecoveryLockFailedFunc(ctx, hostUUID, errorMsg)
 }
 
 func (fs *MDMAppleStore) RetrievePushInfo(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {

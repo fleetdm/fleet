@@ -64,7 +64,7 @@ export default {
 
   getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
     const { SOFTWARE_APP_STORE_APPS } = endpoints;
-    const path = `${SOFTWARE_APP_STORE_APPS}?team_id=${teamId}`;
+    const path = `${SOFTWARE_APP_STORE_APPS}?fleet_id=${teamId}`;
     return sendRequest("GET", path);
   },
 
@@ -100,6 +100,6 @@ export default {
   }) => {
     const { MDM_VPP_TOKEN_TEAMS } = endpoints;
     const path = MDM_VPP_TOKEN_TEAMS(params.tokenId);
-    return sendRequest("PATCH", path, { teams: params.teamIds });
+    return sendRequest("PATCH", path, { fleets: params.teamIds });
   },
 };

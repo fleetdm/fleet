@@ -54,9 +54,10 @@
   }
 
   // OS version with requirement icon + tooltip truncation
-  &__os-version {
+  // MDM status may have an error icon if status is off
+  &__os-version,
+  &__mdm-status {
     display: flex;
-    align-items: center;
     gap: $pad-xsmall;
     min-width: 0;
 
@@ -79,6 +80,25 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &__os-version {
+    display: flex;
+    gap: $pad-xsmall;
+
+    .component__tooltip-wrapper__element {
+      line-height: inherit;
+    }
+  }
+
+  &__mdm-status,
+  &__location {
+    dd {
+      display: flex;
+      gap: $pad-xsmall;
+      margin: -6px; // See underline under link and border with keyboard nav
+      padding: 6px; // See underline under link and border with keyboard nav
+    }
   }
 
   .text-muted {

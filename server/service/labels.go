@@ -683,12 +683,6 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 				ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name), http.StatusUnprocessableEntity,
 			)
 		}
-		if spec.LabelMembershipType == fleet.LabelMembershipTypeManual && spec.Hosts == nil {
-			// Hosts list doesn't need to contain anything, but it should at least not be nil.
-			return fleet.NewUserMessageError(
-				ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name), http.StatusUnprocessableEntity,
-			)
-		}
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeHostVitals && spec.HostVitalsCriteria == nil {
 			// Criteria is required for host vitals labels.
 			return fleet.NewUserMessageError(

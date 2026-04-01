@@ -78,7 +78,7 @@ const PolicyRunScriptModal = ({
     [
       {
         scope: "scripts",
-        team_id: teamId,
+        fleet_id: teamId,
       },
     ],
     ({ queryKey: [queryKey] }) =>

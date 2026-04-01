@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import { Ace } from "ace-builds";
 import ReactTooltip from "react-tooltip";
@@ -12,6 +12,7 @@ import { COLORS } from "styles/var/colors";
 
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
@@ -48,7 +49,10 @@ import labelsAPI, {
   ILabelsSummaryResponse,
 } from "services/entities/labels";
 
+import teamPoliciesAPI from "services/entities/team_policies";
+
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
+import PolicyAutomations from "../PolicyAutomations";
 
 const baseClass = "policy-form";
 
@@ -71,6 +75,7 @@ interface IPolicyFormProps {
   onClickAutofillDescription: () => Promise<void>;
   onClickAutofillResolution: () => Promise<void>;
   resetAiAutofillData: () => void;
+  currentAutomatedPolicies: number[];
 }
 
 const validateQuerySQL = (query: string) => {
@@ -104,6 +109,7 @@ const PolicyForm = ({
   onClickAutofillDescription,
   onClickAutofillResolution,
   resetAiAutofillData,
+  currentAutomatedPolicies,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
@@ -119,6 +125,9 @@ const PolicyForm = ({
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
+
+  const isPatchPolicy = storedPolicy?.type === "patch";
+  const [isAddingAutomation, setIsAddingAutomation] = useState(false);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -154,6 +163,9 @@ const PolicyForm = ({
     });
   };
 
+  const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
+
   const {
     currentUser,
     currentTeam,
@@ -167,6 +179,7 @@ const PolicyForm = ({
     isOnGlobalTeam,
     isPremiumTier,
     config,
+    isFreeTier,
   } = useContext(AppContext);
 
   const { data: { labels } = { labels: [] } } = useQuery<
@@ -231,7 +244,7 @@ const PolicyForm = ({
   const isExistingPolicy = !!policyIdForEdit;
 
   const isNewTemplatePolicy =
-    !policyIdForEdit &&
+    !isExistingPolicy &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   useEffect(() => {
@@ -312,6 +325,28 @@ const PolicyForm = ({
     }
   };
 
+  const onAddPatchAutomation = async () => {
+    if (
+      !storedPolicy?.patch_software?.software_title_id ||
+      !storedPolicy?.team_id
+    ) {
+      return;
+    }
+    setIsAddingAutomation(true);
+    try {
+      await teamPoliciesAPI.update(policyIdForEdit as number, {
+        team_id: storedPolicy.team_id,
+        software_title_id: storedPolicy.patch_software.software_title_id,
+      });
+      queryClient.invalidateQueries(["policy", policyIdForEdit]);
+      renderFlash("success", "Automation added.");
+    } catch {
+      renderFlash("error", "Couldn't set automation. Please try again.");
+    } finally {
+      setIsAddingAutomation(false);
+    }
+  };
+
   const promptSavePolicy = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
@@ -322,11 +357,28 @@ const PolicyForm = ({
       });
     }
 
-    if (isExistingPolicy && !isAnyPlatformSelected) {
+    if (isExistingPolicy && !isPatchPolicy && !isAnyPlatformSelected) {
       return setErrors({
         ...errors,
         name: "At least one platform must be selected",
       });
+    }
+
+    if (isPatchPolicy && isExistingPolicy) {
+      // Patch policies: only send editable fields, not query/platform
+      const payload: IPolicyFormData = {
+        name: lastEditedQueryName,
+        description: lastEditedQueryDescription,
+        resolution: lastEditedQueryResolution,
+      };
+      if (isPremiumTier) {
+        payload.critical = lastEditedQueryCritical;
+      }
+      onUpdate(payload);
+      setIsEditingName(false);
+      setIsEditingDescription(false);
+      setIsEditingResolution(false);
+      return;
     }
 
     let selectedPlatforms = getSelectedPlatforms();
@@ -641,8 +693,9 @@ const PolicyForm = ({
           <TooltipWrapper
             tipContent={
               <p>
-                If automations are turned on, this
-                <br /> information is included.
+                If automations are turned on, this information is included. If
+                Okta conditional access is configured, end users can never
+                bypass critical policies.
               </p>
             }
           >
@@ -650,6 +703,28 @@ const PolicyForm = ({
           </TooltipWrapper>
         </Checkbox>
       </div>
+    );
+  };
+
+  const renderPolicyFleetName = () => {
+    if (isFreeTier || !currentTeam?.name) return null;
+
+    if (isExistingPolicy) {
+      return hasSavePermissions ? (
+        <p>
+          Editing policy for <strong>{currentTeam?.name}</strong>.
+        </p>
+      ) : (
+        <p>
+          Viewing policy for <strong>{currentTeam?.name}</strong>.
+        </p>
+      );
+    }
+
+    return (
+      <p>
+        Creating a new policy for <strong>{currentTeam?.name}</strong>.
+      </p>
     );
   };
 
@@ -668,16 +743,23 @@ const PolicyForm = ({
         </h1>
         {renderAuthor()}
       </div>
-      <PageDescription
-        className={`${baseClass}__policy-description no-hover`}
-        content={lastEditedQueryDescription}
-      />
-      <p className="resolve-title">
-        <strong>Resolve:</strong>
-      </p>
-      <p className={`${baseClass}__policy-resolution no-hover`}>
-        {lastEditedQueryResolution}
-      </p>
+      {renderPolicyFleetName()}
+      {lastEditedQueryDescription && (
+        <PageDescription
+          className={`${baseClass}__policy-description no-hover`}
+          content={lastEditedQueryDescription}
+        />
+      )}
+      {lastEditedQueryResolution && (
+        <>
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <p className={`${baseClass}__policy-resolution no-hover`}>
+            {lastEditedQueryResolution}
+          </p>
+        </>
+      )}
       <RevealButton
         isShowing={showQueryEditor}
         className={baseClass}
@@ -718,7 +800,8 @@ const PolicyForm = ({
   const renderEditablePolicyForm = () => {
     // Save disabled for no platforms selected, query name blank on existing query, or sql errors
     const disableSaveFormErrors =
-      (isExistingPolicy && !isAnyPlatformSelected) ||
+      isAddingAutomation ||
+      (isExistingPolicy && !isPatchPolicy && !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
@@ -733,13 +816,28 @@ const PolicyForm = ({
             <div className={`${baseClass}__policy-name`}>{renderName()}</div>
             {isExistingPolicy && renderAuthor()}
           </div>
+          {renderPolicyFleetName()}
           {renderDescription()}
           {renderResolution()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
             label="Query"
-            labelActionComponent={renderLabelComponent()}
+            labelActionComponent={
+              isPatchPolicy ? (
+                <TooltipWrapper
+                  tipContent="Query is read-only for patch policies."
+                  position="top"
+                  underline={false}
+                  showArrow
+                  tipOffset={12}
+                >
+                  <Icon name="info" size="small" />
+                </TooltipWrapper>
+              ) : (
+                renderLabelComponent()
+              )
+            }
             name="query editor"
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
@@ -747,10 +845,11 @@ const PolicyForm = ({
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isExistingPolicy}
+            readOnly={isPatchPolicy}
           />
           {renderPlatformCompatibility()}
-          {isExistingPolicy && platformSelector.render()}
-          {isExistingPolicy && isPremiumTier && (
+          {isExistingPolicy && !isPatchPolicy && platformSelector.render()}
+          {isExistingPolicy && isPremiumTier && !isPatchPolicy && (
             <TargetLabelSelector
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
@@ -768,6 +867,15 @@ const PolicyForm = ({
                 </span>
               }
               suppressTitle
+            />
+          )}
+          {isExistingPolicy && storedPolicy && (
+            <PolicyAutomations
+              storedPolicy={storedPolicy}
+              currentAutomatedPolicies={currentAutomatedPolicies}
+              onAddAutomation={onAddPatchAutomation}
+              isAddingAutomation={isAddingAutomation}
+              gitOpsModeEnabled={!!gitOpsModeEnabled}
             />
           )}
           {isExistingPolicy && isPremiumTier && renderCriticalPolicy()}
@@ -825,6 +933,7 @@ const PolicyForm = ({
               <Button
                 onClick={goToSelectTargets}
                 disabled={
+                  isAddingAutomation ||
                   (isExistingPolicy && !isAnyPlatformSelected) ||
                   disabledLiveQuery
                 }
@@ -878,7 +987,7 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
-  const isInheritedPolicy = !!policyIdForEdit && storedPolicy?.team_id === null;
+  const isInheritedPolicy = isExistingPolicy && storedPolicy?.team_id === null;
 
   const noEditPermissions =
     isTeamObserver ||

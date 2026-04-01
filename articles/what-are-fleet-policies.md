@@ -32,7 +32,7 @@ To learn more about labels, see [Managing labels in Fleet](https://fleetdm.com/g
 
 ## Identifying out-of-policy devices
 
-The policies page makes it easy to see which devices on each team are passing and failing with distinct “yes” or “no” responses. Although checking devices manually is relatively easy, we’ve made it even easier for endpoint detection and response security. We now have automation.
+The policies page makes it easy to see which devices on each fleet are passing and failing with distinct “yes” or “no” responses. Although checking devices manually is relatively easy, we’ve made it even easier for endpoint detection and response security. We now have automation.
 
 Fleet adds the ability to automate failing host policies with [webhook automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) to identify out-of-policy devices more easily. Users can specify a webhook URL to send alerts that include all devices that answered “No” to a policy. This makes it easier to create a support ticket and resolve each device.
 

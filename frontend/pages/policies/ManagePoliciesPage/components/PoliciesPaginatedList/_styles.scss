@@ -9,6 +9,10 @@
         padding-bottom: 4px;
     }
 
+    .platform-cell__wrapper {
+        flex-shrink: 0;
+    }
+
     .gitops-mode-tooltip-wrapper {
         display: block
     }

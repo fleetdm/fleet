@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -31,7 +31,7 @@ func NewCalendarSchedule(
 	ds fleet.Datastore,
 	distributedLock fleet.Lock,
 	serverConfig config.CalendarConfig,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronCalendar)
@@ -59,7 +59,7 @@ func NewCalendarSchedule(
 }
 
 func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, distributedLock fleet.Lock, serverConfig config.CalendarConfig,
-	logger *logging.Logger) error {
+	logger *slog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load app config: %w", err)
@@ -106,7 +106,7 @@ func cronCalendarEventsForTeam(
 	team fleet.Team,
 	orgName string,
 	domain string,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	if team.Config.Integrations.GoogleCalendar == nil ||
 		!team.Config.Integrations.GoogleCalendar.Enable {
@@ -203,7 +203,7 @@ func processCalendarFailingHosts(
 	calendarConfig *calendar.Config,
 	orgName string,
 	hosts []fleet.HostPolicyMembershipData,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) {
 	hosts = filterHostsWithSameEmail(hosts)
 
@@ -247,7 +247,7 @@ func processCalendarFailingHosts(
 					}
 				}
 
-				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger.SlogLogger())
+				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger)
 				if err := userCalendar.Configure(host.Email); err != nil {
 					logger.ErrorContext(ctx, "configure user calendar", "err", err)
 					continue // continue with next host
@@ -315,7 +315,7 @@ func processFailingHostExistingCalendarEvent(
 	host fleet.HostPolicyMembershipData,
 	policyIDtoPolicy *sync.Map,
 	calendarConfig *calendar.Config,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
@@ -394,7 +394,7 @@ func processFailingHostExistingCalendarEvent(
 	var newETag string
 	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (string, bool, error) {
 		var body string
-		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger.SlogLogger())
+		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
 		return body, true, nil
 	}
 
@@ -507,7 +507,7 @@ func processFailingHostExistingCalendarEvent(
 }
 
 func getBodyTag(ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map,
-	logger *logging.Logger) string {
+	logger *slog.Logger) string {
 	var updatedBodyTag string
 	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
 	if len(policyIDs) == 1 && policyIDs[0] != "" {
@@ -581,7 +581,7 @@ func processFailingHostCreateCalendarEvent(
 	orgName string,
 	host fleet.HostPolicyMembershipData,
 	policyIDtoPolicy *sync.Map,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	calendarEvent, err := attemptCreatingEventOnUserCalendar(ctx, ds, orgName, host, userCalendar, policyIDtoPolicy, logger)
 	if err != nil {
@@ -603,7 +603,7 @@ func attemptCreatingEventOnUserCalendar(
 	host fleet.HostPolicyMembershipData,
 	userCalendar fleet.UserCalendar,
 	policyIDtoPolicy *sync.Map,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*fleet.CalendarEvent, error) {
 	year, month, today := time.Now().Date()
 	preferredDate := getPreferredCalendarEventDate(year, month, today)
@@ -612,7 +612,7 @@ func attemptCreatingEventOnUserCalendar(
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) (string, bool, error) {
 				var body string
-				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger.SlogLogger())
+				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
 				return body, true, nil
 			}, fleet.CalendarCreateEventOpts{},
 		)
@@ -663,7 +663,7 @@ func removeCalendarEventsFromPassingHosts(
 	ds fleet.Datastore,
 	calendarConfig *calendar.Config,
 	hosts []fleet.HostPolicyMembershipData,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) {
 	hostIDsByEmail := make(map[string][]uint)
 	for _, host := range hosts {
@@ -706,7 +706,7 @@ func removeCalendarEventsFromPassingHosts(
 					logger.ErrorContext(ctx, "get calendar event from DB", "err", err)
 					continue
 				}
-				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger.SlogLogger())
+				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger)
 				if err := deleteCalendarEvent(ctx, ds, userCalendar, calendarEvent); err != nil {
 					logger.ErrorContext(ctx, "delete user calendar event", "err", err)
 					continue
@@ -727,7 +727,7 @@ func logHostsWithoutAssociatedEmail(
 	ctx context.Context,
 	domain string,
 	hosts []fleet.HostPolicyMembershipData,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) {
 	if len(hosts) == 0 {
 		return
@@ -763,7 +763,7 @@ func isHostOnline(ctx context.Context, ds fleet.Datastore, hostID uint) (bool, e
 	}
 }
 
-func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger *logging.Logger) error {
+func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load app config: %w", err)
@@ -776,7 +776,7 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger *
 			GoogleCalendarIntegration: *appConfig.Integrations.GoogleCalendar[0],
 			ServerURL:                 appConfig.ServerSettings.ServerURL,
 		}
-		userCalendar = calendar.CreateUserCalendarFromConfig(ctx, calConfig, logger.SlogLogger())
+		userCalendar = calendar.CreateUserCalendarFromConfig(ctx, calConfig, logger)
 	}
 
 	// If global setting is disabled, we remove all calendar events from the DB
@@ -828,7 +828,7 @@ func deleteAllCalendarEvents(
 	ds fleet.Datastore,
 	calendarConfig *calendar.Config,
 	teamID *uint,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	calendarEvents, err := ds.ListCalendarEvents(ctx, teamID)
 	if err != nil {
@@ -840,7 +840,7 @@ func deleteAllCalendarEvents(
 
 func deleteCalendarEventsInParallel(
 	ctx context.Context, ds fleet.Datastore, calendarConfig *calendar.Config, calendarEvents []*fleet.CalendarEvent,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) {
 	if len(calendarEvents) > 0 {
 		calendarEventCh := make(chan *fleet.CalendarEvent)
@@ -852,7 +852,7 @@ func deleteCalendarEventsInParallel(
 				for calEvent := range calendarEventCh {
 					var userCalendar fleet.UserCalendar
 					if calendarConfig != nil {
-						userCalendar = calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger.SlogLogger())
+						userCalendar = calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger)
 					}
 					if err := deleteCalendarEvent(ctx, ds, userCalendar, calEvent); err != nil {
 						logger.ErrorContext(ctx, "delete user calendar event", "err", err)
@@ -874,7 +874,7 @@ func cleanupTeamCalendarEvents(
 	ds fleet.Datastore,
 	calendarConfig *calendar.Config,
 	team fleet.Team,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	teamFeatureEnabled := team.Config.Integrations.GoogleCalendar != nil && team.Config.Integrations.GoogleCalendar.Enable
 

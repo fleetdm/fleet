@@ -31,11 +31,31 @@ const getEnabledEndUserAuth = (
   // team is "No team" when currentTeamId === 0
   if (currentTeamId === 0) {
     return (
-      globalConfig?.mdm?.macos_setup.enable_end_user_authentication ?? false
+      globalConfig?.mdm?.setup_experience.enable_end_user_authentication ??
+      false
     );
   }
 
-  return teamConfig?.mdm?.macos_setup.enable_end_user_authentication ?? false;
+  return (
+    teamConfig?.mdm?.setup_experience.enable_end_user_authentication ?? false
+  );
+};
+
+const getLockEndUserInfo = (
+  currentTeamId: number,
+  globalConfig?: IConfig,
+  teamConfig?: ITeamConfig
+) => {
+  if (globalConfig === undefined && teamConfig === undefined) {
+    return false;
+  }
+
+  // team is "No team" when currentTeamId === 0
+  if (currentTeamId === 0) {
+    return globalConfig?.mdm?.setup_experience.lock_end_user_info ?? false;
+  }
+
+  return teamConfig?.mdm?.setup_experience.lock_end_user_info ?? false;
 };
 
 const isIdPConfigured = ({
@@ -66,10 +86,16 @@ const EndUserAuthentication = ({
     refetchOnWindowFocus: false,
     retry: false,
     enabled: currentTeamId !== 0,
-    select: (res) => res.team,
+    select: (res) => res.fleet,
   });
 
   const defaultIsEndUserAuthEnabled = getEnabledEndUserAuth(
+    currentTeamId,
+    globalConfig,
+    teamConfig
+  );
+
+  const defaultLockEndUserInfo = getLockEndUserInfo(
     currentTeamId,
     globalConfig,
     teamConfig
@@ -94,6 +120,7 @@ const EndUserAuthentication = ({
           <EndUserAuthForm
             currentTeamId={currentTeamId}
             defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+            defaultLockEndUserInfo={defaultLockEndUserInfo}
           />
         )}
       </SetupExperienceContentContainer>

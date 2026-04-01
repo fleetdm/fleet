@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -148,6 +149,85 @@ func TestPreProcessUninstallScriptMaliciousInput(t *testing.T) {
 		}
 		require.NoError(t, preProcessUninstallScript(&payload), "expected no error for valid input: %s", id)
 	}
+}
+
+func TestPreProcessUninstallScriptSkipsValidationWhenNoTemplateVars(t *testing.T) {
+	t.Parallel()
+
+	// Non-ASCII package ID that would fail the safeIdentifierRegex validation
+	nonASCIIID := "CrossCore\u00ae Embedded Studio v3.0.2"
+
+	t.Run("non-ASCII ID succeeds when script has no template vars", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: `$softwareName = "CrossCore Embedded Studio"`,
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Equal(t, `$softwareName = "CrossCore Embedded Studio"`, payload.UninstallScript)
+	})
+
+	t.Run("non-ASCII ID succeeds when script uses PACKAGE_ID", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: "$PACKAGE_ID",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'"+nonASCIIID+"'")
+	})
+
+	t.Run("non-ASCII upgrade code succeeds when script has no UPGRADE_CODE", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "msi",
+			UninstallScript: "msiexec /x $PACKAGE_ID /quiet",
+			PackageIDs:      []string{"valid-id"},
+			UpgradeCode:     "code\u00ae",
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'valid-id'")
+	})
+
+	t.Run("non-ASCII upgrade code succeeds when script uses UPGRADE_CODE", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "msi",
+			UninstallScript: "msiexec /x $UPGRADE_CODE /quiet",
+			PackageIDs:      []string{"valid-id"},
+			UpgradeCode:     "code\u00ae",
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'code\u00ae'")
+	})
+
+	t.Run("dmg skips validation entirely", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "dmg",
+			UninstallScript: "$PACKAGE_ID\n\necho 'foo'",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID\n\necho 'foo'", payload.UninstallScript) // confirm no variable substitution
+	})
+
+	t.Run("zip skips validation entirely", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "zip",
+			UninstallScript: "$PACKAGE_ID\n\necho 'foo'",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID\n\necho 'foo'", payload.UninstallScript) // confirm no variable substitution
+	})
+
+	t.Run("empty PackageIDs skips processing", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: "$PACKAGE_ID",
+			PackageIDs:      []string{},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID", payload.UninstallScript) // confirm no variable substitution
+	})
 }
 
 func TestInstallUninstallAuth(t *testing.T) {
@@ -418,7 +498,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 			}, nil
 		}
 
-		return nil, notFoundError{}
+		return nil, &notFoundError{}
 	}
 
 	expected := `
@@ -433,7 +513,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
             <key>kind</key>
             <string>software-package</string>
             <key>url</key>
-            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app?team_id=0</string>
+            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app?fleet_id=0</string>
           </dict>
           <dict>
             <key>kind</key>
@@ -486,7 +566,6 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
 	require.NoError(t, err)
 	require.Contains(t, string(manifest), signerURL)
-
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
@@ -676,6 +755,67 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 	})
 }
 
+func TestAddScriptPackageMetadataLargeScript(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	svc := newTestService(t, nil)
+
+	t.Run("large shell script within saved limit", func(t *testing.T) {
+		t.Parallel()
+		// Generate a script larger than UnsavedScriptMaxRuneLen (10K) but within
+		// SavedScriptMaxRuneLen (500K). Script packages are persisted via GitOps
+		// and should use the saved script limit.
+		scriptContents := "#!/bin/bash\n" + strings.Repeat("echo 'line'\n", 1000)
+		require.Greater(t, len(scriptContents), fleet.UnsavedScriptMaxRuneLen)
+		require.Less(t, len(scriptContents), fleet.SavedScriptMaxRuneLen)
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "large-install.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+
+	t.Run("large powershell script within saved limit", func(t *testing.T) {
+		t.Parallel()
+		scriptContents := strings.Repeat("Write-Host 'line'\r\n", 1000)
+		require.Greater(t, len(scriptContents), fleet.UnsavedScriptMaxRuneLen)
+		require.Less(t, len(scriptContents), fleet.SavedScriptMaxRuneLen)
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "large-install.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+}
+
 // TestInstallShScriptOnDarwin tests that .sh scripts (stored as platform='linux')
 // can be installed on darwin hosts.
 func TestInstallShScriptOnDarwin(t *testing.T) {
@@ -799,4 +939,97 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+}
+
+func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	for _, platform := range []string{"ios", "ipados"} {
+		fakeHost := &fleet.Host{
+			Platform: platform,
+			MDM: fleet.MDMHostData{
+				EnrollmentStatus: ptr.String(string(fleet.MDMEnrollStatusPersonal)),
+			},
+		}
+
+		err := svc.SelfServiceInstallSoftwareTitle(t.Context(), fakeHost, 1)
+		require.Error(t, err, "expected error when installing on personally enrolled device for platform %s", platform)
+		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
+	}
+}
+
+func TestGetInstallScript(t *testing.T) {
+	t.Parallel()
+
+	defaultPkgScript := file.GetInstallScript("pkg")
+	defaultDebScript := file.GetInstallScript("deb")
+	fleetdScript := file.InstallPkgFleetdScript
+	customScript := "#!/bin/sh\necho custom"
+
+	tests := []struct {
+		name       string
+		extension  string
+		packageIDs []string
+		current    string
+		expected   string
+	}{
+		{
+			name:       "fleetd pkg returns fleetd script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    "",
+			expected:   fleetdScript,
+		},
+		{
+			name:       "fleetd pkg overrides default script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    defaultPkgScript,
+			expected:   fleetdScript,
+		},
+		{
+			name:       "fleetd pkg overrides custom script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    customScript,
+			expected:   fleetdScript,
+		},
+		{
+			name:       "non-fleetd pkg returns default script",
+			extension:  "pkg",
+			packageIDs: []string{"com.example.app"},
+			current:    "",
+			expected:   defaultPkgScript,
+		},
+		{
+			name:       "non-fleetd pkg preserves custom script",
+			extension:  "pkg",
+			packageIDs: []string{"com.example.app"},
+			current:    customScript,
+			expected:   customScript,
+		},
+		{
+			name:       "deb returns default script",
+			extension:  "deb",
+			packageIDs: []string{"some-package"},
+			current:    "",
+			expected:   defaultDebScript,
+		},
+		{
+			name:       "deb preserves custom script",
+			extension:  "deb",
+			packageIDs: []string{"some-package"},
+			current:    customScript,
+			expected:   customScript,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getInstallScript(tt.extension, tt.packageIDs, tt.current)
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }

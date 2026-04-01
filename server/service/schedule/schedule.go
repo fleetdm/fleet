@@ -7,6 +7,7 @@ package schedule
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"sync"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -32,7 +32,7 @@ type Schedule struct {
 	ctx        context.Context
 	name       string
 	instanceID string
-	logger     *logging.Logger
+	logger     *slog.Logger
 
 	defaultPrevRunCreatedAt time.Time // default timestamp of previous run for the schedule if none exists, time.Now if not set
 
@@ -96,7 +96,7 @@ type CronStatsStore interface {
 type Option func(*Schedule)
 
 // WithLogger sets a logger for the Schedule.
-func WithLogger(l *logging.Logger) Option {
+func WithLogger(l *slog.Logger) Option {
 	return func(s *Schedule) {
 		s.logger = l.With("schedule", s.name)
 	}
@@ -182,7 +182,7 @@ func New(
 		ctx:                  ctx,
 		name:                 name,
 		instanceID:           instanceID,
-		logger:               logging.NewNopLogger(),
+		logger:               slog.New(slog.DiscardHandler),
 		trigger:              make(chan int),
 		done:                 make(chan struct{}),
 		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
@@ -194,7 +194,7 @@ func New(
 		fn(sch)
 	}
 	if sch.logger == nil {
-		sch.logger = logging.NewNopLogger()
+		sch.logger = slog.New(slog.DiscardHandler)
 	}
 	sch.logger = sch.logger.With("instanceID", instanceID)
 	sch.errors = make(fleet.CronScheduleErrors)

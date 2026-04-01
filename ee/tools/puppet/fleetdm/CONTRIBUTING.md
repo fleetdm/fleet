@@ -25,8 +25,8 @@ sequenceDiagram
   A->>P: Results of the run
   Note over A,P: Puppet run is completed
   P->>F: POST POST /mdm/apple/profiles/match  <br/> to signal end of run and match profiles 
-  Note over F: create/edit a team with the pre-assigned profiles
-  Note over F: assign the host to the team
+  Note over F: create/edit a fleet with the pre-assigned profiles
+  Note over F: assign the host to the fleet
 ```
 
 The sequence diagram above illustrates a typical run:
@@ -42,8 +42,8 @@ The sequence diagram above illustrates a typical run:
 
 Once the run is complete, the server collects all pre-assigned profiles from Redis and performs the following:
 
-1. Creates/edits a team with the set of pre-assigned profiles.
-2. Adds the host to the team.
+1. Creates/edits a fleet with the set of pre-assigned profiles.
+2. Adds the host to the fleet.
 
 ## Set up a Puppet server
 

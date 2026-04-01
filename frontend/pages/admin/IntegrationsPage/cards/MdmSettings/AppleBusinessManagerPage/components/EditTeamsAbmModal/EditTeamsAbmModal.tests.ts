@@ -32,9 +32,9 @@ describe("EditTeamsAbmModal", () => {
         macos_team: "Unassigned",
       };
       expect(getSelectedTeamIds(selectedTeamNames, availableTeams)).toEqual({
-        ios_team_id: 1,
-        ipados_team_id: 2,
-        macos_team_id: 0,
+        ios_fleet_id: 1,
+        ipados_fleet_id: 2,
+        macos_fleet_id: 0,
       });
     });
   });

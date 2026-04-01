@@ -366,6 +366,93 @@ func TestDoRetryAfter(t *testing.T) {
 	}
 }
 
+func TestDoRetry(t *testing.T) {
+	t.Run("retries after 500 with Retry-After", func(t *testing.T) {
+		var calls int
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			calls++
+
+			// Verify Authorization header appears exactly once
+			authHeaders := r.Header.Values("Authorization")
+			require.Len(t, authHeaders, 1,
+				"expected exactly 1 Authorization header on attempt %d, got %d: %v",
+				calls, len(authHeaders), authHeaders)
+			require.Equal(t, "Bearer test-token", authHeaders[0])
+
+			// Verify POST body is intact
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			require.NotEmpty(t, body, "request body should not be empty on attempt %d", calls)
+
+			var reqParams AssociateAssetsRequest
+			err = json.Unmarshal(body, &reqParams)
+			require.NoError(t, err, "request body should be valid JSON on attempt %d, got: %q", calls, string(body))
+			require.Equal(t, "462054704", reqParams.Assets[0].AdamID)
+			require.Equal(t, "GXH409KH7X", reqParams.SerialNumbers[0])
+
+			if calls == 1 {
+				// First call: return 500 with Retry-After to trigger retry
+				w.Header().Set("Retry-After", "1")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte("{}"))
+				return
+			}
+
+			// Second call: success
+			_, _ = w.Write([]byte(`{"eventId": "evt-123"}`))
+		})
+
+		eventID, err := AssociateAssets("test-token", &AssociateAssetsRequest{
+			Assets:        []Asset{{AdamID: "462054704", PricingParam: "STDQ"}},
+			SerialNumbers: []string{"GXH409KH7X"},
+		})
+		require.NoError(t, err)
+		require.Equal(t, "evt-123", eventID)
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("retries after error 9646", func(t *testing.T) {
+		var calls int
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			calls++
+
+			// Verify Authorization header appears exactly once
+			authHeaders := r.Header.Values("Authorization")
+			require.Len(t, authHeaders, 1,
+				"expected exactly 1 Authorization header on attempt %d, got %d: %v",
+				calls, len(authHeaders), authHeaders)
+
+			// Verify POST body is intact
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			require.NotEmpty(t, body, "request body should not be empty on attempt %d", calls)
+
+			var reqParams AssociateAssetsRequest
+			err = json.Unmarshal(body, &reqParams)
+			require.NoError(t, err, "request body should be valid JSON on attempt %d, got: %q", calls, string(body))
+			require.Equal(t, "462054704", reqParams.Assets[0].AdamID)
+
+			if calls == 1 {
+				// First call: return rate-limit error 9646
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"errorMessage":"Too many requests","errorNumber":9646}`))
+				return
+			}
+
+			// Second call: success
+			_, _ = w.Write([]byte(`{"eventId": "evt-456"}`))
+		})
+
+		eventID, err := AssociateAssets("test-token", &AssociateAssetsRequest{
+			Assets:        []Asset{{AdamID: "462054704", PricingParam: "STDQ"}},
+			SerialNumbers: []string{"GXH409KH7X"},
+		})
+		require.NoError(t, err)
+		require.Equal(t, "evt-456", eventID)
+		require.GreaterOrEqual(t, calls, 2)
+	})
+}
+
 func TestGetBaseURL(t *testing.T) {
 	t.Run("Default URL", func(t *testing.T) {
 		require.Equal(t, "https://vpp.itunes.apple.com/mdm/v2", getBaseURL())

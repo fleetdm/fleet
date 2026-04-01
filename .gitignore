@@ -118,6 +118,7 @@ fleet_tables_*.ext
 .tool-versions
 .zed/
 third_party/vuln-check/go.sum
+cvefeed
 
 # Required to not make `fleet-desktop` macOS executable built with a `dirty` flag (see #35006).
 Fleet\ Desktop.app

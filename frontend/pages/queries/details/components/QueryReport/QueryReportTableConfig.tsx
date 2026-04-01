@@ -80,7 +80,7 @@ const generateReportColumnConfigsFromResults = (
           return (
             <LinkCell
               value={cellProps.cell.value}
-              path={PATHS.HOST_QUERY_REPORT(hostID, queryId)}
+              path={PATHS.HOST_REPORT_RESULTS(hostID, queryId)}
             />
           );
         }

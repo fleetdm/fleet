@@ -1,7 +1,6 @@
-import React, { useState, useContext, useCallback } from "react";
-import { useQuery } from "react-query";
+import React, { useState, useContext, useCallback, useEffect } from "react";
+import { useQueryClient } from "react-query";
 
-import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -13,14 +12,14 @@ import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import PageDescription from "components/PageDescription";
 import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
 import SettingsSection from "pages/admin/components/SettingsSection";
+
+import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -80,9 +79,10 @@ const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
 
 const baseClass = "calendars-integration";
 
-const Calendars = (): JSX.Element => {
+const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentTeam, isPremiumTier } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<ICalendarsFormData>({
     domain: "",
@@ -91,40 +91,31 @@ const Calendars = (): JSX.Element => {
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
 
-  const {
-    data: config,
-    isLoading: isLoadingAppConfig,
-    refetch: refetchConfig,
-    error: errorAppConfig,
-  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data,
-    onSuccess: (data) => {
-      if (
-        Array.isArray(data.integrations.google_calendar) &&
-        data.integrations.google_calendar.length > 0
-      ) {
-        const apiKeyJsonObj = data.integrations.google_calendar[0].api_key_json;
+  // Sync form state from config prop passed by IntegrationsPage.
+  useEffect(() => {
+    if (
+      appConfig &&
+      Array.isArray(appConfig.integrations.google_calendar) &&
+      appConfig.integrations.google_calendar.length > 0
+    ) {
+      const apiKeyJsonObj =
+        appConfig.integrations.google_calendar[0].api_key_json;
 
-        // Check if the API key is obfuscated
-        if (isObfuscatedApiKey(apiKeyJsonObj)) {
-          // Show masked value in UI
-          setFormData({
-            domain: data.integrations.google_calendar[0].domain,
-            apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
-          });
-        } else {
-          // Show the actual API key JSON
-          setFormData({
-            domain: data.integrations.google_calendar[0].domain,
-            // Formats string for better UI readability
-            apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
-          });
-        }
+      if (isObfuscatedApiKey(apiKeyJsonObj)) {
+        setFormData({
+          domain: appConfig.integrations.google_calendar[0].domain,
+          apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
+        });
+      } else {
+        setFormData({
+          domain: appConfig.integrations.google_calendar[0].domain,
+          apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
+        });
       }
-    },
-  });
+    }
+  }, [appConfig]);
 
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const { apiKeyJson, domain } = formData;
 
@@ -218,7 +209,7 @@ const Calendars = (): JSX.Element => {
         "success",
         "Successfully saved calendar integration settings."
       );
-      refetchConfig();
+      await queryClient.invalidateQueries(["config"]);
     } catch (e) {
       renderFlash("error", "Could not save calendar integration settings.");
     } finally {
@@ -449,16 +440,6 @@ const Calendars = (): JSX.Element => {
       </>
     );
   };
-
-  if (isLoadingAppConfig) {
-    <div className={baseClass}>
-      <Spinner includeContainer={false} />
-    </div>;
-  }
-
-  if (errorAppConfig) {
-    return <DataError />;
-  }
 
   return (
     <SettingsSection title="Calendars">

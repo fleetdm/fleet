@@ -13,6 +13,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import Icon from "components/Icon/Icon";
+import CustomLink from "components/CustomLink";
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";
 import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
 
@@ -211,10 +212,10 @@ const WelcomeHost = ({
         <div className={`${baseClass}__intro`}>
           <img alt="" src={LaptopMac} />
           <div className="info">
-            <Link to={PATHS.HOST_DETAILS(host.id)} className="external-link">
-              {host.display_name}
-              <Icon name="arrow-internal-link" />
-            </Link>
+            <CustomLink
+              url={PATHS.HOST_DETAILS(host.id)}
+              text={host.display_name}
+            />
             <p>Your host is successfully connected to Fleet.</p>
           </div>
         </div>
@@ -251,12 +252,14 @@ const WelcomeHost = ({
 
             return null;
           })}
-          {host.policies?.length > 3 && (
-            <Link to={PATHS.HOST_POLICIES(host.id)} className="external-link">
-              Go to Host details to see all policies
-              <Icon name="arrow-internal-link" />
-            </Link>
-          )}
+          <div className={`${baseClass}__view-all-policies`}>
+            {host.policies?.length > 3 && (
+              <CustomLink
+                url={PATHS.HOST_POLICIES(host.id)}
+                text="View all host's policies"
+              />
+            )}
+          </div>
         </div>
         <div className={`${baseClass}__blurb`}>
           <p>Resolved a failing policy? Refetch your host vitals to verify.</p>
@@ -293,7 +296,7 @@ const WelcomeHost = ({
                 </p>
               )}
               <div className="modal-cta-wrap">
-                <Button onClick={() => setShowPolicyModal(false)}>Done</Button>
+                <Button onClick={() => setShowPolicyModal(false)}>Close</Button>
               </div>
             </>
           </Modal>

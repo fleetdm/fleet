@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
+import { addHours, isPast } from "date-fns";
 
 import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { IOSSettings } from "interfaces/host";
@@ -27,6 +28,8 @@ export interface IHostBannersBaseProps {
   diskIsEncrypted?: boolean;
   /** Whether or not Fleet has escrowed the host's disk encryption key */
   diskEncryptionKeyAvailable?: boolean;
+  /** The timestamp of the last MDM enrollment */
+  lastMdmEnrolledAt?: string;
 }
 /**
  * Handles the displaying of banners on the host details page
@@ -40,10 +43,18 @@ const HostDetailsBanners = ({
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
+  lastMdmEnrolledAt,
 }: IHostBannersBaseProps) => {
   const { config } = useContext(AppContext);
 
   const isMdmUnenrolled = mdmEnrollmentStatus === "Off" || !mdmEnrollmentStatus;
+  const isNewMdmEnrollment =
+    !isMdmUnenrolled &&
+    !!lastMdmEnrolledAt &&
+    // if less than an hour has passed since the last MDM enrollment, we consider it a new
+    // enrollment and won't show the disk encryption action required banner, as it's possible the
+    // host just hasn't sent its disk encryption status to Fleet yet
+    !isPast(addHours(lastMdmEnrolledAt, 1));
 
   const showTurnOnMdmInfoBanner =
     hostPlatform === "darwin" &&
@@ -53,7 +64,8 @@ const HostDetailsBanners = ({
   const showMacDiskEncryptionUserActionRequired =
     config?.mdm.enabled_and_configured &&
     connectedToFleetMdm &&
-    macDiskEncryptionStatus === "action_required";
+    macDiskEncryptionStatus === "action_required" &&
+    !isNewMdmEnrollment;
 
   const actionRequiredBanner = (
     <div className={baseClass}>

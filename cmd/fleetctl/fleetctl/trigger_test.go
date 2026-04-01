@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/stretchr/testify/assert"
@@ -54,7 +54,7 @@ func TestTrigger(t *testing.T) {
 	os.Stdout = w
 
 	_, _ = testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
-		Logger: logging.NewNopLogger(),
+		Logger: slog.New(slog.DiscardHandler),
 		StartCronSchedules: []service.TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {

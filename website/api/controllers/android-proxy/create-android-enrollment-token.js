@@ -72,6 +72,7 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Enrollmenttokens.html#create
       let enrollmentTokenCreateResponse = await androidmanagement.enterprises.enrollmentTokens.create({
         parent: `enterprises/${androidEnterpriseId}`,
+        // Note: Typically, we use defined inputs instead of accessing req.body directly. This behavior should not be repeated in future Android proxy endpoints.
         requestBody: this.req.body,
       });
       return enrollmentTokenCreateResponse.data;

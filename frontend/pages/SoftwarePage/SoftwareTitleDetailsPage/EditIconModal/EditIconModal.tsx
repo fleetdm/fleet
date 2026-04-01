@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { noop } from "lodash";
 
@@ -156,6 +156,7 @@ const EditIconModal = ({
 }: IEditIconModalProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const isSoftwarePackage = installerType === "package";
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
@@ -244,7 +245,7 @@ const EditIconModal = ({
     });
   };
 
-  const { data: customIconData } = useQuery(
+  const { data: customIconData, isError: isCustomIconError } = useQuery(
     ["softwareIcon", softwareId, teamIdForApi, iconUploadedAt],
     () => softwareAPI.getSoftwareIcon(softwareId, teamIdForApi),
     {
@@ -335,6 +336,13 @@ const EditIconModal = ({
   // useQuery does not handle dimension extraction, so this is required for updating
   // state with image details after loading the icon blob in the browser
   useEffect(() => {
+    // If the icon fetch failed, stop showing the spinner and fall back
+    if (isCustomIconError && isFirstLoadWithCustomIcon) {
+      setIsFirstLoadWithCustomIcon(false);
+      resetIconState();
+      return;
+    }
+
     // Handle API custom icon blob conversion and initialization
     if (
       shouldFetchCustomIcon &&
@@ -374,6 +382,8 @@ const EditIconModal = ({
     }
   }, [
     customIconData,
+    isCustomIconError,
+    isFirstLoadWithCustomIcon,
     iconState.status,
     shouldFetchCustomIcon,
     iconState.previewUrl,
@@ -699,16 +709,27 @@ const EditIconModal = ({
             <b>{displayName === "" ? previewInfo.name : displayName}</b>.
           </>
         );
+        // Invalidate software titles list cache so the edit is reflected
+        // if the user navigates back before the stale time has passed.
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       } else if (iconSucceeded && iconSuccessMessage) {
         renderFlash("success", iconSuccessMessage);
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       } else if (nameSucceeded && nameSuccessMessage) {
         renderFlash("success", nameSuccessMessage);
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
@@ -727,25 +748,23 @@ const EditIconModal = ({
       title="Edit appearance"
       onExit={onExitEditIconModal}
     >
-      <>
-        {isFirstLoadWithCustomIcon ? (
-          <Spinner includeContainer={false} />
-        ) : (
-          renderForm()
-        )}
-        <ModalFooter
-          primaryButtons={
-            <Button
-              type="submit"
-              onClick={onClickSave}
-              isLoading={isUpdatingSoftwareInfo}
-              disabled={!canSaveForm || isUpdatingSoftwareInfo}
-            >
-              Save
-            </Button>
-          }
-        />
-      </>
+      {isFirstLoadWithCustomIcon ? (
+        <Spinner includeContainer={false} />
+      ) : (
+        renderForm()
+      )}
+      <ModalFooter
+        primaryButtons={
+          <Button
+            type="submit"
+            onClick={onClickSave}
+            isLoading={isUpdatingSoftwareInfo}
+            disabled={!canSaveForm || isUpdatingSoftwareInfo}
+          >
+            Save
+          </Button>
+        }
+      />
     </Modal>
   );
 };

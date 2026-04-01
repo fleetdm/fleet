@@ -2,11 +2,11 @@ package service
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"os"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -23,7 +23,7 @@ func (s *integrationSMTPTestSuite) SetupSuite() {
 		UseMailService: true,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = logging.NewNopLogger()
+		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(
 		s.T(),

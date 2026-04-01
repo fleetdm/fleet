@@ -1,1 +1,0 @@
-Improve error handling on AWS DB failover. Fleet will now fail health check if the primary DB is read-only, or trigger graceful shutdown when write operations encounter read-only errors.

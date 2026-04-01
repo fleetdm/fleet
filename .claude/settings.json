@@ -1,11 +1,17 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "env": {
     "MYSQL_TEST": "1",
     "REDIS_TEST": "1"
   },
   "permissions": {
     "allow": [
-      "Read(~/.fleet/**)"
+      "Read(~/.fleet/claude-projects/**)",
+      "Write(~/.fleet/claude-projects/**)",
+      "Edit(~/.fleet/claude-projects/**)"
     ]
   },
   "hooks": {

@@ -589,7 +589,6 @@ var hostRefs = []string{
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
 	"query_results",
-	"host_activities",
 	"host_mdm_actions",
 	"host_calendar_events",
 	"upcoming_activities",
@@ -609,6 +608,7 @@ var hostRefs = []string{
 	"host_in_house_software_installs",
 	"host_vpp_software_installs",
 	"host_last_known_locations",
+	"host_issues",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1398,11 +1398,13 @@ func (ds *Datastore) applyHostFilters(
 
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
+	mdmRecoveryLockStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
+		mdmRecoveryLockStatusJoin = sqlJoinRecoveryLockStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1416,6 +1418,17 @@ func (ds *Datastore) applyHostFilters(
 	batchScriptExecutionFilter := "TRUE"
 	if opt.BatchScriptExecutionIDFilter != nil {
 		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
+	}
+
+	var depStatusFilter string
+	wantFailedDEP := ptr.ValOrZero(opt.DEPProfileErrorFilter)
+	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
+	switch {
+	case wantFailedDEP:
+		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
+	case wantDepResp != "":
+		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response = ?`
+		whereParams = append(whereParams, wantDepResp)
 	}
 
 	sqlStmt += fmt.Sprintf(
@@ -1436,8 +1449,9 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
+    %s
 	%s
-		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
+		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
 
 		// JOINs
@@ -1452,6 +1466,7 @@ func (ds *Datastore) applyHostFilters(
 		connectedToFleetJoin,
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
+		mdmRecoveryLockStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 
@@ -1461,6 +1476,7 @@ func (ds *Datastore) applyHostFilters(
 		munkiFilter,
 		lowDiskSpaceFilter,
 		batchScriptExecutionFilter,
+		depStatusFilter,
 	)
 
 	now := ds.clock.Now()
@@ -2136,6 +2152,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 		args = append(args, fleet.ExpandPlatform(*platform))
 	}
 
+	depFailed := fmt.Sprintf("'%s'", string(fleet.DEPAssignProfileResponseFailed))
+	depThrottled := fmt.Sprintf("'%s'", string(fleet.DEPAssignProfileResponseThrottled))
+
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
@@ -2144,14 +2163,16 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
+				COALESCE(SUM(CASE WHEN hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 			%s
 			%s
-			WHERE %s
+			WHERE %s AND hdep.deleted_at IS NULL
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
 	stmt, args, err := sqlx.In(sqlStatement, args...)
 	if err != nil {
@@ -3148,9 +3169,11 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 
 	matchingHostIDs := make([]int, 0)
 	if len(matchQuery) > 0 {
-		// first we'll find the hosts that match the search criteria, to keep thing simple, then we'll query again
-		// to get all the additional data for hosts that match the search criteria by host_id
-		matchingHosts := "SELECT h.id FROM hosts h WHERE TRUE"
+		// First we'll find the hosts that match the search criteria, to keep thing simple, then we'll query again
+		// to get all the additional data for hosts that match the search criteria by host_id.
+		// Apply the team filter so that LIMIT 10 below only counts hosts the caller can access —
+		// without it, 10 high-ID hosts on inaccessible teams could crowd out all accessible results.
+		matchingHosts := "SELECT h.id FROM hosts h WHERE " + ds.whereFilterHostsByTeams(filter, "h")
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
@@ -3159,7 +3182,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 			searchHostsQuery += " UNION " + union
 			args = wildCardArgs
 		}
-		searchHostsQuery += " AND TRUE ORDER BY id DESC LIMIT 10"
+		searchHostsQuery += " ORDER BY id DESC LIMIT 10"
 		searchHostsQuery = ds.reader(ctx).Rebind(searchHostsQuery)
 		err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingHostIDs, searchHostsQuery, args...)
 		if err != nil {
@@ -3613,7 +3636,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 		// We log to help troubleshooting in case this happens.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
-	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.conditional_access_bypass_enabled,
+	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.type,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
 		CASE

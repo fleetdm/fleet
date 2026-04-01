@@ -2,6 +2,7 @@ package microsoft_mdm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"testing"
@@ -75,16 +76,35 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	// use the same uuid for all profile UUID actions
 	profileUUID := uuid.NewString()
 
+	ndesConfig := &fleet.NDESSCEPProxyCA{
+		URL:      "https://ndes.example.com/certsrv/mscep/mscep.dll",
+		AdminURL: "https://ndes.example.com/certsrv/mscep_admin/",
+		Username: "admin",
+		Password: "password",
+	}
+	getNDESChallengeSuccess := func(_ context.Context, _ fleet.NDESSCEPProxyCA) (string, error) {
+		return "ndes-test-challenge", nil
+	}
+	getNDESChallengeFail := func(_ context.Context, _ fleet.NDESSCEPProxyCA) (string, error) {
+		return "", errors.New("ndes server error")
+	}
+	defaultNDESErrorToDetail := func(err error) string {
+		return fmt.Sprintf("Fleet couldn't populate %s. %s", fleet.FleetVarNDESSCEPChallenge.WithPrefix(), err.Error())
+	}
+
 	tests := []struct {
-		name             string
-		hostUUID         string
-		profileContents  string
-		expectedContents string
-		expectError      bool
-		processingError  string                                                          // if set then we expect the error to be of type MicrosoftProfileProcessingError with this message
-		setup            func()                                                          // Used for setting up datastore mocks.
-		expect           func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) // Add more params as they need validation.
-		freeTier         bool
+		name                       string
+		hostUUID                   string
+		profileContents            string
+		expectedContents           string
+		expectError                bool
+		processingError            string                                                          // if set then we expect the error to be of type MicrosoftProfileProcessingError with this message
+		setup                      func()                                                          // Used for setting up datastore mocks.
+		expect                     func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) // Add more params as they need validation.
+		freeTier                   bool
+		withNDESConfig             *fleet.NDESSCEPProxyCA
+		getNDESChallengeFunc       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
+		ndesChallengeErrorToDetail func(err error) string
 	}{
 		{
 			name:             "no fleet variables",
@@ -141,9 +161,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL</Data></Item></Replace>`,
 			expectError:      true,
 			processingError:  "Found 2 hosts with UUID test-uuid-789. Profile variable substitution for $FLEET_VAR_HOST_HARDWARE_SERIAL requires exactly one host",
-			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
-				require.True(t, ds.UpdateOrDeleteHostMDMWindowsProfileFuncInvoked)
-			},
 			setup: func() {
 				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 					require.Equal(t, []string{"test-uuid-789"}, uuids)
@@ -157,9 +174,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 							HardwareSerial: "test-serial-789",
 						},
 					}, nil
-				}
-				ds.UpdateOrDeleteHostMDMWindowsProfileFunc = func(ctx context.Context, profile *fleet.HostMDMWindowsProfile) error {
-					return nil
 				}
 			},
 		},
@@ -286,6 +300,90 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:                       "ndes challenge and proxy url replaced",
+			hostUUID:                   "ndes-host-uuid",
+			withNDESConfig:             ndesConfig,
+			getNDESChallengeFunc:       getNDESChallengeSuccess,
+			ndesChallengeErrorToDetail: defaultNDESErrorToDetail,
+			profileContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_PROXY_URL</Data></Item></Add>`,
+			expectedContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>ndes-test-challenge</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
+				`<Data>https://test-fleet.com/mdm/scep/proxy/ndes-host-uuid%2C` + profileUUID + `%2CNDES</Data></Item></Add>`,
+			setup: func() {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{
+						ServerSettings: fleet.ServerSettings{
+							ServerURL: "https://test-fleet.com",
+						},
+					}, nil
+				}
+			},
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Len(t, managedCerts, 1)
+				require.Equal(t, "NDES", managedCerts[0].CAName)
+				require.Equal(t, fleet.CAConfigNDES, managedCerts[0].Type)
+				require.Equal(t, "ndes-host-uuid", managedCerts[0].HostUUID)
+				require.Equal(t, profileUUID, managedCerts[0].ProfileUUID)
+				require.NotNil(t, managedCerts[0].ChallengeRetrievedAt)
+			},
+		},
+		{
+			name:                       "ndes challenge and proxy url replaced in atomic profile",
+			hostUUID:                   "ndes-atomic-host",
+			withNDESConfig:             ndesConfig,
+			getNDESChallengeFunc:       getNDESChallengeSuccess,
+			ndesChallengeErrorToDetail: defaultNDESErrorToDetail,
+			profileContents: `<Atomic>` +
+				`<Add><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>` +
+				`<Add><CmdID>2</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_PROXY_URL</Data></Item></Add>` +
+				`</Atomic>`,
+			expectedContents: `<Atomic>` +
+				`<Add><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>ndes-test-challenge</Data></Item></Add>` +
+				`<Add><CmdID>2</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
+				`<Data>https://test-fleet.com/mdm/scep/proxy/ndes-atomic-host%2C` + profileUUID + `%2CNDES</Data></Item></Add>` +
+				`</Atomic>`,
+			setup: func() {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{
+						ServerSettings: fleet.ServerSettings{
+							ServerURL: "https://test-fleet.com",
+						},
+					}, nil
+				}
+			},
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Len(t, managedCerts, 1)
+				require.Equal(t, "NDES", managedCerts[0].CAName)
+				require.Equal(t, fleet.CAConfigNDES, managedCerts[0].Type)
+				require.Equal(t, "ndes-atomic-host", managedCerts[0].HostUUID)
+			},
+		},
+		{
+			name:                       "ndes challenge fetch fails",
+			hostUUID:                   "ndes-fail-host",
+			withNDESConfig:             ndesConfig,
+			getNDESChallengeFunc:       getNDESChallengeFail,
+			ndesChallengeErrorToDetail: defaultNDESErrorToDetail,
+			profileContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
+			expectError:     true,
+			processingError: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. ndes server error",
+		},
+		{
+			name:            "ndes not configured",
+			hostUUID:        "ndes-noconfig-host",
+			profileContents: `<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
+			expectError:     true,
+			processingError: "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
+		},
 	}
 
 	hostIDForUUIDCache := make(map[string]uint)
@@ -327,6 +425,9 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				AppConfig:                  appConfig,
 				CustomSCEPCAs:              customSCEPCAs,
 				ManagedCertificatePayloads: managedCertificates,
+				NDESConfig:                 tt.withNDESConfig,
+				GetNDESSCEPChallenge:       tt.getNDESChallengeFunc,
+				NDESChallengeErrorToDetail: tt.ndesChallengeErrorToDetail,
 			}
 
 			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{

@@ -2,8 +2,9 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { NotificationContext } from "context/notification";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   getExtensionFromFileName,
   getFileDetails,
@@ -15,7 +16,6 @@ import { ILabelSummary } from "interfaces/label";
 import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import FileUploader from "components/FileUploader";
@@ -27,8 +27,9 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import Card from "components/Card";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import InfoBanner from "components/InfoBanner";
+import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 import {
@@ -37,6 +38,7 @@ import {
   sortByVersionLatestFirst,
 } from "./helpers";
 import PackageVersionSelector from "../PackageVersionSelector";
+import SoftwareDeploySlider from "../SoftwareDeploySelector";
 
 export const baseClass = "package-form";
 
@@ -73,6 +75,24 @@ const getGraphicName = (ext: string) => {
   return "file-pkg";
 };
 
+const renderSoftwareDeployWarningBanner = () => (
+  <InfoBanner
+    color="yellow"
+    className={`${baseClass}__deploy-warning`}
+    cta={
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-install-software`}
+        text="Learn more"
+        newTab
+      />
+    }
+  >
+    Installing software over existing installations might cause issues.
+    Fleet&apos;s policy may not detect these existing installations. Please
+    create a test fleet in Fleet to verify a smooth installation.
+  </InfoBanner>
+);
+
 const renderFileTypeMessage = () => {
   return (
     <>
@@ -82,7 +102,7 @@ const renderFileTypeMessage = () => {
       <br />
       Windows (.msi, .exe,{" "}
       <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
-      or Linux (.deb, .rpm,{" "}
+      or Linux (.deb, .rpm, .tar.gz,{" "}
       <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
@@ -157,8 +177,7 @@ const PackageForm = ({
   gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
-    useContext(AppContext).config?.gitops || {};
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
@@ -366,21 +385,38 @@ const PackageForm = ({
   const showAdvancedOptions =
     formData.software && !isScriptPackage && !isIpaPackage;
 
+  const showDeploySoftwareSlider =
+    !!formData.software && // show after selection
+    !gitOpsModeEnabled && // hide in gitOps mode
+    !isEditingSoftware && // show only on add, not edit
+    // automatic install is not supported for ipa packages, exe, tarball, or script packages
+    !isIpaPackage &&
+    !isExePackage &&
+    !isTarballPackage &&
+    !isScriptPackage;
+
+  // 4.83+ Show deploy slider on add if the package type supports it.
+  // Hide from gitOps mode
+  const renderSoftwareDeploySlider = () => (
+    <>
+      <SoftwareDeploySlider
+        deploySoftware={formData.automaticInstall}
+        onToggleDeploySoftware={onToggleAutomaticInstall}
+      />
+      {formData.automaticInstall && renderSoftwareDeployWarningBanner()}
+    </>
+  );
+
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
-  const showOptionsTargetsSelectors = !gitOpsModeEnabled;
+  // 4.83 Removed option/targets from Add page
+  const showOptionsTargetsSelectors = !gitOpsModeEnabled && isEditingSoftware;
 
   const renderSoftwareOptionsSelector = () => (
     <SoftwareOptionsSelector
       formData={formData}
-      onToggleAutomaticInstall={onToggleAutomaticInstall}
       onToggleSelfService={onToggleSelfService}
       onSelectCategory={onSelectCategory}
-      isCustomPackage
       isEditingSoftware={isEditingSoftware}
-      isExePackage={isExePackage}
-      isTarballPackage={isTarballPackage}
-      isScriptPackage={isScriptPackage}
-      isIpaPackage={isIpaPackage}
       onClickPreviewEndUserExperience={() =>
         onClickPreviewEndUserExperience(isIpaPackage)
       }
@@ -406,10 +442,6 @@ const PackageForm = ({
   );
 
   const renderCustomEditor = () => {
-    if (isEditingSoftware && !isFleetMaintainedApp) {
-      return null;
-    }
-
     const fmaVersionsSortedByLatestFirst = sortByVersionLatestFirst<ISoftwareVersion>(
       defaultSoftware.fleet_maintained_versions || []
     );
@@ -442,7 +474,7 @@ const PackageForm = ({
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={canEditFile}
-          customEditor={renderCustomEditor}
+          customEditor={isFleetMaintainedApp ? renderCustomEditor : undefined}
           graphicName={getGraphicName(ext || "")}
           accept={ACCEPTED_EXTENSIONS}
           message={renderFileTypeMessage()}
@@ -456,40 +488,25 @@ const PackageForm = ({
           gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
-        <div
-          // including `form` class here keeps the children fields subject to the global form
-          // children styles
-          className={
-            gitopsCompatible && gitOpsModeEnabled
-              ? `${baseClass}__form-fields--gitops-disabled form`
-              : "form"
-          }
-        >
-          {showOptionsTargetsSelectors && (
-            <div className={`${baseClass}__form-frame`}>
-              {isEditingSoftware ? (
-                renderSoftwareOptionsSelector()
-              ) : (
-                <Card
-                  paddingSize="medium"
-                  borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-                >
-                  {renderSoftwareOptionsSelector()}
-                </Card>
-              )}
-              {isEditingSoftware ? (
-                renderTargetLabelSelector()
-              ) : (
-                <Card
-                  paddingSize="medium"
-                  borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-                >
-                  {renderTargetLabelSelector()}
-                </Card>
-              )}
-            </div>
-          )}
-        </div>
+        {(showDeploySoftwareSlider || showOptionsTargetsSelectors) && ( // Only show container if one of the two components will be rendered to avoid extra gap spacing
+          <div
+            // including `form` class here keeps the children fields subject to the global form
+            // children styles
+            className={
+              gitopsCompatible && gitOpsModeEnabled
+                ? `${baseClass}__form-fields--gitops-disabled form`
+                : "form"
+            }
+          >
+            {showDeploySoftwareSlider && renderSoftwareDeploySlider()}
+            {showOptionsTargetsSelectors && (
+              <div className={`${baseClass}__form-frame`}>
+                {renderSoftwareOptionsSelector()}
+                {renderTargetLabelSelector()}
+              </div>
+            )}
+          </div>
+        )}
         {showAdvancedOptions && (
           <PackageAdvancedOptions
             showSchemaButton={showSchemaButton}

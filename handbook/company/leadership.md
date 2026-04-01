@@ -52,7 +52,7 @@ To summon the CEO to meet in-person with a customer or prospect, join a team on-
 
 ## CEO responsibilities
 
-Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, human resources, legal counsel, signatures on all documents, and brand &amp; product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
+Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, product vision, signatures on many documents, and brand strategy.
 
 > **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Executive Assistant](https://fleetdm.com/handbook/ceo#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
@@ -112,7 +112,10 @@ It may make sense to have per-role pages (e.g. cse, csa). But only when the role
 The board meeting and OKR planning happen during the first week of the third month of every quarter. Fleet uses the following agenda to prepare, execute, iterate on, and retro its in-person board meetings and quarterly Objective Key Results (OKRs):
 
 **Two weeks prior (virtual):**
-  - The CEO discusses the board meeting with his coach. 
+  - The CEO and CFO discuss the board meeting with the CEO's coach.
+  - The EA programs the CEO to ask each executive for 2-3 charts and 1-2 questions for board members ahead of the board meeting.
+  - The CEO and Head of People finalize the agenda, ensuring there is a clear DRI for all sessions and 30-minute time blocks built in for "running your life."
+  - The Head of People adds the agenda to the calendar and invites all attendees.
 
 **Day 1 _Prepare_ (in-person):**
   - Board deck finalization:
@@ -204,6 +207,7 @@ Consultants [track time using the company's tools](https://fleetdm.com/handbook/
 
 > To update a consultant's fee, [submit an issue to 🧑‍🚀 People](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
 
+> **Offboarding a consultant?** When a consultant's engagement is ending, the DRI for that consultant notifies the [Head of People](https://fleetdm.com/handbook/people#team) so they can [begin the offboarding process](https://fleetdm.com/handbook/people#offboard-a-consultant).
 
 
 
@@ -400,7 +404,7 @@ Ask each attendee to arrange their own travel using the budget guidance from the
 
 ### 3. Plan an agenda.
 
-The primary purpose of team offsites is to build team cohesion. A large portion of the time together should be spent enjoying each other's company, sharing meals, and participating activities together. An agenda provides clear structure for all attendees so they know what to expect. 
+The primary purpose of team offsites is to build team cohesion. A large portion of the time together should be spent enjoying each other's company, sharing meals, and participating activities together. An agenda provides clear structure for all attendees so they know what to expect. There should be a DRI for all agenda items. 
 
 The agenda of each offsite varies based on number of days and the team. Below is a sample agenda from a product group offsite: 
 

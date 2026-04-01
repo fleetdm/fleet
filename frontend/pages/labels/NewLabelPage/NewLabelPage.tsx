@@ -21,6 +21,7 @@ import { validateQuery } from "components/forms/validators/validate_query";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
@@ -603,13 +604,18 @@ const NewLabelPage = ({
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          isLoading={isUpdating}
-          disabled={isUpdating || !formErrors.isValid}
-        >
-          Save
-        </Button>
+        <GitOpsModeTooltipWrapper
+          entityType="labels"
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              isLoading={isUpdating}
+              disabled={disableChildren || isUpdating || !formErrors.isValid}
+            >
+              Save
+            </Button>
+          )}
+        />
       </div>
     </form>
   );

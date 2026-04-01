@@ -1,5 +1,5 @@
-macos_settings:
-  custom_settings:
+apple_settings:
+  configuration_profiles:
   - path: ../lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig
 scripts:
 - path: ../lib/some_team/scripts/Script B.ps1

@@ -18,8 +18,8 @@ import (
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
-
 	"github.com/smallstep/scep"
 )
 
@@ -160,7 +160,7 @@ func run(cfg runCfg) error {
 		}
 	}
 
-	msg, err := scep.NewCSRRequest(csr, tmpl, scep.WithLogger(logging.NewLogger(logger)), scep.WithCertsSelector(cfg.caCertsSelector))
+	msg, err := scep.NewCSRRequest(csr, tmpl, scep.WithLogger(kitlogadapter.NewLogger(logger)), scep.WithCertsSelector(cfg.caCertsSelector))
 	if err != nil {
 		return errors.Join(err, errors.New("creating csr pkiMessage"))
 	}
@@ -176,7 +176,7 @@ func run(cfg runCfg) error {
 			return errors.Join(err, fmt.Errorf("PKIOperation for %s", msgType))
 		}
 
-		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(logging.NewLogger(logger)), scep.WithCACerts(caCerts))
+		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(logger)), scep.WithCACerts(caCerts))
 		if err != nil {
 			return errors.Join(err, fmt.Errorf("parsing pkiMessage response %s", msgType))
 		}

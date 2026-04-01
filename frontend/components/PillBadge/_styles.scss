@@ -1,0 +1,25 @@
+.pill-badge {
+  &__element {
+    display: flex;
+    height: 16px;
+    padding: 0 4px;
+    justify-content: center;
+    align-items: center;
+    gap: $pad-small;
+    font-weight: $bold;
+    font-size: $xxx-small;
+    color: $ui-fleet-black-75;
+    line-height: 15px;
+    border-radius: $border-radius;
+    background: $ui-fleet-black-10;
+    padding: 2px 4px;
+  }
+
+  @include tooltip5-arrow-styles;
+
+  .react-tooltip {
+    @include tooltip-text;
+    font-style: normal;
+    text-align: center;
+  }
+}

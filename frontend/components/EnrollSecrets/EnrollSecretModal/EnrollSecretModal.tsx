@@ -58,7 +58,7 @@ const EnrollSecretModal = ({
             <div className={`${baseClass}__header`}>
               <div className={`${baseClass}__description`}>
                 Use these secret(s) to enroll hosts
-                {primoMode ? (
+                {primoMode || teamInfo?.name === "Unassigned" ? (
                   ""
                 ) : (
                   <>
@@ -70,6 +70,7 @@ const EnrollSecretModal = ({
               </div>
               <div className={`${baseClass}__add-secret`}>
                 <GitOpsModeTooltipWrapper
+                  entityType="secrets"
                   position="right"
                   tipOffset={8}
                   renderChildren={(disableChildren) => (
@@ -100,7 +101,7 @@ const EnrollSecretModal = ({
               info={
                 <>
                   Add secret(s) to enroll hosts
-                  {primoMode ? (
+                  {primoMode || teamInfo?.name === "Unassigned" ? (
                     ""
                   ) : (
                     <>
@@ -113,6 +114,7 @@ const EnrollSecretModal = ({
               }
               primaryButton={
                 <GitOpsModeTooltipWrapper
+                  entityType="secrets"
                   position="right"
                   tipOffset={8}
                   renderChildren={(disableChildren) => (
@@ -132,7 +134,7 @@ const EnrollSecretModal = ({
           </Card>
         )}
         <div className="modal-cta-wrap">
-          <Button onClick={onReturnToApp}>Done</Button>
+          <Button onClick={onReturnToApp}>Close</Button>
         </div>
       </div>
     </Modal>

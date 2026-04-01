@@ -4,17 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/dev_mode"
-
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -50,7 +49,7 @@ by an exit code of zero.`,
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
-			ds, err := mysql.New(cfg.Mysql, clock.C, mysql.Logger(logger.SlogLogger()))
+			ds, err := mysql.New(cfg.Mysql, clock.C, mysql.Logger(logger))
 			if err != nil {
 				return err
 			}
@@ -134,7 +133,7 @@ by an exit code of zero.`,
 	return vulnProcessingCmd
 }
 
-func configureVulnPath(ctx context.Context, vulnConfig config.VulnerabilitiesConfig, appConfig *fleet.AppConfig, logger *logging.Logger) (vulnPath string) {
+func configureVulnPath(ctx context.Context, vulnConfig config.VulnerabilitiesConfig, appConfig *fleet.AppConfig, logger *slog.Logger) (vulnPath string) {
 	switch {
 	case vulnConfig.DatabasesPath != "" && appConfig != nil && appConfig.VulnerabilitySettings.DatabasesPath != "":
 		vulnPath = vulnConfig.DatabasesPath
@@ -156,7 +155,7 @@ type NamedVulnFunc struct {
 	VulnFunc func(ctx context.Context) error
 }
 
-func getVulnFuncs(ds fleet.Datastore, logger *logging.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
+func getVulnFuncs(ds fleet.Datastore, logger *slog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
 	vulnFuncs := []NamedVulnFunc{
 		{
 			Name: "cron_vulnerabilities",

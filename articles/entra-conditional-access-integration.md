@@ -45,7 +45,7 @@ After consenting you will be redirected back to Fleet (to `/settings/integration
 
 ## Step 4: Deploy Company Portal and the Platform SSO configuration profile
 
-The following steps need to be configured on the Fleet teams you want to enable Microsoft "Conditional Access".
+The following steps need to be configured for fleets you want to enable Microsoft "Conditional Access".
 
 ### Automatically install Company Portal
 
@@ -161,8 +161,8 @@ If you're using another MDM solution, add the same configuration profile and tar
 
 Next, add policies in Fleet that will determine whether a device is marked as "compliant" or "not compliant" in Entra.
 
-Head to **Policies > Select team > Automations > Conditional access**.
-1. Make sure the feature is enabled for the team.
+Head to **Policies > Automations > Conditional access**.
+1. Make sure the feature is enabled for the fleet.
 2. Select the policies you want enforce conditional access with.
 
 ## Step 6: Add Entra policies
@@ -230,12 +230,12 @@ labels:
     SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac'
 org_settings:
   integrations:
-    conditional_access_enabled: true # enables setting for "No team"
+    conditional_access_enabled: true # enables setting for "Unassgined"
 ```
 
-`teams/team-name.yml` (should be the same for `teams/no-team.yml` with the `team_settings` removed):
+`fleets/fleet-name.yml` (should be the same for `fleet/unassigned.yml` with the `settings` removed):
 ```yml
-team_settings:
+settings:
   integrations:
     conditional_access_enabled: true
 controls:
@@ -243,7 +243,7 @@ controls:
     custom_settings:
     - labels_include_all:
       - Company Portal installed
-      path: ../lib/team-name/profiles/company-portal-single-signon-extension.mobileconfig
+      path: ../lib/fleet-name/profiles/company-portal-single-signon-extension.mobileconfig
 policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
@@ -270,12 +270,12 @@ software:
   - hash_sha256: 931db4af2fe6320a1bfb6776fae75b6f7280a947203a5a622b2cae00e8f6b6e6
       # Company Portal (CompanyPortal-Installer.pkg) version 5.2504.0
     install_script:
-      path: ../lib/team-name/scripts/company-portal-darwin-install
+      path: ../lib/fleet-name/scripts/company-portal-darwin-install
     uninstall_script:
-      path: ../lib/team-name/scripts/company-portal-darwin-uninstall
+      path: ../lib/fleet-name/scripts/company-portal-darwin-uninstall
 ```
 
-For `lib/team-name/profiles/company-portal-single-signon-extension.mobileconfig`: See [Platform SSO configuration profile](#platform-sso-configuration-profile).
+For `lib/fleet-name/profiles/company-portal-single-signon-extension.mobileconfig`: See [Platform SSO configuration profile](#platform-sso-configuration-profile).
 
 <meta name="articleTitle" value="Conditional access: Entra">
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">

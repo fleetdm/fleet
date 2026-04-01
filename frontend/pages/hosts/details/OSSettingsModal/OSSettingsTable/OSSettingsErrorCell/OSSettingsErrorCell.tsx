@@ -2,9 +2,15 @@ import React, { useContext, useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
 
+import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { NotificationContext } from "context/notification";
-import { IHostMdmProfile } from "interfaces/mdm";
+import {
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+  IHostMdmProfile,
+} from "interfaces/mdm";
+import { getErrorReason } from "interfaces/errors";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Button from "components/buttons/Button";
@@ -15,23 +21,23 @@ import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
 
 const baseClass = "os-settings-error-cell";
 
-interface IRefetchButtonProps {
-  isFetching: boolean;
+interface IResendButtonProps {
+  isResending: boolean;
   onClick: (evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>) => void;
 }
 
-const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
+const ResendButton = ({ isResending, onClick }: IResendButtonProps) => {
   const classNames = classnames(`${baseClass}__resend-button`, "resend-link", {
-    [`${baseClass}__resending`]: isFetching,
+    [`${baseClass}__resending`]: isResending,
   });
 
-  const buttonText = isFetching ? "Resending..." : "Resend";
+  const buttonText = isResending ? "Resending..." : "Resend";
 
   // add additional props when we need to display a tooltip for the button
 
   return (
     <Button
-      disabled={isFetching}
+      disabled={isResending}
       onClick={onClick}
       variant="inverse"
       className={classNames}
@@ -232,36 +238,109 @@ const generateErrorTooltip = (
   return cellValue;
 };
 
+interface IRotateButtonProps {
+  isRotating: boolean;
+  onClick: () => void;
+}
+
+const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
+  const classNames = classnames(`${baseClass}__rotate-button`, "rotate-link", {
+    [`${baseClass}__rotating`]: isRotating,
+  });
+
+  const buttonText = isRotating ? "Rotating..." : "Rotate";
+
+  return (
+    <Button
+      disabled={isRotating}
+      onClick={onClick}
+      variant="inverse"
+      className={classNames}
+      size="small"
+    >
+      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
+      {buttonText}
+    </Button>
+  );
+};
+
 interface IOSSettingsErrorCellProps {
   canResendProfiles: boolean;
+  canRotateRecoveryLockPassword?: boolean;
   profile: IHostMdmProfileWithAddedStatus;
   resendRequest: (profileUUID: string) => Promise<void>;
+  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
+  rotateRecoveryLockPassword?: () => Promise<void>;
   onProfileResent?: () => void;
 }
 
 const OSSettingsErrorCell = ({
   canResendProfiles,
+  canRotateRecoveryLockPassword = false,
   profile,
   resendRequest,
+  resendCertificateRequest,
+  rotateRecoveryLockPassword,
   onProfileResent = noop,
 }: IOSSettingsErrorCellProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
+
+  const isAndroidCertificate =
+    profile.profile_uuid === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
 
   const onResendProfile = async () => {
-    setIsLoading(true);
+    setIsResending(true);
     try {
-      await resendRequest(profile.profile_uuid);
-      onProfileResent();
+      if (
+        isAndroidCertificate &&
+        resendCertificateRequest &&
+        profile.certificate_template_id !== undefined
+      ) {
+        await resendCertificateRequest(profile.certificate_template_id);
+        renderFlash(
+          "success",
+          "Successfully sent request to resend certificate."
+        );
+        onProfileResent();
+      } else if (!isAndroidCertificate) {
+        await resendRequest(profile.profile_uuid);
+        onProfileResent();
+      }
     } catch (e) {
       renderFlash("error", "Couldn't resend. Please try again.");
     }
-    setIsLoading(false);
+    setIsResending(false);
+  };
+
+  const onRotatePassword = async () => {
+    if (!rotateRecoveryLockPassword) return;
+    setIsRotating(true);
+    try {
+      await rotateRecoveryLockPassword();
+      renderFlash(
+        "success",
+        "Successfully sent request to rotate Recovery Lock password."
+      );
+    } catch (e) {
+      const msg = getErrorReason(e).includes("already in progress")
+        ? "Recovery lock password rotation is already in progress for this host."
+        : "Couldn't send request to rotate Recovery Lock password. Please try again.";
+
+      renderFlash("error", msg);
+    }
+    setIsRotating(false);
   };
 
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
-  const showRefetchButton = canResendProfiles && (isFailed || isVerified);
+  const showResendButton =
+    canResendProfiles &&
+    (isFailed || isVerified) &&
+    profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
+  const showRotateButton =
+    canRotateRecoveryLockPassword && (isFailed || isVerified);
   const value = (isFailed && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
 
   const tooltip = generateErrorTooltip(value, profile);
@@ -272,16 +351,17 @@ const OSSettingsErrorCell = ({
         tooltipBreakOnWord
         tooltip={tooltip}
         value={value}
-        // we dont want the default "w250" class so we pass in empty string
-        classes=""
         className={
-          isFailed || showRefetchButton
+          isFailed || showResendButton || showRotateButton
             ? `${baseClass}__failed-message`
             : undefined
         }
       />
-      {showRefetchButton && (
-        <RefetchButton isFetching={isLoading} onClick={onResendProfile} />
+      {showResendButton && (
+        <ResendButton isResending={isResending} onClick={onResendProfile} />
+      )}
+      {showRotateButton && (
+        <RotateButton isRotating={isRotating} onClick={onRotatePassword} />
       )}
     </div>
   );

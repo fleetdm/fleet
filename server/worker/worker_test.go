@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -56,8 +56,8 @@ func TestWorker(t *testing.T) {
 		return job, nil
 	}
 
-	logger := logging.NewNopLogger()
-	w := NewWorker(ds, logger.SlogLogger())
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
 
 	// register a test job
 	jobCalled := false
@@ -112,8 +112,8 @@ func TestWorkerRetries(t *testing.T) {
 		return job, nil
 	}
 
-	logger := logging.NewNopLogger()
-	w := NewWorker(ds, logger.SlogLogger())
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
 
 	// register a test job
 	jobCalled := 0
@@ -188,8 +188,8 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 		return job, nil
 	}
 
-	logger := logging.NewNopLogger()
-	w := NewWorker(ds, logger.SlogLogger())
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
 
 	// register a test job
 	var jobCallCount int
@@ -245,8 +245,8 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	// call TruncateTables immediately, because a DB migration may create jobs
 	mysql.TruncateTables(t, ds)
 
-	logger := logging.NewNopLogger()
-	w := NewWorker(ds, logger.SlogLogger())
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
 	w.delayPerRetry = []time.Duration{
 		1: 0,
 		2: 0,

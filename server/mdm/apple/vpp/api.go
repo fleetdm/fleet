@@ -291,7 +291,19 @@ func GetAssignments(token string, filter *AssignmentFilter) ([]Assignment, error
 }
 
 func do[T any](req *http.Request, token string, dest *T) error {
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	// Reset the request body for retries. After client.Do reads the body,
+	// it's consumed. GetBody (set by http.NewRequest for *bytes.Buffer)
+	// returns a fresh reader over the original bytes.
+	if req.GetBody != nil {
+		body, err := req.GetBody()
+		if err != nil {
+			return fmt.Errorf("resetting request body for VPP retry: %w", err)
+		}
+		req.Body = body
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("making request to Apple VPP endpoint: %w", err)

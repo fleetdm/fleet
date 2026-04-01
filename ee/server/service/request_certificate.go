@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // This code largely adapted from fleet/website/api/controllers/get-est-device-certificate.js
@@ -125,7 +124,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		}
 	}
 
-	certificate, err := svc.estService.GetCertificate(ctx, estCA, csrForRequest)
+	certificate, err := svc.estService.GetCertificate(ctx, estCA, csrForRequest) //nolint (staticheck bug)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "EST certificate request failed", "ca_id", ca.ID, "err", err)
 		// Bad request may seem like a strange error here but there are many cases where a malformed
@@ -135,8 +134,10 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("EST certificate request failed: %s", err.Error())}
 	}
 	svc.logger.InfoContext(ctx, "Successfully retrieved a certificate from EST", "ca_id", ca.ID, "idp_username", idpUsername)
-	// Wrap the certificate in a PEM block for easier consumption by the client
-	return ptr.String("-----BEGIN CERTIFICATE-----\n" + string(certificate.Certificate) + "\n-----END CERTIFICATE-----\n"), nil
+	// Wrap the certificate in a PEM block for easier consumption by the client. TODO: If we ever
+	// support CAs other than Hydrant/EST in this API, this may need to be modified to be aware of
+	// their formats.
+	return new("-----BEGIN PKCS7-----\n" + string(certificate.Certificate) + "\n-----END PKCS7-----\n"), nil
 }
 
 func (svc *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken, idpOauthURL string) (*oauthIntrospectionResponse, error) {

@@ -1,7 +1,10 @@
 package service
 
 import (
+	"encoding/json"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/version"
 )
 
@@ -9,7 +12,15 @@ import (
 func (c *Client) ApplyAppConfig(payload interface{}, opts fleet.ApplySpecOptions) error {
 	verb, path := "PATCH", "/api/latest/fleet/config"
 	var responseBody appConfigResponse
-	return c.authenticatedRequestWithQuery(payload, verb, path, &responseBody, opts.RawQuery())
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(fleet.AppConfig{}))
+	if err != nil {
+		return err
+	}
+	return c.authenticatedRequestWithQuery(data, verb, path, &responseBody, opts.RawQuery())
 }
 
 // ApplyNoTeamProfiles sends the list of profiles to be applied for the hosts

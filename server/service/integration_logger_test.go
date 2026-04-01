@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
@@ -43,7 +42,7 @@ func (s *integrationLoggerTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationLoggerTestSuite")
 
 	s.handler = testutils.NewTestHandler()
-	logger := logging.NewLogger(slog.New(s.handler))
+	logger := slog.New(s.handler)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{

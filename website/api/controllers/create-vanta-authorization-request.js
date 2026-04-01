@@ -112,6 +112,7 @@ module.exports = {
     .intercept('requestFailed', 'fleetInstanceNotResponding')
     .intercept({raw: {statusCode: 401}}, 'invalidToken')
     .intercept({raw: {statusCode: 403}}, 'requestToFleetInstanceForbidden')
+    .intercept({raw: {statusCode: 404}}, 'fleetInstanceNotResponding')
     .intercept((error)=>{
       return new Error(`When sending a request to a user's (${inputs.emailAddress}) Fleet instance's (${inputs.fleetInstanceUrl}) /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
     });
@@ -137,6 +138,7 @@ module.exports = {
     .intercept('requestFailed','fleetInstanceNotResponding')
     .intercept({raw: {statusCode: 401}}, 'invalidToken')
     .intercept({raw: {statusCode: 403}}, 'requestToFleetInstanceForbidden')
+    .intercept({raw: {statusCode: 404}}, 'fleetInstanceNotResponding')
     .intercept((error)=>{
       return new Error(`When sending a request to a user's (email: ${inputs.emailAddress}) Fleet instance's (${inputs.fleetInstanceUrl}) /config API endpoint for a Vanta connection, an error occurred: ${error}`);
     });

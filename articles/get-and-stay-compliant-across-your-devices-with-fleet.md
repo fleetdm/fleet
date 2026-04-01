@@ -58,7 +58,7 @@ Do you manually check every one of your servers and laptops one by one? Probably
 
 ## Meet compliance goals with Fleet
 
-Whether you’re checking the device status of a small team of devices, or a fleet of thousands, add them to Fleet quickly and gain insight into their status and compliance.
+Whether you’re checking the device status of a small fleet of devices, or a fleet of thousands, add them to Fleet quickly and gain insight into their status and compliance.
 
 ### Fleet Policies
 

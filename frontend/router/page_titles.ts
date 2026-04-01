@@ -16,10 +16,10 @@ export default [
     title: `Software | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: PATHS.MANAGE_QUERIES,
+    path: PATHS.MANAGE_REPORTS,
     title: `Reports | ${DOCUMENT_TITLE_SUFFIX}`,
   },
-  { path: PATHS.NEW_QUERY, title: `New report | ${DOCUMENT_TITLE_SUFFIX}` },
+  { path: PATHS.NEW_REPORT, title: `New report | ${DOCUMENT_TITLE_SUFFIX}` },
   {
     path: PATHS.MANAGE_POLICIES,
     title: `Policies | ${DOCUMENT_TITLE_SUFFIX}`,

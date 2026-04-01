@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import { getErrorReason } from "interfaces/errors";
 import certificatesAPI from "services/entities/certificates";
 import { NotificationContext } from "context/notification";
 
@@ -33,9 +34,11 @@ const DeleteCertificateAuthorityModal = ({
       onExit();
     } catch (e) {
       setIsUpdating(false);
+      const status = (e as { status?: number })?.status;
+      const reason = status === 409 ? getErrorReason(e) : "";
       renderFlash(
         "error",
-        "Couldn't delete certificate authority. Please try again."
+        reason || "Couldn't delete certificate authority. Please try again."
       );
     }
   };
@@ -46,25 +49,23 @@ const DeleteCertificateAuthorityModal = ({
       title="Delete certificate authority (CA)"
       onExit={onExit}
     >
-      <>
-        <p>
-          Fleet won&apos;t remove certificates from the certificate authority (
-          <b>{certAuthority.name}</b>) on existing hosts.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            onClick={onDeleteCertAuthority}
-            isLoading={isUpdating}
-            disabled={isUpdating}
-          >
-            Delete
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        Fleet won&apos;t remove certificates from the certificate authority (
+        <b>{certAuthority.name}</b>) on existing hosts.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          onClick={onDeleteCertAuthority}
+          isLoading={isUpdating}
+          disabled={isUpdating}
+        >
+          Delete
+        </Button>
+        <Button variant="inverse-alert" onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

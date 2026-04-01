@@ -33,10 +33,16 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
     const { DASHBOARD } = paths;
 
     try {
-      const { user, available_teams, token } = await sessionsAPI.login(
-        formData
-      );
-      authToken.save(token);
+      const {
+        user,
+        available_teams,
+        token,
+        token_expires_at,
+      } = await sessionsAPI.login(formData);
+      const expiresAt = token_expires_at
+        ? new Date(token_expires_at)
+        : undefined;
+      authToken.save(token, expiresAt);
 
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);

@@ -73,18 +73,18 @@ func (ds *Datastore) NewActivity(
 	}
 
 	return platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
-		const insertActStmt = `INSERT INTO activities (%s) VALUES (%s)`
+		const insertActStmt = `INSERT INTO activity_past (%s) VALUES (%s)`
 		sqlStmt := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
 		res, err := tx.ExecContext(ctx, sqlStmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new activity")
 		}
 
-		// Insert into host_activities table if the activity is associated with hosts.
+		// Insert into activity_host_past table if the activity is associated with hosts.
 		// This supposes a reasonable amount of hosts per activity, to revisit if we
 		// get in the 10K+.
 		if ah, ok := activity.(types.ActivityHosts); ok {
-			const insertActHostStmt = `INSERT INTO host_activities (host_id, activity_id) VALUES `
+			const insertActHostStmt = `INSERT INTO activity_host_past (host_id, activity_id) VALUES `
 
 			var sb strings.Builder
 			if hostIDs := ah.HostIDs(); len(hostIDs) > 0 {

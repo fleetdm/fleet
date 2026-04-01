@@ -72,9 +72,7 @@ const QueryReport = ({
     FileSaver.saveAs(
       generateCSVQueryResults(
         filteredResults,
-        generateCSVFilename(
-          `${lastEditedQueryName || CSV_TITLE} - Query Report`
-        ),
+        generateCSVFilename(`${lastEditedQueryName || CSV_TITLE} - Report`),
         columnConfigs
       )
     );

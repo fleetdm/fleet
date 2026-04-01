@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
@@ -284,6 +285,38 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	} else {
 		cmd.Raw = []byte(expanded)
 	}
+
+	// Expand host-scoped secrets for SetRecoveryLock commands.
+	// SetRecoveryLock is device-only, so UDID is always present and matches host UUID.
+	if cmd.Command.Command.RequestType == fleet.SetRecoveryLockCmdName {
+		hostUUID := results.UDID
+		hostExpanded, err := s.store.ExpandHostSecrets(r.Context, string(cmd.Raw), hostUUID)
+		if err != nil {
+			errorMsg := fmt.Sprintf("failed to expand host secrets: %v", err)
+			logger.Info("level", "error", "msg", "expanding host secrets", "err", err)
+			// Mark the command as failed so it won't be retried forever
+			failedResult := &mdm.CommandResults{
+				Enrollment:  results.Enrollment,
+				CommandUUID: cmd.CommandUUID,
+				Status:      "Error",
+				ErrorChain: []mdm.ErrorChain{{
+					ErrorCode:            -1,
+					ErrorDomain:          "Fleet",
+					LocalizedDescription: errorMsg,
+				}},
+			}
+			if storeErr := s.store.StoreCommandReport(r, failedResult); storeErr != nil {
+				logger.Info("level", "error", "msg", "storing failed command result", "err", storeErr)
+			}
+			// Mark the host's recovery lock status as failed so it's not stuck in pending.
+			if storeErr := s.store.SetRecoveryLockFailed(r.Context, hostUUID, errorMsg); storeErr != nil {
+				logger.Info("level", "error", "msg", "setting recovery lock failed", "err", storeErr)
+			}
+			return nil, nil
+		}
+		cmd.Raw = []byte(hostExpanded)
+	}
+
 	switch cmd.Subtype {
 	case mdm.CommandSubtypeProfileWithSecrets:
 		// Secrets were expanded above. Now we need to base64 encode and sign the configuration profile before returning it to the caller.

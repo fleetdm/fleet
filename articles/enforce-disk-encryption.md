@@ -20,7 +20,7 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOp
 
 1. In Fleet, head to the **Controls > OS settings > Disk encryption** page.
 
-2. Choose which team you want to enforce disk encryption on by selecting the desired team in the teams dropdown in the upper left corner.
+2. Choose which fleet you want to enforce disk encryption on by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
 3. Check the box next to **Turn on** and select **Save**.
 
@@ -74,7 +74,7 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-> The disk encryption key is deleted if a host is transferred to a team with disk encryption turned off. To re-escrow they key, transfer the host back to a team with disk encryption on.
+> The disk encryption key is deleted if a host is assigned to a fleet with disk encryption turned off. To re-escrow they key, transfer the host back to a fleet with disk encryption on.
 
 ## Use disk encryption key to login
 

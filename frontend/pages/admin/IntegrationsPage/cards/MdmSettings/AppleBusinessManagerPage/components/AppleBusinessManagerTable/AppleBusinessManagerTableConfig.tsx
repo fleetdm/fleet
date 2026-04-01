@@ -3,6 +3,7 @@ import { CellProps, Column } from "react-table";
 
 import { IMdmAbmToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { getTeamDisplayName } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -90,14 +91,16 @@ export const generateTableConfig = (
     },
     {
       id: "macos_team",
-      accessor: (originalRow) => originalRow.macos_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.macos_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
               <>
-                macOS hosts are automatically added to this fleet in Fleet when
-                they appear in Apple Business Manager.
+                macOS hosts are automatically added to this fleet on initial
+                sync from ABM. If a host is manually assigned to a different
+                fleet before enrollment, it will enroll to the newly assigned
+                fleet and not the default.
               </>
             }
           >
@@ -113,14 +116,16 @@ export const generateTableConfig = (
     },
     {
       id: "ios_team",
-      accessor: (originalRow) => originalRow.ios_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.ios_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
               <>
-                iOS hosts are automatically added to this fleet in Fleet when
-                they appear in Apple Business Manager.
+                iOS hosts are automatically added to this fleet on initial sync
+                from ABM. If a host is manually assigned to a different fleet
+                before enrollment, it will enroll to the newly assigned fleet
+                and not the default.
               </>
             }
           >
@@ -136,14 +141,16 @@ export const generateTableConfig = (
     },
     {
       id: "ipados_team",
-      accessor: (originalRow) => originalRow.ipados_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.ipados_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
               <>
-                iPadOS hosts are automatically added to this fleet in Fleet when
-                they appear in Apple Business Manager.
+                iPadOS hosts are automatically added to this fleet on initial
+                sync from ABM. If a host is manually assigned to a different
+                fleet before enrollment, it will enroll to the newly assigned
+                fleet and not the default.
               </>
             }
           >

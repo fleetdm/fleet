@@ -55,6 +55,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Critical:         req.Critical,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsExcludeAny: req.LabelsExcludeAny,
+		Type:             fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
@@ -70,6 +71,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	if !ok {
 		return nil, errors.New("user must be authenticated to create fleet policies")
 	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
@@ -205,7 +207,7 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (
 		return 0, err
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery)
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "")
 	if err != nil {
 		return 0, err
 	}
@@ -332,6 +334,8 @@ type modifyGlobalPolicyResponse struct {
 
 func (r modifyGlobalPolicyResponse) Error() error { return r.Err }
 
+const errPolicyAllFleetsForConditionalAccess = "\"All fleets\" policy cannot have conditional_access_enabled set"
+
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyGlobalPolicyRequest)
 	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
@@ -377,7 +381,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		pIDs[id] = struct{}{}
 	}
 	for _, teamID := range teamIDs {
-		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{})
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
 		if err != nil {
 			return err
 		}
@@ -563,6 +567,12 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 	// After the authorization check, check the policy fields.
 	for _, policy := range policies {
+		if policy.Team == "" && policy.ConditionalAccessEnabled {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForConditionalAccess),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),

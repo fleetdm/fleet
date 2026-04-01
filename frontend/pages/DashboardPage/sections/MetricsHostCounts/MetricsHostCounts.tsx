@@ -6,6 +6,7 @@ import { PlatformValueOptions } from "utilities/constants";
 import LowDiskSpaceHosts from "../../cards/LowDiskSpaceHosts";
 import MissingHosts from "../../cards/MissingHosts";
 import TotalHosts from "../../cards/TotalHosts";
+import ABMIssueHosts from "../../cards/ABMIssueHosts";
 
 const baseClass = "metrics-host-counts";
 
@@ -16,6 +17,7 @@ interface IPlatformHostCountsProps {
   isPremiumTier?: boolean;
   missingCount: number;
   lowDiskSpaceCount: number;
+  abmIssueCount: number;
   selectedPlatformLabelId?: number;
 }
 
@@ -26,6 +28,7 @@ const MetricsHostCounts = ({
   isPremiumTier,
   missingCount,
   lowDiskSpaceCount,
+  abmIssueCount,
   selectedPlatformLabelId,
 }: IPlatformHostCountsProps): JSX.Element => {
   const TotalHostsCard = (
@@ -54,6 +57,16 @@ const MetricsHostCounts = ({
     />
   );
 
+  // Does not render if abmIssueCount is 0 or undefined (e.g. on non-Apple platforms views)
+  // Currently all undefined is defaulted to 0 upstream
+  const ABMIssueHostsCard = abmIssueCount ? (
+    <ABMIssueHosts
+      abmIssueCount={abmIssueCount}
+      selectedPlatformLabelId={selectedPlatformLabelId}
+      currentTeamId={currentTeamId}
+    />
+  ) : null;
+
   return (
     <div className={baseClass}>
       {selectedPlatform === "all" && TotalHostsCard}
@@ -66,6 +79,7 @@ const MetricsHostCounts = ({
             {LowDiskSpaceHostsCard}
           </>
         )}
+      {ABMIssueHostsCard}
     </div>
   );
 };

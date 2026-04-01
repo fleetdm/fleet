@@ -216,9 +216,6 @@ class InputField extends Component {
       "labelTooltipPosition",
     ]);
 
-    // FIXME: Why doesn't this pass onBlur and other props down if the type is textarea. Do we want
-    // to change that? What might break if we do?
-
     const inputContainerClasses = classnames(`${baseClass}__input-container`, {
       "copy-enabled": enableCopy,
     });
@@ -235,6 +232,8 @@ class InputField extends Component {
               name={name}
               id={name}
               onChange={onInputChange}
+              onBlur={onBlur}
+              onFocus={onFocus}
               className={inputClasses}
               disabled={readOnly || disabled}
               placeholder={placeholder}

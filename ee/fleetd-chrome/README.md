@@ -93,7 +93,7 @@ The first step in troubleshooting a released extension (beta or production) is t
 
 ### Chrome device not appearing in Dogfood
 
-If the extension is logging errors like `enroll failed: no matching secret found`, check the enroll secret set in the "Policy for extensions" for the extension in the Google admin console (Apps & Extensions -> Users & Browsers -> select the fleet extension -> scroll all the way down to the bottom of the right-hand drawer). Ensure that the `enroll_secret` value represents a valid secret for a team on the Fleet dogfood instance.  
+If the extension is logging errors like `enroll failed: no matching secret found`, check the enroll secret set in the "Policy for extensions" for the extension in the Google admin console (Apps & Extensions -> Users & Browsers -> select the fleet extension -> scroll all the way down to the bottom of the right-hand drawer). Ensure that the `enroll_secret` value represents a valid secret for a fleet on the Fleet dogfood instance.  
 
 ### Device not receiving updated extension version
 

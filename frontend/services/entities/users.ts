@@ -99,7 +99,7 @@ export default {
   loadAll: ({ globalFilter = "", teamId }: IUserSearchOptions = {}) => {
     const queryParams = {
       query: globalFilter,
-      team_id: teamId,
+      fleet_id: teamId,
     };
 
     const queryString = buildQueryStringFromParams(queryParams);

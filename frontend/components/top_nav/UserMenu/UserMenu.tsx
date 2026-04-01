@@ -168,7 +168,7 @@ const UserMenu = ({
           );
           renderFlash("warning-filled", msg);
         }
-        onUserMenuItemClick(PATHS.TEAM_DETAILS_USERS(targetTeam.value));
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
       };
     }
 

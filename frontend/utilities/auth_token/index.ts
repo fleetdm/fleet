@@ -4,8 +4,14 @@
  */
 import Cookie from "js-cookie";
 
-const save = (token: string): void => {
-  Cookie.set("__Host-token", token, { secure: true, sameSite: "lax" });
+const DEFAULT_EXPIRATION_DAYS = 5;
+
+const save = (token: string, expiresAt?: Date): void => {
+  Cookie.set("__Host-token", token, {
+    secure: true,
+    sameSite: "lax",
+    expires: expiresAt ?? DEFAULT_EXPIRATION_DAYS,
+  });
 };
 
 const get = (): string | null => {
@@ -13,9 +19,12 @@ const get = (): string | null => {
 };
 
 const remove = (): void => {
-  // NOTE: the entire cookie including the name and values must be provided
+  // NOTE: the secure and sameSite from the cookie must be provided
   // to correctly remove. That is why we include the options here as well.
-  Cookie.remove("__Host-token", { secure: true, sameSite: "lax" });
+  Cookie.remove("__Host-token", {
+    secure: true,
+    sameSite: "lax",
+  });
 };
 
 export default {

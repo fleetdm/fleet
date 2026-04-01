@@ -230,7 +230,7 @@ const RunScriptDetailsModal = ({
   const renderFooter = () => (
     <ModalFooter
       isTopScrolling={isTopScrolling}
-      primaryButtons={<Button onClick={onCancel}>Done</Button>}
+      primaryButtons={<Button onClick={onCancel}>Close</Button>}
     />
   );
   return (
@@ -241,10 +241,8 @@ const RunScriptDetailsModal = ({
       className={baseClass}
       isHidden={isHidden}
     >
-      <>
-        {renderContent()}
-        {renderFooter()}
-      </>
+      {renderContent()}
+      {renderFooter()}
     </Modal>
   );
 };

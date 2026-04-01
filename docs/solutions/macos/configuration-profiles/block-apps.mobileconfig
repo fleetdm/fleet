@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>blockedAppBundleIDs</key>
+            <array>
+                <string>com.apple.AppStore</string>
+                <string>com.apple.AppStoreConnect</string>
+                <string>com.apple.store.Jolly</string>
+                <string>com.apple.calculator</string>
+                <string>com.apple.clips</string>
+                <string>com.apple.compass</string>
+                <string>com.apple.MobileAddressBook</string>
+                <string>com.apple.facetime</string>
+                <string>com.apple.DocumentsApp</string>
+                <string>com.apple.findmy</string>
+                <string>com.apple.games</string>
+                <string>com.apple.mobilegarageband</string>
+                <string>com.apple.Health</string>
+                <string>com.apple.iBooks</string>
+                <string>com.apple.iMovie</string>
+                <string>com.apple.itunesu</string>
+                <string>com.apple.MobileStore</string>
+                <string>com.apple.Keynote</string>
+                <string>com.apple.mobilemail</string>
+                <string>com.apple.Maps</string>
+                <string>com.apple.measure</string>
+                <string>com.apple.MobileSMS</string>
+                <string>com.apple.Music</string>
+                <string>com.apple.news</string>
+                <string>com.apple.mobilenotes</string>
+                <string>com.apple.Photo-Booth</string>
+                <string>com.apple.mobileslideshow</string>
+                <string>com.apple.podcasts</string>
+                <string>com.apple.reminders</string>
+                <string>com.apple.mobilesafari</string>
+                <string>com.apple.stocks</string>
+                <string>com.apple.tips</string>
+                <string>com.apple.tv</string>
+                <string>com.apple.VoiceMemos</string>
+                <string>com.apple.Passbook</string>
+                <string>com.apple.Bridge</string>
+            </array>
+            <key>allowAssistant</key>
+            <false/>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.block-apps</string>
+            <key>PayloadType</key>
+            <string>com.apple.applicationaccess</string>
+            <key>PayloadUUID</key>
+            <string>6A48073C-9D28-4B7A-9C69-6D0507CDF377</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Blocked Apps</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.block-apps</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>278D7F3D-454C-47FE-A65F-1BB7087F228D</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

@@ -31,7 +31,7 @@ const getFileRenderDetails = (
 
   switch (fileExtension) {
     case "py":
-      return { graphicName: "file-py", platform: null };
+      return { graphicName: "file-py", platform: "macOS & Linux" };
     case "sh":
       return { graphicName: "file-sh", platform: "macOS & Linux" };
     case "ps1":

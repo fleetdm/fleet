@@ -37,6 +37,8 @@ interface IPoliciesTableProps {
   sortDirection?: "asc" | "desc";
   page: number;
   count: number;
+  customControl?: () => JSX.Element | null;
+  isFiltered?: boolean;
 }
 
 const PoliciesTable = ({
@@ -55,6 +57,8 @@ const PoliciesTable = ({
   sortDirection,
   page,
   count,
+  customControl,
+  isFiltered,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -80,14 +84,18 @@ const PoliciesTable = ({
     emptyState.info = "";
   }
 
-  if (searchQuery) {
+  if (searchQuery || isFiltered) {
     delete emptyState.graphicName;
     delete emptyState.primaryButton;
     emptyState.header = "No matching policies";
     emptyState.info = "No policies match the current filters.";
   }
 
-  const searchable = !(policiesList?.length === 0 && searchQuery === "");
+  const searchable = !(
+    policiesList?.length === 0 &&
+    searchQuery === "" &&
+    !isFiltered
+  );
 
   const isPrimoMode = config?.partnerships?.enable_primo || false;
   const viewingTeamPolicies =
@@ -150,6 +158,7 @@ const PoliciesTable = ({
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
+        customControl={customControl}
       />
     </div>
   );

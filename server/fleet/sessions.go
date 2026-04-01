@@ -111,18 +111,19 @@ func (s SSORolesInfo) IsSet() bool {
 }
 
 const (
-	globalUserRoleSSOAttrName     = "FLEET_JIT_USER_ROLE_GLOBAL"
-	teamUserRoleSSOAttrNamePrefix = "FLEET_JIT_USER_ROLE_TEAM_"
-	ssoAttrNullRoleValue          = "null"
+	globalUserRoleSSOAttrName       = "FLEET_JIT_USER_ROLE_GLOBAL"
+	teamUserRoleSSOAttrNamePrefix   = "FLEET_JIT_USER_ROLE_TEAM_"
+	teamUserRoleSSOAttrNamePrefixV2 = "FLEET_JIT_USER_ROLE_FLEET_"
+	ssoAttrNullRoleValue            = "null"
 )
 
 // RolesFromSSOAttributes loads Global and Team roles from SAML custom attributes.
 //   - Custom attribute `FLEET_JIT_USER_ROLE_GLOBAL` is used for setting global role.
-//   - Custom attributes of the form `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` are used
-//     for setting role for a team with ID <TEAM_ID>.
+//   - Custom attributes of the form `FLEET_JIT_USER_ROLE_TEAM_<FLEET_ID>` or
+//     `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` are used for setting role for a fleet with ID <FLEET_ID>.
 //
 // For both attributes currently supported values are `admin`, `maintainer`, `observer`,
-// `observer_plus` and `null`. A `null` value is used to ignore the attribute.
+// `observer_plus`, `technician` and `null`. A `null` value is used to ignore the attribute.
 func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 	ssoRolesInfo := SSORolesInfo{}
 	for _, attribute := range attributes {
@@ -137,8 +138,12 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 				continue
 			}
 			ssoRolesInfo.Global = ptr.String(role)
-		case strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix):
+		case strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix),
+			strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefixV2):
+			// Get rid of any prefix, v1 or v2.
 			teamIDSuffix := strings.TrimPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix)
+			teamIDSuffix = strings.TrimPrefix(teamIDSuffix, teamUserRoleSSOAttrNamePrefixV2)
+			// Parse the fleet ID from what's left.
 			teamID, err := strconv.ParseUint(teamIDSuffix, 10, 32)
 			if err != nil {
 				return SSORolesInfo{}, fmt.Errorf("parse team ID: %w", err)
@@ -175,6 +180,7 @@ func parseRole(values []SAMLAttributeValue) (string, error) {
 		value != RoleMaintainer &&
 		value != RoleObserver &&
 		value != RoleObserverPlus &&
+		value != RoleTechnician &&
 		value != ssoAttrNullRoleValue {
 		return "", fmt.Errorf("invalid role: %s", value)
 	}

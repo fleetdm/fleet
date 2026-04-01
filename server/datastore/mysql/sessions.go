@@ -191,7 +191,7 @@ func (ds *Datastore) MarkSessionAccessed(ctx context.Context, session *fleet.Ses
 	results, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, ds.clock.Now(), session.ID)
 	if err != nil {
 		if common_mysql.IsReadOnlyError(err) {
-			common_mysql.TriggerFatalError(err)
+			common_mysql.TriggerFatalError(ctx, err)
 		}
 		return ctxerr.Wrap(ctx, err, "updating mark session as accessed")
 	}

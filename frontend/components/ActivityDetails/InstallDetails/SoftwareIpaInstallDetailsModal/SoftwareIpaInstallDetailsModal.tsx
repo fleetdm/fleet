@@ -25,7 +25,7 @@ import InventoryVersions from "pages/hosts/details/components/InventoryVersions"
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -40,13 +40,19 @@ import decodeBase64Utf8 from "../helpers";
 
 interface IGetStatusMessageProps {
   isMyDevicePage?: boolean;
-  displayStatus: SoftwareInstallUninstallStatus;
+  /** "pending" is an edge case here where IPA install activities that were added to the feed
+   * prior to v4.57 will list the status as "pending" rather than "pending_install" */
+  displayStatus: SoftwareInstallUninstallStatus | "pending";
   isMDMStatusNotNow: boolean;
   isMDMStatusAcknowledged: boolean;
   appName: string;
   hostDisplayName: string;
   commandUpdatedAt: string;
-  hasInstalledVersions?: boolean;
+  /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
+   - From Host -> Software: override based on inventory.
+   - From Activity feed: never override (always show the failure).
+   Parity with VPPInstallDetailsModal/SoftwareInstallDetailsModal */
+  canOverrideFailureWithInstalled?: boolean;
 }
 
 export const getStatusMessage = ({
@@ -57,10 +63,10 @@ export const getStatusMessage = ({
   appName,
   hostDisplayName,
   commandUpdatedAt,
-  hasInstalledVersions,
+  canOverrideFailureWithInstalled = false,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
-  const displayTimeStamp =
+  const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
     commandUpdatedAt
       ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
@@ -69,16 +75,18 @@ export const getStatusMessage = ({
         })})`
       : null;
 
-  const isPendingInstall = displayStatus === "pending_install";
+  // Handles "pending" value prior to 4.57
+  const isPendingInstall = ["pending_install", "pending"].includes(
+    displayStatus
+  );
 
   // Treat failed_install / failed_uninstall with installed versions as installed
   // as the host still reports installed versions (4.82 #31663)
-  // Note: Currently no uninstall IPA but added for symmetry with SoftwareInstallDetailsModal
-  const isActuallyInstalled =
-    hasInstalledVersions &&
+  const overrideFailureWithInstalled =
+    canOverrideFailureWithInstalled &&
     ["failed_install", "failed_uninstall"].includes(displayStatus || "");
 
-  if (isActuallyInstalled) {
+  if (overrideFailureWithInstalled) {
     return (
       <>
         <b>{appName}</b> is installed.
@@ -109,7 +117,7 @@ export const getStatusMessage = ({
             was running on battery power while in Power Nap
           </>
         )}
-        {displayTimeStamp && <> {displayTimeStamp}</>}. Fleet will try again.
+        {displayTimestamp && <> {displayTimestamp}</>}. Fleet will try again.
       </>
     );
   }
@@ -143,7 +151,7 @@ export const getStatusMessage = ({
       <>
         The MDM command (request) to install <b>{appName}</b>
         {!isMyDevicePage && <> on {formattedHost}</>} failed
-        {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt this
+        {displayTimestamp && <> {displayTimestamp}</>}. Please re-attempt this
         installation.
       </>
     );
@@ -151,14 +159,14 @@ export const getStatusMessage = ({
 
   const renderSuffix = () => {
     if (isMyDevicePage) {
-      return <> {displayTimeStamp && <> {displayTimeStamp}</>}</>;
+      return <> {displayTimestamp && <> {displayTimestamp}</>}</>;
     }
     return (
       <>
         {" "}
         on {formattedHost}
         {isPendingInstall && " when it comes online"}
-        {displayTimeStamp && <> {displayTimeStamp}</>}
+        {displayTimestamp && <> {displayTimestamp}</>}
       </>
     );
   };
@@ -211,7 +219,7 @@ export const ModalButtons = ({
     );
   }
   return (
-    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Close</Button>} />
   );
 };
 
@@ -290,9 +298,41 @@ export const SoftwareIpaInstallDetailsModal = ({
     }
   );
 
+  // Reconcile "installed" state from inventory vs command results.
+
+  // True when host inventory reports at least one installed version for this app.
+  const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
+
+  // This modal is opened in two contexts:
+  // - From Host -> Software: hostSoftware is defined (we trust inventory to override failures).
+  // - From the Activity feed: hostSoftware is undefined (we trust command result status).
+  const openedFromHostSoftwarePage = !!hostSoftware;
+
+  // Used only for overriding failed_install/failed_uninstall -> "is installed."
+  // - From Host -> Software: override based on inventory.
+  // - From Activity feed: never override (always show the failure).
+  const canOverrideFailureWithInstalled = openedFromHostSoftwarePage
+    ? inventoryReportsInstalled
+    : false;
+
   // Fallback to "installed" if no status is provided
   const displayStatus = fleetInstallStatus ?? "installed";
-  const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
+
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  const overrideFailedMessageWithInstalledMessage =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "");
+
+  const commandUpdatedAt = swInstallResult?.updated_at;
+
+  // Handles the case where software is installed manually by the user and not through Fleet
+  const isInstalledManual = displayStatus === "installed" && !commandUpdatedAt;
+
+  // Use success icon when we show “is installed”
+  const iconName =
+    overrideFailedMessageWithInstalledMessage || isInstalledManual
+      ? "success"
+      : INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Handles "pending" value prior to 4.57 AND never shows error state on pending_install
   // as some cases have command results not available for pending_installs
@@ -309,20 +349,28 @@ export const SoftwareIpaInstallDetailsModal = ({
   const isMDMStatusNotNow = swInstallResult?.status === "NotNow";
   const isMDMStatusAcknowledged = swInstallResult?.status === "Acknowledged";
 
-  // Hide version section for pending installs only
-  const excludeVersions = ["pending_install", "pending"].includes(
-    swInstallResult?.status || ""
-  );
-
-  const hasInstalledVersions = !!hostSoftware?.installed_versions?.length;
+  // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
+  const shouldShowInventoryVersions =
+    (!!hostSoftware &&
+      deviceAuthToken &&
+      ![
+        "pending_install",
+        "failed_install",
+        "failed_uninstall",
+        "pending",
+      ].includes(displayStatus)) ||
+    overrideFailedMessageWithInstalledMessage;
 
   // Hide failed details if host shows installed versions (4.82 #31663)
   // Note: Currently no uninstall IPA but added for symmetry with SoftwareInstallDetailsModal
   const excludeInstallDetails =
-    hasInstalledVersions &&
-    ["failed_install", "failed_uninstall"].includes(
-      swInstallResult?.status || ""
-    );
+    canOverrideFailureWithInstalled &&
+    [
+      "failed_install_installed",
+      "failed_uninstall_installed",
+      "failed_install",
+      "failed_uninstall",
+    ].includes(displayStatus || "");
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
@@ -335,15 +383,15 @@ export const SoftwareIpaInstallDetailsModal = ({
     isMDMStatusAcknowledged,
     appName,
     hostDisplayName,
-    commandUpdatedAt: swInstallResult?.updated_at || "",
-    hasInstalledVersions,
+    commandUpdatedAt: commandUpdatedAt || "",
+    canOverrideFailureWithInstalled,
   });
 
   const renderInventoryVersionsSection = () => {
     if (hostSoftware?.installed_versions?.length) {
       return <InventoryVersions hostSoftware={hostSoftware} />;
     }
-    return "If you uninstalled it outside of Fleet it will still show as installed.";
+    return null;
   };
 
   const renderInstallDetailsSection = () => {
@@ -410,11 +458,12 @@ export const SoftwareIpaInstallDetailsModal = ({
     }
     return (
       <div className={`${baseClass}__modal-content`}>
-        <div className={`${baseClass}__status-message`}>
-          {!!iconName && <Icon name={iconName} />}
-          <span>{statusMessage}</span>
-        </div>
-        {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
+        <IconStatusMessage
+          className={`${baseClass}__status-message`}
+          iconName={iconName}
+          message={<span>{statusMessage}</span>}
+        />
+        {shouldShowInventoryVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&
           !excludeInstallDetails &&
@@ -430,16 +479,14 @@ export const SoftwareIpaInstallDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          deviceAuthToken={deviceAuthToken}
-          hostSoftwareId={hostSoftware?.id}
-          onRetry={onRetry}
-          onCancel={onCancel}
-          displayStatus={displayStatus}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        deviceAuthToken={deviceAuthToken}
+        hostSoftwareId={hostSoftware?.id}
+        onRetry={onRetry}
+        onCancel={onCancel}
+        displayStatus={displayStatus}
+      />
     </Modal>
   );
 };

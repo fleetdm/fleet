@@ -155,7 +155,7 @@ const QueriesTable = ({
       newQueryParams.fleet_id = queryParams?.fleet_id;
 
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_QUERIES,
+        pathPrefix: PATHS.MANAGE_REPORTS,
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
@@ -209,7 +209,7 @@ const QueriesTable = ({
     (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
       router?.push(
         getNextLocationPath({
-          pathPrefix: PATHS.MANAGE_QUERIES,
+          pathPrefix: PATHS.MANAGE_REPORTS,
           queryParams: {
             ...queryParams,
             page: 0,
@@ -229,7 +229,7 @@ const QueriesTable = ({
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       router?.push(
-        getPathWithQueryParams(PATHS.QUERY_DETAILS(row.original.id), {
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(row.original.id), {
           fleet_id: currentTeamId,
         })
       );

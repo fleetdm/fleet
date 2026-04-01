@@ -884,7 +884,7 @@ func getHostsCommand() *cli.Command {
 				query := url.Values{}
 				query.Set("additional_info_filters", "*")
 				if teamID := c.Uint(fleetFlagName); teamID > 0 {
-					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
+					query.Set("fleet_id", strconv.FormatUint(uint64(teamID), 10))
 				}
 
 				if c.Bool("mdm") || c.Bool("mdm-pending") {
@@ -1306,7 +1306,7 @@ func getSoftwareCommand() *cli.Command {
 
 			teamID := c.Uint(fleetFlagName)
 			if teamID != 0 {
-				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
+				query.Set("fleet_id", strconv.FormatUint(uint64(teamID), 10))
 			}
 
 			if c.Bool("versions") {

@@ -1,0 +1,5 @@
+- name: Apple Silicon macOS hosts
+  description: macOS hosts on Apple Silicon architecture
+  query: SELECT 1 FROM os_version WHERE arch LIKE 'ARM%';
+  label_membership_type: dynamic
+  platform: darwin

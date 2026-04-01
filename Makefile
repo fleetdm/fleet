@@ -268,8 +268,13 @@ dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST))
 ifeq ($(PKG_TO_TEST), "")
 		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info.";
 else
+ifdef USE_GOTESTSUM
+		@echo Running Go tests with gotestsum:
+		gotestsum --format=$(GOTESTSUM_FORMAT) --jsonfile=/tmp/test-output.json -- -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=$(COVER_PKG) $(go_test_pkg_to_test)
+else
 		@echo Running Go tests with command:
 		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=$(COVER_PKG) $(go_test_pkg_to_test)
+endif
 endif
 
 # This is the base command to debug Go tests.
@@ -312,10 +317,11 @@ debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Set up packages for CI testing.
-DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/... ./client/...
 # fast tests are quick and do not require out-of-process dependencies (such as MySQL, etc.)
 FAST_PKGS_TO_TEST := \
-	./ee/server/service/hostidentity/types \
+	./client \
+	./ee/pkg/hostidentity/types \
 	./ee/tools/mdm \
 	./orbit/pkg/cryptoinfo \
 	./orbit/pkg/dataflatten \

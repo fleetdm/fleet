@@ -17,6 +17,7 @@ create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
 resend := "resend" # only for profiles, and to a single host
+read_secrets := "read_secrets"
 
 # User specific actions
 write_role := "write_role"
@@ -559,12 +560,38 @@ allow {
   action == run_new
 }
 
-# Global observers can run only if observers_can_run.
+# Global observers can run observer_can_run global queries (`null` team_id).
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
   subject.global_role == observer
   action = run
+
+  is_null(object.team_id)
+}
+
+# Global observers can run observer_can_run team queries only targeting that team.
+allow {
+  object.type == "targeted_query"
+  object.observer_can_run == true
+  subject.global_role == observer
+  action = run
+
+  not is_null(object.team_id)
+  not is_null(object.host_targets.teams)
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; tmid == object.team_id }
+  count(ok_teams) == count(object.host_targets.teams)
+}
+
+# Global observers can run observer_can_run team queries when no target teams are specified.
+allow {
+  object.type == "targeted_query"
+  object.observer_can_run == true
+  subject.global_role == observer
+  action = run
+
+  not is_null(object.team_id)
+  is_null(object.host_targets.teams)
 }
 
 # Team admin, maintainer, technician, observer_plus and observer running a global observers_can_run query must have the targets
@@ -583,7 +610,7 @@ allow {
 }
 
 # Team admin, maintainer, technician, observer_plus, and observer running an observers_can_run query that belongs to their team must have the targets
-# filtered to only teams that they observe.
+# filtered to only teams that they observe. Observers may only target the query's own team; admin/maintainer/etc. may target any team they have such a role on.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
@@ -593,7 +620,7 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
 
   not is_null(object.host_targets.teams)
-  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus, observer][_] }
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] } | { tmid | tmid := object.host_targets.teams[_]; tmid == object.team_id; team_role(subject, tmid) == observer }
   count(ok_teams) == count(object.host_targets.teams)
 }
 
@@ -1223,11 +1250,27 @@ allow {
 ##
 # Certificate Authorities
 ##
-# Global admins and GitOps can configure, read and list certificate Authorities
+# Global admins and GitOps can configure, read, list, and read secrets of certificate authorities.
 allow {
   object.type == "certificate_authority"
   subject.global_role == [admin, gitops][_]
-  action == [read, write, list][_]
+  action == [read, write, list, read_secrets][_]
+}
+
+# Global maintainers can read and list certificate authorities
+# so they can create certificate templates.
+allow {
+  object.type == "certificate_authority"
+  subject.global_role == maintainer
+  action == [read, list][_]
+}
+
+# Team admins, maintainers and gitops can read and list certificate authorities
+# so they can add certificate templates to their teams.
+allow {
+  object.type == "certificate_authority"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  action == [read, list][_]
 }
 
 # Global admins and maintainers can write a certificate request

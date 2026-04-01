@@ -20,8 +20,12 @@ interface IHostActionsDropdownProps {
   doesStoreEncryptionKey?: boolean;
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
+  hostCpuType?: string;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
+  isRecoveryLockPasswordEnabled?: boolean;
+  diskEncryptionProfileStatus?: string;
+  recoveryLockPasswordAvailable?: boolean;
 }
 
 const HostActionsDropdown = ({
@@ -32,8 +36,12 @@ const HostActionsDropdown = ({
   doesStoreEncryptionKey,
   isConnectedToFleetMdm,
   hostPlatform = "",
+  hostCpuType = "",
   hostScriptsEnabled = false,
   onSelect,
+  isRecoveryLockPasswordEnabled = false,
+  diskEncryptionProfileStatus,
+  recoveryLockPasswordAvailable = false,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -63,6 +71,7 @@ const HostActionsDropdown = ({
 
   const options = generateHostActionOptions({
     hostPlatform,
+    hostCpuType,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -84,6 +93,9 @@ const HostActionsDropdown = ({
     scriptsGloballyDisabled: globalConfig?.server_settings.scripts_disabled,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
+    isRecoveryLockPasswordEnabled,
+    diskEncryptionProfileStatus,
+    recoveryLockPasswordAvailable,
   });
 
   // No options to render. Exit early

@@ -31,7 +31,7 @@ A quick search of the [Mac Admins Slack](https://www.macadmins.org/) confirmed m
 We discovered that the policy was not applied because Fleet needed to lock out account creation before all the policies had been successfully applied to the host. We have corrected this in [Fleet 4.48.0](https://fleetdm.com/releases/fleet-4.48.0), but how do we resolve this issue with an existing enrolled device and a change in the organization's password policy?
 
 
-Do we add the `changeAtNextAuth` key? A read of Apple's documentation means every user with this policy must reset their password on the next authentication. That could be highly disruptive. And, if the policy is redeployed for any reason, could institute a password reset to every host in that team.
+Do we add the `changeAtNextAuth` key? A read of Apple's documentation means every user with this policy must reset their password on the next authentication. That could be highly disruptive. And, if the policy is redeployed for any reason, could institute a password reset to every host in that fleet.
 
 
 <blockquote purpose="large-quote">

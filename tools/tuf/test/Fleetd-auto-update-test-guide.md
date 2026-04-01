@@ -76,6 +76,6 @@ Release:
 
 ## Verify auto-update
 
-1. Run the following live query on the hosts: `SELECT * FROM orbit_info;`. The query should now return `version=$ORBIT_VERSION`.
-2. Run the following live query on the hosts: `SELECT * FROM osquery_info;`. The query should now return `version=5.11.0`.
+1. Run the following live report on the hosts: `SELECT * FROM orbit_info;`. The report should now return `version=$ORBIT_VERSION`.
+2. Run the following live report on the hosts: `SELECT * FROM osquery_info;`. The report should now return `version=5.11.0`.
 3. Verify all hosts now show "Fleet Desktop $ORBIT_VERSION" on the Fleet Desktop menu.

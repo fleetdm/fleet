@@ -1,5 +1,4 @@
 import React, { useContext } from "react";
-import { Link } from "react-router";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -119,42 +118,36 @@ const LockModal = ({
 
   return (
     <Modal className={baseClass} title="Lock" onExit={onClose}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <div className={`${baseClass}__description`}>
-            {renderDescription()}
-          </div>
-          <div className={`${baseClass}__confirm-message`}>
-            <span>
-              <b>Confirm:</b>
-            </span>
-            <Checkbox
-              wrapperClassName={`${baseClass}__lock-checkbox`}
-              value={lockChecked}
-              onChange={(value: boolean) => setLockChecked(value)}
-            >
-              I wish to lock <b>{hostName}</b>
-            </Checkbox>
-          </div>
-        </div>
-        {isIPadOrIPhone(platform) && (
-          <IosOrIpadLockPreview platform={platform} />
-        )}
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={onLock}
-            className="delete-loading"
-            disabled={!lockChecked}
-            isLoading={isLocking}
+      <div className={`${baseClass}__modal-content`}>
+        <div className={`${baseClass}__description`}>{renderDescription()}</div>
+        <div className={`${baseClass}__confirm-message`}>
+          <span>
+            <b>Confirm:</b>
+          </span>
+          <Checkbox
+            wrapperClassName={`${baseClass}__lock-checkbox`}
+            value={lockChecked}
+            onChange={(value: boolean) => setLockChecked(value)}
           >
-            Lock
-          </Button>
-          <Button onClick={onClose} variant="inverse">
-            Cancel
-          </Button>
+            I wish to lock <b>{hostName}</b>
+          </Checkbox>
         </div>
-      </>
+      </div>
+      {isIPadOrIPhone(platform) && <IosOrIpadLockPreview platform={platform} />}
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          onClick={onLock}
+          className="delete-loading"
+          disabled={!lockChecked}
+          isLoading={isLocking}
+        >
+          Lock
+        </Button>
+        <Button onClick={onClose} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

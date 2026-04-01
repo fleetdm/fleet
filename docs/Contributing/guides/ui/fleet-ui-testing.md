@@ -90,7 +90,7 @@ like `LoginForm` and `ResetPasswordForm` or even simpler pages like `Registratio
 
 User journeys are the flows users take through the application to accomplish their goals. These are
 typically the widest and can include navigating through multiple pages or working with multiple app
-widgets on a page. This would include goals like **creating a new user or team** or **filtering
+widgets on a page. This would include goals like **creating a new user or fleet** or **filtering
 hosts by software vulnerabilities or policy results**.
 
 ---
@@ -131,7 +131,7 @@ We use a variety of testing to ensure that our software is working as intended. 
 | Reusable hooks | Unit with Jest & react-hooks Library | Devs | useToggleDisplayed Hook | Little to no dependencies. Function argument-based. |
 | Reusable UI components | Unit with Jest & testing-library | Devs | Radio, button, and input components | Little to no dependencies. Props-based. |
 | App widgets | Integration or E2E with testing-library or QA Wolf | End users | Create user form. Reset password form. | Less reusable code with more complex environment setup and dependencies. Depending on the case, can be done with integration or E2E. For integration, mock at the backend level; don't mock other UI systems. For E2E, don't mock other systems except for common network error states. |
-| User journeys | E2E with QA Wolf | End users | Filtering a host by software. Creating a team as admin. | Full business flows. Little to no mocking of systems, except for common network error states. |
+| User journeys | E2E with QA Wolf | End users | Filtering a host by software. Creating a fleet as admin. | Full business flows. Little to no mocking of systems, except for common network error states. |
 | N/A | Manual | N/A | // TODO | Manual testing can be used for all types of code. Examples would be for one-offs or states that would require extremely difficult testing setups. |
 
 #### Manual testing

@@ -37,7 +37,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 	}
 
 	if macosHasManualAgentInstall && fleet.IsMacOSPlatform(platform) && len(titleIDs) != 0 {
-		return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable manual_agent_install."), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable macos_manual_agent_install."), http.StatusUnprocessableEntity)
 	}
 
 	if err := svc.ds.SetSetupExperienceSoftwareTitles(ctx, platform, teamID, titleIDs); err != nil {
@@ -106,7 +106,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 			return ctxerr.Wrap(ctx, err, "getting app config")
 		}
 		if ac.MDM.MacOSSetup.ManualAgentInstall.Value {
-			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable manual_agent_install."), http.StatusUnprocessableEntity)
+			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable macos_manual_agent_install."), http.StatusUnprocessableEntity)
 		}
 	} else {
 		team, err := svc.ds.TeamLite(ctx, *teamID)
@@ -114,7 +114,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 			return ctxerr.Wrap(ctx, err, "load team")
 		}
 		if team.Config.MDM.MacOSSetup.ManualAgentInstall.Value {
-			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable manual_agent_install."), http.StatusUnprocessableEntity)
+			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable macos_manual_agent_install."), http.StatusUnprocessableEntity)
 		}
 	}
 

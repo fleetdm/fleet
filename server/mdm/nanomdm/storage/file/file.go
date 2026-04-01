@@ -246,6 +246,16 @@ func (s *FileStorage) ExpandEmbeddedSecrets(_ context.Context, document string) 
 	return document, nil
 }
 
+func (s *FileStorage) ExpandHostSecrets(_ context.Context, document string, _ string) (string, error) {
+	// NOT IMPLEMENTED
+	return document, nil
+}
+
+func (s *FileStorage) SetRecoveryLockFailed(_ context.Context, _ string, _ string) error {
+	// NOT IMPLEMENTED
+	return nil
+}
+
 func (s *FileStorage) BulkDeleteHostUserCommandsWithoutResults(_ context.Context, _ map[string][]string) error {
 	// NOT IMPLEMENTED
 	return nil

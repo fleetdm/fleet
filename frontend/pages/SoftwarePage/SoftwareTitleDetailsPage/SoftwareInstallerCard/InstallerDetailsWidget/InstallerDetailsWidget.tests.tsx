@@ -60,9 +60,8 @@ describe("InstallerDetailsWidget", () => {
   it("renders Version (unknown) info for a non-script package with no version info", () => {
     render(
       <InstallerDetailsWidget
-        {...defaultProps}
+        {...defaultProps} // Includes isScriptPackage: false
         version={undefined}
-        isScriptPackage={false}
       />
     );
     expect(screen.getByText(/Version \(unknown\)/i)).toBeInTheDocument();
@@ -117,6 +116,20 @@ describe("InstallerDetailsWidget", () => {
 
     expect(screen.getByText(/Google Play Store/i)).toBeInTheDocument();
     expect(screen.getByText(/latest/i)).toBeInTheDocument();
+  });
+
+  it("renders Web app label and does not render Version (unknown) info for a Google playstore webapp", () => {
+    render(
+      <InstallerDetailsWidget
+        {...defaultProps}
+        version={undefined}
+        installerType="app-store"
+        androidPlayStoreId="com.google.enterprise.webapp.test"
+      />
+    );
+    expect(screen.getByText(/Web app/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Version \(unknown\)/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
   });
 
   it("InstallerName disables tooltip if not truncated", () => {

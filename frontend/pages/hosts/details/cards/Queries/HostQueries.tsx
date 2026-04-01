@@ -89,7 +89,7 @@ const HostQueries = ({
       if (!hostId || !queryId || !should_link_to_hqr || queryReportsDisabled) {
         return;
       }
-      router.push(`${PATHS.HOST_QUERY_REPORT(hostId, queryId)}`);
+      router.push(`${PATHS.HOST_REPORT_RESULTS(hostId, queryId)}`);
     },
     [hostId, queryReportsDisabled, router]
   );

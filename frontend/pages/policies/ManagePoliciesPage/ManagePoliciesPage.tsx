@@ -34,12 +34,14 @@ import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
+  GlobalPoliciesAutomationType,
   IPoliciesCountQueryKey,
   IPoliciesQueryKey,
 } from "services/entities/global_policies";
 import teamPoliciesAPI, {
   ITeamPoliciesCountQueryKey,
   ITeamPoliciesQueryKey,
+  AutomationType,
 } from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
@@ -88,6 +90,7 @@ interface IManagePoliciesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       page?: string;
+      automation_type?: AutomationType;
     };
     search: string;
   };
@@ -103,6 +106,16 @@ const [
   "Successfully updated policy automations.",
   "Could not update policy automations.",
 ];
+
+const AUTOMATION_TYPES: AutomationType[] = [
+  "software",
+  "scripts",
+  "calendar",
+  "conditional_access",
+  "other",
+];
+
+const GLOBAL_AUTOMATION_TYPES: GlobalPoliciesAutomationType[] = ["other"];
 
 const baseClass = "manage-policies-page";
 
@@ -194,6 +207,21 @@ const ManagePolicyPage = ({
     DEFAULT_SORT_DIRECTION)();
   const page =
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
+  const initialAutomationFilter = (() => {
+    const automationQueryParam = queryParams.automation_type;
+
+    if (!automationQueryParam) {
+      return null;
+    }
+
+    const validValues = isAllTeamsSelected
+      ? GLOBAL_AUTOMATION_TYPES
+      : AUTOMATION_TYPES;
+
+    return (validValues as string[]).includes(automationQueryParam)
+      ? automationQueryParam
+      : null;
+  })();
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
@@ -205,6 +233,9 @@ const ManagePolicyPage = ({
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(initialSortDirection);
+  const [automationFilter, setAutomationFilter] = useState<
+    AutomationType | GlobalPoliciesAutomationType | null
+  >(initialAutomationFilter);
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -217,12 +248,14 @@ const ManagePolicyPage = ({
     setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
+    setAutomationFilter(initialAutomationFilter);
   }, [
     location,
     isRouteOk,
     initialSearchQuery,
     initialSortHeader,
     initialSortDirection,
+    initialAutomationFilter,
   ]);
 
   useEffect(() => {
@@ -261,6 +294,7 @@ const ManagePolicyPage = ({
         query: searchQuery,
         orderDirection: sortDirection,
         orderKey: sortHeader,
+        automationType: automationFilter as GlobalPoliciesAutomationType,
       },
     ],
     ({ queryKey }) => {
@@ -282,6 +316,7 @@ const ManagePolicyPage = ({
       {
         scope: "policiesCount",
         query: !isAllTeamsSelected ? "" : searchQuery,
+        automationType: automationFilter as GlobalPoliciesAutomationType,
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
@@ -317,6 +352,7 @@ const ManagePolicyPage = ({
         teamId: teamIdForApi || 0,
         // no teams does inherit
         mergeInherited: true,
+        automationType: automationFilter as AutomationType,
       },
     ],
     ({ queryKey }) => {
@@ -344,6 +380,7 @@ const ManagePolicyPage = ({
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
         mergeInherited: true,
+        automationType: automationFilter as AutomationType,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -789,8 +826,6 @@ const ManagePolicyPage = ({
       const policyPromises = changedPolicies.map((changedPolicy) => {
         return teamPoliciesAPI.update(changedPolicy.id, {
           conditional_access_enabled: changedPolicy.conditional_access_enabled,
-          conditional_access_bypass_enabled:
-            changedPolicy.conditional_access_bypass_enabled,
           team_id: teamIdForApi,
         });
       });
@@ -918,6 +953,21 @@ const ManagePolicyPage = ({
     toggleDeletePoliciesModal,
   ]);
 
+  const onChangeAutomationFilter = (val: SingleValue<CustomOptionType>) => {
+    const automationType = val?.value;
+
+    const locationPath = getNextLocationPath({
+      pathPrefix: PATHS.MANAGE_POLICIES,
+      queryParams: {
+        ...queryParams,
+        page: "0",
+        automation_type: automationType === "all" ? undefined : automationType,
+      },
+    });
+
+    router?.push(locationPath);
+  };
+
   const policiesErrors = !isAllTeamsSelected
     ? teamPoliciesError
     : globalPoliciesError;
@@ -963,7 +1013,7 @@ const ManagePolicyPage = ({
     count?: number,
     policies?: IPolicyStats[]
   ) => {
-    // Hide count if fetching count || there are errors OR there are no policy results with no a search filter
+    // Hide count if fetching count || there are errors OR there are no policy results with no filters (search or automation dropdown)
     const isFetchingCount = !isAllTeamsSelected
       ? isFetchingTeamCountMergeInherited
       : isFetchingGlobalCount;
@@ -971,7 +1021,7 @@ const ManagePolicyPage = ({
     const hide =
       isFetchingCount ||
       policiesErrors ||
-      (!policyResults && searchQuery === "");
+      (!policyResults && searchQuery === "" && !automationFilter);
 
     if (hide) {
       return null;
@@ -997,6 +1047,82 @@ const ManagePolicyPage = ({
       </>
     );
   };
+
+  const automationFilterOptions: CustomOptionType[] = [
+    {
+      label: "All policies",
+      value: "all",
+      helpText: "All policies added to Fleet.",
+    },
+    {
+      label: "Software",
+      value: "software",
+      helpText: "Policies with software automation enabled.",
+    },
+    {
+      label: "Scripts",
+      value: "scripts",
+      helpText: "Policies with script automation enabled.",
+    },
+    {
+      label: "Calendar",
+      value: "calendar",
+      helpText: "Policies with calendar event automation enabled.",
+    },
+    {
+      label: "Conditional access",
+      value: "conditional_access",
+      helpText: "Policies with conditional access automation enabled.",
+    },
+    {
+      label: "Other",
+      value: "other",
+      helpText: "Policies with other automation enabled.",
+    },
+  ];
+
+  const allPoliciesOption = automationFilterOptions[0]; // value: "all"
+
+  const getSelectedFilterOption = () => {
+    if (!automationFilter) {
+      return allPoliciesOption; // Default to all policies option
+    }
+    return automationFilterOptions.find(
+      (opt) => opt.value === automationFilter
+    );
+  };
+
+  const renderAutomationFilter = isPremiumTier
+    ? () => {
+        // Hide dropdown if there are errors OR there are no policy results with no filters (search or automation dropdown)
+        const hide =
+          policiesErrors ||
+          (!policyResults && searchQuery === "" && !automationFilter);
+
+        if (hide) {
+          return null;
+        }
+
+        // No team ID = All fleets → only show "all" and "other" options
+        const optionsForTeam = teamIdForApi
+          ? automationFilterOptions
+          : automationFilterOptions.filter((opt) =>
+              ["all", "other"].includes(opt.value as string)
+            );
+
+        return (
+          <DropdownWrapper
+            className={`${baseClass}__filter-automation-dropdown`}
+            name="filter-by-automation"
+            value={getSelectedFilterOption()}
+            onChange={onChangeAutomationFilter}
+            placeholder="Filter by automation"
+            options={optionsForTeam}
+            variant="table-filter"
+          />
+        );
+      }
+    : undefined;
 
   const renderMainTable = () => {
     if (!isRouteOk || (isPremiumTier && !userTeams)) {
@@ -1030,6 +1156,8 @@ const ManagePolicyPage = ({
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
+          customControl={renderAutomationFilter}
+          isFiltered={!!automationFilter}
         />
       );
     }
@@ -1038,10 +1166,12 @@ const ManagePolicyPage = ({
     if (teamPoliciesError) {
       return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
+    const displayedTeamPolicies = teamPolicies || [];
+
     return (
       <div>
         <PoliciesTable
-          policiesList={teamPolicies || []}
+          policiesList={displayedTeamPolicies}
           isLoading={
             isFetchingTeamPolicies ||
             isFetchingTeamConfig ||
@@ -1055,7 +1185,7 @@ const ManagePolicyPage = ({
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
               teamPoliciesCountMergeInherited,
-              teamPolicies
+              displayedTeamPolicies
             )
           }
           isPremiumTier={isPremiumTier}
@@ -1065,6 +1195,8 @@ const ManagePolicyPage = ({
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
+          customControl={renderAutomationFilter}
+          isFiltered={!!automationFilter}
         />
       </div>
     );
@@ -1127,7 +1259,7 @@ const ManagePolicyPage = ({
     } else if (teamIdForApi === API_NO_TEAM_ID) {
       disabledCalendarTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           calendar events.
         </>
@@ -1148,13 +1280,6 @@ const ManagePolicyPage = ({
 
     const options: CustomOptionType[] = [
       {
-        label: "Calendar",
-        value: "calendar_events",
-        isDisabled: !!disabledCalendarTooltipContent,
-        helpText: "Automatically reserve time to resolve failing policies.",
-        tooltipContent: disabledCalendarTooltipContent,
-      },
-      {
         label: "Software",
         value: "install_software",
         isDisabled: !!disabledInstallTooltipContent,
@@ -1167,6 +1292,13 @@ const ManagePolicyPage = ({
         isDisabled: !!disabledRunScriptTooltipContent,
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
+      },
+      {
+        label: "Calendar",
+        value: "calendar_events",
+        isDisabled: !!disabledCalendarTooltipContent,
+        helpText: "Automatically reserve time to resolve failing policies.",
+        tooltipContent: disabledCalendarTooltipContent,
       },
       {
         label: "Conditional access",

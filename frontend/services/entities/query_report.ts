@@ -18,7 +18,7 @@ export interface ILoadQueryReportOptions {
 interface ILoadQueryReportQueryParams {
   order_key: string | undefined;
   order_direction: string | undefined;
-  team_id?: number;
+  fleet_id?: number;
 }
 
 const getSortParams = (sortOptions?: ISortOption[]) => {
@@ -42,7 +42,7 @@ export default {
       order_direction: sortParams.order_direction,
     };
     if (teamId && teamId > 0) {
-      queryParams.team_id = teamId;
+      queryParams.fleet_id = teamId;
     }
 
     const queryString = buildQueryStringFromParams(queryParams);

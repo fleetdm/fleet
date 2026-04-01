@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/smallstep/scep"
@@ -270,7 +271,7 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/conditional_access/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger.SlogLogger())
+	scepClient, err := scepclient.New(scepURL, s.Logger)
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -308,7 +309,7 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 		SignerCert:  deviceCert,
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 	require.NoError(t, err)
 
 	// Send PKI operation request using HTTP client directly to capture response
@@ -333,7 +334,7 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 	require.NoError(t, err)
 
 	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
 	require.NoError(t, err)
 
 	// Check for SCEP-level failure

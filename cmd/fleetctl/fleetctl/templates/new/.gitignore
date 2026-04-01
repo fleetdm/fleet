@@ -1,0 +1,36 @@
+################################################
+# .gitignore
+#
+# This file (`.gitignore`) exists to tell git
+# that certain files and/or directories should
+# be ignored for the purposes of version control.
+#
+# This keeps tmp files from being accidentally
+# uploaded to github.com/gitlab.com/etc.
+#
+################################################
+
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk

@@ -56,6 +56,7 @@ import {
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import CustomLink from "components/CustomLink";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
@@ -222,7 +223,7 @@ export const formatScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -242,7 +243,7 @@ export const formatScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -280,7 +281,7 @@ export const formatScheduledQueryForClient = (
 
 export const formatGlobalScheduledQueryForServer = (
   scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -288,7 +289,7 @@ export const formatGlobalScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -304,7 +305,7 @@ export const formatGlobalScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -351,7 +352,7 @@ export const formatTeamScheduledQueryForServer = (
     shard,
     team_id: teamID,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id", "team_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -367,7 +368,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -375,7 +376,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (teamID) {
-    result.query_id = Number(teamID);
+    (result as any).fleet_id = Number(teamID);
   }
 
   return result;
@@ -517,7 +518,7 @@ export const greyCell = (roleOrTeamText: string): boolean => {
   );
 };
 
-const setupData = (formData: any) => {
+const setupData = (formData: IRegistrationFormData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
 
@@ -525,6 +526,7 @@ const setupData = (formData: any) => {
     server_url: formData.server_url,
     org_info: {
       ...orgInfo,
+      org_logo_url_light_background: orgInfo.org_logo_url || "",
     },
     admin: {
       admin: true,

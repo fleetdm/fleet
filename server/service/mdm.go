@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -579,6 +580,12 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
 
+	if commandPlatform == "darwin" {
+		if err := svc.validateAppleMDMCommand(ctx, rawXMLCmd, hosts); err != nil {
+			return nil, err
+		}
+	}
+
 	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
 	switch commandPlatform {
 	case "windows":
@@ -586,6 +593,54 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	default:
 		return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, hostUUIDs)
 	}
+}
+
+// validateAppleMDMCommand validates an Apple MDM command before it is enqueued.
+// It checks for restrictions based on the command type and host/team configuration.
+func (svc *Service) validateAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, hosts []*fleet.Host) error {
+	cmd, err := nanomdm.DecodeCommand(rawXMLCmd)
+	if err != nil {
+		// Don't return an error here - let enqueueAppleMDMCommand handle the decode error
+		// with proper error formatting
+		return nil
+	}
+
+	// Check if this is a SetRecoveryLock command and if any host's team (or the
+	// global config for hosts with no team) has recovery lock password enabled
+	// (which means Fleet manages the password).
+	if strings.TrimSpace(cmd.Command.RequestType) == "SetRecoveryLock" {
+		// Get app config once for hosts with no team
+		var appConfig *fleet.AppConfig
+		for _, h := range hosts {
+			var recoveryLockEnabled bool
+			if h.TeamID != nil {
+				teamMDMConfig, err := svc.ds.TeamMDMConfig(ctx, *h.TeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get team MDM config")
+				}
+				recoveryLockEnabled = teamMDMConfig != nil && teamMDMConfig.EnableRecoveryLockPassword
+			} else {
+				// Host has no team, check global config
+				if appConfig == nil {
+					appConfig, err = svc.ds.AppConfig(ctx)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "get app config")
+					}
+				}
+				recoveryLockEnabled = appConfig.MDM.EnableRecoveryLockPassword.Value
+			}
+
+			if recoveryLockEnabled {
+				err := fleet.NewInvalidArgumentError(
+					"command",
+					"Could not run command. Recovery Lock password is already set for one or more hosts. To set a custom password, disable Recovery Lock passwords for those hosts' teams. To rotate the password, learn how: https://fleetdm.com/learn-more-about/recovery-lock-passwords",
+				).WithStatus(http.StatusConflict)
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock blocked by team config")
+			}
+		}
+	}
+
+	return nil
 }
 
 var appleMDMPremiumCommands = map[string]bool{
@@ -818,6 +873,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 						res.ResultsMetadata = make(map[string]any)
 					}
 					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
 				}
 			}
 		}
@@ -2066,7 +2122,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
-	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM.EnableCustomOSUpdatesAndFileVault)
+	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
@@ -2292,7 +2348,7 @@ func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, apple
 }
 
 func fmtDuplicateNameErrMsg(name string) string {
-	const SameProfileNameErrorMsg = "Couldn't edit custom_settings. More than one configuration profile have the same name '%s' (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
+	const SameProfileNameErrorMsg = "Couldn't edit configuration_profiles. More than one configuration profile have the same name '%s' (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
 	return fmt.Sprintf(SameProfileNameErrorMsg, name)
 }
 
@@ -2341,7 +2397,7 @@ func getAppleProfiles(
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
-	allowCustomOSUpdatesAndFileVault bool,
+	mdmConfig config.MDMConfig,
 ) (map[int]*fleet.MDMAppleConfigProfile, map[int]*fleet.MDMAppleDeclaration, error) {
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make(map[int]*fleet.MDMAppleConfigProfile, len(profiles))
@@ -2362,8 +2418,10 @@ func getAppleProfiles(
 				return nil, nil, err
 			}
 
-			if err := rawDecl.ValidateUserProvided(allowCustomOSUpdatesAndFileVault); err != nil {
-				return nil, nil, err
+			if !mdmConfig.AllowAllDeclarations {
+				if err := rawDecl.ValidateUserProvided(mdmConfig.EnableCustomOSUpdatesAndFileVault); err != nil {
+					return nil, nil, err
+				}
 			}
 
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
@@ -2460,7 +2518,7 @@ func getAppleProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(allowCustomOSUpdatesAndFileVault); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.EnableCustomOSUpdatesAndFileVault); err != nil {
 			var iae *fleet.InvalidArgumentError
 			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
 				iae = fleet.NewInvalidArgumentError(prof.Name,
@@ -2475,7 +2533,7 @@ func getAppleProfiles(
 
 		if _, ok := byName[mdmProf.Name]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = "mobileconfig"
@@ -2483,7 +2541,7 @@ func getAppleProfiles(
 		// TODO: confirm error messages
 		if _, ok := byIdent[mdmProf.Identifier]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit configuration_profiles. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
 		byIdent[mdmProf.Identifier] = "mobileconfig"
@@ -2671,7 +2729,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 			}
 		}
 		if count > 1 {
-			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
 		}
 
 		if len(profile.Contents) > 1024*1024 {
@@ -3114,7 +3172,7 @@ func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.
 		}
 	}
 
-	if r.MultipartForm.File["certificate"] == nil || len(r.MultipartForm.File["certificate"]) == 0 {
+	if len(r.MultipartForm.File["certificate"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "certificate multipart field is required",
 			InternalErr: err,

@@ -39,6 +39,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   label_updated_at: "2022-01-02T12:00:00Z",
   policy_updated_at: "2022-01-02T12:00:00Z",
   last_enrolled_at: "2022-01-02T12:00:00Z",
+  last_mdm_enrolled_at: "2022-01-02T12:00:00Z",
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
   refetch_critical_queries_until: null,
@@ -78,11 +79,11 @@ const DEFAULT_HOST_MOCK: IHost = {
       },
       certificates: [],
     },
-    macos_settings: {
+    apple_settings: {
       disk_encryption: null,
       action_required: null,
     },
-    macos_setup: {
+    setup_experience: {
       bootstrap_package_status: "",
       details: "",
       bootstrap_package_name: "",

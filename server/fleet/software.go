@@ -243,6 +243,13 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
+// SoftwareLite is a lightweight subset of Software, useful for exposing minimal information from a full Software record
+type SoftwareLite struct {
+	ID      uint   `json:"id" db:"id"`
+	Name    string `json:"name" db:"name"`
+	Version string `json:"version" db:"version"`
+}
+
 type VulnerableSoftware struct {
 	ID                uint    `json:"id" db:"id"`
 	Name              string  `json:"name" db:"name"`
@@ -807,6 +814,7 @@ type VPPBatchPayload struct {
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
+	LabelsIncludeAll   []string `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories          []string                  `json:"categories"`
 	DisplayName         string                    `json:"display_name"`
@@ -834,6 +842,7 @@ type VPPBatchPayloadWithPlatform struct {
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`
+	LabelsIncludeAll   []string                  `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// CategoryIDs is the list of IDs of software categories associated with this VPP app.

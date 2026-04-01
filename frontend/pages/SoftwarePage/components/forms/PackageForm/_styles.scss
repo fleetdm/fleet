@@ -1,6 +1,12 @@
 .package-form {
   container-type: inline-size;
 
+  // TODO: Refactor InfoBanner to not have default margin so we don't have to override it
+  // Flex gaps should be handling spacing around all InfoBanner
+  .info-banner {
+    margin: 0;
+  }
+
   &__form-frame {
     display: flex;
     align-items: flex-start;
@@ -57,10 +63,6 @@
 
   &__file-uploader {
     box-sizing: border-box;
-  }
-
-  .info-banner {
-    margin-top: $pad-small;
   }
 
   &__form-fields {

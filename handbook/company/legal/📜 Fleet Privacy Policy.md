@@ -115,6 +115,10 @@ When you visit Fleet websites, we may automatically collect:
 - IP address, device and browser type, and language settings
 
 - Pages viewed, referral sources, and usage analytics
+  
+- Company or organization information inferred or identified from your IP address or browsing behavior
+
+- Conversation and interaction data submitted through chat tools on our websites
 
 - Data gathered via cookies, pixels, and similar technologies
 
@@ -129,6 +133,8 @@ Fleet uses this data to:
 
 - Deliver personalized content and marketing communications
 
+- Identify and engage with prospective customers and website visitors
+
 - Serve relevant advertisements through third-party partners
 
 
@@ -142,7 +148,25 @@ Fleet uses cookies and other tracking technologies for:
 
 - Interest-based advertising and email tracking
 
-Users can manage or disable cookies via their browser settings and may opt out of interest-based advertising through our Cookie Policy.
+- Visitor identification and engagement through conversational marketing tools
+
+Users can manage or disable cookies via their browser settings and may opt out of interest-based advertising through our Cookie Policy. Please note that Fleet's website does not currently recognize or respond to browser-initiated Do Not Track (DNT) signals.
+
+### **Third-Party Tools and Platforms**
+
+Fleet uses third-party tools on our websites to support analytics, marketing, and visitor engagement. These tools may collect, process, and enrich data about your visit, including identifying your company or inferred identity based on your IP address or browsing activity. Current tools include, but are not limited to:
+
+- Google Analytics – website traffic and usage analytics
+
+- Pendo – product analytics and in-app engagement
+
+- Qualified – Fleet's website uses Qualified, a conversational marketing and visitor engagement, including AI-assisted chat interactions
+
+Data collected through these tools may be shared with Fleet's CRM and sales platforms to support sales and marketing activities. Each of these providers operates under their own privacy policy, and we encourage you to review those policies for further information.
+
+### **Your Choices**
+
+You may opt out of marketing communications at any time by following the unsubscribe instructions in any communication from us or by contacting us directly at fleetdm.com/contact. Note that opting out of marketing communications does not disable all data collection described in this section.
 
 
 ## **4\. Cross-Border Data Transfers**

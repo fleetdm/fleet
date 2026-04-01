@@ -31,8 +31,8 @@ describe("ensurePeriod", () => {
 
 describe("formatAlreadyAvailableInstallMessage", () => {
   it("returns a React fragment with the correct text and team when the string matches the regex", () => {
-    // Example input: "Couldn't add. MyApp already has an installer available for the Marketing team."
-    const msg = `${ADD_SOFTWARE_ERROR_PREFIX} MyApp already has an installer available for the Marketing team.`;
+    // Example input: "Couldn't add. MyApp already has an installer available for the Marketing fleet."
+    const msg = `${ADD_SOFTWARE_ERROR_PREFIX} MyApp already has an installer available for the Marketing fleet.`;
     const result = formatAlreadyAvailableInstallMessage(msg);
 
     // Render for querying text
@@ -40,11 +40,11 @@ describe("formatAlreadyAvailableInstallMessage", () => {
 
     expect(container.textContent).toContain("Couldn't add.");
     expect(container.textContent).toContain("MyApp");
-    expect(container.textContent).toContain("Marketing team");
+    expect(container.textContent).toContain("Marketing fleet");
   });
 
-  it("returns React with correct text and team when the string matches the package exists regex", () => {
-    const msg = `SoftwareInstaller "MyApp" already exists with team "Marketing".`;
+  it("returns React with correct text and fleet when the string matches the package exists regex", () => {
+    const msg = `SoftwareInstaller "MyApp" already exists with fleet "Marketing".`;
     const result = formatAlreadyAvailableInstallMessage(msg);
 
     const { container } = render(<>{result}</>);
@@ -53,7 +53,7 @@ describe("formatAlreadyAvailableInstallMessage", () => {
     expect(container.textContent).toContain(
       "already has an installer available"
     );
-    expect(container.textContent).toContain("Marketing");
+    expect(container.textContent).toContain("Marketing fleet");
   });
 
   it("returns null if the string does not match the expected pattern", () => {
@@ -62,13 +62,13 @@ describe("formatAlreadyAvailableInstallMessage", () => {
     expect(result).toBeNull();
   });
 
-  it("works for different app names and team names", () => {
-    const msg = `${ADD_SOFTWARE_ERROR_PREFIX} Zoom already has an installer available for the Engineering team.`;
+  it("works for different app names and fleet names", () => {
+    const msg = `${ADD_SOFTWARE_ERROR_PREFIX} Zoom already has an installer available for the Engineering fleet.`;
     const result = formatAlreadyAvailableInstallMessage(msg);
 
     const { container } = render(<>{result}</>);
     expect(container.textContent).toContain("Zoom");
-    expect(container.textContent).toContain("Engineering team");
+    expect(container.textContent).toContain("Engineering fleet");
   });
 
   it("returns null if the input is empty", () => {

@@ -1,16 +1,17 @@
 import React, { useContext, useState } from "react";
+import classnames from "classnames";
 
 import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
-import classnames from "classnames";
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
 import TooltipWrapper from "components/TooltipWrapper";
+import RevealButton from "components/buttons/RevealButton";
 
 const baseClass = "end-user-auth-form";
 
@@ -26,11 +27,13 @@ const getTooltipCopy = (android = false) => {
 interface IEndUserAuthFormProps {
   currentTeamId: number;
   defaultIsEndUserAuthEnabled: boolean;
+  defaultLockEndUserInfo: boolean;
 }
 
 const EndUserAuthForm = ({
   currentTeamId,
   defaultIsEndUserAuthEnabled,
+  defaultLockEndUserInfo,
 }: IEndUserAuthFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
@@ -39,24 +42,37 @@ const EndUserAuthForm = ({
   const [isEndUserAuthEnabled, setEndUserAuthEnabled] = useState(
     defaultIsEndUserAuthEnabled
   );
+  const [lockEndUserInfo, setLockEndUserInfo] = useState(
+    defaultLockEndUserInfo
+  );
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const onToggleEndUserAuth = (newCheckVal: boolean) => {
     setEndUserAuthEnabled(newCheckVal);
+    // Sync lock end user info with EUA: enabling EUA enables it, disabling EUA disables it.
+    setLockEndUserInfo(newCheckVal);
+  };
+
+  const onChangeLockEndUserInfo = (newCheckVal: boolean) => {
+    setLockEndUserInfo(newCheckVal);
   };
 
   const onClickSave = async () => {
     setIsUpdating(true);
+    const canLockEndUserInfo = isEndUserAuthEnabled && lockEndUserInfo;
     try {
       await mdmAPI.updateEndUserAuthentication(
         currentTeamId,
-        isEndUserAuthEnabled
+        isEndUserAuthEnabled,
+        canLockEndUserInfo
       );
       renderFlash("success", "Successfully updated.");
     } catch {
       renderFlash("error", "Couldn’t update. Please try again.");
     } finally {
       setIsUpdating(false);
+      setLockEndUserInfo(canLockEndUserInfo);
     }
   };
 
@@ -86,6 +102,37 @@ const EndUserAuthForm = ({
         >
           Turn on
         </Checkbox>
+        <RevealButton
+          isShowing={showAdvancedOptions}
+          showText="Advanced options"
+          hideText="Advanced options"
+          caretPosition="after"
+          onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+        />
+        {showAdvancedOptions && (
+          <Checkbox
+            disabled={!isEndUserAuthEnabled}
+            onChange={onChangeLockEndUserInfo}
+            value={lockEndUserInfo}
+          >
+            <TooltipWrapper
+              tipContent={
+                <span>
+                  End user can&apos;t edit the local account&apos;s{" "}
+                  <b>Account Name</b> and
+                  <br />
+                  <b>Full Name</b> in macOS Setup Assistant. These fields will
+                  be
+                  <br />
+                  locked to values from your IdP.
+                </span>
+              }
+            >
+              Lock end user info
+            </TooltipWrapper>
+          </Checkbox>
+        )}
+
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button

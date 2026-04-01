@@ -119,7 +119,7 @@ Orbit is inspired by the success of [Kolide Launcher](https://github.com/kolide/
 
 - Both Orbit and Launcher use [The Update Framework](https://theupdateframework.com/) specification for managing updates. Orbit utilizes the official [go-tuf](https://github.com/theupdateframework/go-tuf) library, while Launcher has it's own implementation of the specification.
 - Orbit can be deployed as a (near) drop-in replacement for osquery, supporting full customization of the osquery flags. Launcher heavily manages the osquery flags making deployment outside of Fleet or Kolide's SaaS difficult.
-- Orbit prefers the battle-tested plugins of osquery. Orbit uses the built-in logging, configuration, and live query plugins, while Launcher uses custom implementations.
+- Orbit prefers the battle-tested plugins of osquery. Orbit uses the built-in logging, configuration, and live report plugins, while Launcher uses custom implementations.
 - Orbit prefers the built-in osquery remote APIs. Launcher utilizes a custom gRPC API that has led to issues with character encoding, load balancers/proxies, and request size limits.
 - Orbit encourages use of the osquery performance Watchdog, while Launcher disables the Watchdog.
 

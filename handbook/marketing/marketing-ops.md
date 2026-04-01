@@ -21,7 +21,7 @@ Our go-to-market (GTM) approach is built on a foundation of end-to-end visibilit
 Conversion rates help us to plan, forecast, and improve. There are several key comparisons that we want to understand:
 
 - **Win rate**: From stage X to closed won.  For closed opportunities, this tells us what percentage of opportunities historically will be won for a given stage in the sales cycle.  
-- **Stage to win cyce time**: tbd/todo  
+- **Stage to win cycle time**: tbd/todo  
 - **Stage to stage**:tbd/todo  
 - **Stage to stage cycle time**: tbd/todo
 
@@ -103,10 +103,10 @@ For all unpaid, inbound traffic and brand-driven interest.
 
 | Source detail | Code | Campaign examples (always-on) |
 | :---- | :---- | :---- |
-| Organic search | OS | OS-Default |
-| Direct traffic | DT | DT-Default |
-| Web referral | WR | WR-Default |
-| Organic social | SOC | SOC-Default |
+| Organic search | OS | Default-OS |
+| Direct traffic | DT | Default-DT |
+| Web referral | WR | Default-WR |
+| Organic social | SOC | Default-SOC |
 
 
 #### 🗣️ Word-of-mouth
@@ -115,8 +115,8 @@ For all manually tracked, human-to-human recommendations.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| Customer referral | CR | CR-Default  |
-| Employee referral | ER | ER-Default  |
+| Customer referral | CR | Default-CR  |
+| Employee referral | ER | Default-ER  |
 | Analyst/influencer | AR | AR-gartner\_mention |
 
 
@@ -193,20 +193,100 @@ Discreet campaigns have a specific start, end, and budget (e.g., webinar, trade 
 #### Always-on campaigns
 
 These are generic "buckets" for continuous inbound channels that don't have a start/end date.  They are “Default” campaigns, since they do not have a start or stop date. Use the following naming convention when naming an "Always-on" campaign:
-- **Structure:** \[Code\]-Default  
+- **Structure:** Default-\[Code\]  
+  - **\[Name\]:** Default, Always\_On, or General.
   - **\[Code\]:** The 2-4 letter code.
-  - **\[Name\]:** Default, Always\_On, or General.  
-- **Full example:** OS-Default (for all Organic Search)
+- **Full example:** Default-OS (for all Organic Search)
+
+
+## SFDC campaign hierarchy
+
+### Campaign hierarchy
+
+Salesforce campaigns should live inside a parent-child hierarchy that mirrors the attribution framework. This allows us to roll up ROI, pipeline, and engagement at any level — from an individual campaign all the way up to a Source bucket — without building custom reports from scratch.
+
+There are two types of campaigns in Salesforce, determined by the **campaign record type**:
+- **Working campaigns:** Traditional campaigns with content and activities associated with them.
+- **Parent campaigns:** Buckets that group related working campaigns together.
+
+The campaign record type is the controlling field that determines whether a campaign is a working campaign or a parent campaign.
+
+Use the following list views to navigate campaigns in Salesforce:
+1. [Parent campaigns list](https://fleetdm.lightning.force.com/lightning/o/Campaign/list?filterName=Parent_campaigns)
+2. [Active working campaigns list](https://fleetdm.lightning.force.com/lightning/o/Campaign/list?filterName=Active_working_campaigns)
+
+#### How the hierarchy maps to attribution
+
+| Hierarchy level | Attribution level | What it represents | Example |
+|----------------|-------------------|--------------------|---------|
+| L1 — Top parent | Source | The 6 high-level budget buckets | `1_Event` |
+| L2 — Sub-parent | Source Detail | The specific tactic or program type within a Source | `2_Field_Event` |
+| L3 — Program parent (optional) | — | A recurring initiative that runs multiple times | `3_GitOps_Workshops` |
+| Leaf — Individual campaign | Campaign | The specific, trackable activity with campaign members | `2026_03-FE-GitOps_Workshop_Chicago` |
+
+L1, L2, and L3 parent campaigns are structural — they exist only for rollup and never have campaign members directly attached to them. Only leaf campaigns contain campaign members.
+
+#### Parent campaign naming
+
+Parent campaigns (nodes in the tree) use a numerical prefix that indicates their hierarchy level. Leaf campaigns keep their existing naming convention unchanged.
+
+L1 Source parents use the prefix `1_` followed by the Source name: `1_Organic_Web`, `1_Word_of_Mouth`, `1_Event`, `1_Digital`, `1_Prospecting`, `1_Partner`.
+
+L2 Source Detail parents use the prefix `2_` followed by the Source Detail name: `2_Paid_Search`, `2_Field_Event`, `2_Major_Conference`, `2_Webinar`.
+
+L3 Program parents use the prefix `3_` followed by a descriptive name: `3_GitOps_Workshops`.
+
+The numerical prefix makes the hierarchy level immediately visible in any SFDC list view and sorts parent campaigns naturally above leaf campaigns.
+
+#### When to create a program parent
+
+Create an L3 program parent when a tactic is repeated three or more times and you want to see the collective impact separately from other campaigns in the same Source Detail. For example, if we run six GitOps Workshops under Field Event (FE), a `3_` program parent lets us see the total pipeline from GitOps Workshops without mixing in happy hours or dinners.
+
+If a tactic only runs once or twice, keep it directly under the `2_` Source Detail parent — no program parent needed.
+
+#### Where always-on campaigns live
+
+Always-on "Default" campaigns sit inside the hierarchy under their corresponding `2_` Source Detail parent, just like discrete campaigns. For example, `Default-OS-Organic` lives under `2_Organic_Search`, which lives under `1_Organic_Web`. This ensures that rollup numbers at every level are complete.
+
+To isolate discrete campaigns for time-bound analysis, filter on campaign name — anything starting with `Default-` is always-on.
+
+#### Fiscal year
+
+Fiscal year is not a layer in the campaign hierarchy. Use the `Fiscal_Year__c` formula field on the Campaign record (derived from Start Date) to filter any report by fiscal year. The YYYY_MM prefix in campaign names also provides a natural date anchor for sorting and filtering.
+
+#### Adding a new campaign to the hierarchy
+
+When creating a new campaign in Salesforce:
+
+1. Identify the Source Detail code from the attribution framework table above (e.g., FE for Field Event).
+2. Find the corresponding `2_` parent campaign (e.g., `2_Field_Event`).
+3. If the campaign belongs to an existing program series, set the parent to the `3_` program parent instead (e.g., `3_GitOps_Workshops`).
+4. If no `2_` parent exists yet for that Source Detail, create one under the correct `1_` Source parent first.
+5. Set the Parent Campaign field on your new campaign before launch.
+
+#### Example
+
+A new GitOps Workshop in Nashville in May 2026:
+
+```
+1_Event
+└── 2_Field_Event
+    └── 3_GitOps_Workshops
+        └── 2026_05-FE-GitOps_Workshop_Nashville   ← new campaign here
+```
+
+The workshop's pipeline will automatically roll up into the GitOps Workshops total, the Field Event total, and the overall Event total.
+
 
 
 ## Unified campaign member status framework
 
 To accurately measure marketing ROI and attribution, we must standardize how we track prospect progression through our campaigns. This framework establishes a *unified status hierarchy* for Salesforce campaigns. 
 
-**Key Objectives:**
+**Key objectives:**
 1. **Standardization:** Use the same language across all campaign types.  
 2. **Attribution:** Ensure only meaningful interactions trigger attribution models.  
-3. **Social Integration:** Capture top-of-funnel social intent without inflating pipeline metrics.
+3. **Social integration:** Capture top-of-funnel social intent without inflating pipeline metrics.
 
 
 ### Unified hierarchy
@@ -273,10 +353,49 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Registered:** Clicked a link and filled out the resulting form.  
 - **Engaged:** Replied to the email directly.
 
-#### Website Chat (Qualified)
+#### Website chat (qualified)
 - **Interacted:** We chatted and learned about the prospect
 - **Engaged:** We chatted long enough to offer a meeting 
 - **Meeting Requested:** The prospect has booked a meeting
+
+## Contact source (Lead source)
+At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  Historically, we've had the field *Contact source*, which effecively told us what form or activity a person did.  This is good data, and works alongside the overall attribution framework.
+
+Here are the values for the contact source:
+
+
+| **Contact Source Value** | **Category** | **Status** | **Definition** |
+| :---- | :---- | :---- | :---- |
+| Website \- Sign up | Website | Existing | Contact created an account/signed up for the Fleet platform. |
+| Website \- Contact forms \- Demo | Website | Existing | Contact requested a standard demo via the website. |
+| Website \- Contact forms \- Demo \- ICP | Website | Existing | Contact requested a demo and was routed/flagged as an Ideal Customer Profile. |
+| Website \- Contact forms | Website | Existing | Contact submitted a general inquiry via the website. |
+| Website \- Gated document | Website | NEW | Contact filled out a form to download a whitepaper, report, or guide. |
+| Website \- Newsletter | Website | Existing | Contact explicitly subscribed to the Fleet blog or newsletter. |
+| Website \- Swag request | Website | Existing | Contact filled out a form specifically to request Fleet merchandise. |
+| Website \- GitOps | Website | Existing | Contact converted via a specific GitOps-related form or landing page flow. |
+| Website \- Chat | Website | Existing | Contact engaged and provided their email via the website chatbot. |
+| Website \- Partner sign up | Website | NEW | Contact submitted a form to apply for or join the Fleet partner program. |
+| Webinar | Events | NEW | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). Note: The specific host/campaign is captured in the 3-tier attribution. |
+| Event | Events | Existing | Contact was scanned, uploaded, or registered from a live physical or virtual event. |
+| LinkedIn \- Native lead form | Third-Party | NEW | Contact submitted their info directly inside LinkedIn via a Document Ad or Lead Gen form. |
+| Content syndication | Third-Party | NEW | Contact info was acquired via a 3rd-party vendor promoting Fleet's content. |
+| Partner \- Deal registration | Third-Party | NEW | Contact was formally registered as a lead by an authorized partner/reseller. |
+| GitHub \- Stared fleetdm/fleet | Community | Existing | Contact starred the Fleet repository. |
+| GitHub \- Forked fleetdm/fleet | Community | Existing | Contact forked the Fleet repository. |
+| GitHub \- Contributed to fleetdm/fleet | Community | Existing | Contact made a code/documentation contribution to the Fleet repository. |
+| LinkedIn \- Liked the LinkedIn company page | Social | Existing | Contact followed or liked the official Fleet LinkedIn page. |
+| LinkedIn \- Reaction | Social | Existing | Contact reacted (like, celebrate, etc.) to a Fleet post. |
+| LinkedIn \- Comment | Social | Existing | Contact commented on a Fleet post. |
+| LinkedIn \- Share | Social | Existing | Contact shared a Fleet post. |
+| Prospecting \- AE | Outbound | Existing | Contact was sourced directly via outbound efforts by an Account Executive. |
+| Prospecting \- Specialist | Outbound | Existing | Contact was sourced directly via outbound efforts by a Sales Specialist. |
+| Prospecting \- Meeting service | Outbound | Existing | Contact was sourced/booked via an outsourced meeting-setting agency. |
+| Dripify \- AE | Outbound | Existing | Contact was sourced via Dripify automation by an AE. |
+| Dripify \- Specialist | Outbound | Existing | Contact was sourced via Dripify automation by a Specialist. |
+| Attended a call with Fleet | Outbound | Existing | Contact was added to the system after attending a calendar invite/call with the team. |
+
+
 
 ## 📧 Contact marketability & compliance
 
@@ -345,4 +464,4 @@ We generally do not manually update these fields. A Salesforce Flow acts as a "T
 - **Debugging:** If a VIP prospect stops receiving emails, the `Status Reason` tells us if it was a system error (Bounce) or human error (Sales marked "Do Not Contact").
 
 <meta name="maintainedBy" value="johnjeremiah">
-<meta name="title" value="🫧 Marketing Ops">
+<meta name="title" value="🫧 Marketing ops">

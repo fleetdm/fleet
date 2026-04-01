@@ -9,10 +9,12 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // ConnectorFactory creates a driver.Connector for custom database authentication.
@@ -114,6 +116,26 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 	if dbError != nil {
 		return nil, dbError
 	}
+
+	// Register database/sql.DBStats metrics when using OpenTelemetry tracing.
+	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled && opts.TracingConfig.TracingType != "elasticapm" {
+		attrs := []attribute.KeyValue{
+			attribute.String("db.system", "mysql"),
+		}
+		// Parse DSN to extract address and database name for metric differentiation
+		if cfg, err := mysql.ParseDSN(dsn); err == nil {
+			if cfg.Addr != "" {
+				attrs = append(attrs, attribute.String("db.addr", cfg.Addr))
+			}
+			if cfg.DBName != "" {
+				attrs = append(attrs, attribute.String("db.name", cfg.DBName))
+			}
+		}
+		if err := otelsql.RegisterDBStatsMetrics(db.DB, otelsql.WithAttributes(attrs...)); err != nil {
+			opts.Logger.WarnContext(context.Background(), "failed to register DB stats metrics", "err", err)
+		}
+	}
+
 	return db, nil
 }
 
@@ -183,7 +205,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) err
 			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
 		}
 		if IsReadOnlyError(err) {
-			TriggerFatalError(err)
+			TriggerFatalError(ctx, err)
 		}
 		return err
 	}
@@ -191,7 +213,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) err
 	if err := tx.Commit(); err != nil {
 		err = ctxerr.Wrap(ctx, err, "commit transaction")
 		if IsReadOnlyError(err) {
-			TriggerFatalError(err)
+			TriggerFatalError(ctx, err)
 		}
 		return err
 	}

@@ -14,7 +14,7 @@ work and personal data.
 
 ## Questions?
 
-- Which Fleet team will the enrolling device be assigned to?
+- Which fleet will the enrolling device be assigned to?
 
 ## Links
 

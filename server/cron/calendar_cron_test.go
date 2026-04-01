@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/stretchr/testify/assert"
@@ -129,7 +129,7 @@ func TestEventForDifferentHost(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := logging.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Integrations: fleet.Integrations{
@@ -208,7 +208,7 @@ func TestEventForDifferentHost(t *testing.T) {
 func TestCalendarEventsMultipleHosts(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := logging.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()
@@ -403,11 +403,11 @@ func (n notFoundErr) Error() string {
 func TestCalendarEvents1KHosts(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	var logger *logging.Logger
+	var logger *slog.Logger
 	if os.Getenv("CALENDAR_TEST_LOGGING") != "" {
-		logger = logging.NewLogfmtLogger(os.Stdout)
+		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	} else {
-		logger = logging.NewNopLogger()
+		logger = slog.New(slog.DiscardHandler)
 	}
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
@@ -715,7 +715,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 func TestEventBody(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := logging.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	t.Cleanup(
 		func() {
 			calendar.ClearMockEvents()

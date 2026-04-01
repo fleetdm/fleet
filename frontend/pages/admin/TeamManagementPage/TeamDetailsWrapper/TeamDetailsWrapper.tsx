@@ -47,15 +47,15 @@ interface ITeamDetailsSubNavItem {
 const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
   {
     name: "Users",
-    getPathname: PATHS.TEAM_DETAILS_USERS,
+    getPathname: PATHS.FLEET_DETAILS_USERS,
   },
   {
     name: "Agent options",
-    getPathname: PATHS.TEAM_DETAILS_OPTIONS,
+    getPathname: PATHS.FLEET_DETAILS_OPTIONS,
   },
   {
     name: "Settings",
-    getPathname: PATHS.TEAM_DETAILS_SETTINGS,
+    getPathname: PATHS.FLEET_DETAILS_SETTINGS,
   },
 ];
 
@@ -301,7 +301,7 @@ const TeamDetailsWrapper = ({
 
     try {
       await teamsAPI.destroy(teamIdForApi);
-      router.push(PATHS.ADMIN_TEAMS);
+      router.push(PATHS.ADMIN_FLEETS);
       renderFlash("success", "Fleet removed");
     } catch (response) {
       renderFlash("error", "Something went wrong removing the fleet");
@@ -393,7 +393,7 @@ const TeamDetailsWrapper = ({
       <>
         {isGlobalAdmin ? (
           <div className={`${baseClass}__header-links`}>
-            <BackButton text="Back to fleets" path={PATHS.ADMIN_TEAMS} />
+            <BackButton text="Back to fleets" path={PATHS.ADMIN_FLEETS} />
           </div>
         ) : (
           <></>

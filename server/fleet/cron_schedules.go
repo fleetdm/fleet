@@ -49,6 +49,10 @@ const (
 	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
 	// Runs every 1 minute.
 	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
+	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
+	// Runs every 5 minutes.
+	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
+	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
 )
 
 type CronSchedulesService interface {

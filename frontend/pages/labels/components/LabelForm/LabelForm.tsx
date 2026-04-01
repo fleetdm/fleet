@@ -3,6 +3,7 @@ import React, { ReactNode, useState } from "react";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TeamNameField from "../TeamNameField/TeamNameField";
 import { validateLabelFormData, ILabelFormValidation } from "./helpers";
 
@@ -66,9 +67,9 @@ const LabelForm = ({
 
   const currentData = { name, description };
 
-  const onFormChange = (update: { name: string; value: string }) => {
-    const { name: fieldName, value } = update;
+  type ParsedTarget = { name: string; value: string };
 
+  const onFormChange = ({ name: fieldName, value }: ParsedTarget) => {
     const nextData =
       fieldName === "name"
         ? { name: value, description }
@@ -110,9 +111,14 @@ const LabelForm = ({
     });
   };
 
-  const onInputBlur = () => {
-    // on blur, show all current errors (set all)
-    const fullValidation = validateLabelFormData(currentData);
+  const onInputBlur = ({ name: fieldName, value }: ParsedTarget) => {
+    const nextData =
+      fieldName === "name"
+        ? { name: value, description }
+        : { name, description: value };
+
+    // full validation for new data
+    const fullValidation = validateLabelFormData(nextData);
     setFormValidation(fullValidation);
   };
 
@@ -162,13 +168,18 @@ const LabelForm = ({
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
-        <Button
-          type="submit"
-          isLoading={isUpdatingLabel}
-          disabled={!formValidation.isValid}
-        >
-          Save
-        </Button>
+        <GitOpsModeTooltipWrapper
+          entityType="labels"
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              isLoading={isUpdatingLabel}
+              disabled={disableChildren || !formValidation.isValid}
+            >
+              Save
+            </Button>
+          )}
+        />
       </div>
     </form>
   );

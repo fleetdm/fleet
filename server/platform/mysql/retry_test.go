@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"sync"
@@ -22,14 +23,14 @@ func readOnlyErr() error {
 func TestTriggerFatalErrorCallsHandler(t *testing.T) {
 	var called atomic.Bool
 	var capturedErr atomic.Value
-	SetFatalErrorHandler(func(err error) {
+	SetFatalErrorHandler(func(_ context.Context, err error) {
 		called.Store(true)
 		capturedErr.Store(err)
 	})
 	t.Cleanup(func() { SetFatalErrorHandler(nil) })
 
 	testErr := errors.New("test read-only error")
-	TriggerFatalError(testErr)
+	TriggerFatalError(t.Context(), testErr)
 
 	assert.True(t, called.Load())
 	assert.Equal(t, testErr, capturedErr.Load())
@@ -39,13 +40,13 @@ func TestTriggerFatalErrorPanicsWithoutHandler(t *testing.T) {
 	SetFatalErrorHandler(nil)
 
 	assert.Panics(t, func() {
-		TriggerFatalError(errors.New("read-only"))
+		TriggerFatalError(t.Context(), errors.New("read-only"))
 	})
 }
 
 func TestTriggerFatalErrorFiresOnce(t *testing.T) {
 	var callCount atomic.Int32
-	SetFatalErrorHandler(func(_ error) {
+	SetFatalErrorHandler(func(_ context.Context, _ error) {
 		callCount.Add(1)
 	})
 	t.Cleanup(func() { SetFatalErrorHandler(nil) })
@@ -53,7 +54,7 @@ func TestTriggerFatalErrorFiresOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 100 {
 		wg.Go(func() {
-			TriggerFatalError(errors.New("read-only"))
+			TriggerFatalError(t.Context(), errors.New("read-only"))
 		})
 	}
 	wg.Wait()
@@ -120,7 +121,7 @@ func TestTransactionReadOnlyTriggersFatalError(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var handlerCalled atomic.Bool
-			SetFatalErrorHandler(func(_ error) {
+			SetFatalErrorHandler(func(_ context.Context, _ error) {
 				handlerCalled.Store(true)
 			})
 			t.Cleanup(func() { SetFatalErrorHandler(nil) })

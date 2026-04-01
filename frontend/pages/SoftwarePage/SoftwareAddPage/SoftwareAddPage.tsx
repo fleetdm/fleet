@@ -16,6 +16,12 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import PageDescription from "components/PageDescription";
+
+import {
+  FmaPlatformValue,
+  FmaStatusValue,
+} from "./SoftwareFleetMaintained/FleetMaintainedAppsTable/FmaFilters/FmaFilters";
 
 const baseClass = "software-add-page";
 
@@ -52,6 +58,8 @@ export interface ISoftwareAddPageQueryParams {
   page?: string;
   order_key?: string;
   order_direction?: "asc" | "desc";
+  platform: FmaPlatformValue;
+  status: FmaStatusValue;
 }
 
 interface ISoftwareAddPageProps {
@@ -114,6 +122,7 @@ const SoftwareAddPage = ({
             />
           </div>
           <h1>Add software</h1>
+          <PageDescription content="Add software to your library. You can add it to self-service later." />
           <TabNav>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}

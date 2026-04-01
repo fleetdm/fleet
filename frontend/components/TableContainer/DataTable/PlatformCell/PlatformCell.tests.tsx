@@ -1,38 +1,36 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import { ScheduledQueryablePlatform } from "interfaces/platform";
+import { QueryablePlatform } from "interfaces/platform";
 import PlatformCell from "./PlatformCell";
 
-const SCHEDULED_QUERYABLE_PLATFORMS: ScheduledQueryablePlatform[] = [
+const QUERYABLE_PLATFORMS: QueryablePlatform[] = [
   "windows",
   "darwin",
   "linux",
+  "chrome",
 ];
 
 describe("Platform cell", () => {
   it("renders platform icons in correct order", () => {
-    render(<PlatformCell platforms={SCHEDULED_QUERYABLE_PLATFORMS} />);
+    render(<PlatformCell platforms={QUERYABLE_PLATFORMS} />);
 
     const icons = screen.queryByTestId("icons");
     const appleIcon = screen.queryByTestId("darwin-icon");
-    const linuxIcon = screen.queryByTestId("linux-icon");
     const windowsIcon = screen.queryByTestId("windows-icon");
+    const linuxIcon = screen.queryByTestId("linux-icon");
+    const chromeIcon = screen.queryByTestId("chrome-icon");
 
     expect(icons?.firstChild).toBe(appleIcon);
     expect(icons?.firstChild?.nextSibling).toBe(windowsIcon);
     expect(icons?.firstChild?.nextSibling?.nextSibling).toBe(linuxIcon);
+    expect(icons?.firstChild?.nextSibling?.nextSibling?.nextSibling).toBe(
+      chromeIcon
+    );
   });
-  it("renders all platforms targeted when no platforms passed in and scheduled", () => {
+  it("renders --- when no platforms passed in", () => {
     render(<PlatformCell platforms={[]} />);
 
-    const icons = screen.queryByTestId("icons");
-    const appleIcon = screen.queryByTestId("darwin-icon");
-    const linuxIcon = screen.queryByTestId("linux-icon");
-    const windowsIcon = screen.queryByTestId("windows-icon");
-
-    expect(icons?.firstChild).toBe(appleIcon);
-    expect(icons?.firstChild?.nextSibling).toBe(windowsIcon);
-    expect(icons?.firstChild?.nextSibling?.nextSibling).toBe(linuxIcon);
+    expect(screen.getByText(/---/i)).toBeInTheDocument();
   });
 });
