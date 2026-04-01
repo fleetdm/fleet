@@ -2077,9 +2077,6 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 }
 
 func (svc *Service) NewACMEEnrollment(ctx context.Context, hardwareSerial string) (string, error) {
-	// TODO: sort out auth for this method, it should only be called by the renewal cron or the
-	// enroll endpoints
-	//
 	// skipauth: The enroll profile endpoint is unauthenticated, and this method is only called from
 	// there or the renewal cron
 	svc.authz.SkipAuthorization(ctx)

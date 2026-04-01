@@ -78,7 +78,7 @@ type Order struct {
 	// when read (or we could implement sql.Scanner).
 	Identifiers             []Identifier `db:"-"`
 	Status                  string       `db:"status"`
-	IssuedCertificateSerial *uint        `db:"issued_certificate_serial"`
+	IssuedCertificateSerial *uint64      `db:"issued_certificate_serial"`
 
 	// NotBefore and NotAfter must not be set, we capture them so we can validate
 	// that they were indeed not provided.
@@ -194,6 +194,7 @@ type Datastore interface {
 	GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*Authorization, error)
 	FinalizeOrder(ctx context.Context, orderID uint, csrPEM string, certSerial int64) error
 	GetChallengesByAuthorizationID(ctx context.Context, authorizationID uint) ([]*Challenge, error)
+	GetCertificatePEMByOrderID(ctx context.Context, accountID, orderID uint) (string, error)
 	GetChallengeByID(ctx context.Context, accountID, challengeID uint) (*Challenge, error)
 	// Update challenge handles updating the challenge status, and the authorization status as well as moving the order status.
 	UpdateChallenge(ctx context.Context, challenge *Challenge) (*Challenge, error)

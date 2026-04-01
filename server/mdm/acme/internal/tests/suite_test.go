@@ -73,7 +73,13 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 				Raw:          []byte("mock-cert"),
 			}, nil
 		}),
-	)
+		map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {
+				Name:        fleet.MDMAssetCACert,
+				Value:       []byte("-----BEGIN CERTIFICATE-----\nroot\n-----END CERTIFICATE-----"),
+				MD5Checksum: "63a9f0ea7bb98050796b649e85481845", // md5 of "root"
+			},
+		})
 
 	opts := service.WithTestAppleRootCAs(rootPool)
 	// Create service
@@ -335,6 +341,66 @@ func (s *integrationTestSuite) listOrders(t *testing.T, pathIdentifier string, a
 	t.Helper()
 	url := s.listOrdersURL(pathIdentifier, accountID)
 	return doACMERequest[api_http.ListOrdersResponse](t, http.MethodPost, url, jwsBody)
+}
+
+// getCertificateURL returns the full URL for the get certificate endpoint.
+func (s *integrationTestSuite) getCertificateURL(pathIdentifier string, orderID uint) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/orders/%d/certificate", s.server.URL, pathIdentifier, orderID)
+}
+
+// getCertificate POSTs a JWS body to the certificate endpoint and returns the
+// PEM certificate chain (on success) or an ACME error (on failure) and the raw response.
+// Unlike other helpers, the success response is raw PEM, not JSON.
+func (s *integrationTestSuite) getCertificate(t *testing.T, pathIdentifier string, orderID uint, jwsBody []byte) (string, *types.ACMEError, *http.Response) {
+	t.Helper()
+	url := s.getCertificateURL(pathIdentifier, orderID)
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jwsBody)) //nolint:gosec // test server URL is safe
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+
+	if resp.StatusCode >= 300 {
+		var acmeErr types.ACMEError
+		if err := json.Unmarshal(body, &acmeErr); err == nil && acmeErr.Type != "" {
+			return "", &acmeErr, resp
+		}
+		return "", nil, resp
+	}
+
+	return string(body), nil, resp
+}
+
+// finalizeOrderWithCert forces an order to finalized+valid state and inserts a
+// linked certificate in the database. This is useful for setting up the state
+// needed by the get certificate endpoint and any other test that needs a
+// finalized order with a valid certificate.
+func (s *integrationTestSuite) finalizeOrderWithCert(t *testing.T, orderID uint, certSerial uint64, certPEM string) {
+	t.Helper()
+	ctx := t.Context()
+
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE acme_orders SET finalized = 1, status = 'valid' WHERE id = ?`, orderID)
+	require.NoError(t, err)
+
+	_, err = s.DB.ExecContext(ctx,
+		`INSERT INTO identity_serials (serial) VALUES (?)`, certSerial)
+	require.NoError(t, err)
+
+	_, err = s.DB.ExecContext(ctx, `
+		INSERT INTO identity_certificates (serial, not_valid_before, not_valid_after, certificate_pem, revoked)
+		VALUES (?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR), ?, ?)
+	`, certSerial, certPEM, false)
+	require.NoError(t, err)
+
+	_, err = s.DB.ExecContext(ctx,
+		`UPDATE acme_orders SET issued_certificate_serial = ? WHERE id = ?`, certSerial, orderID)
+	require.NoError(t, err)
 }
 
 // parseAccountID extracts the numeric account ID from an account URL like

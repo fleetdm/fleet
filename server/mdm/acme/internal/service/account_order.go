@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"go.step.sm/crypto/jose"
 )
@@ -275,4 +276,37 @@ func (s *Service) ListAccountOrders(ctx context.Context, pathIdentifier string, 
 		}
 	}
 	return orderURLs, nil
+}
+
+func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (string, error) {
+	// authorization is checked in the endpoint implementation for JWS-protected endpoints
+
+	order, _, err := s.store.GetOrderByID(ctx, accountID, orderID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get order from datastore")
+	}
+	if !order.Finalized || order.Status != "valid" {
+		if order.Status == "invalid" {
+			return "", types.OrderDoesNotExistError("Order is in invalid state, cannot get certificate")
+		}
+		return "", types.OrderNotFinalizedError("Order is not finalized/in valid state, cannot get certificate")
+	}
+
+	certPEM, err := s.store.GetCertificatePEMByOrderID(ctx, accountID, orderID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get certificate from datastore")
+	}
+
+	// retrieve the root certificate
+	assets, err := s.providers.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert}, nil)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting Apple SCEP/ACME root certificate")
+	}
+	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return "", ctxerr.New(ctx, "failed to parse PEM block from root SCEP/ACME certificate")
+	}
+	rootPEM := string(pem.EncodeToMemory(block))
+
+	return certPEM + "\n" + rootPEM, nil
 }

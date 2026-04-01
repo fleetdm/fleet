@@ -102,6 +102,15 @@ func OrderDoesNotExistError(detail string) *ACMEError {
 	}
 }
 
+func OrderNotFinalizedError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "orderNotFinalized",
+		Title:      "The request attempted to download a certificate for an order that is not finalized",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
 func RejectedIdentifierError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "rejectedIdentifier",
@@ -198,6 +207,15 @@ func ChallengeDoesNotExistError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       fleetCustomErrorsURI + "challengeDoesNotExist",
 		Title:      "The specified challenge does not exist for the authorization",
+		Detail:     detail,
+		StatusCode: http.StatusNotFound,
+	}
+}
+
+func CertificateDoesNotExistError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "certificateDoesNotExist",
+		Title:      "The order is finalized but the certificate does not exist for the order",
 		Detail:     detail,
 		StatusCode: http.StatusNotFound,
 	}

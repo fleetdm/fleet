@@ -50,6 +50,11 @@ func TestAccountOrder(t *testing.T) {
 		{"ListOrderIDsExcludesInvalid", testListOrderIDsExcludesInvalid},
 		{"ListOrderIDsEmpty", testListOrderIDsEmpty},
 		{"ListOrderIDsInvalidAccount", testListOrderIDsInvalidAccount},
+
+		{"GetCertificatePEM", testGetCertificatePEM},
+		{"GetCertificatePEMNotFound", testGetCertificatePEMNotFound},
+		{"GetCertificatePEMRevoked", testGetCertificatePEMRevoked},
+		{"GetCertificatePEMWrongAccount", testGetCertificatePEMWrongAccount},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -442,4 +447,98 @@ func testListOrderIDsInvalidAccount(t *testing.T, env *testEnv) {
 	ids, err := env.ds.ListAccountOrderIDs(t.Context(), 99999)
 	require.NoError(t, err)
 	require.Empty(t, ids)
+}
+
+// insertTestCertificate inserts an identity serial and certificate into the database for testing.
+func insertTestCertificate(t *testing.T, env *testEnv, serial uint64, certPEM string, revoked bool) {
+	t.Helper()
+	ctx := t.Context()
+
+	_, err := env.DB.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, serial)
+	require.NoError(t, err)
+
+	_, err = env.DB.ExecContext(ctx, `
+		INSERT INTO identity_certificates (serial, not_valid_before, not_valid_after, certificate_pem, revoked)
+		VALUES (?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR), ?, ?)
+	`, serial, certPEM, revoked)
+	require.NoError(t, err)
+}
+
+func testGetCertificatePEM(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
+	created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+	require.NoError(t, err)
+
+	// insert a certificate and link it to the order
+	var certSerial uint64 = 1001
+	expectedPEM := "-----BEGIN CERTIFICATE-----\ntest-cert-pem\n-----END CERTIFICATE-----"
+	insertTestCertificate(t, env, certSerial, expectedPEM, false)
+
+	_, err = env.DB.ExecContext(t.Context(), `UPDATE acme_orders SET issued_certificate_serial = ? WHERE id = ?`, certSerial, created.ID)
+	require.NoError(t, err)
+
+	gotPEM, err := env.ds.GetCertificatePEMByOrderID(t.Context(), account.ID, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, expectedPEM, gotPEM)
+}
+
+func testGetCertificatePEMNotFound(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	// create an order without linking a certificate
+	order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
+	created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+	require.NoError(t, err)
+
+	_, err = env.ds.GetCertificatePEMByOrderID(t.Context(), account.ID, created.ID)
+	require.Error(t, err)
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "certificateDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
+}
+
+func testGetCertificatePEMRevoked(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+
+	order, authorization, challenge := buildTestOrder(account.ID, "serial-123")
+	created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+	require.NoError(t, err)
+
+	// insert a revoked certificate and link it to the order
+	var certSerial uint64 = 2001
+	insertTestCertificate(t, env, certSerial, "-----BEGIN CERTIFICATE-----\nrevoked\n-----END CERTIFICATE-----", true)
+
+	_, err = env.DB.ExecContext(t.Context(), `UPDATE acme_orders SET issued_certificate_serial = ? WHERE id = ?`, certSerial, created.ID)
+	require.NoError(t, err)
+
+	_, err = env.ds.GetCertificatePEMByOrderID(t.Context(), account.ID, created.ID)
+	require.Error(t, err)
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "certificateDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
+}
+
+func testGetCertificatePEMWrongAccount(t *testing.T, env *testEnv) {
+	account1, _ := createTestAccountForOrder(t, env)
+	account2, _ := createTestAccountForOrder(t, env)
+
+	order, authorization, challenge := buildTestOrder(account1.ID, "serial-123")
+	created, err := env.ds.CreateOrder(t.Context(), order, authorization, challenge)
+	require.NoError(t, err)
+
+	// insert a certificate and link it to account1's order
+	var certSerial uint64 = 3001
+	insertTestCertificate(t, env, certSerial, "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----", false)
+
+	_, err = env.DB.ExecContext(t.Context(), `UPDATE acme_orders SET issued_certificate_serial = ? WHERE id = ?`, certSerial, created.ID)
+	require.NoError(t, err)
+
+	// try to get the certificate using account2's ID — should fail
+	_, err = env.ds.GetCertificatePEMByOrderID(t.Context(), account2.ID, created.ID)
+	require.Error(t, err)
+	var acmeErr *types.ACMEError
+	require.ErrorAs(t, err, &acmeErr)
+	require.Contains(t, acmeErr.Type, "certificateDoesNotExist") // nolint:nilaway // cannot be nil due to previous require
 }

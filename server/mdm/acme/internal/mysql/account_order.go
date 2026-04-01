@@ -253,6 +253,28 @@ func (ds *Datastore) GetOrderByID(ctx context.Context, accountID, orderID uint) 
 	return &dbOrder.Order, authorizations, nil
 }
 
+func (ds *Datastore) GetCertificatePEMByOrderID(ctx context.Context, accountID, orderID uint) (string, error) {
+	const getCertStmt = `SELECT certificate_pem
+		FROM
+			identity_certificates ic
+			JOIN acme_orders o ON ic.serial = o.issued_certificate_serial
+		WHERE
+			o.acme_account_id = ? AND
+			o.id = ? AND
+			ic.revoked IS FALSE`
+
+	var certPEM string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &certPEM, getCertStmt, accountID, orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = types.CertificateDoesNotExistError(fmt.Sprintf("No certificate exists for order id %d for this account", orderID))
+			return "", ctxerr.Wrap(ctx, err)
+		}
+		return "", ctxerr.Wrap(ctx, err, "select certificate PEM for order")
+	}
+	return certPEM, nil
+}
+
 func (ds *Datastore) ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error) {
 	// must not include orders in status 'invalid'
 	const listOrderIDsStmt = `SELECT id FROM acme_orders WHERE acme_account_id = ? AND status != 'invalid'`

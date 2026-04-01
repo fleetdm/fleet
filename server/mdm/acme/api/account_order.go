@@ -16,4 +16,5 @@ type AccountService interface {
 	FinalizeOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint, csr string) (*types.OrderResponse, error)
 	GetOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint) (*types.OrderResponse, error)
 	ListAccountOrders(ctx context.Context, pathIdentifier string, account *types.Account) ([]string, error)
+	GetCertificate(ctx context.Context, accountID, orderID uint) (string, error)
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 )
 
 // CSRSigner signs x509 certificate requests. This is the ACME-specific
@@ -24,6 +25,8 @@ func (f CSRSignerFunc) SignCSR(ctx context.Context, csr *x509.CertificateRequest
 // bounded context.
 type DataProviders interface {
 	AppConfig(ctx context.Context) (*fleet.AppConfig, error)
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 	CSRSigner(ctx context.Context) (CSRSigner, error)
 	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error)
 }

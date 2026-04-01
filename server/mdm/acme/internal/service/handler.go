@@ -51,6 +51,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerO
 	ae.POST("/api/mdm/acme/{identifier}/orders/{order_id}", getOrderEndpoint, api_http.GetOrderRequest{})
 	// POST-as-GET for list orders endpoint, as per RFC.
 	ae.POST("/api/mdm/acme/{identifier}/accounts/{account_id}/orders", listOrdersEndpoint, api_http.ListOrdersRequest{})
+	// POST-as-GET for download certificate endpoint, as per RFC.
+	ae.POST("/api/mdm/acme/{identifier}/orders/{order_id}/certificate", getCertificateEndpoint, api_http.GetCertificateRequest{})
 
 	ae.POST("/api/mdm/acme/{identifier}/authorizations/{authorization_id}", getAuthorizationEndpoint, api_http.GetAuthorizationRequest{})
 	ae.POST("/api/mdm/acme/{identifier}/challenges/{challenge_id}", getChallengeEndpoint, api_http.DoChallengeRequest{})
@@ -171,6 +173,26 @@ func listOrdersEndpoint(ctx context.Context, request any, svc api.Service) platf
 	return &api_http.ListOrdersResponse{
 		Nonces: svc.NoncesStore(),
 		Orders: urls,
+	}
+}
+
+// getCertificateEndpoint handles POST-as-GET /api/mdm/acme/{identifier}/orders/{id}/certificate requests.
+func getCertificateEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.GetCertificateRequest)
+	req.PostAsGet = true
+	certReq := &api_http.GetCertificateDecodedRequest{OrderID: req.OrderID}
+	err := svc.AuthenticateMessageFromAccount(ctx, &req.JWSRequestContainer, certReq)
+	if err != nil {
+		return &api_http.GetCertificateResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+
+	cert, err := svc.GetCertificate(ctx, certReq.Account.ID, certReq.OrderID)
+	if err != nil {
+		return &api_http.GetCertificateResponse{Err: err, Nonces: svc.NoncesStore()}
+	}
+	return &api_http.GetCertificateResponse{
+		Certificate: cert,
+		Nonces:      svc.NoncesStore(),
 	}
 }
 

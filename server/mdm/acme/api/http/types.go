@@ -42,7 +42,7 @@ type GetNewNonceResponse struct {
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *GetNewNonceResponse) Error() error { return r.Err }
+func (r GetNewNonceResponse) Error() error { return r.Err }
 
 // BeforeRender implements the beforeRenderer interface.
 func (r *GetNewNonceResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
@@ -119,7 +119,7 @@ func (r *CreateNewAccountResponse) Status() int {
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *CreateNewAccountResponse) Error() error { return r.Err }
+func (r CreateNewAccountResponse) Error() error { return r.Err }
 
 type CreateNewOrderRequest struct {
 	types.AccountAuthenticatedRequestBase
@@ -155,7 +155,7 @@ func (r *CreateNewOrderResponse) BeforeRender(ctx context.Context, w http.Respon
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *CreateNewOrderResponse) Error() error { return r.Err }
+func (r CreateNewOrderResponse) Error() error { return r.Err }
 
 // Status implements the statuser interface.
 func (r *CreateNewOrderResponse) Status() int { return http.StatusCreated }
@@ -192,7 +192,7 @@ func (r *GetOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWrit
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *GetOrderResponse) Error() error { return r.Err }
+func (r GetOrderResponse) Error() error { return r.Err }
 
 type GetAuthorizationRequest struct {
 	JWSRequestContainer
@@ -263,6 +263,47 @@ func (r *ListOrdersResponse) BeforeRender(ctx context.Context, w http.ResponseWr
 
 // Error implements the platform_http.Errorer interface.
 func (r ListOrdersResponse) Error() error { return r.Err }
+
+type GetCertificateDecodedRequest struct {
+	types.AccountAuthenticatedRequestBase
+	OrderID uint `json:"-"`
+}
+
+type GetCertificateRequest struct {
+	JWSRequestContainer
+	OrderID uint `url:"order_id"`
+}
+
+type GetCertificateResponse struct {
+	// Certificate is the PEM-encoded certificate chain, will be rendered manually
+	// via HijackRender on success.
+	Certificate string                               `json:"-"`
+	Err         error                                `json:"error,omitempty"`
+	Nonces      *redis_nonces_store.RedisNoncesStore `json:"-"`
+}
+
+func (r *GetCertificateResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
+	}
+	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
+		r.Err = err
+		return
+	}
+}
+
+func (r *GetCertificateResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/pem-certificate-chain")
+	_, _ = w.Write([]byte(r.Certificate))
+}
+
+// Error implements the platform_http.Errorer interface.
+func (r GetCertificateResponse) Error() error { return r.Err }
 
 type DoChallengeRequest struct {
 	JWSRequestContainer
@@ -411,4 +452,4 @@ func (r *FinalizeOrderResponse) BeforeRender(ctx context.Context, w http.Respons
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *FinalizeOrderResponse) Error() error { return r.Err }
+func (r FinalizeOrderResponse) Error() error { return r.Err }
