@@ -6844,16 +6844,18 @@ WHERE (
 }
 
 func (ds *Datastore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
-	// Step 1: Get up to 100 old command UUIDs from nano_enrollment_queue for this
+	// Step 1: Get up to 3 old command UUIDs from nano_enrollment_queue for this
 	// enrollment. The PK is (id, command_uuid) so filtering by id first is efficient,
 	// and the LIKE prefix on command_uuid narrows within that enrollment's entries.
+	// 3 may seem like too few but in load testing because of how often this runs it
+	// was found that larger numbers can cause too much contention
 	const selectOldCmds = `
 		SELECT command_uuid FROM nano_enrollment_queue
 		WHERE id = ?
 		  AND command_uuid LIKE ?
 		  AND command_uuid != ?
 		  AND created_at < NOW() - INTERVAL 30 DAY
-		LIMIT 100`
+		LIMIT 3`
 
 	var oldCmdUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &oldCmdUUIDs, selectOldCmds, enrollmentID, commandUUIDPrefix+"%", currentCommandUUID); err != nil {
