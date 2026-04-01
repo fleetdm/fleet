@@ -2669,7 +2669,7 @@ AWS S3 Region. Leave blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
 
-> **Note:** If neither `region` nor `endpoint_url` is set, Fleet defaults to `us-east-1` for initial region discovery, regardless of the `AWS_REGION` environment variable. Set this explicitly to avoid unexpected cross-region calls.
+If neither `s3_software_installers_region` nor `s3_software_installers_endpoint_url` is set, Fleet defaults to `us-east-1` for initial region discovery.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
