@@ -451,7 +451,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 2. In the modal, select **Smallstep** from the dropdown and enter a name for your certificate authority (CA). Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 
-3. For the **Challenge URL**, **Username**, and **Password**, enter the values noted in step 1. For the **SCEP URL**, you'll need to modify the URL provided by Smallstep to use the public proxy route instead. For example, `https://agents.SMALLSTEP_TEAM_NAME.ca.smallstep.com/scep/INTEGRATION_ID` becomes `https://<SMALLSTEP_TEAM_NAME>.scep.smallstep.com/p/agents/<INTEGRATION_ID>`
+3. For the **Challenge URL**, **Username**, and **Password**, enter the values noted in step 1. For the **SCEP URL**, you'll need to modify the URL provided by Smallstep to use the public proxy route instead. For example, `https://agents.SMALLSTEP_FLEET_NAME.ca.smallstep.com/scep/INTEGRATION_ID` becomes `https://<SMALLSTEP_FLEET_NAME>.scep.smallstep.com/p/agents/<INTEGRATION_ID>`
 
 ### Step 3: Add SCEP configuration profile to Fleet
 
@@ -1015,7 +1015,7 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
 * The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's custom SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
 * On **Windows** hosts, Fleet will not verify the SCEP profile via osquery. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
-* On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another team.
+* On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another fleet.
 
 ### Troubleshooting NDES on Windows
 
