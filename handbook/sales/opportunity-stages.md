@@ -99,7 +99,7 @@ The following details each stage in our new sale process and what is needed to m
 - A meaningful "Next step", with a due date, has been identified and recorded on the oppty.
 
 
-## Business justification
+## Justification
 
 ***Probability***: 70%
 
