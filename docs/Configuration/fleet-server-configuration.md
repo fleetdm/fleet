@@ -3216,7 +3216,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
-> **Warning:** Same `endpoint_url` override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
+> Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
