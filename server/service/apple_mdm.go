@@ -364,7 +364,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	}
 
 	var teamName string
-	if teamID >= 1 {
+	if teamID >= 1 && svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
