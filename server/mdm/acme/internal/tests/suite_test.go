@@ -51,7 +51,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 			fleet.MDMAssetCACert: {
 				Name:        fleet.MDMAssetCACert,
 				Value:       []byte("-----BEGIN CERTIFICATE-----\nroot\n-----END CERTIFICATE-----"),
-				MD5Checksum: "3a7bd3e2360a3d80c8c1b677fbbd9e5", // md5 of "root"
+				MD5Checksum: "63a9f0ea7bb98050796b649e85481845", // md5 of "root"
 			},
 		})
 
