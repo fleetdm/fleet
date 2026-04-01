@@ -2150,7 +2150,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| activity_expiry_enabled           | boolean | When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.    |
+| activity_expiry_enabled           | boolean | When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days. Activities linked to a host are preserved until the host is deleted.    |
 | activity_expiry_window            | integer | The number of days to retain activity records, if activity expiry is enabled.                                                     |
 
 <br/>
