@@ -303,9 +303,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 				Email:      "sso_user2@example.com",
 				GlobalRole: ptr.String(role),
 				SSOEnabled: true,
+				Password:   []byte{},
 			}
-			password := test.GoodPassword
-			require.NoError(t, u.SetPassword(password, 10, 10))
 			u, err := s.ds.NewUser(t.Context(), u)
 			require.NoError(t, err)
 
