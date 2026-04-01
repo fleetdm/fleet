@@ -42,7 +42,7 @@ type GetNewNonceResponse struct {
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *GetNewNonceResponse) Error() error { return r.Err }
+func (r GetNewNonceResponse) Error() error { return r.Err }
 
 // BeforeRender implements the beforeRenderer interface.
 func (r *GetNewNonceResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
@@ -119,7 +119,7 @@ func (r *CreateNewAccountResponse) Status() int {
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *CreateNewAccountResponse) Error() error { return r.Err }
+func (r CreateNewAccountResponse) Error() error { return r.Err }
 
 type CreateNewOrderRequest struct {
 	types.AccountAuthenticatedRequestBase
@@ -155,7 +155,7 @@ func (r *CreateNewOrderResponse) BeforeRender(ctx context.Context, w http.Respon
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *CreateNewOrderResponse) Error() error { return r.Err }
+func (r CreateNewOrderResponse) Error() error { return r.Err }
 
 // Status implements the statuser interface.
 func (r *CreateNewOrderResponse) Status() int { return http.StatusCreated }
@@ -192,7 +192,7 @@ func (r *GetOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWrit
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *GetOrderResponse) Error() error { return r.Err }
+func (r GetOrderResponse) Error() error { return r.Err }
 
 type GetAuthorizationRequest struct {
 	JWSRequestContainer
@@ -261,7 +261,7 @@ func (r *ListOrdersResponse) BeforeRender(ctx context.Context, w http.ResponseWr
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *ListOrdersResponse) Error() error { return r.Err }
+func (r ListOrdersResponse) Error() error { return r.Err }
 
 type GetCertificateDecodedRequest struct {
 	types.AccountAuthenticatedRequestBase
@@ -302,7 +302,7 @@ func (r *GetCertificateResponse) HijackRender(ctx context.Context, w http.Respon
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *GetCertificateResponse) Error() error { return r.Err }
+func (r GetCertificateResponse) Error() error { return r.Err }
 
 // JWS Request container is a container for doing basic decoding and validation operations common to all
 // authenticated ACME requests, which come in the form of a JWS in flattened serialization syntax. This is
@@ -413,4 +413,4 @@ func (r *FinalizeOrderResponse) BeforeRender(ctx context.Context, w http.Respons
 }
 
 // Error implements the platform_http.Errorer interface.
-func (r *FinalizeOrderResponse) Error() error { return r.Err }
+func (r FinalizeOrderResponse) Error() error { return r.Err }
