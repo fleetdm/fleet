@@ -10,6 +10,8 @@ The following details each stage in our new sale process and what is needed to m
 
 ## Meeting set
 
+> If a renewal oppty is confirmed that it will churn, we set the stage to "Meeting set" (0% probability) to signify the churn.
+
 ***Probability***: 0%
 
 ***Definition***: A qualified ICP prospect has scheduled a first meeting with Fleet *OR* had a meaningful conversation with a Fleet Salesperson and wants to learn more.
@@ -87,6 +89,8 @@ The following details each stage in our new sale process and what is needed to m
 
 ## PoV (proof of value)
 
+> When renewals are created, they should be set to "PoV (Proof of Value)".
+
 ***Probability***: 50%
 
 ***Definition***: Fleet is being evaluated against agreed success criteria.
@@ -131,10 +135,8 @@ The following details each stage in our new sale process and what is needed to m
 - Fleet has received a fully executed order form signed by the prospect complete with PO (if required).
 
 
-## Renewals
 
-- When working renewal opptys: If a renewal oppty is confirmed that it will churn, we set the stage to "Meeting set" (0% probability) to signify the churn.
-- When renewals are created they should be set to "PoV (Proof of Value)".
+
 
 
 <meta name="maintainedBy" value="chazmac6">
