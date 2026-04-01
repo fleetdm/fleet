@@ -194,6 +194,26 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/lint` | `/lint` or `/lint go` | Runs the appropriate linters (golangci-lint, eslint, prettier) on recently changed files. Accepts `go`, `frontend`, or a file path to narrow scope. |
 | `/update-data-dictionary` | `/update-data-dictionary` | Compares recent migrations against `DATA-DICTIONARY.md` and updates it with missing tables, columns, renames, and schema changes. |
 
+### Using `/project` for workstream context
+
+The `/project` skill builds a personal knowledge base for areas of the codebase you work in repeatedly. Use it at the start of a session to load context from previous sessions.
+
+**First use:** `/project software` — no file exists yet, so Claude asks you to describe the workstream, explores the codebase, and creates a context file with key files, patterns, and architecture notes.
+
+**Subsequent sessions:** `/project software` — Claude loads what it knows, summarizes it, and asks what you're working on today.
+
+**As you work:** Claude adds useful discoveries to the project file — gotchas, important file paths, architectural decisions — so the next session starts with richer context.
+
+**Organizing projects:** The name is just a label. Pick the scope that's most useful to you:
+
+| Scope | Example | Good for |
+|-------|---------|----------|
+| By team area | `/project software`, `/project mdm` | Broad context that accumulates over time. Good if you consistently work in one area. |
+| By feature | `/project patch-policies`, `/project android-enrollment` | Focused context for multi-week features. Tracks specific decisions, status, and key files. |
+| By issue | `/project 35666-gitops-exceptions` | Narrow, disposable context tied to a specific piece of work. |
+
+Project files are stored per-machine in your Claude memory directory (`~/.claude/projects/`). They're personal — not shared with the team. Context grows gradually (a few lines per session) and Claude auto-truncates at 200 lines / 25KB, so it won't run away.
+
 ## Agents reference
 
 ### go-reviewer (sonnet, proactive)
