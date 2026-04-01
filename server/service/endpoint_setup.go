@@ -192,13 +192,6 @@ func ApplyStarterLibrary(
 			return fmt.Errorf("failed to parse %s: %w", filepath.Base(f.path), err)
 		}
 
-		if f.isGlobal && !config.Controls.Set() {
-			// Controls are required for global config; the default.yml template
-			// includes an empty controls section so this shouldn't happen, but
-			// handle it gracefully.
-			logger.DebugContext(ctx, "global config missing controls section, skipping")
-		}
-
 		// Compute label changes. On a fresh instance there are no existing
 		// labels so every label in the template is an addition.
 		if len(config.Labels) > 0 {
