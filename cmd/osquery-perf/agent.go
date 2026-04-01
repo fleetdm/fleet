@@ -704,6 +704,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	// (1) distributed thread:
 	go func() {
+		time.Sleep(time.Duration(rand.Int63n(int64(a.QueryInterval))))
 		liveQueryTicker := time.NewTicker(a.QueryInterval)
 		defer liveQueryTicker.Stop()
 
@@ -716,6 +717,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	// (2) config thread:
 	go func() {
+		time.Sleep(time.Duration(rand.Int63n(int64(a.ConfigInterval))))
 		configTicker := time.NewTicker(a.ConfigInterval)
 		defer configTicker.Stop()
 
@@ -725,6 +727,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	}()
 
 	// (3) logger thread:
+	time.Sleep(time.Duration(rand.Int63n(int64(a.LogInterval))))
 	logTicker := time.NewTicker(a.LogInterval)
 	defer logTicker.Stop()
 	for range logTicker.C {
