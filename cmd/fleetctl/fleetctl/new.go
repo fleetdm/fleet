@@ -32,59 +32,6 @@ func renderTemplate(content []byte, vars map[string]string) ([]byte, error) {
 	return []byte(buf.String()), nil
 }
 
-// renderNewTemplates renders the starter templates into outputDir with the
-// given org name. It handles YAML escaping and .template. filename stripping.
-func renderNewTemplates(outputDir, orgName string) error {
-	yamlOrgName, err := yaml.Marshal(orgName)
-	if err != nil {
-		return fmt.Errorf("marshaling org name: %w", err)
-	}
-
-	vars := map[string]string{
-		"org_name": strings.TrimSpace(string(yamlOrgName)),
-	}
-
-	templateRoot := "templates/new"
-
-	return fs.WalkDir(newTemplateFS, templateRoot, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(templateRoot, path)
-		if err != nil {
-			return err
-		}
-		if relPath == "." {
-			return nil
-		}
-
-		// Strip .template from filenames (e.g. foo.template.yml -> foo.yml).
-		relPath = strings.Replace(relPath, ".template.", ".", 1)
-		outPath := filepath.Join(outputDir, relPath)
-
-		if d.IsDir() {
-			return os.MkdirAll(outPath, 0o755)
-		}
-
-		content, err := newTemplateFS.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("reading template %s: %w", path, err)
-		}
-
-		content, err = renderTemplate(content, vars)
-		if err != nil {
-			return fmt.Errorf("rendering template %s: %w", path, err)
-		}
-
-		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-			return err
-		}
-
-		return os.WriteFile(outPath, content, 0o644)
-	})
-}
-
 func printNextSteps(w io.Writer, outputDir string) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Next steps:")
@@ -174,7 +121,56 @@ func newCommand() *cli.Command {
 				}
 			}
 
-			if err := renderNewTemplates(outputDir, orgName); err != nil {
+			// Marshal through YAML to get a properly escaped scalar value.
+			yamlOrgName, err := yaml.Marshal(orgName)
+			if err != nil {
+				return fmt.Errorf("marshaling org name: %w", err)
+			}
+
+			vars := map[string]string{
+				"org_name": strings.TrimSpace(string(yamlOrgName)),
+			}
+
+			templateRoot := "templates/new"
+
+			err = fs.WalkDir(newTemplateFS, templateRoot, func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+
+				relPath, err := filepath.Rel(templateRoot, path)
+				if err != nil {
+					return err
+				}
+				if relPath == "." {
+					return nil
+				}
+
+				// Strip .template from filenames (e.g. foo.template.yml -> foo.yml).
+				relPath = strings.Replace(relPath, ".template.", ".", 1)
+				outPath := filepath.Join(outputDir, relPath)
+
+				if d.IsDir() {
+					return os.MkdirAll(outPath, 0o755)
+				}
+
+				content, err := newTemplateFS.ReadFile(path)
+				if err != nil {
+					return fmt.Errorf("reading template %s: %w", path, err)
+				}
+
+				content, err = renderTemplate(content, vars)
+				if err != nil {
+					return fmt.Errorf("rendering template %s: %w", path, err)
+				}
+
+				if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+					return err
+				}
+
+				return os.WriteFile(outPath, content, 0o644)
+			})
+			if err != nil {
 				return fmt.Errorf("creating GitOps directory structure: %w", err)
 			}
 
