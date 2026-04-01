@@ -33,7 +33,9 @@ const getStatusText = (command: ICommand): string => {
     case "pending":
       return "is pending";
     case "ran":
-      return "was acknowledged";
+      return isProfileCommand(command.request_type)
+        ? "was acknowledged"
+        : "ran";
     case "failed":
       return "failed";
     default:
@@ -51,23 +53,16 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
     onShowDetails(command);
   };
 
-  // For InstallProfile/RemoveProfile commands with a name, show the profile name
-  if (isProfileCommand(request_type) && name) {
-    return (
-      <FeedListItem
-        className={baseClass}
-        useFleetAvatar
-        allowShowDetails
-        createdAt={new Date(updated_at)}
-        onClickFeedItem={onShowCommandDetails}
-      >
-        The <b>{request_type}</b> command for <b>{name}</b> {statusText}.
-      </FeedListItem>
-    );
-  }
+  const activityText = name ? (
+    <>
+      The <b>{request_type}</b> command for <b>{name}</b> {statusText}.
+    </>
+  ) : (
+    <>
+      The <b>{request_type}</b> command {statusText}.
+    </>
+  );
 
-  // For all other commands (or profile commands without a name), show with
-  // host affected and status
   return (
     <FeedListItem
       className={baseClass}
@@ -76,7 +71,7 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
       createdAt={new Date(updated_at)}
       onClickFeedItem={onShowCommandDetails}
     >
-      The <b>{request_type}</b> command {statusText}.
+      {activityText}
     </FeedListItem>
   );
 };
