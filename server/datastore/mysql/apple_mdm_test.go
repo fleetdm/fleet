@@ -11442,13 +11442,11 @@ func testCleanupStaleNanoRefetchCommands(t *testing.T, ds *Datastore) {
 	oldTime := now.Add(-31 * 24 * time.Hour)   // 31 days ago
 	recentTime := now.Add(-1 * 24 * time.Hour) // 1 day ago
 
-	// Create old REFETCH-APPS- commands (should be cleaned up).
-	for i := range 2 {
-		cmdUUID := fmt.Sprintf("REFETCH-APPS-old-%d", i)
-		insertNanoCmd(cmdUUID, "InstalledApplicationList", oldTime)
-		insertNEQ(enrollmentID, cmdUUID, oldTime)
-		insertNCR(enrollmentID, cmdUUID, "Acknowledged")
-	}
+	// Create old REFETCH-APPS- command (should be cleaned up).
+	cmdUUID := "REFETCH-APPS-old-acknowledged"
+	insertNanoCmd(cmdUUID, "InstalledApplicationList", oldTime)
+	insertNEQ(enrollmentID, cmdUUID, oldTime)
+	insertNCR(enrollmentID, cmdUUID, "Acknowledged")
 
 	// Create an old REFETCH-APPS- command that has Error status (should also be cleaned up).
 	insertNanoCmd("REFETCH-APPS-old-error", "InstalledApplicationList", oldTime)

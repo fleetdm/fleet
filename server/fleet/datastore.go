@@ -416,7 +416,7 @@ type Datastore interface {
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
 	CleanupHostMDMAppleProfiles(ctx context.Context) error
 
-	// CleanupStaleNanoRefetchCommands deletes up to 100 nano_enrollment_queue and
+	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
 	// their corresponding nano_command_results entries for the given enrollment ID
 	// and REFETCH command prefix type that were sent and acknowledged/errored at
 	// least 30 days ago. The current command UUID is excluded from deletion.
