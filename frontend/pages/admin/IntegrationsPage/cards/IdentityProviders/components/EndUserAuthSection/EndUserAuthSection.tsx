@@ -141,7 +141,14 @@ const EndUserAuthSection = ({
             Controls &gt; Setup experience &gt; End user authentication
           </strong>
           , end users will be required to authenticate when they first set up
-          their host.
+          their host.{" "}
+          <a
+            href="https://fleetdm.com/guides/setup-experience#end-user-authentication"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Learn more
+          </a>
         </p>
         <div
           className={`form ${
