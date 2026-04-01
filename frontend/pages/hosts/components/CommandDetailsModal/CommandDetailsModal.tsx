@@ -44,9 +44,6 @@ const getIconName = (status: string): IconNames => {
   }
 };
 
-const isProfileCommand = (requestType: string): boolean =>
-  requestType === "InstallProfile" || requestType === "RemoveProfile";
-
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   const displayTime = result.updated_at
     ? ` (${formatDistanceToNow(new Date(result.updated_at), {
@@ -55,20 +52,19 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
       })})`
     : null;
 
-  const profileNamePart =
-    isProfileCommand(result.request_type) && result.name ? (
-      <>
-        {" "}
-        for <b>{result.name}</b>
-      </>
-    ) : null;
+  const namePart = result.name ? (
+    <>
+      {" "}
+      for <b>{result.name}</b>
+    </>
+  ) : null;
 
   switch (result.status) {
     case "CommandFormatError":
     case "Error":
       return (
         <span>
-          The <b>{result.request_type}</b> command{profileNamePart} failed on{" "}
+          The <b>{result.request_type}</b> command{namePart} failed on{" "}
           <b>{result.hostname}</b>
           {displayTime}.
         </span>
@@ -77,8 +73,8 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
     case "Acknowledged":
       return (
         <span>
-          The <b>{result.request_type}</b> command{profileNamePart} was
-          acknowledged by <b>{result.hostname}</b>
+          The <b>{result.request_type}</b> command{namePart} was acknowledged by{" "}
+          <b>{result.hostname}</b>
           {displayTime}.
         </span>
       );
@@ -86,17 +82,17 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
     case "Pending":
       return (
         <span>
-          The <b>{result.request_type}</b> command{profileNamePart} is pending
-          on <b>{result.hostname}</b>.
+          The <b>{result.request_type}</b> command{namePart} is pending on{" "}
+          <b>{result.hostname}</b>.
         </span>
       );
 
     case "NotNow":
       return (
         <span>
-          The <b>{result.request_type}</b> command{profileNamePart} is deferred
-          on <b>{result.hostname}</b> because the host was locked or was running
-          on battery power while in Power Nap. Fleet will try again.
+          The <b>{result.request_type}</b> command{namePart} is deferred on{" "}
+          <b>{result.hostname}</b> because the host was locked or was running on
+          battery power while in Power Nap. Fleet will try again.
         </span>
       );
 
