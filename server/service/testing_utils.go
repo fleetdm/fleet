@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -56,6 +57,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
@@ -453,6 +455,9 @@ type TestServerOpts struct {
 	// ActivityMock is populated automatically by newTestServiceWithConfig.
 	// After setup, tests can use it to intercept or assert on activity creation.
 	ActivityMock *fleet_mock.MockActivityService
+
+	ACMECertCA  *x509.Certificate
+	ACMECertKey *ecdsa.PrivateKey
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -529,8 +534,16 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	// Wire real ACME service module if DBConns is provided (overrides the mock set in newTestServiceWithConfig).
 	if len(opts) > 0 && opts[0].DBConns != nil {
-		acmeSvc, _ := acme_bootstrap.New(opts[0].DBConns, redisPool, &testACMEDataProviders{Datastore: ds}, logger)
+		var acmeOpts []acme_bootstrap.ServiceOption
+		if opts[0].ACMECertCA != nil && opts[0].ACMECertKey != nil {
+			rootCAPool := x509.NewCertPool()
+			rootCAPool.AddCert(opts[0].ACMECertCA)
+			acmeOpts = append(acmeOpts, acme_bootstrap.WithTestAppleRootCAs(rootCAPool))
+		}
+		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365), depot.WithAllowRenewalDays(14))}
+		acmeSvc, acmeRoutes := acme_bootstrap.New(opts[0].DBConns, redisPool, &testACMEDataProviders{Datastore: ds, signer: acmeSigner}, logger, acmeOpts...)
 		svc.SetACMEService(acmeSvc)
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes())
 	}
 
 	if len(opts) > 0 {
@@ -1517,10 +1530,18 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 // testACMEDataProviders wraps fleet.Datastore to satisfy acme.DataProviders in tests.
 type testACMEDataProviders struct {
 	fleet.Datastore
+	signer acme.CSRSigner
 }
 
 func (t *testACMEDataProviders) CSRSigner(_ context.Context) (acme.CSRSigner, error) {
-	return acme.CSRSignerFunc(func(_ context.Context, _ *x509.CertificateRequest) (*x509.Certificate, error) {
-		return nil, nil
-	}), nil
+	return t.signer, nil
+}
+
+// acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.
+type acmeCSRSigner struct {
+	signer *depot.Signer
+}
+
+func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	return a.signer.Signx509CSR(csr)
 }

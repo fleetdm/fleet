@@ -3200,7 +3200,6 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	require.Equal(t, installerPayload2.Title, getHostSw.Software[1].Name)
 }
 
-// TODO: expand when full ACME flow is implemented
 func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	t := s.T()
 	s.enableABM(t.Name())
@@ -3280,7 +3279,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	})
 
 	// Apple Silicon Mac enrolls via ACME, should contain ACME directory URL in the profile
-	appleSiliconDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, mdmtest.WithSkipParseEnrollProf(true))
+	appleSiliconDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, mdmtest.WithACMECerts(s.acmeCertCA, s.acmeCertKey))
 	appleSiliconDevice.SerialNumber = devices[0].SerialNumber
 	appleSiliconDevice.Model = devices[0].Model
 	appleSiliconDevice.OSVersion = "14.0"
@@ -3294,7 +3293,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 		return err
 	})
 
-	require.Contains(t, string(appleSiliconDevice.EnrollInfo.RawProfile), "/api/mdm/acme/"+expectIdent+"/directory", "enrollment profile should contain the ACME directory URL")
+	require.Contains(t, string(appleSiliconDevice.EnrollInfo.ACMEURL), "/api/mdm/acme/"+expectIdent+"/directory", "ACME URL should be populated and contain the directory path")
 
 	// Intel Mac enrolls via SCEP, should not contain ACME directory URL in the profile
 	intelDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)

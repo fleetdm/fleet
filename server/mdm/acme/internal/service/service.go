@@ -24,7 +24,7 @@ type Service struct {
 	logger    *slog.Logger
 
 	// Field to set for testing, if not set it will use the hardcoded Apple Enterprise Attestation Root CA
-	testAppleRootCAs *x509.CertPool
+	TestAppleRootCAs *x509.CertPool
 }
 
 type ServiceOption func(*Service)
@@ -48,12 +48,6 @@ func NewService(
 		opt(svc)
 	}
 	return svc
-}
-
-func WithTestAppleRootCAs(rootCAs *x509.CertPool) ServiceOption {
-	return func(svc *Service) {
-		svc.testAppleRootCAs = rootCAs
-	}
 }
 
 // Ensure Service implements api.Service

@@ -4,11 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,10 +20,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -51,7 +49,8 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	tdb := testutils.SetupTestDB(t, "acme_integration")
 	pool := redistest.SetupRedis(t, "acme_integration", false, false, false)
 	ds := mysql.NewDatastore(tdb.Conns(), tdb.Logger)
-	cert, key := generateTestAttestationCA(t)
+	cert, key, err := testhelpers.GenerateTestAttestationCA()
+	require.NoError(t, err)
 	rootPool := x509.NewCertPool()
 	rootPool.AddCert(cert)
 
@@ -81,7 +80,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 			},
 		})
 
-	opts := service.WithTestAppleRootCAs(rootPool)
+	opts := bootstrap.WithTestAppleRootCAs(rootPool)
 	// Create service
 	svc := service.NewService(ds, pool, providers, tdb.Logger, opts)
 
@@ -182,14 +181,6 @@ func (s staticNonce) Nonce() (string, error) {
 	return s.nonce, nil
 }
 
-// generateTestKey generates an ECDSA P-256 key pair and returns the private key and public JWK.
-func generateTestKey(t *testing.T) *ecdsa.PrivateKey {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	return key
-}
-
 // getNonce obtains a fresh nonce from the new_nonce endpoint for the given enrollment.
 func (s *integrationTestSuite) getNonce(t *testing.T, pathIdentifier string) string {
 	t.Helper()
@@ -260,7 +251,8 @@ func (s *integrationTestSuite) newOrderURL(pathIdentifier string) string {
 // returning the private key, account URL, and a fresh nonce for subsequent requests.
 func (s *integrationTestSuite) createAccountForOrder(t *testing.T, enrollment *types.Enrollment) (*ecdsa.PrivateKey, string, string) {
 	t.Helper()
-	privateKey := generateTestKey(t)
+	privateKey, err := testhelpers.GenerateTestKey()
+	require.NoError(t, err)
 	nonce := s.getNonce(t, enrollment.PathIdentifier)
 	jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollment.PathIdentifier), nil)
 	_, _, resp := s.createAccount(t, enrollment.PathIdentifier, jwsBody)
@@ -477,24 +469,6 @@ func (s *integrationTestSuite) makeOrderReady(t *testing.T, orderID uint) {
 	require.NoError(t, err)
 	_, err = s.DB.ExecContext(ctx, `UPDATE acme_orders SET status = 'ready' WHERE id = ?`, orderID)
 	require.NoError(t, err)
-}
-
-// generateCSRDER creates a base64 URL encoded DER-encoded ECDSA CSR with the given common name.
-func generateCSRDER(t *testing.T, commonName string) string {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	template := &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName: commonName,
-		},
-	}
-	csrDER, err := x509.CreateCertificateRequest(rand.Reader, template, key)
-	require.NoError(t, err)
-
-	// base64 URL encode the DER csr as per the RFC 7.4 spec
-	encoded := base64.RawURLEncoding.EncodeToString(csrDER)
-	return encoded
 }
 
 func (s *integrationTestSuite) getAuthorization(t *testing.T, authUrl string, jwsBody []byte) (*api_http.GetAuthorizationResponse, *types.ACMEError, *http.Response) {
