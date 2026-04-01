@@ -19,6 +19,15 @@ func Up_20260401153503(tx *sql.Tx) error {
 		return errors.Wrap(err, "add host_dep_assignments.hardware_serial column")
 	}
 
+	_, err = tx.Exec(`
+		UPDATE host_dep_assignments hda
+		JOIN hosts h ON h.id = hda.host_id
+		SET hda.hardware_serial = h.hardware_serial
+	`)
+	if err != nil {
+		return errors.Wrap(err, "backfill host_dep_assignments.hardware_serial column")
+	}
+
 	return nil
 }
 
