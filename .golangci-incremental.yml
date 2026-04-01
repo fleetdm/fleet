@@ -15,6 +15,7 @@ linters:
     - testifylint
     - nilaway
     - setboolcheck
+    - depguard
   settings:
     gosec:
       # Only enable rules that are too noisy on existing code but valuable for new code.
@@ -31,6 +32,13 @@ linters:
         - G704 # SSRF via taint analysis.
         - G705 # XSS via taint analysis.
         - G706 # Log injection via taint analysis.
+    depguard:
+      rules:
+        no-old-rand:
+          list-mode: lax
+          deny:
+            - pkg: math/rand$
+              desc: Use math/rand/v2 instead
     custom:
       nilaway:
         type: module
