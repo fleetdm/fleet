@@ -23,6 +23,19 @@ git checkout -- .claude/
 
 This drops the full setup (rules, skills, agents, hooks, and permissions) into your working tree. Start a new Claude Code session and everything loads automatically. When you're done, the second command reverts `.claude/` to whatever's on your branch.
 
+### Not covered by this configuration
+
+The following areas have their own conventions and aren't covered by the current rules, hooks, or skills:
+
+- **`website/`** — Fleet marketing website (Sails.js, separate `package.json` and conventions)
+- **`ee/fleetd-chrome/`** — Chrome extension for ChromeOS (TypeScript, separate test setup)
+- **`ee/vulnerability-dashboard/`** — Vulnerability dashboard (Sails.js/Grunt, legacy patterns)
+- **`android/`** — Android app (Kotlin/Gradle, separate build system)
+- **`third_party/`** — Forked external code (not Fleet's conventions)
+- **Documentation** — Guides, API docs, and handbook documentation workflows
+- **Fleet-maintained apps (FMA)** — FMA catalog workflows, maintained-app packaging, and `ee/maintained-apps/` conventions
+- **MDM-specific patterns** — `server/mdm/` has complex multi-platform patterns (Apple, Windows, Android) beyond what the Go backend rule covers
+
 ---
 
 ## Claude Code primer
@@ -234,16 +247,6 @@ Rules auto-apply when you edit files matching their path globs:
 | `fleet-database.md` | `server/datastore/**/*.go` | Migration naming and testing, goqu queries, reader/writer, parameterized SQL, and batch operations |
 | `fleet-api.md` | `server/service/**/*.go` | Endpoint registration, API versioning, and error-in-response pattern |
 | `fleet-orbit.md` | `orbit/**/*.go` | Agent architecture, TUF updates, platform-specific code, packaging, keystore, and security considerations |
-
-### Not covered by this configuration
-
-The following areas have their own conventions and aren't covered by the current rules, hooks, or skills:
-
-- **`website/`** — Fleet marketing website (Sails.js, separate `package.json` and conventions)
-- **`ee/fleetd-chrome/`** — Chrome extension for ChromeOS (TypeScript, separate test setup)
-- **`ee/vulnerability-dashboard/`** — Vulnerability dashboard (Sails.js/Grunt, legacy patterns)
-- **`third_party/`** — Forked external code (not Fleet's conventions)
-- **MDM-specific patterns** — `server/mdm/` has complex multi-platform patterns (Apple, Windows, Android) beyond what the Go backend rule covers
 
 ## Permissions
 
