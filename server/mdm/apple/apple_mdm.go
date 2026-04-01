@@ -1660,6 +1660,8 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 
 // RecoveryLockCommander defines the interface for sending recovery lock commands.
 // This interface is implemented by MDMAppleCommander and allows for testing.
+//
+// Deprecated: Use recoverylock.Commander instead.
 type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
@@ -1670,7 +1672,10 @@ type RecoveryLockCommander interface {
 // to hosts that need a recovery lock password.
 //
 // Note: SetRecoveryLock command results are handled in the MDM results handler
-// (server/service/apple_mdm.go), which sends VerifyRecoveryLock immediately upon acknowledgment.
+// (server/service/apple_mdm.go), which marks the password as verified upon acknowledgment.
+//
+// Deprecated: Use recoverylock.SendCommands instead. This function is kept for backward
+// compatibility and will be removed in a future version.
 func SendRecoveryLockCommands(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -1977,10 +1982,14 @@ func logAutoRotationActivity(
 }
 
 // RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)
+//
+// Deprecated: Use recoverylock.PasswordCharset instead.
 const RecoveryLockPasswordCharset = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
 // GenerateRecoveryLockPassword generates a password in format: 5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT
 // (6 groups of 4 alphanumeric characters separated by dashes)
+//
+// Deprecated: Use recoverylock.GeneratePassword instead.
 func GenerateRecoveryLockPassword() string {
 	const (
 		groupCount = 6

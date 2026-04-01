@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/recoverylock"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
@@ -327,9 +328,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusAcknowledged,
@@ -371,9 +372,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusError,
@@ -410,9 +411,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusCommandFormatError,
@@ -447,9 +448,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusAcknowledged,
@@ -485,10 +486,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
 		// Test MDMClientError 70 (password not provided)
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusError,
@@ -525,10 +526,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
 		// Test ROSLockoutServiceDaemonErrorDomain 8 (password failed to validate)
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusError,
@@ -569,10 +570,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
 		// Test a generic transient error (not password mismatch)
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusError,
@@ -612,10 +613,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
 		// CommandFormatError is terminal - command is malformed and will never succeed
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusCommandFormatError,
@@ -662,9 +663,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusAcknowledged,
@@ -708,9 +709,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusError,
@@ -751,9 +752,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := recoverylock.NewResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
+		result := recoverylock.NewResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusCommandFormatError,
