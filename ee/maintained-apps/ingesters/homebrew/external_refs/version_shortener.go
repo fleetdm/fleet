@@ -1,6 +1,7 @@
 package externalrefs
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -56,7 +57,7 @@ func SublimeVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained
 // bundle_short_version for MySQL Workbench Community Edition (e.g. "8.0.46" → "8.0.46.CE").
 func MySQLWorkbenchVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
 	if app.Version == "" {
-		return app, fmt.Errorf("empty version for MySQL Workbench")
+		return app, errors.New("empty version for MySQL Workbench")
 	}
 	app.Version += ".CE"
 	return app, nil
@@ -66,7 +67,7 @@ func MySQLWorkbenchVersionTransformer(app *maintained_apps.FMAManifestApp) (*mai
 // bundle_short_version for Lens (e.g. "2026.3.251250" → "2026.3.251250-latest").
 func LensVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
 	if app.Version == "" {
-		return app, fmt.Errorf("empty version for Lens")
+		return app, errors.New("empty version for Lens")
 	}
 	app.Version += "-latest"
 	return app, nil
