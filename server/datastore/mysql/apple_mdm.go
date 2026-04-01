@@ -1739,6 +1739,7 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 		return nil
 	}
 
+	// TODO(mna): insert serial here...
 	stmt := `
 		INSERT INTO host_dep_assignments (host_id, abm_token_id, mdm_migration_deadline)
 		VALUES %s
@@ -2041,7 +2042,7 @@ func (ds *Datastore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial s
 	// TODO: update this query to rely on the new hardware_serial column to be added to
 	// host_dep_assignments and remove the subselect to hosts
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed 
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed
 		FROM host_dep_assignments hdep
 		WHERE hdep.host_id IN (SELECT id FROM hosts WHERE hardware_serial = ?) AND hdep.deleted_at IS NULL`, serial)
 	if err != nil {
@@ -6300,16 +6301,16 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 	err error,
 ) {
 	hostsStmt := `
-SELECT 
-	h.id as host_id, 
-	h.uuid as uuid, 
+SELECT
+	h.id as host_id,
+	h.uuid as uuid,
 	hmdm.installed_from_dep,
 	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
 FROM hosts h
 	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
 	INNER JOIN nano_enrollments ne ON ne.id = h.uuid
 	LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
-WHERE 
+WHERE
 	(h.platform = 'ios' OR h.platform = 'ipados')
 	AND TRIM(h.uuid) != ''
 	AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
