@@ -25,6 +25,12 @@
 							<string>managementAttestation %HardwareUUID%</string>
 						</array>
 					</array>
+					<array>
+						<array>
+							<string>OU</string>
+							<string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+						</array>
+					</array>
 				</array>
 				<key>URL</key>
 				<string>$FLEET_VAR_NDES_SCEP_PROXY_URL</string>
