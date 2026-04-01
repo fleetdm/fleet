@@ -154,6 +154,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2026-03-31">
+<meta name="publishedOn" value="2026-04-01">
 <meta name="articleTitle" value="Fleet 4.83.0 | Recovery Lock passwords, patch policies, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.83.0-1600x900@2x.png">
