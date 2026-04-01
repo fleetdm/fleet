@@ -77,6 +77,9 @@ func (ds *Datastore) UpdateChallenge(ctx context.Context, challenge *types.Chall
 			return ctxerr.Wrap(ctx, err, "updating authorization status based on challenge status")
 		}
 
+		// We can confidently update the order status here based on the challenge and authorization status
+		// since we currently only have one, if we ever add more the state machine should account for all authorizations
+		// to be valid before moving the order to ready
 		const updateOrderStatusStmt = `UPDATE acme_orders o INNER JOIN acme_authorizations a ON o.id = a.acme_order_id
 		SET o.status = CASE
 			WHEN ? = 'valid' THEN 'ready'
