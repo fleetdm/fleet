@@ -2790,7 +2790,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 
 ### s3_carves_endpoint_url
 
-> **Warning:** Same `endpoint_url` override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
+> Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
 
 - Default value: none
 - Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
