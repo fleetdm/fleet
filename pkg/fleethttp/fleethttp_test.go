@@ -124,7 +124,7 @@ func TestNewGithubClientWithToken(t *testing.T) {
 
 			if c.customTLS {
 				oauthTr := inner.(*oauth2.Transport)
-				assert.IsType(t, &http.Transport{}, oauthTr.Base, "base transport should be custom *http.Transport for TLS")
+				assert.IsType(t, &http.Transport{}, oauthTr.Base, "base transport should be custom *http.Transport for TLS") //nolint:gocritic
 			}
 
 			if c.cookieJar != nil {
