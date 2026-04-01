@@ -82,10 +82,9 @@
     white-space: nowrap;
   }
 
-  &__os-data-set {
-    .component__tooltip-wrapper {
-      margin-left: $pad-xsmall;
-    }
+  &__os-version {
+    display: flex;
+    gap: $pad-xsmall;
 
     .component__tooltip-wrapper__element {
       line-height: inherit;
