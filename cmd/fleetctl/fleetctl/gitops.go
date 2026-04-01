@@ -524,16 +524,13 @@ func gitopsCommand() *cli.Command {
 				// defer app_store_apps for ALL teams in the VPP config (not just missing
 				// ones), then re-apply them after VPP tokens are reassigned.
 				if !isGlobalConfig && len(missingVPPTeams) > 0 && len(config.Software.AppStoreApps) > 0 {
-					for _, vppTeam := range vppTeams {
-						if vppTeam == *config.TeamName {
-							missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
-								config:   config,
-								vppApps:  config.Software.AppStoreApps,
-								filename: flFilename,
-							})
-							config.Software.AppStoreApps = nil
-							break
-						}
+					if slices.Contains(vppTeams, *config.TeamName) {
+						missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
+							config:   config,
+							vppApps:  config.Software.AppStoreApps,
+							filename: flFilename,
+						})
+						config.Software.AppStoreApps = nil
 					}
 				}
 
