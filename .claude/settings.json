@@ -90,6 +90,17 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "if": "Edit(**/*.go) || Edit(**/*.ts) || Edit(**/*.tsx) || Write(**/*.go) || Write(**/*.ts) || Write(**/*.tsx)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/lint-on-save.sh",
+            "timeout": 30
+          }
+        ]
       }
     ]
   }

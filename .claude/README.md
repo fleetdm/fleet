@@ -157,9 +157,10 @@ Your local settings override project settings, so you can always customize witho
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
 │   └── fleet-security-auditor.md  # Security auditor (on-demand, opus)
 └── hooks/                     # Automated hooks
-    ├── guard-dangerous-commands.sh  # PreToolUse: blocks rm -rf, force push, pipe-to-shell
+    ├── guard-dangerous-commands.sh  # PreToolUse: blocks dangerous commands
     ├── goimports.sh           #   PostToolUse: formats Go files
-    └── prettier-frontend.sh   #   PostToolUse: formats frontend files
+    ├── prettier-frontend.sh   #   PostToolUse: formats frontend files
+    └── lint-on-save.sh        #   PostToolUse: lints Go/TS and feeds violations back to Claude
 ```
 
 ## Skills reference
@@ -211,15 +212,16 @@ You can add your own agents by creating files in `.claude/agents/` on a branch, 
 
 ## Hooks
 
-Three hooks run automatically:
+Four hooks run automatically:
 
 | Hook | Event | Files | What it does |
 |------|-------|-------|-------------|
 | `guard-dangerous-commands.sh` | PreToolUse (Bash) | All commands | Blocks `rm -rf /`, force push to main/master, `git reset --hard origin/`, and pipe-to-shell attacks |
-| `goimports.sh` | PostToolUse (Edit/Write) | `server/**/*.go`, `cmd/**/*.go`, `orbit/**/*.go`, `ee/**/*.go` | Formats with `goimports` → `gofumpt` → `gofmt` (first available) |
+| `goimports.sh` | PostToolUse (Edit/Write) | `**/*.go` | Formats with `goimports` → `gofumpt` → `gofmt` (first available) |
 | `prettier-frontend.sh` | PostToolUse (Edit/Write) | `frontend/**` | Formats with `npx prettier --write` |
+| `lint-on-save.sh` | PostToolUse (Edit/Write) | `**/*.go`, `**/*.ts`, `**/*.tsx` | Runs `golangci-lint` (Go) or `eslint` (TypeScript) and feeds violations back to Claude as context so it self-corrects |
 
-Formatting hooks only run on files matching their path patterns (not on every edit). All hooks exit gracefully if the tool isn't installed. To add project-level hooks, edit `.claude/settings.json` on a branch. For personal hooks, add them to `~/.claude/settings.json`.
+Hooks run in order: formatters first (goimports, prettier), then the linter. The linter is non-blocking — it doesn't reject the edit, but Claude sees the output and fixes violations in its next step. All hooks exit gracefully if the tool isn't installed. To add project-level hooks, edit `.claude/settings.json` on a branch. For personal hooks, add them to `~/.claude/settings.json`.
 
 ## Rules
 
