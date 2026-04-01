@@ -2634,7 +2634,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
-> **Warning:** Setting `endpoint_url` overrides the endpoint for **all** AWS API calls (not just S3), breaking IRSA and other token-based IAM authentication. If you use IRSA on EKS or ECS task roles, do not set this — use `region` instead. See [fleetdm/fleet#42349](https://github.com/fleetdm/fleet/issues/42349) for details.
+> Setting `s3_software_installers_endpoint_url` overrides the endpoint for **all** AWS API calls (not just S3), breaking IAM Roles for Service Accounts (IRSA) and other token-based IAM authentication. If you use IRSA on Amazon Elastic Kubernetes Service (EKS) or Elastic Container Service (ECS) task roles, do not set this. Use `s3_software_installers_region` instead.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
