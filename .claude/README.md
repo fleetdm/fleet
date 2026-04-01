@@ -255,16 +255,64 @@ Commands not in either list (like `git commit` or `git push`) will prompt for pe
 
 ## Customize your setup
 
-Everything above works without extra configuration. The sections below describe optional enhancements you can add to your personal setup.
+Everything above works without extra configuration. The sections below describe how to customize your personal experience without affecting the team.
+
+### Model and effort
+
+Change the model or effort level for your current session at any time:
+
+```
+/model opus        # Switch to Opus for deeper reasoning
+/model sonnet      # Switch to Sonnet for faster responses
+/effort high       # More reasoning time
+/effort low        # Faster, lighter responses
+```
+
+Each skill in this setup has an `effort` level tuned for its complexity (e.g., `/spec-story` uses high, `/test` uses low). The skill's effort overrides your session setting while the skill is active, then reverts when it finishes.
+
+To set your default for all sessions, add to `~/.claude/settings.json`:
+```json
+{
+  "model": "opus[1m]",
+  "effortLevel": "high"
+}
+```
+
+### Override a shared skill
+
+Each skill has `effort` and optionally `model` set in its frontmatter. You can't override a specific skill's frontmatter from settings — but you can override the entire skill by creating a personal copy with the same name at a higher-priority location.
+
+Personal skills (`~/.claude/skills/`) take precedence over project skills (`.claude/skills/`). To override `/test` with a different effort level:
+
+```bash
+# Copy the shared skill to your personal config
+mkdir -p ~/.claude/skills/test
+cp .claude/skills/test/SKILL.md ~/.claude/skills/test/SKILL.md
+
+# Edit the frontmatter to change effort, model, or anything else
+```
+
+Your personal version takes priority. The shared version is ignored for you but still works for everyone else.
+
+### Override a shared agent
+
+Same pattern as skills. Personal agents (`~/.claude/agents/`) take precedence over project agents (`.claude/agents/`):
+
+```bash
+# Override go-reviewer with your own version
+cp .claude/agents/go-reviewer.md ~/.claude/agents/go-reviewer.md
+# Edit to change model, tools, or review criteria
+```
 
 ### Local settings
 
-Create `.claude/settings.local.json` (gitignored) for personal overrides. Local settings take priority over team settings, so you can add permissions, change defaults, or configure MCP servers without affecting anyone else.
+Create `.claude/settings.local.json` (gitignored) for personal permission overrides. Local settings take priority over project settings in `.claude/settings.json`.
 
-Common things to add to your local settings:
+Common things to add:
 - Git write permissions (the shared setup only allows read operations)
 - MCP server tool permissions
 - Additional `make` or `bash` commands specific to your workflow
+- Additional hooks
 
 ```json
 {
@@ -276,9 +324,33 @@ Common things to add to your local settings:
       "mcp__github__*",
       "mcp__my-mcp-server__*"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "my-personal-hook.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
 ```
+
+Local hooks run in addition to shared hooks, not instead of them. Permission rules merge across levels, with deny taking precedence: if the shared settings deny something, local settings can't override it.
+
+### Personal CLAUDE.md
+
+Create a root-level `CLAUDE.md` (gitignored) for personal instructions that apply on top of the shared `.claude/CLAUDE.md`. Use this for preferences like MCP tool mandates, git workflow rules, or personal conventions. Both files load at session start.
+
+### Personal rules
+
+Create rules at `~/.claude/rules/` for conventions that apply across all your projects. Project rules in `.claude/rules/` and personal rules in `~/.claude/rules/` both load — they don't override each other.
 
 ### MCP servers
 
@@ -315,6 +387,18 @@ claude plugins remove <name>     # Remove a plugin
 ```
 
 Useful plugins for Fleet development: `gopls-lsp` (Go LSP), `typescript-lsp` (TS LSP), `feature-dev` (code explorer, architect, and reviewer agents), and `security-guidance` (security warnings on sensitive patterns).
+
+### Override precedence summary
+
+| What | Personal location | Behavior |
+|------|------------------|----------|
+| Skills | `~/.claude/skills/<name>/SKILL.md` | Replaces the project skill with the same name |
+| Agents | `~/.claude/agents/<name>.md` | Replaces the project agent with the same name |
+| Rules | `~/.claude/rules/<name>.md` | Additive — loads alongside project rules |
+| Settings | `.claude/settings.local.json` | Merges with project settings; deny rules can't be overridden |
+| Hooks | `.claude/settings.local.json` | Additive — runs alongside project hooks |
+| CLAUDE.md | Root `CLAUDE.md` (gitignored) | Additive — loads alongside `.claude/CLAUDE.md` |
+| Memory | `~/.claude/projects/*/memory/` | Personal only — not shared |
 
 ## Contribute to this configuration
 
