@@ -1454,7 +1454,7 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
 		s.makeOrderReady(t, orderResp.ID)
 
-		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1474,7 +1474,7 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
 		// order is still in "pending" status (not made ready)
 
-		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1491,7 +1491,7 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		s.makeOrderReady(t, orderResp.ID)
 
 		// finalize the order first
-		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1513,7 +1513,7 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
 		s.makeOrderReady(t, orderResp.ID)
 
-		csrPEM := generateCSRPEM(t, "wrong-common-name")
+		csrPEM := generateCSRDER(t, "wrong-common-name")
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1543,7 +1543,7 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 	t.Run("non-existing order", func(t *testing.T) {
 		enroll, privateKey, accountURL, _, nonce := s.createOrderForFinalize(t)
 
-		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, 99999)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1559,7 +1559,7 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		enroll, privateKey, accountURL, orderResp, _ := s.createOrderForFinalize(t)
 		s.makeOrderReady(t, orderResp.ID)
 
-		csrPEM := generateCSRPEM(t, enroll.HostIdentifier)
+		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, "bad-nonce", accountURL, finalizeURL, payload)
