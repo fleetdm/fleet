@@ -1,2 +1,0 @@
-- Added `fleetctl new` command to initialize a GitOps folder
-- Added glob support for `configuration_profiles`

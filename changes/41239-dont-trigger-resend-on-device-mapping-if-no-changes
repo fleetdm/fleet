@@ -1,1 +1,0 @@
-Added an early return in the PUT /hosts/{id}/device_mapping endpoint so that setting the same IDP email that is already stored no longer triggers unnecessary database updates, activity log entries, or profile resends.
