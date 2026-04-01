@@ -5,8 +5,7 @@ import { ITokenTeam } from "interfaces/mdm";
 import { getTeamDisplayName } from "interfaces/team";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { uniqueId } from "lodash";
-import ReactTooltip from "react-tooltip";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "teams-cell";
 
@@ -47,36 +46,12 @@ const condenseTeams = (teams: ITokenTeam[]) => {
     : condensed;
 };
 
-const generateTooltip = (teams: ITokenTeam[] | null, tooltipId: string) => {
-  if (teams === null || teams.length <= 1) {
-    return null;
-  }
-
-  const condensedTeams = condenseTeams(teams);
-
-  return (
-    <ReactTooltip
-      effect="solid"
-      backgroundColor="#3e4771"
-      id={tooltipId}
-      data-html
-    >
-      <ul className={`${baseClass}__team-list`}>
-        {condensedTeams.map((teamName) => {
-          return <li key={teamName}>{teamName}</li>;
-        })}
-      </ul>
-    </ReactTooltip>
-  );
-};
-
 interface ITeamsCellProps {
   teams: ITokenTeam[] | null;
   className?: string;
 }
 
 const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
-  const tooltipId = uniqueId();
   const classNames = classnames(baseClass, className);
 
   if (!teams) {
@@ -92,19 +67,23 @@ const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
   }
 
   const cell = generateCell(teams);
-  const tooltip = generateTooltip(teams, tooltipId);
+  const condensedTeams = condenseTeams(teams);
 
   return (
-    <>
-      <div
-        className={`${baseClass}__team-text-with-tooltip`}
-        data-tip
-        data-for={tooltipId}
-      >
+    <TooltipWrapper
+      tipContent={
+        <ul className={`${baseClass}__team-list`}>
+          {condensedTeams.map((teamName) => {
+            return <li key={teamName}>{teamName}</li>;
+          })}
+        </ul>
+      }
+      underline={false}
+    >
+      <div className={`${baseClass}__team-text-with-tooltip`}>
         {cell}
       </div>
-      {tooltip}
-    </>
+    </TooltipWrapper>
   );
 };
 

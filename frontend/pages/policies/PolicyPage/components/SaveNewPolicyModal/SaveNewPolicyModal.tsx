@@ -20,8 +20,6 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import Icon from "components/Icon";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -171,14 +169,24 @@ const SaveNewPolicyModal = ({
         (labelName === "Resolution" && isFetchingAutofillResolution);
 
       return (
-        <>
-          <div
-            data-tip
-            data-for={`autofill-button-${labelName}`}
-            // Tooltip shows except when fetching AI autofill
-            data-tip-disable={disableForm}
-            className="autofill-tooltip-wrapper"
-          >
+        <TooltipWrapper
+          tipContent={
+            aiFeaturesDisabled ? (
+              "AI features are disabled in organization settings"
+            ) : (
+              <>
+                Policy queries (SQL) will be sent to a <br />
+                large language model (LLM). Fleet <br />
+                doesn&apos;t use this data to train models.
+              </>
+            )
+          }
+          tooltipClass="autofill-button-tooltip"
+          position="top"
+          disableTooltip={disableForm}
+          underline={false}
+        >
+          <div className="autofill-tooltip-wrapper">
             <Button
               variant="inverse"
               disabled={aiFeaturesDisabled || disableForm}
@@ -198,25 +206,7 @@ const SaveNewPolicyModal = ({
               )}
             </Button>
           </div>
-          <ReactTooltip
-            className="autofill-button-tooltip"
-            place="top"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id={`autofill-button-${labelName}`}
-            data-html
-          >
-            {aiFeaturesDisabled ? (
-              "AI features are disabled in organization settings"
-            ) : (
-              <>
-                Policy queries (SQL) will be sent to a <br />
-                large language model (LLM). Fleet <br />
-                doesn&apos;t use this data to train models.
-              </>
-            )}
-          </ReactTooltip>
-        </>
+        </TooltipWrapper>
       );
     },
     [isFetchingAutofillDescription, isFetchingAutofillResolution, disableForm]
@@ -325,35 +315,33 @@ const SaveNewPolicyModal = ({
             </div>
           )}
           <div className="modal-cta-wrap">
-            <span
-              className={`${baseClass}__button-wrap--modal-save`}
-              data-tip
-              data-for={`${baseClass}__button--modal-save-tooltip`}
-              data-tip-disable={!disableSave}
+            <TooltipWrapper
+              tipContent={
+                <>
+                  Select the platforms this
+                  <br />
+                  policy will be checked on
+                  <br />
+                  to save the policy.
+                </>
+              }
+              tooltipClass={`${baseClass}__button--modal-save-tooltip`}
+              position="bottom"
+              disableTooltip={!disableSave}
+              underline={false}
             >
-              <Button
-                type="submit"
-                onClick={handleSavePolicy}
-                disabled={disableSave}
-                className="save-policy-loading"
-                isLoading={isUpdatingPolicy}
-              >
-                Save
-              </Button>
-              <ReactTooltip
-                className={`${baseClass}__button--modal-save-tooltip`}
-                place="bottom"
-                effect="solid"
-                id={`${baseClass}__button--modal-save-tooltip`}
-                backgroundColor={COLORS["tooltip-bg"]}
-              >
-                Select the platforms this
-                <br />
-                policy will be checked on
-                <br />
-                to save the policy.
-              </ReactTooltip>
-            </span>
+              <span className={`${baseClass}__button-wrap--modal-save`}>
+                <Button
+                  type="submit"
+                  onClick={handleSavePolicy}
+                  disabled={disableSave}
+                  className="save-policy-loading"
+                  isLoading={isUpdatingPolicy}
+                >
+                  Save
+                </Button>
+              </span>
+            </TooltipWrapper>
             <Button
               className={`${baseClass}__button--modal-cancel`}
               onClick={() => setIsSaveNewPolicyModalOpen(false)}

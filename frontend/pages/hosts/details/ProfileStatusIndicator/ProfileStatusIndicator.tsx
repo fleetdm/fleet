@@ -1,9 +1,8 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
 import { IconNames } from "components/icons";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import { COLORS } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "profile-status-indicator";
 
@@ -26,13 +25,12 @@ const ProfileStatusIndicator = ({
   const getIndicatorTextWrapped = () => {
     if (onClick && tooltip?.tooltipText) {
       return (
-        <>
-          <span
-            className="tooltip tooltip__tooltip-icon"
-            data-tip
-            data-for={`${indicatorText}-tooltip`}
-            data-tip-disable={false}
-          >
+        <TooltipWrapper
+          tipContent={<span className="tooltip__tooltip-text">{tooltip.tooltipText}</span>}
+          position={tooltip.position ?? "bottom"}
+          underline={false}
+        >
+          <span className="tooltip tooltip__tooltip-icon">
             <Button
               onClick={onClick}
               variant="text-link"
@@ -41,16 +39,7 @@ const ProfileStatusIndicator = ({
               {indicatorText}
             </Button>
           </span>
-          <ReactTooltip
-            place={tooltip.position ?? "bottom"}
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id={`${indicatorText}-tooltip`}
-            data-html
-          >
-            <span className="tooltip__tooltip-text">{tooltip.tooltipText}</span>
-          </ReactTooltip>
-        </>
+        </TooltipWrapper>
       );
     }
 
@@ -70,25 +59,15 @@ const ProfileStatusIndicator = ({
     // tooltip without onclick
     if (tooltip?.tooltipText) {
       return (
-        <>
-          <span
-            className="tooltip tooltip__tooltip-icon"
-            data-tip
-            data-for={`${indicatorText}-tooltip`}
-            data-tip-disable={false}
-          >
+        <TooltipWrapper
+          tipContent={<span className="tooltip__tooltip-text">{tooltip.tooltipText}</span>}
+          position={tooltip.position ?? "bottom"}
+          underline={false}
+        >
+          <span className="tooltip tooltip__tooltip-icon">
             {indicatorText}
           </span>
-          <ReactTooltip
-            place={tooltip.position ?? "bottom"}
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id={`${indicatorText}-tooltip`}
-            data-html
-          >
-            <span className="tooltip__tooltip-text">{tooltip.tooltipText}</span>
-          </ReactTooltip>
-        </>
+        </TooltipWrapper>
       );
     }
 
