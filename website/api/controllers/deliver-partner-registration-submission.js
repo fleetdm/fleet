@@ -30,7 +30,9 @@ module.exports = {
 
 
   fn: async function (inputs) {
-
+    if(!sails.config.custom.dealRegistrationContactEmailAddress){
+      throw new Error('Missing config variable! Please set sails.config.custom.dealRegistrationContactEmailAddress to be the email address of the person who receives deal registration submissions.');
+    }
     if(inputs.partnerType === 'reseller') {
       if(!inputs.numberOfHosts) {
         throw 'missingInput';// This should never happen because of frontend form validation.
@@ -71,6 +73,7 @@ module.exports = {
       emailTemplateData.servicesOffered = servicesOfferedAsAFormattedString;
       toEmail = sails.config.custom.dealRegistrationContactEmailAddress;
     }
+
     // send the information to the deal registration contact email address.
     await sails.helpers.sendTemplateEmail.with({
       to: toEmail,
