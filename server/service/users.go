@@ -1113,9 +1113,6 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
 	}
-	if user.SSOEnabled {
-		return ctxerr.New(ctx, "set password for single sign on user not allowed")
-	}
 	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving changed password")

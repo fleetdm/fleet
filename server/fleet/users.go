@@ -365,6 +365,9 @@ func (u *User) ValidatePassword(password string) error {
 }
 
 func (u *User) SetPassword(plaintext string, keySize, cost int) error {
+	if u.SSOEnabled {
+		return errors.New("set password for single sign on user not allowed")
+	}
 	if err := ValidatePasswordRequirements(plaintext); err != nil {
 		return err
 	}
