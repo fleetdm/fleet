@@ -2251,7 +2251,7 @@ func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, hostFl
 	// from then on, the host is marked as "pending unlock" until the device is
 	// actually unlocked with the PIN. The actual unlocking happens when the
 	// device sends an Idle MDM request.
-	unlockRef := ts.Format(time.DateTime)
+	unlockRef := ts.UTC().Format(time.DateTime)
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, unlockRef, hostFleetPlatform)
 	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
 }
