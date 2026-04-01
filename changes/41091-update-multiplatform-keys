@@ -1,4 +1,0 @@
-- Deprecated `setup_experience.bootstrap_package` in favor of `setup_experience.macos_bootstrap_package`
-- Deprecated `setup_experience.manual_agent_install` in favor of `setup_experience.macos_manual_agent_install`
-- Deprecated `setup_experience.enable_release_device_manually ` in favor of `setup_experience.apple_enable_release_device_manually `
-- Deprecated `setup_experience.script` in favor of `setup_experience.macos_script`
