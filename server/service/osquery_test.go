@@ -3350,7 +3350,7 @@ func TestPolicyQueries(t *testing.T) {
 	}
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
-		deferred bool,
+		deferred bool, newlyPassingPolicyIDs []uint,
 	) error {
 		recordedResults = results
 		host = gotHost
@@ -3661,7 +3661,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
-		deferred bool,
+		deferred bool, newlyPassingPolicyIDs []uint,
 	) error {
 		recordedResults = results
 		host = gotHost
