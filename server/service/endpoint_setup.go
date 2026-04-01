@@ -33,7 +33,7 @@ type setupResponse struct {
 
 func (r setupResponse) Error() error { return r.Err }
 
-func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger) endpoint.Endpoint {
+func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibrary func(serverURL, token string) error) endpoint.Endpoint {
 	return func(ctx context.Context, request any) (any, error) {
 		req := request.(setupRequest)
 		config := &fleet.AppConfig{}
@@ -82,13 +82,7 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger) endpoint.Endpoint
 
 			// Apply starter library using the admin token we just created
 			if req.ServerURL != nil {
-				if err := ApplyStarterLibrary(
-					ctx,
-					*req.ServerURL,
-					session.Key,
-					logger,
-					NewClient,
-				); err != nil {
+				if err := applyStarterLibrary(*req.ServerURL, session.Key); err != nil {
 					logger.DebugContext(ctx, "setup apply starter library", "endpoint", "setup", "op", "applyStarterLibrary", "err", err)
 					// Continue even if there's an error applying the starter library
 				}
@@ -109,23 +103,25 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger) endpoint.Endpoint
 // ApplyStarterLibrary renders the starter templates and applies them to the
 // Fleet server via the GitOps pipeline, producing the same result as running
 // `fleetctl new` followed by `fleetctl gitops`.
+//
+// The runFleetctl callback should run the fleetctl CLI with the given arguments
+// (e.g. ["gitops", "--config", "/tmp/config.yml", "-f", "default.yml"]).
+// This keeps the CLI dependency out of the service package.
 func ApplyStarterLibrary(
-	ctx context.Context,
 	serverURL string,
 	token string,
 	logger *slog.Logger,
-	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error),
+	runFleetctl func(args []string) error,
 ) error {
-	logger.DebugContext(ctx, "Applying starter library")
+	logger.Debug("Applying starter library")
 
-	// Create an authenticated client.
-	client, err := clientFactory(serverURL, true, "", "")
+	// Create an authenticated client to fetch app config.
+	client, err := NewClient(serverURL, true, "", "")
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 	client.SetToken(token)
 
-	// Fetch app config to get the org name and license info.
 	appConfig, err := client.GetAppConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get app config: %w", err)
@@ -150,19 +146,22 @@ func ApplyStarterLibrary(
 	})
 	defer spec.SetEnvOverrides(nil)
 
-	logf := func(format string, a ...any) {
-		logger.DebugContext(ctx, fmt.Sprintf(format, a...))
+	// Write a temporary fleetctl config file with auth credentials.
+	configFile, err := os.CreateTemp("", "fleetctl-starter-*.yml")
+	if err != nil {
+		return fmt.Errorf("failed to create fleetctl config: %w", err)
 	}
+	defer os.Remove(configFile.Name())
 
-	// Determine which files to process. Global config is always applied;
-	// team configs are only applied for premium licenses.
-	type configFile struct {
-		path     string
-		isGlobal bool
-	}
-	files := []configFile{
-		{path: filepath.Join(tempDir, "default.yml"), isGlobal: true},
-	}
+	fmt.Fprintf(configFile, "contexts:\n  default:\n    address: %s\n    tls-skip-verify: true\n    token: %s\n",
+		serverURL, token)
+	configFile.Close()
+
+	// Build the file list: global config first, then team configs (premium only).
+	args := []string{"gitops", "--config", configFile.Name()}
+
+	args = append(args, "-f", filepath.Join(tempDir, "default.yml"))
+
 	if appConfig.License != nil && appConfig.License.IsPremium() {
 		fleetDir := filepath.Join(tempDir, "fleets")
 		entries, err := os.ReadDir(fleetDir)
@@ -173,58 +172,14 @@ func ApplyStarterLibrary(
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".yml" {
 				continue
 			}
-			files = append(files, configFile{
-				path:     filepath.Join(fleetDir, entry.Name()),
-				isGlobal: false,
-			})
+			args = append(args, "-f", filepath.Join(fleetDir, entry.Name()))
 		}
 	}
 
-	// Parse and apply each config file, global first.
-	teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
-	teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
-	teamsScripts := make(map[string][]fleet.ScriptResponse)
-
-	for _, f := range files {
-		baseDir := filepath.Dir(f.path)
-		config, err := spec.GitOpsFromFile(f.path, baseDir, appConfig, logf)
-		if err != nil {
-			return fmt.Errorf("failed to parse %s: %w", filepath.Base(f.path), err)
-		}
-
-		// Compute label changes. On a fresh instance there are no existing
-		// labels so every label in the template is an addition.
-		if len(config.Labels) > 0 {
-			var changes []spec.LabelChange
-			for _, l := range config.Labels {
-				changes = append(changes, spec.LabelChange{
-					Name:     l.Name,
-					Op:       "+",
-					TeamName: config.CoercedTeamName(),
-					FileName: filepath.Base(f.path),
-				})
-			}
-			config.LabelChangesSummary = spec.NewLabelChangesSummary(changes, nil)
-		}
-
-		_, err = client.DoGitOps(
-			ctx,
-			config,
-			f.path,
-			logf,
-			false, // not a dry run
-			nil,   // no dry run assumptions
-			appConfig,
-			teamsSoftwareInstallers,
-			teamsVPPApps,
-			teamsScripts,
-			nil, // no icon settings
-		)
-		if err != nil {
-			return fmt.Errorf("failed to apply %s: %w", filepath.Base(f.path), err)
-		}
+	if err := runFleetctl(args); err != nil {
+		return fmt.Errorf("fleetctl gitops: %w", err)
 	}
 
-	logger.DebugContext(ctx, "Starter library applied successfully")
+	logger.Debug("Starter library applied successfully")
 	return nil
 }

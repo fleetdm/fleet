@@ -396,11 +396,13 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			if err := service.ApplyStarterLibrary(
-				c.Context,
 				address,
 				token,
 				logger,
-				service.NewClient,
+				func(args []string) error {
+					_, err := RunApp(args)
+					return err
+				},
 			); err != nil {
 				return fmt.Errorf("failed to apply starter library: %w", err)
 			}

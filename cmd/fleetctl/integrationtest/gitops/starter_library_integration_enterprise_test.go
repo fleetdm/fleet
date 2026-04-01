@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -50,6 +51,7 @@ func (s *starterLibraryIntegrationEnterpriseTestSuite) SetupSuite() {
 	}
 
 	users, server := service.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
+	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL)
 	s.Server = server
 	s.Users = users
 
@@ -72,11 +74,13 @@ func (s *starterLibraryIntegrationEnterpriseTestSuite) TestApplyStarterLibraryPr
 	logger := slog.New(slog.DiscardHandler)
 
 	err := service.ApplyStarterLibrary(
-		ctx,
 		s.Server.URL,
 		token,
 		logger,
-		service.NewClient,
+		func(args []string) error {
+			_, err := fleetctl.RunAppNoChecks(args)
+			return err
+		},
 	)
 	require.NoError(t, err)
 
