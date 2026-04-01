@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
-	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -184,9 +184,10 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 		}
 	}
 
-	parsedCSR, err := parsePEMCSR(csr)
+	// The RFC 7.4 calls out that for the CSR it sends a base64url-encoded DER (so not a full PEM block)
+	parsedCSR, err := parseDERCSR(csr)
 	if err != nil {
-		return nil, types.BadCSRError(fmt.Sprintf("Error parsing PEM CSR: %s", err))
+		return nil, types.BadCSRError(fmt.Sprintf("Error parsing DER CSR: %s", err))
 	}
 	if parsedCSR.Subject.CommonName != order.Identifiers[0].Value {
 		return nil, types.BadCSRError("CSR common name does not match identifier value")
@@ -224,21 +225,19 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	return s.createOrderResponse(ctx, enrollment, order, authorizations)
 }
 
-func parsePEMCSR(pemCSR string) (*x509.CertificateRequest, error) {
-	block, _ := pem.Decode([]byte(pemCSR))
-	if block == nil {
-		return nil, errors.New("no PEM blocks found")
-	}
-	if block.Type != "CERTIFICATE REQUEST" {
-		return nil, fmt.Errorf("unexpected PEM block type: %s", block.Type)
+func parseDERCSR(csr string) (*x509.CertificateRequest, error) {
+	// The CSR is base64 url encoded
+	base64DecodedCSR, err := base64.RawURLEncoding.DecodeString(csr)
+	if err != nil {
+		return nil, types.BadCSRError(fmt.Sprintf("Error decoding base64 CSR: %s", err))
 	}
 
-	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	parsedCSR, err := x509.ParseCertificateRequest(base64DecodedCSR)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing certificate request: %w", err)
 	}
 
-	return csr, nil
+	return parsedCSR, nil
 }
 
 func (s *Service) GetOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint) (*types.OrderResponse, error) {

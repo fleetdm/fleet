@@ -8,8 +8,8 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"math/big"
@@ -479,8 +479,8 @@ func (s *integrationTestSuite) makeOrderReady(t *testing.T, orderID uint) {
 	require.NoError(t, err)
 }
 
-// generateCSRPEM creates a PEM-encoded ECDSA CSR with the given common name.
-func generateCSRPEM(t *testing.T, commonName string) string {
+// generateCSRDER creates a base64 URL encoded DER-encoded ECDSA CSR with the given common name.
+func generateCSRDER(t *testing.T, commonName string) string {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -491,7 +491,10 @@ func generateCSRPEM(t *testing.T, commonName string) string {
 	}
 	csrDER, err := x509.CreateCertificateRequest(rand.Reader, template, key)
 	require.NoError(t, err)
-	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER}))
+
+	// base64 URL encode the DER csr as per the RFC 7.4 spec
+	encoded := base64.RawURLEncoding.EncodeToString(csrDER)
+	return encoded
 }
 
 func (s *integrationTestSuite) getAuthorization(t *testing.T, authUrl string, jwsBody []byte) (*api_http.GetAuthorizationResponse, *types.ACMEError, *http.Response) {
