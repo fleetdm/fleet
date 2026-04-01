@@ -78,7 +78,7 @@ The network is saved but the end user must select it once in Wi-Fi settings. Aft
 
 To skip the manual step, set `AutoConnect` to `true` in the profile — the device will connect automatically without end user action, unless end user disables auto-connect for this network.
 
-<meta name="articleTitle" value="Configure EAP-TLS Wi-Fi on Android">
+<meta name="articleTitle" value="Configure Wi-Fi on Android">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
