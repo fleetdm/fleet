@@ -51,6 +51,7 @@ const ReportUpdatedCell = ({
                 }
                 position="top"
                 underline={false}
+                showArrow
               >
                 <span>{val}</span>
               </TooltipWrapper>
@@ -76,6 +77,7 @@ const ReportUpdatedCell = ({
                 }
                 position="top"
                 underline={false}
+                showArrow
               >
                 <span>{val}</span>
               </TooltipWrapper>

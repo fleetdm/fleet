@@ -89,13 +89,12 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   );
 };
 
-type IInstallerStatusProps = Pick<IHostSoftware, "id" | "status"> & {
+type IInstallerStatusProps = Pick<IHostSoftware, "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 };
 
 const InstallerStatus = ({
-  id,
   status,
   last_install,
   onShowInstallerDetails,
@@ -109,21 +108,17 @@ const InstallerStatus = ({
   return (
     <div className={`${baseClass}__status-content`}>
       <TooltipWrapper
-        tipContent={
-          <span className={`${baseClass}__status-tooltip-text`}>
-            {displayConfig.tooltip({
-              lastInstalledAt: last_install?.installed_at,
-            })}
-          </span>
-        }
-        tooltipClass={`${baseClass}__status-tooltip`}
+        tipContent={displayConfig.tooltip({
+          lastInstalledAt: last_install?.installed_at,
+        })}
         underline={false}
+        showArrow
+        position="top"
+        tipOffset={8}
       >
         <div className={`${baseClass}__status-with-tooltip`}>
-          {displayConfig.iconName === "pending-outline" ? (
+          {displayConfig.iconName === "pending-outline" && (
             <Spinner size="x-small" includeContainer={false} centered={false} />
-          ) : (
-            <Icon name={displayConfig.iconName || "install"} />
           )}
           {last_install && displayConfig.displayText === "Failed" && (
             <span data-testid={`${baseClass}__status--test`}>
@@ -133,7 +128,9 @@ const InstallerStatus = ({
                 onClick={() => {
                   onShowInstallerDetails();
                 }}
+                size="small"
               >
+                <Icon name={displayConfig.iconName || "install"} />
                 {displayConfig.displayText}
               </Button>
             </span>
@@ -214,7 +211,6 @@ const InstallerStatusAction = ({
       {showFailedInstallStatus && (
         <div className={`${baseClass}__item-status`}>
           <InstallerStatus
-            id={id}
             status={status}
             last_install={lastInstall}
             onShowInstallerDetails={onShowInstallerDetails}

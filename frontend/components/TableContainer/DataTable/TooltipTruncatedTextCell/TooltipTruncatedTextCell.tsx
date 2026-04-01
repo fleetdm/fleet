@@ -65,9 +65,9 @@ const TooltipTruncatedTextCell = ({
         }
         position="top"
         tooltipClass="truncated-tooltip"
-        isDelayed
         disableTooltip={isDefaultValue || tooltipDisabled}
         underline={false}
+        showArrow
       >
         <div className="data-table__tooltip-truncated-text-container">
           <span

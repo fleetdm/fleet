@@ -181,7 +181,6 @@ const SaveNewPolicyModal = ({
               </>
             )
           }
-          tooltipClass="autofill-button-tooltip"
           position="top"
           disableTooltip={disableForm}
           underline={false}
@@ -326,9 +325,11 @@ const SaveNewPolicyModal = ({
                 </>
               }
               tooltipClass={`${baseClass}__button--modal-save-tooltip`}
-              position="bottom"
+              position="top"
               disableTooltip={!disableSave}
               underline={false}
+              showArrow
+              tipOffset={8}
             >
               <span className={`${baseClass}__button-wrap--modal-save`}>
                 <Button

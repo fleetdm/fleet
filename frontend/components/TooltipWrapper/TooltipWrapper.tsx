@@ -112,6 +112,11 @@ const TooltipWrapper = ({
     [delayShowVal, delayHideVal] = [delayShowHide, delayShowHide];
   }
 
+  console.log(
+    "          delayShow={delayShowVal || delayInMs}",
+    delayShowVal,
+    delayInMs
+  );
   return (
     <span className={wrapperClassNames}>
       <div

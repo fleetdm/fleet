@@ -42,6 +42,7 @@ const IssuesIndicator = ({
       underline={false}
       showArrow
       className={classNames}
+      tipOffset={8}
     >
       <Icon name="error-outline" color="ui-fleet-black-50" /> {totalIssuesCount}
     </TooltipWrapper>

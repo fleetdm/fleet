@@ -146,10 +146,10 @@ const OSSettingStatusCell = ({
             }
             position="top"
             underline={false}
+            showArrow
+            tipOffset={8}
           >
-            <span className={`${baseClass}__status-text`}>
-              {statusText}
-            </span>
+            <span className={`${baseClass}__status-text`}>{statusText}</span>
           </TooltipWrapper>
         ) : (
           <span className={`${baseClass}__status-text`}>{statusText}</span>

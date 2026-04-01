@@ -73,10 +73,10 @@ const FeedListItem = ({
           <TooltipWrapper
             className={`${baseClass}__details-bottomline`}
             position="top"
-            tooltipClass="date-tooltip"
             disableTooltip={!createdAt}
             tipContent={createdAt ? internationalTimeFormat(createdAt) : ""}
             underline={false}
+            showArrow
           >
             {createdAt && dateAgo(createdAt)}
           </TooltipWrapper>

@@ -73,7 +73,7 @@ interface ITableContainerProps<T = any> {
   primarySelectAction?: IActionButtonProps;
   /** Secondary button/s after selecting a row */
   secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
-  searchToolTipText?: string;
+  searchToolTipText?: JSX.Element;
   // TODO - consolidate this functionality within `filters`
   searchQueryColumn?: string;
   // TODO - consolidate this functionality within `filters`
@@ -382,9 +382,16 @@ const TableContainer = <T,>({
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
                 <TooltipWrapper
-                  tipContent={<span className={`tooltip ${baseClass}__tooltip-text`}>{searchToolTipText}</span>}
+                  tipContent={
+                    <span className={`tooltip ${baseClass}__tooltip-text`}>
+                      {searchToolTipText}
+                    </span>
+                  }
                   disableTooltip={!searchToolTipText}
                   underline={false}
+                  position="top"
+                  tipOffset={8}
+                  showArrow
                 >
                   <div className={`${baseClass}__search-input`}>
                     <SearchField
@@ -446,9 +453,16 @@ const TableContainer = <T,>({
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
                 <TooltipWrapper
-                  tipContent={<span className={`tooltip ${baseClass}__tooltip-text`}>{searchToolTipText}</span>}
+                  tipContent={
+                    <span className={`tooltip ${baseClass}__tooltip-text`}>
+                      {searchToolTipText}
+                    </span>
+                  }
                   disableTooltip={!searchToolTipText}
                   underline={false}
+                  position="top"
+                  tipOffset={8}
+                  showArrow
                 >
                   <div
                     className={`${baseClass}__search-input ${

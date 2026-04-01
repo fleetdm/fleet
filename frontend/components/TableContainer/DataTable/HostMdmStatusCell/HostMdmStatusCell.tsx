@@ -31,16 +31,16 @@ const HostMdmStatusCell = ({
         <TooltipWrapper
           tipContent={
             <span className="tooltip__tooltip-text">
-              Fleet hit Apple's API rate limit when preparing the macOS Setup
-              Assistant for this host. Fleet will try again every hour.
+              Fleet hit Apple&apos;s API rate limit when preparing the macOS
+              Setup Assistant for this host. Fleet will try again every hour.
             </span>
           }
           position="top"
           underline={false}
+          showArrow
+          tipOffset={8}
         >
-          <span className="tooltip tooltip__tooltip-icon">
-            <Icon name="error-outline" color="status-error" size="medium" />
-          </span>
+          <Icon name="error-outline" color="status-error" size="medium" />
         </TooltipWrapper>
       )}
     </span>

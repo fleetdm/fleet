@@ -282,20 +282,24 @@ const IntegrationForm = ({
                       formData.groupId === 0;
                 return (
                   <TooltipWrapper
-                    tipContent={<>Complete all fields to save <br /> the integration.</>}
+                    tipContent={
+                      <>
+                        Complete all fields to save <br /> the integration.
+                      </>
+                    }
                     tooltipClass="add-integration-tooltip"
-                    position="bottom"
+                    position="top"
                     disableTooltip={!formInvalid || disableChildren}
                     underline={false}
+                    showArrow
+                    tipOffset={8}
                   >
-                    <div className="tooltip">
-                      <Button
-                        type="submit"
-                        disabled={formInvalid || disableChildren}
-                      >
-                        Add
-                      </Button>
-                    </div>
+                    <Button
+                      type="submit"
+                      disabled={formInvalid || disableChildren}
+                    >
+                      Add
+                    </Button>
                   </TooltipWrapper>
                 );
               }}

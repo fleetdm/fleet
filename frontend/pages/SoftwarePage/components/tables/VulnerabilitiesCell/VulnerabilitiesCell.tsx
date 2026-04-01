@@ -86,14 +86,12 @@ interface IVulnerabilitiesCellProps {
   vulnerabilities: ISoftwareVulnerability[] | string[] | null;
   vulnerabilitiesCount?: number;
   tooltipPosition?: PlacesType;
-  showArrow?: boolean;
 }
 
 const VulnerabilitiesCell = ({
   vulnerabilities,
   vulnerabilitiesCount,
   tooltipPosition = "top",
-  showArrow = false,
 }: IVulnerabilitiesCellProps) => {
   const cell = generateCell(vulnerabilities, vulnerabilitiesCount);
   const count = vulnerabilitiesCount ?? vulnerabilities?.length ?? 0;
@@ -112,7 +110,7 @@ const VulnerabilitiesCell = ({
       tipContent={vulnerabilityTooltip}
       position={tooltipPosition}
       underline={false}
-      showArrow={showArrow}
+      showArrow
     >
       <div className={`${baseClass}__vulnerability-text-with-tooltip`}>
         {cell}

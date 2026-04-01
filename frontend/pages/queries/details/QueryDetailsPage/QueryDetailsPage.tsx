@@ -294,11 +294,11 @@ const QueryDetailsPage = ({
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
                     <TooltipWrapper
-                      tipContent="Live reports are disabled in organization settings"
-                      tooltipClass="live-query-button-tooltip"
+                      tipContent="Live reports are disabled in organization settings."
                       position="top"
                       disableTooltip={!isLiveQueryDisabled}
                       underline={false}
+                      showArrow
                     >
                       <div>
                         <Button

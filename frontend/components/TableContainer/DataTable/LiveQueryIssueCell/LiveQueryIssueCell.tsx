@@ -41,6 +41,8 @@ const LiveQueryIssueCell = ({
         }
         position="top"
         underline={false}
+        showArrow
+        tipOffset={8}
       >
         <span className="host-issue tooltip tooltip__tooltip-icon">
           <Icon

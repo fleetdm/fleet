@@ -893,7 +893,7 @@ const PolicyForm = ({
                       </>
                     }
                     tooltipClass={`${baseClass}__button-wrap--tooltip`}
-                    position="bottom"
+                    position="top"
                     disableTooltip={!isExistingPolicy || isAnyPlatformSelected}
                     underline={false}
                   >
@@ -914,7 +914,10 @@ const PolicyForm = ({
             <TooltipWrapper
               tipContent={
                 disabledLiveQuery ? (
-                  <>Live reports are disabled in organization settings</>
+                  <>
+                    Live reports are disabled <br />
+                    in organization settings.
+                  </>
                 ) : (
                   <>
                     Select the platforms this <br />
@@ -923,13 +926,13 @@ const PolicyForm = ({
                   </>
                 )
               }
-              tooltipClass={`${baseClass}__button-wrap--tooltip`}
-              position="bottom"
               disableTooltip={
                 (!isExistingPolicy || isAnyPlatformSelected) &&
                 !disabledLiveQuery
               }
               underline={false}
+              showArrow
+              position="top"
             >
               <span className={`${baseClass}__button-wrap--tooltip`}>
                 <Button
