@@ -202,6 +202,15 @@ func ChallengeDoesNotExistError(detail string) *ACMEError {
 	}
 }
 
+func OrderNotReadyError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "orderNotReady",
+		Title:      "The request attempted to finalize an order that is not ready to be finalized",
+		Detail:     detail,
+		StatusCode: http.StatusForbidden, // as per RFC https://datatracker.ietf.org/doc/html/rfc8555/#section-6.7
+	}
+}
+
 func (e *ACMEError) Error() string {
 	s := e.Type
 	if e.Title != "" {

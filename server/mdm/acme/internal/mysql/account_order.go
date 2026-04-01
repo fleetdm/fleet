@@ -98,7 +98,6 @@ func (ds *Datastore) CreateAccount(ctx context.Context, account *types.Account, 
 
 		return nil
 	}, ds.logger)
-
 	if err != nil {
 		return nil, false, err
 	}
@@ -194,6 +193,15 @@ func (ds *Datastore) CreateOrder(ctx context.Context, order *types.Order, author
 		return nil, err
 	}
 	return order, nil
+}
+
+func (ds *Datastore) FinalizeOrder(ctx context.Context, orderID uint, csrPEM string, certSerial int64) error {
+	const stmt = `UPDATE acme_orders SET status = ?, finalized=1, certificate_signing_request = ?, issued_certificate_serial = ? WHERE id = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, types.OrderStatusValid, csrPEM, certSerial, orderID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update acme order with signed certificate")
+	}
+	return nil
 }
 
 func (ds *Datastore) GetOrderByID(ctx context.Context, accountID, orderID uint) (*types.Order, []*types.Authorization, error) {

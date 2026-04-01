@@ -335,3 +335,41 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 
 	return nil
 }
+
+type FinalizeOrderRequestContainer struct {
+	JWSRequestContainer
+	OrderID uint `url:"order_id"`
+}
+
+type FinalizeOrderRequest struct {
+	types.AccountAuthenticatedRequestBase
+	OrderID                   uint   `json:"-"`
+	CertificateSigningRequest string `json:"csr"`
+}
+
+type FinalizeOrderResponse struct {
+	*types.OrderResponse
+	Err    error                                `json:"error,omitempty"`
+	Nonces *redis_nonces_store.RedisNoncesStore `json:"-"`
+}
+
+func (r *FinalizeOrderResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
+	if r.Err != nil {
+		var acmeErr *types.ACMEError
+		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
+			return
+		}
+	}
+	if err := generateAndRenderNonce(ctx, r.Nonces, w); err != nil {
+		r.Err = err
+		return
+	}
+	if r.OrderResponse != nil && r.OrderResponse.Location != "" {
+		w.Header().Set("Location", r.OrderResponse.Location)
+	}
+}
+
+// Error implements the platform_http.Errorer interface.
+func (r *FinalizeOrderResponse) Error() error { return r.Err }
