@@ -37,7 +37,7 @@ var (
 )
 
 var (
-	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
+	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "h.hardware_serial", "primary_ip"}
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
 )
 
