@@ -2,10 +2,11 @@ import { defineConfig, devices } from '@playwright/test';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-dotenv.config({ path: path.resolve(__dirname, '.env') });
+const suite = process.env.SUITE || 'e2e';
+dotenv.config({ path: path.resolve(__dirname, suite === 'loadtest' ? '.env.loadtest' : '.env'), quiet: true });
 
 export default defineConfig({
-  testDir: './e2e',
+  globalTeardown: './helpers/perf-teardown.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -17,21 +18,39 @@ export default defineConfig({
   },
 
   projects: [
-    // Setup project runs global-setup once before all tests
+    // ── E2E ────────────────────────────────────────────────────────────────────
     {
-      name: 'setup',
-      testMatch: /global-setup\.ts/,
+      name: 'e2e-setup',
+      testDir: './setup',
+      testMatch: /e2e\.setup\.ts/,
     },
     {
-      name: 'chromium',
+      name: 'e2e',
+      testDir: './tests',
+      grepInvert: /@perf/,
       use: {
         ...devices['Desktop Chrome'],
-        // Tests that need admin session use this stored state
-        storageState: '.auth/admin.json',
+        storageState: '.auth/e2e-admin.json',
       },
-      dependencies: ['setup'],
+      dependencies: ['e2e-setup'],
+    },
+
+    // ── Loadtest ───────────────────────────────────────────────────────────────
+    {
+      name: 'loadtest-setup',
+      testDir: './setup',
+      testMatch: /loadtest\.setup\.ts/,
+    },
+    {
+      name: 'loadtest',
+      testDir: './tests',
+      grep: /@loadtest/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/loadtest-admin.json',
+      },
+      dependencies: ['loadtest-setup'],
+      retries: 0,
     },
   ],
-
-  globalSetup: undefined, // handled via setup project above
 });

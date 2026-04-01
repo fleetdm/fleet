@@ -6,6 +6,8 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 .auth/
+.perf-results/
 
 # Local environment — never commit real credentials
 .env
+.env.loadtest
