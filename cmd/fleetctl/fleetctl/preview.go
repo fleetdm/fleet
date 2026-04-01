@@ -396,6 +396,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			if err := service.ApplyStarterLibrary(
+				c.Context,
 				address,
 				token,
 				logger,

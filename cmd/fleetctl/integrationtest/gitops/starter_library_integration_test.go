@@ -71,6 +71,7 @@ func (s *starterLibraryIntegrationTestSuite) TestApplyStarterLibraryFree() {
 	logger := slog.New(slog.DiscardHandler)
 
 	err := service.ApplyStarterLibrary(
+		ctx,
 		s.Server.URL,
 		token,
 		logger,

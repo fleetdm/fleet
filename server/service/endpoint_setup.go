@@ -32,7 +32,7 @@ type setupResponse struct {
 
 func (r setupResponse) Error() error { return r.Err }
 
-func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibrary func(serverURL, token string) error) endpoint.Endpoint {
+func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibrary func(ctx context.Context, serverURL, token string) error) endpoint.Endpoint {
 	return func(ctx context.Context, request any) (any, error) {
 		req := request.(setupRequest)
 		config := &fleet.AppConfig{}
@@ -81,7 +81,7 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibra
 
 			// Apply starter library using the admin token we just created
 			if req.ServerURL != nil {
-				if err := applyStarterLibrary(*req.ServerURL, session.Key); err != nil {
+				if err := applyStarterLibrary(ctx, *req.ServerURL, session.Key); err != nil {
 					logger.DebugContext(ctx, "setup apply starter library", "endpoint", "setup", "op", "applyStarterLibrary", "err", err)
 					// Continue even if there's an error applying the starter library
 				}
@@ -106,12 +106,13 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibra
 // The runFleetctl callback should run the fleetctl CLI with the given arguments.
 // This keeps the CLI dependency out of the service package.
 func ApplyStarterLibrary(
+	ctx context.Context,
 	serverURL string,
 	token string,
 	logger *slog.Logger,
 	runFleetctl func(args []string) error,
 ) error {
-	logger.DebugContext(context.TODO(),"Applying starter library")
+	logger.DebugContext(ctx, "Applying starter library")
 
 	// Create an authenticated client to fetch app config.
 	client, err := NewClient(serverURL, true, "", "")
@@ -181,6 +182,6 @@ func ApplyStarterLibrary(
 		return fmt.Errorf("fleetctl gitops: %w", err)
 	}
 
-	logger.DebugContext(context.TODO(),"Starter library applied successfully")
+	logger.DebugContext(ctx, "Starter library applied successfully")
 	return nil
 }

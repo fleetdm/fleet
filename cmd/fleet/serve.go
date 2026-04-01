@@ -1499,8 +1499,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if setupRequired {
 			// Pass in a closure to run the fleetctl command, so that the service layer
 			// doesn't need to import the CLI package.
-			applyStarterLibrary := func(serverURL, token string) error {
-				return service.ApplyStarterLibrary(serverURL, token, logger, func(args []string) error {
+			applyStarterLibrary := func(ctx context.Context, serverURL, token string) error {
+				return service.ApplyStarterLibrary(ctx, serverURL, token, logger, func(args []string) error {
 					_, err := fleetctl.RunApp(args)
 					return err
 				})
