@@ -38,7 +38,7 @@ func TestUp_20260401153503_SomeAssignments(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// make macIDs[2] a deleted assignment
-	_, err = db.Exec(`UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?`, macIDs[2])
+	_, err = db.Exec(`UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?`, macIDs[2]) //nolint:nilaway
 	require.NoError(t, err)
 
 	// Apply current migration.
