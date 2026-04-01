@@ -23,6 +23,8 @@ git checkout -- .claude/
 
 This drops the full setup (rules, skills, agents, hooks, and permissions) into your working tree. Start a new Claude Code session and everything loads automatically. When you're done, the second command reverts `.claude/` to whatever's on your branch.
 
+To troubleshoot hooks or see exactly what's firing, start with `claude --debug`. Check the debug log at `~/.claude/debug/` for detailed hook and tool execution traces.
+
 ### Not covered by this configuration
 
 The following areas have their own conventions and aren't covered by the current rules, hooks, or skills:
