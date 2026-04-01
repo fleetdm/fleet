@@ -295,7 +295,7 @@ Some AWS services used in the provider reference architecture are billed as pay-
 
 ###### S3 configuration for AWS deployments
 
-When using IRSA (EKS) or ECS task roles, do **not** set `endpoint_url` — it overrides all AWS API calls (not just S3) and breaks token-based authentication. Use `region` instead. Also set `region` explicitly; if omitted, Fleet defaults to `us-east-1` for region discovery. See the [S3 configuration reference](https://fleetdm.com/docs/configuration/fleet-server-configuration#s3_software_installers_endpoint_url) for details.
+When using IAM Roles for Service Accounts (IRSA) with Amazon Elastic Kubernetes Service (EKS) or Elastic Container Service (ECS) task roles, do not set any `endpoint_url` S3 configuration. It overrides all AWS API calls (not just S3) and breaks token-based authentication. Use `region` instead. Also set `region` explicitly; if omitted, Fleet defaults to `us-east-1` for region discovery. See the [S3 configuration reference](https://fleetdm.com/docs/configuration/fleet-server-configuration#s3_software_installers_endpoint_url) for details.
 
 ###### AWS Terraform CI/CD IAM permissions
 The following permissions are the minimum required to apply AWS terraform resources:
