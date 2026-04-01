@@ -131,5 +131,11 @@ The following details each stage in our new sale process and what is needed to m
 - Fleet has received a fully executed order form signed by the prospect complete with PO (if required).
 
 
+## Renewals
+
+- When working renewal opptys: If a renewal oppty is confirmed that it will churn, we set the stage to "Meeting set" (0% probability) to signify the churn.
+- When renewals are created they should be set to "PoV (Proof of Value)".
+
+
 <meta name="maintainedBy" value="chazmac6">
 <meta name="title" value="👑 Opportunity stages">
