@@ -2,6 +2,7 @@
 name: fleet-gitops
 description: Help with Fleet GitOps configuration files including queries, profiles, software, and DDM declarations with validation against upstream references.
 allowed-tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch
+effort: high
 ---
 
 You are helping with Fleet GitOps configuration files: $ARGUMENTS

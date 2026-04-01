@@ -2,6 +2,7 @@
 name: lint
 description: Run linters on recently changed files with the correct tools for each language. Use when asked to "lint", "check style", or "run linters".
 allowed-tools: Bash(golangci-lint *), Bash(go vet*), Bash(yarn lint*), Bash(yarn --cwd *), Bash(npx eslint*), Bash(npx prettier*), Bash(git diff*), Bash(git status*), Read, Grep, Glob
+effort: low
 ---
 
 # Lint recent changes

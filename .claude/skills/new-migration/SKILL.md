@@ -2,6 +2,7 @@
 name: new-migration
 description: Create a new Fleet database migration with timestamp naming, Up/Down functions, init registration, and test file.
 allowed-tools: Bash(date *), Bash(make migration *), Bash(go build *), Bash(go test *), Bash(MYSQL_TEST*), Read, Write, Grep, Glob
+effort: low
 disable-model-invocation: true
 ---
 

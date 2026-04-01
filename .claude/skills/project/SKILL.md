@@ -3,6 +3,7 @@ name: project
 description: Load or initialize a Fleet workstream project context. Use when asked to "load project" or "switch project".
 context: fork
 allowed-tools: Read, Write, Glob, Grep, Bash(ls *), Bash(pwd *)
+effort: medium
 ---
 
 # Load a workstream project context
