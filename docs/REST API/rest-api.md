@@ -1566,7 +1566,7 @@ None.
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
-      "create_local_idp_user_account": null,
+      "local_idp_user_account_configuration": null,
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
       "manual_agent_install": false
@@ -1894,7 +1894,7 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
-      "create_local_idp_user_account": null,
+      "local_idp_user_account_configuration": null,
       "macos_setup_assistant": "path/to/config.json"
     },
     "apple_server_url": "https://instance.fleet.com"
@@ -2518,13 +2518,13 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
-| create_local_idp_user_account     | object | Configures Platform SSO to automatically create a local user account with IdP credentials when the user first sets up their macOS host. Requires `enable_end_user_authentication` to be `true`. Set to `null` to disable. See [below](#mdm-macos-setup-create-local-idp-user-account) for the object structure. |
+| local_idp_user_account_configuration     | object | Configures Platform SSO to automatically create a local user account with IdP credentials when the user first sets up their macOS host. Requires `enable_end_user_authentication` to be `true`. Set to `null` to disable. See [below](#mdm-macos-setup-create-local-idp-user-account) for the object structure. |
 
 <br/>
 
-##### mdm.macos_setup.create_local_idp_user_account
+##### mdm.macos_setup.local_idp_user_account_configuration
 
-`mdm.macos_setup.create_local_idp_user_account` is an object with the following structure:
+`mdm.macos_setup.local_idp_user_account_configuration` is an object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2619,7 +2619,7 @@ _Available in Fleet Premium._
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
-      "create_local_idp_user_account": null,
+      "local_idp_user_account_configuration": null,
       "macos_setup_assistant": "path/to/config.json"
     }
   }
@@ -7051,10 +7051,10 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
-| create_local_idp_user_account | object | body | Configures Platform SSO to automatically create a local user account with IdP credentials during macOS setup. Requires `enable_end_user_authentication` to be `true`. Set to `null` to disable. |
-| create_local_idp_user_account.sso_configuration_profile_id | integer | body | The ID of the Platform SSO configuration profile. The profile must have `com.apple.extensiblesso` PayloadType with `EnableAuthorization` and `EnableCreateUserAtLogin` set to `true`. |
-| create_local_idp_user_account.sso_software_package_id | integer | body | The ID of the SSO extension software package (e.g. Microsoft Company Portal or Okta Verify) added to Fleet. |
-| create_local_idp_user_account.authentication_url | string | body | The URL used to authenticate the user with the IdP during Platform SSO setup. |
+| local_idp_user_account_configuration | object | body | Configures Platform SSO to automatically create a local user account with IdP credentials during macOS setup. Requires `enable_end_user_authentication` to be `true`. Set to `null` to disable. |
+| local_idp_user_account_configuration.sso_configuration_profile_id | integer | body | The ID of the Platform SSO configuration profile. The profile must have `com.apple.extensiblesso` PayloadType with `EnableAuthorization` and `EnableCreateUserAtLogin` set to `true`. |
+| local_idp_user_account_configuration.sso_software_package_id | integer | body | The ID of the SSO extension software package (e.g. Microsoft Company Portal or Okta Verify) added to Fleet. |
+| local_idp_user_account_configuration.authentication_url | string | body | The URL used to authenticate the user with the IdP during Platform SSO setup. |
 | require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
@@ -7070,7 +7070,7 @@ _Available in Fleet Premium_
   "team_id": 1,
   "fleet_id": 1,
   "enable_end_user_authentication": true,
-  "create_local_idp_user_account": {
+  "local_idp_user_account_configuration": {
     "sso_configuration_profile_id": 42,
     "sso_software_package_id": 7,
     "authentication_url": "https://login.microsoftonline.com/common"
@@ -12180,7 +12180,7 @@ _Available in Fleet Premium_
       "macos_setup": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
-        "create_local_idp_user_account": null,
+        "local_idp_user_account_configuration": null,
         "macos_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
@@ -12554,7 +12554,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication  | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication).                                                                                      |
-| create_local_idp_user_account     | object | Configures Platform SSO to automatically create a local user account with IdP credentials when the user first sets up their macOS host. Requires `enable_end_user_authentication` to be `true`. Set to `null` to disable. See [above](#mdm-macos-setup-create-local-idp-user-account) for the object structure. |
+| local_idp_user_account_configuration     | object | Configures Platform SSO to automatically create a local user account with IdP credentials when the user first sets up their macOS host. Requires `enable_end_user_authentication` to be `true`. Set to `null` to disable. See [above](#mdm-macos-setup-create-local-idp-user-account) for the object structure. |
 
 <br/>
 
@@ -12599,7 +12599,7 @@ _Available in Fleet Premium_
     },
     "macos_setup": {
       "enable_end_user_authentication": false,
-      "create_local_idp_user_account": null
+      "local_idp_user_account_configuration": null
     }
   }
 }
@@ -12733,7 +12733,7 @@ _Available in Fleet Premium_
       "macos_setup": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
-        "create_local_idp_user_account": null,
+        "local_idp_user_account_configuration": null,
         "macos_setup_assistant": "path/to/config.json"
       }
     },
