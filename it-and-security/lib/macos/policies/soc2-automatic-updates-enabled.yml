@@ -1,0 +1,13 @@
+- name: macOS - Automatic updates enabled (SOC 2)
+  query: |
+    SELECT 1 FROM managed_policies
+    WHERE domain = 'com.apple.SoftwareUpdate'
+      AND name = 'AutomaticDownload'
+      AND CAST(value AS INTEGER) = 1;
+  critical: true
+  description: "Checks that automatic software update downloads are enabled via MDM policy. SOC 2 CC8.1 (Change Management) requires that security patches and updates are applied in a timely manner. Automatic updates ensure critical security fixes are deployed promptly."
+  resolution: |-
+    Automatic updates should be enforced by the MDM configuration profile. Go to System Settings > General > Software Update > Automatic Updates and ensure "Download new updates when available" is enabled.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

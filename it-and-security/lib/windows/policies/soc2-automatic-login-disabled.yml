@@ -1,0 +1,14 @@
+- name: Windows - Automatic login disabled (SOC 2)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM registry
+      WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon'
+        AND data = '1'
+    );
+  critical: true
+  description: "Checks that automatic login is disabled on Windows. SOC 2 CC6.7 (Restricting Access) requires authentication before granting access to information assets. Automatic login bypasses authentication and must be disabled."
+  resolution: |-
+    Automatic login should be automatically disabled by the MDM configuration profile. To manually disable it, press Win+R, type "netplwiz", and ensure "Users must enter a user name and password to use this computer" is checked. Alternatively, check the registry key HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon is set to 0.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows

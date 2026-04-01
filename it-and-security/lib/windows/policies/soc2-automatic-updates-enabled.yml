@@ -1,0 +1,14 @@
+- name: Windows - Automatic updates enabled (SOC 2)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM registry
+      WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate'
+        AND CAST(data AS INTEGER) = 1
+    );
+  critical: true
+  description: "Checks that Windows automatic updates have not been disabled via policy. SOC 2 CC8.1 (Change Management) requires that security patches and updates are applied in a timely manner. Automatic updates ensure critical security fixes are deployed promptly."
+  resolution: |-
+    Windows automatic updates should be enabled by default and enforced by Fleet MDM. To manually verify, go to Settings > Windows Update and ensure updates are not paused. Check that no Group Policy is disabling automatic updates.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows

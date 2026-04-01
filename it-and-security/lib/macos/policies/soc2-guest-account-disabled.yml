@@ -1,0 +1,9 @@
+- name: macOS - Guest account disabled (SOC 2)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND CAST(value AS INTEGER) = 1;
+  critical: true
+  description: "Checks that the macOS guest account is disabled via MDM policy. SOC 2 CC6.7 (Restricting Access) requires that access to system resources is restricted to authorized users only. Guest accounts allow unauthenticated access and must be disabled."
+  resolution: |-
+    The guest account should be automatically disabled by the MDM configuration profile. To manually disable it, go to System Settings > Users & Groups and turn off the Guest User account.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

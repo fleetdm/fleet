@@ -1,0 +1,9 @@
+- name: macOS - System Integrity Protection enabled (SOC 2)
+  query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  critical: true
+  description: "Checks that macOS System Integrity Protection (SIP) is enabled. SOC 2 CC6.8 (Malware Prevention) requires protections against unauthorized modification of system files and processes. SIP prevents potentially malicious software from modifying protected files and folders."
+  resolution: |-
+    System Integrity Protection must be enabled from macOS Recovery. Restart your Mac and hold Command+R (Intel) or press and hold the power button (Apple Silicon) to enter Recovery Mode. Open Terminal from the Utilities menu and run: csrutil enable. Then restart your Mac.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

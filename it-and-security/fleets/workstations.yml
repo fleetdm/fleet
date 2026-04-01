@@ -124,6 +124,14 @@ policies:
   - path: ../lib/macos/policies/update-claude.yml
   - path: ../lib/macos/policies/update-slack.yml
   - path: ../lib/macos/policies/battery-health-check.yml
+  # macOS SOC 2 compliance policies
+  - path: ../lib/macos/policies/soc2-firewall-enabled.yml
+  - path: ../lib/macos/policies/soc2-gatekeeper-enabled.yml
+  - path: ../lib/macos/policies/soc2-sip-enabled.yml
+  - path: ../lib/macos/policies/soc2-screen-lock-enabled.yml
+  - path: ../lib/macos/policies/soc2-guest-account-disabled.yml
+  - path: ../lib/macos/policies/soc2-automatic-login-disabled.yml
+  - path: ../lib/macos/policies/soc2-automatic-updates-enabled.yml
   # Windows policies
   - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
@@ -136,6 +144,13 @@ policies:
   - path: ../lib/windows/policies/update-slack.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Windows SOC 2 compliance policies
+  - path: ../lib/windows/policies/soc2-firewall-enabled.yml
+  - path: ../lib/windows/policies/soc2-screen-lock-enabled.yml
+  - path: ../lib/windows/policies/soc2-guest-account-disabled.yml
+  - path: ../lib/windows/policies/soc2-automatic-login-disabled.yml
+  - path: ../lib/windows/policies/soc2-automatic-updates-enabled.yml
+  - path: ../lib/windows/policies/soc2-mdm-enrolled.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml

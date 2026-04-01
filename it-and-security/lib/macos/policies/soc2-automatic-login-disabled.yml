@@ -1,0 +1,9 @@
+- name: macOS - Automatic login disabled (SOC 2)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND CAST(value AS INTEGER) = 1;
+  critical: true
+  description: "Checks that automatic login is disabled on macOS. SOC 2 CC6.7 (Restricting Access) requires authentication before granting access to information assets. Automatic login bypasses authentication and must be disabled."
+  resolution: |-
+    Automatic login should be automatically disabled by the MDM configuration profile. To manually disable it, go to System Settings > Users & Groups > Login Options and ensure Automatic Login is set to Off.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

@@ -1,0 +1,18 @@
+- name: Windows - Firewall enabled (SOC 2)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM registry
+      WHERE path IN (
+        'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile\EnableFirewall',
+        'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\EnableFirewall',
+        'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\PublicProfile\EnableFirewall'
+      )
+      AND CAST(data AS INTEGER) = 0
+    );
+  critical: true
+  description: "Checks that Windows Firewall is enabled for all network profiles (Domain, Private, and Public). SOC 2 CC6.6 (System Boundaries) requires network boundary protections to restrict unauthorized access. The firewall should be enforced via MDM configuration profile."
+  resolution: |-
+    The firewall should be automatically enforced by the MDM configuration profile. To manually enable it, open Windows Security > Firewall & network protection and ensure the firewall is turned on for all network profiles (Domain, Private, and Public).
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows

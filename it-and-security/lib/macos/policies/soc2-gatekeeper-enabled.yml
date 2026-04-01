@@ -1,0 +1,9 @@
+- name: macOS - Gatekeeper enabled (SOC 2)
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  critical: true
+  description: "Checks that macOS Gatekeeper is enabled to prevent execution of unsigned or untrusted software. SOC 2 CC6.8 (Malware Prevention) and A1.2 (Availability) require controls to detect and prevent unauthorized or malicious software."
+  resolution: |-
+    Gatekeeper should be automatically enforced by the MDM configuration profile. To manually enable it, run: sudo spctl --master-enable
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

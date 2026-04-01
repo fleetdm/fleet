@@ -1,0 +1,9 @@
+- name: macOS - Firewall enabled (SOC 2)
+  query: SELECT 1 FROM alf WHERE global_state >= 1;
+  critical: true
+  description: "Checks that the macOS firewall is enabled. SOC 2 CC6.6 (System Boundaries) requires network boundary protections to restrict unauthorized access. The firewall should be enforced via MDM configuration profile."
+  resolution: |-
+    The firewall should be automatically enforced by the MDM configuration profile. To manually enable it, go to System Settings > Network > Firewall and turn it on.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

@@ -1,0 +1,13 @@
+- name: Windows - Screen lock enabled (SOC 2)
+  query: |
+    SELECT 1 FROM registry
+    WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs'
+      AND CAST(data AS INTEGER) > 0
+      AND CAST(data AS INTEGER) <= 900;
+  critical: true
+  description: "Checks that the Windows screen lock inactivity timeout is configured to 15 minutes or less. SOC 2 CC6.1 (Logical and Physical Access Controls) requires that access to information assets is protected by authentication mechanisms including automatic screen lock."
+  resolution: |-
+    Screen lock should be automatically enforced by the MDM configuration profile. To manually configure it, go to Settings > Accounts > Sign-in options and ensure the screen lock timeout is set. You can also configure it via Group Policy: Computer Configuration > Windows Settings > Security Settings > Local Policies > Security Options > "Interactive logon: Machine inactivity limit."
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows

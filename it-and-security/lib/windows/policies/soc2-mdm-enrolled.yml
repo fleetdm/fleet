@@ -1,0 +1,9 @@
+- name: Windows - MDM enrolled (SOC 2)
+  query: SELECT 1 FROM mdm WHERE enrolled = 'true';
+  critical: true
+  description: "Checks that the Windows device is enrolled in Fleet MDM. SOC 2 CC5.3 (Risk Mitigation) requires the ability to remotely manage and, if necessary, wipe corporate devices. MDM enrollment enables remote lock, wipe, and policy enforcement capabilities."
+  resolution: |-
+    This device should be automatically enrolled in Fleet MDM. If enrollment has failed, go to Settings > Accounts > Access work or school, remove and re-add your work account, then follow the enrollment prompts.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows

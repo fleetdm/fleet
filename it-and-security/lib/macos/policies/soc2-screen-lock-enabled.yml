@@ -1,0 +1,9 @@
+- name: macOS - Screen lock enabled (SOC 2)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPassword' AND CAST(value AS INTEGER) = 1;
+  critical: true
+  description: "Checks that a password is required after the screen saver begins or the display turns off. SOC 2 CC6.1 (Logical and Physical Access Controls) requires that access to information assets is protected by authentication mechanisms including automatic screen lock."
+  resolution: |-
+    Screen lock should be automatically enforced by the MDM configuration profile. Go to System Settings > Lock Screen and ensure "Require password after screen saver begins or display is turned off" is set to "Immediately."
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

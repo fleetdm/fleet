@@ -1,0 +1,9 @@
+- name: Windows - Guest account disabled (SOC 2)
+  query: SELECT 1 FROM users WHERE username = 'Guest' AND enabled = 0;
+  critical: true
+  description: "Checks that the Windows Guest account is disabled. SOC 2 CC6.7 (Restricting Access) requires that access to system resources is restricted to authorized users only. Guest accounts allow unauthenticated access and must be disabled."
+  resolution: |-
+    The guest account should be automatically disabled by the MDM configuration profile. To manually disable it, open Computer Management > Local Users and Groups > Users, right-click the Guest account, select Properties, and check "Account is disabled."
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows
