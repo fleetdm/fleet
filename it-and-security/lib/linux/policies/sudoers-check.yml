@@ -19,3 +19,5 @@
 
     If the issue persists, please reach out in #help-it.
   platform: linux
+  run_script:
+    path: ../scripts/remove-non-root-sudoers-entries.sh
