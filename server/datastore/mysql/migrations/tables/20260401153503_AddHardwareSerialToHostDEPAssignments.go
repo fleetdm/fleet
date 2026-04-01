@@ -23,6 +23,7 @@ func Up_20260401153503(tx *sql.Tx) error {
 		UPDATE host_dep_assignments hda
 		JOIN hosts h ON h.id = hda.host_id
 		SET hda.hardware_serial = h.hardware_serial
+		WHERE hda.deleted_at IS NULL
 	`)
 	if err != nil {
 		return errors.Wrap(err, "backfill host_dep_assignments.hardware_serial column")
