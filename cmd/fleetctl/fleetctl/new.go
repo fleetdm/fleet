@@ -1,17 +1,89 @@
 package fleetctl
 
 import (
+	"embed"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
-	"github.com/fleetdm/fleet/v4/pkg/startertemplates"
+	"github.com/ghodss/yaml"
+
 	"github.com/manifoldco/promptui"
 	"github.com/urfave/cli/v2"
 )
+
+//go:embed all:templates/new
+var newTemplateFS embed.FS
+
+func renderTemplate(content []byte, vars map[string]string) ([]byte, error) {
+	tmpl, err := template.New("").Delims("<%=", "%>").Parse(string(content))
+	if err != nil {
+		return nil, err
+	}
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, vars); err != nil {
+		return nil, err
+	}
+	return []byte(buf.String()), nil
+}
+
+// renderNewTemplates renders the starter templates into outputDir with the
+// given org name. It handles YAML escaping and .template. filename stripping.
+func renderNewTemplates(outputDir, orgName string) error {
+	yamlOrgName, err := yaml.Marshal(orgName)
+	if err != nil {
+		return fmt.Errorf("marshaling org name: %w", err)
+	}
+
+	vars := map[string]string{
+		"org_name": strings.TrimSpace(string(yamlOrgName)),
+	}
+
+	templateRoot := "templates/new"
+
+	return fs.WalkDir(newTemplateFS, templateRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(templateRoot, path)
+		if err != nil {
+			return err
+		}
+		if relPath == "." {
+			return nil
+		}
+
+		// Strip .template from filenames (e.g. foo.template.yml -> foo.yml).
+		relPath = strings.Replace(relPath, ".template.", ".", 1)
+		outPath := filepath.Join(outputDir, relPath)
+
+		if d.IsDir() {
+			return os.MkdirAll(outPath, 0o755)
+		}
+
+		content, err := newTemplateFS.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading template %s: %w", path, err)
+		}
+
+		content, err = renderTemplate(content, vars)
+		if err != nil {
+			return fmt.Errorf("rendering template %s: %w", path, err)
+		}
+
+		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+			return err
+		}
+
+		return os.WriteFile(outPath, content, 0o644)
+	})
+}
 
 func printNextSteps(w io.Writer, outputDir string) {
 	fmt.Fprintln(w, "")
@@ -102,7 +174,7 @@ func newCommand() *cli.Command {
 				}
 			}
 
-			if err := startertemplates.RenderToDir(outputDir, orgName); err != nil {
+			if err := renderNewTemplates(outputDir, orgName); err != nil {
 				return fmt.Errorf("creating GitOps directory structure: %w", err)
 			}
 

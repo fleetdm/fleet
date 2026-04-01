@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
-	"github.com/fleetdm/fleet/v4/pkg/startertemplates"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -100,12 +99,11 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibra
 	}
 }
 
-// ApplyStarterLibrary renders the starter templates and applies them to the
-// Fleet server via the GitOps pipeline, producing the same result as running
-// `fleetctl new` followed by `fleetctl gitops`.
+// ApplyStarterLibrary scaffolds the starter GitOps templates via `fleetctl new`
+// and applies them via `fleetctl gitops`, producing the same result as a user
+// running those commands manually.
 //
-// The runFleetctl callback should run the fleetctl CLI with the given arguments
-// (e.g. ["gitops", "--config", "/tmp/config.yml", "-f", "default.yml"]).
+// The runFleetctl callback should run the fleetctl CLI with the given arguments.
 // This keeps the CLI dependency out of the service package.
 func ApplyStarterLibrary(
 	serverURL string,
@@ -132,12 +130,19 @@ func ApplyStarterLibrary(
 		orgName = "Fleet"
 	}
 
-	// Render templates to a temp directory.
-	tempDir, err := startertemplates.RenderToTempDir(orgName)
+	// Create a temp directory for the rendered templates.
+	tempDir, err := os.MkdirTemp("", "fleet-starter-*")
 	if err != nil {
-		return fmt.Errorf("failed to render starter templates: %w", err)
+		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
+
+	outDir := filepath.Join(tempDir, "gitops")
+
+	// Render templates using `fleetctl new`.
+	if err := runFleetctl([]string{"new", "--org-name", orgName, "--dir", outDir}); err != nil {
+		return fmt.Errorf("fleetctl new: %w", err)
+	}
 
 	// Set env overrides so GitOpsFromFile can expand $FLEET_URL without
 	// polluting the process environment.
@@ -147,23 +152,19 @@ func ApplyStarterLibrary(
 	defer spec.SetEnvOverrides(nil)
 
 	// Write a temporary fleetctl config file with auth credentials.
-	configFile, err := os.CreateTemp("", "fleetctl-starter-*.yml")
+	configFile, err := os.CreateTemp(tempDir, "fleetctl-config-*.yml")
 	if err != nil {
 		return fmt.Errorf("failed to create fleetctl config: %w", err)
 	}
-	defer os.Remove(configFile.Name())
-
 	fmt.Fprintf(configFile, "contexts:\n  default:\n    address: %s\n    tls-skip-verify: true\n    token: %s\n",
 		serverURL, token)
 	configFile.Close()
 
-	// Build the file list: global config first, then team configs (premium only).
-	args := []string{"gitops", "--config", configFile.Name()}
-
-	args = append(args, "-f", filepath.Join(tempDir, "default.yml"))
+	// Build the gitops args: global config first, then team configs (premium only).
+	args := []string{"gitops", "--config", configFile.Name(), "-f", filepath.Join(outDir, "default.yml")}
 
 	if appConfig.License != nil && appConfig.License.IsPremium() {
-		fleetDir := filepath.Join(tempDir, "fleets")
+		fleetDir := filepath.Join(outDir, "fleets")
 		entries, err := os.ReadDir(fleetDir)
 		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("failed to read fleets directory: %w", err)
