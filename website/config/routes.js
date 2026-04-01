@@ -913,7 +913,7 @@ module.exports.routes = {
   'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
   'GET /announcements/financial-technology-company': '/case-study/financial-technology-company',
   'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
-  'GET /announcements/global-social-media-platform-switches-to-fleet': '/case-study/global-social-media-platform',
+
   'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
   'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
   'GET /announcements/interactive-entertainment-company-adopts-fleet-for-mdm': '/case-study/interactive-entertainment-company',
