@@ -4659,7 +4659,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 
 	// Best-effort cleanup of stale refetch commands of the same type.
 	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchDeviceCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
-		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch apps commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchAppsCommandUUIDPrefix)
+		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch device commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchDeviceCommandUUIDPrefix)
 	}
 
 	return nil, nil
