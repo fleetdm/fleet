@@ -2536,23 +2536,6 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ## S3
 
-> **Important: `endpoint_url` and region behavior**
->
-> Setting any S3 `endpoint_url` option (e.g. `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`) overrides the endpoint for **all** AWS API calls made by the Fleet server, not just S3. This means the AWS SDK will route STS calls (such as `AssumeRoleWithWebIdentity`) to the S3 endpoint, which breaks IRSA (IAM Roles for Service Accounts) and other token-based IAM authentication flows. If you use IRSA on EKS or ECS task roles, **do not** set `endpoint_url` — use `region` instead.
->
-> If neither `endpoint_url` nor `region` is set, Fleet uses a hardcoded `us-east-1` hint for the initial `HeadBucket` region-discovery call. This occurs regardless of the `AWS_REGION` or `AWS_DEFAULT_REGION` environment variables. In environments with restricted egress (e.g. VPC endpoints scoped to a single region), this can cause connectivity failures. Always set `region` explicitly to avoid unexpected cross-region calls.
->
-> See [fleetdm/fleet#42349](https://github.com/fleetdm/fleet/issues/42349) for related discussion.
->
-> **Recommended S3 configuration by authentication method:**
->
-> | Authentication method | Required settings | Notes |
-> | --- | --- | --- |
-> | IRSA (EKS) | `bucket` + `region` | Do **not** set `endpoint_url` |
-> | ECS task role | `bucket` + `region` | Do **not** set `endpoint_url` |
-> | Static access keys | `bucket` + `access_key_id` + `secret_access_key` + `region` | `endpoint_url` optional |
-> | Non-AWS S3-compatible storage (MinIO, RustFS, etc.) | `bucket` + `endpoint_url` | Set `force_s3_path_style` and `region` as needed |
-
 ### s3_software_installers_bucket
 
 *Available in Fleet Premium.*
@@ -2651,7 +2634,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
-> **Warning:** Setting this option overrides the endpoint for all AWS API calls (not just S3), which will break IRSA and other token-based IAM authentication. Use `region` instead when authenticating via IAM roles. See the [S3 section overview](#s3) for details.
+> **Warning:** Setting `endpoint_url` overrides the endpoint for **all** AWS API calls (not just S3), breaking IRSA and other token-based IAM authentication. If you use IRSA on EKS or ECS task roles, do not set this — use `region` instead. See [fleetdm/fleet#42349](https://github.com/fleetdm/fleet/issues/42349) for details.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
@@ -2686,7 +2669,7 @@ AWS S3 Region. Leave blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
 
-> **Note:** If neither `region` nor `endpoint_url` is set, Fleet falls back to `us-east-1` for the initial `HeadBucket` region-discovery call, regardless of the `AWS_REGION` or `AWS_DEFAULT_REGION` environment variables. Set this explicitly to avoid unexpected cross-region calls, especially in environments with restricted egress.
+> **Note:** If neither `region` nor `endpoint_url` is set, Fleet defaults to `us-east-1` for initial region discovery, regardless of the `AWS_REGION` environment variable. Set this explicitly to avoid unexpected cross-region calls.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
@@ -2807,7 +2790,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 
 ### s3_carves_endpoint_url
 
-> **Warning:** Setting this option overrides the endpoint for all AWS API calls (not just S3), which will break IRSA and other token-based IAM authentication. Use `region` instead when authenticating via IAM roles. See the [S3 section overview](#s3) for details.
+> **Warning:** Same `endpoint_url` override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
 
 - Default value: none
 - Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
@@ -2829,7 +2812,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 
 ### s3_carves_region
 
-> **Note:** If neither `region` nor `endpoint_url` is set, Fleet falls back to `us-east-1` for the initial `HeadBucket` region-discovery call, regardless of the `AWS_REGION` or `AWS_DEFAULT_REGION` environment variables. Set this explicitly to avoid unexpected cross-region calls.
+> **Note:** Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value:
 - Environment variable: `FLEET_S3_CARVES_REGION`
@@ -3233,7 +3216,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
-> **Warning:** Setting this option overrides the endpoint for all AWS API calls (not just S3), which will break IRSA and other token-based IAM authentication. Use `region` instead when authenticating via IAM roles. See the [S3 section overview](#s3) for details.
+> **Warning:** Same `endpoint_url` override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
@@ -3281,7 +3264,7 @@ This is the AWS S3 Region. Leave it blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
 
-> **Note:** If neither `region` nor `endpoint_url` is set, Fleet falls back to `us-east-1` for the initial `HeadBucket` region-discovery call, regardless of the `AWS_REGION` or `AWS_DEFAULT_REGION` environment variables. Set this explicitly to avoid unexpected cross-region calls.
+> **Note:** Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`
