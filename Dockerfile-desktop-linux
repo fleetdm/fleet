@@ -9,8 +9,9 @@ RUN mkdir -p /output
 WORKDIR /usr/src/fleet
 
 COPY orbit ./orbit
+COPY ee/pkg ./ee/pkg
 COPY server ./server
-COPY ee ./ee
+COPY client ./client
 COPY pkg ./pkg
 COPY ./third_party ./third_party
 COPY go.mod go.sum ./

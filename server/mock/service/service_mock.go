@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -191,7 +192,7 @@ type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID u
 
 type QueryReportIsClippedFunc func(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
 
-type ListHostReportsFunc func(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, savedReportsDisabled bool, err error)
+type ListHostReportsFunc func(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, err error)
 
 type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error)
 
@@ -421,6 +422,8 @@ type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTem
 
 type UpdateCertificateStatusFunc func(ctx context.Context, update *fleet.CertificateStatusUpdate) error
 
+type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
+
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
 type GetGlobalScheduledQueriesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
@@ -458,6 +461,8 @@ type AutofillPolicySqlFunc func(ctx context.Context, sql string) (description st
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*fleet.Software, error)
+
+type SoftwareLiteByIDFunc func(ctx context.Context, id uint) (fleet.SoftwareLite, error)
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
@@ -556,6 +561,8 @@ type CreateAndroidWebAppFunc func(ctx context.Context, title string, startURL st
 type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error)
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error)
+
+type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error)
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error)
 
@@ -1499,6 +1506,9 @@ type Service struct {
 	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
 	UpdateCertificateStatusFuncInvoked bool
 
+	ResendHostCertificateTemplateFunc        ResendHostCertificateTemplateFunc
+	ResendHostCertificateTemplateFuncInvoked bool
+
 	GlobalScheduleQueryFunc        GlobalScheduleQueryFunc
 	GlobalScheduleQueryFuncInvoked bool
 
@@ -1555,6 +1565,9 @@ type Service struct {
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
+
+	SoftwareLiteByIDFunc        SoftwareLiteByIDFunc
+	SoftwareLiteByIDFuncInvoked bool
 
 	CountSoftwareFunc        CountSoftwareFunc
 	CountSoftwareFuncInvoked bool
@@ -1702,6 +1715,9 @@ type Service struct {
 
 	GetHostDEPAssignmentFunc        GetHostDEPAssignmentFunc
 	GetHostDEPAssignmentFuncInvoked bool
+
+	GetHostDEPAssignmentDetailsFunc        GetHostDEPAssignmentDetailsFunc
+	GetHostDEPAssignmentDetailsFuncInvoked bool
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
@@ -2815,7 +2831,7 @@ func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQue
 	return s.QueryReportIsClippedFunc(ctx, queryID, maxQueryReportRows)
 }
 
-func (s *Service) ListHostReports(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, savedReportsDisabled bool, err error) {
+func (s *Service) ListHostReports(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, err error) {
 	s.mu.Lock()
 	s.ListHostReportsFuncInvoked = true
 	s.mu.Unlock()
@@ -3620,6 +3636,13 @@ func (s *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.Cer
 	return s.UpdateCertificateStatusFunc(ctx, update)
 }
 
+func (s *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
+	s.mu.Lock()
+	s.ResendHostCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendHostCertificateTemplateFunc(ctx, hostID, templateID)
+}
+
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	s.mu.Lock()
 	s.GlobalScheduleQueryFuncInvoked = true
@@ -3751,6 +3774,13 @@ func (s *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inclu
 	s.SoftwareByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.SoftwareByIDFunc(ctx, id, teamID, includeCVEScores)
+}
+
+func (s *Service) SoftwareLiteByID(ctx context.Context, id uint) (fleet.SoftwareLite, error) {
+	s.mu.Lock()
+	s.SoftwareLiteByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftwareLiteByIDFunc(ctx, id)
 }
 
 func (s *Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
@@ -4094,6 +4124,13 @@ func (s *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*
 	s.GetHostDEPAssignmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostDEPAssignmentFunc(ctx, host)
+}
+
+func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+	s.mu.Lock()
+	s.GetHostDEPAssignmentDetailsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostDEPAssignmentDetailsFunc(ctx, hostID)
 }
 
 func (s *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {

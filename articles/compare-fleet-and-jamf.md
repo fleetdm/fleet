@@ -86,8 +86,7 @@ Implementation and migration timelines vary based on fleet size and organization
 
 
 
-<meta name="articleTitle" value="Fleet vs. Jamf"> 
-<meta name="articleSubtitle" value="How to choose the right MDM">
+<meta name="articleTitle" value="Fleet vs. Jamf">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="articleSlugInCategory" value="jamf-vs-fleet"> 

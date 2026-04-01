@@ -695,5 +695,96 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 
 	// Fill in HostUUID from context
 	update.HostUUID = host.UUID
-	return svc.ds.UpsertCertificateStatus(ctx, update)
+	if err := svc.ds.UpsertCertificateStatus(ctx, update); err != nil {
+		return err
+	}
+
+	// Log activity for terminal install statuses only (not removals).
+	if update.OperationType == fleet.MDMOperationTypeInstall {
+		var actStatus fleet.CertificateActivityStatus
+		switch update.Status {
+		case fleet.MDMDeliveryVerified:
+			actStatus = fleet.CertificateActivityInstalled
+		case fleet.MDMDeliveryFailed:
+			actStatus = fleet.CertificateActivityFailedInstall
+		}
+		if actStatus != "" {
+			detail := ""
+			if update.Detail != nil {
+				detail = *update.Detail
+			}
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledCertificate{
+				HostID:                host.ID,
+				HostDisplayName:       host.DisplayName(),
+				CertificateTemplateID: update.CertificateTemplateID,
+				CertificateName:       record.Name,
+				Status:                string(actStatus),
+				Detail:                detail,
+			}); err != nil {
+				// Log and continue since we don't want the client to retry.
+				svc.logger.ErrorContext(ctx, "failed to create certificate install activity", "host.id", host.ID, "activity.status", actStatus,
+					"err", err)
+				ctxerr.Handle(ctx, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Resend Host Certificate Template
+////////////////////////////////////////////////////////////////////////////////
+
+type resendHostCertificateTemplateRequest struct {
+	ID         uint `url:"id"`
+	TemplateID uint `url:"template_id"`
+}
+
+type resendHostCertificateTemplateResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resendHostCertificateTemplateResponse) Error() error { return r.Err }
+
+func resendHostCertificateTemplateEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*resendHostCertificateTemplateRequest)
+	err := svc.ResendHostCertificateTemplate(ctx, req.ID, req.TemplateID)
+	if err != nil {
+		return resendHostCertificateTemplateResponse{Err: err}, nil
+	}
+
+	return resendHostCertificateTemplateResponse{}, nil
+}
+
+func (svc *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionResend); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.ds.ResendHostCertificateTemplate(ctx, hostID, templateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resending certificate template")
+	}
+
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, templateID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting certificate details")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResentCertificate{
+		HostID:                host.ID,
+		HostDisplayName:       host.DisplayName(),
+		CertificateTemplateID: certificate.ID,
+		CertificateName:       certificate.Name,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity")
+	}
+
+	return nil
 }

@@ -235,6 +235,12 @@ type HostListOptions struct {
 	BatchScriptExecutionStatusFilter BatchScriptExecutionStatus
 	// BatchScriptExecutionIDFilter filters hosts by the ID of a batch script execution.
 	BatchScriptExecutionIDFilter *string
+
+	DEPProfileErrorFilter *bool
+
+	// DEPAssignProfileResponseFilter filters hosts by their exact DEP profile
+	// assignment response value (SUCCESS, FAILED, THROTTLED, NOT_ACCESSIBLE).
+	DEPAssignProfileResponseFilter *DEPAssignProfileResponseStatus
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -265,7 +271,9 @@ func (h HostListOptions) Empty() bool {
 		h.OSSettingsFilter == "" &&
 		h.OSSettingsDiskEncryptionFilter == "" &&
 		h.ProfileUUIDFilter == nil &&
-		h.ProfileStatusFilter == nil
+		h.ProfileStatusFilter == nil &&
+		h.DEPProfileErrorFilter == nil &&
+		h.DEPAssignProfileResponseFilter == nil
 }
 
 type HostUser struct {
@@ -979,17 +987,18 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID             *uint                  `json:"team_id,omitempty" renameto:"fleet_id" db:"-"`
-	TotalsHostsCount   uint                   `json:"totals_hosts_count" db:"total"`
-	OnlineCount        uint                   `json:"online_count" db:"online"`
-	OfflineCount       uint                   `json:"offline_count" db:"offline"`
-	MIACount           uint                   `json:"mia_count" db:"mia"`
-	Missing30DaysCount uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
-	NewCount           uint                   `json:"new_count" db:"new"`
-	AllLinuxCount      uint                   `json:"all_linux_count" db:"-"`
-	LowDiskSpaceCount  *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
-	BuiltinLabels      []*LabelSummary        `json:"builtin_labels" db:"-"`
-	Platforms          []*HostSummaryPlatform `json:"platforms" db:"-"`
+	TeamID              *uint                  `json:"team_id,omitempty" renameto:"fleet_id" db:"-"`
+	TotalsHostsCount    uint                   `json:"totals_hosts_count" db:"total"`
+	OnlineCount         uint                   `json:"online_count" db:"online"`
+	OfflineCount        uint                   `json:"offline_count" db:"offline"`
+	MIACount            uint                   `json:"mia_count" db:"mia"`
+	Missing30DaysCount  uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
+	NewCount            uint                   `json:"new_count" db:"new"`
+	AllLinuxCount       uint                   `json:"all_linux_count" db:"-"`
+	LowDiskSpaceCount   *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
+	BuiltinLabels       []*LabelSummary        `json:"builtin_labels" db:"-"`
+	Platforms           []*HostSummaryPlatform `json:"platforms" db:"-"`
+	DEPAssignErrorCount uint                   `json:"dep_assign_error_count" db:"dep_assign_error_count"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
@@ -1080,6 +1089,8 @@ var HostLinuxOSs = []string{
 	"tuxedo",
 	"neon",
 	"archarm",
+	"flatcar",
+	"coreos",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1092,6 +1103,8 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"endeavouros": {},
 	"manjaro":     {},
 	"manjaro-arm": {},
+	"flatcar":     {},
+	"coreos":      {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages

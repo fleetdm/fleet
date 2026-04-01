@@ -752,10 +752,6 @@ module.exports = {
                 }
                 // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
                 if(embeddedMetadata.category === 'comparison') {
-                  if(!embeddedMetadata.articleSubtitle){
-                    throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSubtitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSubtitle meta tag and try running this script again.`);
-                  }
-
                   if(!embeddedMetadata.articleSlugInCategory){
                     throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSlugInCategory" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSlugInCategory meta tag and try running this script again.`);
                   }

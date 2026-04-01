@@ -109,7 +109,7 @@ const BootstrapPackage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (data) => {
         setSelectedManualAgentInstall(
           getManualAgentInstallSetting(currentTeamId, undefined, data)
@@ -141,7 +141,7 @@ const BootstrapPackage = ({
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
-        manual_agent_install: false,
+        macos_manual_agent_install: false,
       });
       renderFlash("success", "Successfully deleted.");
     } catch {

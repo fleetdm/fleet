@@ -2,7 +2,7 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { NotificationContext } from "context/notification";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
@@ -102,7 +102,7 @@ const renderFileTypeMessage = () => {
       <br />
       Windows (.msi, .exe,{" "}
       <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
-      or Linux (.deb, .rpm,{" "}
+      or Linux (.deb, .rpm, .tar.gz,{" "}
       <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
@@ -177,8 +177,7 @@ const PackageForm = ({
   gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
-    useContext(AppContext).config?.gitops || {};
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,

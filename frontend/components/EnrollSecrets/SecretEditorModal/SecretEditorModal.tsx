@@ -10,6 +10,7 @@ import InputField from "components/forms/fields/InputField";
 
 interface ISecretEditorModalProps {
   selectedTeam: number;
+  primoMode?: boolean;
   onSaveSecret: (newEnrollSecret: string) => void;
   teams: ITeam[];
   toggleSecretEditorModal: () => void;
@@ -33,6 +34,7 @@ const randomSecretGenerator = () => {
 const SecretEditorModal = ({
   onSaveSecret,
   selectedTeam,
+  primoMode = false,
   teams,
   toggleSecretEditorModal,
   selectedSecret,
@@ -85,8 +87,16 @@ const SecretEditorModal = ({
     >
       <div className={baseClass}>
         <div className={`${baseClass}__description`}>
-          Create or edit the generated secret to enroll hosts to{" "}
-          <b>{renderTeam()?.name}</b>:
+          Use these secret(s) to enroll hosts
+          {primoMode || renderTeam()?.name === "Unassigned" ? (
+            ""
+          ) : (
+            <>
+              {" "}
+              to <b>{renderTeam()?.name}</b>
+            </>
+          )}
+          .
         </div>
         <div className={`${baseClass}__secret-wrapper`}>
           <InputField

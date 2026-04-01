@@ -87,7 +87,7 @@ jobs:
     strategy:
       matrix:
         suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
-        mysql: ["mysql:8.0.39", "mysql:8.4.8"]
+        mysql: ["mysql:8.0.42", "mysql:8.4.8"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
       suite: ${{ matrix.suite }}

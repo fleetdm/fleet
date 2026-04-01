@@ -62,7 +62,6 @@ export interface ITeamUsersTableData {
 export const renderApiUserIndicator = () => {
   return (
     <PillBadge
-      text="API"
       tipContent={
         <>
           This user was created using fleetctl and
@@ -75,7 +74,9 @@ export const renderApiUserIndicator = () => {
           />
         </>
       }
-    />
+    >
+      API
+    </PillBadge>
   );
 };
 

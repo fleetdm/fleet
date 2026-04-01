@@ -17,6 +17,7 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
@@ -213,6 +214,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	external_refs.EnrichManifest(out)
 
+	// create patch policy
+	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "darwin",
+		Version:     out.Version,
+		ExistsQuery: out.Queries.Exists,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+	}
+
 	return out, nil
 }
 
@@ -233,6 +244,7 @@ type inputApp struct {
 	Frozen               bool     `json:"frozen"`
 	InstallScriptPath    string   `json:"install_script_path"`
 	UninstallScriptPath  string   `json:"uninstall_script_path"`
+	PatchPolicyPath      string   `json:"patch_policy_path"`
 }
 
 type brewCask struct {

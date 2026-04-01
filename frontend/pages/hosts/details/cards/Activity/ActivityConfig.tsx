@@ -22,6 +22,8 @@ import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActi
 import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
 import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
 import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninstallSoftwareActivtyItem";
+import InstalledCertificateActivityItem from "./ActivityItems/InstalledCertificateActivityItem";
+import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -64,6 +66,8 @@ export const pastActivityComponentMap: Record<
   [ActivityType.CanceledInstallSoftware]: CanceledInstallSoftwareActivityItem,
   [ActivityType.CanceledInstallAppStoreApp]: CanceledInstallSoftwareActivityItem,
   [ActivityType.CanceledUninstallSoftware]: CanceledUninstallSoftwareActivtyItem,
+  [ActivityType.InstalledCertificate]: InstalledCertificateActivityItem,
+  [ActivityType.ResentCertificate]: ResentCertificateActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<
