@@ -2812,7 +2812,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 
 ### s3_carves_region
 
-> **Note:** Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
+> Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value:
 - Environment variable: `FLEET_S3_CARVES_REGION`
