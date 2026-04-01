@@ -8,16 +8,78 @@ module.exports = {
 
 
   inputs: {
+    submittersFirstName: { type: 'string', required: true },
+    submittersLastName: { type: 'string', required: true },
+    submittersEmailAddress: { type: 'string', required: true },
+    submittersOrganization: { type: 'string', required: true },
+    partnerType: { type: 'string', required: true },
+    partnerWebsite: { type: 'string', required: true },
+    partnerCountry: { type: 'string', required: true },
+    notes: {type: 'string', required: true },
 
+    servicesOffered: {type: {}},
+    numberOfHosts: {type: 'string'},
+    servicesCategory: {type: 'string'},
   },
 
 
   exits: {
-
+    success: {description: 'A parter registration email was successfully sent.'},
+    missingInput: {description: 'The form submission is missing a required input', responseType: 'badRequest'},
   },
 
 
   fn: async function (inputs) {
+
+    if(inputs.partnerType === 'reseller') {
+      if(!inputs.numberOfHosts) {
+        throw 'missingInput';// This should never happen because of frontend form validation.
+      }
+      if(!inputs.servicesOffered){
+        throw 'missingInput';
+      }
+    } else if(inputs.partnerType === 'integrations') {
+      if(!inputs.servicesCategory){
+        throw 'missingInput';
+      }
+    }
+
+    let emailTemplateData = _.omit(inputs, 'servicesOffered');
+    let partnerTypeFriendlyNameValuesByFormValue = {
+      'reseller': 'Resell or manage devices for customers',
+      'integrations': 'Build integrations with Fleet'
+    };
+    emailTemplateData.goal = partnerTypeFriendlyNameValuesByFormValue[inputs.partnerType];
+    let toEmail = sails.config.custom.fromEmailAddress;
+    if(inputs.partnerType === 'reseller') {
+
+      let servicesFriendlyNamesByFormValues = {
+        mdm: 'MDM / endpoint management',
+        securityServices: 'Security services (MSSP)',
+        itServices: 'IT services / MSP',
+        consulting: 'Consulting',
+        other: 'Others (Android, ChromeOS)',
+      };
+
+      let servicesOfferedAsAFormattedString = '';
+      // let formattedUseCaseString = '';
+      for(let key of _.keysIn(inputs.servicesOffered)){
+        if(inputs.servicesOffered[key] === true){
+          servicesOfferedAsAFormattedString += `<br> ${servicesFriendlyNamesByFormValues[key]}`;
+        }
+      }
+      emailTemplateData.servicesOffered = servicesOfferedAsAFormattedString;
+      toEmail = sails.config.custom.dealRegistrationContactEmailAddress;
+    }
+    // send the information to the deal registration contact email address.
+    await sails.helpers.sendTemplateEmail.with({
+      to: toEmail,
+      subject: 'New parter registration form submission',
+      template: 'email-partner-registration',
+      templateData: emailTemplateData,
+    });
+
+
 
     // All done.
     return;
