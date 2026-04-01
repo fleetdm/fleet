@@ -121,7 +121,7 @@ func (s *Service) createOrderResponse(
 	}
 
 	var certURL string
-	if order.Finalized && order.Status == "valid" {
+	if order.Finalized && order.Status == types.OrderStatusValid {
 		certURL, err = s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "certificate")
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "constructing certificate URL for account")
@@ -157,13 +157,13 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
 	}
-	authzURLs := make([]string, 0, len(authorizations))
+
 	for _, authz := range authorizations {
 		authzURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "authorizations", fmt.Sprint(authz.ID))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "constructing authorization URL for account")
 		}
-		authzURLs = append(authzURLs, authzURL)
+
 		if authz.Status != types.AuthorizationStatusValid {
 			return nil, types.OrderNotReadyError(fmt.Sprintf("Order has correct status but authorization %s has status %s.", authzURL, authz.Status))
 		}
@@ -213,33 +213,14 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 		return nil, ctxerr.Wrap(ctx, err, "signing CSR")
 	}
 
-	orderURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "constructing order URL for account")
-	}
 	err = s.store.FinalizeOrder(ctx, orderID, csr, cert.SerialNumber.Int64())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finalizing order")
 	}
-	finalizeURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "finalize")
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "constructing finalize URL for account")
-	}
-	certificateURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "certificate")
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "constructing certificate URL for account")
-	}
+	order.Status = types.OrderStatusValid
+	order.Finalized = true
 
-	return &types.OrderResponse{
-		ID:             order.ID,
-		Status:         types.OrderStatusValid,
-		Expires:        enrollment.NotValidAfter,
-		Identifiers:    order.Identifiers,
-		Authorizations: authzURLs,
-		Finalize:       finalizeURL,
-		Certificate:    certificateURL,
-		Location:       orderURL,
-	}, nil
+	return s.createOrderResponse(ctx, enrollment, order, authorizations)
 }
 
 func parsePEMCSR(pemCSR string) (*x509.CertificateRequest, error) {
