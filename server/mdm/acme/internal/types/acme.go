@@ -7,6 +7,16 @@ import (
 	"go.step.sm/crypto/jose"
 )
 
+const (
+	OrderStatusPending = "pending"
+	OrderStatusReady   = "ready"
+	OrderStatusValid   = "valid"
+
+	AuthorizationStatusValid = "valid"
+
+	ChallengeStatusValid = "valid"
+)
+
 type Directory struct {
 	NewNonce   string `json:"newNonce"`
 	NewAccount string `json:"newAccount"`
@@ -165,6 +175,7 @@ type Datastore interface {
 	GetOrderByID(ctx context.Context, accountID, orderID uint) (*Order, []*Authorization, error)
 	ListAccountOrderIDs(ctx context.Context, accountID uint) ([]uint, error)
 	GetAuthorizationByID(ctx context.Context, accountID uint, authorizationID uint) (*Authorization, error)
+	FinalizeOrder(ctx context.Context, orderID uint, csrPEM string, certSerial int64) error
 	GetChallengesByAuthorizationID(ctx context.Context, authorizationID uint) ([]*Challenge, error)
 	GetCertificatePEMByOrderID(ctx context.Context, accountID, orderID uint) (string, error)
 }

@@ -102,15 +102,6 @@ func OrderDoesNotExistError(detail string) *ACMEError {
 	}
 }
 
-func OrderNotReadyError(detail string) *ACMEError {
-	return &ACMEError{
-		Type:       acmeErrorsURN + "orderNotReady",
-		Title:      "The request attempted to finalize an order that is not ready to be finalized",
-		Detail:     detail,
-		StatusCode: http.StatusBadRequest,
-	}
-}
-
 func OrderNotFinalizedError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       fleetCustomErrorsURI + "orderNotFinalized",
@@ -226,6 +217,15 @@ func CertificateDoesNotExistError(detail string) *ACMEError {
 		Title:      "The order is finalized but the certificate does not exist for the order",
 		Detail:     detail,
 		StatusCode: http.StatusNotFound,
+	}
+}
+
+func OrderNotReadyError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       acmeErrorsURN + "orderNotReady",
+		Title:      "The request attempted to finalize an order that is not ready to be finalized",
+		Detail:     detail,
+		StatusCode: http.StatusForbidden, // as per RFC https://datatracker.ietf.org/doc/html/rfc8555/#section-6.7
 	}
 }
 

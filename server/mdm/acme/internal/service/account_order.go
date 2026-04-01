@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -120,7 +122,7 @@ func (s *Service) createOrderResponse(
 	}
 
 	var certURL string
-	if order.Finalized && order.Status == "valid" {
+	if order.Finalized && order.Status == types.OrderStatusValid {
 		certURL, err = s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "certificate")
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "constructing certificate URL for account")
@@ -137,6 +139,106 @@ func (s *Service) createOrderResponse(
 		Certificate:    certURL,
 		Location:       orderURL,
 	}, nil
+}
+
+func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint, csr string) (*types.OrderResponse, error) {
+	order, authorizations, err := s.store.GetOrderByID(ctx, account.ID, orderID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting order from datastore")
+	}
+	if order.Status != types.OrderStatusReady || order.Finalized {
+		extra := ""
+		if order.Finalized {
+			extra = " and order has already been finalized"
+		}
+		return nil, types.OrderNotReadyError(fmt.Sprintf("Order is in status %s%s.", order.Status, extra))
+	}
+
+	baseURL, err := s.getACMEBaseURL(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
+	}
+
+	for _, authz := range authorizations {
+		authzURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "authorizations", fmt.Sprint(authz.ID))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "constructing authorization URL for account")
+		}
+
+		if authz.Status != types.AuthorizationStatusValid {
+			return nil, types.OrderNotReadyError(fmt.Sprintf("Order has correct status but authorization %s has status %s.", authzURL, authz.Status))
+		}
+		challenges, err := s.store.GetChallengesByAuthorizationID(ctx, authz.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting challenges for authorization from datastore")
+		}
+		hasAValidChallenge := false
+		for _, chlg := range challenges {
+			if chlg.Status == types.ChallengeStatusValid {
+				hasAValidChallenge = true
+				break
+			}
+		}
+		if !hasAValidChallenge {
+			return nil, types.OrderNotReadyError(fmt.Sprintf("Order has correct status but no valid challenges for authorization %s.", authzURL))
+		}
+	}
+
+	parsedCSR, err := parsePEMCSR(csr)
+	if err != nil {
+		return nil, types.BadCSRError(fmt.Sprintf("Error parsing PEM CSR: %s", err))
+	}
+	if parsedCSR.Subject.CommonName != order.Identifiers[0].Value {
+		return nil, types.BadCSRError("CSR common name does not match identifier value")
+	}
+	// We only support ecdsa CSRs for now since that's what the Apple MDM protocol supports, so if it's not an ECDSA CSR we
+	// return a bad CSR error. We can always add support for more types later if needed. This mirrors the logic we use with
+	// the JWK
+	if parsedCSR.PublicKeyAlgorithm != x509.ECDSA {
+		return nil, types.BadCSRError("Public key is not an Elliptic Curve key as expected")
+	}
+	err = parsedCSR.CheckSignature()
+	if err != nil {
+		return nil, types.BadCSRError("CSR signature is invalid")
+	}
+	// Update the CSR common name and OU to match Fleet-issued SCEP certs
+	parsedCSR.Subject.CommonName = "Fleet Identity"
+	parsedCSR.Subject.OrganizationalUnit = []string{"fleet"}
+
+	signer, err := s.providers.CSRSigner(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting CSR signer")
+	}
+	cert, err := signer.SignCSR(ctx, parsedCSR)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing CSR")
+	}
+
+	err = s.store.FinalizeOrder(ctx, orderID, csr, cert.SerialNumber.Int64())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "finalizing order")
+	}
+	order.Status = types.OrderStatusValid
+	order.Finalized = true
+
+	return s.createOrderResponse(ctx, enrollment, order, authorizations)
+}
+
+func parsePEMCSR(pemCSR string) (*x509.CertificateRequest, error) {
+	block, _ := pem.Decode([]byte(pemCSR))
+	if block == nil {
+		return nil, errors.New("no PEM blocks found")
+	}
+	if block.Type != "CERTIFICATE REQUEST" {
+		return nil, fmt.Errorf("unexpected PEM block type: %s", block.Type)
+	}
+
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing certificate request: %w", err)
+	}
+
+	return csr, nil
 }
 
 func (s *Service) GetOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint) (*types.OrderResponse, error) {

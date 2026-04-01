@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -13,10 +14,11 @@ import (
 type mockDataProviders struct {
 	appCfg *fleet.AppConfig
 	assets map[fleet.MDMAssetName]fleet.MDMConfigAsset
+	signer acme.CSRSigner
 }
 
-func newMockDataProviders(appCfg *fleet.AppConfig, assets map[fleet.MDMAssetName]fleet.MDMConfigAsset) *mockDataProviders {
-	return &mockDataProviders{appCfg: appCfg, assets: assets}
+func newMockDataProviders(appCfg *fleet.AppConfig, signer acme.CSRSigner, assets map[fleet.MDMAssetName]fleet.MDMConfigAsset) *mockDataProviders {
+	return &mockDataProviders{appCfg: appCfg, signer: signer, assets: assets}
 }
 
 func (m *mockDataProviders) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
@@ -26,4 +28,8 @@ func (m *mockDataProviders) AppConfig(ctx context.Context) (*fleet.AppConfig, er
 func (m *mockDataProviders) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
 	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	return m.assets, nil
+}
+
+func (m *mockDataProviders) CSRSigner(ctx context.Context) (acme.CSRSigner, error) {
+	return m.signer, nil
 }
