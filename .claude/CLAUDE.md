@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## About Fleet
 
 Fleet is an open-source platform for IT and security teams: device management (MDM), vulnerability reporting, osquery fleet management, and security monitoring. Go backend, React/TypeScript frontend, manages thousands of devices across macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS.
