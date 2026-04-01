@@ -245,8 +245,6 @@ func (ds *Datastore) GetOrderByID(ctx context.Context, accountID, orderID uint) 
 }
 
 func (ds *Datastore) GetCertificatePEMByOrderID(ctx context.Context, accountID, orderID uint) (string, error) {
-	// TODO(mna): not checking the not valid before/after in the query, as I think it's
-	// ok to return the cert regardless of those values, but I do check for non-revoked cert.
 	const getCertStmt = `SELECT certificate_pem
 		FROM
 			identity_certificates ic
