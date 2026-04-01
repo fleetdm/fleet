@@ -39,3 +39,46 @@ export async function measureNav(
     JSON.stringify(result)
   );
 }
+
+/**
+ * Type into a search field, wait for the debounced API request to fire,
+ * then measure time from request start until `waitFor` resolves.
+ */
+export async function measureSearch(
+  page: Page,
+  testInfo: TestInfo,
+  label: string,
+  input: import('@playwright/test').Locator,
+  query: string,
+  waitFor: () => Promise<void>
+): Promise<void> {
+  // Set up promises for both request (timing start) and response (data arrived)
+  const requestFired = page.waitForRequest((req) =>
+    req.url().includes('query=')
+  );
+  const responseDone = page.waitForResponse((res) =>
+    res.url().includes('query=') && res.status() === 200
+  );
+
+  await input.fill(query);
+
+  // Timing starts when the debounced request fires
+  await requestFired;
+  const start = Date.now();
+  // Wait for response, then verify rendered content
+  await responseDone;
+  await waitFor();
+  const ms = Date.now() - start;
+  const elapsed = formatElapsed(ms);
+
+  testInfo.annotations.push({ type: 'load-time', description: `${label} - ${elapsed}` });
+
+  const section = testInfo.titlePath[1].replace(' load times', '');
+  const result: PerfResult = { section, label, elapsed, ms };
+
+  fs.mkdirSync(RESULTS_DIR, { recursive: true });
+  fs.writeFileSync(
+    path.join(RESULTS_DIR, `${start}-${Math.random().toString(36).slice(2)}.json`),
+    JSON.stringify(result)
+  );
+}

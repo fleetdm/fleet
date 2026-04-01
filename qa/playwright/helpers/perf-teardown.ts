@@ -7,8 +7,11 @@ const RESULTS_DIR = path.resolve(__dirname, '../.perf-results');
 const SECTION_ORDER = [
   'Dashboard',
   'Hosts',
+  'Host Details',
   'Controls',
   'Software',
+  'Software OS',
+  'Vulnerabilities',
   'Reports',
   'Policies',
   'Labels',
