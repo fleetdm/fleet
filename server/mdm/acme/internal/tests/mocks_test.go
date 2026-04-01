@@ -15,8 +15,8 @@ type mockDataProviders struct {
 	assets map[fleet.MDMAssetName]fleet.MDMConfigAsset
 }
 
-func newMockDataProviders(appCfg *fleet.AppConfig, asstes map[fleet.MDMAssetName]fleet.MDMConfigAsset) *mockDataProviders {
-	return &mockDataProviders{appCfg: appCfg, assets: asstes}
+func newMockDataProviders(appCfg *fleet.AppConfig, assets map[fleet.MDMAssetName]fleet.MDMConfigAsset) *mockDataProviders {
+	return &mockDataProviders{appCfg: appCfg, assets: assets}
 }
 
 func (m *mockDataProviders) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
