@@ -138,7 +138,6 @@ const PoliciesTable = ({
         disableNextPage={isLastPage(count, DEFAULT_PAGE_SIZE, page)}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        persistSelectedRows
         primarySelectAction={{
           name: "delete policy",
           buttonText: "Delete",

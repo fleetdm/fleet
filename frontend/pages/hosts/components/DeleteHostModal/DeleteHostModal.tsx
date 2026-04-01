@@ -1,5 +1,7 @@
 import React from "react";
 
+import strUtils from "utilities/strings";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -32,8 +34,9 @@ const DeleteHostModal = ({
 }: IDeleteHostModalProps): JSX.Element => {
   const hostText = () => {
     if (selectedHostIds) {
-      return `${selectedHostIds.length}${isAllMatchingHostsSelected ? "+" : ""
-        } hosts`;
+      return `${selectedHostIds.length}${
+        isAllMatchingHostsSelected ? "+" : ""
+      } ${strUtils.pluralize(selectedHostIds.length, "host")}`;
     }
     return hostName;
   };
@@ -47,8 +50,8 @@ const DeleteHostModal = ({
   return (
     <Modal title="Delete hosts" onExit={onCancel} className={baseClass}>
       <p>
-        This will remove the record of <b>{hostText()}</b> and associated data
-        such as unlock PINs and disk encryption keys.
+        This will remove <b>{hostText()}</b> and associated data such as unlock
+        PINs and disk encryption keys.
       </p>
       {hasManyHosts && (
         <p>
