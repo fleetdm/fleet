@@ -3967,7 +3967,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-#### Get host by Fleet Desktop token
+### Get host by Fleet Desktop token
 
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
