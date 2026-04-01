@@ -187,7 +187,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/test` | `/test` or `/test TestFoo` | Detects which packages changed via `git diff` and runs their tests with the correct env vars (`MYSQL_TEST`, `REDIS_TEST`). |
 | `/find-related-tests` | `/find-related-tests` | Maps changed files to their `_test.go` files, integration tests, and test helpers. Outputs exact `go test` commands. |
 | `/fleet-gitops` | `/fleet-gitops` | Validates GitOps YAML: osquery queries against Fleet schema, Apple/Windows/Android profiles against upstream references, and software against the Fleet-maintained app catalog. |
-| `/project` | `/project android-mdm` | Loads workstream context from `~/.fleet/claude-projects/`. Creates new project files if none exist. |
+| `/project` | `/project android-mdm` | Loads or creates a workstream context file in your Claude memory directory. Includes a minimal self-improvement mechanism — Claude adds discoveries, gotchas, and key file paths as you work, so each session starts with slightly richer context than the last. |
 | `/new-endpoint` | `/new-endpoint` | Scaffolds a Fleet API endpoint: request/response structs, endpoint function, service method, datastore interface, handler registration, and test stubs. |
 | `/new-migration` | `/new-migration` | Creates a timestamped migration file and test file with proper naming, init registration, and Up/Down functions. |
 | `/spec-story` | `/spec-story 12345` | Breaks down a GitHub story into implementable sub-issues: maps codebase impact, decomposes into atomic tasks per layer (migration/datastore/service/API/frontend), and writes specs with acceptance criteria and a dependency graph. Requires `gh`. |
