@@ -3264,7 +3264,7 @@ This is the AWS S3 Region. Leave it blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
 
-> **Note:** Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
+> Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`
