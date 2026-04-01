@@ -185,13 +185,9 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 	}
 	if !order.Finalized || order.Status != "valid" {
 		if order.Status == "invalid" {
-			// TODO(mna): tempted to return OrderDoesNotExist in that case, as is will not show
-			// up in list account orders endpoint when in an invalid state.
 			return "", types.OrderDoesNotExistError("Order is in invalid state, cannot get certificate")
 		}
-		// TODO(mna): this error type is defined to be returned on /finalize requests when it's not ready to be finalized,
-		// but it seems like a good error type for this endpoint too? No specific error mentioned in the RFC AFAICS.
-		return "", types.OrderNotReadyError("Order is not finalized/in valid state, cannot get certificate")
+		return "", types.OrderNotFinalizedError("Order is not finalized/in valid state, cannot get certificate")
 	}
 
 	certPEM, err := s.store.GetCertificatePEMByOrderID(ctx, accountID, orderID)

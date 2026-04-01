@@ -111,6 +111,15 @@ func OrderNotReadyError(detail string) *ACMEError {
 	}
 }
 
+func OrderNotFinalizedError(detail string) *ACMEError {
+	return &ACMEError{
+		Type:       fleetCustomErrorsURI + "orderNotFinalized",
+		Title:      "The request attempted to download a certificate for an order that is not finalized",
+		Detail:     detail,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
 func RejectedIdentifierError(detail string) *ACMEError {
 	return &ACMEError{
 		Type:       acmeErrorsURN + "rejectedIdentifier",

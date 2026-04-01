@@ -1254,7 +1254,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		require.NotNil(t, acmeErr)
-		require.Contains(t, acmeErr.Type, "orderNotReady")
+		require.Contains(t, acmeErr.Type, "orderNotFinalized")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 	})
 
