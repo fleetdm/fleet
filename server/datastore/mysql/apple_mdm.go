@@ -4869,7 +4869,7 @@ JOIN
 SET
 	retry_job_id = ?
 WHERE
-	h.hardware_serial IN (?)`
+	hosts.hardware_serial IN (?)`
 
 	stmt, args, err := sqlx.In(stmt, jobID, serials)
 	if err != nil {
