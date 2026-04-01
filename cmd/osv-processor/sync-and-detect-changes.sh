@@ -15,13 +15,13 @@ set -euo pipefail
 # Configuration
 REPO_URL="https://github.com/canonical/ubuntu-security-notices.git"
 REPO_DIR="ubuntu-security-notices"
-DAYS_TO_KEEP=3 # how much git history to keep
+DAYS_TO_KEEP=3 # how much git history to get for initial clone
 
 echo "=== OSV Repository Sync ==="
 echo ""
 
 if [ -d "$REPO_DIR/.git" ]; then
-    echo "Repository exists, updating with rolling window..."
+    echo "Repository exists, fetching new commits..."
     cd "$REPO_DIR"
 
     git config core.sparseCheckout true
@@ -30,16 +30,16 @@ if [ -d "$REPO_DIR/.git" ]; then
     OLD_SHA=$(git rev-parse HEAD)
     OLD_COUNT=$(git log --oneline | wc -l | xargs)
 
-    git fetch --update-shallow --shallow-since="${DAYS_TO_KEEP} days ago" origin main
+    git fetch origin main
 
     NEW_SHA=$(git rev-parse origin/main)
+    git reset --hard origin/main
 
     echo ""
     if [ "$OLD_SHA" = "$NEW_SHA" ]; then
         echo "No new commits (already at $NEW_SHA)"
     else
         echo "Updating: $OLD_SHA -> $NEW_SHA"
-        git reset --hard origin/main
     fi
 
     NEW_COUNT=$(git log --oneline | wc -l | xargs)
@@ -70,13 +70,14 @@ fi
 
 cd "$REPO_DIR"
 
-# Get files changed today (since midnight UTC today)
 TODAY_UTC=$(date -u +%Y-%m-%d)
+YESTERDAY_UTC=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
+
+# Get files changed today (since midnight UTC today)
 git log --since="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
     | sed '/^$/d' | sort -u > "../changed_files_today.txt"
 
 # Get files changed yesterday (from midnight yesterday to midnight today UTC)
-YESTERDAY_UTC=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
 git log --since="${YESTERDAY_UTC}T00:00:00Z" --until="${TODAY_UTC}T00:00:00Z" --name-only --pretty="" -- osv/cve \
     | sed '/^$/d' | sort -u > "../changed_files_yesterday.txt"
 

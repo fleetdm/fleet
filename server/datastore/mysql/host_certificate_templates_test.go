@@ -41,6 +41,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"GetAndroidCertificateTemplatesForRenewal", testGetAndroidCertificateTemplatesForRenewal},
 		{"SetAndroidCertificateTemplatesForRenewal", testSetAndroidCertificateTemplatesForRenewal},
 		{"GetOrCreateFleetChallengeForCertificateTemplate", testGetOrCreateFleetChallengeForCertificateTemplate},
+		{"RetryHostCertificateTemplate", testRetryHostCertificateTemplate},
 	}
 
 	for _, c := range cases {
@@ -2006,4 +2007,71 @@ func testGetOrCreateFleetChallengeForCertificateTemplate(t *testing.T, ds *Datas
 		require.NoError(t, err)
 		require.Equal(t, 1, count)
 	})
+}
+
+func testRetryHostCertificateTemplate(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setup := createCertTemplateTestSetup(t, ctx, ds, "")
+	challengeVal := "challenge-val"
+	host := test.NewHost(t, ds, "android-host", "10.0.0.1", "key1", "uuid1", time.Now(),
+		test.WithPlatform("android"), test.WithTeamID(setup.team.ID))
+
+	// Insert a host certificate template in "delivered" state (simulating initial delivery)
+	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setup.template.ID,
+		Status:                fleet.CertificateTemplateDelivered,
+		FleetChallenge:        &challengeVal,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		Name:                  setup.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Insert a challenge record to verify it gets deleted on retry
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO challenges (challenge) VALUES (?)`, challengeVal)
+		return err
+	})
+
+	// Verify initial state
+	record, err := ds.GetHostCertificateTemplateRecord(ctx, host.UUID, setup.template.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.CertificateTemplateDelivered, record.Status)
+	require.Equal(t, uint(0), record.RetryCount)
+
+	// First retry: verify status, retry_count, detail, and cleared fields
+	err = ds.RetryHostCertificateTemplate(ctx, host.UUID, setup.template.ID, "SCEP enrollment failed")
+	require.NoError(t, err)
+
+	record, err = ds.GetHostCertificateTemplateRecord(ctx, host.UUID, setup.template.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.CertificateTemplatePending, record.Status)
+	require.Equal(t, uint(1), record.RetryCount)
+	require.NotNil(t, record.Detail)
+	require.Equal(t, "SCEP enrollment failed", *record.Detail)
+	require.Nil(t, record.NotValidBefore)
+	require.Nil(t, record.NotValidAfter)
+	require.Nil(t, record.Serial)
+
+	// Verify challenge was deleted
+	var challengeCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &challengeCount,
+			`SELECT COUNT(*) FROM challenges WHERE challenge = ?`, challengeVal)
+	})
+	require.Equal(t, 0, challengeCount)
+
+	// Subsequent retries: verify retry_count increments and detail is updated each time
+	retryDetails := []string{"SCEP server unavailable", "CA unreachable"}
+	for i, detail := range retryDetails {
+		err = ds.RetryHostCertificateTemplate(ctx, host.UUID, setup.template.ID, detail)
+		require.NoError(t, err)
+
+		record, err = ds.GetHostCertificateTemplateRecord(ctx, host.UUID, setup.template.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, record.Status)
+		require.Equal(t, uint(i+2), record.RetryCount)
+		require.Equal(t, detail, *record.Detail)
+	}
 }

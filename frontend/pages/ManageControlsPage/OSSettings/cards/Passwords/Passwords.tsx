@@ -77,7 +77,7 @@ const Passwords = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (res) => {
         setEnableRecoveryLockPassword(
           res.mdm?.enable_recovery_lock_password ?? false

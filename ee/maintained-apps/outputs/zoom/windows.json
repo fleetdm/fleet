@@ -4,7 +4,7 @@
       "version": "7.0.33767",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND publisher = 'Zoom';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND publisher = 'Zoom' AND version_compare(version, '7.0.33767') < 0);"
       },
       "installer_url": "https://zoom.us/client/7.0.0.33767/ZoomInstallerFull.msi?archType=x64",
       "install_script_ref": "8959087b",

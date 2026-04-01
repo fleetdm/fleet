@@ -95,7 +95,7 @@ Follow this process to publish a case study without identifying the customer. An
 
    Add the case study to the website.
 
-   Use the **customer code name** listed in the **Fleet Champions Community spreadsheet**. This spreadsheet is the source of truth.
+   Use the **customer code name** listed in the [**Fleet Champions Community spreadsheet**](https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772). This spreadsheet is the source of truth.
 
 7. **Add the case study to the customers page**
 
