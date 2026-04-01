@@ -754,6 +754,7 @@ SELECT * FROM in_house_apps WHERE platform = 'ios';
 **Indexes:**
 - Composite primary key on `(host_id, software_id)`
 - Index on `software_id` (`host_software_software_fk`) for reverse lookup
+- Index on `software_id` (`idx_host_software_software_id`) for join/filter optimization
 
 **Common Query Patterns:**
 ```sql
@@ -2033,6 +2034,8 @@ SELECT * FROM labels WHERE MATCH(name) AGAINST(? IN BOOLEAN MODE);
 - `error_message` (text, nullable) - Error message if operation failed
 - `deleted` (tinyint(1), NOT NULL, DEFAULT 0) - Soft delete flag
 - `auto_rotate_at` (timestamp(6), nullable) - Scheduled time for automatic password rotation
+- `pending_encrypted_password` (blob, nullable) - Encrypted password pending rotation (held until MDM confirms success)
+- `pending_error_message` (text, nullable) - Error message if password rotation failed
 - `created_at` (timestamp(6), DEFAULT CURRENT_TIMESTAMP(6))
 - `updated_at` (timestamp(6), DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE)
 
@@ -2058,6 +2061,7 @@ SELECT * FROM labels WHERE MATCH(name) AGAINST(? IN BOOLEAN MODE);
 
 **Related Migrations:**
 - Created: `20260316120009_CreateHostRecoveryKeyPasswordsTable.go`
+- Added `pending_encrypted_password`, `pending_error_message`: `20260317120000_AddRecoveryLockPasswordRotation.go`
 - Added `auto_rotate_at`: `20260326131501_AddRecoveryLockAutoRotateAt.go`
 
 ---
@@ -2635,6 +2639,9 @@ This section documents significant schema changes since the previous version of 
 | `operating_systems` | Modified `arch` from VARCHAR(150) to VARCHAR(100); added `installation_type` column (VARCHAR(20)); updated unique index | 20260319120000 |
 | `query_results` | Added `has_data` virtual column; added composite index `idx_query_id_has_data_host_id_last_fetched` | 20260324223334 |
 | `software_installers` | Added `patch_query` column (TEXT NOT NULL) | 20260324161944 |
+| `host_software` | Added index `idx_host_software_software_id` on (software_id) | 20260314120000 |
+| `kernel_host_counts` | Dropped foreign key `kernel_host_counts_ibfk_1` (unnecessary due to swap-table rebuild pattern) | 20260316120000 |
+| `host_recovery_key_passwords` | Added `pending_encrypted_password` (BLOB) and `pending_error_message` (TEXT) columns for password rotation | 20260317120000 |
 | `host_recovery_key_passwords` | Added `auto_rotate_at` column (TIMESTAMP(6) NULL); added index `idx_auto_rotate_at` | 20260326131501 |
 
 ### Data Changes
