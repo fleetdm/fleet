@@ -82,14 +82,14 @@ func testGetChallengesWithZeroAuthorizationID(t *testing.T, env *testEnv) {
 
 func testGetChallengeByIDWithValidID(t *testing.T, env *testEnv) {
 	account, _ := createTestAccountForOrder(t, env)
-	_, _, challenge := createTestOrderForAccount(t, account, env)
+	_, authorization, challenge := createTestOrderForAccount(t, account, env)
 
 	challenge, err := env.ds.GetChallengeByID(t.Context(), account.ID, challenge.ID)
 	require.NoError(t, err)
 	require.NotNil(t, challenge)
 	require.Equal(t, "pending", challenge.Status)
 	require.Equal(t, types.DeviceAttestationChallengeType, challenge.ChallengeType)
-	require.Equal(t, account.ID, challenge.ACMEAuthorizationID)
+	require.Equal(t, authorization.ID, challenge.ACMEAuthorizationID)
 }
 
 func testGetChallengeByIDWithInvalidID(t *testing.T, env *testEnv) {

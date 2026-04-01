@@ -142,6 +142,10 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 		roots.AddCert(rootCA)
 	}
 
+	if len(attStmt.X5C) < 1 {
+		return types.BadAttestationStatementError("Apple device attestation statement must contain at least one certificate in x5c field")
+	}
+
 	leaf, err := x509.ParseCertificate(attStmt.X5C[0])
 	if err != nil {
 		return types.BadAttestationStatementError(fmt.Sprintf("Failed to parse leaf certificate in Apple device attestation statement: %s", err.Error()))
@@ -193,7 +197,6 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 
 	depAssignments, err := s.providers.GetHostDEPAssignmentsBySerial(ctx, appleData.SerialNumber)
 	if err != nil {
-		challenge.Status = "invalid"
 		return ctxerr.Wrap(ctx, err, "getting DEP assignments for serial number in attestation certificate")
 	}
 

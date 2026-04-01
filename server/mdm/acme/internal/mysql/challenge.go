@@ -33,7 +33,7 @@ func (ds *Datastore) GetChallengesByAuthorizationID(ctx context.Context, authori
 	return challenges, nil
 }
 
-// We rquire the accountID to validate the challenge belongs to the account trying to validate it
+// We require the accountID to validate the challenge belongs to the account trying to validate it
 func (ds *Datastore) GetChallengeByID(ctx context.Context, accountID, challengeID uint) (*types.Challenge, error) {
 	if challengeID == 0 {
 		return nil, types.MalformedError("invalid challenge ID")
@@ -47,7 +47,7 @@ func (ds *Datastore) GetChallengeByID(ctx context.Context, accountID, challengeI
 	var challenge types.Challenge
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &challenge, query, challengeID, accountID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, types.ChallengeDoesNotExistError(fmt.Sprintf("Challenge with ID %d not found for account ID %d", challengeID, accountID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting challenge by ID")
