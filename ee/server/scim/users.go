@@ -620,7 +620,7 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 					"user_id", fleetUser.ID, "email", fleetUser.Email)
 				return ctxerr.New(ctx, "cannot delete last global admin")
 			}
-			return ctxerr.Wrap(ctx, err, "delete fleet user")
+			return ctxerr.Wrap(ctx, err, "delete fleet admin user")
 		}
 	} else if err := u.ds.DeleteUser(ctx, fleetUser.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete fleet user")

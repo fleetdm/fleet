@@ -532,7 +532,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	currentUser := authz.UserFromContext(ctx)
 
-	var isDemotion bool
+	var isGlobalAdminDemotion bool
 
 	if p.GlobalRole != nil && *p.GlobalRole != "" {
 		if currentUser.GlobalRole == nil {
@@ -548,13 +548,13 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 		// Track whether this is a demotion from global admin so we can
 		// use an atomic check+save later to prevent TOCTOU races.
-		isDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin && *p.GlobalRole != fleet.RoleAdmin
+		isGlobalAdminDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin && *p.GlobalRole != fleet.RoleAdmin
 
 		user.GlobalRole = p.GlobalRole
 		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
 		// Track whether this is a demotion from global admin by assigning teams.
-		isDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin
+		isGlobalAdminDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin
 
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
 			return nil, authz.ForbiddenWithInternal(
@@ -566,7 +566,8 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.GlobalRole = nil
 	}
 
-	if isDemotion {
+	switch {
+	case isGlobalAdminDemotion:
 		// Use atomic check+save to prevent TOCTOU race when demoting the last admin.
 		// We must set the password before saving if a new password was also provided.
 		if p.NewPassword != nil {
@@ -590,10 +591,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 				return nil, ctxerr.Wrap(ctx, err, "destroying sessions after password change")
 			}
 		}
-	} else if p.NewPassword != nil {
+	case p.NewPassword != nil:
 		// setNewPassword takes care of calling saveUser
 		err = svc.setNewPassword(ctx, user, *p.NewPassword, true)
-	} else {
+	default:
 		err = svc.saveUser(ctx, user)
 	}
 	if err != nil {

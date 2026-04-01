@@ -98,9 +98,6 @@ func TestUserAuth(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-		return 2, nil // Return 2 to allow operations that check for last admin
-	}
 	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 		return nil // Allow delete (multiple admins exist)
 	}

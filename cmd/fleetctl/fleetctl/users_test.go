@@ -32,11 +32,6 @@ func TestUserDelete(t *testing.T) {
 		}, nil
 	}
 
-	// Allow deletion by returning multiple admins exist
-	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-		return 2, nil
-	}
-
 	deletedUser := uint(0)
 
 	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
@@ -225,11 +220,6 @@ func TestDeleteBulkUsers(t *testing.T) {
 			return u, nil
 		}
 		return nil, &notFoundError{}
-	}
-
-	// Allow deletion by returning multiple admins exist
-	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-		return 2, nil
 	}
 
 	deletedUser := uint(0)

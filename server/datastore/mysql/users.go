@@ -436,9 +436,11 @@ func (ds *Datastore) DeleteUserIfNotLastAdmin(ctx context.Context, id uint) erro
 	})
 }
 
-// SaveUserIfNotLastAdmin atomically checks that saving the user would not remove
-// the last global admin (via demotion) before saving. It uses SELECT ... FOR UPDATE
-// to prevent concurrent requests from bypassing the check (TOCTOU race condition).
+// SaveUserIfNotLastAdmin atomically checks that there's more than one admin
+// before saving the user. Returns ErrLastGlobalAdmin if there's only one last global admin.
+//
+// It uses SELECT ... FOR UPDATE to prevent concurrent requests from bypassing
+// the check (TOCTOU race condition).
 func (ds *Datastore) SaveUserIfNotLastAdmin(ctx context.Context, user *fleet.User) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Lock the admin rows to prevent concurrent modifications.
@@ -453,15 +455,6 @@ func (ds *Datastore) SaveUserIfNotLastAdmin(ctx context.Context, user *fleet.Use
 
 		return saveUserDB(ctx, tx, user)
 	})
-}
-
-func (ds *Datastore) CountGlobalAdmins(ctx context.Context) (int, error) {
-	var count int
-	err := sqlx.GetContext(ctx, ds.writer(ctx), &count, `SELECT COUNT(*) FROM users WHERE global_role = 'admin'`)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "count global admins")
-	}
-	return count, nil
 }
 
 func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {

@@ -85,8 +85,6 @@ type DeleteUserIfNotLastAdminFunc func(ctx context.Context, id uint) error
 
 type SaveUserIfNotLastAdminFunc func(ctx context.Context, user *fleet.User) error
 
-type CountGlobalAdminsFunc func(ctx context.Context) (int, error)
-
 type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
 type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
@@ -1940,9 +1938,6 @@ type DataStore struct {
 
 	SaveUserIfNotLastAdminFunc        SaveUserIfNotLastAdminFunc
 	SaveUserIfNotLastAdminFuncInvoked bool
-
-	CountGlobalAdminsFunc        CountGlobalAdminsFunc
-	CountGlobalAdminsFuncInvoked bool
 
 	PendingEmailChangeFunc        PendingEmailChangeFunc
 	PendingEmailChangeFuncInvoked bool
@@ -4802,13 +4797,6 @@ func (s *DataStore) SaveUserIfNotLastAdmin(ctx context.Context, user *fleet.User
 	s.SaveUserIfNotLastAdminFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveUserIfNotLastAdminFunc(ctx, user)
-}
-
-func (s *DataStore) CountGlobalAdmins(ctx context.Context) (int, error) {
-	s.mu.Lock()
-	s.CountGlobalAdminsFuncInvoked = true
-	s.mu.Unlock()
-	return s.CountGlobalAdminsFunc(ctx)
 }
 
 func (s *DataStore) PendingEmailChange(ctx context.Context, userID uint, newEmail string, token string) error {
