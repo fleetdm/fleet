@@ -111,7 +111,7 @@ func ApplyStarterLibrary(
 	logger *slog.Logger,
 	runFleetctl func(args []string) error,
 ) error {
-	logger.Debug("Applying starter library")
+	logger.DebugContext(context.TODO(),"Applying starter library")
 
 	// Create an authenticated client to fetch app config.
 	client, err := NewClient(serverURL, true, "", "")
@@ -181,6 +181,6 @@ func ApplyStarterLibrary(
 		return fmt.Errorf("fleetctl gitops: %w", err)
 	}
 
-	logger.Debug("Starter library applied successfully")
+	logger.DebugContext(context.TODO(),"Starter library applied successfully")
 	return nil
 }
