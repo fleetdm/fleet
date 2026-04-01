@@ -459,15 +459,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /deals': {
-    action: 'view-deals',
-    locals: {
-      pageTitleForMeta: 'Deal registration',
-      pageDescriptionForMeta: 'Register an opportunity with a potential customer.',
-      hideFooterLinks: true,
-    }
-  },
-
   'GET /customers': {
     action: 'view-customers',
     locals: {
@@ -1112,6 +1103,8 @@ module.exports.routes = {
   'GET /announcements/global-cloud-platform-simplifies-device-management-with-fleet': '/case-study/fastly',
   'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
   'GET /announcements/foursquare-quickly-migrates-to-fleet': '/case-study/foursquare',
+
+  'GET /deals': '/partners#deals',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
