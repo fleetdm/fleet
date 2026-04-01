@@ -211,7 +211,8 @@ type GetAuthorizationResponse struct {
 }
 
 func (r *GetAuthorizationResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// only generate a new nonce if there is no error
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
 	if r.Err != nil {
 		var acmeErr *types.ACMEError
 		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
@@ -246,7 +247,8 @@ type ListOrdersResponse struct {
 }
 
 func (r *ListOrdersResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// only generate a new nonce if there is no error
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
 	if r.Err != nil {
 		var acmeErr *types.ACMEError
 		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
@@ -281,7 +283,8 @@ type DoChallengeResponse struct {
 }
 
 func (r *DoChallengeResponse) BeforeRender(ctx context.Context, w http.ResponseWriter) {
-	// only generate a new nonce if there is no error
+	// only generate a new nonce if there is no error or the error is due to a client error
+	// other than "enrollment not found" (in which case the client has no reason to retry).
 	if r.Err != nil {
 		var acmeErr *types.ACMEError
 		if !errors.As(r.Err, &acmeErr) || !acmeErr.ShouldReturnNonce() {
