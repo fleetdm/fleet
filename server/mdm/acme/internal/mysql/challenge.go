@@ -18,8 +18,7 @@ func (ds *Datastore) GetChallengesByAuthorizationID(ctx context.Context, authori
 		return nil, types.MalformedError("invalid authorization ID")
 	}
 
-	// TODO: Should we get validated from here, via the updated_at if status=valid?
-	const query = `SELECT id, acme_authorization_id, challenge_type, status, token FROM acme_challenges WHERE acme_authorization_id = ?`
+	const query = `SELECT id, acme_authorization_id, challenge_type, status, token, updated_at FROM acme_challenges WHERE acme_authorization_id = ?`
 
 	var challenges []*types.Challenge
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &challenges, query, authorizationID)

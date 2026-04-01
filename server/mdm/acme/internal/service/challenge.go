@@ -90,6 +90,7 @@ func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrol
 		return nil, ctxerr.Wrap(ctx, err, "constructing challenge URL")
 	}
 	challengeResponse.URL = challengeURL
+	challengeResponse.Location = challengeURL
 
 	return challengeResponse, nil
 }
