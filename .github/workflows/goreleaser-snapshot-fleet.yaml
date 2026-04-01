@@ -148,7 +148,7 @@ jobs:
 
       - name: List tags for push
         run: |
-          echo "The following TAG is to be pushed: ${{ steps.sanitize_branch.outputs.DOCKER_IMAGE_TAG }}"
+          echo "The following tag will be pushed: ${{ steps.sanitize_branch.outputs.DOCKER_IMAGE_TAG }}"
 
       - name: Login to quay.io
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
