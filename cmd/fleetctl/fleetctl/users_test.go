@@ -34,7 +34,7 @@ func TestUserDelete(t *testing.T) {
 
 	deletedUser := uint(0)
 
-	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 		deletedUser = id
 		return nil
 	}
