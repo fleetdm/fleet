@@ -1,4 +1,4 @@
-# Configure EAP-TLS Wi-Fi on Android
+# Configure Wi-Fi on Android
 
 _Available in Fleet Premium_
 
