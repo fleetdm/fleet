@@ -158,9 +158,9 @@ const LabelForm = ({
         placeholder="Label description (optional)"
       />
       {immutableFields.length > 0 ? (
-        <span className={`${baseClass}__help-text`}>
+        <p className={`${baseClass}__help-text`}>
           {generateDescriptionHelpText(immutableFields)}
-        </span>
+        </p>
       ) : null}
       {teamName ? <TeamNameField name={teamName} /> : null}
       {additionalFields}

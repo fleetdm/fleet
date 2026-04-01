@@ -6,7 +6,8 @@
   }
 
   &__help-text {
-    @include help-text;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
   }
 
   &__label-platform {
