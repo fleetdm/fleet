@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260324151315, Down_20260324151315)
+	MigrationClient.AddMigration(Up_20260401174727, Down_20260401174727)
 }
 
-func Up_20260324151315(tx *sql.Tx) error {
+func Up_20260401174727(tx *sql.Tx) error {
 	if !columnExists(tx, "nano_commands", "name") {
 		_, err := tx.Exec(`
 ALTER TABLE nano_commands ADD COLUMN name varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL`)
@@ -52,6 +52,6 @@ ORDER BY
 	return nil
 }
 
-func Down_20260324151315(_ *sql.Tx) error {
+func Down_20260401174727(_ *sql.Tx) error {
 	return nil
 }
