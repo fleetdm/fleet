@@ -27,6 +27,9 @@ func TestACMEChallenge(t *testing.T) {
 		{"GetChallengeByIDWithInvalidAccountID", testGetChallengeByIDWithInvalidAccountID},
 
 		{"UpdateChallengeHappyPath", testUpdateChallengeHappyPath},
+		{"UpdateChallengeInvalidStatus", testUpdateChallengeInvalidStatus},
+		{"UpdateChallengeNilChallenge", testUpdateChallengeNilChallenge},
+		{"UpdateChallengeNonExistentID", testUpdateChallengeNonExistentID},
 	}
 
 	for _, c := range cases {
@@ -132,4 +135,44 @@ func testUpdateChallengeHappyPath(t *testing.T, env *testEnv) {
 	}
 
 	require.Equal(t, "ready", order.Status)
+}
+
+func testUpdateChallengeInvalidStatus(t *testing.T, env *testEnv) {
+	account, _ := createTestAccountForOrder(t, env)
+	order, _, challenge := createTestOrderForAccount(t, account, env)
+
+	challenge.Status = "invalid"
+	updatedChallenge, err := env.ds.UpdateChallenge(t.Context(), challenge)
+	require.NoError(t, err)
+	require.NotNil(t, updatedChallenge)
+	require.Equal(t, "invalid", updatedChallenge.Status)
+
+	order, auhtz, err := env.ds.GetOrderByID(t.Context(), account.ID, order.ID)
+	require.NoError(t, err)
+	require.NotNil(t, auhtz)
+	for _, auth := range auhtz {
+		require.Equal(t, "invalid", auth.Status)
+	}
+
+	require.Equal(t, "invalid", order.Status)
+}
+
+func testUpdateChallengeNilChallenge(t *testing.T, env *testEnv) {
+	updatedChallenge, err := env.ds.UpdateChallenge(t.Context(), nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Challenge can not be nil for update")
+	require.Nil(t, updatedChallenge)
+}
+
+func testUpdateChallengeNonExistentID(t *testing.T, env *testEnv) {
+	challenge := &types.Challenge{
+		ID:                  999999,
+		ACMEAuthorizationID: 999999,
+		Status:              "valid",
+		ChallengeType:       types.DeviceAttestationChallengeType,
+	}
+
+	updatedChallenge, err := env.ds.UpdateChallenge(t.Context(), challenge)
+	require.Error(t, err)
+	require.Nil(t, updatedChallenge)
 }
