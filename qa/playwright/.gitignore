@@ -5,7 +5,7 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
-/playwright/.auth/
+.auth/
 
 # Local environment — never commit real credentials
 .env
