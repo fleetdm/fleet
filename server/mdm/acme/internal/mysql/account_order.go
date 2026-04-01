@@ -202,7 +202,7 @@ func (ds *Datastore) GetOrder(ctx context.Context, enrollmentID uint, orderID ui
 	JOIN acme_accounts a ON o.acme_account_id = a.id
 	WHERE a.acme_enrollment_id = ? AND o.id = ?`
 	// Use the primary here in case this was very recently modified(and because this should be a relatively low-traffic query)
-	err := sqlx.GetContext(ctx, ds.primary, order, stmt, enrollmentID, orderID)
+	err := sqlx.GetContext(ctx, ds.writer(ctx), order, stmt, enrollmentID, orderID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get acme order")
 	}
