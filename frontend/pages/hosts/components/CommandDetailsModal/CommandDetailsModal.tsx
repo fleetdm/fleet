@@ -1,9 +1,8 @@
-import React, { useCallback, useState } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { stringToClipboard } from "utilities/copy_text";
 
 import { ICommand, ICommandResult } from "interfaces/command";
 
@@ -12,13 +11,14 @@ import commandApi, {
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
 
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import IconStatusMessage from "components/IconStatusMessage";
 import { IconNames } from "components/icons";
-import Icon from "components/Icon";
-import Textarea from "components/Textarea";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 
@@ -103,66 +103,6 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   }
 };
 
-/** Formats a command result into a text representation suitable for
- * clipboard copy (equivalent to `fleetctl get mdm-command-results --id ...`). */
-const formatCommandDetailsForCopy = (result: ICommandResult): string => {
-  const lines: string[] = [];
-  lines.push(`Host UUID: ${result.host_uuid}`);
-  lines.push(`Command UUID: ${result.command_uuid}`);
-  lines.push(`Status: ${result.status}`);
-  lines.push(`Request type: ${result.request_type}`);
-  if (result.name) {
-    lines.push(`Name: ${result.name}`);
-  }
-  lines.push(`Updated: ${result.updated_at}`);
-  lines.push(`Hostname: ${result.hostname}`);
-  if (result.payload) {
-    lines.push("");
-    lines.push("--- Request payload ---");
-    lines.push(result.payload);
-  }
-  if (result.result) {
-    lines.push("");
-    lines.push(`--- Response from ${result.hostname} ---`);
-    lines.push(result.result);
-  }
-  return lines.join("\n");
-};
-
-type CopyTarget = "payload" | "response" | "details";
-
-const CopyButton = ({
-  text,
-  target,
-  copyState,
-  onCopy,
-}: {
-  text: string;
-  target: CopyTarget;
-  copyState: CopyTarget | null;
-  onCopy: (value: string, target: CopyTarget) => void;
-}) => {
-  const isCopied = copyState === target;
-
-  return (
-    <div className={`${baseClass}__copy-wrapper`}>
-      {isCopied && (
-        <span className={`${baseClass}__copied-confirmation`}>Copied!</span>
-      )}
-      <Button
-        variant="icon"
-        onClick={(e: React.MouseEvent) => {
-          e.preventDefault();
-          onCopy(text, target);
-        }}
-        iconStroke
-      >
-        <Icon name="copy" />
-      </Button>
-    </div>
-  );
-};
-
 const ModalContent = ({
   data,
   isLoading,
@@ -172,17 +112,6 @@ const ModalContent = ({
   isLoading: boolean;
   error: Error | null;
 }) => {
-  const [copyState, setCopyState] = useState<CopyTarget | null>(null);
-
-  const onCopy = useCallback((value: string, target: CopyTarget) => {
-    stringToClipboard(value).then(() => {
-      setCopyState(target);
-      setTimeout(() => {
-        setCopyState(null);
-      }, 2000);
-    });
-  }, []);
-
   if (isLoading) {
     return <Spinner />;
   }
@@ -215,47 +144,29 @@ const ModalContent = ({
         message={getStatusMessage(result)}
       />
       {!!result.payload && (
-        <div className={`${baseClass}__section`}>
-          <div className={`${baseClass}__section-header`}>
-            <div className="textarea__label">Request payload:</div>
-            <CopyButton
-              text={result.payload}
-              target="payload"
-              copyState={copyState}
-              onCopy={onCopy}
-            />
-          </div>
-          <Textarea variant="code">{result.payload}</Textarea>
-        </div>
+        <InputField
+          type="textarea"
+          label="Request payload:"
+          readOnly
+          enableCopy
+        >
+          {result.payload}
+        </InputField>
       )}
       {!!result.result && (
-        <div className={`${baseClass}__section`}>
-          <div className={`${baseClass}__section-header`}>
-            <div className="textarea__label">
+        <InputField
+          type="textarea"
+          label={
+            <>
               Response from <b>{result.hostname}</b>:
-            </div>
-            <CopyButton
-              text={result.result}
-              target="response"
-              copyState={copyState}
-              onCopy={onCopy}
-            />
-          </div>
-          <Textarea variant="code">{result.result}</Textarea>
-        </div>
-      )}
-      <div className={`${baseClass}__copy-all`}>
-        <Button
-          variant="text-link"
-          onClick={(e: React.MouseEvent) => {
-            e.preventDefault();
-            onCopy(formatCommandDetailsForCopy(result), "details");
-          }}
+            </>
+          }
+          readOnly
+          enableCopy
         >
-          <Icon name="copy" />
-          {copyState === "details" ? "Copied!" : "Copy command details"}
-        </Button>
-      </div>
+          {result.result}
+        </InputField>
+      )}
     </div>
   );
 };
