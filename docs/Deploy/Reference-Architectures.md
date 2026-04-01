@@ -293,6 +293,23 @@ Additional addons are available such as:
 
 Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled report frequency can have a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
 
+###### S3 configuration for AWS deployments
+
+When configuring Fleet's S3 settings in AWS, be aware of the following behavior:
+
+- **Do not set `endpoint_url` when using IAM-based authentication.** The `endpoint_url` setting (e.g. `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`) overrides the endpoint for *all* AWS API calls, not just S3. This causes STS calls (such as `AssumeRoleWithWebIdentity` used by IRSA) to be routed to the S3 endpoint, breaking authentication. Use `region` instead.
+- **Set `region` explicitly.** If neither `endpoint_url` nor `region` is configured, Fleet defaults to `us-east-1` for the initial `HeadBucket` region-discovery call, regardless of `AWS_REGION` or `AWS_DEFAULT_REGION` environment variables. This can cause failures in environments with restricted egress or region-scoped VPC endpoints.
+
+Recommended configuration by authentication method:
+
+| Authentication method | Required S3 settings | Notes |
+| --- | --- | --- |
+| IRSA (EKS) | `bucket` + `region` | Do **not** set `endpoint_url` |
+| ECS task role | `bucket` + `region` | Do **not** set `endpoint_url` |
+| Non-AWS S3-compatible storage (MinIO, RustFS, etc.) | `bucket` + `endpoint_url` | Set `force_s3_path_style` and `region` as needed |
+
+For full details on each S3 setting, see the [S3 configuration reference](https://fleetdm.com/docs/configuration/fleet-server-configuration#s3). See also [fleetdm/fleet#42349](https://github.com/fleetdm/fleet/issues/42349) for related discussion.
+
 ###### AWS Terraform CI/CD IAM permissions
 The following permissions are the minimum required to apply AWS terraform resources:
 ```JSON
