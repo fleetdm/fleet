@@ -2754,14 +2754,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 			if _, isBeingRemoved := removeTargets[otherUUID]; isBeingRemoved {
 				continue // also being removed, don't protect its URIs
 			}
-			otherCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(otherContent.SyncML)
-			if err != nil {
-				continue
-			}
-			for _, cmd := range otherCmds {
-				if uri := cmd.GetTargetURI(); uri != "" {
-					activeLocURIs[uri] = true
-				}
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(otherContent.SyncML) {
+				activeLocURIs[uri] = true
 			}
 		}
 

@@ -263,6 +263,8 @@ func findMinimumUpgrade(version string, sortedVersions []string, fixedBuilds map
 }
 
 // recordCVEFix records a CVE fix for each branch, keeping the first seen fix per version.
+// Since releases are processed newest-first, this keeps the newest build. In practice,
+// each CVE appears only once per version branch (in the release that fixed it).
 func recordCVEFix(cveToBuilds map[string]map[string]string, cve string, branches []VersionBranch) {
 	if cveToBuilds[cve] == nil {
 		cveToBuilds[cve] = make(map[string]string)
