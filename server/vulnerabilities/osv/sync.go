@@ -76,19 +76,20 @@ func getExistingOSVArtifacts(date time.Time, path string) (map[string]struct{}, 
 }
 
 // removeOldOSVArtifacts walks 'path' removing any old OSV artifacts that don't match today's date
-func removeOldOSVArtifacts(date time.Time, path string) error {
+func removeOldOSVArtifacts(date time.Time, rootPath string) error {
 	dateSuffix := fmt.Sprintf("-%d-%02d-%02d.json.gz", date.Year(), date.Month(), date.Day())
 
-	return filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
+	return filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		baseName := filepath.Base(path)
+		baseName := d.Name()
 		if strings.HasPrefix(baseName, OSVFilePrefix) && strings.HasSuffix(baseName, ".json.gz") {
 			if !strings.HasSuffix(baseName, dateSuffix) {
-				if err := os.Remove(path); err != nil {
-					return fmt.Errorf("removing old OSV artifact %s: %w", path, err)
+				parentDir := filepath.Dir(path)
+				if err := os.Remove(filepath.Join(parentDir, baseName)); err != nil {
+					return fmt.Errorf("removing old OSV artifact %s: %w", baseName, err)
 				}
 			}
 		}
