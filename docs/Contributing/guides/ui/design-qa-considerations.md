@@ -163,7 +163,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Fleet-level user (Admin, Maintainer, Observer, Observer+, API only)
 
 ## Retries
-- Operations with retries have defined limits(time, number of attempts, etc) to avoid infinite loops and unbounded retrying
+- Operations with retries have defined limits (time, number of attempts, etc.) to avoid infinite loops and unbounded retrying
 
 <meta name="pageOrderInSection" value="3300">
 <meta name="description" value="A helpful checklist of 'events' or 'transactions' to think about while designing or testing new features or bugs.">
