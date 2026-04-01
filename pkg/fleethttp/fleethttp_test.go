@@ -3,6 +3,7 @@ package fleethttp
 import (
 	"crypto/tls"
 	"net/http"
+	"net/http/cookiejar"
 	"reflect"
 	"testing"
 	"time"
@@ -80,6 +81,9 @@ func TestTransport(t *testing.T) {
 }
 
 func TestNewGithubClientWithToken(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
 	cases := []struct {
 		name        string
 		token       string
@@ -87,16 +91,18 @@ func TestNewGithubClientWithToken(t *testing.T) {
 		timeout     time.Duration
 		nilRedirect bool
 		customTLS   bool
+		cookieJar   http.CookieJar
 	}{
-		{"token only", "test-token", nil, 0, true, false},
-		{"token with timeout", "test-token", []ClientOpt{WithTimeout(5 * time.Second)}, 5 * time.Second, true, false},
-		{"token with nofollow", "test-token", []ClientOpt{WithFollowRedir(false)}, 0, false, false},
-		{"token with tls", "test-token", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, 0, true, true},
+		{"token only", "test-token", nil, 0, true, false, nil},
+		{"token with timeout", "test-token", []ClientOpt{WithTimeout(5 * time.Second)}, 5 * time.Second, true, false, nil},
+		{"token with nofollow", "test-token", []ClientOpt{WithFollowRedir(false)}, 0, false, false, nil},
+		{"token with tls", "test-token", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, 0, true, true, nil},
+		{"token with cookie jar", "test-token", []ClientOpt{WithCookieJar(jar)}, 0, true, false, jar},
 		{"token combined", "test-token", []ClientOpt{
 			WithTimeout(3 * time.Second),
 			WithFollowRedir(false),
 			WithTLSClientConfig(&tls.Config{}),
-		}, 3 * time.Second, false, true},
+		}, 3 * time.Second, false, true, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -119,6 +125,12 @@ func TestNewGithubClientWithToken(t *testing.T) {
 			if c.customTLS {
 				oauthTr := inner.(*oauth2.Transport)
 				assert.IsType(t, &http.Transport{}, oauthTr.Base, "base transport should be custom *http.Transport for TLS")
+			}
+
+			if c.cookieJar != nil {
+				assert.Equal(t, c.cookieJar, cli.Jar)
+			} else {
+				assert.Nil(t, cli.Jar)
 			}
 		})
 	}
