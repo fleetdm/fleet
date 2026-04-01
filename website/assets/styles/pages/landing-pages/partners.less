@@ -25,24 +25,24 @@
     margin-bottom: 0px;
   }
   h2 {
-    color: var(--Core-Fleet-Black, #192147);
+    color: #192147;
 
     /* Heading/H2 */
     font-family: Inter;
-    font-size: var(--Typography-Heading-H2-Size, 32px);
+    font-size: 32px;
     font-style: normal;
     font-weight: 800;
-    line-height: var(--Typography-Heading-H2-Line-height, 38.4px); /* 120% */
+    line-height: 120%;
     margin-bottom: 0px;
   }
   h4 {
-    color: var(--UI-Fleet-Black-75, #515774);
+    color: #515774;
     font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
     font-family: Roboto Mono;
     font-size: 16px;
     font-style: normal;
     font-weight: 400;
-    line-height: 24px; /* 150% */
+    line-height: 150%;
     text-transform: uppercase;
     margin-bottom: 0px;
   }
@@ -128,7 +128,7 @@
 
   [purpose='logos'] {
     [purpose='logos-header'] {
-      color: var(--Core-Fleet-Black, #192147);
+      color: #192147;
       text-align: center;
 
       /* Body/Emphasis/MD */
@@ -136,7 +136,7 @@
       font-size: 16px;
       font-style: normal;
       font-weight: 700;
-      line-height: 24px; /* 150% */
+      line-height: 150%;
 
     }
   }
@@ -181,14 +181,14 @@
         margin-bottom: 8px;
       }
       [purpose='card-subheading'] {
-        color: var(--Fleet-Black-75, #515774);
+        color: #515774;
 
         /* Body/Emphasis/SM */
         font-family: Inter;
         font-size: 14px;
         font-style: normal;
         font-weight: 700;
-        line-height: 21px; /* 150% */
+        line-height: 150%;
 
       }
       [purpose='checklist'] {
@@ -351,33 +351,33 @@
   [purpose='modal-form'] {
 
     h3 {
-      border-bottom: 1px solid var(--Fleet-Black-10, #E2E4EA);
+      border-bottom: 1px solid #E2E4EA;
       margin-bottom: 32px;
       padding-bottom: 16px;
-      color: var(--Core-Fleet-Black, #192147);
+      color: #192147;
 
       /* Heading/H5 */
       font-family: Inter;
-      font-size: var(--Typography-Heading-H5-Size, 16px);
+      font-size: 16px;
       font-style: normal;
       font-weight: 700;
-      line-height: var(--Typography-Heading-H5-Line-height-2, 24px); /* 150% */
+      line-height: 150%;
     }
     label {
-      // color: var(--Fleet-Black-100, #192147);
+      // color: #192147;
 
       /* Body SM (bold) */
       font-family: Inter;
       font-size: 14px;
       font-style: normal;
       font-weight: 700;
-      line-height: 21px; /* 150% */
+      line-height: 150%;
       margin-bottom: 8px;
     }
     input {
       border-radius: 6px;
-      border: 1px solid var(--Fleet-Black-25, #C5C7D1);
-      background: var(--White, #FFF);
+      border: 1px solid #C5C7D1;
+      background: #FFF;
       display: flex;
       height: 48px;
       padding: 0 12px;
@@ -388,25 +388,25 @@
     [purpose='form-heading'] {
       margin-bottom: 40px;
       h2 {
-        color: var(--Fleet-Black-100, #192147);
+        color: #192147;
 
         /* Title L (FKA h2) */
         font-family: Inter;
         font-size: 32px;
         font-style: normal;
         font-weight: 800;
-        line-height: 38.4px; /* 120% */
+        line-height: 120%;
         margin-bottom: 16px;
       }
       p {
-        color: var(--Fleet-Black-75, #515774);
+        color: #515774;
 
         /* Body MD (FKA p) */
         font-family: Inter;
         font-size: 16px;
         font-style: normal;
         font-weight: 400;
-        line-height: 24px; /* 150% */
+        line-height: 150%;
       }
     }
 
@@ -465,14 +465,14 @@
     }
     [purpose='form-label'] {
       p {
-        color: var(--Fleet-Black-75, #515774);
+        color: #515774;
 
         /* Body/XS */
         font-family: Inter;
         font-size: 12px;
         font-style: normal;
         font-weight: 400;
-        line-height: 18px; /* 150% */
+        line-height: 150%;
         margin-bottom: 8px;
       }
     }
@@ -561,11 +561,11 @@
       display: flex;
       height: 36px;
       max-width: 128px;
-      padding: 8px var(--Space-space_200, 16px);
+      padding: 8px 16px;
       justify-content: center;
       align-items: center;
       gap: 4px;
-      color: var(--White, #FFF);
+      color: #FFF;
       text-align: center;
 
       /* Body/Emphasis/SM */
@@ -573,7 +573,7 @@
       font-size: 14px;
       font-style: normal;
       font-weight: 700;
-      line-height: 21px; /* 150% */
+      line-height: 150%;
     }
   }
 
@@ -605,7 +605,11 @@
     [purpose='landing-page-content'] {
       gap: @section-gap-l;
     }
-
+    [parasails-component='modal'] {
+      .modal-content {
+        padding: 48px;
+      }
+    }
   }
   @media (max-width: 767px) {
     [purpose='landing-page-container'] {
@@ -616,6 +620,11 @@
       padding-bottom: 64px;
       padding-left: 32px;
       padding-right: 32px;
+    }
+    [parasails-component='modal'] {
+      .modal-content {
+        padding: 32px;
+      }
     }
     [purpose='landing-page-content'] {
       gap: @section-gap-m;
@@ -656,24 +665,24 @@
   }
   @media (max-width: 575px) {
     h1 {
-      color: var(--Core-Fleet-Black, #192147);
+      color: #192147;
 
       /* Heading/H1 */
       font-family: Inter;
-      font-size: var(--Typography-Heading-H1-Size, 32px);
+      font-size: 32px;
       font-style: normal;
       font-weight: 800;
-      line-height: var(--Typography-Heading-H1-Line-height, 38.4px); /* 120% */
+      line-height: 120%;
     }
     h2 {
-      color: var(--Core-Fleet-Black, #192147);
+      color: #192147;
 
       /* Heading/H2 */
       font-family: Inter;
-      font-size: var(--Typography-Heading-H2-Size, 24px);
+      font-size: 24px;
       font-style: normal;
       font-weight: 800;
-      line-height: var(--Typography-Heading-H2-Line-height, 28.8px); /* 120% */
+      line-height: 120%;
     }
     [purpose='landing-page-container'] {
       padding: 32px 24px 0px 24px;
@@ -682,7 +691,11 @@
       padding-left: 24px;
       padding-right: 24px;
     }
-
+    [parasails-component='modal'] {
+      .modal-content {
+        padding: 24px;
+      }
+    }
     [purpose='button-row'] {
       flex-direction: column;
       width: 100%;

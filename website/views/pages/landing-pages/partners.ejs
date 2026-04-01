@@ -216,9 +216,9 @@
             <label purpose="checkbox-group-label" for="partner-services-offered">Services offered</label>
             <div class="form-group" :class="[formErrors.servicesOffered ? 'is-invalid' : '']">
               <div purpose="input-group">
-                <label purpose="custom-checkbox-label" for="mdm" @click="clickSelectCustomCheckbox()">
+                <label purpose="custom-checkbox-label" for="device-management" @click="clickSelectCustomCheckbox()">
                   <span purpose="custom-checkbox" :class="[partnerFormData.servicesOffered.mdm ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model.trim="partnerFormData['servicesOffered'].mdm" id="mdm">
+                  <input type="checkbox" v-model.trim="partnerFormData['servicesOffered'].mdm" id="device-management">
                   MDM / endpoint management
                 </label>
                 <label purpose="custom-checkbox-label" for="security-services" @click="clickSelectCustomCheckbox()">
@@ -306,15 +306,15 @@
           <div class="row">
             <div class="col-12 col-sm-6 pr-sm-2">
               <div class="form-group">
-                <label for="customer-first-name">First name</label>
-                <input class="form-control" id="partner-first-name" type="text"  :class="[formErrors.partnersFirstName ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersFirstName" autocomplete="first-name">
+                <label for="submitter-first-name">First name</label>
+                <input class="form-control" id="submitter-first-name" type="text"  :class="[formErrors.partnersFirstName ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersFirstName" autocomplete="first-name">
                 <div class="invalid-feedback" v-if="formErrors.submittersFirstName">Please enter your first name.</div>
               </div>
             </div>
             <div class="col-12 col-sm-6 pl-sm-2">
               <div class="form-group">
-                <label for="customers-last-name">Last name</label>
-                <input class="form-control" id="customers-last-name" type="text"  :class="[formErrors.submittersLastName ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersLastName" autocomplete="last-name">
+                <label for="submitter-last-name">Last name</label>
+                <input class="form-control" id="submitter-last-name" type="text"  :class="[formErrors.submittersLastName ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersLastName" autocomplete="last-name">
                 <div class="invalid-feedback" v-if="formErrors.submittersLastName">Please enter your last name.</div>
               </div>
             </div>
@@ -445,8 +445,8 @@
           </div>
 
           <div class="form-group">
-            <label for="notes">Additional notes</label>
-            <textarea class="form-control" id="notes" type="textarea" :class="[formErrors.notes ? 'is-invalid' : '']"  v-model.trim="dealRegistrationFormData.notes"></textarea>
+            <label for="deal-notes">Additional notes</label>
+            <textarea class="form-control" id="deal-notes" type="textarea" :class="[formErrors.notes ? 'is-invalid' : '']"  v-model.trim="dealRegistrationFormData.notes"></textarea>
             <div class="invalid-feedback" v-if="formErrors.notes" focus-first>Please provide more information</div>
           </div>
         </div>
