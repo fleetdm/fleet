@@ -67,7 +67,6 @@ export default async function globalTeardown() {
       const sectionCol = i === 0 ? section : '';
       console.log(` ${sectionCol.padEnd(sectionW)}${entries[i].label.padEnd(labelW)}${colorize(entries[i].elapsed, entries[i].ms)}`);
     }
-    console.log('');
   }
 
   console.log('─'.repeat(totalW) + '\n');
