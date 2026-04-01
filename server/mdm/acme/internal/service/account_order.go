@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -296,6 +297,9 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get certificate from datastore")
 	}
+	if !strings.HasSuffix(certPEM, "\n") {
+		certPEM += "\n"
+	}
 
 	// retrieve the root certificate
 	assets, err := s.providers.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert}, nil)
@@ -308,5 +312,5 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 	}
 	rootPEM := string(pem.EncodeToMemory(block))
 
-	return certPEM + "\n" + rootPEM, nil
+	return certPEM + rootPEM, nil
 }
