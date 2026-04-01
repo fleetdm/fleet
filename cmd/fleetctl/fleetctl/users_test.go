@@ -228,6 +228,9 @@ func TestDeleteBulkUsers(t *testing.T) {
 		deletedUser = id
 		return nil
 	}
+	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+		return nil
+	}
 
 	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete-users", "--csv", csvFilePath}))
 	for indx, user := range users {
