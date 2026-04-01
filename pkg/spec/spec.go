@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"sort"
@@ -39,9 +40,7 @@ func SetEnvOverrides(overrides map[string]string) {
 		return
 	}
 	envOverrides = make(map[string]string, len(overrides))
-	for k, v := range overrides {
-		envOverrides[k] = v
-	}
+	maps.Copy(envOverrides, overrides)
 }
 
 // lookupEnv checks env overrides first, then falls back to os.LookupEnv.
