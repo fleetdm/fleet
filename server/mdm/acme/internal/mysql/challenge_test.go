@@ -115,7 +115,7 @@ func testGetChallengeByIDWithInvalidAccountID(t *testing.T, env *testEnv) {
 
 func testUpdateChallengeHappyPath(t *testing.T, env *testEnv) {
 	account, _ := createTestAccountForOrder(t, env)
-	_, _, challenge := createTestOrderForAccount(t, account, env)
+	order, _, challenge := createTestOrderForAccount(t, account, env)
 
 	challenge.Status = "valid"
 	updatedChallenge, err := env.ds.UpdateChallenge(t.Context(), challenge)
@@ -124,16 +124,12 @@ func testUpdateChallengeHappyPath(t *testing.T, env *testEnv) {
 	require.Equal(t, "valid", updatedChallenge.Status)
 	require.Equal(t, challenge.ID, updatedChallenge.ID)
 
-	// Verify that the authorization and order status were updated as well
-	var authStatus string
-	err = env.TestDB.DB.GetContext(t.Context(), &authStatus, "SELECT status FROM acme_authorizations WHERE id = ?", challenge.ACMEAuthorizationID)
+	order, auhtz, err := env.ds.GetOrderByID(t.Context(), account.ID, order.ID)
 	require.NoError(t, err)
-	require.Equal(t, "valid", authStatus)
+	require.NotNil(t, auhtz)
+	for _, auth := range auhtz {
+		require.Equal(t, "valid", auth.Status)
+	}
 
-	var orderStatus string
-	err = env.TestDB.DB.GetContext(t.Context(), &orderStatus, `SELECT o.status FROM acme_orders o
-	INNER JOIN acme_authorizations a ON o.id = a.acme_order_id
-	WHERE a.id = ?`, challenge.ACMEAuthorizationID)
-	require.NoError(t, err)
-	require.Equal(t, "ready", orderStatus)
+	require.Equal(t, "ready", order.Status)
 }

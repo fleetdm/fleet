@@ -259,6 +259,7 @@ func (r *ListOrdersResponse) BeforeRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
+// Error implements the platform_http.Errorer interface.
 func (r ListOrdersResponse) Error() error { return r.Err }
 
 type DoChallengeRequest struct {

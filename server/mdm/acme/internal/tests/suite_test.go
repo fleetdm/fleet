@@ -75,7 +75,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 		}),
 	)
 
-	opts := service.WithAppleRootCAs(rootPool)
+	opts := service.WithTestAppleRootCAs(rootPool)
 	// Create service
 	svc := service.NewService(ds, pool, providers, tdb.Logger, opts)
 

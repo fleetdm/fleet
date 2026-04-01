@@ -42,8 +42,7 @@ func (ds *Datastore) GetChallengeByID(ctx context.Context, accountID, challengeI
 	const query = `SELECT ac.id, ac.acme_authorization_id, ac.challenge_type, ac.status, ac.token, ac.updated_at FROM acme_challenges ac
 	INNER JOIN acme_authorizations a ON ac.acme_authorization_id = a.id
 	INNER JOIN acme_orders o ON a.acme_order_id = o.id
-	INNER JOIN acme_accounts acnt ON o.acme_account_id = acnt.id
-	WHERE ac.id = ? AND acnt.id = ?`
+	WHERE ac.id = ? AND o.acme_account_id = ?`
 	var challenge types.Challenge
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &challenge, query, challengeID, accountID)
 	if err != nil {

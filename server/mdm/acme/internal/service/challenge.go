@@ -47,33 +47,29 @@ func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrol
 	}
 
 	var validationErr error
+	var updatedChallenge *types.Challenge
 	switch challenge.ChallengeType {
 	case types.DeviceAttestationChallengeType:
-		updatedChallenge, err := s.validateDeviceAttestationChallenge(ctx, enrollment, challenge, payload)
-		if updatedChallenge != nil {
-			challenge = updatedChallenge
-		}
-		validationErr = err
+		updatedChallenge, validationErr = s.validateDeviceAttestationChallenge(ctx, enrollment, challenge, payload)
 	default:
 		return nil, types.InternalServerError(fmt.Sprintf("unsupported challenge type %s", challenge.ChallengeType))
 	}
 
-	if challenge.Status == "pending" && validationErr != nil {
+	if updatedChallenge.Status == "pending" && validationErr != nil {
 		// Don't update to invalid if we failed on other causes
-		// TODO: Is this correct, or should we always mark it invalid on any failures?
 		return nil, validationErr
 	}
 
 	challengeResponse := &types.ChallengeResponse{
-		ChallengeType: challenge.ChallengeType,
-		Status:        challenge.Status,
-		Token:         challenge.Token,
+		ChallengeType: updatedChallenge.ChallengeType,
+		Status:        updatedChallenge.Status,
+		Token:         updatedChallenge.Token,
 	}
 
 	// We always call UpdateChallenge here since we update it's validity by reference
 	// this internally updates challenge status, authorization status and order status, which we can
 	// confidently do with only one authorization and one challenge per order, if we add more we need to re-work this.
-	if updatedChallenge, err := s.store.UpdateChallenge(ctx, challenge); err != nil {
+	if updatedChallenge, err := s.store.UpdateChallenge(ctx, updatedChallenge); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating challenge status")
 	} else if updatedChallenge != nil && updatedChallenge.Status == "valid" {
 		challengeResponse.Validated = &updatedChallenge.UpdatedAt
@@ -88,7 +84,7 @@ func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrol
 		return nil, ctxerr.Wrap(ctx, err, "getting base URL")
 	}
 
-	challengeURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "challenges", fmt.Sprint(challenge.ID))
+	challengeURL, err := s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "challenges", fmt.Sprint(updatedChallenge.ID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "constructing challenge URL")
 	}
@@ -128,7 +124,7 @@ func (s *Service) validateDeviceAttestationChallenge(ctx context.Context, enroll
 
 // Challenge status is updated by reference
 func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, enrollment *types.Enrollment, challenge *types.Challenge, attStmt types.AppleDeviceAttestationStatement) error {
-	roots := s.appleRootCAs
+	roots := s.testAppleRootCAs
 	if roots == nil {
 		roots = x509.NewCertPool()
 		rootCABlock, _ := pem.Decode([]byte(appleEnterpriseAttestationRootCA))
