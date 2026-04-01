@@ -2,6 +2,7 @@ package osv
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,25 +19,6 @@ const (
 	osvGithubOwner = "fleetdm"
 	osvGithubRepo  = "vulnerabilities"
 )
-
-// ghOSVFileGetter returns a function that can fetch files from the GitHub vulnerabilities repository
-func ghOSVFileGetter() func(string) (io.ReadCloser, error) {
-	ghClient := fleethttp.NewGithubClient()
-	return func(file string) (io.ReadCloser, error) {
-		src, r, err := github.NewClient(ghClient).Repositories.DownloadContents(
-			context.Background(), osvGithubOwner, osvGithubRepo, file, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		// Even if err is nil, the request can fail
-		if r.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("github http status error: %d", r.StatusCode)
-		}
-
-		return src, nil
-	}
-}
 
 // getLatestReleaseTag fetches the latest release tag from the vulnerabilities repository
 func getLatestReleaseTag() (string, error) {
@@ -58,7 +40,7 @@ func getLatestReleaseTag() (string, error) {
 	}
 
 	if release.TagName == nil {
-		return "", fmt.Errorf("release tag name is nil")
+		return "", errors.New("release tag name is nil")
 	}
 
 	return *release.TagName, nil

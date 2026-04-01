@@ -80,10 +80,10 @@ func TestWhatToDownloadOSV(t *testing.T) {
 	date := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name      string
-		osVers    *fleet.OSVersions
-		existing  map[string]struct{}
-		expected  []string
+		name     string
+		osVers   *fleet.OSVersions
+		existing map[string]struct{}
+		expected []string
 	}{
 		{
 			name: "no existing artifacts",
