@@ -367,7 +367,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	var teamName string
 	if teamID > 0 {
 		lic, _ := license.FromContext(ctx)
-		if !lic.IsPremium() {
+		if lic == nil || !lic.IsPremium() {
 			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
 		}
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
