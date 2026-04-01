@@ -21,6 +21,38 @@
           <div purpose="logos-header">
             Trusted by leading channel partners
           </div>
+          <div purpose="logo-carousel">
+            <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
+              <img alt="Amaris logo" src="/images/logos/partner-logo-amaris-86x32.png">
+              <img alt="Denali logo" src="/images/logos/partner-logo-denali-55x32@2x.png ">
+              <img alt="SHI logo" src="/images/logos/partner-logo-shi-70x32@2x.png">
+              <img alt="Myriad logo" src="/images/logos/partner-logo-myriad-360-146x32@2x.png">
+              <img alt="3eye logo" src="/images/logos/partner-logo-3eye-74x32@2x.png">
+              <img alt="CDW logo" src="/images/logos/partner-logo-cdw-60x32@2x.png">
+              <img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png">
+              <img alt="Wediggit logo" src="/images/logos/partner-logo-wediggit-94x32@2x.png">
+              <img alt="Deel logo" src="/images/logos/partner-logo-deel-88x32@2x.png">
+              <img alt="nDuo logo" src="/images/logos/partner-logo-nduo-100x32@2x.png">
+              <img alt="Deeploi logo" src="/images/logos/partner-logo-deeploi-117x32@2x.png ">
+              <img alt="Treeline logo" src="/images/logos/partner-logo-treeline-157x32@2x.png">
+            </div>
+            <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
+              <img alt="Amaris logo" src="/images/logos/partner-logo-amaris-86x32.png">
+              <img alt="Denali logo" src="/images/logos/partner-logo-denali-55x32@2x.png ">
+              <img alt="SHI logo" src="/images/logos/partner-logo-shi-70x32@2x.png">
+              <img alt="Myriad logo" src="/images/logos/partner-logo-myriad-360-146x32@2x.png">
+              <img alt="3eye logo" src="/images/logos/partner-logo-3eye-74x32@2x.png">
+              <img alt="CDW logo" src="/images/logos/partner-logo-cdw-60x32@2x.png">
+              <img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png">
+              <img alt="Wediggit logo" src="/images/logos/partner-logo-wediggit-94x32@2x.png">
+              <img alt="Deel logo" src="/images/logos/partner-logo-deel-88x32@2x.png">
+              <img alt="nDuo logo" src="/images/logos/partner-logo-nduo-100x32@2x.png">
+              <img alt="Deeploi logo" src="/images/logos/partner-logo-deeploi-117x32@2x.png ">
+              <img alt="Treeline logo" src="/images/logos/partner-logo-treeline-157x32@2x.png">
+            </div>
+            <div purpose="fade-left"></div>
+            <div purpose="fade-right"></div>
+          </div>
         </div>
       </div><%// page-hero %>
 
@@ -46,7 +78,7 @@
               <p>Dedicated partner manager</p>
             </div>
             <div>
-              <a purpose="cta-button">Apply to resell Fleet</a>
+              <a purpose="cta-button" @click="clickOpenPartnerModal('reseller')">Apply to resell Fleet</a>
             </div>
           </div>
           <div purpose="details-card">
@@ -64,7 +96,7 @@
               <p>Early access to new APIs and features</p>
             </div>
             <div>
-              <a purpose="cta-button">Become a technology partner</a>
+              <a purpose="cta-button" @click="clickOpenPartnerModal('integrations')">Become a technology partner</a>
             </div>
           </div>
         </div>
@@ -123,5 +155,136 @@
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <modal v-if="modal === 'partner'" @close="closeModal()">
+    <div purpose="modal-form">
+      <div purpose="form-heading">
+      <h2>Become a partner</h2>
+      <p>Tell us about your business and how you’d like to partner with Fleet.</p>
+    </div>
+      <ajax-form action="deliverPartnerRegistrationSubmission" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="partnerFormData" :form-rules="partnerFormRules" @submitted="submittedPartnerForm()">
+        <div purpose="form-section">
+          <div class="row">
+            <div class="col-12 col-sm-6 pr-sm-2">
+              <div class="form-group">
+                <label for="partner-first-name">First name *</label>
+                <input class="form-control" id="partner-first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="partnerFormData.firstName" autocomplete="first-name" >
+                <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 pl-sm-2">
+              <div class="form-group">
+                <label for="parner-last-name">Last name *</label>
+                <input class="form-control" id="parner-last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="partnerFormData.lastName" autocomplete="last-name" >
+                <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="partner-email-address">Email *</label>
+            <input class="form-control" id="partner-email-address"  :class="[formErrors.submittersEmailAddress ? 'is-invalid' : '']" v-model.trim="partnerFormData.submittersEmailAddress" >
+            <div class="invalid-feedback" v-if="formErrors.submittersEmailAddress" focus-first>This doesn’t appear to be a valid email address</div>
+          </div>
+          <div class="form-group">
+            <label for="partner-organization">Company *</label>
+            <input class="form-control" id="partner-organization" type="text"  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="partnerFormData.submittersOrganization" >
+            <div class="invalid-feedback" v-if="formErrors.submittersOrganization">Please enter the name of your organization.</div>
+          </div>
+          <div class="form-group">
+            <strong>How will you work with Fleet?</strong>
+            <label purpose="form-option" class="form-control" :class="[partnerFormData.partnerType === 'login' ? 'reseller' : '']">
+              <input type="radio" v-model.trim="partnerFormData.partnerType" value="reseller" >
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Resell or manage devices for customers
+            </label>
+            <label purpose="form-option" class="form-control" :class="[partnerFormData.partnerType === 'integrations' ? 'selected' : '']">
+              <input type="radio" v-model.trim="partnerFormData.partnerType" value="integrations">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Build integrations with Fleet
+            </label>
+          </div>
+        </div>
+        <div purpose="form-section">
+          <div class="form-group">
+            <label for="partner-website">Website</label>
+            <input class="form-control" id="partner-website" v-model.trim="partnerFormData.partnerWebsite" >
+          </div>
+          <div class="form-group">
+            <label for="partner-country">Country</label>
+            <input class="form-control" id="partner-country" v-model.trim="partnerFormData.partnerCountry" >
+          </div>
+          <div v-if="partnerFormData.partnerType === 'reseller'">
+            <label purpose="checkbox-group-label" for="partner-services-offered">Services offered</label>
+            <div class="form-group" :class="[formErrors.servicesOffered ? 'is-invalid' : '']">
+              <div purpose="input-group">
+                <label purpose="custom-checkbox-label" for="mdm" @click="clickSelectCustomCheckbox()">
+                  <span purpose="custom-checkbox" :class="[partnerFormData.servicesOffered.mdm ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model.trim="partnerFormData['servicesOffered'].mdm" id="mdm">
+                  MDM / endpoint management
+                </label>
+                <label purpose="custom-checkbox-label" for="security-services" @click="clickSelectCustomCheckbox()">
+                  <span purpose="custom-checkbox" :class="[partnerFormData.servicesOffered.securityServices ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model.trim="partnerFormData['servicesOffered'].securityServices" id="security-services">
+                  Security services (MSSP)
+                </label>
+                <label purpose="custom-checkbox-label" for="it-services" @click="clickSelectCustomCheckbox()">
+                  <span purpose="custom-checkbox" :class="[partnerFormData.servicesOffered.itServices ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model.trim="partnerFormData['servicesOffered'].itServices" id="it-services">
+                  IT services / MSP
+                </label>
+                <label purpose="custom-checkbox-label" for="consulting" @click="clickSelectCustomCheckbox()">
+                  <span purpose="custom-checkbox" :class="[partnerFormData.servicesOffered.consulting ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model.trim="partnerFormData['servicesOffered'].consulting" id="consulting">
+                  Consulting
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="partner-number-of-hosts">Approx. endpoints managed</label>
+              <select class="form-control custom-select" v-model.trim="partnerFormData.numberOfHosts" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']">
+                <option :value="undefined">Select</option>
+                <option value="1 - 100">1 - 100</option>
+                <option value="100 - 1000">100 - 1,000</option>
+                <option value="1000 - 5000">1,000 - 5,000</option>
+                <option value="5000+">5,000+</option>
+              </select>
+              <div class="invalid-feedback">Please select an option.</div>
+            </div>
+
+          </div>
+          <div v-else>
+            <div class="form-group">
+              <label for="partner-service-description">Which best describes your services?</label>
+              <select class="form-control custom-select" id="partner-service-description" v-model.trim="partnerFormData.servicesDescription" :class="[formErrors.servicesDescription ? 'is-invalid' : '']">
+                <option :value="undefined">Select</option>
+                <option value="Security">Security</option>
+                <option value="Identity">Identity</option>
+                <option value="Infrastructure / cloud">Infrastructure / cloud</option>
+                <option value="Developer tools">Developer tools</option>
+                <option value="IT operations">IT operations</option>
+                <option value="Other">Other</option>
+              </select>
+              <div class="invalid-feedback">Please select an option.</div>
+            </div>
+
+          </div>
+          <div class="form-group">
+            <div v-if="partnerFormData.partnerType === 'reseller'">
+            <label for="notes">Tell us about your services or customers</label>
+            <p>E.g., types of customers, deployments, or services you offer.</p>
+            </div>
+            <div v-else>
+              <label for="notes">Tell us about your integration</label>
+              <p>E.g., data integration, product integration, or co-marketing.</p>
+            </div>
+            <textarea class="form-control" id="notes" type="textarea" v-model.trim="partnerFormData.notes" >
+            </textarea>
+          </div>
+        </div>
+        <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
+        <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Submit</ajax-button>
+        <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
+      </ajax-form>
+    </div>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
