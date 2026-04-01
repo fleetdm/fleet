@@ -5,50 +5,52 @@
 
 ### Capture Eventbrite attendees in Salesforce campaigns
 
-> _*TL;DR: It's not working, Who should I call and what should I check?*_
-> DRI: @Sampfluger88
+> ***TL;DR: It's not working, Who should I call and what can I check?***
+> 
+> DRI: @Sampfluger88 (`@`-mention the DRI in [#help-gtm-ops](https://fleetdm.slack.com/archives/C08BTMFTUCR))
 > - Does the Eventbrite page have an "order form" attached? If so, remove it! « This breaks the flow by adding another required form submission not tied to the `New Attendee Registered` action. Attendee name and email will be returned as "Info Requested".
 > - Does the SFDC campaign exists?
 > - Is the `Event_key` populated correctly on the corresponding SFDC campaign?
 
-_*Purpose*_
+
+***Purpose***
 
 Create a reliable, repeatable way to associate Eventbrite registrations with the correct Salesforce contact and campaign. Each event has a unique identifier (`event_key`). We store that identifier on the corresponding Salesforce campaign creating a 1:1 relationship between the published event and the Salesforce campaign. 
 
 This approach “connects” Eventbrite to Salesforce campaigns by using the **`Event_key` as the system-of-record key**. Salesforce Campaigns store that key, and Clay uses it to automatically route registrations to the right Campaign and create/update Campaign Members—cleanly, invisibly, and in a way that can later support additional event platforms.
 
-_*High-level workflow*_
+
+***High-level workflow***
 
 1. A new registration occurs and is captured by Zapier (workflow: [Eventbrite - Event registration » Clay](https://zapier.com/editor/355884186/published)).
 2. Zap captures and sends the following info to Clay:
-    2. `fullName`
-    2. `firstName`
-    2. `lastName` 
-    2. `Email` 
-    2. `providedNotes`: "`EVENT_NAME` - `EVENT_URL`" 
-    2. `Event_key`: "Eventbrite-"`EVENT_ID` (This is used to identify the correct Salesforce campaign to add the contact to.)
-    2. `campaignMemberStatus`: "Registered" « (Hardcoded)
-3. Clay (table: https://app.clay.com/workspaces/315782/workbooks/wb_0t4mlesfmwB8E6W357B/tables/t_0t90w56wNMpfCnCnfFm/views/gv_0t90w56hCPwZrpWtyC6) receives the payload.
-    3. The `Event_key` is used to find the correct campaign.
-    3. A [historical event](https://fleetdm.com/handbook/finance/gtm-architecture#historical-events-sfdc) gets created with a `relatedCampaign` matching the `Event_key`. Creating a historical event will also create the contact/account if it doesn't already exist.
-    3. The name and email is used to pull the correct LinkedIn. If a LinkedIn profile is found, Clay updates the following data in Salesforce:
-        3. Job title
-        3. Mailing address: (City, State/Province, Country)
-        3. Primary buying situation « TODO Document
-        3. Role « TODO Document
-    3. Sends the following message to the [#help-gitops-workshops](https://fleetdm.slack.com/archives/C0ALY0LJD39) Slack channel.
+    - `fullName`
+    - `firstName`
+    - `lastName` 
+    - `Email` 
+    - `providedNotes`: "`EVENT_NAME` - `EVENT_URL`" 
+    - `Event_key`: "Eventbrite-"`EVENT_ID` (This is used to identify the correct Salesforce campaign to add the contact to.)
+    - `campaignMemberStatus`: "Registered" « (Hardcoded)
+3. Clay (table: [Events - Historical event creation](https://app.clay.com/workspaces/315782/workbooks/wb_0t4mlesfmwB8E6W357B/tables/t_0t90w56wNMpfCnCnfFm/views/gv_0t90w56hCPwZrpWtyC6)) receives the payload.
+    - The `Event_key` is used to find the correct campaign.
+    - A [historical event](https://fleetdm.com/handbook/finance/gtm-architecture#historical-events-sfdc) gets created with a `relatedCampaign` matching the `Event_key`. Creating a historical event will also create the contact/account if it doesn't already exist.
+    - The name and email is used to pull the correct LinkedIn. If a LinkedIn profile is found, Clay updates the following data in Salesforce:
+        - Job title
+        - Mailing address: (City, State/Province, Country)
+        - Primary buying situation « TODO Document
+        - Role « TODO Document
+    - Sends the following message to the [#help-gitops-workshops](https://fleetdm.slack.com/archives/C0ALY0LJD39) Slack channel.
     
     ```
-    NEW GITOPS REGISTRATION
+        NEW GITOPS REGISTRATION
+        _*`fullName`*_ signed up for `proviededNotes`
 
-    _*`fullName`*_ signed up for `proviededNotes`
+        - CONTACT: 
+        _*`fullName`*_ (`finalLinkedInProfile`)
+        `CRMLink`
 
-    - CONTACT: 
-    _*`fullName`*_ (`finalLinkedInProfile`)
-    `CRMLink`
-
-    - ACCOUNT:
-    `Rating` - _*`accountName`*_ (`finalLinkedInCompanyUrl`)
+        - ACCOUNT:
+        `Rating` - _*`accountName`*_ (`finalLinkedInCompanyUrl`)
     ```
 
 
