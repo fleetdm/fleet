@@ -12,10 +12,15 @@ const (
 	OrderStatusPending = "pending"
 	OrderStatusReady   = "ready"
 	OrderStatusValid   = "valid"
+	OrderStatusInvalid = "invalid"
 
-	AuthorizationStatusValid = "valid"
+	AuthorizationStatusPending = "pending"
+	AuthorizationStatusValid   = "valid"
+	AuthorizationStatusInvalid = "invalid"
 
-	ChallengeStatusValid = "valid"
+	ChallengeStatusPending = "pending"
+	ChallengeStatusValid   = "valid"
+	ChallengeStatusInvalid = "invalid"
 )
 
 type Directory struct {

@@ -38,7 +38,7 @@ func testGetValidAuthorization(t *testing.T, env *testEnv) {
 	authResp, err := env.ds.GetAuthorizationByID(t.Context(), account.ID, authorization.ID)
 	require.NoError(t, err)
 	require.NotNil(t, authResp)
-	require.Equal(t, "pending", authResp.Status)
+	require.Equal(t, types.AuthorizationStatusPending, authResp.Status)
 	require.Equal(t, "permanent-identifier", authResp.Identifier.Type)
 	require.Equal(t, "serial-123", authResp.Identifier.Value)
 	require.Equal(t, order.ID, authResp.ACMEOrderID)

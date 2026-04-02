@@ -573,7 +573,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 		require.NotEmpty(t, resp.Header.Get("Location"))
 		require.Regexp(t, "/api/mdm/acme/"+enroll.PathIdentifier+`/orders/\d+`, resp.Header.Get("Location"))
 
-		require.Equal(t, "pending", orderResp.Status)
+		require.Equal(t, types.OrderStatusPending, orderResp.Status)
 		require.Len(t, orderResp.Identifiers, 1)
 		require.Equal(t, "permanent-identifier", orderResp.Identifiers[0].Type)
 		require.Equal(t, enroll.HostIdentifier, orderResp.Identifiers[0].Value)
@@ -845,7 +845,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 
-		require.Equal(t, "pending", gotOrder.Status)
+		require.Equal(t, types.OrderStatusPending, gotOrder.Status)
 		require.Len(t, gotOrder.Identifiers, 1)
 		require.Equal(t, "permanent-identifier", gotOrder.Identifiers[0].Type)
 		require.Equal(t, enroll.HostIdentifier, gotOrder.Identifiers[0].Value)
@@ -891,7 +891,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.Nil(t, acmeErr)
-		require.Equal(t, "valid", gotOrder.Status)
+		require.Equal(t, types.OrderStatusValid, gotOrder.Status)
 		require.Regexp(t, fmt.Sprintf("/api/mdm/acme/%s/orders/%d/certificate", enroll.PathIdentifier, orderResp.ID), gotOrder.Certificate)
 	})
 
@@ -1419,7 +1419,7 @@ func testGetAuthorization(t *testing.T, s *integrationTestSuite) {
 		authResp, acmeErr, _ := s.getAuthorization(t, authURL, jws)
 		require.Nil(t, acmeErr)
 		require.NotNil(t, authResp)
-		require.Equal(t, "pending", authResp.Status)
+		require.Equal(t, types.AuthorizationStatusPending, authResp.Status)
 		require.Equal(t, "permanent-identifier", authResp.Identifier.Type)
 		require.Equal(t, enroll.HostIdentifier, authResp.Identifier.Value)
 		require.Len(t, authResp.Challenges, 1)
@@ -1481,7 +1481,7 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.Nil(t, acmeErr)
 		require.NotNil(t, result)
-		require.Equal(t, "valid", result.Status)
+		require.Equal(t, types.OrderStatusValid, result.Status)
 		require.NotEmpty(t, result.Certificate)
 		require.Regexp(t, "/api/mdm/acme/"+enroll.PathIdentifier+`/orders/\d+/certificate`, result.Certificate)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
@@ -1611,7 +1611,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		require.Nil(t, acmeErr)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NotNil(t, challengeResp)
-		require.Equal(t, "valid", challengeResp.Status)
+		require.Equal(t, types.ChallengeStatusValid, challengeResp.Status)
 	})
 
 	t.Run("challenge not pending", func(t *testing.T) {
@@ -1629,7 +1629,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		require.Nil(t, acmeErr)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NotNil(t, challengeResp)
-		require.Equal(t, "valid", challengeResp.Status)
+		require.Equal(t, types.ChallengeStatusValid, challengeResp.Status)
 		nonce = resp.Header.Get("Replay-Nonce")
 
 		// try to do the challenge again with the same JWS body

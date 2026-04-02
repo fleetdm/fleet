@@ -44,7 +44,7 @@ func (s *Service) GetAuthorization(ctx context.Context, enrollment *types.Enroll
 			URL:           challengeURL,
 		}
 
-		if c.Status == "valid" {
+		if c.Status == types.ChallengeStatusValid {
 			challengeResponse.Validated = &c.UpdatedAt
 		}
 

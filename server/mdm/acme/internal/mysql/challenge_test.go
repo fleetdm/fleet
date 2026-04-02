@@ -47,7 +47,7 @@ func testGetValidChallengesForAuthorization(t *testing.T, env *testEnv) {
 	challenges, err := env.ds.GetChallengesByAuthorizationID(t.Context(), authorization.ID)
 	require.NoError(t, err)
 	require.Len(t, challenges, 1)
-	require.Equal(t, "pending", challenges[0].Status)
+	require.Equal(t, types.ChallengeStatusPending, challenges[0].Status)
 	require.Equal(t, types.DeviceAttestationChallengeType, challenges[0].ChallengeType)
 	require.Equal(t, authorization.ID, challenges[0].ACMEAuthorizationID)
 }
@@ -90,7 +90,7 @@ func testGetChallengeByIDWithValidID(t *testing.T, env *testEnv) {
 	challenge, err := env.ds.GetChallengeByID(t.Context(), account.ID, challenge.ID)
 	require.NoError(t, err)
 	require.NotNil(t, challenge)
-	require.Equal(t, "pending", challenge.Status)
+	require.Equal(t, types.ChallengeStatusPending, challenge.Status)
 	require.Equal(t, types.DeviceAttestationChallengeType, challenge.ChallengeType)
 	require.Equal(t, authorization.ID, challenge.ACMEAuthorizationID)
 }
@@ -120,41 +120,41 @@ func testUpdateChallengeHappyPath(t *testing.T, env *testEnv) {
 	account, _ := createTestAccountForOrder(t, env)
 	order, _, challenge := createTestOrderForAccount(t, account, env)
 
-	challenge.Status = "valid"
+	challenge.Status = types.ChallengeStatusValid
 	updatedChallenge, err := env.ds.UpdateChallenge(t.Context(), challenge)
 	require.NoError(t, err)
 	require.NotNil(t, updatedChallenge)
-	require.Equal(t, "valid", updatedChallenge.Status)
+	require.Equal(t, types.ChallengeStatusValid, updatedChallenge.Status)
 	require.Equal(t, challenge.ID, updatedChallenge.ID)
 
 	order, auhtz, err := env.ds.GetOrderByID(t.Context(), account.ID, order.ID)
 	require.NoError(t, err)
 	require.NotNil(t, auhtz)
 	for _, auth := range auhtz {
-		require.Equal(t, "valid", auth.Status)
+		require.Equal(t, types.AuthorizationStatusValid, auth.Status)
 	}
 
-	require.Equal(t, "ready", order.Status)
+	require.Equal(t, types.OrderStatusReady, order.Status)
 }
 
 func testUpdateChallengeInvalidStatus(t *testing.T, env *testEnv) {
 	account, _ := createTestAccountForOrder(t, env)
 	order, _, challenge := createTestOrderForAccount(t, account, env)
 
-	challenge.Status = "invalid"
+	challenge.Status = types.ChallengeStatusInvalid
 	updatedChallenge, err := env.ds.UpdateChallenge(t.Context(), challenge)
 	require.NoError(t, err)
 	require.NotNil(t, updatedChallenge)
-	require.Equal(t, "invalid", updatedChallenge.Status)
+	require.Equal(t, types.ChallengeStatusInvalid, updatedChallenge.Status)
 
 	order, auhtz, err := env.ds.GetOrderByID(t.Context(), account.ID, order.ID)
 	require.NoError(t, err)
 	require.NotNil(t, auhtz)
 	for _, auth := range auhtz {
-		require.Equal(t, "invalid", auth.Status)
+		require.Equal(t, types.AuthorizationStatusInvalid, auth.Status)
 	}
 
-	require.Equal(t, "invalid", order.Status)
+	require.Equal(t, types.OrderStatusInvalid, order.Status)
 }
 
 func testUpdateChallengeNilChallenge(t *testing.T, env *testEnv) {
@@ -168,7 +168,7 @@ func testUpdateChallengeNonExistentID(t *testing.T, env *testEnv) {
 	challenge := &types.Challenge{
 		ID:                  999999,
 		ACMEAuthorizationID: 999999,
-		Status:              "valid",
+		Status:              types.ChallengeStatusValid,
 		ChallengeType:       types.DeviceAttestationChallengeType,
 	}
 

@@ -74,16 +74,16 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 		ACMEAccountID: account.ID,
 		Finalized:     false,
 		Identifiers:   identifiers,
-		Status:        "pending", // always pending at creation
+		Status:        types.OrderStatusPending, // always pending at creation
 	}
 	authz := &types.Authorization{
 		Identifier: identifiers[0],
-		Status:     "pending", // always pending at creation
+		Status:     types.AuthorizationStatusPending, // always pending at creation
 	}
 	challenge := &types.Challenge{
 		ChallengeType: types.DeviceAttestationChallengeType, // only supported challenge for now
 		Token:         types.CreateNonceEncodedForHeader(),
-		Status:        "pending", // always pending at creation
+		Status:        types.ChallengeStatusPending, // always pending at creation
 	}
 	order, err := s.store.CreateOrder(ctx, order, authz, challenge)
 	if err != nil {
@@ -284,8 +284,8 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get order from datastore")
 	}
-	if !order.Finalized || order.Status != "valid" {
-		if order.Status == "invalid" {
+	if !order.Finalized || order.Status != types.OrderStatusValid {
+		if order.Status == types.OrderStatusInvalid {
 			return "", types.OrderDoesNotExistError("Order is in invalid state, cannot get certificate")
 		}
 		return "", types.OrderNotFinalizedError("Order is not finalized/in valid state, cannot get certificate")

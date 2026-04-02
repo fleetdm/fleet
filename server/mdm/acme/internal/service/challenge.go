@@ -42,7 +42,7 @@ func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrol
 		return nil, ctxerr.Wrap(ctx, err, "getting challenge by ID")
 	}
 
-	if challenge.Status != "pending" {
+	if challenge.Status != types.ChallengeStatusPending {
 		return nil, types.InvalidChallengeStatusError(fmt.Sprintf("Challenge with ID %d is not pending and can not be validated", challengeID))
 	}
 
@@ -65,7 +65,7 @@ func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrol
 	// confidently do with only one authorization and one challenge per order, if we add more we need to re-work this.
 	if updatedChallenge, err := s.store.UpdateChallenge(ctx, updatedChallenge); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating challenge status")
-	} else if updatedChallenge != nil && updatedChallenge.Status == "valid" {
+	} else if updatedChallenge != nil && updatedChallenge.Status == types.ChallengeStatusValid {
 		validatedAt = &updatedChallenge.UpdatedAt
 	}
 
@@ -184,12 +184,12 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 
 	sha256Token := sha256.Sum256([]byte(challenge.Token))
 	if subtle.ConstantTimeCompare(appleData.Nonce, sha256Token[:]) != 1 {
-		challenge.Status = "invalid"
+		challenge.Status = types.ChallengeStatusInvalid
 		return types.BadAttestationStatementError("Apple freshness nonce does not match challenge token")
 	}
 
 	if appleData.SerialNumber != enrollment.HostIdentifier {
-		challenge.Status = "invalid"
+		challenge.Status = types.ChallengeStatusInvalid
 		return types.BadAttestationStatementError("Serial number in certificate does not match enrollment's host identifier")
 	}
 
@@ -199,10 +199,10 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 	}
 
 	if len(depAssignments) < 1 {
-		challenge.Status = "invalid"
+		challenge.Status = types.ChallengeStatusInvalid
 		return types.BadAttestationStatementError("No DEP assignments found for serial number in certificate")
 	}
 
-	challenge.Status = "valid"
+	challenge.Status = types.ChallengeStatusValid
 	return nil
 }
