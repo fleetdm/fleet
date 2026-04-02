@@ -1705,7 +1705,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 		}
 		return host, nil
 	}
-	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 		return nil, nil
 	}
 
@@ -1943,7 +1943,7 @@ func TestDetailQueries(t *testing.T) {
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
-	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 		return nil, nil
 	}
 
@@ -2476,7 +2476,7 @@ func TestDistributedQueryResults(t *testing.T) {
 			EnableSoftwareInventory: true,
 		}}, nil
 	}
-	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 		return nil, nil
 	}
 

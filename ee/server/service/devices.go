@@ -313,7 +313,11 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 	}
 
 	// Get current status of the setup experience.
-	results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+	results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}

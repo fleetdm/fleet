@@ -366,7 +366,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, *enrolledHost.TeamID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	var installUUID string
@@ -472,7 +472,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
 
 	// Get script exec ID
-	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, *enrolledHost.TeamID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	var execID string
@@ -837,7 +837,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 	require.Equal(t, fmaTitleID, *fmaResult.SoftwareTitleID)
 
 	// Pull the execution ID out of the DB (the status endpoint doesn't surface it).
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, tm.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.NotNil(t, results[0].HostSoftwareInstallsExecutionID)
@@ -1277,7 +1277,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// exec ID for "DummyApp" out manually
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 3)
 	var installUUID string
@@ -1321,7 +1321,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[1].Status)
 
 	// Get script exec ID
-	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 3)
 	var execID string
@@ -1447,7 +1447,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually (for now only the software install has its execution id)
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, tm.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
@@ -1538,7 +1538,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// them out manually
-	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, tm.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	var installUUIDs []string
@@ -1645,7 +1645,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually (for now only the software install has its execution id)
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
@@ -1692,7 +1692,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually (this time get the script exec ID)
-	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
@@ -3282,7 +3282,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// them out manually
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, *enrolledHost.TeamID)
 	require.NoError(t, err)
 	require.Len(t, results, 4)
 	var installUUIDs []string
@@ -3355,7 +3355,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 					"install_script_output": "ok"
 				}`, *enrolledHost.OrbitNodeKey, installUUIDs[0])), http.StatusNoContent)
 
-	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, *enrolledHost.TeamID)
 	require.NoError(t, err)
 	require.Len(t, results, 4)
 	installUUIDs = []string{}
@@ -3631,7 +3631,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 
 	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
 	// it out manually
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 4)
 	var installUUID string

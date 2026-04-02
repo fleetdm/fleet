@@ -806,7 +806,7 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	//   1. ZZZ_VPP_App   (VPP app,   display name "Alpha VPP Custom")
 	//   2. AAA_Software  (installer, display name "Zulu Custom")
 	//   3. AAA_VPP_App   (VPP app,   display name "Zulu VPP Custom")
-	allResults, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	allResults, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, allResults, 4, "expected 4 results total (2 installers + 2 VPP apps)")
 
@@ -894,7 +894,7 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	//   3. MMM_VPP_NoDisplayName (VPP app,   no display name → falls back to st.name)
 	//   4. AAA_Software          (installer, display name "Zulu Custom")
 	//   5. AAA_VPP_App           (VPP app,   display name "Zulu VPP Custom")
-	fallbackResults, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID2)
+	fallbackResults, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID2, team.ID)
 	require.NoError(t, err)
 	require.Len(t, fallbackResults, 6, "expected 6 results total (3 installers + 3 VPP apps)")
 
@@ -1499,7 +1499,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 		insertSetupExperienceStatusResult(r)
 	}
 
-	res, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	res, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, 0)
 	require.NoError(t, err)
 	require.Len(t, res, 3)
 	for i, s := range expRes {
@@ -1696,14 +1696,14 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	host1OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	host1OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, host1OriginalItems, 1)
 	require.Equal(t, fleet.SetupExperienceStatusPending, host1OriginalItems[0].Status)
 	require.NotNil(t, host1OriginalItems[0].SetupExperienceScriptID)
 	require.Equal(t, team1OriginalScript.ID, *host1OriginalItems[0].SetupExperienceScriptID)
 
-	host2OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	host2OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, host2OriginalItems, 1)
 	require.Equal(t, fleet.SetupExperienceStatusPending, host2OriginalItems[0].Status)
@@ -1720,13 +1720,13 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.Equal(t, team1OriginalScript.ScriptContentID, team1UpdatedScript.ScriptContentID)
 	require.Equal(t, team1OriginalScript.ID, team1UpdatedScript.ID)
 
-	host1NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	host1NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, host1NewItems, 1)
 	require.Equal(t, team1OriginalScript.ID, *host1NewItems[0].SetupExperienceScriptID)
 
 	// Should not have perturbed Host 2's enqueued execution either
-	host2NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	host2NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, host2NewItems, 1)
 	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
@@ -1741,12 +1741,12 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, team1OriginalScript.ScriptContentID, team1UpdatedScript.ScriptContentID)
 	require.NotEqual(t, team1OriginalScript.ID, team1UpdatedScript.ID)
 
-	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, host1NewItems, 0)
 
 	// Should not have affected host 2's enqueued execution
-	host2NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	host2NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, host2NewItems, 1)
 	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
@@ -1756,7 +1756,7 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, host1NewItems, 1)
 	require.Equal(t, team1UpdatedScript.ID, *host1NewItems[0].SetupExperienceScriptID)

@@ -1750,7 +1750,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	_, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", host1.UUID, *host1.TeamID)
 	require.NoError(t, err)
 
-	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
@@ -1800,7 +1800,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	})
 	require.NoError(t, err)
 
-	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
@@ -1845,7 +1845,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 
 	require.NoError(t, err)
 
-	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
@@ -1917,7 +1917,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	})
 	require.NoError(t, err)
 
-	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 

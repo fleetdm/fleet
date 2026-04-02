@@ -127,7 +127,11 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		if license.IsPremium(ctx) {
-			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+			var teamID uint
+			if args.TeamID != nil {
+				teamID = *args.TeamID
+			}
+			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID, teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 			}
@@ -189,7 +193,11 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			}
 		}
 	} else {
-		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+		var teamID uint
+		if args.TeamID != nil {
+			teamID = *args.TeamID
+		}
+		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 		}
@@ -482,7 +490,11 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	}
 
 	if !isMacOS(args.Platform) {
-		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID)
+		var teamID uint
+		if args.TeamID != nil {
+			teamID = *args.TeamID
+		}
+		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP release")
 		}
@@ -523,8 +535,8 @@ func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, 
 	return cmdUUID, nil
 }
 
-func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context, hostUUID string) ([]string, error) {
-	statuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context, hostUUID string, teamID uint) ([]string, error) {
+	statuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}

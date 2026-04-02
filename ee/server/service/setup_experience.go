@@ -186,7 +186,11 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 	}
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}

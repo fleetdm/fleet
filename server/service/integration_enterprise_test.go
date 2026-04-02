@@ -22804,7 +22804,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -22846,7 +22846,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
 		// get execution ID for vim
-		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		for _, result := range results {
@@ -22939,7 +22939,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		fedoraHostUUID, err := fleet.HostUUIDForSetupExperience(fedoraHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -22981,7 +22981,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
 		// get exec ID for test.tar.gz
-		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID)
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		for _, result := range results {
@@ -23058,7 +23058,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23091,7 +23091,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, fleet.SetupExperienceStatusPending, getDeviceStatusResponse.Results.Software[1].Status)
 
 		// Get execution ID for vim
-		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		for _, result := range results {
@@ -23162,7 +23162,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23231,7 +23231,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[1].Status)
 
 		// Get execution ID for vim
-		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		for _, result := range results {
@@ -23356,7 +23356,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		require.NotNil(t, results[0].HostSoftwareInstallsExecutionID)
@@ -23490,7 +23490,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	// so pull it out manually
 	ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 	require.NoError(t, err)
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23532,7 +23532,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	require.EqualValues(t, "running", orbitRes.Results.Software[1].Status)
 
 	// Get execution ID for vim
-	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	for _, result := range results {
@@ -23744,7 +23744,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		// so pull it out manually
 		windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost1)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23786,7 +23786,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
 		// Get execution ID for Hello world
-		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		for _, result := range results {
@@ -23975,7 +23975,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		// so pull it out manually
 		windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost2)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -24017,7 +24017,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
 
 		// Get execution ID for Hello world
-		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		for _, result := range results {
@@ -24190,7 +24190,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	// so pull it out manually
 	windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost)
 	require.NoError(t, err)
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -24225,7 +24225,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	require.NotNil(t, orbitRes.Results)
 	require.Len(t, orbitRes.Results.Software, 2)
 
-	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	for _, result := range results {

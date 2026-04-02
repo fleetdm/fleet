@@ -535,7 +535,7 @@ func questionMarks(number int) string {
 	return strings.Join(slices.Repeat([]string{"?"}, number), ",")
 }
 
-func (ds *Datastore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+func (ds *Datastore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 	const stmt = `
 SELECT
 	sesr.id,
@@ -592,28 +592,12 @@ WHERE host_uuid = ?
 
 	// load custom display name and custom icon for the software installers, if any
 	if len(titleIDs) > 0 {
-		// NOTE: as documented in fleet.HostUUIDForSetupExperience, the setup experience "host_uuid"
-		// is NOT always the host.uuid (on Windows and Linux, specifically). So if the host's team is
-		// not found, we simply don't load the icons and display names, anyway we only need those
-		// on macOS currently as it's the only place where the setup experience UI is shown.
-
-		// we need the host's team to load the custom icons and display names
-		const hostTeam = `SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`
-		var hostTeamID sql.Null[uint]
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostTeamID, hostTeam, hostUUID); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// host not found, skip loading icons and display names
-				return results, nil
-			}
-			return nil, ctxerr.Wrap(ctx, err, "get host team ID for setup experience results")
-		}
-
-		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, titleIDs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
 
-		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, teamID, titleIDs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
 		}
