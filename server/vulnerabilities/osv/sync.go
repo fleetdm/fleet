@@ -58,11 +58,14 @@ func removeOldOSVArtifacts(date time.Time, rootPath string) error {
 		if d.IsDir() {
 			return nil
 		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
 
 		baseName := d.Name()
 		if strings.HasPrefix(baseName, OSVFilePrefix) && strings.HasSuffix(baseName, ".json.gz") {
 			if !strings.HasSuffix(baseName, dateSuffix) {
-				if err := os.Remove(path); err != nil {
+				if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 					return fmt.Errorf("removing old OSV artifact %s: %w", baseName, err)
 				}
 			}
