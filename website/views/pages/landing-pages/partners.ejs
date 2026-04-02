@@ -108,11 +108,11 @@
         </div>
         <div purpose="features-section">
           <div purpose="feature">
-            <h5>Open-source foundation</h5>
-            <p>Fleet is built on <a href="/handbook/company#history">osquery</a> and <a href="/handbook/company/why-this-way#why-open-source">open-source</a> principles. Your customers can audit the code, verify what data is collected, and avoid vendor lock-in.</p>
+            <h5>Growing market opportunity</h5>
+            <p>Organizations are moving away from legacy MDM vendors. Fleet's <a href="/handbook/company/why-this-way#why-open-source">open approach</a> is attracting enterprises like Stripe, Fastly, and Gusto.</p>
           </div>
           <div purpose="feature">
-            <h5>Cross-platform by default</h5>
+            <h5>Multi-platform by default</h5>
             <p>macOS, Windows, Linux, iOS, Android, ChromeOS, and cloud infrastructure — all from one platform. One deal covers the entire fleet.</p>
           </div>
           <div purpose="feature">
@@ -128,8 +128,8 @@
             <p>Every feature accessible via REST API. Technology partners can build deep integrations without workarounds.</p>
           </div>
           <div purpose="feature">
-            <h5>Growing market opportunity</h5>
-            <p>Organizations are moving away from legacy MDM vendors. Fleet's open approach is attracting enterprises like Stripe, Fastly, and Gusto.</p>
+            <h5>Open-source foundation</h5>
+            <p>Fleet is built on open-source principles. Your customers can audit the code, verify what data is collected, and avoid vendor lock-in.</p>
           </div>
         </div>
       </div>
@@ -144,10 +144,10 @@
         <p>Talk to our team about how Fleet can help you deliver more value to your customers.</p>
       </div>
       <div purpose="button-row">
-        <a purpose="cta-button">
+        <a purpose="cta-button" @click="clickOpenModal('partner')">
           Become a partner
         </a>
-        <animated-arrow-button>Register a deal</animated-arrow-button>
+        <a @click="clickOpenModal('deal-registration')"><animated-arrow-button>Register a deal</animated-arrow-button></a>
       </div>
 
     </div>
@@ -349,7 +349,7 @@
         </div>
 
         <div purpose="form-section">
-          <h3>Customer deails</h3>
+          <h3>Customer details</h3>
           <div class="form-group">
             <label for="customer-organization">Company</label>
             <input class="form-control" id="customer-organization"  :class="[formErrors.customersOrganization ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.customersOrganization">
