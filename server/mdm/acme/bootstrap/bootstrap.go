@@ -3,6 +3,7 @@
 package bootstrap
 
 import (
+	"crypto/x509"
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -14,19 +15,28 @@ import (
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
+type ServiceOption = service.ServiceOption
+
 // New creates a new ACME service module and returns its service and route handler.
 func New(
 	dbConns *platform_mysql.DBConnections,
 	redisPool fleet.RedisPool,
 	providers acme.DataProviders,
 	logger *slog.Logger,
+	opts ...ServiceOption,
 ) (api.Service, func() eu.HandlerRoutesFunc) {
 	ds := mysql.NewDatastore(dbConns, logger)
-	svc := service.NewService(ds, redisPool, providers, logger)
+	svc := service.NewService(ds, redisPool, providers, logger, opts...)
 
 	routesFn := func() eu.HandlerRoutesFunc {
 		return service.GetRoutes(svc)
 	}
 
 	return svc, routesFn
+}
+
+func WithTestAppleRootCAs(rootCAs *x509.CertPool) ServiceOption {
+	return func(svc *service.Service) {
+		svc.TestAppleRootCAs = rootCAs
+	}
 }

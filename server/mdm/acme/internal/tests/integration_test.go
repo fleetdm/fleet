@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/require"
@@ -277,7 +278,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
@@ -298,7 +300,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		// create account
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody1 := buildJWS(t, privateKey, nonce1, "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
@@ -331,7 +334,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		// create 3 accounts (the maximum allowed per enrollment)
 		nonce := s.getNonce(t, enrollForLimit.PathIdentifier)
 		for range 3 {
-			key := generateTestKey(t)
+			key, err := testhelpers.GenerateTestKey()
+			require.NoError(t, err)
 			jwsBody := buildJWS(t, key, nonce, "", s.newAccountURL(enrollForLimit.PathIdentifier), nil)
 			_, _, resp := s.createAccount(t, enrollForLimit.PathIdentifier, jwsBody)
 			require.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -339,7 +343,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		}
 
 		// 4th should fail
-		key := generateTestKey(t)
+		key, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, key, nonce, "", s.newAccountURL(enrollForLimit.PathIdentifier), nil)
 		_, acmeErr, resp := s.createAccount(t, enrollForLimit.PathIdentifier, jwsBody)
 
@@ -354,7 +359,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		enrollForRevoke := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollForRevoke)
 
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 
 		// create an account
 		nonce := s.getNonce(t, enrollForRevoke.PathIdentifier)
@@ -364,7 +370,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 		// revoke it directly in the DB
 		var accountID uint
-		err := s.DB.GetContext(t.Context(), &accountID, `SELECT id FROM acme_accounts WHERE acme_enrollment_id = ? ORDER BY id DESC LIMIT 1`, enrollForRevoke.ID)
+		err = s.DB.GetContext(t.Context(), &accountID, `SELECT id FROM acme_accounts WHERE acme_enrollment_id = ? ORDER BY id DESC LIMIT 1`, enrollForRevoke.ID)
 		require.NoError(t, err)
 		_, err = s.DB.ExecContext(t.Context(), `UPDATE acme_accounts SET revoked = 1 WHERE id = ?`, accountID)
 		require.NoError(t, err)
@@ -385,7 +391,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		// create account first
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce1 := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody1 := buildJWS(t, privateKey, nonce1, "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		acctResp1, _, resp1 := s.createAccount(t, enrollValid.PathIdentifier, jwsBody1)
@@ -411,7 +418,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		payload := map[string]any{"onlyReturnExisting": true}
 		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollValid.PathIdentifier), payload)
@@ -428,7 +436,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		// we need a valid enrollment to get a nonce, then use a bad identifier for the account request
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		badIdentifier := "no-such-identifier"
 		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(badIdentifier), nil)
@@ -448,7 +457,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		// get nonce from valid enrollment, then try to create account on revoked
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollRevoked.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollRevoked.PathIdentifier, jwsBody)
@@ -466,7 +476,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, "", s.newAccountURL(enrollExpired.PathIdentifier), nil)
 		acctResp, acmeErr, resp := s.createAccount(t, enrollExpired.PathIdentifier, jwsBody)
@@ -484,7 +495,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, privateKey, "bad-nonce-value", "", s.newAccountURL(enrollValid.PathIdentifier), nil)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
 
@@ -499,7 +511,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, "", "", nil)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
@@ -516,7 +529,8 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
-		privateKey := generateTestKey(t)
+		privateKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonce := s.getNonce(t, enrollValid.PathIdentifier)
 		jwsBody := buildJWS(t, privateKey, nonce, "", "http://example.com", nil)
 		_, acmeErr, resp := s.createAccount(t, enrollValid.PathIdentifier, jwsBody)
@@ -905,7 +919,8 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 		_, _, orderResp, _ := s.createOrderForGet(t, enroll)
 
 		// create account B (different key)
-		privateKeyB := generateTestKey(t)
+		privateKeyB, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonceB := s.getNonce(t, enroll.PathIdentifier)
 		jwsBodyB := buildJWS(t, privateKeyB, nonceB, "", s.newAccountURL(enroll.PathIdentifier), nil)
 		_, _, respB := s.createAccount(t, enroll.PathIdentifier, jwsBodyB)
@@ -1110,7 +1125,8 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 		s.createOrderForGet(t, enroll)
 
 		// create account B (different key)
-		privateKeyB := generateTestKey(t)
+		privateKeyB, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonceB := s.getNonce(t, enroll.PathIdentifier)
 		jwsBodyB := buildJWS(t, privateKeyB, nonceB, "", s.newAccountURL(enroll.PathIdentifier), nil)
 		_, _, respB := s.createAccount(t, enroll.PathIdentifier, jwsBodyB)
@@ -1304,7 +1320,8 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 		_, _, orderResp, _ := s.createOrderForGet(t, enroll)
 
 		// create account B (different key)
-		privateKeyB := generateTestKey(t)
+		privateKeyB, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
 		nonceB := s.getNonce(t, enroll.PathIdentifier)
 		jwsBodyB := buildJWS(t, privateKeyB, nonceB, "", s.newAccountURL(enroll.PathIdentifier), nil)
 		_, _, respB := s.createAccount(t, enroll.PathIdentifier, jwsBodyB)
@@ -1454,7 +1471,8 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
 		s.makeOrderReady(t, orderResp.ID)
 
-		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
+		csrPEM, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		require.NoError(t, err)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1474,7 +1492,8 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
 		// order is still in "pending" status (not made ready)
 
-		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
+		csrPEM, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		require.NoError(t, err)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1491,7 +1510,8 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		s.makeOrderReady(t, orderResp.ID)
 
 		// finalize the order first
-		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
+		csrPEM, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		require.NoError(t, err)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1513,7 +1533,8 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
 		s.makeOrderReady(t, orderResp.ID)
 
-		csrPEM := generateCSRDER(t, "wrong-common-name")
+		csrPEM, _, err := testhelpers.GenerateCSRDER("wrong-common-name")
+		require.NoError(t, err)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1543,7 +1564,8 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 	t.Run("non-existing order", func(t *testing.T) {
 		enroll, privateKey, accountURL, _, nonce := s.createOrderForFinalize(t)
 
-		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
+		csrPEM, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		require.NoError(t, err)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, 99999)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
@@ -1559,7 +1581,8 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		enroll, privateKey, accountURL, orderResp, _ := s.createOrderForFinalize(t)
 		s.makeOrderReady(t, orderResp.ID)
 
-		csrPEM := generateCSRDER(t, enroll.HostIdentifier)
+		csrPEM, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		require.NoError(t, err)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
 		jwsBody := buildJWS(t, privateKey, "bad-nonce", accountURL, finalizeURL, payload)
@@ -1578,8 +1601,10 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
-		leafCert := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
-		payload := buildAppleDeviceAttestationPayload(t, leafCert, s.attestCA)
+		leafCert, err := testhelpers.BuildAttestationLeafCert(s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
+		require.NoError(t, err)
+		payload, err := testhelpers.BuildAppleDeviceAttestationPayload(leafCert, s.attestCA)
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
 		challengeResp, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
 
@@ -1595,8 +1620,10 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
 
 		// first do a successful challenge to move it out of pending state
-		leafCert := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
-		payload := buildAppleDeviceAttestationPayload(t, leafCert, s.attestCA)
+		leafCert, err := testhelpers.BuildAttestationLeafCert(s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
+		require.NoError(t, err)
+		payload, err := testhelpers.BuildAppleDeviceAttestationPayload(leafCert, s.attestCA)
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
 		challengeResp, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
 		require.Nil(t, acmeErr)
@@ -1689,9 +1716,12 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
 
 		// build a cert chain that is not valid (leaf signed by unknown CA)
-		cert, key := generateTestAttestationCA(t)
-		leafCert := buildAttestationLeafCert(t, cert, key, enroll.HostIdentifier, challengeToken)
-		payload := buildAppleDeviceAttestationPayload(t, leafCert, cert)
+		cert, key, err := testhelpers.GenerateTestAttestationCA()
+		require.NoError(t, err)
+		leafCert, err := testhelpers.BuildAttestationLeafCert(cert, key, enroll.HostIdentifier, challengeToken)
+		require.NoError(t, err)
+		payload, err := testhelpers.BuildAppleDeviceAttestationPayload(leafCert, cert)
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
 		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
 
@@ -1706,8 +1736,10 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
 
-		leaf := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll.HostIdentifier, "dummy-challenge-token")
-		payload := buildAppleDeviceAttestationPayload(t, leaf, s.attestCA)
+		leaf, err := testhelpers.BuildAttestationLeafCert(s.attestCA, s.attestCAKey, enroll.HostIdentifier, "dummy-challenge-token")
+		require.NoError(t, err)
+		payload, err := testhelpers.BuildAppleDeviceAttestationPayload(leaf, s.attestCA)
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
 		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
 
@@ -1722,8 +1754,10 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
 
-		leaf := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, "some-other-serial", challengeToken)
-		payload := buildAppleDeviceAttestationPayload(t, leaf, s.attestCA)
+		leaf, err := testhelpers.BuildAttestationLeafCert(s.attestCA, s.attestCAKey, "some-other-serial", challengeToken)
+		require.NoError(t, err)
+		payload, err := testhelpers.BuildAppleDeviceAttestationPayload(leaf, s.attestCA)
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
 		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
 
@@ -1738,8 +1772,10 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
 
-		leaf := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
-		payload := buildAppleDeviceAttestationPayload(t, leaf, s.attestCA)
+		leaf, err := testhelpers.BuildAttestationLeafCert(s.attestCA, s.attestCAKey, enroll.HostIdentifier, challengeToken)
+		require.NoError(t, err)
+		payload, err := testhelpers.BuildAppleDeviceAttestationPayload(leaf, s.attestCA)
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, privateKey, nonce, accountURL, challengeURL, payload)
 		_, acmeErr, resp := s.doChallenge(t, challengeURL, jwsBody)
 
@@ -1776,8 +1812,10 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 		privateKey1, accountURL1, challengeURL1, challengeToken1, nonce := s.createOrderForChallenge(t, enroll1)
 
 		// try to do enroll1's challenge with a payload built from enroll2's device cert
-		leaf := buildAttestationLeafCert(t, s.attestCA, s.attestCAKey, enroll2.HostIdentifier, challengeToken1)
-		payload := buildAppleDeviceAttestationPayload(t, leaf, s.attestCA)
+		leaf, err := testhelpers.BuildAttestationLeafCert(s.attestCA, s.attestCAKey, enroll2.HostIdentifier, challengeToken1)
+		require.NoError(t, err)
+		payload, err := testhelpers.BuildAppleDeviceAttestationPayload(leaf, s.attestCA)
+		require.NoError(t, err)
 		jwsBody := buildJWS(t, privateKey1, nonce, accountURL1, challengeURL1, payload)
 		_, acmeErr, resp := s.doChallenge(t, challengeURL1, jwsBody)
 

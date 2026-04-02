@@ -82,7 +82,6 @@ func (s *Signer) Signx509CSR(csr *x509.CertificateRequest) (*x509.Certificate, e
 	if err != nil {
 		return nil, err
 	}
-
 	serial, err := s.depot.Serial()
 	if err != nil {
 		return nil, err

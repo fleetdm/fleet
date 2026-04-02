@@ -126,7 +126,7 @@ func (s *Service) validateDeviceAttestationChallenge(ctx context.Context, enroll
 
 // Challenge status is updated by reference
 func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, enrollment *types.Enrollment, challenge *types.Challenge, attStmt types.AppleDeviceAttestationStatement) error {
-	roots := s.testAppleRootCAs
+	roots := s.TestAppleRootCAs
 	if roots == nil {
 		roots = x509.NewCertPool()
 		rootCABlock, _ := pem.Decode([]byte(appleEnterpriseAttestationRootCA))

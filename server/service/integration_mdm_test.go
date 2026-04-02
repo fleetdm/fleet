@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -39,6 +40,7 @@ import (
 	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -124,10 +126,14 @@ type integrationMDMTestSuite struct {
 	mdmStorage                 *mysql.NanoMDMStorage
 	worker                     *worker.Worker
 	// Flag to skip jobs processing by worker
-	skipWorkerJobs            atomic.Bool
-	mdmCommander              *apple_mdm.MDMAppleCommander
-	logger                    *slog.Logger
-	scepChallenge             string
+	skipWorkerJobs atomic.Bool
+	mdmCommander   *apple_mdm.MDMAppleCommander
+	logger         *slog.Logger
+	scepChallenge  string
+
+	acmeCertCA  *x509.Certificate
+	acmeCertKey *ecdsa.PrivateKey
+
 	appleVPPConfigSrv         *httptest.Server
 	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
 	appleVPPProxySrv          *httptest.Server
@@ -468,6 +474,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		SCEPConfigService: s.scepConfig,
 		EnableSCIM:        true,
 	}
+
+	// generate ACME cert and key for testing ACME flows
+	acmeCert, acmeKey, err := testhelpers.GenerateTestAttestationCA()
+	require.NoError(s.T(), err)
+	serverConfig.ACMECertCA = acmeCert
+	serverConfig.ACMECertKey = acmeKey
+	s.acmeCertCA = acmeCert
+	s.acmeCertKey = acmeKey
 
 	// ensure all our tests support challenges with invalid XML characters
 	s.scepChallenge = "scepcha/><llenge"
