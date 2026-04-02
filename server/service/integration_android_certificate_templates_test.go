@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -14,8 +17,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	scep_server "github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -66,6 +72,8 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 	require.NotNil(t, profile, "Profile %s not found in host MDM profiles", certTemplateName)
 	require.NotNil(t, profile.Status)
 	require.Equal(t, string(expectedStatus), *profile.Status)
+	require.NotNil(t, profile.CertificateTemplateID, "certificate_template_id should not be nil for Android certificate profiles")
+	require.Equal(t, certificateTemplateID, *profile.CertificateTemplateID, "certificate_template_id should match")
 	if expectedDetail != "" {
 		require.Equal(t, expectedDetail, profile.Detail)
 	}
@@ -641,6 +649,17 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
 		fleet.CertificateTemplatePending, "", "CN="+host.HardwareSerial)
 
+	// Step: Simulate the certificate being successfully installed on the device (status = verified).
+	// This is critical for testing that verified records are cleared on unenroll (issue #42600).
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ?, uuid = UUID_TO_BIN(UUID(), true) WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateVerified, host.UUID, certTemplateID)
+		return err
+	})
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateVerified, "", "CN="+host.HardwareSerial)
+
 	// Step: Unenroll the host (simulates pubsub DELETED message)
 	unenrolled, err := s.ds.SetAndroidHostUnenrolled(ctx, host.ID)
 	require.NoError(t, err)
@@ -664,17 +683,11 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.NotZero(t, createResp.ID)
 	certTemplateID2 := createResp.ID
 
-	// Step: Verify that the unenrolled host did NOT get a host_certificate_templates record for the second template.
-	// The host API only returns profiles that have host_certificate_templates records, so the second
-	// template should not appear in the profiles list.
+	// Step: Verify that unenrolling cleared all certificate template records for this host.
+	// Neither the previously verified first template nor the newly created second template should appear.
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	require.Len(t, *getHostResp.Host.MDM.Profiles, 1, "Only first template should appear (second was created while host was unenrolled)")
-	profile := (*getHostResp.Host.MDM.Profiles)[0]
-	require.Equal(t, certTemplateName, profile.Name, "First certificate template should be present")
-	require.NotNil(t, profile.Status)
-	require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
+	require.Nil(t, getHostResp.Host.MDM.Profiles, "All certificate template records should be cleared on unenroll")
 
 	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true)
 	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true, false)
@@ -1362,4 +1375,303 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		// Team admin should get 403 forbidden when trying to list other team's certificates
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
 	})
+}
+
+// TestCertificateTemplateResend tests the resend endpoint for Android certificate templates:
+// 1. After a certificate reaches 'verified' status, calling resend resets it to 'pending'
+// 2. The UUID changes after resend (signals the device to re-fetch)
+// 3. The fleet_challenge is cleared after resend and regenerated on next delivery
+// 4. The reconcile cron picks up the pending template and re-delivers it
+// 5. The SCEP proxy accepts the refreshed fleet challenge
+func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
+	t := s.T()
+	ctx := t.Context()
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Start a test SCEP server so the SCEP proxy can forward requests
+	testSCEPServer := scep_server.StartTestSCEPServer(t)
+
+	// Create a test team
+	teamName := t.Name() + "-team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	// Create a certificate authority pointing to the real test SCEP server.
+	// Use a name without slashes since it appears in the SCEP proxy URL path.
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(strings.ReplaceAll(t.Name(), "/", "-") + "-CA"),
+		URL:       ptr.String(testSCEPServer.URL + "/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	// Create an enrolled Android host in the team
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "1")
+
+	// Create a certificate template for the team
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
+	var createResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName,
+		TeamID:                 teamID,
+		CertificateAuthorityId: caID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	certTemplateID := createResp.ID
+
+	// Verify initial pending status
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplatePending, "")
+
+	// Trigger reconciliation to deliver the certificate template
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Verify status is now 'delivered'
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateDelivered, "")
+
+	// Fetch via fleetd API to trigger on-demand fleet_challenge creation
+	// (challenge is created lazily on first fetch in delivered status)
+	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certTemplateID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	var preResendCertResp getDeviceCertificateTemplateResponse
+	err = json.NewDecoder(resp.Body).Decode(&preResendCertResp)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.NotNil(t, preResendCertResp.Certificate.FleetChallenge, "fleet_challenge should be created on-demand")
+	originalFleetChallenge := *preResendCertResp.Certificate.FleetChallenge
+
+	// Simulate device reporting certificate enrollment as verified, with validity info
+	certNotBefore := time.Now().UTC().Truncate(time.Second)
+	certNotAfter := certNotBefore.Add(365 * 24 * time.Hour)
+	certSerial := "AB:CD:EF:01:23:45"
+	certDetail := "enrollment succeeded"
+	updateReq, err := json.Marshal(updateCertificateStatusRequest{
+		Status:         string(fleet.CertificateTemplateVerified),
+		NotValidBefore: &certNotBefore,
+		NotValidAfter:  &certNotAfter,
+		Serial:         &certSerial,
+		Detail:         &certDetail,
+	})
+	require.NoError(t, err)
+	resp = s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), updateReq, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	_ = resp.Body.Close()
+
+	// Verify status is 'verified' and validity fields are populated
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateVerified, "")
+	verifiedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+	require.NoError(t, err)
+	require.NotNil(t, verifiedRecord.NotValidBefore, "not_valid_before should be set after verified")
+	require.NotNil(t, verifiedRecord.NotValidAfter, "not_valid_after should be set after verified")
+	require.NotNil(t, verifiedRecord.Serial, "serial should be set after verified")
+	require.NotNil(t, verifiedRecord.Detail, "detail should be set after verified")
+
+	// Record UUID before resend
+	originalUUID := verifiedRecord.UUID
+
+	// Call the resend endpoint
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),
+		nil, http.StatusOK, &struct{}{})
+
+	// Verify activity was created for the resend
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeResentCertificate{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "certificate_template_id": %d, "certificate_name": %q}`,
+			host.ID,
+			host.DisplayName(),
+			certTemplateID,
+			certTemplateName,
+		),
+		0)
+
+	// Verify status is reset to 'pending', UUID changed, and all certificate fields cleared
+	updatedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.CertificateTemplatePending, updatedRecord.Status)
+	require.NotEqual(t, originalUUID, updatedRecord.UUID, "UUID should change after resend")
+	require.Nil(t, updatedRecord.FleetChallenge, "fleet_challenge should be cleared after resend")
+	require.Nil(t, updatedRecord.NotValidBefore, "not_valid_before should be cleared after resend")
+	require.Nil(t, updatedRecord.NotValidAfter, "not_valid_after should be cleared after resend")
+	require.Nil(t, updatedRecord.Serial, "serial should be cleared after resend")
+	require.Nil(t, updatedRecord.Detail, "detail should be cleared after resend")
+
+	// Verify the host API reflects pending status
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplatePending, "")
+
+	// Trigger reconciliation again - should re-deliver with new UUID
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Verify status is 'delivered' again after reconciliation
+	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateDelivered, "")
+
+	// Fetch via fleetd API again to trigger new fleet_challenge creation
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certTemplateID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	var postResendCertResp getDeviceCertificateTemplateResponse
+	err = json.NewDecoder(resp.Body).Decode(&postResendCertResp)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.NotNil(t, postResendCertResp.Certificate.FleetChallenge, "fleet_challenge should be regenerated after resend and re-delivery")
+	require.NotEqual(t, originalFleetChallenge, *postResendCertResp.Certificate.FleetChallenge, "fleet_challenge should differ from the original after resend")
+
+	// Use the SCEP proxy with the refreshed fleet_challenge to fetch CA capabilities.
+	// Android identifier format: {hostUUID},g{certificateTemplateID},{caName},{fleetChallenge}
+	newFleetChallenge := *postResendCertResp.Certificate.FleetChallenge
+	caName := *ca.Name
+	identifier := url.PathEscape(fmt.Sprintf("%s,g%d,%s,%s", host.UUID, certTemplateID, caName, newFleetChallenge))
+	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	body, err := io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	_ = scepRes.Body.Close()
+	require.Equal(t, scepserver.DefaultCACaps, string(body))
+
+	// Verify the new fleet_challenge exists in the challenges table (GetCACaps doesn't consume it)
+	checkChallengeExists := func(challenge string, expectFound bool) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var found string
+			err := sqlx.GetContext(ctx, q, &found, "SELECT challenge FROM challenges WHERE challenge = ?", challenge)
+			if errors.Is(err, sql.ErrNoRows) {
+				require.False(t, expectFound, "expected challenge to exist in DB but it was not found")
+				return nil
+			}
+			require.NoError(t, err)
+			require.True(t, expectFound, "found challenge in DB but expected it to be absent")
+			return nil
+		})
+	}
+	checkChallengeExists(newFleetChallenge, true)
+
+	// Consume the new challenge (simulates what PKIOperation does)
+	err = s.ds.ConsumeChallenge(ctx, newFleetChallenge)
+	require.NoError(t, err)
+
+	// Verify the challenge is gone after consumption — a second consume must fail
+	checkChallengeExists(newFleetChallenge, false)
+	err = s.ds.ConsumeChallenge(ctx, newFleetChallenge)
+	require.Error(t, err, "consuming the same challenge twice should fail")
+
+	// Resend for a non-existent host should return 404
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", 99999, certTemplateID),
+		nil, http.StatusNotFound, &struct{}{})
+
+	// Resend for a non-existent template returns 404
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, 99999),
+		nil, http.StatusNotFound, &struct{}{})
+
+	// ---- Automatic retry tests (reusing same host/cert/CA setup) ----
+	t.Run("automatic retry", func(t *testing.T) {
+
+		// Reset the certificate to pending with retry_count=0 for a fresh retry test
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_certificate_templates SET status = ?, retry_count = 0 WHERE host_uuid = ? AND certificate_template_id = ?`,
+				fleet.CertificateTemplatePending, host.UUID, certTemplateID)
+			return err
+		})
+
+		// Helper: report a certificate status from the device
+		reportCertStatus := func(status string, detail *string) {
+			req, err := json.Marshal(updateCertificateStatusRequest{Status: status, Detail: detail})
+			require.NoError(t, err)
+			resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), req, http.StatusOK, map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			})
+			_ = resp.Body.Close()
+		}
+
+		// Helper: deliver (pending -> delivered) via cron and verify
+		deliverCert := func() {
+			s.awaitTriggerAndroidProfileSchedule(t)
+			s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+				fleet.CertificateTemplateDelivered, "")
+		}
+
+		// Fail MaxCertificateInstallRetries times -- each should auto-retry (status resets to pending)
+		for i := range fleet.MaxCertificateInstallRetries {
+			deliverCert()
+			detail := fmt.Sprintf("SCEP failure %d", i+1)
+			reportCertStatus(string(fleet.MDMDeliveryFailed), &detail)
+
+			record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.CertificateTemplatePending, record.Status, "retry %d should auto-retry", i+1)
+			require.Equal(t, i+1, record.RetryCount)
+		}
+
+		// One more failure with retry_count at max -- should be terminal
+		deliverCert()
+		terminalDetail := "final failure"
+		reportCertStatus(string(fleet.MDMDeliveryFailed), &terminalDetail)
+
+		record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after max retries")
+
+		// Verify terminal failure activity was logged on the host with correct details
+		var hostActivitiesResp listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK,
+			&hostActivitiesResp, "per_page", "10")
+		foundTerminalFailActivity := false
+		for _, act := range hostActivitiesResp.Activities {
+			if act.Type == (fleet.ActivityTypeInstalledCertificate{}).ActivityName() && act.Details != nil {
+				var details map[string]any
+				err = json.Unmarshal(*act.Details, &details)
+				require.NoError(t, err)
+				if details["status"] == "failed_install" && details["detail"] == terminalDetail {
+					foundTerminalFailActivity = true
+					break
+				}
+			}
+		}
+		require.True(t, foundTerminalFailActivity, "expected installed_certificate activity with status=failed_install and terminal detail")
+
+		// Resend after terminal failure -- gets exactly one attempt (retry_count set to max)
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),
+			nil, http.StatusOK, &struct{}{})
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.MaxCertificateInstallRetries, record.RetryCount, "resend should set retry_count to max")
+
+		// Deliver and fail once more -- terminal immediately (no auto-retry after resend)
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryFailed), ptr.String("post-resend failure"))
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after resend failure")
+
+		// Success on retry: reset to fresh, fail once, then succeed
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_certificate_templates SET status = ?, retry_count = 0 WHERE host_uuid = ? AND certificate_template_id = ?`,
+				fleet.CertificateTemplatePending, host.UUID, certTemplateID)
+			return err
+		})
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryFailed), ptr.String("transient error"))
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, record.Status)
+
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryVerified), nil)
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateVerified, record.Status, "should succeed on retry")
+	}) // end "automatic retry" subtest
 }

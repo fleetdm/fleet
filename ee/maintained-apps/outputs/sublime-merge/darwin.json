@@ -3,7 +3,8 @@
     {
       "version": "2123",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sublimemerge';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sublimemerge';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sublimemerge' AND version_compare(bundle_short_version, '2123') < 0);"
       },
       "installer_url": "https://download.sublimetext.com/sublime_merge_build_2123_mac.zip",
       "install_script_ref": "f1f71aab",

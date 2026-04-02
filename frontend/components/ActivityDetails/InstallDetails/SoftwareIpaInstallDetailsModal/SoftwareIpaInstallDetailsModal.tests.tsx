@@ -198,7 +198,7 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     expect(screen.getByTestId("error-icon")).toBeInTheDocument();
   });
 
-  it("renders Done button by default", async () => {
+  it("renders Close button by default", async () => {
     const onCancel = jest.fn();
 
     renderModal({
@@ -211,8 +211,8 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
       },
     });
 
-    const doneBtn = await screen.findByRole("button", { name: /done/i });
-    doneBtn.click();
+    const closeBtn = await screen.findByRole("button", { name: /close/i });
+    closeBtn.click();
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 

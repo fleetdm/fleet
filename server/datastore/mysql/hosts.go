@@ -1398,11 +1398,13 @@ func (ds *Datastore) applyHostFilters(
 
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
+	mdmRecoveryLockStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
+		mdmRecoveryLockStatusJoin = sqlJoinRecoveryLockStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1416,6 +1418,17 @@ func (ds *Datastore) applyHostFilters(
 	batchScriptExecutionFilter := "TRUE"
 	if opt.BatchScriptExecutionIDFilter != nil {
 		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
+	}
+
+	var depStatusFilter string
+	wantFailedDEP := ptr.ValOrZero(opt.DEPProfileErrorFilter)
+	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
+	switch {
+	case wantFailedDEP:
+		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
+	case wantDepResp != "":
+		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response = ?`
+		whereParams = append(whereParams, wantDepResp)
 	}
 
 	sqlStmt += fmt.Sprintf(
@@ -1436,8 +1449,9 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
+    %s
 	%s
-		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
+		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
 
 		// JOINs
@@ -1452,6 +1466,7 @@ func (ds *Datastore) applyHostFilters(
 		connectedToFleetJoin,
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
+		mdmRecoveryLockStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 
@@ -1461,6 +1476,7 @@ func (ds *Datastore) applyHostFilters(
 		munkiFilter,
 		lowDiskSpaceFilter,
 		batchScriptExecutionFilter,
+		depStatusFilter,
 	)
 
 	now := ds.clock.Now()
@@ -2136,6 +2152,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 		args = append(args, fleet.ExpandPlatform(*platform))
 	}
 
+	depFailed := fmt.Sprintf("'%s'", string(fleet.DEPAssignProfileResponseFailed))
+	depThrottled := fmt.Sprintf("'%s'", string(fleet.DEPAssignProfileResponseThrottled))
+
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
@@ -2144,14 +2163,16 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
+				COALESCE(SUM(CASE WHEN hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 			%s
 			%s
-			WHERE %s
+			WHERE %s AND hdep.deleted_at IS NULL
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
 	stmt, args, err := sqlx.In(sqlStatement, args...)
 	if err != nil {
@@ -4514,18 +4535,36 @@ WHERE %s`
 			}
 		}
 	}
+	// Compute the SCIM user's primary email once for reuse across queries.
+	var primaryEmail string
+	for _, e := range user.Emails {
+		if e.Primary != nil && *e.Primary {
+			primaryEmail = e.Email
+			break
+		}
+	}
+
 	// If we don't have any matches yet, try to match by SCIM primary email.
-	if len(hostIDs) == 0 && len(user.Emails) > 0 {
-		var primaryEmail string
-		for _, e := range user.Emails {
-			if e.Primary != nil && *e.Primary {
-				primaryEmail = e.Email
-				break
+	if len(hostIDs) == 0 && primaryEmail != "" {
+		if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(selectFmt, `mia.email = ?`), primaryEmail); err != nil {
+			return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: select host ids by primary email")
+		}
+	}
+
+	// If we still don't have any matches, fall back to host_emails with source='idp'.
+	// This covers the case where the IdP username was set on the host (via the API) before
+	// the SCIM user was created, so no mdm_idp_accounts record exists yet.
+	// Use DISTINCT to avoid duplicates since host_emails has no uniqueness constraints.
+	if len(hostIDs) == 0 {
+		hostEmailSelectFmt := `SELECT DISTINCT he.host_id FROM host_emails he WHERE he.source = ? AND %s ORDER BY he.host_id`
+		if user.UserName != "" {
+			if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(hostEmailSelectFmt, `he.email = ?`), fleet.DeviceMappingIDP, user.UserName); err != nil {
+				return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: match host_emails by username")
 			}
 		}
-		if primaryEmail != "" {
-			if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(selectFmt, `mia.email = ?`), primaryEmail); err != nil {
-				return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: select host ids by primary email")
+		if len(hostIDs) == 0 && primaryEmail != "" {
+			if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(hostEmailSelectFmt, `he.email = ?`), fleet.DeviceMappingIDP, primaryEmail); err != nil {
+				return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: match host_emails primary email")
 			}
 		}
 	}

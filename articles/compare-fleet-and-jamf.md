@@ -13,14 +13,94 @@ Jamf has evolved over two decades as a management solution focused on Apple devi
 
 Fleet and Jamf serve different strategic purposes based on fleet composition and workflow needs.
 
-|                    | Fleet                                                                                                     | Jamf                                                                                          |
-| ------------------ | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Architecture       | API-first design, unified API, osquery validation and data collection                                     | GUI-first, multiple APis                                                                      |
-| Development        | Open-core, public code, contributions welcome                                                             | Proprietary, slow customer feature request intake                                             |
-| Console Management | GUI or GitOps / configuration-as-code console management                                                  | GUI-first, no comprehensive built-in version history or console state management with code    |
-| Platform Support   | Linux, macOS, iOS, iPadOS, Windows, Android, Chromebook                                                   | macOS, iOS, iPadOS, tvOS, visionOS, Android                                                   |
-| Apple MDM          | MDM + DDM protocol, API supports any arbitrary MDM command                                                | MDM protocol, DDM protocol supported in Jamf Cloud only, only specific MDM commands available |
-| Security           | On-demand osquery data collection, YARA rules, event monitoring, CIS benchmark queries publicly available | Deep security features require additional product purchases                                   |
+### Platform support
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| macOS management | Yes — Full MDM lifecycle | Yes — 20+ year track record |
+| iOS / iPadOS management | Yes | Yes |
+| Windows management | Yes | No |
+| Linux management | Yes — Native osquery agent | No |
+| Android management | Yes | Partial — Recently re-announced; limited scope |
+| Chromebook management | Yes | No |
+| tvOS / visionOS management | No | Yes |
+
+### Enrollment and provisioning
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| Zero-touch deployment (ABM/ASM) | Yes — ABM/ASM + Autopilot | Yes — ABM/ASM; deep Apple integration |
+| BYOD enrollment | Yes — Incl. Android work profiles | Yes — User-initiated enrollment |
+| MDM migration from another vendor | Yes — Built-in migration workflow | Partial — Possible but no built-in migration tool |
+| Identity provider integration at enrollment | Yes — Okta, Entra, Azure AD, etc. | Yes — Platform SSO; Simplified Setup |
+
+### Configuration management
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| Configuration profile delivery with full confirmation | Yes — Upload custom profiles | No |
+| Declarative Device Management (DDM) | Yes | Partial — Blueprints framework (Jamf Cloud) |
+| Enforce disk encryption (FileVault/BitLocker) | Yes — Mac + Windows | Yes — Mac only (FileVault) |
+| Enforce OS updates | Yes — Mac, iOS, Windows | Yes — Mac, iOS; managed software updates |
+| Device scoping and targeting | Yes — Labels (dynamic via osquery) + fleets | Yes — Smart Groups + Static Groups |
+
+### Software management
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| App deployment | Yes — Fleet-maintained apps + custom packages | Yes — App Catalog + custom packages |
+| Self-service app installation | Yes | Yes — Self Service+ (recently enhanced) |
+| Volume Purchase Program (VPP / Apps & Books) | Yes | Yes |
+| Patch management | Yes — Vulnerability-driven; any device, any platform | Yes — App Installers; macOS & iOS focused |
+| Script execution | Yes — Mac, Windows, Linux | Yes — Mac scripts; Bash, Python, etc. |
+
+### Security and compliance
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| Vulnerability detection (CVEs) | Yes — Built-in; CISA KEV; any device, any platform | Partial — Basic in Pro; deep scanning requires Jamf Protect ($) |
+| Compliance benchmarks (CIS / STIG) | Yes — CIS queries publicly available | Yes — Compliance Benchmarks (mSCP) in Pro |
+| Endpoint detection / threat monitoring | Yes — osquery + YARA rules; included | Partial — Requires Jamf Protect (separate purchase) |
+| File integrity monitoring (FIM) | Yes — osquery evented tables | Partial — Requires Jamf Protect |
+| SIEM integration | Yes — Custom log destinations; included | Yes — Pro event logs; richer with Protect ($) |
+| Lock / wipe commands | Yes | Yes |
+
+### Visibility and reporting
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| Real-time device queries | Yes — Live osquery; near-real-time | Partial — Inventory on check-in schedule |
+| Hardware and software inventory | Yes — Extensive via osquery tables | Yes — Comprehensive Apple inventory |
+| Custom data collection | Yes — SQL queries; 300+ osquery tables | Partial — Extension attributes (scripts) |
+
+### Architecture and operations
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| GitOps / infrastructure as code | Yes — First-class; YAML/Git-based | Partial — IBM Terraform-based, not all functionality available |
+| API-first architecture | Yes — Unified REST API; all features | Partial — Multiple APIs; GUI-first design |
+| Self-hosted deployment | Yes — On-prem, cloud, air-gapped | Partial — Functionality not as complete as cloud |
+| Managed cloud hosting (SaaS) | Yes — Premium plan | Yes — Jamf Cloud |
+| Open-source / source-available code | Yes — 100% on GitHub | No — Proprietary |
+| Role-based access control (RBAC) | Yes — Premium plan | Yes — Site-based + role-based |
+| Audit logging | Yes — Premium plan | Yes |
+
+### Pricing and licensing
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| Free tier available | Yes — Core features; unlimited hosts | No — 14-day free trial only |
+| Pricing model | $7/host/month (Premium); all features included | ~$3.67–$7.89/device/month; varies by device type |
+| All-inclusive security (vuln, EDR, FIM) | Yes — Single license covers everything | No — Protect, Connect, ETP sold separately |
+
+### Support and ecosystem
+
+|  | Fleet | Jamf Pro |
+| --- | --- | --- |
+| Vendor support channels | Email, phone, video (Premium); community Slack | Chat, email, phone; premium services available |
+| Community and ecosystem maturity | Growing — Active open-source; osquery ecosystem | Mature — Large user base; Jamf Nation; 20+ years |
+| Apple relationship and day-zero OS support | Yes — Apple-oriented; tracks releases | Yes — Close Apple partnership; historically day-zero |
+| End-user transparency | Yes — Scope transparency; open source | Partial — Limited native transparency features |
 
 
 
@@ -66,7 +146,7 @@ Fleet offers comprehensive multi-platform coverage for Linux, macOS, iOS, iPadOS
 
 ## FAQ
 
-#### What's the main difference between a single-platform device management solution and a multi-platform device management solution?
+#### What is the main difference between a single-platform device management solution and a multi-platform device management solution?
 
 Specialized MDM solutions focus on one device ecosystem. multi-platform MDM solutions provide unified management across different operating systems from a single console. [Try Fleet](/try-fleet) to see how multi-platform management can work in your environment.
 
@@ -86,11 +166,10 @@ Implementation and migration timelines vary based on fleet size and organization
 
 
 
-<meta name="articleTitle" value="Fleet vs. Jamf"> 
-<meta name="articleSubtitle" value="How to choose the right MDM">
+<meta name="articleTitle" value="Fleet vs. Jamf">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
-<meta name="articleSlugInCategory" value="jamf"> 
+<meta name="articleSlugInCategory" value="jamf-vs-fleet"> 
 <meta name="introductionTextBlockOne" value="Organizations managing Apple devices face a choice: pick one of a number of available Apple device management solutions, or, a solution with multi-platform capabilities."> 
 <meta name="introductionTextBlockTwo" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria."> 
 <meta name="category" value="comparison">

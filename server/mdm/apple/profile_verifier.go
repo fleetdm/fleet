@@ -92,7 +92,7 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 			retriesByProfileIdentifier[r.ProfileIdentifier] = r.Retries
 		}
 		for _, key := range missing {
-			if retriesByProfileIdentifier[key] < mdm.MaxProfileRetries {
+			if retriesByProfileIdentifier[key] < mdm.MaxAppleProfileRetries {
 				// if we haven't hit the max retries, we set the host profile status to nil (which
 				// causes an install profile command to be enqueued the next time the profile
 				// manager cron runs) and increment the retry count
@@ -125,7 +125,7 @@ func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVeri
 			return err
 		}
 
-		if m.Retries < mdm.MaxProfileRetries {
+		if m.Retries < mdm.MaxAppleProfileRetries {
 			// if we haven't hit the max retries, we set the host profile status to nil (which
 			// causes an install profile command to be enqueued the next time the profile
 			// manager cron runs) and increment the retry count

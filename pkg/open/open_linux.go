@@ -10,7 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
+	gopsutil_process "github.com/shirou/gopsutil/v4/process"
 )
 
 var envVarsToCopy = []string{
@@ -65,7 +65,7 @@ func getProcessesByName(exePath string) ([]*gopsutil_process.Process, error) {
 	}
 
 	var out []*gopsutil_process.Process
-	myUid := int32(os.Getuid()) //nolint:gosec // dismiss G115
+	myUid := uint32(os.Getuid()) //nolint:gosec // dismiss G115
 
 	for _, p := range processes {
 		if path.IsAbs(exePath) {

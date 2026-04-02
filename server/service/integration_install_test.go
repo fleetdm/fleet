@@ -156,8 +156,8 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 	// Fetch installer details
-	var orbitSoftwareResp orbitGetSoftwareInstallResponse
-	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+	var orbitSoftwareResp fleet.OrbitGetSoftwareInstallResponse
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)
@@ -170,8 +170,8 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "", errors.New("error signing")
 	}
-	orbitSoftwareResp = orbitGetSoftwareInstallResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+	orbitSoftwareResp = fleet.OrbitGetSoftwareInstallResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)
@@ -191,7 +191,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return s3Store.Sign(ctx, fileID, fleet.SoftwareInstallerSignedURLExpiry)
 	}
-	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)
@@ -281,8 +281,8 @@ func (s *integrationInstallTestSuite) TestShScriptInstallOnDarwin() {
 	installUUID := getLatestSoftwareInstallExecID(t, s.ds, darwinHost.ID)
 
 	// Fetch installer details via orbit endpoint
-	var orbitSoftwareResp orbitGetSoftwareInstallResponse
-	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+	var orbitSoftwareResp fleet.OrbitGetSoftwareInstallResponse
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *darwinHost.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)

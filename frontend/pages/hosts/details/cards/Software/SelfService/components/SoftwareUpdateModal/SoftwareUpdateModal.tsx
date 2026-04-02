@@ -126,7 +126,7 @@ const SoftwareUpdateModal = ({
         primaryButtons={
           status === "pending_install" ? (
             <Button type="submit" onClick={onExit}>
-              Done
+              Close
             </Button>
           ) : (
             <>

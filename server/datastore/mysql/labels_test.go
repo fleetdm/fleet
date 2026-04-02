@@ -106,6 +106,7 @@ func TestLabels(t *testing.T) {
 		{"SetAsideLabels", testSetAsideLabels},
 		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
 		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
+		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -3517,4 +3518,91 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 		require.Len(t, hosts, 1)
 		require.Equal(t, h1t1.ID, hosts[0].ID)
 	}
+}
+
+func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Create hosts.
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("nilhosts-1"), //nolint:modernize
+		NodeKey:        ptr.String("nilhosts-1"), //nolint:modernize
+		UUID:           "nilhosts-1",
+		Hostname:       "nilhosts1.local",
+		HardwareSerial: "nilhosts-serial-1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("nilhosts-2"), //nolint:modernize
+		NodeKey:        ptr.String("nilhosts-2"), //nolint:modernize
+		UUID:           "nilhosts-2",
+		Hostname:       "nilhosts2.local",
+		HardwareSerial: "nilhosts-serial-2",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	// Apply a manual label with hosts.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "nilhosts-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"nilhosts1.local", "nilhosts2.local"},
+		},
+	})
+	require.NoError(t, err)
+
+	lbl, err := ds.LabelByName(ctx, "nilhosts-label", teamFilter)
+	require.NoError(t, err)
+	hosts, err := ds.ListHostsInLabel(ctx, teamFilter, lbl.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+
+	// Re-apply the same label with nil hosts — membership should be preserved.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "nilhosts-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               nil,
+		},
+	})
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHostsInLabel(ctx, teamFilter, lbl.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	hostIDs := []uint{hosts[0].ID, hosts[1].ID}
+	assert.Contains(t, hostIDs, h1.ID)
+	assert.Contains(t, hostIDs, h2.ID)
+
+	// Re-apply with empty hosts — membership should be cleared.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "nilhosts-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{},
+		},
+	})
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHostsInLabel(ctx, teamFilter, lbl.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// Re-apply with specific hosts — membership should be set.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "nilhosts-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"nilhosts1.local"},
+		},
+	})
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHostsInLabel(ctx, teamFilter, lbl.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h1.ID, hosts[0].ID)
 }

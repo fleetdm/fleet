@@ -98,7 +98,15 @@ type RenderResultWithUser = RenderResult & { user: UserEvent };
 const addQueryProviderWrapper = (
   CustomWrapperComponent: ({ children }: IChildrenProp) => JSX.Element
 ) => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false, // important: no automatic retries in tests
+        cacheTime: 0, // optional but makes behavior deterministic
+      },
+    },
+  });
+
   CustomWrapperComponent = createWrapperComponent(
     CustomWrapperComponent,
     QueryClientProvider,
