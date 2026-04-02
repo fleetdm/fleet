@@ -13,7 +13,8 @@ func init() {
 func Up_20260401153503(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE host_dep_assignments
-			ADD COLUMN hardware_serial varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
+			ADD COLUMN hardware_serial varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+			ADD INDEX idx_hdep_hardware_serial (hardware_serial)
 	`)
 	if err != nil {
 		return errors.Wrap(err, "add host_dep_assignments.hardware_serial column")

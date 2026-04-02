@@ -664,6 +664,7 @@ CREATE TABLE `host_dep_assignments` (
   PRIMARY KEY (`host_id`),
   KEY `idx_hdep_response` (`assign_profile_response`,`response_updated_at`),
   KEY `fk_host_dep_assignments_abm_token_id` (`abm_token_id`),
+  KEY `idx_hdep_hardware_serial` (`hardware_serial`),
   CONSTRAINT `fk_host_dep_assignments_abm_token_id` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE SET NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
