@@ -12806,7 +12806,7 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 }
 
 func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cleanup := func() {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -12823,6 +12823,14 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 		})
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `DELETE FROM host_emails`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_idp_accounts`)
 			return err
 		})
 	}
@@ -12994,16 +13002,6 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
 		})
 		assert.Equal(t, scimUserID, associatedScimUserID)
-
-		// Cleanup mdm_idp_accounts
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts`)
-			return err
-		})
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `DELETE FROM mdm_idp_accounts`)
-			return err
-		})
 	})
 }
 
