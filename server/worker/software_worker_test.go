@@ -165,3 +165,79 @@ func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
 	}
 	require.ElementsMatch(t, []string{"com.example.vppapp", "com.fleetdm.agent"}, capturedPackageNames)
 }
+
+// TestBuildApplicationPolicyWithConfig verifies that buildApplicationPolicyWithConfig
+// respects the installType stored in the app configuration and falls back to the
+// provided default when no installType is configured.
+func TestBuildApplicationPolicyWithConfig(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("uses default installType when config has none", func(t *testing.T) {
+		configs := map[string]json.RawMessage{
+			"com.example.app": json.RawMessage(`{"managedConfiguration": {"key": "value"}}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "AVAILABLE", policies[0].InstallType)
+		require.Equal(t, "com.example.app", policies[0].PackageName)
+	})
+
+	t.Run("config installType overrides default", func(t *testing.T) {
+		configs := map[string]json.RawMessage{
+			"com.tailscale.ipn": json.RawMessage(`{"installType": "FORCE_INSTALLED"}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.tailscale.ipn"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "FORCE_INSTALLED", policies[0].InstallType)
+		require.Equal(t, "com.tailscale.ipn", policies[0].PackageName)
+	})
+
+	t.Run("empty installType in config uses PREINSTALLED default for setup experience", func(t *testing.T) {
+		configs := map[string]json.RawMessage{
+			"com.example.setup": json.RawMessage(`{"installType": ""}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.setup"}, configs, "PREINSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "PREINSTALLED", policies[0].InstallType)
+	})
+
+	t.Run("config installType overrides PREINSTALLED default", func(t *testing.T) {
+		configs := map[string]json.RawMessage{
+			"com.example.setup": json.RawMessage(`{"installType": "FORCE_INSTALLED"}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.setup"}, configs, "PREINSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "FORCE_INSTALLED", policies[0].InstallType)
+	})
+
+	t.Run("nil config map uses default installType", func(t *testing.T) {
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, nil, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "AVAILABLE", policies[0].InstallType)
+		// no-config path should also clear workProfileWidgets
+		require.Equal(t, "WORK_PROFILE_WIDGETS_UNSPECIFIED", policies[0].WorkProfileWidgets)
+	})
+
+	t.Run("mixed apps: some with installType, some without", func(t *testing.T) {
+		configs := map[string]json.RawMessage{
+			"com.tailscale.ipn": json.RawMessage(`{"installType": "FORCE_INSTALLED"}`),
+			"com.example.slack": json.RawMessage(`{"managedConfiguration": {"domain": "example.com"}}`),
+		}
+		appIDs := []string{"com.tailscale.ipn", "com.example.slack"}
+		policies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 2)
+
+		byPackage := make(map[string]*androidmanagement.ApplicationPolicy, 2)
+		for _, p := range policies {
+			byPackage[p.PackageName] = p
+		}
+		require.Equal(t, "FORCE_INSTALLED", byPackage["com.tailscale.ipn"].InstallType)
+		require.Equal(t, "AVAILABLE", byPackage["com.example.slack"].InstallType)
+	})
+}

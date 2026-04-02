@@ -399,14 +399,19 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 	return nil
 }
 
+// buildApplicationPolicyWithConfig constructs a list of ApplicationPolicy entries for the
+// given app IDs, merging each app's stored configuration with the provided default install
+// type. If an app's configuration explicitly sets "installType", that value takes
+// precedence over defaultInstallType.
 func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
-	configsByAppID map[string]json.RawMessage, installType string) ([]*androidmanagement.ApplicationPolicy, error) {
+	configsByAppID map[string]json.RawMessage, defaultInstallType string) ([]*androidmanagement.ApplicationPolicy, error) {
 
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 	for _, appID := range appIDs {
 		var androidAppConfig struct {
 			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
 			WorkProfileWidgets   string          `json:"workProfileWidgets"`
+			InstallType          string          `json:"installType"`
 		}
 		if config := configsByAppID[appID]; config != nil {
 			if err := json.Unmarshal(config, &androidAppConfig); err != nil {
@@ -419,6 +424,15 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 			androidAppConfig.ManagedConfiguration = json.RawMessage{}
 			androidAppConfig.WorkProfileWidgets = "WORK_PROFILE_WIDGETS_UNSPECIFIED"
 		}
+
+		// Use the per-app installType from config when set; otherwise fall back to the
+		// caller-supplied default (e.g. "AVAILABLE" for self-service, "PREINSTALLED" for
+		// setup-experience apps).
+		installType := androidAppConfig.InstallType
+		if installType == "" {
+			installType = defaultInstallType
+		}
+
 		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
 			PackageName:          appID,
 			InstallType:          installType,

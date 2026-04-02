@@ -199,9 +199,23 @@ var validAndroidWorkProfileWidgets = map[string]struct{}{
 	"WORK_PROFILE_WIDGETS_DISALLOWED":  {},
 }
 
+// validAndroidInstallTypes lists the AMAPI ApplicationPolicy installType values
+// that Fleet accepts. An empty string is also valid and means "use the default"
+// (which is AVAILABLE for self-service apps, PREINSTALLED for setup-experience apps).
+// See https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType
+var validAndroidInstallTypes = map[string]struct{}{
+	"":                  {},
+	"AVAILABLE":         {},
+	"FORCE_INSTALLED":   {},
+	"BLOCKED":           {},
+	"REQUIRED_FOR_SETUP": {},
+	"PREINSTALLED":      {},
+	"KIOSK":             {},
+}
+
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
-// Configuration must be valid JSON with only "managedConfiguration" and/or
-// "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
+// Configuration must be valid JSON with only "installType", "managedConfiguration",
+// and/or "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
 func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	if len(config) == 0 {
 		return &BadRequestError{
@@ -212,13 +226,14 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	type androidAppConfig struct {
 		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
 		WorkProfileWidgets   string          `json:"workProfileWidgets"`
+		InstallType          string          `json:"installType"`
 	}
 
 	var cfg androidAppConfig
 	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
 		if strings.Contains(err.Error(), "unknown field") {
 			return &BadRequestError{
-				Message: `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+				Message: `Couldn't update configuration. Only "installType", "managedConfiguration", and "workProfileWidgets" are supported as top-level keys.`,
 			}
 		}
 
@@ -229,6 +244,10 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 
 	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
 		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
+	}
+
+	if _, validVal := validAndroidInstallTypes[cfg.InstallType]; !validVal {
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "installType".`, cfg.InstallType)}
 	}
 
 	return nil
