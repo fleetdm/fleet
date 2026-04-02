@@ -189,7 +189,7 @@ spec:
         custom_settings: []
       macos_setup:
         bootstrap_package: ""
-        create_local_idp_user_account: true
+        enable_create_local_idp_user_account: true
         local_idp_user_account_configuration:
           sso_configuration_profile_path: ../lib/platform-sso.mobileconfig
           sso_software_package_path: ../lib/company-portal.package.yml
