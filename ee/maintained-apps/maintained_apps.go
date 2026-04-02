@@ -17,7 +17,8 @@ type Ingester func(ctx context.Context, logger *slog.Logger, inputsPath string, 
 const OutputPath = "ee/maintained-apps/outputs"
 
 type FMAQueries struct {
-	Exists string `json:"exists"`
+	Exists  string `json:"exists"`
+	Patched string `json:"patched"`
 }
 
 type FMAManifestApp struct {

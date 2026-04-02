@@ -34,3 +34,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="Journalism nonprofit manages Mac and Linux devices with open source, GitOps workflows, and transparent, real-time compliance visibility.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Journalism nonprofit">

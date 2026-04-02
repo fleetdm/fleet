@@ -127,6 +127,7 @@ export interface IOSSettings {
   recovery_lock_password?: {
     status: RecoveryLockPasswordStatus;
     detail: string;
+    password_available: boolean;
   };
   certificates: IHostAndroidCert[];
 }
@@ -161,8 +162,8 @@ export interface IHostMdmData {
   server_url: string | null;
   profiles: IHostMdmProfile[] | null;
   os_settings?: IOSSettings;
-  macos_settings?: IMdmMacOsSettings;
-  macos_setup?: IMdmMacOsSetup;
+  apple_settings?: IMdmMacOsSettings;
+  setup_experience?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
@@ -253,6 +254,7 @@ export interface IHostRecoveryLockPasswordResponse {
   recovery_lock_password: {
     updated_at: string;
     password: string;
+    auto_rotate_at?: string;
   };
 }
 
@@ -284,6 +286,7 @@ export interface IHost {
   label_updated_at: string;
   policy_updated_at: string;
   last_enrolled_at: string;
+  last_mdm_enrolled_at: string;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;

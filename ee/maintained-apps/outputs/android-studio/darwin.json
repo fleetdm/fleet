@@ -3,7 +3,8 @@
     {
       "version": "2025.3.2.6",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio' AND version_compare(bundle_short_version, '2025.3.2.6') < 0);"
       },
       "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2025.3.2.6/android-studio-panda2-mac_arm.dmg",
       "install_script_ref": "69b8ab59",

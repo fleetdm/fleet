@@ -418,6 +418,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
   "os_version",
+  "mdm",
 ];
 
 export const HOST_VITALS_DATA = [
@@ -446,6 +447,7 @@ export const HOST_VITALS_DATA = [
   "cpu_type",
   "os_version",
   "timezone",
+  "primary_mac",
 ];
 
 export const HOST_OSQUERY_DATA = [

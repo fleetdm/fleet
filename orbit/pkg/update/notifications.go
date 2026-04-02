@@ -551,7 +551,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 	}
 
 	if encryptionErr != nil {
-		log.Error().Err(err).Msg("failed to encrypt the volume")
+		log.Error().Err(encryptionErr).Msg("failed to encrypt the volume")
 		return
 	}
 

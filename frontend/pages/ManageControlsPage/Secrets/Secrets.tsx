@@ -197,6 +197,7 @@ const Secrets = () => {
             <span>Custom variables</span>
             {canEdit && (
               <GitOpsModeTooltipWrapper
+                entityType="secrets"
                 renderChildren={(disableChildren) => (
                   <span>
                     <Button

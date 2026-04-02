@@ -143,7 +143,7 @@ const WelcomeHost = ({
           <p>Add your personal device to assess the security of your device.</p>
           <p>
             In Fleet, laptops, workstations, and servers are referred to as
-            &quot;hosts.&quot;
+            &quot;hosts&quot;.
           </p>
           <Button
             onClick={toggleAddHostsModal}
@@ -296,7 +296,7 @@ const WelcomeHost = ({
                 </p>
               )}
               <div className="modal-cta-wrap">
-                <Button onClick={() => setShowPolicyModal(false)}>Done</Button>
+                <Button onClick={() => setShowPolicyModal(false)}>Close</Button>
               </div>
             </>
           </Modal>

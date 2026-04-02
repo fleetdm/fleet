@@ -46,6 +46,41 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
+export type DepAssignProfileResponse =
+  | "SUCCESS"
+  | "FAILED"
+  | "THROTTLED"
+  | "NOT_ACCESSIBLE";
+
+export interface IDepAssignmentHostResponse {
+  id: number;
+  dep_device: {
+    asset_tag: string;
+    color: string;
+    description: string;
+    device_assigned_by: string;
+    device_assigned_date: string;
+    device_family: string;
+    os: string;
+    profile_status: string;
+    profile_assign_time: string;
+    profile_push_time: string;
+    profile_uuid: string;
+    mdm_migration_deadline: string | null;
+    serial_number: string;
+  };
+  host_dep_assignment: {
+    assign_profile_response: DepAssignProfileResponse;
+    profile_uuid: string;
+    response_updated_at: string;
+    added_at: string;
+    deleted_at: string | null;
+    abm_token_id: number;
+    mdm_migration_deadline: string;
+    mdm_migration_completed: string;
+  };
+}
+
 export type IUnlockHostResponse =
   | {
       host_id: number;
@@ -103,6 +138,8 @@ export interface ILoadHostsOptions {
   configProfileUUID?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
+  depAssignProfileResponse?: DepAssignProfileResponse;
 }
 
 export interface IExportHostsOptions {
@@ -139,6 +176,8 @@ export interface IExportHostsOptions {
   configProfileStatus?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
+  depAssignProfileResponse?: DepAssignProfileResponse;
 }
 
 export interface IActionByFilter {
@@ -167,6 +206,8 @@ export interface IActionByFilter {
   vulnerability?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
+  depAssignProfileResponse?: DepAssignProfileResponse;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -318,8 +359,8 @@ export default {
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
-        macos_settings: macSettingsStatus,
-        bootstrap_package: bootstrapPackageStatus,
+        apple_settings: macSettingsStatus,
+        macos_bootstrap_package: bootstrapPackageStatus,
         mdm_id: mdmId,
         mdm_enrollment_status: mdmEnrollmentStatus,
         munki_issue_id: munkiIssueId,
@@ -360,11 +401,12 @@ export default {
     const configProfileStatus = options?.configProfileStatus;
     const scriptBatchExecutionStatus = options?.scriptBatchExecutionStatus;
     const scriptBatchExecutionId = options?.scriptBatchExecutionId;
+    const depProfileError = options?.depProfileError;
+    const depAssignProfileResponse = options?.depAssignProfileResponse;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
     }
-
     const queryParams = {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
@@ -399,6 +441,8 @@ export default {
         configProfileStatus,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
+        depAssignProfileResponse,
       }),
       status,
       label_id: label,
@@ -444,6 +488,8 @@ export default {
     configProfileUUID,
     scriptBatchExecutionStatus,
     scriptBatchExecutionId,
+    depProfileError,
+    depAssignProfileResponse,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -486,6 +532,8 @@ export default {
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
+        depAssignProfileResponse,
       }),
     };
 
@@ -556,6 +604,8 @@ export default {
     osSettings,
     diskEncryptionStatus,
     vulnerability,
+    depProfileError,
+    depAssignProfileResponse,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
@@ -574,8 +624,8 @@ export default {
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
-        macos_settings: macSettingsStatus,
-        bootstrap_package: bootstrapPackageStatus,
+        apple_settings: macSettingsStatus,
+        macos_bootstrap_package: bootstrapPackageStatus,
         mdm_id: mdmId,
         mdm_enrollment_status: mdmEnrollmentStatus,
         munki_issue_id: munkiIssueId,
@@ -583,6 +633,8 @@ export default {
         os_settings: osSettings,
         os_settings_disk_encryption: diskEncryptionStatus,
         vulnerability,
+        dep_profile_error: depProfileError,
+        dep_assing_profile_response: depAssignProfileResponse,
       },
     });
   },
@@ -640,6 +692,18 @@ export default {
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
   },
 
+  resendCertificate: (
+    hostId: number,
+    certificateTemplateId: number
+  ): Promise<void> => {
+    const { HOST_RESEND_CERTIFICATE } = endpoints;
+
+    return sendRequest(
+      "POST",
+      HOST_RESEND_CERTIFICATE(hostId, certificateTemplateId)
+    );
+  },
+
   getHostSoftware: (
     params: IHostSoftwareQueryKey
   ): Promise<IGetHostSoftwareResponse> => {
@@ -691,5 +755,9 @@ export default {
   deleteHostIdp(hostId: number) {
     const path = endpoints.HOST_DEVICE_MAPPING_IDP(hostId);
     return sendRequest("DELETE", path);
+  },
+  getDepAssignment: (id: number) => {
+    const { HOST_DEP_ASSIGNMENT } = endpoints;
+    return sendRequest("GET", HOST_DEP_ASSIGNMENT(id));
   },
 };

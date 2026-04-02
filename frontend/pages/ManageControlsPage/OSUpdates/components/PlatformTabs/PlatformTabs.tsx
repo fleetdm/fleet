@@ -67,6 +67,13 @@ const PlatformTabs = ({
     onSelectPlatform(platformByIndex[index]);
   };
 
+  // A platform is considered "configured" when it has a minimum version
+  // (Apple) or deadline days (Windows) set.
+  const isMacOSConfigured = !!defaultMacOSVersion;
+  const isWindowsConfigured = !!defaultWindowsDeadlineDays;
+  const isIOSConfigured = !!defaultIOSVersion;
+  const isIPadOSConfigured = !!defaultIPadOSVersion;
+
   return (
     <div className={baseClass}>
       <TabNav secondary>
@@ -76,18 +83,18 @@ const PlatformTabs = ({
         >
           <TabList>
             <Tab key="macOS" data-text="macOS">
-              <TabText>macOS</TabText>
+              <TabText showDot={isMacOSConfigured}>macOS</TabText>
             </Tab>
             {isWindowsMdmEnabled && (
               <Tab key="Windows" data-text="Windows">
-                <TabText>Windows</TabText>
+                <TabText showDot={isWindowsConfigured}>Windows</TabText>
               </Tab>
             )}
             <Tab key="iOS" data-text="iOS">
-              <TabText>iOS</TabText>
+              <TabText showDot={isIOSConfigured}>iOS</TabText>
             </Tab>
             <Tab key="iPadOS" data-text="iPadOS">
-              <TabText>iPadOS</TabText>
+              <TabText showDot={isIPadOSConfigured}>iPadOS</TabText>
             </Tab>
             {isAndroidMdmEnabled && (
               <Tab key="Android" data-text="Android">

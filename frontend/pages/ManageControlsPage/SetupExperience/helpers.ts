@@ -7,9 +7,11 @@ const getManualAgentInstallSetting = (
   teamConfig?: ITeamConfig
 ) => {
   if (currentTeamId === API_NO_TEAM_ID) {
-    return globalConfig?.mdm.macos_setup.manual_agent_install || false;
+    return (
+      globalConfig?.mdm.setup_experience.macos_manual_agent_install || false
+    );
   }
-  return teamConfig?.mdm?.macos_setup.manual_agent_install || false;
+  return teamConfig?.mdm?.setup_experience.macos_manual_agent_install || false;
 };
 
 export default getManualAgentInstallSetting;

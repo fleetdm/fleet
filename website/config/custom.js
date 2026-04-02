@@ -87,6 +87,7 @@ module.exports.custom = {
 
 
   // Other integrations:
+  // anthropicSecret: undefined,
   // openAiSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
   // salesforceIntegrationUsername: undefined,
@@ -225,7 +226,7 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['lukeheath', 'gillespi314', 'mna', 'georgekarrv'],
+    'ee/tools/puppet': ['lukeheath', 'mna', 'georgekarrv'],
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
@@ -252,6 +253,8 @@ module.exports.custom = {
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
+    'website/api/controllers/webhooks/receive-from-clay.js': ['sampfluger88'],
+    'website/api/helpers/salesforce': ['sampfluger88'],
 
     // 🫧 Vulnerability dashboard
     'ee/vulnerability-dashboard': ['eashaw', 'mikermcneil'],// (catch-all)
@@ -338,6 +341,8 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
     '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
 
+    // GTM
+    'go-to-market': ['sampfluger88'],
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'], // (« for changing who reviews is automatically requested from for given paths)
@@ -363,7 +368,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.21.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.22.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
