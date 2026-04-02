@@ -109,7 +109,7 @@ Sometimes there is a change in the champion within the customer's organization.
 Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
 
 1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
-2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA to collect the following information:
+2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA. The CSM is responsible for scheduling this call, but the CSA is the DRI for running this call and collecting the following:
 - What is the target migration date and when does the previous MDM contract end?
 - Which critical workflows will Fleet be used for?
   - Onboarding workflow?
@@ -117,6 +117,7 @@ Fast-track is Fleet's service delivery package for new MDM customers. Check with
   - Automated device enrollment (ADE)? Autopilot?
   - Setup experience?
   - Self-service software?
+  - Have you started planning for what a migration will look like? 
 - Which integrations will be required for migration? Which integrations will be required post-migration (no hard timeline)?
   - IAM?
   - Log shipping to SIEM?
@@ -209,6 +210,42 @@ During the window of time available to investigate an issue, use the resources a
   - Contact the developer on-call.
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
+
+### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
+
+#### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
+
+1. First, in all instances, review the athena logs for:
+  - IP ingress patterns from problematic hosts
+  - ELB errors and response times
+  - For customers with WAF enabled, check for any traffic being blocked
+  - 408 or 502 errors
+  - Total number of requests by status code type
+
+2. Next, check Fleet server logs via Cloudwatch Log Insights. Follow the steps below:
+  - Search for related endpoints via endpoint URL's
+  - Check for errors during cron jobs using the query in the infra runbook
+  - Use the Patterns tab to look for patterns in the logs which may provide more information
+  - In #help-customers or #help-engineering, ask other CSE's or the developer on-call engineer what else they might search for in the logs
+
+3. Finally, if you're not able to determine if this is a Fleet app issue or an infrastructure issue, tag in the infrastructure on-call via a new thread in the #help-infrastructure channel with a synopsis of your findings. The infrastructure engineer is the DRI for determining if an issue is infrastructure related. If they rule out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance. If the issue is a suspected P0, follow the [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process). 
+
+#### For self-hosted customers, CSE is responsible for requesting customer logs and doing an initial review. Timebox 10 minutes to do the following:  
+
+1. Verify that the information we have stored about their Fleet architecture is correct
+2. Ask the following questions
+  - Are your hosts checking in and is your Fleet server online? 
+  - When did the issue begin?
+  - Have you made any changes to Fleet around the time of the issue beginning?
+  - Request Fleet server logs
+  - Request uptime data for Fleet, Redis, and MySQL
+  - Request the average memory and CPU for Fleet, Redis, and MySQL
+  - For customers hosting on AWS, request Aurora and RDS Performance insights
+3. Request the output of `fleetctl debug errors`
+  - Review the output and search for any patterns
+  - The next steps in your process will be determined by what you find
+  - Contact a Sr CSE to determine if this should be escalated to the infrastructure on-call engineer
+  - If the infrastructure on-call engineer rules out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance.
 
 ### Report an incident
 

@@ -81,8 +81,13 @@ type Datastore interface {
 	SaveUsers(ctx context.Context, users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) error
-	// CountGlobalAdmins returns the count of users with the global admin role.
-	CountGlobalAdmins(ctx context.Context) (int, error)
+	// DeleteUserIfNotLastAdmin atomically checks that the user being deleted
+	// is not the last global admin before deleting. Returns ErrLastGlobalAdmin
+	// if the user is the last global admin.
+	DeleteUserIfNotLastAdmin(ctx context.Context, id uint) error
+	// SaveUserIfNotLastAdmin atomically checks that there's more than one admin
+	// before saving the user. Returns ErrLastGlobalAdmin if there's only one last global admin.
+	SaveUserIfNotLastAdmin(ctx context.Context, user *User) error
 	// PendingEmailChange creates a record with a pending email change for a user identified by uid. The change record
 	// is keyed by a unique token. The token is emailed to the user with a link that they can use to confirm the change.
 	PendingEmailChange(ctx context.Context, userID uint, newEmail, token string) error
@@ -2765,6 +2770,9 @@ type Datastore interface {
 	// GetHostCertificateTemplateRecord returns the host_certificate_templates record directly without
 	// requiring the parent certificate_template to exist. Used for status updates on orphaned records.
 	GetHostCertificateTemplateRecord(ctx context.Context, hostUUID string, certificateTemplateID uint) (*HostCertificateTemplate, error)
+	// RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry, increments
+	// retry_count, preserves the error detail, and clears challenge/cert fields.
+	RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records

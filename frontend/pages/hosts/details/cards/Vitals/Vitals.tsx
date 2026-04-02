@@ -555,6 +555,16 @@ const Vitals = ({
           />
         ),
       });
+      vitals.push({
+        sortKey: "MAC address",
+        element: (
+          <DataSet
+            key="mac-address"
+            title="MAC address"
+            value={<TooltipTruncatedText value={vitalsData.primary_mac} />}
+          />
+        ),
+      });
     }
 
     if (!isIosOrIpadosHost) {
