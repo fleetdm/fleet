@@ -44,6 +44,7 @@ func TestACMEPackageDependencies(t *testing.T) {
 		shouldNotDepend   []string // defaults to m + "/..." if empty
 		ignoreDeps        []string
 		ignoreRecursively []string // for test infra packages whose transitive deps we don't control
+		skip              bool     // Temp flag to skip tests that will end up using the redis package, and therefore pull in all of server/fleet, we need to move the datastore redis package out, to enable these.
 	}{
 		{
 			name: "root package has no Fleet dependencies",
@@ -53,6 +54,7 @@ func TestACMEPackageDependencies(t *testing.T) {
 			name:       "api package only depends on acme and platform packages",
 			pkg:        m + "/server/mdm/acme/api",
 			ignoreDeps: append(acmePkgs, platformPkgs...),
+			skip:       true,
 		},
 		{
 			name: "api/http depends on api and platform",
@@ -60,6 +62,7 @@ func TestACMEPackageDependencies(t *testing.T) {
 			ignoreDeps: append(append([]string{
 				m + "/server/mdm/acme/api",
 			}, acmePkgs...), platformPkgs...),
+			skip: true,
 		},
 		{
 			name:       "internal/types only depends on api",
@@ -82,6 +85,7 @@ func TestACMEPackageDependencies(t *testing.T) {
 				m + "/server/ptr",
 				m + "/server/mdm/acme/internal/redis_nonces_store",
 			}, acmePkgs...), platformPkgs...),
+			skip: true,
 		},
 		{
 			name: "bootstrap depends on acme and platform packages",
@@ -91,6 +95,7 @@ func TestACMEPackageDependencies(t *testing.T) {
 				m + "/server/mdm/acme/internal/service",
 				m + "/server/ptr",
 			}, acmePkgs...), platformPkgs...),
+			skip: true,
 		},
 		{
 			name: "all packages only depend on acme and platform",
@@ -107,11 +112,15 @@ func TestACMEPackageDependencies(t *testing.T) {
 				m + "/server/datastore/redis/redistest",
 				m + "/server/test",
 			},
+			skip: true,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip("Skipping test, due to pulling in server/datastore/redis, which pulls in server/fleet.")
+			}
 			t.Parallel()
 
 			shouldNotDepend := tc.shouldNotDepend

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	redigo "github.com/gomodule/redigo/redis"
 )
@@ -28,7 +29,7 @@ const prefix = "acmenonce:"
 // Store creates the key with the given nonce.
 // Argument expireTime is used to set the expiration of the item.
 func (r *RedisNoncesStore) Store(ctx context.Context, nonce string, expireTime time.Duration) error {
-	conn := r.pool.Get()
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	// the value of the key is not really important, just that the key exists or not (indicates
