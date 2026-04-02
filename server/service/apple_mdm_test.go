@@ -3627,6 +3627,10 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 		}, nil
 	}
 
+	ds.SetCommandNameFunc = func(ctx context.Context, commandUUID string, name string) error {
+		return nil
+	}
+
 	kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
 		return make(map[string]*string), nil
 	}
