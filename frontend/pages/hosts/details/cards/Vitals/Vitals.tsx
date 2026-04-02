@@ -386,6 +386,7 @@ const Vitals = ({
       });
     }
 
+    console.log("mdm", mdm);
     // MDM
     if (mdm?.enrollment_status) {
       vitals.push(
