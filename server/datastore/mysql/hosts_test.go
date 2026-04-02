@@ -12858,7 +12858,7 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 			UserName:   "scimuser@example.com",
 			GivenName:  ptr.String("Test"),
 			FamilyName: ptr.String("User"),
-			Active:     ptr.Bool(true),
+			Active:     ptr.Bool(true), //nolint:modernize
 		}
 		scimUserID, err := ds.CreateScimUser(ctx, &scimUser)
 		require.NoError(t, err)
@@ -12895,11 +12895,11 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 			UserName:   "different-username",
 			GivenName:  ptr.String("Test"),
 			FamilyName: ptr.String("User"),
-			Active:     ptr.Bool(true),
+			Active:     ptr.Bool(true), //nolint:modernize
 			Emails: []fleet.ScimUserEmail{
 				{
 					Email:   "primary@example.com",
-					Primary: ptr.Bool(true),
+					Primary: ptr.Bool(true), //nolint:modernize
 					Type:    ptr.String("work"),
 				},
 			},
@@ -12938,7 +12938,7 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 			UserName:   "customuser@example.com",
 			GivenName:  ptr.String("Test"),
 			FamilyName: ptr.String("User"),
-			Active:     ptr.Bool(true),
+			Active:     ptr.Bool(true), //nolint:modernize
 		}
 		_, err = ds.CreateScimUser(ctx, &scimUser)
 		require.NoError(t, err)
@@ -12990,7 +12990,7 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 			UserName:   "scimuser@example.com",
 			GivenName:  ptr.String("Test"),
 			FamilyName: ptr.String("User"),
-			Active:     ptr.Bool(true),
+			Active:     ptr.Bool(true), //nolint:modernize
 		}
 		scimUserID, err := ds.CreateScimUser(ctx, &scimUser)
 		require.NoError(t, err)
