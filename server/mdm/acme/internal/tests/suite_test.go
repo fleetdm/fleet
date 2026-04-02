@@ -242,6 +242,11 @@ func (s *integrationTestSuite) createAccount(t *testing.T, pathIdentifier string
 	return doACMERequest[types.AccountResponse](t, http.MethodPost, url, jwsBody)
 }
 
+// newAccountURL returns the full URL for the new_account endpoint.
+func (s *integrationTestSuite) newAccountURL(pathIdentifier string) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/new_account", s.server.URL, pathIdentifier)
+}
+
 // newOrderURL returns the full URL for the new_order endpoint.
 func (s *integrationTestSuite) newOrderURL(pathIdentifier string) string {
 	return fmt.Sprintf("%s/api/mdm/acme/%s/new_order", s.server.URL, pathIdentifier)
@@ -417,25 +422,7 @@ func (s *integrationTestSuite) finalizeOrderURL(pathIdentifier string, orderID u
 // order response or acme error and the raw response.
 func (s *integrationTestSuite) finalizeOrder(t *testing.T, finalizeURL string, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
-	req, err := http.NewRequest(http.MethodPost, finalizeURL, bytes.NewReader(jwsBody))
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer drainAndCloseBody(resp)
-
-	if resp.StatusCode >= 300 {
-		var acmeErr types.ACMEError
-		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
-			return nil, &acmeErr, resp
-		}
-		return nil, nil, resp
-	}
-
-	var result types.OrderResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-	return &result, nil, resp
+	return doACMERequest[types.OrderResponse](t, http.MethodPost, finalizeURL, jwsBody)
 }
 
 // createOrderForFinalize is a convenience helper that creates an enrollment, account, and order,

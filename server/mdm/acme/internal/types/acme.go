@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -91,6 +92,51 @@ type Order struct {
 	NotAfter  *time.Time `db:"-"`
 }
 
+// IsReadyToFinalize returns an error if the order is not in a state where it can be finalized.
+func (o Order) IsReadyToFinalize() error {
+	if o.Status != OrderStatusReady || o.Finalized {
+		extra := ""
+		if o.Finalized {
+			extra = " and order has already been finalized"
+		}
+		return OrderNotReadyError(fmt.Sprintf("Order is in status %s%s.", o.Status, extra))
+	}
+
+	return nil
+}
+
+// IsCertificateReady returns an error if the order is not in a state where the certificate can be retrieved.
+func (o Order) IsCertificateReady() error {
+	if !o.Finalized || o.Status != OrderStatusValid {
+		if o.Status == OrderStatusInvalid {
+			return OrderDoesNotExistError("Order is in invalid state, cannot get certificate")
+		}
+		return OrderNotFinalizedError("Order is not finalized/in valid state, cannot get certificate")
+	}
+	return nil
+}
+
+// ValidateOrderCreation validates that the order creation request is valid given the enrollment. It returns an error if the request is not valid.
+func (o Order) ValidateOrderCreation(enrollment *Enrollment) error {
+	// The "identifiers" passed as part of the newOrder request must be an array with a
+	// single member of type "permanent-identifier" matching the serial specified in the
+	// acme_enrollment that this enrollment was created for.
+	if len(o.Identifiers) != 1 || o.Identifiers[0].Type != IdentifierTypePermanentIdentifier {
+		return UnsupportedIdentifierError("A single identifier of type permanent-identifier must be provided in the order request")
+	}
+	if o.Identifiers[0].Value != enrollment.HostIdentifier {
+		return RejectedIdentifierError("The identifier value does not match the host identifier for this enrollment")
+	}
+
+	// notBefore and notAfter, which are optional, must not be set because fleet is going
+	// to control these and the Apple payload doesn't allow specification of them.
+	if o.NotBefore != nil || o.NotAfter != nil {
+		return MalformedError("notBefore and notAfter must not be set in the order request")
+	}
+
+	return nil
+}
+
 type OrderResponse struct {
 	ID             uint         `json:"id"`
 	Status         string       `json:"status"`
@@ -133,6 +179,22 @@ type Challenge struct {
 	Status              string `db:"status"`
 	// UpdatedAt is used as validated timestamp if the challenge is valid
 	UpdatedAt time.Time `db:"updated_at"`
+}
+
+// ValidatedAt returns the time that the challenge was validated if it is valid, or nil if it is not valid.
+func (c Challenge) ValidatedAt() *time.Time {
+	if c.Status == ChallengeStatusValid {
+		return &c.UpdatedAt
+	}
+	return nil
+}
+
+func (c *Challenge) MarkValid() {
+	c.Status = ChallengeStatusValid
+}
+
+func (c *Challenge) MarkInvalid() {
+	c.Status = ChallengeStatusInvalid
 }
 
 type ChallengeResponse struct {

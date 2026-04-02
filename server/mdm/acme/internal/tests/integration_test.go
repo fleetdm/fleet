@@ -14,11 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newAccountURL returns the full URL for the new_account endpoint.
-func (s *integrationTestSuite) newAccountURL(pathIdentifier string) string {
-	return fmt.Sprintf("%s/api/mdm/acme/%s/new_account", s.server.URL, pathIdentifier)
-}
-
 func TestIntegration(t *testing.T) {
 	s := setupIntegrationTest(t)
 

@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 )
 
-// Service is the activity bounded context service implementation.
+// Service is the ACME bounded context service implementation.
 type Service struct {
 	store     types.Datastore
 	nonces    *redis_nonces_store.RedisNoncesStore
@@ -29,7 +29,7 @@ type Service struct {
 
 type ServiceOption func(*Service)
 
-// NewService creates a new activity service.
+// NewService creates a new ACME service.
 func NewService(
 	store types.Datastore,
 	redisPool fleet.RedisPool,
