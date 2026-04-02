@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -119,7 +118,7 @@ func (e *endpointer) Service() any {
 // Compile-time check to ensure endpointer implements Endpointer.
 var _ eu.Endpointer[handlerFunc] = &endpointer{}
 
-func newEndpointerWithNoAuth(svc api.Service, opts []kithttp.ServerOption, r *mux.Router,
+func newEndpointerWithNoAuth(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
@@ -129,12 +128,8 @@ func newEndpointerWithNoAuth(svc api.Service, opts []kithttp.ServerOption, r *mu
 		MakeDecoderFn:  makeDecoder,
 		EncodeFn:       encodeResponse,
 		Opts:           opts,
-		AuthMiddleware: unauthenticatedRequest,
+		AuthMiddleware: authMiddleware,
 		Router:         r,
 		Versions:       versions,
 	}
-}
-
-func unauthenticatedRequest(next endpoint.Endpoint) endpoint.Endpoint {
-	return log.Logged(next)
 }

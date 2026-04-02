@@ -80,6 +80,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -1851,7 +1852,7 @@ func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest)
 func createACMEServiceModule(ds fleet.Datastore, dbConns *common_mysql.DBConnections, redisPool fleet.RedisPool, logger *slog.Logger, csrSigner acme.CSRSigner) (acme_api.Service, endpointer.HandlerRoutesFunc) {
 	providers := &acmeDataProviders{Datastore: ds, signer: csrSigner}
 	acmeSvc, acmeRoutesFn := acme_bootstrap.New(dbConns, redisPool, providers, logger)
-	acmeRoutes := acmeRoutesFn()
+	acmeRoutes := acmeRoutesFn(log.Logged)
 	return acmeSvc, acmeRoutes
 }
 

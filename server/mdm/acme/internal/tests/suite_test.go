@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"go.step.sm/crypto/jose"
@@ -86,7 +87,8 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 
 	// Create router with routes
 	router := mux.NewRouter()
-	routesFn := service.GetRoutes(svc)
+	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint { return next } // no-op auth middleware for testing
+	routesFn := service.GetRoutes(svc, authMiddleware)
 	routesFn(router, nil)
 
 	// Create test server

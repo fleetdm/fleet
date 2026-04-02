@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/service"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/go-kit/kit/endpoint"
 )
 
 type ServiceOption = service.ServiceOption
@@ -24,12 +25,12 @@ func New(
 	providers acme.DataProviders,
 	logger *slog.Logger,
 	opts ...ServiceOption,
-) (api.Service, func() eu.HandlerRoutesFunc) {
+) (api.Service, func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc) {
 	ds := mysql.NewDatastore(dbConns, logger)
 	svc := service.NewService(ds, redisPool, providers, logger, opts...)
 
-	routesFn := func() eu.HandlerRoutesFunc {
-		return service.GetRoutes(svc)
+	routesFn := func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
+		return service.GetRoutes(svc, authMiddleware)
 	}
 
 	return svc, routesFn

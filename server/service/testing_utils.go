@@ -66,6 +66,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -543,7 +544,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365), depot.WithAllowRenewalDays(14))}
 		acmeSvc, acmeRoutes := acme_bootstrap.New(opts[0].DBConns, redisPool, &testACMEDataProviders{Datastore: ds, signer: acmeSigner}, logger, acmeOpts...)
 		svc.SetACMEService(acmeSvc)
-		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes())
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes(log.Logged))
 	}
 
 	if len(opts) > 0 {

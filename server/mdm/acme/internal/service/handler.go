@@ -17,15 +17,15 @@ import (
 
 // GetRoutes returns a function that registers ACME routes on the router using the provided
 // authMiddleware.
-func GetRoutes(svc api.Service) eu.HandlerRoutesFunc {
+func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
 	return func(r *mux.Router, opts []kithttp.ServerOption) {
-		attachFleetAPIRoutes(r, svc, opts)
+		attachFleetAPIRoutes(r, svc, authMiddleware, opts)
 	}
 }
 
-func attachFleetAPIRoutes(r *mux.Router, svc api.Service, opts []kithttp.ServerOption) {
+func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
 	opts = append(opts, kithttp.ServerErrorEncoder(acmeErrorEncoder))
-	ae := newEndpointerWithNoAuth(svc, opts, r)
+	ae := newEndpointerWithNoAuth(svc, authMiddleware, opts, r)
 	// ACME endpoints use path identifier and JWS authn/z, so we use a middleware to mark
 	// the standard Fleet auth as skipped/done so the endpoints don't return a Forbidden
 	// error due to no standard auth done.
