@@ -518,11 +518,11 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				// We cannot apply a VPP app to a team until that team gets a VPP token.
-				// When there are missing VPP teams, the VPP config is temporarily removed
-				// from the global config, which clears ALL VPP token assignments. So we
-				// defer app_store_apps for ALL teams in the VPP config (not just missing
-				// ones), then re-apply them after VPP tokens are reassigned.
+				// Teams need a VPP token before VPP apps can be applied. When some VPP
+				// teams don't exist yet, the VPP config is temporarily removed from the
+				// global config, which clears all VPP token assignments. To avoid
+				// "No available VPP Token" errors, we defer app_store_apps for every
+				// team in the VPP config and re-apply them after tokens are reassigned.
 				if !isGlobalConfig && len(missingVPPTeams) > 0 && len(config.Software.AppStoreApps) > 0 {
 					if slices.Contains(vppTeams, *config.TeamName) {
 						missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
