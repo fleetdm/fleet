@@ -76,6 +76,7 @@
       (function(w,q){w['QualifiedObject']=q;w[q]=w[q]||function(){
       (w[q].q=w[q].q||[]).push(arguments)};})(window,'qualified')
     </script>
+
     <script>
       function loadAnalytics() {
         // guard against loading twice if already consented on page load
@@ -114,14 +115,13 @@
         clayScript.src = 'https://static.claydar.com/init.v1.js?id=cwiBCPLMlD';
         document.head.appendChild(clayScript);
 
-
-        <% if(!disableChatbotAndIndexing) {%>
+        if(!disableChatbotAndIndexing) {
           <% /* Qualified */ %>
           let qualifiedScript = document.createElement("script");
           qualifiedScript.src = "https://js.qualified.com/qualified.js?token=kdbyrPDkGjPxVmAd";
           qualifiedScript.async = true;
           document.head.appendChild(qualifiedScript);
-        <% } %>
+        }
         <% /* Snitcher */ %>
         !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
         (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
@@ -140,8 +140,10 @@
         })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
       }
 
-      // fire immediately if already consented (return visits)
-      if (analyticsConsented) loadAnalytics();
+      // Load analytics scripts immediately if this user already consented
+      if (analyticsConsented) {
+        loadAnalytics();
+      }
 
       // Add event listeners to load analytics scripts after the cookie banner loads or consent is given.
       document.addEventListener('cookieyes_consent_update', (eventData)=>{
@@ -149,16 +151,11 @@
          loadAnalytics();
        }
       });
-
-      document.addEventListener('cookieyes-consent-update', (eventData)=>{
+      document.addEventListener("cookieyes-consent-update", (eventData)=>{
        if(eventData.detail.activeLaw === '') {
          loadAnalytics()
        }
-
-
     </script>
-
-
 
     <% }
     /* Otherwise, any such scripts are excluded, and we instead inject a
