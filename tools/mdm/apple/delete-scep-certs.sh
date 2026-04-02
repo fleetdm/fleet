@@ -73,7 +73,7 @@ while IFS= read -r line; do
         "-----END CERTIFICATE-----")
             current_pem+="$line"$'\n'
             not_before=$(echo "$current_pem" | openssl x509 -noout -startdate 2>/dev/null | cut -d= -f2)
-            epoch=$(date -j -f "%b %d %T %Y %Z" "$not_before" "+%s" 2>/dev/null || echo "0")
+            epoch=$(date -j -f "%b %e %T %Y %Z" "$not_before" "+%s" 2>/dev/null || echo "0")
             echo "$epoch $current_hash" >> "$tmpfile"
             current_pem=""
             ;;
