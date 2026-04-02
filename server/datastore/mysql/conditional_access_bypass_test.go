@@ -306,7 +306,7 @@ func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datas
 	require.NoError(t, err)
 
 	// Record a failing result for this policy on the host
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false, nil)
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// Bypass should fail because the host has a failing CA-enabled policy

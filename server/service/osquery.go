@@ -1208,6 +1208,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}
+		// Ensure newPassing is non-nil so RecordPolicyQueryExecutions can distinguish "pre-computed with zero results"
+		// from "not pre-computed" (nil means compute it yourself).
+		if newPassing == nil {
+			newPassing = []uint{}
+		}
 		newFailingSet := make(map[uint]struct{}, len(newFailing))
 		for _, id := range newFailing {
 			newFailingSet[id] = struct{}{}
@@ -1950,11 +1955,12 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 	return filtered
 }
 
-// filterByPolicyIDs returns only the policy IDs from ids that are present in the allowedResults map.
+// filterByPolicyIDs returns only the policy IDs from ids that are present in allowedResults and have a non-nil result
+// (i.e., the policy actually executed). This matches the behavior of FlippingPoliciesForHost which ignores nil results.
 func filterByPolicyIDs(ids []uint, allowedResults map[uint]*bool) []uint {
 	var filtered []uint
 	for _, id := range ids {
-		if _, ok := allowedResults[id]; ok {
+		if val, ok := allowedResults[id]; ok && val != nil {
 			filtered = append(filtered, id)
 		}
 	}
