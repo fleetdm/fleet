@@ -154,8 +154,7 @@ const AgentOptionsPage = ({
           <>
             Agent options configure Fleet&apos;s agent (fleetd). When you update
             agent options, they will be applied the next time a host checks in
-            to Fleet.
-            <br />
+            to Fleet.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/agent-options"
               text="Learn more about agent options"

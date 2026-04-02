@@ -18,25 +18,6 @@
     }
   }
 
-  .token-message {
-    @include help-text;
-    .custom-link {
-      font-size: inherit;
-      .icon {
-        scale: 0.88;
-      }
-      &__no-wrap {
-        // adjust for multi-line custom links
-        .icon {
-          padding-left: 4px;
-          position: relative;
-          top: 2px;
-        }
-      }
-    }
-    margin-bottom: 2rem;
-  }
-
   .button-wrap {
     justify-content: flex-end;
   }
