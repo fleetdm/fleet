@@ -77,7 +77,10 @@ jobs:
 
     - name: Build Fleet server Docker image
       run: |
-        CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o fleet ./cmd/fleet
+        CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o fleet \
+          -tags full,fts5,netgo -trimpath \
+          -ldflags '-extldflags "-static"' \
+          ./cmd/fleet
         docker build -t fleetdm/fleet:dev -f tools/fleet-docker/Dockerfile .
         rm fleet
 
