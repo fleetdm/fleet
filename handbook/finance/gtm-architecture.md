@@ -73,7 +73,7 @@ We track certian social posts from the [LinkedIn company page](https://www.linke
 
 ### SFDC access
 
-Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles. For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled.
+Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles. All Fleet employees must login at our custom domain [fleetdm.my.salesforce.com](fleetdm.my.salesforce.com) or by clicking the Salesforce app tile in Okta. For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled that must login at [login.salesforce.com](login.salesforce.com).
 
 
 #### Profiles and when to use them
