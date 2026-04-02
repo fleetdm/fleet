@@ -2339,6 +2339,9 @@ func TestConfig() FleetConfig {
 			// smaller than normal max to allow for testing max in CI, while being above the multipart chunk size
 			MaxInstallerSizeBytes: 513 * units.MiB,
 		},
+		Vulnerabilities: VulnerabilitiesConfig{
+			OSVForVulnerabilities: true,
+		},
 	}
 }
 

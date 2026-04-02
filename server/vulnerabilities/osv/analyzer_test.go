@@ -513,18 +513,18 @@ func TestFindLatestOSVArtifactForVersion(t *testing.T) {
 		filename string
 		age      int // days old (to set mod time)
 	}{
-		{"osv-ubuntu-2204-2026-03-28.json.gz", 3},  // Older 22.04
-		{"osv-ubuntu-2204-2026-03-30.json.gz", 1},  // Newer 22.04 (should be selected)
-		{"osv-ubuntu-2204-2026-03-29.json.gz", 2},  // Middle 22.04
-		{"osv-ubuntu-2004-2026-03-30.json.gz", 1},  // 20.04 (different version)
-		{"osv-ubuntu-1804-2026-03-30.json.gz", 1},  // 18.04 (different version)
-		{"other-file.json.gz", 0},                  // Non-OSV file
+		{"osv-ubuntu-2204-2026-03-28.json.gz", 3},       // Older 22.04
+		{"osv-ubuntu-2204-2026-03-30.json.gz", 1},       // Newer 22.04 (should be selected)
+		{"osv-ubuntu-2204-2026-03-29.json.gz", 2},       // Middle 22.04
+		{"osv-ubuntu-2004-2026-03-30.json.gz", 1},       // 20.04 (different version)
+		{"osv-ubuntu-1804-2026-03-30.json.gz", 1},       // 18.04 (different version)
+		{"other-file.json.gz", 0},                       // Non-OSV file
 		{"osv-ubuntu-2204-delta-2026-03-30.json.gz", 1}, // Delta file (should be ignored by pattern)
 	}
 
 	for _, a := range artifacts {
 		path := filepath.Join(tmpDir, a.filename)
-		err := os.WriteFile(path, []byte("test"), 0644)
+		err := os.WriteFile(path, []byte("test"), 0o644)
 		require.NoError(t, err)
 
 		// Set modification time to simulate different ages

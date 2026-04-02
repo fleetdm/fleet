@@ -116,6 +116,10 @@ func downloadOSVArtifact(ctx context.Context, assetID int64, dstPath string) err
 	}
 
 	if redirectURL != "" {
+		if rc != nil {
+			rc.Close()
+		}
+
 		req, err := http.NewRequestWithContext(ctx, "GET", redirectURL, nil)
 		if err != nil {
 			return fmt.Errorf("creating redirect request: %w", err)
@@ -125,9 +129,9 @@ func downloadOSVArtifact(ctx context.Context, assetID int64, dstPath string) err
 		if err != nil {
 			return fmt.Errorf("downloading from redirect URL: %w", err)
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
 			return fmt.Errorf("download http status error: %d", resp.StatusCode)
 		}
 
@@ -197,11 +201,14 @@ func SyncOSV(ctx context.Context, dstDir string, ubuntuVersions []string, date t
 		// Check if file exists and has matching checksum
 		needsDownload := true
 		if _, err := os.Stat(dstPath); err == nil {
-			localDigest, err := computeFileSHA256(dstPath)
-			if err == nil && localDigest == assetInfo.Digest {
-				// Checksums match, skip download
-				needsDownload = false
-				result.Skipped = append(result.Skipped, ubuntuVersion)
+			if assetInfo.Digest != "" {
+				// If no digest available, always re-download to be safe
+				localDigest, err := computeFileSHA256(dstPath)
+				if err == nil && localDigest == assetInfo.Digest {
+					// Checksums match, skip download
+					needsDownload = false
+					result.Skipped = append(result.Skipped, ubuntuVersion)
+				}
 			}
 		}
 
@@ -214,19 +221,21 @@ func SyncOSV(ctx context.Context, dstDir string, ubuntuVersions []string, date t
 				continue
 			}
 
-			downloadedDigest, err := computeFileSHA256(dstPath)
-			if err != nil {
-				// Failed to compute digest, clean up and mark failed
-				os.Remove(dstPath)
-				result.Failed = append(result.Failed, ubuntuVersion)
-				continue
-			}
+			if assetInfo.Digest != "" {
+				downloadedDigest, err := computeFileSHA256(dstPath)
+				if err != nil {
+					// Failed to compute digest, clean up and mark failed
+					os.Remove(dstPath)
+					result.Failed = append(result.Failed, ubuntuVersion)
+					continue
+				}
 
-			if downloadedDigest != assetInfo.Digest {
-				// Checksum mismatch - corrupted download, clean up and mark failed
-				os.Remove(dstPath)
-				result.Failed = append(result.Failed, ubuntuVersion)
-				continue
+				if downloadedDigest != assetInfo.Digest {
+					// Checksum mismatch - corrupted download, clean up and mark failed
+					os.Remove(dstPath)
+					result.Failed = append(result.Failed, ubuntuVersion)
+					continue
+				}
 			}
 
 			result.Downloaded = append(result.Downloaded, ubuntuVersion)
