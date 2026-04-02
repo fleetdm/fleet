@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.9.0",
+      "version": "7.9.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id' AND version_compare(bundle_short_version, '7.9.1') < 0);"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion-7.9.0-arm64.dmg",
+      "installer_url": "https://desktop-release.notion-static.com/Notion-7.9.1-arm64.dmg",
       "install_script_ref": "2c56ecc2",
       "uninstall_script_ref": "21cd1000",
-      "sha256": "44f6a672f9474e14acac0fa41d74a6872e6894c1ac6b0bbf65ff1497dd8c3e21",
+      "sha256": "3a91a3f936c2c5d4522d26a37fff484a948ca3832d1c0d7fc8bc1bfdcbdfc0f1",
       "default_categories": [
         "Productivity"
       ]

@@ -6843,6 +6843,126 @@ WHERE (
 	return nil
 }
 
+func (ds *Datastore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+	// Step 1: Get up to 3 old command UUIDs from nano_enrollment_queue for this
+	// enrollment. The PK is (id, command_uuid) so filtering by id first is efficient,
+	// and the LIKE prefix on command_uuid narrows within that enrollment's entries.
+	// 3 may seem like too few but in load testing because of how often this runs it
+	// was found that larger numbers can cause too much contention
+	const selectOldCmds = `
+		SELECT command_uuid FROM nano_enrollment_queue
+		WHERE id = ?
+		  AND command_uuid LIKE ?
+		  AND command_uuid != ?
+		  AND created_at < NOW() - INTERVAL 30 DAY
+		LIMIT 3`
+
+	var oldCmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &oldCmdUUIDs, selectOldCmds, enrollmentID, commandUUIDPrefix+"%", currentCommandUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "select old nano refetch commands")
+	}
+	if len(oldCmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Step 2: From ncr, find which of those command UUIDs have been acknowledged or
+	// errored for this enrollment. The PK (id, command_uuid) makes this efficient
+	// since we provide both id and the command_uuid IN list.
+	selectAckQuery, args, err := sqlx.In(`
+		SELECT command_uuid FROM nano_command_results
+		WHERE id = ? AND command_uuid IN (?) AND status IN ('Acknowledged', 'Error')`,
+		enrollmentID, oldCmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for nano command results")
+	}
+
+	var ackCmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ackCmdUUIDs, selectAckQuery, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select acknowledged nano command results")
+	}
+	if len(ackCmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Step 3: Delete from neq and ncr in the same transaction, scoped to this enrollment. We may not
+	// need to delete in a transaction here but it's the easiest way to ensure we cleanup ncr and further
+	// we absolutely must ensure we don't delete from ncr before deleting from neq to avoid command resends
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		deleteNEQ, delArgs, err := sqlx.In(
+			`DELETE FROM nano_enrollment_queue WHERE id = ? AND command_uuid IN (?)`,
+			enrollmentID, ackCmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete neq query")
+		}
+		if _, err := tx.ExecContext(ctx, deleteNEQ, delArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale nano enrollment queue entries")
+		}
+
+		deleteNCR, delArgs, err := sqlx.In(
+			`DELETE FROM nano_command_results WHERE id = ? AND command_uuid IN (?)`,
+			enrollmentID, ackCmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete ncr query")
+		}
+		if _, err := tx.ExecContext(ctx, deleteNCR, delArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale nano command results entries")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) CleanupOrphanedNanoRefetchCommands(ctx context.Context) error {
+	// Find up to 100 old REFETCH- commands. Note I am doing this as two queries since nano_commands
+	// can be large and I want to make sure in the case of a large number of active commands there's
+	// not going to be a full table scan or something happening. This is a best effort deletion so it
+	// is OK if our sample deletes nothing
+	const selectStmt = `
+		SELECT command_uuid FROM nano_commands nc
+		WHERE nc.command_uuid LIKE 'REFETCH-%'
+		  AND nc.created_at < NOW() - INTERVAL 30 DAY
+		LIMIT 100`
+
+	var cmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "get mdm apple refetch commands")
+	}
+	if len(cmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Delete those that don't have a corresponding entry in nano_enrollment_queue
+	selectOrphanedCommandsStmt := `
+	SELECT command_uuid FROM nano_commands nc
+	WHERE nc.command_uuid IN (?) AND NOT EXISTS (
+		SELECT 1 FROM nano_enrollment_queue neq
+		WHERE neq.command_uuid = nc.command_uuid AND neq.active = 1
+		LIMIT 1
+	)`
+	selectOrphanedCommandsStmt, args, err := sqlx.In(selectOrphanedCommandsStmt, cmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for orphaned refetch commands")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, selectOrphanedCommandsStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "get orphaned refetch commands")
+	}
+	if len(cmdUUIDs) == 0 {
+		return nil
+	}
+
+	deleteOrphanedCommandsStmt := `
+	DELETE FROM nano_commands
+	WHERE command_uuid IN (?)`
+	deleteOrphanedCommandsStmt, args, err = sqlx.In(deleteOrphanedCommandsStmt, cmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for deleting orphaned refetch commands")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedCommandsStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete orphaned refetch commands")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 	stmt := `
 SELECT
