@@ -40,7 +40,7 @@ END AS platform
 }
 
 func (ds *Datastore) SetCommandName(ctx context.Context, commandUUID string, name string) error {
-	stmt := `UPDATE nano_commands SET name = ? WHERE command_uuid = ?`
+	stmt := `UPDATE nano_commands SET name = ? WHERE command_uuid = ? AND name IS NULL`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, name, commandUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set command name")
 	}
