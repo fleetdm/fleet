@@ -71,12 +71,9 @@ We track certian social posts from the [LinkedIn company page](https://www.linke
 
 ## Salesforce
 
+### SFDC access
 
-### Single sign-on (SSO)
-
-Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles.
-
-For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled.
+Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles. For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled.
 
 
 #### Profiles and when to use them
@@ -90,11 +87,6 @@ For users and accounts that cannot use SSO (e.g., integration users, external co
 
 - **Adding an SSO user:** Assign the **Fleet User** profile (or **System Administrator** if they need admin privileges). The user will authenticate via Okta and Salesforce credential login will be disabled.
 - **Adding a non-SSO user (e.g., an integration account or external collaborator):** Assign **externalNonSSOEnabledSystemAdmin** for admin-level access or **externalNonSSOEnabledFleetUser** for standard access. These users authenticate with Salesforce credentials directly.
-
-
-#### Future provisioning work
-
-A future effort will create an SSO admin account for API integration via OAuth and enable automated role and permission provisioning.
 
 
 ### Campaigns (SFDC)
