@@ -2362,7 +2362,7 @@ spec:
       apple_setup_assistant: %s
 `
 		appConfigEnableReleaseSpec = appConfigSpec + `
-      enable_release_device_manually: %s
+      apple_enable_release_device_manually: %s
 `
 		appConfigNoKeySpec = `
 apiVersion: v1
@@ -2391,7 +2391,7 @@ spec:
         apple_setup_assistant: %s
 `
 		team1EnableReleaseSpec = team1Spec + `
-        enable_release_device_manually: %s
+        apple_enable_release_device_manually: %s
         require_all_software_macos: %s
 `
 		team1NoKeySpec = `
@@ -2593,7 +2593,7 @@ spec:
 
 		// get, setup assistant still not set
 		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig for real, and enable release device
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
@@ -2610,7 +2610,7 @@ spec:
 
 		// get, setup assistant is now set
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
@@ -2646,7 +2646,7 @@ spec:
 
 		// get, results unchanged
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear appconfig for real
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
@@ -2666,7 +2666,7 @@ spec:
 
 		// get, results now empty
 		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1And2, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1And2, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply team 1 without the setup assistant key but enable device release
 		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))
@@ -2678,7 +2678,7 @@ spec:
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
-		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
@@ -2783,7 +2783,7 @@ spec:
   mdm:
     setup_experience:
       macos_bootstrap_package: %s
-      manual_agent_install: true
+      macos_manual_agent_install: true
 `
 
 		// create the app config yaml with server url for bootstrap package
