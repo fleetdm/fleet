@@ -4691,7 +4691,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 }
 
 func (svc *MDMAppleCheckinAndCommandService) evaluateMDMPoliciesForHost(
-	ctx context.Context, host *fleet.Host, queryResponses map[string]interface{},
+	ctx context.Context, host *fleet.Host, queryResponses map[string]any,
 ) error {
 	policies, err := svc.ds.MDMPoliciesForHost(ctx, host)
 	if err != nil {
@@ -4736,8 +4736,8 @@ func (svc *MDMAppleCheckinAndCommandService) evaluateMDMPoliciesForHost(
 	return nil
 }
 
-// toStringValue converts an interface{} value to a string representation for MDM policy evaluation.
-func toStringValue(v interface{}) string {
+// toStringValue converts a value to a string representation for MDM policy evaluation.
+func toStringValue(v any) string {
 	switch val := v.(type) {
 	case string:
 		return val

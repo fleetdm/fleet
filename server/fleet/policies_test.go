@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +68,7 @@ func TestPolicyPayloadVerify_MDMType(t *testing.T) {
 			payload: PolicyPayload{
 				Type:               PolicyTypeMDM,
 				Name:               "test",
-				QueryID:            ptrUint(1),
+				QueryID:            ptr.Uint(1),
 				MDMCheckDefinition: &validDef,
 			},
 			wantErr: "MDM policies cannot use query_id",
@@ -183,8 +184,4 @@ func TestPolicySpecVerify_MDMType(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ptrUint(v uint) *uint {
-	return &v
 }
