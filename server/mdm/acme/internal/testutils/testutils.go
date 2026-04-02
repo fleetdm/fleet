@@ -45,7 +45,7 @@ func (tdb *TestDB) Conns() *common_mysql.DBConnections {
 	return &common_mysql.DBConnections{Primary: tdb.DB, Replica: tdb.DB}
 }
 
-// TruncateTables clears the tables used by activity bounded context.
+// TruncateTables clears the tables used by acme bounded context.
 func (tdb *TestDB) TruncateTables(t *testing.T) {
 	t.Helper()
 	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "acme_enrollments", "acme_accounts", "acme_orders", "acme_authorizations", "acme_challenges", "identity_certificates", "identity_serials")

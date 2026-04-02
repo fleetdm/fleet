@@ -51,7 +51,7 @@ func (ds *Datastore) GetAuthorizationByID(ctx context.Context, accountID uint, a
 }
 
 func (ds *Datastore) GetAuthorizationsByOrderID(ctx context.Context, orderID uint) ([]*types.Authorization, error) {
-	const stmt = `SELECT id, order_id, identifier_type, identifier_value, status FROM acme_authorizations WHERE order_id = ?`
+	const stmt = `SELECT id, acme_order_id, identifier_type, identifier_value, status FROM acme_authorizations WHERE acme_order_id = ?`
 	var authorizations []*types.Authorization
 	err := ds.primary.SelectContext(ctx, &authorizations, stmt, orderID)
 	if err != nil {

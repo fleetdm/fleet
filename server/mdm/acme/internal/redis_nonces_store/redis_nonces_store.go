@@ -48,7 +48,7 @@ func (r *RedisNoncesStore) Consume(ctx context.Context, nonce string) (ok bool, 
 		return false, nil
 	}
 
-	conn := r.pool.Get()
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	n, err := redigo.Int(conn.Do("DEL", r.testPrefix+prefix+nonce))

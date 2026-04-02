@@ -1764,6 +1764,10 @@ LIMIT ?`, expiryDays, limit)
 }
 
 func (ds *Datastore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+	if len(hostUUIDs) == 0 {
+		return []fleet.DeviceInfoForACMERenewal{}, nil
+	}
+
 	// TODO(mna): anyone knows what those TODOs (from Sarah's PRs) were for?
 	// TODO: refactor this to use hw model from host_dep_assignments once we have that fully in place
 	// TODO: confirm we can rely on host_operating_system and operating_systems tables for accurate OS version information

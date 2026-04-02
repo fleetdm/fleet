@@ -15,7 +15,7 @@ import (
 // tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.
 var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql")
 
-// Datastore is the MySQL implementation of the activity datastore.
+// Datastore is the MySQL implementation of the ACME datastore.
 type Datastore struct {
 	primary *sqlx.DB
 	replica *sqlx.DB

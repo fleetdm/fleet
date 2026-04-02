@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"slices"
 	"strconv"
@@ -187,5 +188,11 @@ func (s *Service) accountIDFromKeyID(ctx context.Context, keyID, pathIdentifier 
 		err = types.UnauthorizedError("Invalid key ID URL")
 		return 0, ctxerr.Wrap(ctx, err)
 	}
+
+	if accountID > uint64(math.MaxUint) {
+		err = types.UnauthorizedError("Invalid key ID URL")
+		return 0, ctxerr.Wrap(ctx, err)
+	}
+
 	return uint(accountID), nil
 }
