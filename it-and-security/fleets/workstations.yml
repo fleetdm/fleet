@@ -86,8 +86,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
-    deadline:
-    minimum_version:
+    deadline: "2025-04-10"
+    minimum_version: "26.4"
     update_new_hosts: true
   windows_settings:
     custom_settings:
@@ -98,8 +98,8 @@ controls:
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
-    deadline_days: 7
-    grace_period_days: 2
+    deadline_days: 5
+    grace_period_days: 1
   scripts:
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
@@ -109,6 +109,7 @@ controls:
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/macos/scripts/disk-cleanup.sh
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
