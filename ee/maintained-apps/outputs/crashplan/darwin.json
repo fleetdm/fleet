@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "11.9.0",
+      "version": "11.9.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop' AND version_compare(bundle_short_version, '11.9.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop' AND version_compare(bundle_short_version, '11.9.1') < 0);"
       },
-      "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.9.0/507/install/CrashPlan_11.9.0_507_Mac.dmg",
+      "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.9.1/19/install/CrashPlan_11.9.1_19_Mac.dmg",
       "install_script_ref": "4a9ec0ad",
       "uninstall_script_ref": "d320d3d5",
-      "sha256": "d74cc592ec779acbbc6962cdf4d880a8ec3ddfb0e6f0b20f03105f7be93c499a",
+      "sha256": "1d8dc0d518b1e8684b5f35ddc191a307d3cb6adf4900015922dae4c299f6023d",
       "default_categories": [
         "Productivity"
       ]

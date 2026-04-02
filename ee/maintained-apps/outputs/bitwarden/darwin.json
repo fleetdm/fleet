@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.2.1",
+      "version": "2026.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop' AND version_compare(bundle_short_version, '2026.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop' AND version_compare(bundle_short_version, '2026.3.1') < 0);"
       },
-      "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2026.2.1/Bitwarden-2026.2.1-universal.dmg",
+      "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2026.3.1/Bitwarden-2026.3.1-universal.dmg",
       "install_script_ref": "3cba6100",
       "uninstall_script_ref": "539722b8",
-      "sha256": "086697442f9db4eb2656704ac78261bca499510b7cdb49bfd8c08044672f1f61",
+      "sha256": "b3d3d139d67c616ec6e484454872693991e29beb42dc4fc43c0c0c28262de8ff",
       "default_categories": [
         "Productivity"
       ]
