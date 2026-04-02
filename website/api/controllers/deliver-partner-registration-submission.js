@@ -24,7 +24,7 @@ module.exports = {
 
 
   exits: {
-    success: {description: 'A parter registration email was successfully sent.'},
+    success: {description: 'A partner registration email was successfully sent.'},
     missingInput: {description: 'The form submission is missing a required input', responseType: 'badRequest'},
   },
 

@@ -29,7 +29,7 @@ module.exports = {
 
 
   exits: {
-
+    success: {description: 'A deal registration email was successfully sent.'},
   },
 
 
