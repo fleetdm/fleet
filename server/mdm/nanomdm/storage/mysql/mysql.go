@@ -158,11 +158,8 @@ UPDATE
     authenticate_at = CURRENT_TIMESTAMP;`,
 		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw,
 	)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (s *MySQLStorage) storeDeviceTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) error {
