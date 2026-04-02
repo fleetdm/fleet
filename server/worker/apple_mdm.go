@@ -112,6 +112,13 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
+	if err != nil {
+		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
+		// We do not return here, as we want to continue with the rest of the logic, and then the reconciler will just pick up the remaining work.
+		// We do this since this is a speed optimization and not critical to complete enrollment itself.
+	}
+
 	if isMacOS(args.Platform) {
 		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")

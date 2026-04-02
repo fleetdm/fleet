@@ -1207,7 +1207,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
@@ -1219,7 +1219,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must have only one of package_path or app_store_id")
+	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, hash_sha256 or fleet_maintained_app_slug")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
@@ -3373,9 +3373,9 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware, // no package_path, app_store_id, or hash_sha256
 			},
 		}
-		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id or a hash_sha256`)
+		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug`)
 	})
 
 	t.Run("unknown key in package_path file", func(t *testing.T) {
@@ -3396,10 +3396,179 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 			},
 		}
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
-		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil)
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
 		var unknownErr *ParseUnknownKeyError
 		require.ErrorAs(t, errs[0], &unknownErr)
 		assert.Equal(t, "bad_field", unknownErr.Field)
+	})
+	t.Run("fleet_maintained_app_slug valid", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+	})
+
+	t.Run("fleet_maintained_app_slug not in FMAs", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "notreal/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "bad fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), `fleet_maintained_app_slug "notreal/darwin" not found`)
+	})
+
+	t.Run("fleet_maintained_app_slug with other fields errors", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{
+			FleetMaintainedAppSlug: "zoom/darwin",
+			HashSHA256:             "abc123",
+		}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "conflicting policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "install_software must have only one of")
+	})
+
+	t.Run("fleet_maintained_app_slug on global policy errors", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "global fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+	})
+}
+
+func TestGitOpsPresenceTracking(t *testing.T) {
+	t.Run("labels present", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: test-label
+    query: SELECT 1
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.LabelsPresent)
+	})
+
+	t.Run("labels absent", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+`)
+		require.NoError(t, err)
+		assert.False(t, gitops.LabelsPresent)
+		assert.Nil(t, gitops.Labels, "absent labels should be nil")
+	})
+
+	t.Run("labels present but empty", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+labels:
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.LabelsPresent)
+		assert.Nil(t, gitops.Labels, "empty labels section should result in nil")
+	})
+
+	t.Run("secrets present", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: mysecret
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.SecretsPresent)
+	})
+
+	t.Run("secrets absent", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+`)
+		require.NoError(t, err)
+		assert.False(t, gitops.SecretsPresent)
+	})
+
+	t.Run("software present on team", func(t *testing.T) {
+		premiumConfig := &fleet.EnrichedAppConfig{}
+		premiumConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+		path, basePath := createTempFile(t, "", `
+name: TestTeam
+software:
+  packages:
+    - url: https://example.com/pkg.deb
+`)
+		gitops, err := GitOpsFromFile(path, basePath, premiumConfig, nopLogf)
+		require.NoError(t, err)
+		assert.True(t, gitops.SoftwarePresent)
+	})
+
+	t.Run("software absent on team", func(t *testing.T) {
+		premiumConfig := &fleet.EnrichedAppConfig{}
+		premiumConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+		path, basePath := createTempFile(t, "", `
+name: TestTeam
+`)
+		gitops, err := GitOpsFromFile(path, basePath, premiumConfig, nopLogf)
+		require.NoError(t, err)
+		assert.False(t, gitops.SoftwarePresent)
 	})
 }

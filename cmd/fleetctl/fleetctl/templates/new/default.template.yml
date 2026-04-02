@@ -55,7 +55,7 @@ org_settings:
     #   • https://fleetdm.com/guides/setup-experience#end-user-authentication
     ###########################################################
     # end_user_authentication:
-    #   idp_name: "Okta"  e.g. "Entra", "Okta", "Google Workspace", etc. (Displayed to end users.)
+    #   idp_name: "Okta"  # e.g. "Entra", "Okta", "Google Workspace", etc. (Displayed to end users.)
     #   metadata_url: "https://okta.com/replace-this-url" # This must exactly match the "IdP metadata URL" provided by your identity provider (IdP) when setting up this integration.
     #   entity_id: "fleet-end-users" # This must exactly match the "Entity ID" field you chose when setting up this integration in your identity provider (IdP).
 
@@ -68,7 +68,8 @@ org_settings:
     #   • https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm
     ###########################################################
     # apple_business_manager:
-    #   - macos_fleet: "💻 Workstations" # Where new macOS devices from ABM will appear
+    #   - organization_name: "My Company, Inc." # This must exactly match the organization name in Apple Business Manager (ABM).
+    #     macos_fleet: "💻 Workstations" # Where new macOS devices from ABM will appear
 
     ###########################################################
     # Uncomment to start using Apple's volume purchase program (VPP)
@@ -80,7 +81,8 @@ org_settings:
     #   • https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp
     ###########################################################
     # volume_purchasing_program:
-    #   - fleets:
+    #   - location: "My location." # This must exactly match a "Location" name in Apple Business Manager (ABM).
+    #     fleets:
     #       - "💻 Workstations"
     #       - "📱🔐 Personal mobile devices"
 
@@ -103,6 +105,14 @@ controls:
   #   # ^ When end users click "Migrate to Fleet", this webhook is triggered.
   #   # By convention it looks up the device and unmanages it in the old MDM,
   #   # then enrolls the device in Fleet.  Unsure?  Get help @ fleetdm.com/support.
+
+  ###########################################################
+  # Uncomment when you are ready to start using Fleet's Windows MDM features.
+  # 
+  # Read more:
+  #   • https://fleetdm.com/guides/windows-mdm-setup
+  ###########################################################
+  # windows_enabled_and_configured: true
 
 
 ###########################################################

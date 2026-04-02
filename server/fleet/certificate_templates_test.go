@@ -22,6 +22,7 @@ func TestHostCertificateTemplate(t *testing.T) {
 					require.Equal(t, "", profile.Name)
 					require.Equal(t, "", profile.Platform)
 					require.Nil(t, profile.Status)
+					require.Nil(t, profile.CertificateTemplateID)
 				},
 			},
 			{
@@ -40,6 +41,16 @@ func TestHostCertificateTemplate(t *testing.T) {
 					require.Equal(t, MDMOperationTypeInstall, profile.OperationType)
 					require.Equal(t, AndroidCertificateTemplateProfileID, profile.ProfileUUID)
 					require.Empty(t, profile.Detail)
+				},
+			},
+			{
+				name: "maps certificate_template_id correctly",
+				template: &HostCertificateTemplate{
+					CertificateTemplateID: 42,
+				},
+				expectation: func(t *testing.T, profile HostMDMProfile) {
+					require.NotNil(t, profile.CertificateTemplateID)
+					require.EqualValues(t, 42, *profile.CertificateTemplateID)
 				},
 			},
 			{

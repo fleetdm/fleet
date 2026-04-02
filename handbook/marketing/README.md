@@ -3,14 +3,8 @@
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
-
-| Role                               | Contributor(s)
-|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief  Marketing Officer           | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
-| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
-| Head of Demand Generation          | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
-| Marketing Campaign Manager         | [Michael D Buck](https://www.linkedin.com/in/michael-buck-chi312/ ) _([@mb-chigoose312](https://github.com/mb-chigoose312))_
-
+ 
+The different roles in the marketing team and the DRIs executing the responsibilities of that role are listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-responsibilities).
 
 ## Contact us
 
@@ -31,11 +25,9 @@ The complete list of all marketing assets is listed on [this handbook page](http
 
 ### Press boilerplate text
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by an human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
 
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
+Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep full control over data residency and legal jurisdiction, or let Fleet handle the infrastructure with Fleet Cloud. Learn more at [fleetdm.com](https://fleetdm.com)
 
 
 ### Organize work in GitHub issues with marketing labels
@@ -58,7 +50,7 @@ Note: for event execution, additional labels are used to manage the process and 
 
 ### Prepare "Let's get you set up!" meeting notes
 
-Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
+Before each group call, copy the attendees from the "Let's get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
 On Thursdays, marketing reviews the names and accounts for upcoming meetings and checks how many hosts each account has. If an account has more than 500 hosts, post a message in the #help-gtm-ops Slack channel.
 Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
 
@@ -200,6 +192,18 @@ Here are some links that filter relevant conversations on each platform:
 2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
+
+
+### Monitor and respond to LinkedIn comments
+
+The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
+
+To monitor and respond to LinkedIn comments:
+1. Check LinkedIn mentions and comments once per work day.
+2. Like mentions and respond to comments where appropriate.
+3. Repost content related to GitOps certification or from Fleeties.
+4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
+5. All interactions are catalogued in Hootsuite for future review.
 
 
 ### Publish sprint demo video

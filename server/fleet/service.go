@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -347,9 +348,8 @@ type Service interface {
 	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
 	QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
 	// ListHostReports returns the reports/queries associated with the given host, filtered,
-	// sorted, and paginated according to opts. The bool return value indicates whether
-	// query reports are globally disabled in the org settings.
-	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, savedReportsDisabled bool, err error)
+	// sorted, and paginated according to opts.
+	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error
@@ -731,6 +731,7 @@ type Service interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, *PaginationMetadata, error)
 	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*Software, error)
+	SoftwareLiteByID(ctx context.Context, id uint) (SoftwareLite, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	// SaveHostSoftwareInstallResult saves information about execution of a
@@ -881,6 +882,12 @@ type Service interface {
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
+
+	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
+	// Apple's live device details from ABM for the given host ID.
+	// Returns (nil, nil, nil) for non-DEP hosts.
+	// If ABM returns an error, dep_device is nil and the error is logged.
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.Device, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode MDMLabelsMode) (*MDMAppleConfigProfile, error)
@@ -1463,6 +1470,16 @@ type Service interface {
 type KeyValueStore interface {
 	Set(ctx context.Context, key string, value string, expireTime time.Duration) error
 	Get(ctx context.Context, key string) (*string, error)
+}
+
+type AdvancedKeyValueStore interface {
+	KeyValueStore
+
+	// MGet returns the values for the given keys.
+	// It returns a map of key to value, where the value is nil if the key doesn't exist.
+	// Important to use hashes for the keys to land in the same slot.
+	MGet(ctx context.Context, keys []string) (map[string]*string, error)
+	Delete(ctx context.Context, key string) error
 }
 
 const (

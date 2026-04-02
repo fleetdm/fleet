@@ -152,7 +152,11 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 			detail,
 			COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid,
 			created_at,
-			updated_at
+			updated_at,
+			not_valid_before,
+			not_valid_after,
+			serial,
+			retry_count
 		FROM host_certificate_templates
 		WHERE host_uuid = ? AND certificate_template_id = ?
 	`
@@ -166,6 +170,40 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 	}
 
 	return &result, nil
+}
+
+// RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry,
+// increments retry_count, preserves the error detail, and clears challenge/cert fields.
+func (ds *Datastore) RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete associated challenges
+		_, err := tx.ExecContext(ctx, `
+			DELETE c FROM challenges c
+			INNER JOIN host_certificate_templates hct ON hct.fleet_challenge = c.challenge
+			WHERE hct.host_uuid = ? AND hct.certificate_template_id = ?
+		`, hostUUID, certificateTemplateID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete challenges for certificate retry")
+		}
+
+		// Reset to pending, increment retry_count, preserve error detail, clear cert fields
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+			UPDATE host_certificate_templates
+			SET status = '%s',
+				retry_count = retry_count + 1,
+				detail = ?,
+				fleet_challenge = NULL,
+				uuid = UUID_TO_BIN(UUID(), true),
+				not_valid_before = NULL,
+				not_valid_after = NULL,
+				serial = NULL
+			WHERE host_uuid = ? AND certificate_template_id = ?
+		`, fleet.CertificateTemplatePending), detail, hostUUID, certificateTemplateID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retry certificate install")
+		}
+		return nil
+	})
 }
 
 // BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records
@@ -657,6 +695,7 @@ func (ds *Datastore) SetAndroidCertificateTemplatesForRenewal(
 		UPDATE host_certificate_templates
 		SET
 			status = '%s',
+			retry_count = 0,
 			uuid = UUID_TO_BIN(UUID(), true),
 			not_valid_before = NULL,
 			not_valid_after = NULL,

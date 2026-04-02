@@ -1,0 +1,2 @@
+- Fixed issue where the `include_available_for_install` query param wasn't being applied correctly
+to the `GET /api/latest/fleet/hosts/{id}/software` endpoint.

@@ -819,7 +819,13 @@ func AddLabelMocks(ds *mock.Store) {
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		return nil
 	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
 
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{ID: 1, Name: name}, nil
+	}
 	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil

@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.2.16",
+      "version": "5.3.1",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.krita';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.krita';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.krita' AND version_compare(bundle_short_version, '5.3.1') < 0);"
       },
-      "installer_url": "https://download.kde.org/stable/krita/5.2.16/krita-5.2.16-signed.dmg",
+      "installer_url": "https://download.kde.org/stable/krita/5.3.1/krita-5.3.1-signed.dmg",
       "install_script_ref": "bca236c8",
       "uninstall_script_ref": "85daadf8",
-      "sha256": "f79c4ba538e5cff0b0ab59c559cf3613bb555d0857a384d6f63e8c305367cae0",
+      "sha256": "7992f864e55b8cad4901b89c9c98d25565a05153d6f52a08820aceff6a1af438",
       "default_categories": [
         "Productivity"
       ]

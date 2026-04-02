@@ -3,7 +3,7 @@ name: fleet-gitops
 description: Use when working on Fleet GitOps configuration files, including osquery queries, configuration profiles, DDM declarations, software management, and CVE remediation in the it-and-security folder.
 ---
 
-# Fleet GitOps – Kilocode Skill
+# Fleet GitOps – kilocode skill
 
 ## Queries & Reports
 

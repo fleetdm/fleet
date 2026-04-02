@@ -3,7 +3,8 @@
     {
       "version": "1.96.3",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.96.3') < 0);"
       },
       "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.96.3-amd64.msi",
       "install_script_ref": "8959087b",

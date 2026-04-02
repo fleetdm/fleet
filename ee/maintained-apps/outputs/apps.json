@@ -800,6 +800,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Google Credential Provider for Windows",
+      "slug": "google-credential-provider-for-windows/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Credential Provider for Windows",
+      "description": "Google Credential Provider for Windows is an app that allows users to sign in to Windows devices using their Google Workspace or Cloud Identity accounts."
+    },
+    {
       "name": "Google Drive",
       "slug": "google-drive/darwin",
       "platform": "darwin",
@@ -1596,6 +1603,13 @@
       "platform": "darwin",
       "unique_identifier": "com.mothersruin.SuspiciousPackage",
       "description": "Suspicious Package is an application for inspecting installer packages."
+    },
+    {
+      "name": "swiftDialog",
+      "slug": "swiftdialog/darwin",
+      "platform": "darwin",
+      "unique_identifier": "au.csiro.dialog",
+      "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
     },
     {
       "name": "Tableau Desktop",

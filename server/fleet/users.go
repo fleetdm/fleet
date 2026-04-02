@@ -12,6 +12,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// ErrLastGlobalAdmin is returned when an operation would remove the last global admin.
+var ErrLastGlobalAdmin = errors.New("cannot remove the last global admin")
+
 // UserSummary contains the minimal user fields.
 type UserSummary struct {
 	ID          uint   `db:"id"`
@@ -362,6 +365,9 @@ func (u *User) ValidatePassword(password string) error {
 }
 
 func (u *User) SetPassword(plaintext string, keySize, cost int) error {
+	if u.SSOEnabled {
+		return errors.New("set password for single sign on user not allowed")
+	}
 	if err := ValidatePasswordRequirements(plaintext); err != nil {
 		return err
 	}
