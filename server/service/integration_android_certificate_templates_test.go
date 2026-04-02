@@ -649,6 +649,19 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
 		fleet.CertificateTemplatePending, "", "CN="+host.HardwareSerial)
 
+	// Step: Simulate the certificate being successfully installed on the device (status = verified).
+	// This is critical for testing that verified records are cleared on unenroll.
+	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamID)
+	require.NoError(t, err)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ?, uuid = UUID_TO_BIN(UUID(), true) WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateVerified, host.UUID, certTemplateID)
+		return err
+	})
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateVerified, "", "CN="+host.HardwareSerial)
+
 	// Step: Unenroll the host (simulates pubsub DELETED message)
 	unenrolled, err := s.ds.SetAndroidHostUnenrolled(ctx, host.ID)
 	require.NoError(t, err)
@@ -672,17 +685,11 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.NotZero(t, createResp.ID)
 	certTemplateID2 := createResp.ID
 
-	// Step: Verify that the unenrolled host did NOT get a host_certificate_templates record for the second template.
-	// The host API only returns profiles that have host_certificate_templates records, so the second
-	// template should not appear in the profiles list.
+	// Step: Verify that unenrolling cleared all certificate template records for this host.
+	// Neither the previously verified first template nor the newly created second template should appear.
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	require.Len(t, *getHostResp.Host.MDM.Profiles, 1, "Only first template should appear (second was created while host was unenrolled)")
-	profile := (*getHostResp.Host.MDM.Profiles)[0]
-	require.Equal(t, certTemplateName, profile.Name, "First certificate template should be present")
-	require.NotNil(t, profile.Status)
-	require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
+	require.Nil(t, getHostResp.Host.MDM.Profiles, "All certificate template records should be cleared on unenroll")
 
 	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true)
 	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true, false)
