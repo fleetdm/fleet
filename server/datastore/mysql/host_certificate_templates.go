@@ -174,18 +174,20 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 
 // GetCertificateTemplateStatusesByNameForHost returns a map of certificate template
 // name -> status for all certificate templates assigned to this host.
+// Only install records are considered; pending-remove rows are excluded so that the
+// name-to-status mapping is deterministic when both exist for the same template name.
 func (ds *Datastore) GetCertificateTemplateStatusesByNameForHost(ctx context.Context, hostUUID string) (map[string]fleet.CertificateTemplateStatus, error) {
 	const stmt = `
 		SELECT ct.name, hct.status
 		FROM host_certificate_templates hct
 		JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
-		WHERE hct.host_uuid = ?
+		WHERE hct.host_uuid = ? AND hct.operation_type = ?
 	`
 	var rows []struct {
 		Name   string `db:"name"`
 		Status string `db:"status"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get certificate template statuses by name for host")
 	}
 

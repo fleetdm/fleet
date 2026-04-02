@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -3256,12 +3255,6 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		casByName[ca.Name] = ca
 	}
 
-	// Validate that ONC profiles referencing certificates via ClientCertKeyPairAlias
-	// have matching certificate template names in this GitOps configuration.
-	if err := validateONCCertificateReferences(config, certificates); err != nil {
-		return err
-	}
-
 	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
 	certsToBeAdded := make(map[string]*fleet.CertificateRequestSpec, len(certificates))
 	for i := range certificates {
@@ -3345,51 +3338,6 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		logFn("[+] applied %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
-	return nil
-}
-
-// validateONCCertificateReferences checks that any ClientCertKeyPairAlias values
-// in Android profiles' openNetworkConfiguration fields match certificate template
-// names defined in the same GitOps configuration. Profile files are read from
-// their resolved absolute paths.
-func validateONCCertificateReferences(config *spec.GitOps, certificates []fleet.CertificateTemplateSpec) error {
-	if config.Controls.AndroidSettings == nil {
-		return nil
-	}
-	androidSettings, ok := config.Controls.AndroidSettings.(fleet.AndroidSettings)
-	if !ok || !androidSettings.CustomSettings.Valid {
-		return nil
-	}
-
-	certNames := make(map[string]struct{}, len(certificates))
-	for _, cert := range certificates {
-		certNames[cert.Name] = struct{}{}
-	}
-
-	for _, profileSpec := range androidSettings.CustomSettings.Value {
-		if profileSpec.Path == "" {
-			continue
-		}
-		profileJSON, err := os.ReadFile(profileSpec.Path)
-		if err != nil {
-			continue // file read errors are handled elsewhere in the pipeline
-		}
-
-		aliases, err := android.ExtractCertAliasesFromProfileJSON(profileJSON)
-		if err != nil || len(aliases) == 0 {
-			continue
-		}
-
-		for _, alias := range aliases {
-			if _, exists := certNames[alias]; !exists {
-				return newGitOpsValidationError(fmt.Sprintf(
-					"profile %q references certificate %q via ClientCertKeyPairAlias in openNetworkConfiguration, "+
-						"but no certificate with that name exists in the GitOps configuration",
-					profileSpec.Path, alias,
-				))
-			}
-		}
-	}
 	return nil
 }
 

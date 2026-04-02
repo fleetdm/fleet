@@ -1721,7 +1721,7 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	})
 
 	// Create ONC profile referencing the certificate + a non-ONC profile
-	oncProfileJSON := []byte(fmt.Sprintf(`{
+	oncProfileJSON := fmt.Appendf(nil, `{
 		"openNetworkConfiguration": {
 			"NetworkConfigurations": [{
 				"GUID": "corp-wifi",
@@ -1737,7 +1737,7 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 				}
 			}]
 		}
-	}`, "wifi-cert"))
+	}`, "wifi-cert")
 	cameraProfileJSON := []byte(`{"cameraDisabled": true}`)
 
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{

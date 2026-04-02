@@ -169,11 +169,9 @@ func (r *profileReconciler) sendHostProfiles(
 	var withheldProfiles []*fleet.MDMAndroidProfilePayload
 	certStatuses, err := r.DS.GetCertificateTemplateStatusesByNameForHost(ctx, hostUUID)
 	if err != nil {
-		r.Logger.ErrorContext(ctx, "failed to get cert statuses for ONC check, proceeding without withholding",
-			"host_uuid", hostUUID, "err", err)
-	} else {
-		profilesToMerge, withheldProfiles = filterProfilesWithPendingCerts(profilesToMerge, profilesContents, certStatuses)
+		return nil, ctxerr.Wrapf(ctx, err, "get certificate template statuses for host %s", hostUUID)
 	}
+	profilesToMerge, withheldProfiles = filterProfilesWithPendingCerts(profilesToMerge, profilesContents, certStatuses)
 
 	// map of the bulk struct keyed by profile UUID
 	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidProfilePayload, len(profilesToMerge)+len(profilesToRemove)+len(withheldProfiles))
@@ -461,7 +459,14 @@ func filterProfilesWithPendingCerts(
 		}
 
 		aliases, err := android.ExtractCertAliasesFromProfileJSON(content)
-		if err != nil || len(aliases) == 0 {
+		if err != nil {
+			// Fail closed: if we can't parse the ONC content, withhold the profile
+			// rather than risk delivering it without certificate gating.
+			prof.Detail = "Failed to parse openNetworkConfiguration for certificate references; withholding profile until parsing succeeds."
+			withheld = append(withheld, prof)
+			continue
+		}
+		if len(aliases) == 0 {
 			ready = append(ready, prof)
 			continue
 		}

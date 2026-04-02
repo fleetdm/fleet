@@ -1307,7 +1307,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 		{
 			HostUUID: host.UUID, ProfileUUID: nonONCProfile.ProfileUUID, ProfileName: nonONCProfile.Name,
 			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
-			IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
 			PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""),
 		},
 		// ONC profile is withheld (pending with detail, no policy/device request)

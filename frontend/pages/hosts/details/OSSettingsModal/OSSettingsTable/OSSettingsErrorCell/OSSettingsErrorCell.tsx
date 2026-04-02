@@ -334,6 +334,10 @@ const OSSettingsErrorCell = ({
   };
 
   const isFailed = profile.status === "failed";
+  const isPending =
+    profile.status === "pending" ||
+    profile.status === "delivering" ||
+    profile.status === "delivered";
   const isVerified = profile.status === "verified";
   const showResendButton =
     canResendProfiles &&
@@ -341,7 +345,12 @@ const OSSettingsErrorCell = ({
     profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
   const showRotateButton =
     canRotateRecoveryLockPassword && (isFailed || isVerified);
-  const value = (isFailed && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
+  // Show detail for failed profiles, and also for pending Android profiles
+  // that have a detail (e.g., "Waiting for certificate...").
+  const hasPendingDetail = isPending && profile.detail && profile.platform === "android";
+  const value =
+    ((isFailed || hasPendingDetail) && profile.detail) ||
+    DEFAULT_EMPTY_CELL_VALUE;
 
   const tooltip = generateErrorTooltip(value, profile);
 

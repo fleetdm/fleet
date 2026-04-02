@@ -1,2 +1,2 @@
 - Android Wi-Fi configuration profiles (`openNetworkConfiguration` with `ClientCertKeyPairAlias`) are now withheld until the referenced certificate is installed or terminally failed on the device.
-- Added GitOps validation that `ClientCertKeyPairAlias` values in Android profiles match certificate template names in the same configuration.
+- The host OS settings detail column now shows the reason when an Android profile is pending due to a certificate dependency.
