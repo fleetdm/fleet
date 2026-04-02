@@ -115,11 +115,11 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 		params := addHostsToTeamRequest{TeamID: teamIDPtr, HostIDs: hostIDs}
 		data, err := json.Marshal(params)
 		if err != nil {
-			return err
+			return fmt.Errorf("TransferHosts: %w", err)
 		}
 		data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(params))
 		if err != nil {
-			return err
+			return fmt.Errorf("TransferHosts: %w", err)
 		}
 		return c.authenticatedRequest(data, verb, path, &responseBody)
 	}
@@ -146,11 +146,11 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 	}
 	data, err := json.Marshal(params)
 	if err != nil {
-		return err
+		return fmt.Errorf("TransferHosts: %w", err)
 	}
 	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(params))
 	if err != nil {
-		return err
+		return fmt.Errorf("TransferHosts: %w", err)
 	}
 	return c.authenticatedRequest(data, verb, path, &responseBody)
 }

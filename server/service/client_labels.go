@@ -22,11 +22,11 @@ func (c *Client) ApplyLabels(
 
 	data, err := json.Marshal(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("ApplyLabels: %w", err)
 	}
 	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
 	if err != nil {
-		return err
+		return fmt.Errorf("ApplyLabels: %w", err)
 	}
 
 	if teamID != nil {

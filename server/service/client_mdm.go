@@ -280,11 +280,11 @@ func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name strin
 	}
 	body, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return fmt.Errorf("uploadMacOSSetupAssistant: %w", err)
 	}
 	body, err = endpointer.RewriteOldToNewKeys(body, endpointer.ExtractAliasRules(request))
 	if err != nil {
-		return err
+		return fmt.Errorf("uploadMacOSSetupAssistant: %w", err)
 	}
 	return c.authenticatedRequest(body, verb, path, nil)
 }

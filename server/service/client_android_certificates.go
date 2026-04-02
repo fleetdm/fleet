@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -26,11 +27,11 @@ func (c *Client) ApplyCertificateSpecs(specs []*fleet.CertificateRequestSpec) er
 	var responseBody applyCertificateTemplateSpecsResponse
 	data, err := json.Marshal(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("ApplyCertificateSpecs: %w", err)
 	}
 	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
 	if err != nil {
-		return err
+		return fmt.Errorf("ApplyCertificateSpecs: %w", err)
 	}
 	return c.authenticatedRequest(data, verb, path, &responseBody)
 }
@@ -42,11 +43,11 @@ func (c *Client) DeleteCertificateTemplates(certificateTemplateIDs []uint, teamI
 	var responseBody deleteCertificateTemplateSpecsResponse
 	data, err := json.Marshal(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("DeleteCertificateTemplates: %w", err)
 	}
 	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
 	if err != nil {
-		return err
+		return fmt.Errorf("DeleteCertificateTemplates: %w", err)
 	}
 	return c.authenticatedRequest(data, verb, path, &responseBody)
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -16,11 +17,11 @@ func (c *Client) ApplyPacks(specs []*fleet.PackSpec) error {
 	var responseBody applyPackSpecsResponse
 	data, err := json.Marshal(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("ApplyPacks: %w", err)
 	}
 	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
 	if err != nil {
-		return err
+		return fmt.Errorf("ApplyPacks: %w", err)
 	}
 	return c.authenticatedRequest(data, verb, path, &responseBody)
 }
