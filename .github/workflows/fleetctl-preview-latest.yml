@@ -72,6 +72,18 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
+    - name: Set up Node.js
+      uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+      with:
+        node-version-file: package.json
+        check-latest: true
+
+    - name: Install JS dependencies
+      run: make deps
+
+    - name: Generate assets
+      run: make generate
+
     - name: Build Fleetctl
       run: make fleetctl
 
