@@ -873,6 +873,8 @@ const ManageHostsPage = ({
   const handleStatusDropdownChange = (
     statusName: SingleValue<CustomOptionType>
   ) => {
+    const value = statusName?.value;
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -880,10 +882,8 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          ...(statusName?.value !== "pending" && { status: statusName?.value }),
-          ...(statusName?.value === "pending" && {
-            mdm_enrollment_status: statusName?.value,
-          }),
+          ...(value !== "pending" && { status: value }),
+          ...(value === "pending" && { mdm_enrollment_status: value }),
           page: 0, // resets page index
         },
       })
