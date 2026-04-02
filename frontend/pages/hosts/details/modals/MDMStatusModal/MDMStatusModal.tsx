@@ -466,7 +466,7 @@ const MDMStatusModal = ({
   return (
     <Modal title="MDM status" className={baseClass} onExit={onExit}>
       {renderMDMStatus()}
-      {isPremiumTier && renderProfileAssignment()}
+      {isPremiumTier && isMacOSHost && renderProfileAssignment()}
       {renderFooter()}
     </Modal>
   );
