@@ -128,13 +128,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	teamID := uint(0)
-	if host.TeamID != nil {
-		teamID = *host.TeamID
-	}
-
 	// get status of software installs and script execution
-	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, teamID)
+	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, ptr.ValOrZero(host.TeamID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
@@ -161,12 +156,12 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			// If so, call the enqueue function with a flag to retain successful steps.
 			if requireAllSoftware {
 				svc.logger.InfoContext(ctx, "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
-				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, host.Platform, host.PlatformLike, host.UUID, teamID)
+				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, host.Platform, host.PlatformLike, host.UUID, ptr.ValOrZero(host.TeamID))
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "re-enqueueing cancelled setup experience steps after a previous software install failure")
 				}
 				// Re-fetch the setup experience results after re-enqueuing.
-				res, err = svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, teamID)
+				res, err = svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, ptr.ValOrZero(host.TeamID))
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 				}

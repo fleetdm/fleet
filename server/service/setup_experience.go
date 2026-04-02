@@ -277,11 +277,7 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 	}
-	var teamID uint
-	if host.TeamID != nil {
-		teamID = *host.TeamID
-	}
-	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
+	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
