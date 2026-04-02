@@ -814,7 +814,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 			&addAppStoreAppRequest{
 				TeamID:        teamID,
-				AppStoreID:    "app_install_type",
+				AppStoreID:    "com.test.install_type",
 				Platform:      fleet.AndroidPlatform,
 				Configuration: json.RawMessage(`{"installType":"FORCE_INSTALLED"}`),
 			},
@@ -832,7 +832,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 			&addAppStoreAppRequest{
 				TeamID:        teamID,
-				AppStoreID:    "app_invalid_install_type",
+				AppStoreID:    "com.test.invalid_install_type",
 				Platform:      fleet.AndroidPlatform,
 				Configuration: json.RawMessage(`{"installType":"BOGUS_TYPE"}`),
 			},
