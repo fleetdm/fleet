@@ -182,7 +182,7 @@ const DataTable = ({
       data,
       // Always include the index in the row ID to guarantee uniqueness.
       // This prevents deduplication when data rows share the same `id` value
-      // (e.g., query results from `SELECT id FROM processes`). (#42402)
+      // (e.g., query results from `SELECT id FROM dns_resolvers`).
       getRowId: (row: any, index: number) =>
         row && row.id != null ? `${row.id}-${index}` : String(index),
       initialState: {
