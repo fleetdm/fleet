@@ -94,6 +94,31 @@ func TestExtractUbuntuVersion(t *testing.T) {
 			version:  "",
 			expected: "",
 		},
+		{
+			name:     "Interim release 23.10",
+			version:  "23.10",
+			expected: "2310",
+		},
+		{
+			name:     "Interim release 24.10 with patch",
+			version:  "24.10.1",
+			expected: "2410",
+		},
+		{
+			name:     "Version with codename suffix",
+			version:  "22.04.1 LTS (Jammy Jellyfish)",
+			expected: "2204",
+		},
+		{
+			name:     "Very old version 14.04",
+			version:  "14.04.6 LTS",
+			expected: "1404",
+		},
+		{
+			name:     "Future version 25.04",
+			version:  "25.04 LTS",
+			expected: "2504",
+		},
 	}
 
 	for _, tt := range tests {

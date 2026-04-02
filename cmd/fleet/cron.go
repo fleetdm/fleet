@@ -488,10 +488,13 @@ func checkOSVVulnerabilities(
 		return nil
 	}
 
+	// Make Refresh and Analyze use the same date
+	now := time.Now()
+
 	if !config.DisableDataSync {
 		// Sync on disk OSV artifacts with current OS Versions
 		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.osv.refresh")
-		downloaded, err := osv.Refresh(refreshCtx, versions, vulnPath)
+		downloaded, err := osv.Refresh(refreshCtx, versions, vulnPath, now)
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating OSV artifacts", err)
 		}
@@ -505,7 +508,7 @@ func checkOSVVulnerabilities(
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		r, err := osv.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
+		r, err := osv.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger, now)
 		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
 			logger.DebugContext(analyzeCtx, "osv-analysis-unsupported", "platform", version.Name)
 			continue

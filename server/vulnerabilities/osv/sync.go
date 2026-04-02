@@ -17,62 +17,33 @@ const (
 )
 
 // Refresh checks all local OSV artifacts contained in 'vulnPath' deleting the old and downloading
-// any missing definitions based on today's date and all the hosts' platforms/os versions contained in 'versions'.
-// Returns a slice of Ubuntu versions of the newly downloaded OSV files.
 func Refresh(
 	ctx context.Context,
 	versions *fleet.OSVersions,
 	vulnPath string,
+	now time.Time,
 ) ([]string, error) {
-	now := time.Now()
-
-	// Get the set of up-to-date artifacts (matching today's date)
-	existing, err := getExistingOSVArtifacts(now, vulnPath)
+	release, err := getLatestRelease()
 	if err != nil {
-		return nil, fmt.Errorf("checking existing OSV artifacts: %w", err)
+		return nil, fmt.Errorf("getting latest release: %w", err)
 	}
 
-	// Determine which Ubuntu versions need to be downloaded
-	toDownload := whatToDownloadOSV(versions, existing, now)
-	if len(toDownload) == 0 {
+	neededVersions := getNeededUbuntuVersions(versions)
+	if len(neededVersions) == 0 {
 		return nil, nil
 	}
 
-	// Download missing OSV artifacts
-	err = SyncOSV(vulnPath, toDownload, now)
+	syncResult, err := SyncOSV(vulnPath, neededVersions, now, release)
 	if err != nil {
 		return nil, fmt.Errorf("syncing OSV artifacts: %w", err)
 	}
 
 	err = removeOldOSVArtifacts(now, vulnPath)
 	if err != nil {
-		return toDownload, fmt.Errorf("warning: failed to clean up old OSV artifacts: %w", err)
+		return syncResult.Downloaded, fmt.Errorf("warning: failed to clean up old OSV artifacts: %w", err)
 	}
 
-	return toDownload, nil
-}
-
-// getExistingOSVArtifacts checks which OSV artifacts exist that match today's date
-func getExistingOSVArtifacts(date time.Time, path string) (map[string]struct{}, error) {
-	dateSuffix := fmt.Sprintf("-%d-%02d-%02d.json.gz", date.Year(), date.Month(), date.Day())
-	upToDate := make(map[string]struct{})
-
-	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		baseName := filepath.Base(path)
-		if strings.HasPrefix(baseName, OSVFilePrefix) && strings.HasSuffix(baseName, dateSuffix) {
-			upToDate[baseName] = struct{}{}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return upToDate, nil
+	return syncResult.Downloaded, nil
 }
 
 // removeOldOSVArtifacts walks 'path' removing any old OSV artifacts that don't match today's date
@@ -97,10 +68,10 @@ func removeOldOSVArtifacts(date time.Time, rootPath string) error {
 	})
 }
 
-// whatToDownloadOSV determines which Ubuntu versions need OSV artifacts downloaded
-func whatToDownloadOSV(osVers *fleet.OSVersions, existing map[string]struct{}, date time.Time) []string {
-	var toDownload []string
+// getNeededUbuntuVersions extracts unique Ubuntu versions from OS versions
+func getNeededUbuntuVersions(osVers *fleet.OSVersions) []string {
 	seen := make(map[string]struct{})
+	var needed []string
 
 	for _, os := range osVers.OSVersions {
 		if !IsPlatformSupported(os.Platform) {
@@ -113,19 +84,13 @@ func whatToDownloadOSV(osVers *fleet.OSVersions, existing map[string]struct{}, d
 			continue
 		}
 
-		if _, exists := seen[ubuntuVer]; exists {
-			continue
-		}
-		seen[ubuntuVer] = struct{}{}
-
-		// Check if we already have an up-to-date artifact for this version
-		filename := osvFilename(ubuntuVer, date)
-		if _, exists := existing[filename]; !exists {
-			toDownload = append(toDownload, ubuntuVer)
+		if _, exists := seen[ubuntuVer]; !exists {
+			seen[ubuntuVer] = struct{}{}
+			needed = append(needed, ubuntuVer)
 		}
 	}
 
-	return toDownload
+	return needed
 }
 
 // osvFilename generates the OSV artifact filename for a given Ubuntu version and date

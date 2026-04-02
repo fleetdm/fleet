@@ -22,7 +22,7 @@ func TestRemoveOldOSVArtifacts(t *testing.T) {
 	otherFile := filepath.Join(tmpDir, "some-other-file.json")
 
 	for _, file := range []string{currentFile, oldFile, otherFile} {
-		err := os.WriteFile(file, []byte("test"), 0644)
+		err := os.WriteFile(file, []byte("test"), 0o644)
 		require.NoError(t, err)
 	}
 
@@ -43,85 +43,21 @@ func TestRemoveOldOSVArtifacts(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetExistingOSVArtifacts(t *testing.T) {
-	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
-
-	today := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
-
-	// Create some test files
-	currentFile := filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-30.json.gz")
-	currentFile2 := filepath.Join(tmpDir, "osv-ubuntu-2004-2026-03-30.json.gz")
-	oldFile := filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-29.json.gz")
-	otherFile := filepath.Join(tmpDir, "some-other-file.json")
-
-	for _, file := range []string{currentFile, currentFile2, oldFile, otherFile} {
-		err := os.WriteFile(file, []byte("test"), 0644)
-		require.NoError(t, err)
-	}
-
-	// Get existing artifacts for today
-	existing, err := getExistingOSVArtifacts(today, tmpDir)
-	require.NoError(t, err)
-
-	// Should only find current files
-	_, exists1 := existing[filepath.Base(currentFile)]
-	require.True(t, exists1)
-	_, exists2 := existing[filepath.Base(currentFile2)]
-	require.True(t, exists2)
-	_, exists3 := existing[filepath.Base(oldFile)]
-	require.False(t, exists3)
-	_, exists4 := existing[filepath.Base(otherFile)]
-	require.False(t, exists4)
-	require.Len(t, existing, 2)
-}
-
-func TestWhatToDownloadOSV(t *testing.T) {
-	date := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
-
+func TestGetNeededUbuntuVersions(t *testing.T) {
 	tests := []struct {
 		name     string
 		osVers   *fleet.OSVersions
-		existing map[string]struct{}
 		expected []string
 	}{
 		{
-			name: "no existing artifacts",
+			name: "multiple ubuntu versions",
 			osVers: &fleet.OSVersions{
 				OSVersions: []fleet.OSVersion{
 					{Platform: "ubuntu", Version: "22.04.8 LTS"},
 					{Platform: "ubuntu", Version: "20.04.1 LTS"},
 				},
 			},
-			existing: map[string]struct{}{},
 			expected: []string{"2204", "2004"},
-		},
-		{
-			name: "some existing artifacts",
-			osVers: &fleet.OSVersions{
-				OSVersions: []fleet.OSVersion{
-					{Platform: "ubuntu", Version: "22.04.8 LTS"},
-					{Platform: "ubuntu", Version: "20.04.1 LTS"},
-				},
-			},
-			existing: map[string]struct{}{
-				"osv-ubuntu-2204-2026-03-30.json.gz": {},
-			},
-			expected: []string{"2004"},
-		},
-		{
-			name: "all artifacts exist",
-			osVers: &fleet.OSVersions{
-				OSVersions: []fleet.OSVersion{
-					{Platform: "ubuntu", Version: "22.04.8 LTS"},
-					{Platform: "ubuntu", Version: "20.04.1 LTS"},
-				},
-			},
-			existing: map[string]struct{}{
-				"osv-ubuntu-2204-2026-03-30.json.gz": {},
-				"osv-ubuntu-2004-2026-03-30.json.gz": {},
-			},
-			expected: []string{},
 		},
 		{
 			name: "duplicate ubuntu versions",
@@ -132,7 +68,6 @@ func TestWhatToDownloadOSV(t *testing.T) {
 					{Platform: "ubuntu", Version: "22.04.1 LTS"},
 				},
 			},
-			existing: map[string]struct{}{},
 			expected: []string{"2204"},
 		},
 		{
@@ -144,14 +79,23 @@ func TestWhatToDownloadOSV(t *testing.T) {
 					{Platform: "windows", Version: "10.0.19041"},
 				},
 			},
-			existing: map[string]struct{}{},
 			expected: []string{"2204"},
+		},
+		{
+			name: "no ubuntu platforms",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Version: "8.5"},
+					{Platform: "windows", Version: "10.0.19041"},
+				},
+			},
+			expected: []string{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := whatToDownloadOSV(tt.osVers, tt.existing, date)
+			result := getNeededUbuntuVersions(tt.osVers)
 			require.ElementsMatch(t, tt.expected, result)
 		})
 	}
@@ -175,4 +119,89 @@ func TestOSVFilename(t *testing.T) {
 			require.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestComputeFileSHA256(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+
+	// Write test content
+	testContent := []byte("test content")
+	err := os.WriteFile(testFile, testContent, 0o644)
+	require.NoError(t, err)
+
+	// Compute SHA256
+	digest, err := computeFileSHA256(testFile)
+	require.NoError(t, err)
+
+	// Expected digest for "test content"
+	// echo -n "test content" | sha256sum
+	// 6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72
+	expected := "sha256:6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+	require.Equal(t, expected, digest)
+
+	_, err = computeFileSHA256(filepath.Join(tmpDir, "nonexistent.txt"))
+	require.Error(t, err)
+}
+
+func TestSyncOSV_FaultTolerance(t *testing.T) {
+	tmpDir := t.TempDir()
+	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+
+	// Create a mock release with only some artifacts available
+	release := &ReleaseInfo{
+		TagName: "cve-202604010000",
+		Assets: map[string]*AssetInfo{
+			"osv-ubuntu-2204-2026-04-01.json.gz": {
+				Name:   "osv-ubuntu-2204-2026-04-01.json.gz",
+				ID:     12345,
+				Digest: "sha256:abc123",
+			},
+		},
+	}
+
+	versions := []string{"2204", "2504"}
+
+	result, err := SyncOSV(tmpDir, versions, date, release)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.Contains(t, result.Skipped, "2504")
+	require.Contains(t, result.Failed, "2204")
+}
+
+func TestSyncOSV_ChecksumMatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+
+	// Create a test file with known content
+	testContent := []byte("test content")
+	filename := "osv-ubuntu-2204-2026-04-01.json.gz"
+	testFile := filepath.Join(tmpDir, filename)
+	err := os.WriteFile(testFile, testContent, 0o644)
+	require.NoError(t, err)
+
+	// Compute the digest
+	digest, err := computeFileSHA256(testFile)
+	require.NoError(t, err)
+
+	// Create a mock release with matching digest
+	release := &ReleaseInfo{
+		TagName: "cve-202604010000",
+		Assets: map[string]*AssetInfo{
+			filename: {
+				Name:   filename,
+				ID:     12345,
+				Digest: digest,
+			},
+		},
+	}
+
+	result, err := SyncOSV(tmpDir, []string{"2204"}, date, release)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.Contains(t, result.Skipped, "2204")
+	require.Empty(t, result.Downloaded)
+	require.Empty(t, result.Failed)
 }

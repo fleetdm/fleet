@@ -2,12 +2,16 @@ package osv
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -20,76 +24,85 @@ const (
 	osvGithubRepo  = "vulnerabilities"
 )
 
-// getLatestReleaseTag fetches the latest release tag from the vulnerabilities repository
-func getLatestReleaseTag() (string, error) {
-	ghClient := fleethttp.NewGithubClient()
-	client := github.NewClient(ghClient)
-
-	// Get the latest release
-	release, resp, err := client.Repositories.GetLatestRelease(
-		context.Background(),
-		osvGithubOwner,
-		osvGithubRepo,
-	)
-	if err != nil {
-		return "", fmt.Errorf("getting latest release: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("github http status error: %d", resp.StatusCode)
-	}
-
-	if release.TagName == nil {
-		return "", errors.New("release tag name is nil")
-	}
-
-	return *release.TagName, nil
+// AssetInfo contains metadata about a GitHub release asset
+type AssetInfo struct {
+	Name   string
+	ID     int64
+	Digest string
 }
 
-// downloadOSVArtifact downloads a specific OSV artifact from the latest GitHub release
-func downloadOSVArtifact(ubuntuVersion string, date time.Time, dstPath string) error {
-	// Get the latest release tag
-	releaseTag, err := getLatestReleaseTag()
+// ReleaseInfo contains metadata about a GitHub release and its assets
+type ReleaseInfo struct {
+	TagName string
+	Assets  map[string]*AssetInfo
+}
+
+// rawAsset represents the GitHub API asset response with digest field
+type rawAsset struct {
+	Name   string `json:"name"`
+	ID     int64  `json:"id"`
+	Digest string `json:"digest"`
+}
+
+// rawRelease represents the GitHub API release response
+type rawRelease struct {
+	TagName string     `json:"tag_name"`
+	Assets  []rawAsset `json:"assets"`
+}
+
+// getLatestRelease fetches the latest release from the vulnerabilities repository
+func getLatestRelease() (*ReleaseInfo, error) {
+	httpClient := fleethttp.NewClient()
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", osvGithubOwner, osvGithubRepo)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("getting latest release tag: %w", err)
+		return nil, fmt.Errorf("creating request: %w", err)
 	}
 
-	ghClient := fleethttp.NewGithubClient()
-	client := github.NewClient(ghClient)
+	req.Header.Set("Accept", "application/vnd.github+json")
 
-	// Get the release by tag
-	release, resp, err := client.Repositories.GetReleaseByTag(
-		context.Background(),
-		osvGithubOwner,
-		osvGithubRepo,
-		releaseTag,
-	)
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("getting release by tag %s: %w", releaseTag, err)
+		return nil, fmt.Errorf("fetching latest release: %w", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("github http status error: %d", resp.StatusCode)
+		return nil, fmt.Errorf("github http status error: %d", resp.StatusCode)
 	}
 
-	// Find the asset for this Ubuntu version
-	assetName := osvFilename(ubuntuVersion, date)
-	var assetID int64
+	var release rawRelease
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return nil, fmt.Errorf("decoding release: %w", err)
+	}
 
+	if release.TagName == "" {
+		return nil, errors.New("release tag name is empty")
+	}
+
+	assets := make(map[string]*AssetInfo)
 	for _, asset := range release.Assets {
-		if asset.Name != nil && *asset.Name == assetName {
-			if asset.ID != nil {
-				assetID = *asset.ID
-				break
+		if strings.HasPrefix(asset.Name, OSVFilePrefix) && !strings.Contains(asset.Name, "delta") {
+			assets[asset.Name] = &AssetInfo{
+				Name:   asset.Name,
+				ID:     asset.ID,
+				Digest: asset.Digest,
 			}
 		}
 	}
 
-	if assetID == 0 {
-		return fmt.Errorf("OSV artifact not found in release: %s", assetName)
-	}
+	return &ReleaseInfo{
+		TagName: release.TagName,
+		Assets:  assets,
+	}, nil
+}
 
-	// Download the asset
+// downloadOSVArtifact downloads a specific OSV artifact using the asset ID from ReleaseInfo
+func downloadOSVArtifact(assetID int64, dstPath string) error {
+	ghClient := fleethttp.NewGithubClient()
+	client := github.NewClient(ghClient)
+
 	httpClient := fleethttp.NewClient()
 	rc, redirectURL, err := client.Repositories.DownloadReleaseAsset(
 		context.Background(),
@@ -102,7 +115,6 @@ func downloadOSVArtifact(ubuntuVersion string, date time.Time, dstPath string) e
 		return fmt.Errorf("downloading release asset: %w", err)
 	}
 
-	// If we got a redirect URL, follow it
 	if redirectURL != "" {
 		resp, err := httpClient.Get(redirectURL)
 		if err != nil {
@@ -136,17 +148,72 @@ func downloadOSVArtifact(ubuntuVersion string, date time.Time, dstPath string) e
 	return nil
 }
 
+// computeFileSHA256 computes the SHA256 digest of a file
+func computeFileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
+}
+
+type SyncResult struct {
+	Downloaded []string
+	Skipped    []string
+	Failed     []string
+}
+
 // SyncOSV downloads OSV artifacts for the specified Ubuntu versions
-func SyncOSV(dstDir string, ubuntuVersions []string, date time.Time) error {
+func SyncOSV(dstDir string, ubuntuVersions []string, date time.Time, release *ReleaseInfo) (*SyncResult, error) {
+	result := &SyncResult{
+		Downloaded: make([]string, 0),
+		Skipped:    make([]string, 0),
+		Failed:     make([]string, 0),
+	}
+
 	for _, ubuntuVersion := range ubuntuVersions {
 		filename := osvFilename(ubuntuVersion, date)
 		dstPath := filepath.Join(dstDir, filename)
 
-		err := downloadOSVArtifact(ubuntuVersion, date, dstPath)
-		if err != nil {
-			return fmt.Errorf("downloading OSV artifact for Ubuntu %s: %w", ubuntuVersion, err)
+		assetInfo, ok := release.Assets[filename]
+		if !ok {
+			// Artifact not available, skip
+			result.Skipped = append(result.Skipped, ubuntuVersion)
+			continue
+		}
+
+		// Check if file exists and has matching checksum
+		needsDownload := true
+		if _, err := os.Stat(dstPath); err == nil {
+			localDigest, err := computeFileSHA256(dstPath)
+			if err == nil && localDigest == assetInfo.Digest {
+				// Checksums match, skip download
+				needsDownload = false
+				result.Skipped = append(result.Skipped, ubuntuVersion)
+			}
+		}
+
+		if needsDownload {
+			err := downloadOSVArtifact(assetInfo.ID, dstPath)
+			if err != nil {
+				// Download failed, skip
+				result.Failed = append(result.Failed, ubuntuVersion)
+				continue
+			}
+			result.Downloaded = append(result.Downloaded, ubuntuVersion)
 		}
 	}
 
-	return nil
+	if len(result.Failed) > 0 && len(result.Downloaded) == 0 && len(result.Skipped) == 0 {
+		return result, errors.New("all OSV artifact downloads failed")
+	}
+
+	return result, nil
 }

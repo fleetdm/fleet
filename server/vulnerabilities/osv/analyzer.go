@@ -17,6 +17,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
+const (
+	hostsBatchSize = 500
+)
+
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
 // IsPlatformSupported returns true if the given platform is supported by OSV
@@ -46,7 +50,6 @@ type OSVVulnerability struct {
 }
 
 // Analyze scans all hosts for vulnerabilities based on the OSV artifacts for their platform
-// Returns new vulnerabilities found
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -54,46 +57,58 @@ func Analyze(
 	vulnPath string,
 	collectVulns bool,
 	logger *slog.Logger,
+	date time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
 	if !IsPlatformSupported(ver.Platform) {
 		return nil, ErrUnsupportedPlatform
 	}
 
-	artifact, err := loadOSVArtifact(ctx, ver, vulnPath, logger)
+	artifact, err := loadOSVArtifact(ctx, ver, vulnPath, logger, date)
 	if err != nil {
 		return nil, fmt.Errorf("loading OSV artifact: %w", err)
 	}
 
-	// Get all hosts with this OS version
-	hostIDs, err := ds.HostIDsByOSVersion(ctx, ver, 0, 10000)
-	if err != nil {
-		return nil, fmt.Errorf("getting host IDs: %w", err)
+	allVulns := make(map[string]fleet.SoftwareVulnerability)
+	totalHosts := 0
+
+	// Paginate through all hosts with this OS version
+	var offset int
+	for {
+		hostIDs, err := ds.HostIDsByOSVersion(ctx, ver, offset, hostsBatchSize)
+		if err != nil {
+			return nil, fmt.Errorf("getting host IDs: %w", err)
+		}
+
+		if len(hostIDs) == 0 {
+			break
+		}
+
+		totalHosts += len(hostIDs)
+		offset += hostsBatchSize
+
+		for _, hostID := range hostIDs {
+			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
+				HostID: &hostID,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("listing software for host %d: %w", hostID, err)
+			}
+
+			vulns := matchSoftwareToOSV(software, artifact)
+
+			for _, v := range vulns {
+				key := v.Key()
+				allVulns[key] = v
+			}
+		}
 	}
 
-	if len(hostIDs) == 0 {
+	if totalHosts == 0 {
 		logger.DebugContext(ctx, "no hosts found for os version", "platform", ver.Platform, "version", ver.Version)
 		return nil, nil
 	}
 
-	logger.DebugContext(ctx, "processing hosts for osv analysis", "platform", ver.Platform, "version", ver.Version, "host_count", len(hostIDs))
-
-	allVulns := make(map[string]fleet.SoftwareVulnerability)
-
-	for _, hostID := range hostIDs {
-		software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
-			HostID: &hostID,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("listing software for host %d: %w", hostID, err)
-		}
-
-		vulns := matchSoftwareToOSV(software, artifact)
-
-		for _, v := range vulns {
-			key := v.Key()
-			allVulns[key] = v
-		}
-	}
+	logger.DebugContext(ctx, "processed hosts for osv analysis", "platform", ver.Platform, "version", ver.Version, "host_count", totalHosts)
 
 	vulnsList := make([]fleet.SoftwareVulnerability, 0, len(allVulns))
 	for _, v := range allVulns {
@@ -114,7 +129,7 @@ func Analyze(
 }
 
 // loadOSVArtifact loads the full OSV artifact for the given Ubuntu version
-func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, logger *slog.Logger) (*OSVArtifact, error) {
+func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, logger *slog.Logger, date time.Time) (*OSVArtifact, error) {
 	// Extract Ubuntu version (e.g., "22.04.8 LTS" -> "2204")
 	ubuntuVer := extractUbuntuVersion(ver.Version)
 	if ubuntuVer == "" {
@@ -122,7 +137,7 @@ func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, 
 	}
 
 	// Find the OSV artifact file for this version
-	fileName := osvFilename(ubuntuVer, time.Now())
+	fileName := osvFilename(ubuntuVer, date)
 	artifactFile, err := utils.LatestFile(fileName, vulnPath)
 	if err != nil {
 		return nil, fmt.Errorf("finding OSV artifact for Ubuntu %s: %w", ubuntuVer, err)
@@ -191,12 +206,28 @@ func matchSoftwareToOSV(software []fleet.Software, artifact *OSVArtifact) []flee
 }
 
 // extractUbuntuVersion extracts the numeric version from Ubuntu version strings
-// Examples: "22.04.8 LTS" -> "2204", "20.04.1 LTS" -> "2004"
+// Examples:
+//
+//	"22.04.8 LTS" -> "2204"
+//	"20.04.1 LTS" -> "2004"
+//	"23.10" -> "2310"
+//	"22.04.1 LTS (Jammy Jellyfish)" -> "2204"
 func extractUbuntuVersion(version string) string {
-	// Remove " LTS" suffix if present
-	version = strings.TrimSuffix(version, " LTS")
 	version = strings.TrimSpace(version)
 
+	// Remove " LTS" and anything after it (like codename)
+	if idx := strings.Index(version, " LTS"); idx != -1 {
+		version = version[:idx]
+	}
+
+	// Remove parentheses
+	if idx := strings.Index(version, " ("); idx != -1 {
+		version = version[:idx]
+	}
+
+	version = strings.TrimSpace(version)
+
+	// Get major.minor.patch
 	parts := strings.Split(version, ".")
 	if len(parts) < 2 {
 		return ""
