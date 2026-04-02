@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"go.step.sm/crypto/jose"
 )
@@ -52,20 +51,8 @@ func (s *Service) CreateAccount(ctx context.Context, pathIdentifier string, enro
 func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, partialOrder *types.Order) (*types.OrderResponse, error) {
 	// authorization is checked in the endpoint implementation for JWS-protected endpoints
 
-	// The "identifiers" passed as part of the newOrder request must be an array with a
-	// single member of type "permanent-identifier" matching the serial specified in the
-	// acme_enrollment that this enrollment was created for.
-	if len(partialOrder.Identifiers) != 1 || partialOrder.Identifiers[0].Type != types.IdentifierTypePermanentIdentifier {
-		return nil, types.UnsupportedIdentifierError("A single identifier of type permanent-identifier must be provided in the order request")
-	}
-	if partialOrder.Identifiers[0].Value != enrollment.HostIdentifier {
-		return nil, types.RejectedIdentifierError("The identifier value does not match the host identifier for this enrollment")
-	}
-
-	// notBefore and notAfter, which are optional, must not be set because fleet is going
-	// to control these and the Apple payload doesn't allow specification of them.
-	if partialOrder.NotBefore != nil || partialOrder.NotAfter != nil {
-		return nil, types.MalformedError("notBefore and notAfter must not be set in the order request")
+	if err := partialOrder.ValidateOrderCreation(enrollment); err != nil {
+		return nil, err
 	}
 
 	identifiers := []types.Identifier{
@@ -75,16 +62,16 @@ func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment,
 		ACMEAccountID: account.ID,
 		Finalized:     false,
 		Identifiers:   identifiers,
-		Status:        "pending", // always pending at creation
+		Status:        types.OrderStatusPending, // always pending at creation
 	}
 	authz := &types.Authorization{
 		Identifier: identifiers[0],
-		Status:     "pending", // always pending at creation
+		Status:     types.AuthorizationStatusPending, // always pending at creation
 	}
 	challenge := &types.Challenge{
 		ChallengeType: types.DeviceAttestationChallengeType, // only supported challenge for now
 		Token:         types.CreateNonceEncodedForHeader(),
-		Status:        "pending", // always pending at creation
+		Status:        types.ChallengeStatusPending, // always pending at creation
 	}
 	order, err := s.store.CreateOrder(ctx, order, authz, challenge)
 	if err != nil {
@@ -123,7 +110,7 @@ func (s *Service) createOrderResponse(
 	}
 
 	var certURL string
-	if order.Finalized && order.Status == types.OrderStatusValid {
+	if err := order.IsCertificateReady(); err == nil {
 		certURL, err = s.getACMEURLWithBaseURL(ctx, baseURL, enrollment.PathIdentifier, "orders", fmt.Sprint(order.ID), "certificate")
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "constructing certificate URL for account")
@@ -147,12 +134,9 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting order from datastore")
 	}
-	if order.Status != types.OrderStatusReady || order.Finalized {
-		extra := ""
-		if order.Finalized {
-			extra = " and order has already been finalized"
-		}
-		return nil, types.OrderNotReadyError(fmt.Sprintf("Order is in status %s%s.", order.Status, extra))
+
+	if err := order.IsReadyToFinalize(); err != nil {
+		return nil, err
 	}
 
 	baseURL, err := s.getACMEBaseURL(ctx)
@@ -285,11 +269,9 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get order from datastore")
 	}
-	if !order.Finalized || order.Status != "valid" {
-		if order.Status == "invalid" {
-			return "", types.OrderDoesNotExistError("Order is in invalid state, cannot get certificate")
-		}
-		return "", types.OrderNotFinalizedError("Order is not finalized/in valid state, cannot get certificate")
+
+	if err := order.IsCertificateReady(); err != nil {
+		return "", err
 	}
 
 	certPEM, err := s.store.GetCertificatePEMByOrderID(ctx, accountID, orderID)
@@ -301,11 +283,11 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 	}
 
 	// retrieve the root certificate
-	assets, err := s.providers.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert}, nil)
+	rootPEMBytes, err := s.providers.GetCACertificatePEM(ctx)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting Apple SCEP/ACME root certificate")
 	}
-	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	block, _ := pem.Decode(rootPEMBytes)
 	if block == nil || block.Type != "CERTIFICATE" {
 		return "", ctxerr.New(ctx, "failed to parse PEM block from root SCEP/ACME certificate")
 	}

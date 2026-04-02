@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
@@ -27,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"go.step.sm/crypto/jose"
@@ -55,11 +55,8 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	rootPool.AddCert(cert)
 
 	// Create mocks
-	providers := newMockDataProviders(&fleet.AppConfig{
-		ServerSettings: fleet.ServerSettings{
-			ServerURL: "https://example.com", // will update with actual test server URL after it is started
-		},
-	},
+	providers := newMockDataProviders(
+		"https://example.com", // will update with actual test server URL after it is started
 		acme.CSRSignerFunc(func(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
 			res, err := tdb.DB.DB.Exec(`INSERT INTO identity_serials () VALUES ()`) // insert a row to get an auto-incremented ID for the cert serial number
 			require.NoError(t, err)
@@ -72,13 +69,8 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 				Raw:          []byte("mock-cert"),
 			}, nil
 		}),
-		map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-			fleet.MDMAssetCACert: {
-				Name:        fleet.MDMAssetCACert,
-				Value:       []byte("-----BEGIN CERTIFICATE-----\nroot\n-----END CERTIFICATE-----"),
-				MD5Checksum: "63a9f0ea7bb98050796b649e85481845", // md5 of "root"
-			},
-		})
+		[]byte("-----BEGIN CERTIFICATE-----\nroot\n-----END CERTIFICATE-----"),
+	)
 
 	opts := bootstrap.WithTestAppleRootCAs(rootPool)
 	// Create service
@@ -86,15 +78,14 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 
 	// Create router with routes
 	router := mux.NewRouter()
-	routesFn := service.GetRoutes(svc)
+	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint { return next } // no-op auth middleware for testing
+	routesFn := service.GetRoutes(svc, authMiddleware)
 	routesFn(router, nil)
 
 	// Create test server
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
-	ac, err := providers.AppConfig(t.Context())
-	require.NoError(t, err)
-	ac.ServerSettings.ServerURL = server.URL
+	providers.serverURL = server.URL
 
 	return &integrationTestSuite{
 		TestDB:      tdb,
@@ -240,6 +231,11 @@ func (s *integrationTestSuite) createAccount(t *testing.T, pathIdentifier string
 	t.Helper()
 	url := s.server.URL + fmt.Sprintf("/api/mdm/acme/%s/new_account", pathIdentifier) //nolint:gosec // test server URL is safe
 	return doACMERequest[types.AccountResponse](t, http.MethodPost, url, jwsBody)
+}
+
+// newAccountURL returns the full URL for the new_account endpoint.
+func (s *integrationTestSuite) newAccountURL(pathIdentifier string) string {
+	return fmt.Sprintf("%s/api/mdm/acme/%s/new_account", s.server.URL, pathIdentifier)
 }
 
 // newOrderURL returns the full URL for the new_order endpoint.
@@ -417,25 +413,7 @@ func (s *integrationTestSuite) finalizeOrderURL(pathIdentifier string, orderID u
 // order response or acme error and the raw response.
 func (s *integrationTestSuite) finalizeOrder(t *testing.T, finalizeURL string, jwsBody []byte) (*types.OrderResponse, *types.ACMEError, *http.Response) {
 	t.Helper()
-	req, err := http.NewRequest(http.MethodPost, finalizeURL, bytes.NewReader(jwsBody))
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer drainAndCloseBody(resp)
-
-	if resp.StatusCode >= 300 {
-		var acmeErr types.ACMEError
-		if err := json.NewDecoder(resp.Body).Decode(&acmeErr); err == nil && acmeErr.Type != "" {
-			return nil, &acmeErr, resp
-		}
-		return nil, nil, resp
-	}
-
-	var result types.OrderResponse
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-	return &result, nil, resp
+	return doACMERequest[types.OrderResponse](t, http.MethodPost, finalizeURL, jwsBody)
 }
 
 // createOrderForFinalize is a convenience helper that creates an enrollment, account, and order,

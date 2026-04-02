@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
@@ -28,7 +27,7 @@ func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Dat
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 
-func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
+func (ds *Datastore) reader(ctx context.Context) sqlx.QueryerContext {
 	if ctxdb.IsPrimaryRequired(ctx) {
 		return ds.primary
 	}

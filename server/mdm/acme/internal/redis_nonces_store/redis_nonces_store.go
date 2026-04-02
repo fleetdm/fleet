@@ -6,7 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -14,12 +14,12 @@ const DefaultNonceExpiration = 1 * time.Hour
 
 // RedisNoncesStore is a store for ACME nonces, implemented using Redis.
 type RedisNoncesStore struct {
-	pool       fleet.RedisPool
+	pool       acme.RedisPool
 	testPrefix string // for tests, the key prefix to use to avoid conflicts
 }
 
 // New creates a new RedisNoncesStore store.
-func New(pool fleet.RedisPool) *RedisNoncesStore {
+func New(pool acme.RedisPool) *RedisNoncesStore {
 	return &RedisNoncesStore{pool: pool}
 }
 
@@ -48,7 +48,7 @@ func (r *RedisNoncesStore) Consume(ctx context.Context, nonce string) (ok bool, 
 		return false, nil
 	}
 
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	conn := r.pool.Get()
 	defer conn.Close()
 
 	n, err := redigo.Int(conn.Do("DEL", r.testPrefix+prefix+nonce))

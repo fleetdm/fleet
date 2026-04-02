@@ -8,7 +8,6 @@ import (
 
 func (s *Service) NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error) {
 	// skipauth: No authorization check needed; caller is authenticated via DEP device identity.
-	// TODO: confirm this is how we want to handle auth for this method
 	if az, ok := authz_ctx.FromContext(ctx); ok {
 		az.SetChecked()
 	}

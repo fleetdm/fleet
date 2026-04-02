@@ -274,17 +274,17 @@ func createTestAccountForOrder(t *testing.T, env *testEnv) (*types.Account, *typ
 func buildTestOrder(accountID uint, identifierValue string) (*types.Order, *types.Authorization, *types.Challenge) {
 	return &types.Order{
 			ACMEAccountID: accountID,
-			Status:        "pending",
+			Status:        types.OrderStatusPending,
 			Identifiers: []types.Identifier{
 				{Type: types.IdentifierTypePermanentIdentifier, Value: identifierValue},
 			},
 		}, &types.Authorization{
 			Identifier: types.Identifier{Type: types.IdentifierTypePermanentIdentifier, Value: identifierValue},
-			Status:     "pending",
+			Status:     types.AuthorizationStatusPending,
 		}, &types.Challenge{
-			ChallengeType: "device-attest-01",
+			ChallengeType: types.DeviceAttestationChallengeType,
 			Token:         "test-token",
-			Status:        "pending",
+			Status:        types.ChallengeStatusPending,
 		}
 }
 
@@ -296,7 +296,7 @@ func testCreateNewOrder(t *testing.T, env *testEnv) {
 	require.NoError(t, err)
 	require.NotZero(t, result.ID)
 	require.Equal(t, account.ID, result.ACMEAccountID)
-	require.Equal(t, "pending", result.Status)
+	require.Equal(t, types.OrderStatusPending, result.Status)
 
 	// authorization and challenge IDs should be set by CreateOrder
 	require.NotZero(t, authorization.ID)
@@ -360,7 +360,7 @@ func testGetExistingOrder(t *testing.T, env *testEnv) {
 	require.NoError(t, err)
 	require.Equal(t, created.ID, gotOrder.ID)
 	require.Equal(t, account.ID, gotOrder.ACMEAccountID)
-	require.Equal(t, "pending", gotOrder.Status)
+	require.Equal(t, types.OrderStatusPending, gotOrder.Status)
 	require.False(t, gotOrder.Finalized)
 	require.Len(t, gotOrder.Identifiers, 1)
 	require.Equal(t, types.IdentifierTypePermanentIdentifier, gotOrder.Identifiers[0].Type)

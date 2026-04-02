@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
@@ -37,7 +37,7 @@ type testName interface {
 	Name() string
 }
 
-func newRedisNoncesStoreForTest(t testName, pool fleet.RedisPool) *RedisNoncesStore {
+func newRedisNoncesStoreForTest(t testName, pool acme.RedisPool) *RedisNoncesStore {
 	return &RedisNoncesStore{
 		pool:       pool,
 		testPrefix: t.Name() + ":",

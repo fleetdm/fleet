@@ -366,7 +366,7 @@ type JWSRequestContainer struct {
 func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	jwsBytes, err := io.ReadAll(r)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
+		return ctxerr.Wrap(ctx, err, "reading ACME JWS request body")
 	}
 	// Note: req.Identifier is set from the mux path variable by the framework
 	// (via the `url:"identifier"` struct tag), so we don't set it here.

@@ -42,10 +42,7 @@ func (s *Service) GetAuthorization(ctx context.Context, enrollment *types.Enroll
 			Status:        c.Status,
 			Token:         c.Token,
 			URL:           challengeURL,
-		}
-
-		if c.Status == "valid" {
-			challengeResponse.Validated = &c.UpdatedAt
+			Validated:     c.ValidatedAt(),
 		}
 
 		challengeResponses = append(challengeResponses, challengeResponse)
