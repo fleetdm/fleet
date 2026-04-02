@@ -162,26 +162,6 @@ UPDATE
 		return err
 	}
 
-	// Set hardware_attested on any existing nano_enrollments row for this device.
-	// If the certificate serial is linked to a valid ACME order, mark it as attested;
-	// otherwise reset it. For new enrollments (no row yet), this is a no-op —
-	// StoreTokenUpdate handles the INSERT case.
-	if r.Certificate != nil {
-		certSerial := r.Certificate.SerialNumber.Int64()
-		_, err = s.db.ExecContext(
-			r.Context, `
-UPDATE nano_enrollments
-SET hardware_attested = EXISTS(
-    SELECT 1 FROM acme_orders WHERE issued_certificate_serial = ?
-)
-WHERE id = ?`,
-			certSerial, r.ID,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -269,7 +249,8 @@ UPDATE
     token_hex = VALUES(token_hex),
     enabled = 1,
     last_seen_at = CURRENT_TIMESTAMP,
-    token_update_tally = nano_enrollments.token_update_tally + 1;`,
+    token_update_tally = nano_enrollments.token_update_tally + 1,
+	hardware_attested = VALUES(hardware_attested);`,
 		r.ID,
 		deviceId,
 		nullEmptyString(userId),
