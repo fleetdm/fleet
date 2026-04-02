@@ -167,7 +167,7 @@ require (
 	go.step.sm/crypto v0.77.1
 	golang.org/x/crypto v0.49.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
-	golang.org/x/image v0.18.0
+	golang.org/x/image v0.38.0
 	golang.org/x/mod v0.33.0
 	golang.org/x/net v0.52.0
 	golang.org/x/oauth2 v0.35.0
