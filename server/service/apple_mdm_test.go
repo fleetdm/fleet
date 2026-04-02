@@ -3875,6 +3875,9 @@ func TestReconcileAppleProfilesSkipsHostBeingProcessed(t *testing.T) {
 	ds.GetNanoMDMUserEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return nil, nil
 	}
+	ds.SetCommandNameFunc = func(ctx context.Context, commandID string, name string) error {
+		return nil
+	}
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, allCAs bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
