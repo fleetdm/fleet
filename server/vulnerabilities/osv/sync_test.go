@@ -2,6 +2,7 @@ package osv
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,7 +55,7 @@ func TestRemoveOldOSVArtifacts(t *testing.T) {
 	require.True(t, stat.IsDir())
 }
 
-func TestRemoveOldOSVArtifacts_PreservesFailedVersions(t *testing.T) {
+func TestRemoveOldOSVArtifactsPreservesFailedVersions(t *testing.T) {
 	tmpDir := t.TempDir()
 	today := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
 
@@ -188,7 +189,7 @@ func TestComputeFileSHA256(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestSyncOSV_FaultTolerance(t *testing.T) {
+func TestSyncOSVFaultTolerance(t *testing.T) {
 	tmpDir := t.TempDir()
 	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
 
@@ -206,15 +207,20 @@ func TestSyncOSV_FaultTolerance(t *testing.T) {
 
 	versions := []string{"2204", "2504"}
 
-	result, err := SyncOSV(context.Background(), tmpDir, versions, date, release)
+	// Mock download function that always fails
+	mockDownload := func(ctx context.Context, assetID int64, dstPath string) error {
+		return errors.New("mock download failure")
+	}
+
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	require.Contains(t, result.Skipped, "2504")
-	require.Contains(t, result.Failed, "2204")
+	require.Contains(t, result.Skipped, "2504", "2504 artifact not in release, should be skipped")
+	require.Contains(t, result.Failed, "2204", "2204 download failed, should be in Failed")
 }
 
-func TestSyncOSV_ChecksumMatch(t *testing.T) {
+func TestSyncOSVChecksumMatch(t *testing.T) {
 	tmpDir := t.TempDir()
 	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
 

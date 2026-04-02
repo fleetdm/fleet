@@ -179,8 +179,16 @@ type SyncResult struct {
 	Failed     []string
 }
 
+// downloadFunc is a function that downloads an asset to a destination path
+type downloadFunc func(ctx context.Context, assetID int64, dstPath string) error
+
 // SyncOSV downloads OSV artifacts for the specified Ubuntu versions
 func SyncOSV(ctx context.Context, dstDir string, ubuntuVersions []string, date time.Time, release *ReleaseInfo) (*SyncResult, error) {
+	return syncOSVWithDownloader(ctx, dstDir, ubuntuVersions, date, release, downloadOSVArtifact)
+}
+
+// syncOSVWithDownloader is the internal implementation that accepts a custom download function for testing
+func syncOSVWithDownloader(ctx context.Context, dstDir string, ubuntuVersions []string, date time.Time, release *ReleaseInfo, download downloadFunc) (*SyncResult, error) {
 	result := &SyncResult{
 		Downloaded: make([]string, 0),
 		Skipped:    make([]string, 0),
@@ -213,7 +221,7 @@ func SyncOSV(ctx context.Context, dstDir string, ubuntuVersions []string, date t
 		}
 
 		if needsDownload {
-			err := downloadOSVArtifact(ctx, assetInfo.ID, dstPath)
+			err := download(ctx, assetInfo.ID, dstPath)
 			if err != nil {
 				// Download failed, skip
 				os.Remove(dstPath)

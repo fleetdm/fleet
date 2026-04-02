@@ -466,6 +466,8 @@ func checkOvalVulnerabilities(
 	}
 	analyzeSpan.End()
 
+	cleanupStaleOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
+
 	return results
 }
 
@@ -528,7 +530,29 @@ func checkOSVVulnerabilities(
 	}
 	analyzeSpan.End()
 
+	cleanupStaleOVALVulnerabilities(ctx, ds, logger)
+
 	return results
+}
+
+// cleanupStaleOSVVulnerabilities removes OSV vulnerabilities for platforms supported by OSV
+func cleanupStaleOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
+	if osvEnabled {
+		return
+	}
+
+	logger.DebugContext(ctx, "cleaning up Ubuntu OSV vulnerabilities because OSV is disabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOSVSource, time.Now().Add(100*365*24*time.Hour)); err != nil {
+		errHandler(ctx, logger, "cleaning up Ubuntu OSV vulnerabilities", err)
+	}
+}
+
+// cleanupStaleOVALVulnerabilities removes OVAL vulnerabilities for platforms supported by OSV
+func cleanupStaleOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	logger.DebugContext(ctx, "cleaning up Ubuntu OVAL vulnerabilities because OSV is enabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOVALSource, time.Now().Add(100*365*24*time.Hour)); err != nil {
+		errHandler(ctx, logger, "cleaning up Ubuntu OVAL vulnerabilities", err)
+	}
 }
 
 func checkGovalDictionaryVulnerabilities(

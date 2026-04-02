@@ -576,7 +576,7 @@ func TestFindLatestOSVArtifactForVersion(t *testing.T) {
 	}
 }
 
-func TestLoadOSVArtifact_ZeroTimeUsesLatest(t *testing.T) {
+func TestLoadOSVArtifactZeroTimeUsesLatest(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create artifacts with different dates

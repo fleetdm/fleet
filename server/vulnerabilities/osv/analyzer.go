@@ -204,6 +204,10 @@ func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, 
 	artifactFile := filepath.Join(vulnPath, fileName)
 
 	if _, err := os.Stat(artifactFile); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("checking OSV artifact %s: %w", artifactFile, err)
+		}
+
 		artifactFile, err = findLatestOSVArtifactForVersion(vulnPath, ubuntuVer)
 		if err != nil {
 			return nil, fmt.Errorf("finding OSV artifact for Ubuntu %s: %w", ubuntuVer, err)
