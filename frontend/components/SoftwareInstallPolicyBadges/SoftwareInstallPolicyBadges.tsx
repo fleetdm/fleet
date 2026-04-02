@@ -20,7 +20,7 @@ interface IPatchBadgesProps {
 
 const SoftwareInstallPolicyBadges = ({ policyType }: IPatchBadgesProps) => {
   const renderPatchBadge = () => (
-    <PillBadge text="Patch" tipContent={PATCH_TOOLTIP_CONTENT} />
+    <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>Patch</PillBadge>
   );
 
   const renderAutomaticInstallBadge = () => (

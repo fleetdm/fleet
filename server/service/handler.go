@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -472,15 +472,19 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/hosts/{id:[0-9]+}/queries").GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports", listHostReportsEndpoint, listHostReportsRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/health", getHostHealthEndpoint, getHostHealthRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", addLabelsToHostEndpoint, addLabelsToHostRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, removeLabelsFromHostRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/software", getHostSoftwareEndpoint, getHostSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates", listHostCertificatesEndpoint, listHostCertificatesRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates/{template_id:[0-9]+}/resend", resendHostCertificateTemplateEndpoint, resendHostCertificateTemplateRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password", getHostRecoveryLockPasswordEndpoint, getHostRecoveryLockPasswordRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/summary/mdm", getHostMDMSummary, getHostMDMSummaryRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", getHostMDM, getHostMDMRequest{})
+
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/dep_assignment", getHostDEPAssignmentEndpoint, getHostDEPAssignmentRequest{})
 
 	ue.POST("/api/_version_/fleet/labels", createLabelEndpoint, createLabelRequest{})
 	ue.PATCH("/api/_version_/fleet/labels/{id:[0-9]+}", modifyLabelEndpoint, modifyLabelRequest{})
@@ -563,6 +567,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/lock", lockHostEndpoint, lockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/unlock", unlockHostEndpoint, unlockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/wipe", wipeHostEndpoint, wipeHostRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password/rotate", rotateRecoveryLockPasswordEndpoint, rotateRecoveryLockPasswordRequest{})
 
 	// Generative AI
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, autofillPoliciesRequest{})
@@ -949,27 +954,27 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
-	oe.POST("/api/fleet/orbit/device_token", setOrUpdateDeviceTokenEndpoint, setOrUpdateDeviceTokenRequest{})
-	oe.POST("/api/fleet/orbit/config", getOrbitConfigEndpoint, orbitGetConfigRequest{})
+	oe.POST("/api/fleet/orbit/device_token", setOrUpdateDeviceTokenEndpoint, fleet.SetOrUpdateDeviceTokenRequest{})
+	oe.POST("/api/fleet/orbit/config", getOrbitConfigEndpoint, fleet.OrbitGetConfigRequest{})
 	// using POST to get a script execution request since all authenticated orbit
 	// endpoints are POST due to passing the device token in the JSON body.
-	oe.POST("/api/fleet/orbit/scripts/request", getOrbitScriptEndpoint, orbitGetScriptRequest{})
-	oe.POST("/api/fleet/orbit/scripts/result", postOrbitScriptResultEndpoint, orbitPostScriptResultRequest{})
-	oe.PUT("/api/fleet/orbit/device_mapping", putOrbitDeviceMappingEndpoint, orbitPutDeviceMappingRequest{})
-	oe.WithRequestBodySizeLimit(fleet.MaxMultiScriptQuerySize).POST("/api/fleet/orbit/software_install/result", postOrbitSoftwareInstallResultEndpoint, orbitPostSoftwareInstallResultRequest{})
-	oe.POST("/api/fleet/orbit/software_install/package", orbitDownloadSoftwareInstallerEndpoint, orbitDownloadSoftwareInstallerRequest{})
-	oe.POST("/api/fleet/orbit/software_install/details", getOrbitSoftwareInstallDetails, orbitGetSoftwareInstallRequest{})
-	oe.POST("/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitEndpoint, orbitSetupExperienceInitRequest{})
+	oe.POST("/api/fleet/orbit/scripts/request", getOrbitScriptEndpoint, fleet.OrbitGetScriptRequest{})
+	oe.POST("/api/fleet/orbit/scripts/result", postOrbitScriptResultEndpoint, fleet.OrbitPostScriptResultRequest{})
+	oe.PUT("/api/fleet/orbit/device_mapping", putOrbitDeviceMappingEndpoint, fleet.OrbitPutDeviceMappingRequest{})
+	oe.WithRequestBodySizeLimit(fleet.MaxMultiScriptQuerySize).POST("/api/fleet/orbit/software_install/result", postOrbitSoftwareInstallResultEndpoint, fleet.OrbitPostSoftwareInstallResultRequest{})
+	oe.POST("/api/fleet/orbit/software_install/package", orbitDownloadSoftwareInstallerEndpoint, fleet.OrbitDownloadSoftwareInstallerRequest{})
+	oe.POST("/api/fleet/orbit/software_install/details", getOrbitSoftwareInstallDetails, fleet.OrbitGetSoftwareInstallRequest{})
+	oe.POST("/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitEndpoint, fleet.OrbitSetupExperienceInitRequest{})
 
 	// POST /api/fleet/orbit/setup_experience/status is used by macOS and Linux hosts.
 	// For macOS hosts we verify Apple MDM is enabled and configured.
 	oeAppleMDM := oe.WithCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAppleMDMOnMacOSHosts())
-	oeAppleMDM.POST("/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusEndpoint, getOrbitSetupExperienceStatusRequest{})
+	oeAppleMDM.POST("/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusEndpoint, fleet.GetOrbitSetupExperienceStatusRequest{})
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
-	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, fleet.OrbitPostDiskEncryptionKeyRequest{})
 
-	oe.POST("/api/fleet/orbit/luks_data", postOrbitLUKSEndpoint, orbitPostLUKSRequest{})
+	oe.POST("/api/fleet/orbit/luks_data", postOrbitLUKSEndpoint, fleet.OrbitPostLUKSRequest{})
 
 	// unauthenticated endpoints - most of those are either login-related,
 	// invite-related or host-enrolling. So they typically do some kind of
@@ -1042,7 +1047,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// These endpoints are unauthenticated and made from orbit, and add the orbit capabilities header.
 	neOrbit := newOrbitNoAuthEndpointer(svc, opts, r, apiVersions...)
-	neOrbit.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
+	neOrbit.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, fleet.EnrollOrbitRequest{})
 
 	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/in_house_app", getInHouseAppPackageEndpoint, getInHouseAppPackageRequest{})
 	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/in_house_app/manifest", getInHouseAppManifestEndpoint, getInHouseAppManifestRequest{})
@@ -1098,7 +1103,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ne.HEAD("/api/fleet/device/ping", devicePingEndpoint, devicePingRequest{})
 
-	ne.HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, orbitPingRequest{})
+	ne.HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, fleet.OrbitPingRequest{})
 
 	// This is a callback endpoint for calendar integration -- it is called to notify an event change in a user calendar
 	ne.POST("/api/_version_/fleet/calendar/webhook/{event_uuid}", calendarWebhookEndpoint, calendarWebhookRequest{})
@@ -1292,7 +1297,7 @@ func RegisterSCEPProxy(
 	if fleetConfig == nil {
 		return errors.New("fleet config is nil")
 	}
-	scepService := eeservice.NewSCEPProxyService(
+	scepService := scep.NewSCEPProxyService(
 		ds,
 		logger.With("component", "scep-proxy-service"),
 		timeout,

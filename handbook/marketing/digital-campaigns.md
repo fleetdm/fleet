@@ -7,10 +7,10 @@ Our approach to digital paid media is rooted in sharing and teaching. We do not 
 The primary goals of our digital strategy are:
 
 * **Generate awareness:** Increase overall awareness of FleetDM in the market.  
-* **Value Distribution:** Distributing high-utility assets (Handbooks, Calculators, Reports) that answer questions and solve immediate problems.  
-* **Demand Generation:** Identifying new contacts through strategic form completions.  
-* **Intent Capture:** Gathering intent signals from known contacts as they engage with our technical content.  
-* **Precision Targeting:** Focusing paid spend on our core ICP (target personas at organizations with \>1,000 employees) to drive high-quality "Growth Vectors".
+* **Value distribution:** Distributing high-utility assets (Handbooks, Calculators, Reports) that answer questions and solve immediate problems.  
+* **Demand generation:** Identifying new contacts through strategic form completions.  
+* **Intent capture:** Gathering intent signals from known contacts as they engage with our technical content.  
+* **Precision targeting:** Focusing paid spend on our core ICP (target personas at organizations with \>1,000 employees) to drive high-quality "Growth Vectors".
 
 ---
 
@@ -18,19 +18,19 @@ The primary goals of our digital strategy are:
 
 To ensure accurate attribution and data visibility, we use UTMs when processing form completions to connect the dots.
 
-#### **UTM Medium:**
+#### **UTM medium:**
 
 For digital agency collaboration, the following utm_medium values are needed:
 
 * **utm_medium=ps**: Paid Search (e.g., Google Search Ads)  
 * **utm_medium=so**: Paid Social (e.g., LinkedIn Sponsored Content)
 
-**UTM Campaign:**  
+**UTM campaign:**  
 We use the campaigns in salesforce to keep track of roi and impact of investments. Therefore, we need to tag ads with the appropriate utm_campagn.
 
 ---
 
-### **Paid Search Campaigns**
+### **Paid search campaigns**
 
 The following campaigns are scheduled for launch in **January 2026**. Campaign names follow the Fleet naming convention: [YYYY-MM]-[Medium]-[Campaign-Name].
 
@@ -44,7 +44,7 @@ The following campaigns are scheduled for launch in **January 2026**. Campaign n
 
 ---
 
-### **Paid Social Campaigns**
+### **Paid social campaigns**
 
 The following campaigns are scheduled for launch in **March 2026**. Campaign names follow the Fleet naming convention: [YYYY-MM]-[Medium]-[Campaign-Name].
 

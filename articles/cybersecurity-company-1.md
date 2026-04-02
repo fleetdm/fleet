@@ -74,3 +74,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-14">
 <meta name="description" value="A cybersecurity company improves Linux management with Fleet, replacing legacy tools and gaining better device visibility."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Cybersecurity company">
+<meta name="cardBodyForCustomersPage" value="Cybersecurity company improves Linux management with Fleet, replacing legacy tools.">

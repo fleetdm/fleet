@@ -67,4 +67,5 @@ type DetailsForSoftwareIconActivity struct {
 	Platform            *InstallableDevicePlatform `json:"platform"`
 	LabelsIncludeAny    []ActivitySoftwareLabel    `db:"-"`
 	LabelsExcludeAny    []ActivitySoftwareLabel    `db:"-"`
+	LabelsIncludeAll    []ActivitySoftwareLabel    `db:"-"`
 }

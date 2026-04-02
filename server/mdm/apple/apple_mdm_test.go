@@ -587,6 +587,10 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
 
 		var commandSent bool
 		mockCommander := &mockRecoveryLockCommander{
@@ -596,7 +600,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.NoError(t, err)
 		assert.False(t, commandSent, "SetRecoveryLock should not be called when no hosts need it")
 	})
@@ -614,6 +618,10 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		}
 		// Mock clear flow - no hosts need clearing
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
 			return nil, nil
 		}
 
@@ -636,7 +644,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.NoError(t, err)
 
 		// Verify call order: password must be stored BEFORE command is sent
@@ -665,6 +673,10 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
 
 		// Track call order to verify correct sequencing
 		var callOrder []string
@@ -687,7 +699,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "APNs push failed")
 
@@ -714,6 +726,10 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
 
 		// Track call order to verify ClearRecoveryLockPendingStatus is NOT called
 		var callOrder []string
@@ -735,7 +751,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		// Should NOT return error - command was persisted, just push failed
 		require.NoError(t, err)
 
@@ -748,8 +764,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 // mockRecoveryLockCommander implements RecoveryLockCommander for testing.
 type mockRecoveryLockCommander struct {
-	setRecoveryLockFn   func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	clearRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	rotateRecoveryLockFn func(ctx context.Context, hostUUID string, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -762,6 +779,13 @@ func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUI
 func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
 	if m.clearRecoveryLockFn != nil {
 		return m.clearRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error {
+	if m.rotateRecoveryLockFn != nil {
+		return m.rotateRecoveryLockFn(ctx, hostUUID, cmdUUID)
 	}
 	return nil
 }
@@ -787,6 +811,10 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
 		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
 
 		var clearCalled bool
 		mockCommander := &mockRecoveryLockCommander{
@@ -797,7 +825,7 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.NoError(t, err)
 		require.True(t, clearCalled, "ClearRecoveryLock should have been called")
 	})
@@ -817,6 +845,10 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
 
 		mockCommander := &mockRecoveryLockCommander{
 			clearRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -825,7 +857,7 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.NoError(t, err)
 	})
 }

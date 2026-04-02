@@ -1,0 +1,12 @@
+{
+  "name": "Mozilla Firefox ESR",
+  "slug": "firefox@esr/windows",
+  "package_identifier": "Mozilla.Firefox.ESR",
+  "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/firefox_esr_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/firefox_esr_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Browsers"]
+}

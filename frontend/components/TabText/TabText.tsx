@@ -7,6 +7,9 @@ interface ITabTextProps {
   children: React.ReactNode;
   count?: number;
   countVariant?: TabCountVariant;
+  /** When true, renders a small dot indicator next to the tab text
+   * (e.g. to indicate that something is configured for this tab). */
+  showDot?: boolean;
 }
 
 /*
@@ -20,6 +23,7 @@ const TabText = ({
   children,
   count,
   countVariant,
+  showDot,
 }: ITabTextProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
@@ -41,6 +45,13 @@ const TabText = ({
         {children}
       </div>
       {renderCount()}
+      {showDot && (
+        <div
+          className={`${baseClass}__dot`}
+          role="status"
+          aria-label="Configured"
+        />
+      )}
     </div>
   );
 };

@@ -38,3 +38,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-02-20">
 <meta name="description" value="Communications platform unifies 3,000 devices with real-time visibility, GitOps automation, and transparent cross-platform management.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Communications platform">

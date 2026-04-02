@@ -1,6 +1,7 @@
 package com.fleetdm.agent
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -10,10 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -64,6 +62,7 @@ object ApiClient : CertificateApiClient {
     private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var appContext: Context
     private val API_KEY = stringPreferencesKey("api_key")
     private val SERVER_URL_KEY = stringPreferencesKey("server_url")
     private val ENROLL_SECRET = stringPreferencesKey("enroll_secret")
@@ -74,8 +73,9 @@ object ApiClient : CertificateApiClient {
 
     fun initialize(context: Context) {
         Log.d(TAG, "initializing api client")
+        appContext = context.applicationContext
         if (!::dataStore.isInitialized) {
-            dataStore = context.applicationContext.prefDataStore
+            dataStore = appContext.prefDataStore
         }
     }
 
@@ -116,6 +116,8 @@ object ApiClient : CertificateApiClient {
         responseSerializer: KSerializer<T>,
         authorized: Boolean = true,
     ): Result<T> = withContext(Dispatchers.IO) {
+        require(method != "GET" || body == null) { "GET requests must not include a body" }
+
         var connection: HttpURLConnection? = null
         try {
             val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
@@ -137,13 +139,12 @@ object ApiClient : CertificateApiClient {
             }
 
             val url = URL("$baseUrl$endpoint")
-            connection = url.openConnection() as HttpURLConnection
+            connection = openConnectionOnActiveNetwork(url)
 
             connection.apply {
                 requestMethod = method
                 useCaches = false
                 doInput = true
-                setRequestProperty("Content-Type", "application/json")
                 if (authorized) {
                     getNodeKeyOrEnroll().fold(
                         onFailure = { throwable -> return@withContext Result.failure(throwable) },
@@ -155,8 +156,9 @@ object ApiClient : CertificateApiClient {
                 connectTimeout = 15000
                 readTimeout = 15000
 
-                if (body != null && method != "GET") {
+                if (body != null) {
                     requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
+                    setRequestProperty("Content-Type", "application/json")
                     doOutput = true
                     val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
                     outputStream.use { it.write(bodyJson.toByteArray()) }
@@ -178,6 +180,8 @@ object ApiClient : CertificateApiClient {
                 Result.success(parsed)
             } else if (responseCode == 401) {
                 Result.failure(UnauthorizedException(response))
+            } else if (responseCode == 404) {
+                Result.failure(NotFoundException(response))
             } else {
                 Result.failure(Exception("HTTP $responseCode: $response"))
             }
@@ -193,6 +197,26 @@ object ApiClient : CertificateApiClient {
      * This typically indicates the node key has been invalidated (e.g., host was deleted).
      */
     class UnauthorizedException(message: String) : Exception("HTTP 401: $message")
+    class NotFoundException(message: String) : Exception("HTTP 404: $message")
+
+    /**
+     * Opens an HTTP connection bound to the active network when available. This ensures DNS resolution uses
+     * the active network's DNS servers, avoiding failures when Android reports connectivity before DNS is ready.
+     * Falls back to a default connection if no active network is available.
+     */
+    internal fun openConnectionOnActiveNetwork(url: URL): HttpURLConnection {
+        if (useActiveNetworkBinding) {
+            val connectivityManager = appContext.getSystemService(ConnectivityManager::class.java)
+            val activeNetwork = connectivityManager?.activeNetwork
+            if (activeNetwork != null) {
+                return activeNetwork.openConnection(url) as HttpURLConnection
+            }
+        }
+        return url.openConnection() as HttpURLConnection
+    }
+
+    // Disabled in tests where Network.openConnection is not available (Robolectric)
+    internal var useActiveNetworkBinding = true
 
     /**
      * Executes a request block with automatic re-enrollment on 401 Unauthorized.
@@ -262,19 +286,12 @@ object ApiClient : CertificateApiClient {
     }
 
     override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> = withReenrollOnUnauthorized {
-        val nodeKeyResult = getNodeKeyOrEnroll()
-        val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-            return@withReenrollOnUnauthorized Result.failure(error)
-        }
-
         val credentials = getEnrollmentCredentials()
             ?: return@withReenrollOnUnauthorized Result.failure(Exception("enroll credentials not set"))
 
-        makeRequest(
+        makeRequest<Unit, GetCertificateTemplateResponseWrapper>(
             endpoint = "/api/fleetd/certificates/$certificateId",
             method = "GET",
-            body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
-            bodySerializer = GetCertificateTemplateRequest.serializer(),
             responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
         ).fold(
             onSuccess = { wrapper ->
@@ -326,8 +343,14 @@ object ApiClient : CertificateApiClient {
                 }
             },
             onFailure = { throwable ->
-                FleetLog.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
-                Result.failure(throwable)
+                if (throwable is NotFoundException) {
+                    // Certificate template was deleted from the server -- nothing to report to
+                    Log.i(TAG, "certificate template $certificateId no longer exists on server, nothing to report")
+                    Result.success(Unit)
+                } else {
+                    FleetLog.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
+                    Result.failure(throwable)
+                }
             },
         )
     }
@@ -479,12 +502,6 @@ data class OrbitUpdateChannels(
 
     @SerialName("desktop")
     val desktop: String = "",
-)
-
-@Serializable
-private data class GetCertificateTemplateRequest(
-    @SerialName("orbit_node_key")
-    val orbitNodeKey: String,
 )
 
 @Serializable

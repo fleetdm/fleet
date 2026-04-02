@@ -1,0 +1,1 @@
+* Refactored large anonymous function into a named function to improve nil-safety static analysis coverage.

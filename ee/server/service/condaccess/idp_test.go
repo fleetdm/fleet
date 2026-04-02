@@ -497,7 +497,6 @@ func TestParseSerialNumber(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, 10, result)
 	})
-
 }
 
 func TestServeSSO(t *testing.T) {
@@ -949,7 +948,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 				return tt.host, tt.hostErr
 			}
 
-			ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
+			ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint, platform string) ([]uint, error) {
 				return tt.caPolicyIDs, nil
 			}
 

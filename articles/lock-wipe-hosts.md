@@ -55,7 +55,9 @@ When wiping and re-installing the operating system (OS) on a host, delete the ho
 
 If you're gifting a company-owned macOS host or you want to prevent the host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business Manager (ABM) and then delete the host in Fleet.
 
-For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.).
+For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). However, it is possible to use the [doWipe command via the API](https://fleetdm.com/docs/rest-api/rest-api#parameters57).
+
+For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [default fallback behavior documented by Apple](https://developer.apple.com/documentation/devicemanagement/erasedevicecommand/command-data.dictionary#:~:text=devices%20always%20obliterate.-,Default,-%3A%20If%20EACS%20preflight).
 
 ## Unlock a host
 

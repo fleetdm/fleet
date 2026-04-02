@@ -86,11 +86,10 @@ Implementation and migration timelines vary based on fleet size and organization
 
 
 
-<meta name="articleTitle" value="Fleet vs. Jamf"> 
-<meta name="articleSubtitle" value="How to choose the right MDM">
+<meta name="articleTitle" value="Fleet vs. Jamf">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
-<meta name="articleSlugInCategory" value="jamf"> 
+<meta name="articleSlugInCategory" value="jamf-vs-fleet"> 
 <meta name="introductionTextBlockOne" value="Organizations managing Apple devices face a choice: pick one of a number of available Apple device management solutions, or, a solution with multi-platform capabilities."> 
 <meta name="introductionTextBlockTwo" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria."> 
 <meta name="category" value="comparison">

@@ -100,6 +100,42 @@ func TestCPEFromSoftware(t *testing.T) {
 		)
 		require.NoError(t, err, "software name %q should not cause FTS5 syntax error", name)
 	}
+
+	// Target_SW scoring: python_packages source should prefer python vendor over jenkins vendor
+	// when multiple CPE entries exist for the same product name.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "requests", Version: "2.31.0", Source: "python_packages",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:python:requests:2.31.0:*:*:*:*:python:*:*", cpe,
+		"python_packages should prefer python:requests (vendor contains 'python')")
+
+	// Target_SW scoring: npm_packages source should prefer openjsf vendor over checkpoint vendor
+	// when the CPE has target_sw=node.js matching the expected target_sw.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "express", Version: "4.18.0", Source: "npm_packages",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:openjsf:express:4.18.0:*:*:*:*:node.js:*:*", cpe,
+		"npm_packages should prefer openjsf:express with target_sw=node.js")
+
+	// Target_SW scoring with <product>_project fallback pattern.
+	// For duplicity from python_packages, neither vendor relates to Python ecosystem, but
+	// duplicity_project:duplicity follows the NVD "<product>_project" pattern for upstream CPEs.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "duplicity", Version: "0.8.0", Source: "python_packages",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:duplicity_project:duplicity:0.8.0:*:*:*:*:python:*:*", cpe,
+		"should prefer duplicity_project (upstream) over debian (distro-specific) using _project pattern")
+
+	// Target_SW scoring: deb_packages source should prefer debian vendor for duplicity
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "duplicity", Version: "0.8.0", Source: "deb_packages",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:debian:duplicity:0.8.0:*:*:*:*:*:*:*", cpe,
+		"deb_packages duplicity should prefer debian:duplicity (vendor contains 'debian')")
 }
 
 func TestCPETranslations(t *testing.T) {
@@ -1112,7 +1148,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "0.8.21",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:debian:duplicity:0.8.21:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:duplicity_project:duplicity:0.8.21:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "duplicity",
+				Source:           "deb_packages",
+				Version:          "0.8.21",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:debian:duplicity:0.8.21:*:*:*:*:*:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1346,7 +1391,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.25.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:jenkins:requests:2.25.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:python:requests:2.25.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{

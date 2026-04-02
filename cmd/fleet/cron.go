@@ -733,8 +733,6 @@ func newWorkerIntegrationsSchedule(
 	logger *slog.Logger,
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
-	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
-	vppInstaller fleet.AppleMDMVPPInstaller,
 	androidModule android.Service,
 ) (*schedule.Schedule, error) {
 	const (
@@ -783,13 +781,7 @@ func newWorkerIntegrationsSchedule(
 		DEPService: depSvc,
 		DEPClient:  depCli,
 	}
-	appleMDM := &worker.AppleMDM{
-		Datastore:             ds,
-		Log:                   logger,
-		Commander:             commander,
-		BootstrapPackageStore: bootstrapPackageStore,
-		VPPInstaller:          vppInstaller,
-	}
+
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
 		Log:       logger,
@@ -804,7 +796,7 @@ func newWorkerIntegrationsSchedule(
 		Log:           logger,
 		AndroidModule: androidModule,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -903,6 +895,53 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 		}
 	}
 	return failerClient
+}
+
+func newAppleMDMWorkerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	commander *apple_mdm.MDMAppleCommander,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+) (*schedule.Schedule, error) {
+	const (
+		name             = string(fleet.CronAppleMDMWorker)
+		scheduleInterval = 10 * time.Second // schedule a worker to run every 10 seconds if none is running
+		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
+	)
+
+	logger = logger.With("cron", name)
+
+	w := worker.NewWorker(ds, logger)
+
+	appleMDM := &worker.AppleMDM{
+		Datastore:             ds,
+		Log:                   logger,
+		Commander:             commander,
+		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
+	}
+
+	w.Register(appleMDM)
+
+	s := schedule.New(
+		ctx, name, instanceID, scheduleInterval, ds, ds,
+		schedule.WithAltLockID("apple_mdm"),
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_worker", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
+			if err := w.ProcessJobs(workCtx); err != nil {
+				return fmt.Errorf("processing apple mdm jobs: %w", err)
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
 }
 
 func newCleanupsAndAggregationSchedule(
@@ -1168,6 +1207,9 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
+			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
+		}),
 	)
 
 	return s, nil
@@ -1425,7 +1467,9 @@ func newAppleMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
+	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
+	certProfilesLimit int,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -1440,7 +1484,7 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+			return service.ReconcileAppleProfiles(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
@@ -1996,6 +2040,7 @@ func newRecoveryLockPasswordSchedule(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronSendRecoveryLockCommands)
@@ -2007,7 +2052,7 @@ func newRecoveryLockPasswordSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
-			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger)
+			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 

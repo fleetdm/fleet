@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "243.4.6956",
+      "version": "246.4.3513",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getdropbox.dropbox';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getdropbox.dropbox';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getdropbox.dropbox' AND version_compare(bundle_short_version, '246.4.3513') < 0);"
       },
-      "installer_url": "https://edge.dropboxstatic.com/dbx-releng/client/Dropbox%20243.4.6956.arm64.dmg",
+      "installer_url": "https://edge.dropboxstatic.com/dbx-releng/client/Dropbox%20246.4.3513.arm64.dmg",
       "install_script_ref": "802a5310",
       "uninstall_script_ref": "c86e5f6d",
-      "sha256": "cecb521536780267356331860ef1a4394937ffd49b9d0d999fc9ae68301a1e9f",
+      "sha256": "fb0d10ea8ea0ba102dd86fc99a62b1edeb33dfac34856335c9303e4f7876408b",
       "default_categories": [
         "Productivity"
       ]

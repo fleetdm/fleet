@@ -95,18 +95,18 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 
 	// setup IdP so that AccountConfiguration profile is sent after DEP enrollment
 	var acResp appConfigResponse
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
 					"idp_name": "SimpleSAML",
-					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+					"metadata_url": "%s"
 				},
 				"macos_setup": {
 					"enable_end_user_authentication": true
 				}
 			}
-		}`), http.StatusOK, &acResp)
+		}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -264,13 +264,13 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
 					"idp_name": "SimpleSAML",
-					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+					"metadata_url": "%s"
 				},
 				"macos_setup": {
 					"enable_end_user_authentication": true
 				}
 			}
-		}`, "fleet_ade_test", tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
+		}`, "fleet_ade_test", tm.Name, tm.Name, tm.Name, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -577,32 +577,41 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 	}
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
 	// run the cron to assign configuration profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run the worker to process the DEP enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
 
+	var seenDeclarativeManagement bool
 	var cmds []*micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
 
+		if cmd.Command.RequestType == "DeclarativeManagement" {
+			seenDeclarativeManagement = true
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			continue // Do not add to commands as it's not a XML file, so we use a bool to see it once.
+		}
+
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		// switch cmd.Command.RequestType {
-		// case "InstallProfile":
-		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		// case "InstallEnterpriseApplication":
-		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-		// 	} else {
-		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		// 	}
-		// default:
-		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		// }
+		switch cmd.Command.RequestType {
+		case "InstallProfile":
+			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		case "InstallEnterpriseApplication":
+			if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+			} else {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+			}
+		default:
+			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		}
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -613,6 +622,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// expected commands: install CA, install profile (only the custom one),
 		// not expected: account configuration, since enrollment_reference not set
 		require.Len(t, cmds, 2)
+		require.True(t, seenDeclarativeManagement)
 	} else {
 		// expected commands: install fleetd, install bootstrap(if not migrating),
 		// install CA, install profiles (custom one, fleetd configuration, FileVault)
@@ -624,7 +634,18 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		if isMigrating {
 			expectedCommands-- // no bootstrap package during migration
 		}
+		/* t.Logf("received %d commands, expected %d", len(cmds), expectedCommands)
+		for _, cmd := range cmds {
+			if cmd.Command.RequestType == "InstallEnterpriseApplication" {
+				t.Logf("command install enterprise: manifest: %#v - manifest url: %v", cmd.Command.InstallEnterpriseApplication.Manifest, cmd.Command.InstallEnterpriseApplication.ManifestURL)
+			} else if cmd.Command.RequestType == "InstallProfile" {
+				t.Logf("command install profile: %s", string(cmd.Command.InstallProfile.Payload))
+			} else {
+				t.Logf("command type: %s", cmd.Command.RequestType)
+			}
+		} */
 		assert.Len(t, cmds, expectedCommands)
+		assert.True(t, seenDeclarativeManagement)
 	}
 
 	var installProfileCount, installEnterpriseCount, otherCount int
@@ -684,6 +705,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 				return err
 			})
 
+			s.awaitRunAppleMDMWorkerSchedule()
 			s.runWorker()
 
 			// make the device process the commands, it should receive the
@@ -743,7 +765,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	enrolledHost.OrbitNodeKey = &orbitKey
 
 	// call the /config endpoint as fleetd would
-	var orbitConfigResp orbitGetConfigResponse
+	var orbitConfigResp fleet.OrbitGetConfigResponse
 	var caps fleet.CapabilityMap
 	if opts.UseOldFleetdFlow {
 		// important thing is that it doesn't have the CapabilitySetupExperience
@@ -784,7 +806,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 		// calling the orbit config endpoint again does NOT enqueue a new job, and doesn't
 		// return the RunSetupExperience notification anymore
-		orbitConfigResp = orbitGetConfigResponse{}
+		orbitConfigResp = fleet.OrbitGetConfigResponse{}
 		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
 			http.StatusOK, map[string]string{fleet.CapabilitiesHeader: caps.String()})
 		b, err := io.ReadAll(res.Body)
@@ -802,6 +824,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			return err
 		})
 
+		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()
 
 	} else {
@@ -818,7 +841,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		})
 
 		// call the /status endpoint to automatically release the host
-		var statusResp getOrbitSetupExperienceStatusResponse
+		var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	}
 
@@ -873,15 +896,23 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
 
 	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, shouldReceive bool) {
-		// run the worker to process the DEP enroll request
-		s.runWorker()
-		// run the worker to assign configuration profiles
+		// ensure fleet profiles
 		s.awaitTriggerProfileSchedule(t)
+		// run the worker to process the DEP enroll request
+		s.awaitRunAppleMDMWorkerSchedule()
 
+		var seenDeclarativeManagement bool
 		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
+			if cmd.Command.RequestType == "DeclarativeManagement" {
+				seenDeclarativeManagement = true
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+				continue // Do not add to commands as it's not a XML file, so we use a bool to see it once.
+			}
+
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" &&
@@ -903,9 +934,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			// received request to install the global configuration profile
 			require.NotNil(t, installProfileCmd, "host didn't get a command to install profiles")
 			require.NotNil(t, installProfileCmd.Command, "host didn't get a command to install profiles")
+
+			require.True(t, seenDeclarativeManagement)
 		} else {
 			require.Nil(t, fleetdCmd, "host got a command to install fleetd")
 			require.Nil(t, installProfileCmd, "host got a command to install profiles")
+			require.False(t, seenDeclarativeManagement)
 		}
 	}
 
@@ -1373,6 +1407,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// Simulate fleetd re-enrolling automatically.
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// The last activity should have `installed_from_dep=true`.
 	s.lastActivityMatches(
@@ -2091,6 +2126,7 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 
 	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, shouldReceive bool) {
 		// run the worker to process the DEP enroll request
+		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()
 		// run the worker to assign configuration profiles
 		s.awaitTriggerProfileSchedule(t)
@@ -2099,6 +2135,12 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
+			if cmd.Command.RequestType == "DeclarativeManagement" {
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+				continue
+			}
+
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" &&
@@ -2204,6 +2246,10 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 	mdmDevice.SerialNumber = devices[0].SerialNumber
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
+
+	// Ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Simulate an osquery enrollment too
 	// set an enroll secret
@@ -2904,7 +2950,7 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 			name:      "Orbit Enrollment",
 			enrollURL: "/api/fleet/orbit/enroll",
 			enrollRequest: func(host *fleet.Host, mdmDevice *mdmtest.TestAppleMDMClient) any {
-				return contract.EnrollOrbitRequest{
+				return fleet.EnrollOrbitRequest{
 					EnrollSecret:   teamEnrollSecret,
 					HardwareUUID:   host.UUID,
 					HardwareSerial: mdmDevice.SerialNumber,
@@ -3044,6 +3090,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 		mdmDevice.SerialNumber = devices[0].SerialNumber
 		err = mdmDevice.Enroll()
 		require.NoError(t, err)
+		s.awaitRunAppleMDMWorkerSchedule()
 
 		// Simulate an osquery enrollment too
 		// set an enroll secret
@@ -3147,7 +3194,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	installUUID := getLatestSoftwareInstallExecID(t, s.ds, h.ID)
 
 	// process installation successfully
-	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
 		OrbitNodeKey: *h.OrbitNodeKey,
 		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 			HostID:                h.ID,
