@@ -146,7 +146,7 @@ Fleet offers comprehensive multi-platform coverage for Linux, macOS, iOS, iPadOS
 
 ## FAQ
 
-#### What's the main difference between a single-platform device management solution and a multi-platform device management solution?
+#### What is the main difference between a single-platform device management solution and a multi-platform device management solution?
 
 Specialized MDM solutions focus on one device ecosystem. multi-platform MDM solutions provide unified management across different operating systems from a single console. [Try Fleet](/try-fleet) to see how multi-platform management can work in your environment.
 
