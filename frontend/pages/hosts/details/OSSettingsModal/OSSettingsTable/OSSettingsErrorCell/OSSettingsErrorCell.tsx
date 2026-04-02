@@ -347,7 +347,8 @@ const OSSettingsErrorCell = ({
     canRotateRecoveryLockPassword && (isFailed || isVerified);
   // Show detail for failed profiles, and also for pending Android profiles
   // that have a detail (e.g., "Waiting for certificate...").
-  const hasPendingDetail = isPending && profile.detail && profile.platform === "android";
+  const hasPendingDetail =
+    isPending && profile.detail && profile.platform === "android";
   const value =
     ((isFailed || hasPendingDetail) && profile.detail) ||
     DEFAULT_EMPTY_CELL_VALUE;

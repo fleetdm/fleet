@@ -4,16 +4,21 @@ import { NotificationContext } from "context/notification";
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
 import OSSettingsTable from "./OSSettingsTable";
 
-const noop = async () => {};
+const noop = async () => undefined;
 
 // Provide a minimal NotificationContext so the error cell's renderFlash works
 const NotificationWrapper = ({ children }: { children: React.ReactNode }) => (
   <NotificationContext.Provider
     value={{
-      notification: { alertType: null, isVisible: false, message: null, persistOnPageChange: false },
-      renderFlash: () => {},
-      renderMultiFlash: () => {},
-      hideFlash: () => {},
+      notification: {
+        alertType: null,
+        isVisible: false,
+        message: null,
+        persistOnPageChange: false,
+      },
+      renderFlash: () => undefined,
+      renderMultiFlash: () => undefined,
+      hideFlash: () => undefined,
     }}
   >
     {children}
@@ -35,7 +40,7 @@ const meta: Meta<typeof OSSettingsTable> = {
   args: {
     canResendProfiles: true,
     resendRequest: noop,
-    onProfileResent: () => {},
+    onProfileResent: () => undefined,
   },
 };
 
@@ -166,6 +171,10 @@ export const CertificateVerified: Story = {
  */
 export const CertificateFailedKeyPairNotFound: Story = {
   args: {
-    tableData: [androidCertFailed, androidONCKeyPairNotFound, androidCameraVerified],
+    tableData: [
+      androidCertFailed,
+      androidONCKeyPairNotFound,
+      androidCameraVerified,
+    ],
   },
 };

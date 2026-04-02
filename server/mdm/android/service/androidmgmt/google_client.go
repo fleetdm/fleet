@@ -169,7 +169,6 @@ func generatePolicyFieldMask() string {
 	t := reflect.TypeOf(p)
 	var mask []string
 	for f := range t.Fields() {
-		f := f
 		jsonTag, ok := f.Tag.Lookup("json")
 		// ignore applications because we manage that directly
 		if n := getJSONFieldName(jsonTag); ok &&
