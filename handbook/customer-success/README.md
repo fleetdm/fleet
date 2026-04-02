@@ -213,16 +213,16 @@ Note: For non-CSA engaged customer requests, CSE's are responsible for escalatio
 
 ### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
 
-#### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
+##### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
 
-1. First, in all instances, review the athena logs for:
+1. First, in all instances, [review the athena logs](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md) for:
   - IP ingress patterns from problematic hosts
   - ELB errors and response times
   - For customers with WAF enabled, check for any traffic being blocked
   - 408 or 502 errors
   - Total number of requests by status code type
 
-2. Next, check Fleet server logs via Cloudwatch Log Insights. Follow the steps below:
+2. Next, check Fleet server logs via [Cloudwatch Log Insights](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md#aws-cloudwatch-logs-insights---check-fleet-server-logs). Follow the steps below:
   - Search for related endpoints via endpoint URL's
   - Check for errors during cron jobs using the query in the infra runbook
   - Use the Patterns tab to look for patterns in the logs which may provide more information
@@ -230,7 +230,7 @@ Note: For non-CSA engaged customer requests, CSE's are responsible for escalatio
 
 3. Finally, if you're not able to determine if this is a Fleet app issue or an infrastructure issue, tag in the infrastructure on-call via a new thread in the #help-infrastructure channel with a synopsis of your findings. The infrastructure engineer is the DRI for determining if an issue is infrastructure related. If they rule out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance. If the issue is a suspected P0, follow the [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process). 
 
-#### For self-hosted customers, CSE is responsible for requesting customer logs and doing an initial review. Timebox 10 minutes to do the following:  
+##### For self-hosted customers, CSE is responsible for requesting customer logs and doing an initial review. Timebox 10 minutes to do the following:  
 
 1. Verify that the information we have stored about their Fleet architecture is correct
 2. Ask the following questions

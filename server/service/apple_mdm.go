@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -364,7 +365,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	}
 
 	var teamName string
-	if teamID >= 1 {
+	if teamID > 0 {
+		lic, _ := license.FromContext(ctx)
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+		}
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
@@ -4024,6 +4029,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 		}
 	}
 
+	// Best-effort cleanup of stale refetch commands of the same type.
+	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchAppsCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
+		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch apps commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchAppsCommandUUIDPrefix)
+	}
+
 	return nil, nil
 }
 
@@ -4552,6 +4562,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: update host certificates")
 	}
 
+	// Best-effort cleanup of stale refetch commands of the same type.
+	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchCertsCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
+		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch certs commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchCertsCommandUUIDPrefix)
+	}
+
 	return nil, nil
 }
 
@@ -4658,6 +4673,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 				return nil, ctxerr.Wrap(ctx, err, "update host lost mode status on refetch")
 			}
 		}
+	}
+
+	// Best-effort cleanup of stale refetch commands of the same type.
+	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchDeviceCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
+		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch device commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchDeviceCommandUUIDPrefix)
 	}
 
 	return nil, nil

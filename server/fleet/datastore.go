@@ -421,6 +421,16 @@ type Datastore interface {
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
 	CleanupHostMDMAppleProfiles(ctx context.Context) error
 
+	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
+	// their corresponding nano_command_results entries for the given enrollment ID
+	// and REFETCH command prefix type that were sent and acknowledged/errored at
+	// least 30 days ago. The current command UUID is excluded from deletion.
+	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
+
+	// CleanupOrphanedNanoRefetchCommands deletes up to 100 REFETCH-prefixed nano_commands
+	// older than 30 days that have no remaining references in nano_enrollment_queue.
+	CleanupOrphanedNanoRefetchCommands(ctx context.Context) error
+
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
@@ -2114,7 +2124,10 @@ type Datastore interface {
 	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
-	// after it has been unlocked.
+	// after it has been unlocked. 	CleanAppleMDMLock will be a no-op when
+	// unlock_ref was set within the last 5 minutes, to prevent the trailing
+	// Idle (sent right after the device acknowledges the lock command)
+	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
