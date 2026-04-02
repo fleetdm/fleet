@@ -12,7 +12,6 @@ on:
       - prepare-*
     paths:
       - 'cmd/fleetctl/**.go'
-      - 'cmd/fleet/**.go'
       - 'pkg/**.go'
       - 'server/service/**.go'
       - 'server/context/**.go'
@@ -23,7 +22,6 @@ on:
   pull_request:
     paths:
       - 'cmd/fleetctl/**.go'
-      - 'cmd/fleet/**.go'
       - 'pkg/**.go'
       - 'server/service/**.go'
       - 'server/context/**.go'
