@@ -51,11 +51,11 @@ type rawRelease struct {
 }
 
 // getLatestRelease fetches the latest release from the vulnerabilities repository
-func getLatestRelease() (*ReleaseInfo, error) {
+func getLatestRelease(ctx context.Context) (*ReleaseInfo, error) {
 	httpClient := fleethttp.NewClient()
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", osvGithubOwner, osvGithubRepo)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -99,13 +99,13 @@ func getLatestRelease() (*ReleaseInfo, error) {
 }
 
 // downloadOSVArtifact downloads a specific OSV artifact using the asset ID from ReleaseInfo
-func downloadOSVArtifact(assetID int64, dstPath string) error {
+func downloadOSVArtifact(ctx context.Context, assetID int64, dstPath string) error {
 	ghClient := fleethttp.NewGithubClient()
 	client := github.NewClient(ghClient)
 
 	httpClient := fleethttp.NewClient()
 	rc, redirectURL, err := client.Repositories.DownloadReleaseAsset(
-		context.Background(),
+		ctx,
 		osvGithubOwner,
 		osvGithubRepo,
 		assetID,
@@ -116,7 +116,12 @@ func downloadOSVArtifact(assetID int64, dstPath string) error {
 	}
 
 	if redirectURL != "" {
-		resp, err := httpClient.Get(redirectURL)
+		req, err := http.NewRequestWithContext(ctx, "GET", redirectURL, nil)
+		if err != nil {
+			return fmt.Errorf("creating redirect request: %w", err)
+		}
+
+		resp, err := httpClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("downloading from redirect URL: %w", err)
 		}
@@ -171,7 +176,7 @@ type SyncResult struct {
 }
 
 // SyncOSV downloads OSV artifacts for the specified Ubuntu versions
-func SyncOSV(dstDir string, ubuntuVersions []string, date time.Time, release *ReleaseInfo) (*SyncResult, error) {
+func SyncOSV(ctx context.Context, dstDir string, ubuntuVersions []string, date time.Time, release *ReleaseInfo) (*SyncResult, error) {
 	result := &SyncResult{
 		Downloaded: make([]string, 0),
 		Skipped:    make([]string, 0),
@@ -201,12 +206,28 @@ func SyncOSV(dstDir string, ubuntuVersions []string, date time.Time, release *Re
 		}
 
 		if needsDownload {
-			err := downloadOSVArtifact(assetInfo.ID, dstPath)
+			err := downloadOSVArtifact(ctx, assetInfo.ID, dstPath)
 			if err != nil {
 				// Download failed, skip
 				result.Failed = append(result.Failed, ubuntuVersion)
 				continue
 			}
+
+			downloadedDigest, err := computeFileSHA256(dstPath)
+			if err != nil {
+				// Failed to compute digest, clean up and mark failed
+				os.Remove(dstPath)
+				result.Failed = append(result.Failed, ubuntuVersion)
+				continue
+			}
+
+			if downloadedDigest != assetInfo.Digest {
+				// Checksum mismatch - corrupted download, clean up and mark failed
+				os.Remove(dstPath)
+				result.Failed = append(result.Failed, ubuntuVersion)
+				continue
+			}
+
 			result.Downloaded = append(result.Downloaded, ubuntuVersion)
 		}
 	}

@@ -16,14 +16,14 @@ const (
 	OSVFilePrefix = "osv-ubuntu-"
 )
 
-// Refresh checks all local OSV artifacts contained in 'vulnPath' deleting the old and downloading
+// Refresh checks all local OSV artifacts contained in 'vulnPath', deleting outdated artifacts and downloading the latest required ones.
 func Refresh(
 	ctx context.Context,
 	versions *fleet.OSVersions,
 	vulnPath string,
 	now time.Time,
 ) ([]string, error) {
-	release, err := getLatestRelease()
+	release, err := getLatestRelease(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting latest release: %w", err)
 	}
@@ -33,7 +33,7 @@ func Refresh(
 		return nil, nil
 	}
 
-	syncResult, err := SyncOSV(vulnPath, neededVersions, now, release)
+	syncResult, err := SyncOSV(ctx, vulnPath, neededVersions, now, release)
 	if err != nil {
 		return nil, fmt.Errorf("syncing OSV artifacts: %w", err)
 	}
@@ -55,11 +55,14 @@ func removeOldOSVArtifacts(date time.Time, rootPath string) error {
 			return err
 		}
 
+		if d.IsDir() {
+			return nil
+		}
+
 		baseName := d.Name()
 		if strings.HasPrefix(baseName, OSVFilePrefix) && strings.HasSuffix(baseName, ".json.gz") {
 			if !strings.HasSuffix(baseName, dateSuffix) {
-				parentDir := filepath.Dir(path)
-				if err := os.Remove(filepath.Join(parentDir, baseName)); err != nil {
+				if err := os.Remove(path); err != nil {
 					return fmt.Errorf("removing old OSV artifact %s: %w", baseName, err)
 				}
 			}

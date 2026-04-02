@@ -19,6 +19,7 @@ import (
 
 const (
 	hostsBatchSize = 500
+	vulnBatchSize  = 500
 )
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
@@ -68,7 +69,9 @@ func Analyze(
 		return nil, fmt.Errorf("loading OSV artifact: %w", err)
 	}
 
-	allVulns := make(map[string]fleet.SoftwareVulnerability)
+	source := fleet.UbuntuOSVSource
+	toInsertSet := make(map[string]fleet.SoftwareVulnerability)
+	toDeleteSet := make(map[string]fleet.SoftwareVulnerability)
 	totalHosts := 0
 
 	// Paginate through all hosts with this OS version
@@ -86,6 +89,7 @@ func Analyze(
 		totalHosts += len(hostIDs)
 		offset += hostsBatchSize
 
+		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
 		for _, hostID := range hostIDs {
 			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
 				HostID: &hostID,
@@ -94,11 +98,21 @@ func Analyze(
 				return nil, fmt.Errorf("listing software for host %d: %w", hostID, err)
 			}
 
-			vulns := matchSoftwareToOSV(software, artifact)
+			foundInBatch[hostID] = matchSoftwareToOSV(software, artifact)
+		}
 
-			for _, v := range vulns {
-				key := v.Key()
-				allVulns[key] = v
+		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)
+		if err != nil {
+			return nil, fmt.Errorf("listing existing vulnerabilities: %w", err)
+		}
+
+		for _, hostID := range hostIDs {
+			insrt, del := utils.VulnsDelta(foundInBatch[hostID], existingInBatch[hostID])
+			for _, i := range insrt {
+				toInsertSet[i.Key()] = i
+			}
+			for _, d := range del {
+				toDeleteSet[d.Key()] = d
 			}
 		}
 	}
@@ -110,13 +124,21 @@ func Analyze(
 
 	logger.DebugContext(ctx, "processed hosts for osv analysis", "platform", ver.Platform, "version", ver.Version, "host_count", totalHosts)
 
-	vulnsList := make([]fleet.SoftwareVulnerability, 0, len(allVulns))
-	for _, v := range allVulns {
-		vulnsList = append(vulnsList, v)
+	// Delete stale vulnerabilities
+	err = utils.BatchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
+		return ds.DeleteSoftwareVulnerabilities(ctx, v)
+	}, vulnBatchSize)
+	if err != nil {
+		return nil, fmt.Errorf("deleting stale vulnerabilities: %w", err)
 	}
 
-	source := fleet.UbuntuOSVSource
-	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, vulnsList, source)
+	// Insert new vulnerabilities
+	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	for _, v := range toInsertSet {
+		allVulns = append(allVulns, v)
+	}
+
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source)
 	if err != nil {
 		return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
 	}

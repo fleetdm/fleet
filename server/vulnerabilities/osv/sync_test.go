@@ -1,6 +1,7 @@
 package osv
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,8 +27,13 @@ func TestRemoveOldOSVArtifacts(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	// Create a directory that matches the OSV pattern
+	osvDir := filepath.Join(tmpDir, "osv-ubuntu-test.json.gz")
+	err := os.Mkdir(osvDir, 0o755)
+	require.NoError(t, err)
+
 	// Run the cleanup (should remove old file but keep current)
-	err := removeOldOSVArtifacts(today, tmpDir)
+	err = removeOldOSVArtifacts(today, tmpDir)
 	require.NoError(t, err)
 
 	// Check that old file was removed
@@ -41,6 +47,11 @@ func TestRemoveOldOSVArtifacts(t *testing.T) {
 	// Check that other file still exists (should not be touched)
 	_, err = os.Stat(otherFile)
 	require.NoError(t, err)
+
+	// Check that directory still exists (should be skipped, not removed)
+	stat, err := os.Stat(osvDir)
+	require.NoError(t, err)
+	require.True(t, stat.IsDir())
 }
 
 func TestGetNeededUbuntuVersions(t *testing.T) {
@@ -162,7 +173,7 @@ func TestSyncOSV_FaultTolerance(t *testing.T) {
 
 	versions := []string{"2204", "2504"}
 
-	result, err := SyncOSV(tmpDir, versions, date, release)
+	result, err := SyncOSV(context.Background(), tmpDir, versions, date, release)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -197,7 +208,7 @@ func TestSyncOSV_ChecksumMatch(t *testing.T) {
 		},
 	}
 
-	result, err := SyncOSV(tmpDir, []string{"2204"}, date, release)
+	result, err := SyncOSV(context.Background(), tmpDir, []string{"2204"}, date, release)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
