@@ -12,7 +12,7 @@ import (
 // into a flat map of "DeviceInformation.FieldName" -> string value.
 func ParseDeviceInformationResponse(plistData []byte) (map[string]string, error) {
 	var raw struct {
-		QueryResponses map[string]interface{} `plist:"QueryResponses"`
+		QueryResponses map[string]any `plist:"QueryResponses"`
 	}
 	if err := plist.Unmarshal(plistData, &raw); err != nil {
 		return nil, fmt.Errorf("unmarshal DeviceInformation response: %w", err)
@@ -27,7 +27,7 @@ func ParseDeviceInformationResponse(plistData []byte) (map[string]string, error)
 // into a flat map of "SecurityInfo.FieldName" -> string value.
 func ParseSecurityInfoResponse(plistData []byte) (map[string]string, error) {
 	var raw struct {
-		SecurityInfo map[string]interface{} `plist:"SecurityInfo"`
+		SecurityInfo map[string]any `plist:"SecurityInfo"`
 	}
 	if err := plist.Unmarshal(plistData, &raw); err != nil {
 		return nil, fmt.Errorf("unmarshal SecurityInfo response: %w", err)
@@ -42,7 +42,7 @@ func ParseSecurityInfoResponse(plistData []byte) (map[string]string, error) {
 // into a flat map of "InstalledApplicationList.bundleID.FieldName" -> string value.
 func ParseInstalledApplicationListResponse(plistData []byte) (map[string]string, error) {
 	var raw struct {
-		InstalledApplicationList []map[string]interface{} `plist:"InstalledApplicationList"`
+		InstalledApplicationList []map[string]any `plist:"InstalledApplicationList"`
 	}
 	if err := plist.Unmarshal(plistData, &raw); err != nil {
 		return nil, fmt.Errorf("unmarshal InstalledApplicationList response: %w", err)
@@ -65,7 +65,7 @@ func ParseInstalledApplicationListResponse(plistData []byte) (map[string]string,
 }
 
 // toStringValue converts a plist value to its string representation.
-func toStringValue(v interface{}) string {
+func toStringValue(v any) string {
 	switch val := v.(type) {
 	case string:
 		return val
@@ -90,11 +90,11 @@ func toStringValue(v interface{}) string {
 }
 
 // flattenMap recursively flattens a nested map into dot-notation keys.
-func flattenMap(prefix string, m map[string]interface{}, result map[string]string) {
+func flattenMap(prefix string, m map[string]any, result map[string]string) {
 	for key, val := range m {
 		fullKey := prefix + "." + key
 		switch typedVal := val.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			flattenMap(fullKey, typedVal, result)
 		default:
 			result[fullKey] = toStringValue(val)

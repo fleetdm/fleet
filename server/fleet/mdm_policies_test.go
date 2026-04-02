@@ -18,11 +18,12 @@ func TestMDMPolicyCheckOperator_ValidConstants(t *testing.T) {
 		MDMPolicyCheckExists, MDMPolicyCheckNotExists,
 	}
 	require.Len(t, operators, 12)
-	seen := make(map[MDMPolicyCheckOperator]bool)
+	seen := make(map[MDMPolicyCheckOperator]struct{})
 	for _, op := range operators {
 		assert.NotEmpty(t, string(op))
-		assert.False(t, seen[op], "duplicate operator: %s", op)
-		seen[op] = true
+		_, dup := seen[op]
+		assert.False(t, dup, "duplicate operator: %s", op)
+		seen[op] = struct{}{}
 	}
 }
 
@@ -33,11 +34,12 @@ func TestMDMPolicyCheckSource_ValidConstants(t *testing.T) {
 		MDMPolicySourceInstalledApplicationList,
 	}
 	require.Len(t, sources, 3)
-	seen := make(map[MDMPolicyCheckSource]bool)
+	seen := make(map[MDMPolicyCheckSource]struct{})
 	for _, src := range sources {
 		assert.NotEmpty(t, string(src))
-		assert.False(t, seen[src], "duplicate source: %s", src)
-		seen[src] = true
+		_, dup := seen[src]
+		assert.False(t, dup, "duplicate source: %s", src)
+		seen[src] = struct{}{}
 	}
 }
 

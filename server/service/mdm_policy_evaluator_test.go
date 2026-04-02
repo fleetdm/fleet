@@ -285,7 +285,7 @@ func TestEvaluateMDMPolicy_UnsupportedOperator(t *testing.T) {
 
 	result := EvaluateMDMPolicy(1, 1, def, deviceData)
 	assert.False(t, result.Passes)
-	assert.Error(t, result.Err)
+	require.Error(t, result.Err)
 	assert.Contains(t, result.Err.Error(), "unsupported operator")
 }
 

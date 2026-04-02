@@ -1,6 +1,9 @@
 package fleet
 
-import "sync"
+import (
+	"maps"
+	"sync"
+)
 
 // InMemoryDeviceStateStore is a thread-safe in-memory implementation of DeviceStateStore.
 type InMemoryDeviceStateStore struct {
@@ -23,9 +26,7 @@ func (s *InMemoryDeviceStateStore) UpdateDeviceState(hostUUID string, entries ma
 	if s.store[hostUUID] == nil {
 		s.store[hostUUID] = make(map[string]DeviceStateEntry)
 	}
-	for k, v := range entries {
-		s.store[hostUUID][k] = v
-	}
+	maps.Copy(s.store[hostUUID], entries)
 	return nil
 }
 
@@ -40,8 +41,6 @@ func (s *InMemoryDeviceStateStore) GetDeviceState(hostUUID string) (map[string]D
 	}
 	// Return a copy to prevent concurrent modification
 	result := make(map[string]DeviceStateEntry, len(hostData))
-	for k, v := range hostData {
-		result[k] = v
-	}
+	maps.Copy(result, hostData)
 	return result, nil
 }

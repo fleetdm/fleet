@@ -69,27 +69,23 @@ func TestInMemoryDeviceStateStore_ConcurrentAccess(t *testing.T) {
 	now := time.Now()
 
 	// 10 writers
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
+	for range 10 {
+		wg.Go(func() {
+			for range 100 {
 				_ = store.UpdateDeviceState("host-1", map[string]DeviceStateEntry{
 					"field": {Value: "val", Source: "mdm_poll", ObservedAt: now},
 				})
 			}
-		}(i)
+		})
 	}
 
 	// 10 readers
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
+	for range 10 {
+		wg.Go(func() {
+			for range 100 {
 				_, _ = store.GetDeviceState("host-1")
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
