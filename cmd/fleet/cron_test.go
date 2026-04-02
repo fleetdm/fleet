@@ -182,7 +182,7 @@ func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
 		// OSV vulnerabilities should be deleted
 		osvVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOSVSource)
 		require.NoError(t, err)
-		require.Len(t, osvVulns[host.ID], 0)
+		require.Empty(t, osvVulns[host.ID])
 
 		// OVAL vulnerability should remain
 		ovalVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
@@ -232,7 +232,7 @@ func TestCleanupStaleOVALVulnerabilities(t *testing.T) {
 		// Ubuntu OVAL vulnerabilities should be deleted
 		ovalVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.Len(t, ovalVulns[host.ID], 0)
+		require.Empty(t, ovalVulns[host.ID])
 
 		// OSV vulnerabilities should remain
 		osvVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOSVSource)

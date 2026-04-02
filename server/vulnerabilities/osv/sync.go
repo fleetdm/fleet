@@ -38,7 +38,10 @@ func Refresh(
 		return nil, fmt.Errorf("syncing OSV artifacts: %w", err)
 	}
 
-	err = removeOldOSVArtifacts(now, vulnPath, syncResult.Downloaded)
+	upToDateVersions := make([]string, 0, len(syncResult.Downloaded)+len(syncResult.Skipped))
+	upToDateVersions = append(upToDateVersions, syncResult.Downloaded...)
+	upToDateVersions = append(upToDateVersions, syncResult.Skipped...)
+	err = removeOldOSVArtifacts(now, vulnPath, upToDateVersions)
 	if err != nil {
 		return syncResult.Downloaded, fmt.Errorf("warning: failed to clean up old OSV artifacts: %w", err)
 	}
@@ -46,7 +49,7 @@ func Refresh(
 	return syncResult.Downloaded, nil
 }
 
-// removeOldOSVArtifacts walks 'path' removing old OSV artifacts that don't match today's date
+// removeOldOSVArtifacts removes old OSV artifacts that don't match today's date
 func removeOldOSVArtifacts(date time.Time, rootPath string, successfulVersions []string) error {
 	dateSuffix := fmt.Sprintf("-%d-%02d-%02d.json.gz", date.Year(), date.Month(), date.Day())
 
@@ -55,38 +58,46 @@ func removeOldOSVArtifacts(date time.Time, rootPath string, successfulVersions [
 		successfulSet[v] = struct{}{}
 	}
 
-	return filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	entries, err := os.ReadDir(rootPath)
+	if err != nil {
+		return fmt.Errorf("reading directory %s: %w", rootPath, err)
+	}
+
+	for _, entry := range entries {
+		// Skip directories and non-regular files
+		if entry.IsDir() || !entry.Type().IsRegular() {
+			continue
 		}
 
-		if d.IsDir() {
-			return nil
-		}
-		if !d.Type().IsRegular() {
-			return nil
+		baseName := entry.Name()
+
+		// Skip non-OSV files early for performance
+		if !strings.HasPrefix(baseName, OSVFilePrefix) {
+			continue
 		}
 
-		baseName := d.Name()
-		if strings.HasPrefix(baseName, OSVFilePrefix) && strings.HasSuffix(baseName, ".json.gz") && !strings.Contains(baseName, "delta") {
+		// Check if it's a non-delta OSV artifact
+		if strings.HasSuffix(baseName, ".json.gz") && !strings.Contains(baseName, "delta") {
 			if !strings.HasSuffix(baseName, dateSuffix) {
 				versionStart := len(OSVFilePrefix)
 				versionEnd := strings.Index(baseName[versionStart:], "-")
 				if versionEnd == -1 {
-					return nil
+					continue
 				}
 				ubuntuVersion := baseName[versionStart : versionStart+versionEnd]
 
 				if _, ok := successfulSet[ubuntuVersion]; ok {
-					// #nosec G122 -- path is from WalkDir in Fleet-controlled vuln directory, checked IsRegular above
-					if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+					filePath := filepath.Join(rootPath, baseName)
+					// #nosec G122 -- path is from ReadDir in Fleet-controlled vuln directory, checked IsRegular above
+					if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 						return fmt.Errorf("removing old OSV artifact %s: %w", baseName, err)
 					}
 				}
 			}
 		}
-		return nil
-	})
+	}
+
+	return nil
 }
 
 // getNeededUbuntuVersions extracts unique Ubuntu versions from OS versions

@@ -88,6 +88,37 @@ func TestRemoveOldOSVArtifactsPreservesFailedVersions(t *testing.T) {
 	require.NoError(t, err, "old 2404 artifact should be preserved when download fails")
 }
 
+func TestRemoveOldOSVArtifactsWithSkippedVersions(t *testing.T) {
+	tmpDir := t.TempDir()
+	today := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
+
+	// Artifact for 2204 already exists with correct checksum (will be skipped)
+	files := []string{
+		"osv-ubuntu-2204-2026-03-30.json.gz", // Today's 22.04 (already exists, will be skipped)
+		"osv-ubuntu-2204-2026-03-29.json.gz", // Yesterday's 22.04 (should be REMOVED even though skipped)
+		"osv-ubuntu-2204-2026-03-28.json.gz", // Day before yesterday's 22.04 (should be REMOVED)
+	}
+
+	for _, file := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644)
+		require.NoError(t, err)
+	}
+
+	err := removeOldOSVArtifacts(today, tmpDir, []string{"2204"})
+	require.NoError(t, err)
+
+	// Today's 2204 should still exist
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-30.json.gz"))
+	require.NoError(t, err, "current artifact should be preserved")
+
+	// Old 2204 files should be REMOVED (this is the bug fix!)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-29.json.gz"))
+	require.True(t, os.IsNotExist(err), "old artifact from yesterday should be removed even when version was skipped")
+
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-28.json.gz"))
+	require.True(t, os.IsNotExist(err), "old artifact from day before should be removed even when version was skipped")
+}
+
 func TestGetNeededUbuntuVersions(t *testing.T) {
 	tests := []struct {
 		name     string
