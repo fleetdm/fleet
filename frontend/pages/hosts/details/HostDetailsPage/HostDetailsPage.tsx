@@ -1216,7 +1216,7 @@ const HostDetailsPage = ({
                currently supporting software installs. This check should be removed
                when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
               {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
-                isAndroidHost ? (
+              isAndroidHost ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
