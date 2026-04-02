@@ -179,6 +179,7 @@ const PolicyForm = ({
     isOnGlobalTeam,
     isPremiumTier,
     config,
+    isFreeTier,
   } = useContext(AppContext);
 
   const { data: { labels } = { labels: [] } } = useQuery<
@@ -243,7 +244,7 @@ const PolicyForm = ({
   const isExistingPolicy = !!policyIdForEdit;
 
   const isNewTemplatePolicy =
-    !policyIdForEdit &&
+    !isExistingPolicy &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   useEffect(() => {
@@ -705,6 +706,28 @@ const PolicyForm = ({
     );
   };
 
+  const renderPolicyFleetName = () => {
+    if (isFreeTier || !currentTeam?.name) return null;
+
+    if (isExistingPolicy) {
+      return hasSavePermissions ? (
+        <p>
+          Editing policy for <strong>{currentTeam?.name}</strong>.
+        </p>
+      ) : (
+        <p>
+          Viewing policy for <strong>{currentTeam?.name}</strong>.
+        </p>
+      );
+    }
+
+    return (
+      <p>
+        Creating a new policy for <strong>{currentTeam?.name}</strong>.
+      </p>
+    );
+  };
+
   // Non-editable form used for:
   // - Team observers and team observer+ viewing any of their team's policies and any inherited policies
   // - Team admins and team maintainers viewing any inherited policy
@@ -720,16 +743,23 @@ const PolicyForm = ({
         </h1>
         {renderAuthor()}
       </div>
-      <PageDescription
-        className={`${baseClass}__policy-description no-hover`}
-        content={lastEditedQueryDescription}
-      />
-      <p className="resolve-title">
-        <strong>Resolve:</strong>
-      </p>
-      <p className={`${baseClass}__policy-resolution no-hover`}>
-        {lastEditedQueryResolution}
-      </p>
+      {renderPolicyFleetName()}
+      {lastEditedQueryDescription && (
+        <PageDescription
+          className={`${baseClass}__policy-description no-hover`}
+          content={lastEditedQueryDescription}
+        />
+      )}
+      {lastEditedQueryResolution && (
+        <>
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <p className={`${baseClass}__policy-resolution no-hover`}>
+            {lastEditedQueryResolution}
+          </p>
+        </>
+      )}
       <RevealButton
         isShowing={showQueryEditor}
         className={baseClass}
@@ -786,6 +816,7 @@ const PolicyForm = ({
             <div className={`${baseClass}__policy-name`}>{renderName()}</div>
             {isExistingPolicy && renderAuthor()}
           </div>
+          {renderPolicyFleetName()}
           {renderDescription()}
           {renderResolution()}
           <SQLEditor
@@ -956,7 +987,7 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
-  const isInheritedPolicy = !!policyIdForEdit && storedPolicy?.team_id === null;
+  const isInheritedPolicy = isExistingPolicy && storedPolicy?.team_id === null;
 
   const noEditPermissions =
     isTeamObserver ||

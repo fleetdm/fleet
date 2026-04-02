@@ -1483,8 +1483,8 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 			{
 				Version: state.version,
 				Queries: ma.FMAQueries{
-					Exists: "SELECT 1 FROM osquery_info;",
-					Patch:  state.patchQuery,
+					Exists:  "SELECT 1 FROM osquery_info;",
+					Patched: state.patchQuery,
 				},
 				InstallerURL:       installerServer.URL + state.installerPath,
 				InstallScriptRef:   "foobaz",

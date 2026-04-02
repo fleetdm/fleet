@@ -4,7 +4,7 @@
       "version": "15.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.displaylink.DisplayLinkUserAgent';",
-        "patch": ""
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.displaylink.DisplayLinkUserAgent' AND version_compare(bundle_short_version, '15.1') < 0);"
       },
       "installer_url": "https://www.synaptics.com/sites/default/files/exe_files/2026-02/DisplayLink%20Manager%20Graphics%20Connectivity15.1-EXE.pkg",
       "install_script_ref": "ba1733d3",

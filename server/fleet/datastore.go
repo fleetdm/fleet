@@ -81,8 +81,13 @@ type Datastore interface {
 	SaveUsers(ctx context.Context, users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) error
-	// CountGlobalAdmins returns the count of users with the global admin role.
-	CountGlobalAdmins(ctx context.Context) (int, error)
+	// DeleteUserIfNotLastAdmin atomically checks that the user being deleted
+	// is not the last global admin before deleting. Returns ErrLastGlobalAdmin
+	// if the user is the last global admin.
+	DeleteUserIfNotLastAdmin(ctx context.Context, id uint) error
+	// SaveUserIfNotLastAdmin atomically checks that there's more than one admin
+	// before saving the user. Returns ErrLastGlobalAdmin if there's only one last global admin.
+	SaveUserIfNotLastAdmin(ctx context.Context, user *User) error
 	// PendingEmailChange creates a record with a pending email change for a user identified by uid. The change record
 	// is keyed by a unique token. The token is emailed to the user with a link that they can use to confirm the change.
 	PendingEmailChange(ctx context.Context, userID uint, newEmail, token string) error
@@ -416,6 +421,16 @@ type Datastore interface {
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
 	CleanupHostMDMAppleProfiles(ctx context.Context) error
 
+	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
+	// their corresponding nano_command_results entries for the given enrollment ID
+	// and REFETCH command prefix type that were sent and acknowledged/errored at
+	// least 30 days ago. The current command UUID is excluded from deletion.
+	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
+
+	// CleanupOrphanedNanoRefetchCommands deletes up to 100 REFETCH-prefixed nano_commands
+	// older than 30 days that have no remaining references in nano_enrollment_queue.
+	CleanupOrphanedNanoRefetchCommands(ctx context.Context) error
+
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
@@ -667,6 +682,13 @@ type Datastore interface {
 	// returns only the newly inserted vulnerabilities.
 	InsertSoftwareVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) ([]SoftwareVulnerability, error)
 	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *TeamFilter) (*Software, error)
+	// SoftwareLiteByID returns the name and version
+	// of a software entry by ID without applying fleet(team)-scoped filtering.
+	// Intentionally allows callers to discover the software name and version
+	// even if the software is not present on their team.
+	//
+	// Only use for use cases where exposing the existence of a software version is acceptable.
+	SoftwareLiteByID(ctx context.Context, id uint) (SoftwareLite, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
 	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
@@ -759,6 +781,11 @@ type Datastore interface {
 
 	CheckConflictingInstallerExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error)
 	CheckConflictingInHouseAppExists(ctx context.Context, teamID *uint, bundleIdentifier, platform string) (bool, error)
+
+	// CheckAndroidWebAppNameExistsOnTeam checks if a different Android web app
+	// with the given name already exists on the specified team (via vpp_apps_teams + vpp_apps).
+	// The excludeAdamID param excludes the app being added/updated from the check.
+	CheckAndroidWebAppNameExistsOnTeam(ctx context.Context, teamID *uint, name string, excludeAdamID string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
@@ -2097,7 +2124,10 @@ type Datastore interface {
 	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
-	// after it has been unlocked.
+	// after it has been unlocked. 	CleanAppleMDMLock will be a no-op when
+	// unlock_ref was set within the last 5 minutes, to prevent the trailing
+	// Idle (sent right after the device acknowledges the lock command)
+	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
@@ -2753,6 +2783,9 @@ type Datastore interface {
 	// GetHostCertificateTemplateRecord returns the host_certificate_templates record directly without
 	// requiring the parent certificate_template to exist. Used for status updates on orphaned records.
 	GetHostCertificateTemplateRecord(ctx context.Context, hostUUID string, certificateTemplateID uint) (*HostCertificateTemplate, error)
+	// RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry, increments
+	// retry_count, preserves the error detail, and clears challenge/cert fields.
+	RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records

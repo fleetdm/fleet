@@ -3,6 +3,7 @@ import React, { ReactNode, useState } from "react";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TeamNameField from "../TeamNameField/TeamNameField";
 import { validateLabelFormData, ILabelFormValidation } from "./helpers";
 
@@ -167,13 +168,18 @@ const LabelForm = ({
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
-        <Button
-          type="submit"
-          isLoading={isUpdatingLabel}
-          disabled={!formValidation.isValid}
-        >
-          Save
-        </Button>
+        <GitOpsModeTooltipWrapper
+          entityType="labels"
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              isLoading={isUpdatingLabel}
+              disabled={disableChildren || !formValidation.isValid}
+            >
+              Save
+            </Button>
+          )}
+        />
       </div>
     </form>
   );

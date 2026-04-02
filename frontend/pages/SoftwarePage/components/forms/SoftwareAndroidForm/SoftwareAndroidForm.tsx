@@ -1,7 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppStoreApp } from "interfaces/software";
 
@@ -56,8 +56,7 @@ const SoftwareAndroidForm = ({
   onCancel,
   onClickPreviewEndUserExperience,
 }: ISoftwareAndroidFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [formData, setFormData] = useState<ISoftwareAndroidFormData>(
     softwareAndroidForEdit
@@ -172,6 +171,7 @@ const SoftwareAndroidForm = ({
         </div>
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
+            entityType="software"
             position="bottom"
             tipOffset={8}
             renderChildren={(disableChildren) => (

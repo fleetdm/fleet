@@ -32,14 +32,9 @@ func TestUserDelete(t *testing.T) {
 		}, nil
 	}
 
-	// Allow deletion by returning multiple admins exist
-	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-		return 2, nil
-	}
-
 	deletedUser := uint(0)
 
-	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 		deletedUser = id
 		return nil
 	}
@@ -227,15 +222,13 @@ func TestDeleteBulkUsers(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 
-	// Allow deletion by returning multiple admins exist
-	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-		return 2, nil
-	}
-
 	deletedUser := uint(0)
 
 	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
 		deletedUser = id
+		return nil
+	}
+	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 		return nil
 	}
 
