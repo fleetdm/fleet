@@ -367,7 +367,7 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
-	// Name is the optional human-readable name of the command.
+	// Name is the optional human-readable name of the command, currently used for profile name when adding/removing
 	Name *string `json:"name" db:"name"`
 	// ResultsMetadata contains command-specific metadata.
 	// VPP install commands include a "software_installed" boolean and
