@@ -1,6 +1,6 @@
 # Fleet Claude Code configuration
 
-This directory contains team-shared [Claude Code](https://claude.ai/code) configuration for the Fleet project. Everything here works out of the box with no MCP servers, plugins, or external dependencies required. The full setup adds ~2,700 tokens at startup (under 0.3% of your context window) — rules, skill bodies, and agent bodies only load on demand.
+This directory contains team-shared [Claude Code](https://claude.ai/code) configuration for the Fleet project. Everything here works out of the box with no MCP servers, plugins, or external dependencies required. The full setup adds ~2,500 tokens at startup — rules, skill bodies, and agent bodies only load on demand.
 
 This setup is a starting point. You can customize it by creating `.claude/settings.local.json` (gitignored) to add your own permissions, MCP servers, and plugins. See [Customize your setup](#customize-your-setup) for details.
 
