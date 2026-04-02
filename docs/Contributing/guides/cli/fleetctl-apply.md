@@ -189,7 +189,11 @@ spec:
         custom_settings: []
       macos_setup:
         bootstrap_package: ""
-        create_local_idp_user_account: null
+        create_local_idp_user_account: true
+        local_idp_user_account_configuration:
+          sso_configuration_profile_path: ../lib/platform-sso.mobileconfig
+          sso_software_package_path: ../lib/company-portal.package.yml
+          authentication_url: https://login.microsoftonline.com/common
         enable_end_user_authentication: true
         enable_release_device_manually: false
         macos_setup_assistant: ""
