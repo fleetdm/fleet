@@ -4551,6 +4551,32 @@ WHERE %s`
 		}
 	}
 
+	// If we still don't have any matches, fall back to host_emails with source='idp'.
+	// This covers the case where the IdP username was set on the host (via the API) before
+	// the SCIM user was created, so no mdm_idp_accounts record exists yet.
+	if len(hostIDs) == 0 {
+		hostEmailSelectFmt := `SELECT he.host_id FROM host_emails he WHERE he.source = ? AND %s`
+		if user.UserName != "" {
+			if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(hostEmailSelectFmt, `he.email = ?`), fleet.DeviceMappingIDP, user.UserName); err != nil {
+				return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: match host_emails by username")
+			}
+		}
+		if len(hostIDs) == 0 && len(user.Emails) > 0 {
+			var primaryEmail string
+			for _, e := range user.Emails {
+				if e.Primary != nil && *e.Primary {
+					primaryEmail = e.Email
+					break
+				}
+			}
+			if primaryEmail != "" {
+				if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(hostEmailSelectFmt, `he.email = ?`), fleet.DeviceMappingIDP, primaryEmail); err != nil {
+					return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: match host_emails primary email")
+				}
+			}
+		}
+	}
+
 	// NOTE: We don't have good unique constraints around hosts.uuid so we'll play it safe and
 	// log if we find multiple hosts for SCIM scim user (expected behavior is to find no more
 	// than one match).
