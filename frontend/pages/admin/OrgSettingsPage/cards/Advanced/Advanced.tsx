@@ -15,6 +15,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
 import { getCustomDropdownOptions } from "utilities/helpers";
+import { isPremiumTier } from "utilities/permissions/permissions";
 
 import { IAppConfigFormProps } from "../constants";
 
@@ -522,21 +523,23 @@ const Advanced = ({
               </Checkbox>
             )}
           />
-          <GitOpsModeTooltipWrapper
-            position="left"
-            renderChildren={(disableChildren) => (
-              <Checkbox
-                disabled={disableChildren}
-                onChange={onInputChange}
-                name="requireHardwareAttestation"
-                value={requireHardwareAttestation}
-                parseTarget
-                helpText="Enabling this setting will require macOS hosts with Apple Silicon that automatically enroll (DEP) to use ACME with Managed Device Attestation"
-              >
-                Require hardware attestation
-              </Checkbox>
-            )}
-          />
+          {isPremiumTier(appConfig) && (
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="requireHardwareAttestation"
+                  value={requireHardwareAttestation}
+                  parseTarget
+                  helpText="Enabling this setting will require macOS hosts with Apple Silicon that automatically enroll (DEP) to use ACME with Managed Device Attestation"
+                >
+                  Require hardware attestation
+                </Checkbox>
+              )}
+            />
+          )}
         </div>
         <Button
           type="submit"
