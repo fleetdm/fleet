@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	api_http "github.com/fleetdm/fleet/v4/server/mdm/acme/api/http"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
@@ -56,11 +55,8 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	rootPool.AddCert(cert)
 
 	// Create mocks
-	providers := newMockDataProviders(&fleet.AppConfig{
-		ServerSettings: fleet.ServerSettings{
-			ServerURL: "https://example.com", // will update with actual test server URL after it is started
-		},
-	},
+	providers := newMockDataProviders(
+		"https://example.com", // will update with actual test server URL after it is started
 		acme.CSRSignerFunc(func(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
 			res, err := tdb.DB.DB.Exec(`INSERT INTO identity_serials () VALUES ()`) // insert a row to get an auto-incremented ID for the cert serial number
 			require.NoError(t, err)
@@ -73,13 +69,8 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 				Raw:          []byte("mock-cert"),
 			}, nil
 		}),
-		map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-			fleet.MDMAssetCACert: {
-				Name:        fleet.MDMAssetCACert,
-				Value:       []byte("-----BEGIN CERTIFICATE-----\nroot\n-----END CERTIFICATE-----"),
-				MD5Checksum: "63a9f0ea7bb98050796b649e85481845", // md5 of "root"
-			},
-		})
+		[]byte("-----BEGIN CERTIFICATE-----\nroot\n-----END CERTIFICATE-----"),
+	)
 
 	opts := bootstrap.WithTestAppleRootCAs(rootPool)
 	// Create service
@@ -94,9 +85,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	// Create test server
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
-	ac, err := providers.AppConfig(t.Context())
-	require.NoError(t, err)
-	ac.ServerSettings.ServerURL = server.URL
+	providers.serverURL = server.URL
 
 	return &integrationTestSuite{
 		TestDB:      tdb,

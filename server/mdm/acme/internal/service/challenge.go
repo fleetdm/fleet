@@ -190,12 +190,12 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 		return types.BadAttestationStatementError("Serial number in certificate does not match enrollment's host identifier")
 	}
 
-	depAssignments, err := s.providers.GetHostDEPAssignmentsBySerial(ctx, appleData.SerialNumber)
+	enrolled, err := s.providers.IsDEPEnrolled(ctx, appleData.SerialNumber)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting DEP assignments for serial number in attestation certificate")
+		return ctxerr.Wrap(ctx, err, "checking DEP enrollment for serial number in attestation certificate")
 	}
 
-	if len(depAssignments) < 1 {
+	if !enrolled {
 		challenge.MarkInvalid()
 		return types.BadAttestationStatementError("No DEP assignments found for serial number in certificate")
 	}

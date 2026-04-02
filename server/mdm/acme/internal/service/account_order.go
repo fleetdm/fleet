@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"go.step.sm/crypto/jose"
 )
@@ -280,11 +279,11 @@ func (s *Service) GetCertificate(ctx context.Context, accountID, orderID uint) (
 	}
 
 	// retrieve the root certificate
-	assets, err := s.providers.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert}, nil)
+	rootPEMBytes, err := s.providers.GetCACertificatePEM(ctx)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting Apple SCEP/ACME root certificate")
 	}
-	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	block, _ := pem.Decode(rootPEMBytes)
 	if block == nil || block.Type != "CERTIFICATE" {
 		return "", ctxerr.New(ctx, "failed to parse PEM block from root SCEP/ACME certificate")
 	}

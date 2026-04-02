@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"log/slog"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql"
@@ -21,7 +20,7 @@ type ServiceOption = service.ServiceOption
 // New creates a new ACME service module and returns its service and route handler.
 func New(
 	dbConns *platform_mysql.DBConnections,
-	redisPool fleet.RedisPool,
+	redisPool acme.RedisPool,
 	providers acme.DataProviders,
 	logger *slog.Logger,
 	opts ...ServiceOption,

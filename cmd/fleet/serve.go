@@ -35,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
@@ -1829,16 +1830,6 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-// acmeDataProviders composes fleet.Datastore (which provides AppConfig) with
-// an ACME-specific CSR signer backed by the SCEP depot.
-type acmeDataProviders struct {
-	fleet.Datastore
-	signer acme.CSRSigner
-}
-
-func (a *acmeDataProviders) CSRSigner(_ context.Context) (acme.CSRSigner, error) {
-	return a.signer, nil
-}
 
 // acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.
 type acmeCSRSigner struct {
@@ -1850,7 +1841,7 @@ func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest)
 }
 
 func createACMEServiceModule(ds fleet.Datastore, dbConns *common_mysql.DBConnections, redisPool fleet.RedisPool, logger *slog.Logger, csrSigner acme.CSRSigner) (acme_api.Service, endpointer.HandlerRoutesFunc) {
-	providers := &acmeDataProviders{Datastore: ds, signer: csrSigner}
+	providers := acmeacl.NewFleetDatastoreAdapter(ds, csrSigner)
 	acmeSvc, acmeRoutesFn := acme_bootstrap.New(dbConns, redisPool, providers, logger)
 	acmeRoutes := acmeRoutesFn(log.Logged)
 	return acmeSvc, acmeRoutes
