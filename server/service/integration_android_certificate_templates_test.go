@@ -650,9 +650,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 		fleet.CertificateTemplatePending, "", "CN="+host.HardwareSerial)
 
 	// Step: Simulate the certificate being successfully installed on the device (status = verified).
-	// This is critical for testing that verified records are cleared on unenroll.
-	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamID)
-	require.NoError(t, err)
+	// This is critical for testing that verified records are cleared on unenroll (issue #42600).
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE host_certificate_templates SET status = ?, uuid = UUID_TO_BIN(UUID(), true) WHERE host_uuid = ? AND certificate_template_id = ?",
