@@ -232,7 +232,7 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
 
 ### mdm.allow_all_declarations
 
-> **Deprecated location.** This setting has moved to the standard [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow_all_declarations). The existing configuration path continues to work.
+Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow_all_declarations) reference.
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 
