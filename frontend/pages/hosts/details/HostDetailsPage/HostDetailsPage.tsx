@@ -1203,7 +1203,6 @@ const HostDetailsPage = ({
               {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
               isAndroidHost ? (
                 <EmptyTable
-                  header="Software library is currently not supported on this host."
                   info={
                     <>
                       Software install is coming soon.{" "}
@@ -1218,6 +1217,7 @@ const HostDetailsPage = ({
                       />
                     </>
                   }
+                  header="Software library is currently not supported on this host."
                 />
               ) : (
                 <SoftwareLibraryCard
