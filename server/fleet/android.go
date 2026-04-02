@@ -204,13 +204,20 @@ var validAndroidWorkProfileWidgets = map[string]struct{}{
 // (which is AVAILABLE for self-service apps, PREINSTALLED for setup-experience apps).
 // See https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType
 var validAndroidInstallTypes = map[string]struct{}{
-	"":                  {},
-	"AVAILABLE":         {},
-	"FORCE_INSTALLED":   {},
-	"BLOCKED":           {},
+	"":                {},
+	"AVAILABLE":       {},
+	"FORCE_INSTALLED": {},
+	"BLOCKED":         {},
+	// REQUIRED_FOR_SETUP blocks device provisioning until the app installs successfully.
+	// Use only for apps that are strictly required for the device to function;
+	// a failed install will leave the device in an unprovisioned state.
 	"REQUIRED_FOR_SETUP": {},
-	"PREINSTALLED":      {},
-	"KIOSK":             {},
+	"PREINSTALLED":       {},
+	// KIOSK locks the device into single-app mode. The device becomes fully
+	// dedicated to this app and cannot be used for anything else.
+	// Combine with kioskCustomization in the policy to control what
+	// device features remain accessible.
+	"KIOSK": {},
 }
 
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
