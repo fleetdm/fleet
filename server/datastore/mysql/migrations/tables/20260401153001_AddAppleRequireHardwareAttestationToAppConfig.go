@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260318173437, Down_20260318173437)
+	MigrationClient.AddMigration(Up_20260401153001, Down_20260401153001)
 }
 
-func Up_20260318173437(tx *sql.Tx) error {
+func Up_20260401153001(tx *sql.Tx) error {
 	err := updateAppConfigJSON(tx, func(config *fleet.AppConfig) error {
 		if config != nil {
 			config.MDM.AppleRequireHardwareAttestation = false
@@ -24,6 +24,6 @@ func Up_20260318173437(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260318173437(tx *sql.Tx) error {
+func Down_20260401153001(tx *sql.Tx) error {
 	return nil
 }

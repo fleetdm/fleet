@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260317132040, Down_20260317132040)
+	MigrationClient.AddMigration(Up_20260401153000, Down_20260401153000)
 }
 
-func Up_20260317132040(tx *sql.Tx) error {
+func Up_20260401153000(tx *sql.Tx) error {
 	_, err := tx.Exec(`
         ALTER TABLE nano_enrollments
         ADD COLUMN hardware_attested TINYINT(1) NOT NULL DEFAULT 0
@@ -124,6 +124,6 @@ func Up_20260317132040(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260317132040(tx *sql.Tx) error {
+func Down_20260401153000(tx *sql.Tx) error {
 	return nil
 }
