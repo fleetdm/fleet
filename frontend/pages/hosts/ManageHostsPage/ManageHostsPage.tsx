@@ -880,7 +880,10 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          status: statusName?.value,
+          ...(statusName?.value !== "pending" && { status: statusName?.value }),
+          ...(statusName?.value === "pending" && {
+            mdm_enrollment_status: statusName?.value,
+          }),
           page: 0, // resets page index
         },
       })
