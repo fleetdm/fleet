@@ -158,11 +158,14 @@ const getOperatorsForField = (fieldName: string) => {
 };
 
 const getOperatorLabel = (operator: string): string => {
-  for (const ops of Object.values(OPERATORS_BY_TYPE)) {
+  let label = operator;
+  Object.values(OPERATORS_BY_TYPE).forEach((ops) => {
     const found = ops.find((o) => o.value === operator);
-    if (found) return found.label;
-  }
-  return operator;
+    if (found) {
+      label = found.label;
+    }
+  });
+  return label;
 };
 
 const getFieldLabel = (fieldName: string): string => {
@@ -219,7 +222,10 @@ const MDMCheckBuilder = ({
     const isBooleanField = fieldType === "boolean";
 
     return (
-      <div key={index} className={`${baseClass}__check-row`}>
+      <div
+        key={`check-${check.field || "empty"}-${index}`}
+        className={`${baseClass}__check-row`}
+      >
         <Dropdown
           name={`field-${index}`}
           value={check.field}
@@ -285,8 +291,8 @@ const MDMCheckBuilder = ({
       <div className={`${baseClass}__preview`}>
         <span className={`${baseClass}__preview-label`}>Preview:</span>
         <span className={`${baseClass}__preview-text`}>
-          {validChecks.map((c, i) => (
-            <span key={i}>
+          {validChecks.map((c) => (
+            <span key={`${c.field}-${c.operator}-${c.expected}`}>
               {i > 0 && <strong> AND </strong>}
               {getFieldLabel(c.field)} {getOperatorLabel(c.operator)}{" "}
               <em>{c.expected}</em>

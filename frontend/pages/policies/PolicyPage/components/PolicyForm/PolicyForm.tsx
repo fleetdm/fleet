@@ -872,7 +872,10 @@ const PolicyForm = ({
             />
           )}
           {!isMdmPolicy && renderPlatformCompatibility()}
-          {isExistingPolicy && !isPatchPolicy && !isMdmPolicy && platformSelector.render()}
+          {isExistingPolicy &&
+            !isPatchPolicy &&
+            !isMdmPolicy &&
+            platformSelector.render()}
           {isExistingPolicy && isPremiumTier && !isPatchPolicy && !isMdmPolicy && (
             <TargetLabelSelector
               selectedTargetType={selectedTargetType}

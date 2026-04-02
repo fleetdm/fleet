@@ -546,9 +546,7 @@ export const DEFAULT_MDM_POLICIES: IMDMPolicyTemplate[] = [
     description: "Ensures devices are running iOS/iPadOS 17.0 or later.",
     resolution:
       "Go to Settings > General > Software Update and install the latest version.",
-    checks: [
-      { field: "OSVersion", operator: "version_gte", expected: "17.0" },
-    ],
+    checks: [{ field: "OSVersion", operator: "version_gte", expected: "17.0" }],
   },
   {
     key: 4,
@@ -556,9 +554,7 @@ export const DEFAULT_MDM_POLICIES: IMDMPolicyTemplate[] = [
     description: "Ensures devices are running iOS/iPadOS 18.0 or later.",
     resolution:
       "Go to Settings > General > Software Update and install the latest version.",
-    checks: [
-      { field: "OSVersion", operator: "version_gte", expected: "18.0" },
-    ],
+    checks: [{ field: "OSVersion", operator: "version_gte", expected: "18.0" }],
   },
   {
     key: 5,
@@ -608,8 +604,7 @@ export const DEFAULT_MDM_POLICIES: IMDMPolicyTemplate[] = [
   {
     key: 9,
     name: "Sufficient storage (>1 GB free)",
-    description:
-      "Ensures devices have at least 1 GB of free storage space.",
+    description: "Ensures devices have at least 1 GB of free storage space.",
     resolution:
       "Free up storage by removing unused apps or offloading data. Go to Settings > General > iPhone/iPad Storage.",
     checks: [

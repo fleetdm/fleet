@@ -316,9 +316,7 @@ const SaveNewPolicyModal = ({
             onChange={(value: string) => setLastEditedQueryResolution(value)}
             value={lastEditedQueryResolution}
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
-            label={
-              isMdmType ? "Resolution" : renderAutofillLabel("Resolution")
-            }
+            label={isMdmType ? "Resolution" : renderAutofillLabel("Resolution")}
             type="textarea"
             helpText="If this policy fails, what should the end user expect?"
             disabled={disableForm}
