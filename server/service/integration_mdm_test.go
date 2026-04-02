@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -39,6 +40,7 @@ import (
 	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -128,10 +130,14 @@ type integrationMDMTestSuite struct {
 	worker                       *worker.Worker
 	appleMDMWorker               *worker.Worker
 	// Flag to skip jobs processing by worker
-	skipWorkerJobs            atomic.Bool
-	mdmCommander              *apple_mdm.MDMAppleCommander
-	logger                    *slog.Logger
-	scepChallenge             string
+	skipWorkerJobs atomic.Bool
+	mdmCommander   *apple_mdm.MDMAppleCommander
+	logger         *slog.Logger
+	scepChallenge  string
+
+	acmeCertCA  *x509.Certificate
+	acmeCertKey *ecdsa.PrivateKey
+
 	appleVPPConfigSrv         *httptest.Server
 	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
 	appleVPPProxySrv          *httptest.Server
@@ -144,6 +150,7 @@ type integrationMDMTestSuite struct {
 	proxyCallbackURL          string
 	jwtSigningKey             *rsa.PrivateKey
 	softwareInstallerStore    fleet.SoftwareInstallerStore
+	acmeSvc                   fleet.ACMEWriteService
 	keyValueStore             fleet.AdvancedKeyValueStore
 }
 
@@ -501,6 +508,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		EnableSCIM:        true,
 	}
 
+	// generate ACME cert and key for testing ACME flows
+	acmeCert, acmeKey, err := testhelpers.GenerateTestAttestationCA()
+	require.NoError(s.T(), err)
+	serverConfig.ACMECertCA = acmeCert
+	serverConfig.ACMECertKey = acmeKey
+	s.acmeCertCA = acmeCert
+	s.acmeCertKey = acmeKey
+
 	// ensure all our tests support challenges with invalid XML characters
 	s.scepChallenge = "scepcha/><llenge"
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
@@ -533,6 +548,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.logger = serverLogger
 	s.androidAPIClient = androidMockClient
 	s.keyValueStore = keyValueStore
+
+	// FIXME: Sort out dependency injection between Fleet service and ACME service, especially around
+	// testing cron jobs. For now, this works because the ACME service is embedded in the Fleet
+	// service, but it feels backwards in comparison to how things are injected by the Fleet
+	// service into the cron. Something smells wrong here.
+	acmeSvc, ok := svc.(fleet.ACMEWriteService)
+	require.True(s.T(), ok, "fleet service should be ACMEWriteService")
+	s.acmeSvc = acmeSvc
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -12127,7 +12150,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
 	scepLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	err = RenewSCEPCertificates(ctx, scepLogger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, scepLogger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	// no new commands were enqueued
