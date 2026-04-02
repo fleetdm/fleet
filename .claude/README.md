@@ -265,9 +265,9 @@ Rules auto-apply when you edit files matching their path globs:
 
 | Rule | Paths | Key conventions |
 |------|-------|----------------|
-| `fleet-go-backend.md` | `server/**/*.go`, `cmd/**/*.go`, `orbit/**/*.go`, `ee/**/*.go`, `pkg/**/*.go`, `tools/**/*.go`, `client/**/*.go`, `test/**/*.go` | ctxerr errors, error types, input validation, viewer context, auth pattern, service signatures, slog logging, ptr utilities, and pagination |
-| `fleet-frontend.md` | `frontend/**/*.ts`, `frontend/**/*.tsx` | React Query, component structure, BEM/SCSS, permissions utilities, team context, notifications, XSS prevention, and string/URL utilities |
-| `fleet-database.md` | `server/datastore/**/*.go` | Migration naming and testing, goqu queries, reader/writer, parameterized SQL, and batch operations |
+| `fleet-go-backend.md` | `server/**/*.go`, `cmd/**/*.go`, `orbit/**/*.go`, `ee/**/*.go`, `pkg/**/*.go`, `tools/**/*.go`, `client/**/*.go`, `test/**/*.go` | ctxerr errors, error types, banned imports, input validation, viewer context, auth pattern, `fleethttp.NewClient()`, `new(expression)` pointers, bounded contexts, and service signatures |
+| `fleet-frontend.md` | `frontend/**/*.ts`, `frontend/**/*.tsx` | React Query, component structure, BEM/SCSS, permissions utilities, team context (fleets/reports terminology), notifications, XSS prevention, and string/URL utilities |
+| `fleet-database.md` | `server/datastore/**/*.go` | Migration naming and testing, goqu queries, reader/writer, transaction rules (no ds.reader/writer inside tx), parameterized SQL, and batch operations |
 | `fleet-api.md` | `server/service/**/*.go` | Endpoint registration, API versioning, and error-in-response pattern |
 | `fleet-orbit.md` | `orbit/**/*.go` | Agent architecture, TUF updates, platform-specific code, packaging, keystore, and security considerations |
 
