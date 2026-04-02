@@ -15,6 +15,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
 import { getCustomDropdownOptions } from "utilities/helpers";
+import { isPremiumTier } from "utilities/permissions/permissions";
 
 import { IAppConfigFormProps } from "../constants";
 
@@ -34,6 +35,7 @@ interface IAdvancedConfigFormData {
   disableScripts: boolean;
   disableAIFeatures: boolean;
   disableQueryReports: boolean;
+  requireHardwareAttestation: boolean;
 }
 
 interface IAdvancedConfigFormErrors {
@@ -105,6 +107,8 @@ const Advanced = ({
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
+    requireHardwareAttestation:
+      appConfig.mdm?.apple_require_hardware_attestation || false,
   });
 
   const {
@@ -121,6 +125,7 @@ const Advanced = ({
     disableScripts,
     disableAIFeatures,
     disableQueryReports,
+    requireHardwareAttestation,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAdvancedConfigFormErrors>({});
@@ -190,6 +195,7 @@ const Advanced = ({
       },
       mdm: {
         apple_server_url: mdmAppleServerURL,
+        apple_require_hardware_attestation: requireHardwareAttestation,
       },
       sso_settings: {
         sso_server_url: ssoUserURL,
@@ -517,6 +523,23 @@ const Advanced = ({
               </Checkbox>
             )}
           />
+          {isPremiumTier(appConfig) && (
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="requireHardwareAttestation"
+                  value={requireHardwareAttestation}
+                  parseTarget
+                  helpText="Enabling this setting will require macOS hosts with Apple Silicon that automatically enroll (DEP) to use ACME with Managed Device Attestation"
+                >
+                  Require hardware attestation
+                </Checkbox>
+              )}
+            />
+          )}
         </div>
         <Button
           type="submit"
