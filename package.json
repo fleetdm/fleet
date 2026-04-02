@@ -33,7 +33,7 @@
     "js-cookie": "3.0.5",
     "js-md5": "0.7.3",
     "js-yaml": "3.14.2",
-    "lodash": "4.17.23",
+    "lodash": "4.18.1",
     "memoize-one": "5.2.1",
     "normalizr": "3.6.2",
     "postcss": "^8.4.31",
