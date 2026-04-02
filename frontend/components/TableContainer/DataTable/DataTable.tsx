@@ -180,9 +180,11 @@ const DataTable = ({
     {
       columns,
       data,
-      // Use a stable row ID when available (row.id), otherwise fall back to the index-based ID (default of react-table)
+      // Always include the index in the row ID to guarantee uniqueness.
+      // This prevents deduplication when data rows share the same `id` value
+      // (e.g., query results from `SELECT id FROM processes`). (#42402)
       getRowId: (row: any, index: number) =>
-        row && row.id != null ? String(row.id) : String(index),
+        row && row.id != null ? `${row.id}-${index}` : String(index),
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,

@@ -13,17 +13,21 @@ const DEFAULT_PAGE_SIZE = 10;
 const baseClass = "select-software-table";
 
 const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
-  return softwareTitles.reduce<Record<string, boolean>>((acc, software) => {
-    if (
-      software.software_package?.install_during_setup ||
-      software.app_store_app?.install_during_setup
-    ) {
-      if (software.id != null) {
-        acc[String(software.id)] = true; // key must match DataTable getRowId(row) for selection to persist
+  return softwareTitles.reduce<Record<string, boolean>>(
+    (acc, software, index) => {
+      if (
+        software.software_package?.install_during_setup ||
+        software.app_store_app?.install_during_setup
+      ) {
+        if (software.id != null) {
+          // key must match DataTable getRowId(row) for selection to persist
+          acc[`${software.id}-${index}`] = true;
+        }
       }
-    }
-    return acc;
-  }, {});
+      return acc;
+    },
+    {}
+  );
 };
 
 interface IInstallSoftwareTableProps {
