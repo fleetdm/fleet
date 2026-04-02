@@ -71,6 +71,23 @@ We track certian social posts from the [LinkedIn company page](https://www.linke
 
 ## Salesforce
 
+### SFDC access
+
+Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles. All Fleet employees must login at our custom domain [fleetdm.my.salesforce.com](fleetdm.my.salesforce.com) or by clicking the Salesforce app tile in Okta. For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled that must login at [login.salesforce.com](login.salesforce.com).
+
+
+#### Profiles and when to use them
+
+| Profile | SSO | Who gets this | When to assign |
+|:---|:---|:---|:---|
+| **Fleet User** | Yes | All `@fleetdm.com` employees (standard users). | Assign to any new Fleet employee who needs Salesforce access. |
+| **System Administrator** | Yes | Fleet employees who need admin-level access. | Assign to any new Fleet employee who needs full admin privileges in Salesforce. |
+| **externalNonSSOEnabledSystemAdmin** | No | UTTR (integration) users and the Integrations admin account. | Assign to integration/service accounts or external admin users that authenticate with Salesforce credentials instead of Okta. |
+| **externalNonSSOEnabledFleetUser** | No | External non-admin users who do not use SSO. | Assign to any external collaborator or non-Fleet user who needs standard (non-admin) Salesforce access without SSO. |
+
+- **Adding an SSO user:** Assign the **Fleet User** profile (or **System Administrator** if they need admin privileges). The user will authenticate via Okta and Salesforce credential login will be disabled.
+- **Adding a non-SSO user (e.g., an integration account or external collaborator):** Assign **externalNonSSOEnabledSystemAdmin** for admin-level access or **externalNonSSOEnabledFleetUser** for standard access. These users authenticate with Salesforce credentials directly.
+
 
 ### Campaigns (SFDC)
 
