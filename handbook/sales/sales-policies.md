@@ -37,5 +37,15 @@ Given the shift to a territory-based model, we're implementing the following eff
   - Territory assignment date.
 
 
+## Sales Forecast Process: Weekly Update Requirements
+
+### Overview
+To maintain an accurate picture of our quarterly performance and make sure productive Friday Forecast calls, every Account Executive (AE) is required to update the **Weekly Sales Forecast Tracker** week-over-week. This data enables leadership to identify risks early and provide the support needed to close deals.
+
+### The Schedule
+- **Update Deadline:** Every **Thursday by 5:00 PM local time**.
+- **Review Cycle:** Data is reviewed by Management on Friday mornings during the **Weekly Forecast Call**.
+
+
 <meta name="maintainedBy" value="chazmac6">
 <meta name="title" value="🧑‍🏫 Sales policies">
