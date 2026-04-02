@@ -674,10 +674,9 @@ func (c *Client) ApplyGroup(
 			specs.AppConfig.(map[string]interface{})["yara_rules"] = rulePayloads
 		}
 
-		// Keep any existing GitOps mode config rather than attempting to set via GitOps.
-		if appconfig != nil {
-			specs.AppConfig.(map[string]any)["gitops"] = appconfig.GitOpsConfig
-		}
+		// GitOps mode config is managed server-side; remove it from the PATCH
+		// payload so the existing settings are preserved.
+		delete(specs.AppConfig.(map[string]any), "gitops")
 
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
