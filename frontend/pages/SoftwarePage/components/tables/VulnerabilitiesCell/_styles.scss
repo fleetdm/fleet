@@ -1,6 +1,7 @@
 .vulnerabilities-cell {
   &__vulnerability-text-with-tooltip {
     display: inline-block;
+    vertical-align: middle;
   }
 
   &__vulnerability-list {
