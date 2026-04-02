@@ -102,7 +102,7 @@ func TestMDMApple(t *testing.T) {
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
-		{"GetNanoMDMEnrollmentTimes", testGetNanoMDMEnrollmentTimes},
+		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -9012,7 +9012,7 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	require.True(t, ts2b.After(ts2))
 }
 
-func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
+func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
@@ -9024,7 +9024,7 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err := ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err := ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Nil(t, lastMDMEnrolledAt)
 	require.Nil(t, lastMDMSeenAt)
@@ -9033,7 +9033,7 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	// returned yet
 	nanoEnroll(t, ds, host, true)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
 	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
@@ -9050,7 +9050,7 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnrollUserDevice(t, ds, byodHost)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, byodHost.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err = ds.GetNanoMDMEnrollmentDetails(ctx, byodHost.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
 	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
@@ -9086,14 +9086,14 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, lastMDMEnrolledAt)
 	assert.Equal(t, authenticateTime, *lastMDMEnrolledAt)
 	require.NotNil(t, lastMDMSeenAt)
 	assert.Equal(t, deviceEnrollTime, *lastMDMSeenAt)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, byodHost.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err = ds.GetNanoMDMEnrollmentDetails(ctx, byodHost.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, lastMDMEnrolledAt)
 	assert.Equal(t, byodDeviceAuthenticateTime, *lastMDMEnrolledAt)
@@ -9124,7 +9124,7 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err := ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err := ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Nil(t, lastMDMEnrolledAt)
 	require.Nil(t, lastMDMSeenAt)
