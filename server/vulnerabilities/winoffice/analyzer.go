@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -124,7 +125,15 @@ func collectVulnerabilities(
 		// Only vulnerable if the fix's prefix is NEWER than the host's prefix.
 		if fixedPrefix != buildPrefix {
 			// Compare prefixes numerically - host is only vulnerable if fix prefix > host prefix
-			if fixedPrefix > buildPrefix {
+			fixedPrefixNum, err := strconv.Atoi(fixedPrefix)
+			if err != nil {
+				continue
+			}
+			buildPrefixNum, err := strconv.Atoi(buildPrefix)
+			if err != nil {
+				continue
+			}
+			if fixedPrefixNum > buildPrefixNum {
 				resolvedVersion := update.ResolvedInVersion
 				vulns = append(vulns, fleet.SoftwareVulnerability{
 					SoftwareID:        software.ID,
