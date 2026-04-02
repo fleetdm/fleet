@@ -2809,12 +2809,14 @@ func (c *Client) doGitOpsLabels(
 // resolvePolicySoftwareTitleID attempts to resolve the software title ID for a
 // policy by trying each available identifier in order: URL, App Store ID, hash,
 // then FMA slug. Returns the resolved title ID and true if found, or 0 and
-// false if no identifier matched. The caller must ensure
-// policy.InstallSoftware.Other is non-nil before calling.
+// false if no identifier matched.
 func resolvePolicySoftwareTitleID(
 	policy *spec.GitOpsPolicySpec,
 	byURL, byAppStoreID, byHash, bySlug map[string]uint,
 ) (titleID uint, resolved bool) {
+	if policy.InstallSoftware.Other == nil {
+		return 0, false
+	}
 	if policy.InstallSoftwareURL != "" {
 		if id, ok := byURL[policy.InstallSoftwareURL]; ok {
 			return id, true
@@ -2943,17 +2945,15 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				// Log a warning if URL was set but didn't match (resolved via fallback).
 				if !dryRun && config.Policies[i].InstallSoftwareURL != "" {
 					if _, urlOK := softwareTitleIDsByInstallerURL[config.Policies[i].InstallSoftwareURL]; !urlOK {
-						logFn("[!] software URL lookup failed, resolved via fallback (url=%q, hash=%q)\n",
-							config.Policies[i].InstallSoftwareURL, config.Policies[i].InstallSoftware.Other.HashSHA256)
+						logFn("[!] policy %q: software URL lookup failed, resolved via fallback (url=%q, hash=%q)\n",
+							config.Policies[i].Name, config.Policies[i].InstallSoftwareURL, config.Policies[i].InstallSoftware.Other.HashSHA256)
 					}
 				}
 			} else {
 				if !dryRun {
-					logFn("[!] could not resolve software title ID for policy (url=%q, app_store_id=%q, hash=%q, slug=%q)\n",
-						config.Policies[i].InstallSoftwareURL,
-						config.Policies[i].InstallSoftware.Other.AppStoreID,
-						config.Policies[i].InstallSoftware.Other.HashSHA256,
-						config.Policies[i].InstallSoftware.Other.FleetMaintainedAppSlug)
+					logFn("[!] policy %q: could not resolve software title ID (url=%q, hash=%q)\n",
+						config.Policies[i].Name, config.Policies[i].InstallSoftwareURL,
+						config.Policies[i].InstallSoftware.Other.HashSHA256)
 				}
 				continue
 			}
