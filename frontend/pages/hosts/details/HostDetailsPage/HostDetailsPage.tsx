@@ -1768,6 +1768,7 @@ const HostDetailsPage = ({
           <MDMStatusModal
             fleetId={currentTeam?.id}
             hostId={host.id}
+            depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
             isMacOSHost={isMacOSHost}
