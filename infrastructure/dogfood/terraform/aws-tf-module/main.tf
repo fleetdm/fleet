@@ -80,6 +80,7 @@ locals {
     # Webhook Results & Status Logging Destination
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
     FLEET_SERVER_GZIP_RESPONSES     = "true"
+    # https://github.com/fleetdm/fleet/issues/38366
     FLEET_MDM_ALLOW_ALL_DECLARATIONS = "true"
 
     # Load TLS Certificate for RDS Authentication
