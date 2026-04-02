@@ -11,12 +11,10 @@ import { getPerformanceImpactIndicatorTooltip } from "utilities/helpers";
 
 interface IPerformanceImpactCellValue {
   indicator: string;
-  id?: number;
 }
 interface IPerformanceImpactCellProps {
   value: IPerformanceImpactCellValue;
   isHostSpecific?: boolean;
-  customIdPrefix?: string;
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -28,9 +26,8 @@ const baseClass = "performance-impact-cell";
 const PerformanceImpactCell = ({
   value,
   isHostSpecific = false,
-  customIdPrefix,
 }: IPerformanceImpactCellProps): JSX.Element => {
-  const { indicator, id } = value;
+  const { indicator } = value;
   const pillClassName = classnames(
     "data-table__pill",
     `data-table__pill--${generateClassTag(indicator || "")}`,
@@ -67,7 +64,8 @@ const PerformanceImpactCell = ({
         disableTooltip={disableTooltip}
         underline={false}
         showArrow
-        tipOffset={8}
+        // Pills require more gap from text to tooltip
+        tipOffset={indicatorValue === "Undetermined" ? 8 : 12}
       >
         <span className={pillClassName}>{indicatorValue}</span>
       </TooltipWrapper>

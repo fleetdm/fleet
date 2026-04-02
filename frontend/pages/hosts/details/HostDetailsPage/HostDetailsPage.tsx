@@ -1208,13 +1208,13 @@ const HostDetailsPage = ({
                     <>
                       Software install is coming soon.{" "}
                       <CustomLink
-                        newTab
                         text="Learn more"
                         url={
                           isAndroidHost
                             ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
                             : BYOD_SW_INSTALL_LEARN_MORE_LINK
                         }
+                        newTab
                       />
                     </>
                   }

@@ -48,12 +48,9 @@ const condenseTeams = (teams: ITokenTeam[]) => {
 
 interface ITeamsCellProps {
   teams: ITokenTeam[] | null;
-  className?: string;
 }
 
-const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
-  const classNames = classnames(baseClass, className);
-
+const TeamsCell = ({ teams }: ITeamsCellProps) => {
   if (!teams) {
     return <TextCell value={teams} />;
   }
@@ -79,10 +76,12 @@ const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
         </ul>
       }
       underline={false}
+      showArrow
+      position="top"
+      className={`${baseClass}__team-text-with-tooltip`}
+      tipOffset={8}
     >
-      <div className={`${baseClass}__team-text-with-tooltip`}>
-        {cell}
-      </div>
+      {cell}
     </TooltipWrapper>
   );
 };
