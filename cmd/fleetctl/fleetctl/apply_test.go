@@ -1622,7 +1622,7 @@ kind: config
 spec:
   mdm:
     setup_experience:
-      bootstrap_package: %s
+      macos_bootstrap_package: %s
 `, bootstrapURL))
 
 	// first apply with dry-run
@@ -1759,7 +1759,7 @@ spec:
     name: Team1
     mdm:
       macos_setup:
-        bootstrap_package: %s
+        macos_bootstrap_package: %s
 `, bootstrapURL))
 
 	// first apply with dry-run
@@ -2358,7 +2358,7 @@ kind: config
 spec:
   mdm:
     setup_experience:
-      bootstrap_package: %s
+      macos_bootstrap_package: %s
       apple_setup_assistant: %s
 `
 		appConfigEnableReleaseSpec = appConfigSpec + `
@@ -2387,7 +2387,7 @@ spec:
     name: tm1
     mdm:
       setup_experience:
-        bootstrap_package: %s
+        macos_bootstrap_package: %s
         apple_setup_assistant: %s
 `
 		team1EnableReleaseSpec = team1Spec + `
@@ -2411,7 +2411,7 @@ spec:
     name: tm1
     mdm:
       setup_experience:
-        bootstrap_package: %s
+        macos_bootstrap_package: %s
         apple_setup_assistant: %s
 ---
 apiVersion: v1
@@ -2421,7 +2421,7 @@ spec:
     name: tm2
     mdm:
       setup_experience:
-        bootstrap_package: %s
+        macos_bootstrap_package: %s
         apple_setup_assistant: %s
 `
 		team1SpecEnableEndUserAuth = `
@@ -2782,7 +2782,7 @@ kind: config
 spec:
   mdm:
     setup_experience:
-      bootstrap_package: %s
+      macos_bootstrap_package: %s
       manual_agent_install: true
 `
 
