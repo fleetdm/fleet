@@ -15,7 +15,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Platform support
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | macOS management | Yes — Full MDM lifecycle | Yes — 20+ year track record |
 | iOS / iPadOS management | Yes | Yes |
@@ -27,7 +27,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Enrollment and provisioning
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | Zero-touch deployment (ABM/ASM) | Yes — ABM/ASM + Autopilot | Yes — ABM/ASM; deep Apple integration |
 | BYOD enrollment | Yes — Incl. Android work profiles | Yes — User-initiated enrollment |
@@ -36,7 +36,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Configuration management
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | Configuration profile delivery with full confirmation | Yes — Upload custom profiles | No |
 | Declarative Device Management (DDM) | Yes | Partial — Blueprints framework (Jamf Cloud) |
@@ -46,7 +46,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Software management
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | App deployment | Yes — Fleet-maintained apps + custom packages | Yes — App Catalog + custom packages |
 | Self-service app installation | Yes | Yes — Self Service+ (recently enhanced) |
@@ -56,7 +56,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Security and compliance
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | Vulnerability detection (CVEs) | Yes — Built-in; CISA KEV; any device, any platform | Partial — Basic in Pro; deep scanning requires Jamf Protect ($) |
 | Compliance benchmarks (CIS / STIG) | Yes — CIS queries publicly available | Yes — Compliance Benchmarks (mSCP) in Pro |
@@ -67,7 +67,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Visibility and reporting
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | Real-time device queries | Yes — Live osquery; near-real-time | Partial — Inventory on check-in schedule |
 | Hardware and software inventory | Yes — Extensive via osquery tables | Yes — Comprehensive Apple inventory |
@@ -75,7 +75,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Architecture and operations
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | GitOps / infrastructure as code | Yes — First-class; YAML/Git-based | Partial — IBM Terraform-based, not all functionality available |
 | API-first architecture | Yes — Unified REST API; all features | Partial — Multiple APIs; GUI-first design |
@@ -87,7 +87,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Pricing and licensing
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | Free tier available | Yes — Core features; unlimited hosts | No — 14-day free trial only |
 | Pricing model | $7/host/month (Premium); all features included | ~$3.67–$7.89/device/month; varies by device type |
@@ -95,7 +95,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Support and ecosystem
 
-| Customer requirement | Fleet | Jamf Pro |
+|  | Fleet | Jamf Pro |
 | --- | --- | --- |
 | Vendor support channels | Email, phone, video (Premium); community Slack | Chat, email, phone; premium services available |
 | Community and ecosystem maturity | Growing — Active open-source; osquery ecosystem | Mature — Large user base; Jamf Nation; 20+ years |
