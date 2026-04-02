@@ -4178,7 +4178,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				-- Android rows. No NCR filter is applied here — all statuses (pending,
 				-- failed, installed) are shown, which is intentional for the host software
 				-- list. Compare with vpp.go / software_installers.go which filter by NCR
-				-- for per-app aggregate counts, a different semantic.
+				-- for per-app aggregate counts, different semantics.
 				hvsi2.id IS NULL AND
 				NOT EXISTS (
 					SELECT 1
