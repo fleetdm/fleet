@@ -102,26 +102,35 @@ recovery lock status with profiles, declarations, and FileVault status:
 └──────────────────┘    └────────────────────────────┘
 ```
 
-## Comparison: Bounded Context vs. Module Approach
+## Comparison: Current State vs. Bounded Context
 
-### Module Approach (Previous Implementation)
+### Current State
 
-The previous implementation organized code into a `server/mdm/apple/recoverylock/`
-module, but did **not** enforce table ownership:
+Today, recovery lock logic is spread across multiple packages with no clear ownership:
+
+- **Business logic** lives in `server/mdm/apple/apple_mdm.go` (cron job, password generation)
+- **Result handling** lives in `server/service/apple_mdm.go` (MDM command results)
+- **Data access** is 19+ methods on the global `fleet.Datastore` interface, implemented in `server/datastore/mysql/`
+- **Types** are defined in `server/fleet/` alongside all other Fleet types
+- **Host listing** directly JOINs `host_recovery_key_passwords` from SQL in `hosts.go` and `labels.go`
 
 ```go
-// Anyone could still access the table:
-ds.GetHostRecoveryLockPassword(ctx, uuid)  // Works - no boundary
-ds.SetHostRecoveryLockVerified(ctx, uuid)  // Works - no boundary
+// Anyone can access the table from anywhere:
+ds.GetHostRecoveryLockPassword(ctx, uuid)
+ds.SetHostRecoveryLockVerified(ctx, uuid)
+
+// Host listing JOINs recovery lock table directly in SQL:
+// SELECT ... LEFT JOIN host_recovery_key_passwords hrkp ON h.uuid = hrkp.host_uuid ...
 ```
 
 **Characteristics:**
-- Code organized but not isolated
-- 19 methods in global `fleet.Datastore` interface
-- Direct SQL JOINs to table from hosts.go/labels.go
-- Implicit dependencies via Datastore
+- No code organization — logic scattered across 4+ packages
+- 19 methods on the global `fleet.Datastore` interface (alongside 300+ other methods)
+- Direct SQL JOINs to `host_recovery_key_passwords` from hosts.go/labels.go
+- No ownership boundary — any package can read/write the table
+- Difficult to understand the full feature without reading multiple packages
 
-### Bounded Context Approach (This Implementation)
+### Bounded Context Approach (`server/recoverylock/`)
 
 The bounded context enforces that **all access** goes through service methods:
 
@@ -142,16 +151,16 @@ recoveryLockSvc.GetHostRecoveryLockPassword(ctx, hostID)
 
 ### Comparison Table
 
-| Aspect | Module | Bounded Context |
-|--------|--------|-----------------|
-| Code organization | ✅ Organized | ✅ Organized |
-| Table ownership | ❌ Shared (anyone can access) | ✅ Exclusive (internal/ enforced) |
-| Interface | Global fleet.Datastore | Public api.Service |
-| Dependencies | Implicit | Explicit (DataProviders) |
+| Aspect | Current State | Bounded Context |
+|--------|--------------|-----------------|
+| Code organization | ❌ Scattered across 4+ packages | ✅ One package with clear structure |
+| Table ownership | ❌ Anyone can access | ✅ Exclusive (`internal/` enforced) |
+| Interface | Global `fleet.Datastore` | Public `api.Service` |
+| Dependencies | Implicit | Explicit (`DataProviders`) |
 | JOINs to table | Direct SQL | Via bulk service calls |
-| Enforcement | Convention only | Compiler + arch_test.go |
-| Testing | Requires mock Datastore | Can mock DataProviders |
-| Coupling | High (shares interface) | Low (isolated interface) |
+| Enforcement | None | Compiler + `arch_test.go` |
+| Testing | Requires mock of full Datastore | Can mock DataProviders |
+| Discoverability | Poor — must know where to look | Good |
 
 ### Pros of Bounded Context
 
@@ -169,21 +178,6 @@ recoveryLockSvc.GetHostRecoveryLockPassword(ctx, hostID)
 3. **Learning curve**: DataProviders pattern is less familiar
 4. **Migration effort**: Need to move 19 methods, update all callers
 5. **Two queries**: Filter then fetch (vs single JOIN query)
-
-### When to Use Which
-
-**Use Module Approach when:**
-- Simple code organization is sufficient
-- Table is legitimately shared across domains
-- Performance of single-query JOINs is critical
-- Team is small and conventions are followed
-
-**Use Bounded Context when:**
-- Table should be owned by one domain
-- Multiple teams work on the codebase
-- Schema evolution needs to be independent
-- Clear API contracts are important
-- You want compiler-enforced boundaries
 
 ## Database Schema
 
