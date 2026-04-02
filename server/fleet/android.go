@@ -222,7 +222,8 @@ var validAndroidInstallTypes = map[string]struct{}{
 
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
 // Configuration must be valid JSON with only "installType", "managedConfiguration",
-// and/or "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
+// and/or "workProfileWidgets" as top-level keys. Nil/empty input is not allowed,
+// but an empty JSON object ({}) is valid.
 func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	if len(config) == 0 {
 		return &BadRequestError{
@@ -250,7 +251,7 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	}
 
 	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
-		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidgets".`, cfg.WorkProfileWidgets)}
 	}
 
 	if _, validVal := validAndroidInstallTypes[cfg.InstallType]; !validVal {
