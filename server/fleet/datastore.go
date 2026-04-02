@@ -2773,6 +2773,9 @@ type Datastore interface {
 	// RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry, increments
 	// retry_count, preserves the error detail, and clears challenge/cert fields.
 	RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
+	// GetCertificateTemplateStatusesByNameForHost returns a map of certificate template
+	// name -> status for all certificate templates assigned to this host.
+	GetCertificateTemplateStatusesByNameForHost(ctx context.Context, hostUUID string) (map[string]CertificateTemplateStatus, error)
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records

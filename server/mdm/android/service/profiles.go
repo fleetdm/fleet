@@ -162,8 +162,21 @@ func (r *profileReconciler) sendHostProfiles(
 		return cmp.Compare(a.ProfileName, b.ProfileName)
 	})
 
+	// Withhold profiles whose openNetworkConfiguration references certificates
+	// that are not yet verified or terminally failed on this host. This ensures
+	// Wi-Fi/VPN/Ethernet configs are only applied after referenced certificates
+	// are installed.
+	var withheldProfiles []*fleet.MDMAndroidProfilePayload
+	certStatuses, err := r.DS.GetCertificateTemplateStatusesByNameForHost(ctx, hostUUID)
+	if err != nil {
+		r.Logger.ErrorContext(ctx, "failed to get cert statuses for ONC check, proceeding without withholding",
+			"host_uuid", hostUUID, "err", err)
+	} else {
+		profilesToMerge, withheldProfiles = filterProfilesWithPendingCerts(profilesToMerge, profilesContents, certStatuses)
+	}
+
 	// map of the bulk struct keyed by profile UUID
-	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidProfilePayload, len(profilesToMerge)+len(profilesToRemove))
+	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidProfilePayload, len(profilesToMerge)+len(profilesToRemove)+len(withheldProfiles))
 
 	// if every profile to install has > max failures, mark all as failed and done.
 	setFailCount := initRequestFailCountForSetOfProfiles(profilesToMerge, profilesToRemove)
@@ -369,6 +382,20 @@ func (r *profileReconciler) sendHostProfiles(
 		}
 	}
 
+	// Add withheld profiles after policy/device patching so they don't get
+	// policy request metadata set on them.
+	for _, prof := range withheldProfiles {
+		status := fleet.MDMDeliveryPending
+		bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
+			HostUUID:      hostUUID,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			ProfileUUID:   prof.ProfileUUID,
+			ProfileName:   prof.ProfileName,
+			Detail:        prof.Detail,
+		}
+	}
+
 	return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
 }
 
@@ -415,6 +442,58 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 		args[i] = s
 	}
 	return fmt.Sprintf(sb.String(), args...)
+}
+
+// filterProfilesWithPendingCerts separates profiles into those ready to merge
+// and those that should be withheld because they contain openNetworkConfiguration
+// with ClientCertKeyPairAlias references to certificates not yet in a terminal
+// state (verified or failed) on the host.
+func filterProfilesWithPendingCerts(
+	profiles []*fleet.MDMAndroidProfilePayload,
+	profilesContents map[string]json.RawMessage,
+	certStatuses map[string]fleet.CertificateTemplateStatus,
+) (ready, withheld []*fleet.MDMAndroidProfilePayload) {
+	for _, prof := range profiles {
+		content, ok := profilesContents[prof.ProfileUUID]
+		if !ok {
+			ready = append(ready, prof)
+			continue
+		}
+
+		aliases, err := android.ExtractCertAliasesFromProfileJSON(content)
+		if err != nil || len(aliases) == 0 {
+			ready = append(ready, prof)
+			continue
+		}
+
+		shouldWithhold := false
+		var pendingCertName string
+		for _, alias := range aliases {
+			status, exists := certStatuses[alias]
+			if !exists {
+				// No cert template with this name assigned to host.
+				// Admin may be referencing a pre-installed cert.
+				continue
+			}
+			if status != fleet.CertificateTemplateVerified &&
+				status != fleet.CertificateTemplateFailed {
+				shouldWithhold = true
+				pendingCertName = alias
+				break
+			}
+		}
+
+		if shouldWithhold {
+			prof.Detail = fmt.Sprintf(
+				"Waiting for certificate %q to be installed on the host before applying this profile.",
+				pendingCertName,
+			)
+			withheld = append(withheld, prof)
+		} else {
+			ready = append(ready, prof)
+		}
+	}
+	return ready, withheld
 }
 
 func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyName string,

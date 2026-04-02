@@ -172,6 +172,30 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 	return &result, nil
 }
 
+// GetCertificateTemplateStatusesByNameForHost returns a map of certificate template
+// name -> status for all certificate templates assigned to this host.
+func (ds *Datastore) GetCertificateTemplateStatusesByNameForHost(ctx context.Context, hostUUID string) (map[string]fleet.CertificateTemplateStatus, error) {
+	const stmt = `
+		SELECT ct.name, hct.status
+		FROM host_certificate_templates hct
+		JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
+		WHERE hct.host_uuid = ?
+	`
+	var rows []struct {
+		Name   string `db:"name"`
+		Status string `db:"status"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get certificate template statuses by name for host")
+	}
+
+	result := make(map[string]fleet.CertificateTemplateStatus, len(rows))
+	for _, r := range rows {
+		result[r.Name] = fleet.CertificateTemplateStatus(r.Status)
+	}
+	return result, nil
+}
+
 // RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry,
 // increments retry_count, preserves the error detail, and clears challenge/cert fields.
 func (ds *Datastore) RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error {
