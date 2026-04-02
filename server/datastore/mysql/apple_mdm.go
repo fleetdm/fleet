@@ -5038,17 +5038,25 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 	})
 }
 
+// MDMLockCleanupMinutes is the minimum number of minutes that must have elapsed
+// since unlock_ref was set before CleanAppleMDMLock will clear the lock state.
+// This prevents the trailing Idle check-in (sent by the device right after
+// acknowledging the lock command) from prematurely clearing the lock state.
+const MDMLockCleanupMinutes = 5
+
 func (ds *Datastore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 UPDATE host_mdm_actions hma
 JOIN hosts h ON hma.host_id = h.id
 SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
 WHERE h.uuid = ? AND (
-	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin')
+	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin'
+		AND (STR_TO_DATE(hma.unlock_ref, '%%Y-%%m-%%d %%H:%%i:%%s') IS NULL
+			OR STR_TO_DATE(hma.unlock_ref, '%%Y-%%m-%%d %%H:%%i:%%s') <= UTC_TIMESTAMP() - INTERVAL %d MINUTE))
 	OR (hma.unlock_ref IS NOT NULL AND (h.platform = 'ios' OR h.platform = 'ipados'))
-)`
+)`, MDMLockCleanupMinutes)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up macOS lock")

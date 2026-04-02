@@ -2124,7 +2124,10 @@ type Datastore interface {
 	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
-	// after it has been unlocked.
+	// after it has been unlocked. 	CleanAppleMDMLock will be a no-op when
+	// unlock_ref was set within the last 5 minutes, to prevent the trailing
+	// Idle (sent right after the device acknowledges the lock command)
+	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error

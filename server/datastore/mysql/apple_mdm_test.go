@@ -5577,6 +5577,21 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
 
+	err = ds.CleanAppleMDMLock(ctx, host.UUID)
+	require.NoError(t, err)
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
+
+	// backdate unlock_ref to simulate the device having been locked for more than 5 minutes
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
+			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')
+			WHERE h.uuid = ?`, MDMLockCleanupMinutes+1), host.UUID)
+		return err
+	})
+
 	// execute CleanAppleMDMLock to simulate successful unlock
 	err = ds.CleanAppleMDMLock(ctx, host.UUID)
 	require.NoError(t, err)
