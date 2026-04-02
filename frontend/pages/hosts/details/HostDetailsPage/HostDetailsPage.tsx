@@ -1175,7 +1175,7 @@ const HostDetailsPage = ({
       isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
-  const showReportsCard = mdm?.enrollment_status !== "Pending";
+  const showReportsEmptyState = mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
@@ -1513,7 +1513,7 @@ const HostDetailsPage = ({
                     saveReportsDisabledInConfig={
                       config?.server_settings?.query_reports_disabled
                     }
-                    showReportsCard={showReportsCard}
+                    showReportsEmptyState={showReportsEmptyState}
                   />
                 </TabPanel>
               )}
