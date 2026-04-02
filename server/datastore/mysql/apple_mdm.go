@@ -1740,13 +1740,14 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 	}
 
 	stmt := `
-		INSERT INTO host_dep_assignments (host_id, abm_token_id, mdm_migration_deadline)
+		INSERT INTO host_dep_assignments (host_id, abm_token_id, mdm_migration_deadline, hardware_serial)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
-		  added_at = CURRENT_TIMESTAMP,
-		  deleted_at = NULL,
-		  abm_token_id = VALUES(abm_token_id),
-		  mdm_migration_deadline = VALUES(mdm_migration_deadline)`
+			added_at = CURRENT_TIMESTAMP,
+			deleted_at = NULL,
+			abm_token_id = VALUES(abm_token_id),
+			mdm_migration_deadline = VALUES(mdm_migration_deadline),
+			hardware_serial = VALUES(hardware_serial)`
 
 	args := []interface{}{}
 	values := []string{}
@@ -1755,8 +1756,8 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 		if d, ok := migrationDeadlinesByHostID[host.ID]; ok {
 			deadline = &d
 		}
-		args = append(args, host.ID, abmTokenID, deadline)
-		values = append(values, "(?, ?, ?)")
+		args = append(args, host.ID, abmTokenID, deadline, host.HardwareSerial)
+		values = append(values, "(?, ?, ?, ?)")
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.Join(values, ",")), args...)
@@ -2036,6 +2037,18 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments")
 	}
 	return &res, nil
+}
+
+func (ds *Datastore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+	var res []*fleet.HostDEPAssignment
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, `
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed
+		FROM host_dep_assignments hdep
+		WHERE hdep.hardware_serial = ? AND hdep.deleted_at IS NULL`, serial)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments by serial")
+	}
+	return res, nil
 }
 
 func (ds *Datastore) SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error {
@@ -4548,7 +4561,7 @@ func (ds *Datastore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *u
 
 	stmt := fmt.Sprintf(`
 SELECT
-	hardware_serial
+	h.hardware_serial
 FROM
 	hosts h
 	JOIN host_dep_assignments hda ON hda.host_id = h.id
@@ -4573,7 +4586,7 @@ func (ds *Datastore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostID
 
 	stmt := `
 SELECT
-	hardware_serial
+	h.hardware_serial
 FROM
 	hosts h
 	JOIN host_dep_assignments hda ON hda.host_id = h.id
@@ -4749,7 +4762,7 @@ SET
 	response_updated_at = CURRENT_TIMESTAMP,
 	retry_job_id = 0
 WHERE
-	hardware_serial IN (?)
+	hosts.hardware_serial IN (?)
 `, setABMTokenID)
 	var args []interface{}
 	var err error
@@ -4848,7 +4861,7 @@ func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (m
 	const stmt = `
 SELECT
 	COALESCE(team_id, 0) AS team_id,
-	hardware_serial
+	h.hardware_serial
 FROM
 	host_dep_assignments
 	JOIN hosts h ON h.id = host_id
@@ -4893,7 +4906,7 @@ JOIN
 SET
 	retry_job_id = ?
 WHERE
-	hardware_serial IN (?)`
+	hosts.hardware_serial IN (?)`
 
 	stmt, args, err := sqlx.In(stmt, jobID, serials)
 	if err != nil {
@@ -5038,17 +5051,25 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 	})
 }
 
+// MDMLockCleanupMinutes is the minimum number of minutes that must have elapsed
+// since unlock_ref was set before CleanAppleMDMLock will clear the lock state.
+// This prevents the trailing Idle check-in (sent by the device right after
+// acknowledging the lock command) from prematurely clearing the lock state.
+const MDMLockCleanupMinutes = 5
+
 func (ds *Datastore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 UPDATE host_mdm_actions hma
 JOIN hosts h ON hma.host_id = h.id
 SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
 WHERE h.uuid = ? AND (
-	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin')
+	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin'
+		AND (STR_TO_DATE(hma.unlock_ref, '%%Y-%%m-%%d %%H:%%i:%%s') IS NULL
+			OR STR_TO_DATE(hma.unlock_ref, '%%Y-%%m-%%d %%H:%%i:%%s') <= UTC_TIMESTAMP() - INTERVAL %d MINUTE))
 	OR (hma.unlock_ref IS NOT NULL AND (h.platform = 'ios' OR h.platform = 'ipados'))
-)`
+)`, MDMLockCleanupMinutes)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up macOS lock")
@@ -6326,16 +6347,16 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 	err error,
 ) {
 	hostsStmt := `
-SELECT 
-	h.id as host_id, 
-	h.uuid as uuid, 
+SELECT
+	h.id as host_id,
+	h.uuid as uuid,
 	hmdm.installed_from_dep,
 	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
 FROM hosts h
 	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
 	INNER JOIN nano_enrollments ne ON ne.id = h.uuid
 	LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
-WHERE 
+WHERE
 	(h.platform = 'ios' OR h.platform = 'ipados')
 	AND TRIM(h.uuid) != ''
 	AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
@@ -6972,7 +6993,7 @@ FROM
 JOIN
 	host_dep_assignments hdep ON h.id = host_id
 WHERE
-	hardware_serial = ? AND deleted_at IS NULL
+	h.hardware_serial = ? AND deleted_at IS NULL
 LIMIT 1`
 
 	var dest struct {
@@ -7165,10 +7186,11 @@ LIMIT ?
 	return res, nil
 }
 
-func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
 	res := []struct {
 		LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
 		LastMDMSeenTime       *time.Time `db:"last_seen_at"`
+		HardwareAttested      bool       `db:"hardware_attested"`
 	}{}
 	// We are specifically only looking at the singular device enrollment row and not the
 	// potentially many user enrollment rows that will exist for a given device. The device
@@ -7176,19 +7198,19 @@ func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID str
 	// those same lines authenticate_at gets updated only at the authenticate step during the
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
 	query := `
-	SELECT nd.authenticate_at, ne.last_seen_at
+	SELECT nd.authenticate_at, ne.last_seen_at, ne.hardware_attested
 	FROM nano_devices nd
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
 
 	if err == sql.ErrNoRows || len(res) == 0 {
-		return nil, nil, nil
+		return nil, nil, false, nil
 	}
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
+		return nil, nil, false, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
 	}
-	return res[0].LastMDMEnrollmentTime, res[0].LastMDMSeenTime, nil
+	return res[0].LastMDMEnrollmentTime, res[0].LastMDMSeenTime, res[0].HardwareAttested, nil
 }
 
 func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error {

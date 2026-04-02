@@ -1156,6 +1156,9 @@ type Datastore interface {
 	// progress based on the provided arguments.
 	GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]SCEPIdentityAssociation, error)
 
+	// GetDeviceInfoForACMERenewal retrieves the device information for ACMERenewal based on the provided host UUIDs.
+	GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]DeviceInfoForACMERenewal, error)
+
 	// SetCommandForPendingSCEPRenewal tracks the command used to renew a scep certificate
 	SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []SCEPIdentityAssociation, cmdUUID string) error
 
@@ -1437,6 +1440,9 @@ type Datastore interface {
 	// GetHostDEPAssignment returns the DEP assignment for the host.
 	GetHostDEPAssignment(ctx context.Context, hostID uint) (*HostDEPAssignment, error)
 
+	// GetHostDEPAssignmentsBySerial returns the DEP assignment for the host with the specified serial number.
+	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
@@ -1455,9 +1461,9 @@ type Datastore interface {
 	// overriden by a TokenUpdate but that should provide the latest username
 	UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string, userUUID string, username string) error
 
-	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
-	// MDM protocol seen time for the host with the given UUID
-	GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
+	// GetNanoMDMEnrollmentDetails returns the time of the most recent enrollment, the most recent
+	// MDM protocol seen time, and whether the enrollment is hardware attested for the host with the given UUID
+	GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -2124,7 +2130,10 @@ type Datastore interface {
 	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
-	// after it has been unlocked.
+	// after it has been unlocked. 	CleanAppleMDMLock will be a no-op when
+	// unlock_ref was set within the last 5 minutes, to prevent the trailing
+	// Idle (sent right after the device acknowledges the lock command)
+	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error

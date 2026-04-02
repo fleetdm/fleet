@@ -102,7 +102,7 @@ func TestMDMApple(t *testing.T) {
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
-		{"GetNanoMDMEnrollmentTimes", testGetNanoMDMEnrollmentTimes},
+		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -5420,10 +5420,10 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// add a record of the host DEP assignment
 	_, err = ds.writer(ctx).Exec(`
-		INSERT INTO host_dep_assignments (host_id)
-		VALUES (?)
+		INSERT INTO host_dep_assignments (host_id, hardware_serial)
+		VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
-	`, host.ID)
+	`, host.ID, host.HardwareSerial)
 	require.NoError(t, err)
 	cmd, err := ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
 	require.NoError(t, err)
@@ -5502,7 +5502,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				return sqlx.SelectContext(
 					ctx, q, &got,
-					`SELECT hardware_serial FROM hosts h
+					`SELECT h.hardware_serial FROM hosts h
                                          JOIN host_dep_assignments hda ON hda.host_id = h.id
                                          WHERE hda.deleted_at IS NULL`,
 				)
@@ -5576,6 +5576,21 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
+
+	err = ds.CleanAppleMDMLock(ctx, host.UUID)
+	require.NoError(t, err)
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
+
+	// backdate unlock_ref to simulate the device having been locked for more than 5 minutes
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
+			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')
+			WHERE h.uuid = ?`, MDMLockCleanupMinutes+1), host.UUID)
+		return err
+	})
 
 	// execute CleanAppleMDMLock to simulate successful unlock
 	err = ds.CleanAppleMDMLock(ctx, host.UUID)
@@ -9075,7 +9090,7 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	require.True(t, ts2b.After(ts2))
 }
 
-func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
+func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
@@ -9087,7 +9102,7 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err := ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err := ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Nil(t, lastMDMEnrolledAt)
 	require.Nil(t, lastMDMSeenAt)
@@ -9096,7 +9111,7 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	// returned yet
 	nanoEnroll(t, ds, host, true)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
 	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
@@ -9113,7 +9128,7 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnrollUserDevice(t, ds, byodHost)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, byodHost.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err = ds.GetNanoMDMEnrollmentDetails(ctx, byodHost.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
 	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
@@ -9149,14 +9164,14 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, lastMDMEnrolledAt)
 	assert.Equal(t, authenticateTime, *lastMDMEnrolledAt)
 	require.NotNil(t, lastMDMSeenAt)
 	assert.Equal(t, deviceEnrollTime, *lastMDMSeenAt)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, byodHost.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err = ds.GetNanoMDMEnrollmentDetails(ctx, byodHost.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, lastMDMEnrolledAt)
 	assert.Equal(t, byodDeviceAuthenticateTime, *lastMDMEnrolledAt)
@@ -9187,7 +9202,7 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err := ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	lastMDMEnrolledAt, lastMDMSeenAt, _, err := ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Nil(t, lastMDMEnrolledAt)
 	require.Nil(t, lastMDMSeenAt)
@@ -9909,7 +9924,7 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	host := newTestHostWithPlatform(t, ds, "macos", "macos", nil)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid) VALUES (?, ?)`, host.ID, uuid.NewString())
+		_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid, hardware_serial) VALUES (?, ?, ?)`, host.ID, uuid.NewString(), host.HardwareSerial)
 		return err
 	})
 
@@ -9939,7 +9954,7 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	for i := range 200 {
 		h := newTestHostWithPlatform(t, ds, fmt.Sprintf("host-%d", i), "macos", nil)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid, assign_profile_response, response_updated_at, retry_job_id) VALUES (?, ?, ?, DATE_SUB(NOW(), INTERVAL ? SECOND), 0)`, h.ID, uuid.NewString(), fleet.DEPAssignProfileResponseFailed, depFailedCooldownPeriod.Seconds()+10)
+			_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid, assign_profile_response, response_updated_at, retry_job_id, hardware_serial) VALUES (?, ?, ?, DATE_SUB(NOW(), INTERVAL ? SECOND), 0, ?)`, h.ID, uuid.NewString(), fleet.DEPAssignProfileResponseFailed, depFailedCooldownPeriod.Seconds()+10, h.HardwareSerial)
 			return err
 		})
 	}

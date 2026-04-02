@@ -19,7 +19,7 @@ import (
 
 const (
 	filenameMaxLength           = 255
-	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s -- this only happens once for new teams that have VPP apps\n"
+	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s to set VPP apps\n"
 )
 
 type LabelUsage struct {
@@ -514,18 +514,19 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				// We cannot apply a VPP app to a new team until that team gets a VPP token.
-				// So, we create the team, then apply the VPP token, then apply VPP apps.
+				// Teams need a VPP token before VPP apps can be applied. When some VPP
+				// teams don't exist yet, the VPP config is temporarily removed from the
+				// global config, which clears all VPP token assignments. To avoid
+				// "No available VPP Token" errors, we defer app_store_apps for every
+				// team in the VPP config and re-apply them after tokens are reassigned.
 				if !isGlobalConfig && len(missingVPPTeams) > 0 && len(config.Software.AppStoreApps) > 0 {
-					for _, missingTeam := range missingVPPTeams {
-						if missingTeam == *config.TeamName {
-							missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
-								config:   config,
-								vppApps:  config.Software.AppStoreApps,
-								filename: flFilename,
-							})
-							config.Software.AppStoreApps = nil
-						}
+					if slices.Contains(vppTeams, *config.TeamName) {
+						missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
+							config:   config,
+							vppApps:  config.Software.AppStoreApps,
+							filename: flFilename,
+						})
+						config.Software.AppStoreApps = nil
 					}
 				}
 
