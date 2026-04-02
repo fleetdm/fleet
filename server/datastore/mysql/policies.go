@@ -611,7 +611,8 @@ func filterNotExecuted(results map[uint]*bool) map[uint]bool {
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error {
 	// Identify policies that flipped failing -> passing for this host using current incoming results.
 	// We compute this before updating policy_membership so we compare against the previous state.
-	// If newlyPassingPolicyIDs is provided, skip the redundant database query.
+	// When newlyPassingPolicyIDs is non-nil, the caller has already computed flipping policies
+	// (e.g. SubmitDistributedQueryResults computes it once for all consumers) so we reuse that result.
 	var newPassing []uint
 	if newlyPassingPolicyIDs != nil {
 		newPassing = newlyPassingPolicyIDs
