@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -63,6 +64,9 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint
+
+	// MDMCheckDefinition is the JSON definition of MDM checks for type=mdm policies.
+	MDMCheckDefinition *json.RawMessage
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -106,6 +110,9 @@ type NewTeamPolicyPayload struct {
 	Type *string
 	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
 	PatchSoftwareTitleID *uint
+
+	// MDMCheckDefinition is the JSON definition of MDM checks for type=mdm policies.
+	MDMCheckDefinition *json.RawMessage
 }
 
 var (
@@ -129,6 +136,28 @@ const MaxPolicyAutomationRetries = 3
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if p.Type == PolicyTypeMDM {
+		if p.QueryID != nil {
+			return errors.New("MDM policies cannot use query_id")
+		}
+		if !emptyString(p.Query) {
+			return errors.New("MDM policies cannot have a query, use mdm_check_definition instead")
+		}
+		if err := verifyPolicyName(p.Name); err != nil {
+			return err
+		}
+		if p.MDMCheckDefinition == nil {
+			return errors.New("MDM policies must have mdm_check_definition")
+		}
+		if err := verifyPolicyPlatforms(p.Platform); err != nil {
+			return err
+		}
+		if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
+			return errPolicyConflictingLabels
+		}
+		return nil
+	}
+
 	if p.Type == PolicyTypePatch {
 		if p.QueryID != nil {
 			return errPolicyPatchAndQuerySet
@@ -334,6 +363,9 @@ type PolicyData struct {
 	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint `json:"-" db:"patch_software_title_id"`
 
+	// MDMCheckDefinition is the JSON definition of MDM checks for type=mdm policies.
+	MDMCheckDefinition *json.RawMessage `json:"mdm_check_definition" db:"mdm_check_definition"`
+
 	UpdateCreateTimestamps
 }
 
@@ -459,8 +491,9 @@ type PolicySpec struct {
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
 
-	Type                   string `json:"type"`
-	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
+	Type                   string           `json:"type"`
+	FleetMaintainedAppSlug string           `json:"fleet_maintained_app_slug"`
+	MDMChecks              []MDMPolicyCheck `json:"mdm_checks,omitempty"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.
@@ -485,6 +518,18 @@ type PolicyScript struct {
 func (p PolicySpec) Verify() error {
 	if err := verifyPolicyName(p.Name); err != nil {
 		return err
+	}
+	if p.Type == PolicyTypeMDM {
+		if !emptyString(p.Query) {
+			return errors.New("MDM policies cannot have a query, use mdm_checks instead")
+		}
+		if len(p.MDMChecks) == 0 {
+			return errors.New("MDM policies must have mdm_checks")
+		}
+		if err := verifyPolicyPlatforms(p.Platform); err != nil {
+			return err
+		}
+		return nil
 	}
 	if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
 		return err
@@ -544,4 +589,5 @@ type PolicyMembershipResult struct {
 const (
 	PolicyTypeDynamic = "dynamic"
 	PolicyTypePatch   = "patch"
+	PolicyTypeMDM     = "mdm"
 )

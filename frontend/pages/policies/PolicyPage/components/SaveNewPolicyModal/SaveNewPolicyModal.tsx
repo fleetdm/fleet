@@ -8,13 +8,14 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
 import { ILabelSummary } from "interfaces/label";
-import { IPolicyFormData } from "interfaces/policy";
+import { IPolicyFormData, IMDMPolicyCheck } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import useDeepEffect from "hooks/useDeepEffect";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
+import Radio from "components/forms/fields/Radio";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -22,6 +23,8 @@ import TargetLabelSelector from "components/TargetLabelSelector";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
+
+import MDMCheckBuilder from "../MDMCheckBuilder";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -89,6 +92,14 @@ const SaveNewPolicyModal = ({
   );
   const [selectedLabels, setSelectedLabels] = useState({});
 
+  // MDM policy type selector state
+  const [policyType, setPolicyType] = useState<"query" | "mdm">("query");
+  const [mdmChecks, setMdmChecks] = useState<IMDMPolicyCheck[]>([
+    { field: "", operator: "eq", expected: "" },
+  ]);
+
+  const isMdmType = policyType === "mdm";
+
   const onSelectLabel = ({
     name: labelName,
     value,
@@ -104,13 +115,15 @@ const SaveNewPolicyModal = ({
 
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
-  const disableSave =
-    !platformSelector.isAnyPlatformSelected ||
-    disableForm ||
-    (selectedTargetType === "Custom" &&
-      !Object.entries(selectedLabels).some(([, value]) => {
-        return value;
-      }));
+
+  const disableSave = isMdmType
+    ? disableForm
+    : !platformSelector.isAnyPlatformSelected ||
+      disableForm ||
+      (selectedTargetType === "Custom" &&
+        !Object.entries(selectedLabels).some(([, value]) => {
+          return value;
+        }));
 
   useDeepEffect(() => {
     if (lastEditedQueryName) {
@@ -125,11 +138,6 @@ const SaveNewPolicyModal = ({
   const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const newPlatformString = platformSelector
-      .getSelectedPlatforms()
-      .join(",") as CommaSeparatedPlatformString;
-    setLastEditedQueryPlatform(newPlatformString);
-
     const { valid: validName, errors: newErrors } = validatePolicyName(
       lastEditedQueryName
     );
@@ -138,7 +146,30 @@ const SaveNewPolicyModal = ({
       ...newErrors,
     });
 
-    if (!disableSave && validName) {
+    if (disableSave || !validName) {
+      return;
+    }
+
+    if (isMdmType) {
+      // MDM policy: send type, mdm_check_definition, platform locked to ios/ipados
+      const validChecks = mdmChecks.filter((c) => c.field && c.expected);
+      onCreatePolicy({
+        description: lastEditedQueryDescription,
+        name: lastEditedQueryName,
+        query: "", // MDM policies don't have SQL
+        resolution: lastEditedQueryResolution,
+        platform: "ios,ipados" as CommaSeparatedPlatformString,
+        critical: lastEditedQueryCritical,
+        type: "mdm",
+        mdm_check_definition: JSON.stringify(validChecks),
+      });
+    } else {
+      // Standard query-based policy
+      const newPlatformString = platformSelector
+        .getSelectedPlatforms()
+        .join(",") as CommaSeparatedPlatformString;
+      setLastEditedQueryPlatform(newPlatformString);
+
       onCreatePolicy({
         description: lastEditedQueryDescription,
         name: lastEditedQueryName,
@@ -249,6 +280,25 @@ const SaveNewPolicyModal = ({
           className={`${baseClass}__save-modal-form`}
           autoComplete="off"
         >
+          <div className={`${baseClass}__policy-type-selector`}>
+            <Radio
+              label="Query-based policy"
+              id="policy-type-query"
+              value="query"
+              checked={policyType === "query"}
+              onChange={() => setPolicyType("query")}
+              name="policy-type"
+            />
+            <Radio
+              label="MDM device check"
+              id="policy-type-mdm"
+              value="mdm"
+              checked={policyType === "mdm"}
+              onChange={() => setPolicyType("mdm")}
+              name="policy-type"
+              helpText="Evaluates iOS/iPadOS devices via MDM device information queries"
+            />
+          </div>
           <InputField
             name="name"
             onChange={(value: string) => setLastEditedQueryName(value)}
@@ -265,7 +315,9 @@ const SaveNewPolicyModal = ({
             onChange={(value: string) => setLastEditedQueryDescription(value)}
             value={lastEditedQueryDescription}
             inputClassName={`${baseClass}__policy-save-modal-description`}
-            label={renderAutofillLabel("Description")}
+            label={
+              isMdmType ? "Description" : renderAutofillLabel("Description")
+            }
             helpText="How does this policy's failure put the organization at risk?"
             type="textarea"
             disabled={disableForm}
@@ -275,13 +327,22 @@ const SaveNewPolicyModal = ({
             onChange={(value: string) => setLastEditedQueryResolution(value)}
             value={lastEditedQueryResolution}
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
-            label={renderAutofillLabel("Resolution")}
+            label={
+              isMdmType ? "Resolution" : renderAutofillLabel("Resolution")
+            }
             type="textarea"
             helpText="If this policy fails, what should the end user expect?"
             disabled={disableForm}
           />
-          {platformSelector.render()}
-          {isPremiumTier && (
+          {isMdmType && (
+            <MDMCheckBuilder
+              checks={mdmChecks}
+              onChange={setMdmChecks}
+              disabled={disableForm}
+            />
+          )}
+          {!isMdmType && platformSelector.render()}
+          {!isMdmType && isPremiumTier && (
             <TargetLabelSelector
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
@@ -347,11 +408,17 @@ const SaveNewPolicyModal = ({
                 id={`${baseClass}__button--modal-save-tooltip`}
                 backgroundColor={COLORS["tooltip-bg"]}
               >
-                Select the platforms this
-                <br />
-                policy will be checked on
-                <br />
-                to save the policy.
+                {isMdmType ? (
+                  <>Add at least one MDM check to save.</>
+                ) : (
+                  <>
+                    Select the platforms this
+                    <br />
+                    policy will be checked on
+                    <br />
+                    to save the policy.
+                  </>
+                )}
               </ReactTooltip>
             </span>
             <Button

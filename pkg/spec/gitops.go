@@ -1442,7 +1442,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
 		}
-		if item.Query == "" && item.Type != fleet.PolicyTypePatch {
+		if item.Query == "" && item.Type != fleet.PolicyTypePatch && item.Type != fleet.PolicyTypeMDM {
 			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))
 		}
 		if item.Type == fleet.PolicyTypePatch {
@@ -1455,6 +1455,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 						item.FleetMaintainedAppSlug,
 					),
 				)
+			}
+		}
+		if item.Type == fleet.PolicyTypeMDM {
+			if len(item.MDMChecks) == 0 {
+				multiError = multierror.Append(multiError, fmt.Errorf("mdm_checks is required for MDM policy %q", item.Name))
 			}
 		}
 		if result.TeamName != nil {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -20,22 +21,23 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                   uint     `url:"fleet_id"`
-	QueryID                  *uint    `json:"query_id" renameto:"report_id"`
-	Query                    string   `json:"query"`
-	Name                     string   `json:"name"`
-	Description              string   `json:"description"`
-	Resolution               string   `json:"resolution"`
-	Platform                 string   `json:"platform"`
-	Critical                 bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled    bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID          *uint    `json:"software_title_id"`
-	ScriptID                 *uint    `json:"script_id"`
-	LabelsIncludeAny         []string `json:"labels_include_any"`
-	LabelsExcludeAny         []string `json:"labels_exclude_any"`
-	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
-	Type                     *string  `json:"type"`
-	PatchSoftwareTitleID     *uint    `json:"patch_software_title_id"`
+	TeamID                   uint             `url:"fleet_id"`
+	QueryID                  *uint            `json:"query_id" renameto:"report_id"`
+	Query                    string           `json:"query"`
+	Name                     string           `json:"name"`
+	Description              string           `json:"description"`
+	Resolution               string           `json:"resolution"`
+	Platform                 string           `json:"platform"`
+	Critical                 bool             `json:"critical" premium:"true"`
+	CalendarEventsEnabled    bool             `json:"calendar_events_enabled"`
+	SoftwareTitleID          *uint            `json:"software_title_id"`
+	ScriptID                 *uint            `json:"script_id"`
+	LabelsIncludeAny         []string         `json:"labels_include_any"`
+	LabelsExcludeAny         []string         `json:"labels_exclude_any"`
+	ConditionalAccessEnabled bool             `json:"conditional_access_enabled"`
+	Type                     *string          `json:"type"`
+	PatchSoftwareTitleID     *uint            `json:"patch_software_title_id"`
+	MDMCheckDefinition       *json.RawMessage `json:"mdm_check_definition"`
 }
 
 type teamPolicyResponse struct {
@@ -63,6 +65,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
 		Type:                     req.Type,
 		PatchSoftwareTitleID:     req.PatchSoftwareTitleID,
+		MDMCheckDefinition:       req.MDMCheckDefinition,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -218,6 +221,12 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	if p.Type != nil && *p.Type == fleet.PolicyTypePatch {
 		policyType = fleet.PolicyTypePatch
 	}
+	if p.Type != nil && *p.Type == fleet.PolicyTypeMDM {
+		policyType = fleet.PolicyTypeMDM
+	}
+	if p.MDMCheckDefinition != nil && policyType == fleet.PolicyTypeDynamic {
+		policyType = fleet.PolicyTypeMDM
+	}
 
 	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
 	if err != nil {
@@ -240,6 +249,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
 		Type:                     policyType,
 		PatchSoftwareTitleID:     p.PatchSoftwareTitleID,
+		MDMCheckDefinition:       p.MDMCheckDefinition,
 	}, nil
 }
 

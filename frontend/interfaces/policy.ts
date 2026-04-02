@@ -104,6 +104,13 @@ export interface ILoadTeamPolicyResponse {
   policy: IPolicyStats;
 }
 
+// MDM Policy Check types
+export interface IMDMPolicyCheck {
+  field: string;
+  operator: string;
+  expected: string;
+}
+
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
@@ -122,9 +129,11 @@ export interface IPolicyFormData {
   labels_include_any?: string[];
   labels_exclude_any?: string[];
   /** Required for creating patch policy */
-  type?: "dynamic" | "patch";
+  type?: "dynamic" | "patch" | "mdm";
   /** Required for creating patch policy */
   patch_software_title_id?: number;
+  /** JSON string of MDM check definition for mdm policy type */
+  mdm_check_definition?: string;
 }
 
 export interface IPolicyNew {

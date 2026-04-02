@@ -25,15 +25,16 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type globalPolicyRequest struct {
-	QueryID          *uint    `json:"query_id" renameto:"report_id"`
-	Query            string   `json:"query"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	Resolution       string   `json:"resolution"`
-	Platform         string   `json:"platform"`
-	Critical         bool     `json:"critical" premium:"true"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	QueryID            *uint              `json:"query_id" renameto:"report_id"`
+	Query              string             `json:"query"`
+	Name               string             `json:"name"`
+	Description        string             `json:"description"`
+	Resolution         string             `json:"resolution"`
+	Platform           string             `json:"platform"`
+	Critical           bool               `json:"critical" premium:"true"`
+	LabelsIncludeAny   []string           `json:"labels_include_any"`
+	LabelsExcludeAny   []string           `json:"labels_exclude_any"`
+	MDMCheckDefinition *json.RawMessage   `json:"mdm_check_definition"`
 }
 
 type globalPolicyResponse struct {
@@ -45,17 +46,22 @@ func (r globalPolicyResponse) Error() error { return r.Err }
 
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*globalPolicyRequest)
+	policyType := fleet.PolicyTypeDynamic
+	if req.MDMCheckDefinition != nil {
+		policyType = fleet.PolicyTypeMDM
+	}
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
-		QueryID:          req.QueryID,
-		Query:            req.Query,
-		Name:             req.Name,
-		Description:      req.Description,
-		Resolution:       req.Resolution,
-		Platform:         req.Platform,
-		Critical:         req.Critical,
-		LabelsIncludeAny: req.LabelsIncludeAny,
-		LabelsExcludeAny: req.LabelsExcludeAny,
-		Type:             fleet.PolicyTypeDynamic,
+		QueryID:            req.QueryID,
+		Query:              req.Query,
+		Name:               req.Name,
+		Description:        req.Description,
+		Resolution:         req.Resolution,
+		Platform:           req.Platform,
+		Critical:           req.Critical,
+		LabelsIncludeAny:   req.LabelsIncludeAny,
+		LabelsExcludeAny:   req.LabelsExcludeAny,
+		Type:               policyType,
+		MDMCheckDefinition: req.MDMCheckDefinition,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil

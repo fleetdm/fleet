@@ -122,6 +122,12 @@ const generateTableHeaders = (
                 {type === "patch" && (
                   <PillBadge text="Patch" tipContent={PATCH_TOOLTIP_CONTENT} />
                 )}
+                {type === "mdm" && (
+                  <PillBadge
+                    text="MDM"
+                    tipContent="This policy evaluates iOS/iPadOS devices via MDM device information queries"
+                  />
+                )}
                 {viewingTeamPolicies && team_id === null && (
                   <PillBadge
                     text="Inherited"

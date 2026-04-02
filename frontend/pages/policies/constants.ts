@@ -1,4 +1,4 @@
-import { IPolicyNew } from "interfaces/policy";
+import { IPolicyNew, IMDMPolicyCheck } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 
 const DEFAULT_POLICY_PLATFORM: CommaSeparatedPlatformString = "";
@@ -510,5 +510,119 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Apple signing or notarization credentials secrets will be removed from the workstation.",
     critical: false,
     platform: "darwin",
+  },
+];
+
+export interface IMDMPolicyTemplate {
+  key: number;
+  name: string;
+  description: string;
+  resolution: string;
+  checks: IMDMPolicyCheck[];
+}
+
+export const DEFAULT_MDM_POLICIES: IMDMPolicyTemplate[] = [
+  {
+    key: 1,
+    name: "Passcode required",
+    description:
+      "Ensures all iOS/iPadOS devices have a passcode configured for basic security.",
+    resolution:
+      "Go to Settings > Face ID & Passcode (or Touch ID & Passcode) and set a passcode.",
+    checks: [{ field: "PasscodePresent", operator: "eq", expected: "true" }],
+  },
+  {
+    key: 2,
+    name: "Passcode policy compliant",
+    description:
+      "Verifies the device passcode meets all MDM-enforced requirements.",
+    resolution:
+      "Update your passcode to meet the organization's complexity requirements.",
+    checks: [{ field: "PasscodeCompliant", operator: "eq", expected: "true" }],
+  },
+  {
+    key: 3,
+    name: "Minimum iOS/iPadOS 17",
+    description: "Ensures devices are running iOS/iPadOS 17.0 or later.",
+    resolution:
+      "Go to Settings > General > Software Update and install the latest version.",
+    checks: [
+      { field: "OSVersion", operator: "version_gte", expected: "17.0" },
+    ],
+  },
+  {
+    key: 4,
+    name: "Minimum iOS/iPadOS 18",
+    description: "Ensures devices are running iOS/iPadOS 18.0 or later.",
+    resolution:
+      "Go to Settings > General > Software Update and install the latest version.",
+    checks: [
+      { field: "OSVersion", operator: "version_gte", expected: "18.0" },
+    ],
+  },
+  {
+    key: 5,
+    name: "Device supervised",
+    description:
+      "Ensures devices are supervised, enabling full MDM management capabilities.",
+    resolution:
+      "This device must be re-enrolled through Apple Business Manager with supervision enabled.",
+    checks: [{ field: "IsSupervised", operator: "eq", expected: "true" }],
+  },
+  {
+    key: 6,
+    name: "Find My enabled",
+    description:
+      "Verifies Find My is enabled for device location and remote management.",
+    resolution:
+      "Go to Settings > [Your Name] > Find My and enable Find My iPhone/iPad.",
+    checks: [
+      {
+        field: "IsDeviceLocatorServiceEnabled",
+        operator: "eq",
+        expected: "true",
+      },
+    ],
+  },
+  {
+    key: 7,
+    name: "Activation Lock enabled",
+    description:
+      "Ensures Activation Lock is enabled to prevent unauthorized device reuse.",
+    resolution:
+      "Go to Settings > [Your Name] > Find My and ensure Find My is enabled. Activation Lock enables automatically.",
+    checks: [
+      { field: "IsActivationLockEnabled", operator: "eq", expected: "true" },
+    ],
+  },
+  {
+    key: 8,
+    name: "iCloud backup enabled",
+    description: "Verifies iCloud Backup is enabled for data protection.",
+    resolution:
+      "Go to Settings > [Your Name] > iCloud > iCloud Backup and enable it.",
+    checks: [
+      { field: "IsCloudBackupEnabled", operator: "eq", expected: "true" },
+    ],
+  },
+  {
+    key: 9,
+    name: "Sufficient storage (>1 GB free)",
+    description:
+      "Ensures devices have at least 1 GB of free storage space.",
+    resolution:
+      "Free up storage by removing unused apps or offloading data. Go to Settings > General > iPhone/iPad Storage.",
+    checks: [
+      { field: "AvailableDeviceCapacity", operator: "gt", expected: "1" },
+    ],
+  },
+  {
+    key: 10,
+    name: "Not roaming",
+    description:
+      "Ensures the device is not currently roaming on a foreign network.",
+    resolution:
+      "Connect to your home network or disable data roaming in Settings > Cellular > Cellular Data Options.",
+    checks: [{ field: "IsRoaming", operator: "eq", expected: "false" }],
   },
 ];
