@@ -30,20 +30,90 @@ interface IFieldCatalogEntry {
 }
 
 const MDM_FIELD_CATALOG: IFieldCatalogEntry[] = [
-  { field: "OSVersion", label: "OS Version", type: "version", category: "Device Info" },
-  { field: "DeviceName", label: "Device Name", type: "string", category: "Device Info" },
-  { field: "IsSupervised", label: "Device Supervised", type: "boolean", category: "Device Info" },
-  { field: "DeviceCapacity", label: "Total Storage (GB)", type: "number", category: "Device Info" },
-  { field: "AvailableDeviceCapacity", label: "Available Storage (GB)", type: "number", category: "Device Info" },
-  { field: "BatteryLevel", label: "Battery Level", type: "number", category: "Device Info" },
-  { field: "IsActivationLockEnabled", label: "Activation Lock", type: "boolean", category: "Security" },
-  { field: "IsDeviceLocatorServiceEnabled", label: "Find My Enabled", type: "boolean", category: "Security" },
-  { field: "IsCloudBackupEnabled", label: "iCloud Backup", type: "boolean", category: "Security" },
-  { field: "PasscodePresent", label: "Passcode Set", type: "boolean", category: "Security" },
-  { field: "PasscodeCompliant", label: "Passcode Compliant", type: "boolean", category: "Security" },
-  { field: "IsRoaming", label: "Device Roaming", type: "boolean", category: "Network" },
-  { field: "PersonalHotspotEnabled", label: "Personal Hotspot", type: "boolean", category: "Network" },
-  { field: "IsMDMLostModeEnabled", label: "Lost Mode Active", type: "boolean", category: "MDM" },
+  {
+    field: "OSVersion",
+    label: "OS Version",
+    type: "version",
+    category: "Device Info",
+  },
+  {
+    field: "DeviceName",
+    label: "Device Name",
+    type: "string",
+    category: "Device Info",
+  },
+  {
+    field: "IsSupervised",
+    label: "Device Supervised",
+    type: "boolean",
+    category: "Device Info",
+  },
+  {
+    field: "DeviceCapacity",
+    label: "Total Storage (GB)",
+    type: "number",
+    category: "Device Info",
+  },
+  {
+    field: "AvailableDeviceCapacity",
+    label: "Available Storage (GB)",
+    type: "number",
+    category: "Device Info",
+  },
+  {
+    field: "BatteryLevel",
+    label: "Battery Level",
+    type: "number",
+    category: "Device Info",
+  },
+  {
+    field: "IsActivationLockEnabled",
+    label: "Activation Lock",
+    type: "boolean",
+    category: "Security",
+  },
+  {
+    field: "IsDeviceLocatorServiceEnabled",
+    label: "Find My Enabled",
+    type: "boolean",
+    category: "Security",
+  },
+  {
+    field: "IsCloudBackupEnabled",
+    label: "iCloud Backup",
+    type: "boolean",
+    category: "Security",
+  },
+  {
+    field: "PasscodePresent",
+    label: "Passcode Set",
+    type: "boolean",
+    category: "Security",
+  },
+  {
+    field: "PasscodeCompliant",
+    label: "Passcode Compliant",
+    type: "boolean",
+    category: "Security",
+  },
+  {
+    field: "IsRoaming",
+    label: "Device Roaming",
+    type: "boolean",
+    category: "Network",
+  },
+  {
+    field: "PersonalHotspotEnabled",
+    label: "Personal Hotspot",
+    type: "boolean",
+    category: "Network",
+  },
+  {
+    field: "IsMDMLostModeEnabled",
+    label: "Lost Mode Active",
+    type: "boolean",
+    category: "MDM",
+  },
 ];
 
 const OPERATORS_BY_TYPE: Record<string, { value: string; label: string }[]> = {
@@ -53,9 +123,7 @@ const OPERATORS_BY_TYPE: Record<string, { value: string; label: string }[]> = {
     { value: "contains", label: "contains" },
     { value: "not_contains", label: "does not contain" },
   ],
-  boolean: [
-    { value: "eq", label: "equals" },
-  ],
+  boolean: [{ value: "eq", label: "equals" }],
   number: [
     { value: "eq", label: "equals" },
     { value: "gt", label: "greater than" },
@@ -98,7 +166,9 @@ const getOperatorLabel = (operator: string): string => {
 };
 
 const getFieldLabel = (fieldName: string): string => {
-  return MDM_FIELD_CATALOG.find((f) => f.field === fieldName)?.label || fieldName;
+  return (
+    MDM_FIELD_CATALOG.find((f) => f.field === fieldName)?.label || fieldName
+  );
 };
 
 const MDMCheckBuilder = ({
@@ -262,10 +332,7 @@ const MDMCheckBuilder = ({
         >
           <div className={`${baseClass}__templates-list`}>
             {DEFAULT_MDM_POLICIES.map((template) => (
-              <div
-                key={template.key}
-                className={`${baseClass}__template-item`}
-              >
+              <div key={template.key} className={`${baseClass}__template-item`}>
                 <div className={`${baseClass}__template-info`}>
                   <strong>{template.name}</strong>
                   <p>{template.description}</p>
