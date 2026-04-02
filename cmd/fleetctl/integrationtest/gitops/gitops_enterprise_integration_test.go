@@ -167,12 +167,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
-	// Delete policies in "No team" (the others are deleted in ts.DS.DeleteTeam above).
+	// Delete policies in "Unassigned" (the others are deleted in ts.DS.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM policies WHERE team_id = 0;`)
 		return err
 	})
-	// Clean software installers in "No team" (the others are deleted in ts.DS.DeleteTeam above).
+	// Clean software installers in "Unassigned" (the others are deleted in ts.DS.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
 		return err
@@ -222,7 +222,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation
 	pattern := fmt.Sprintf("\\[([+\\-!])] would've (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
-		if line != "" && strings.Contains(line, "is deprecated") {
+		if expectDeprecation && line != "" && strings.Contains(line, "is deprecated") {
 			sawDeprecation = true
 			continue
 		}
@@ -254,7 +254,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 	pattern := fmt.Sprintf("\\[([+\\-!])] (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
-		if line != "" && strings.Contains(line, "is deprecated") {
+		if allowDeprecation && line != "" && strings.Contains(line, "is deprecated") {
 			continue
 		}
 		if line != "" && !strings.Contains(line, "succeeded") {
@@ -338,7 +338,7 @@ settings:
 	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"}), true)
 	for _, fileName := range teamFileNames {
 		// When running no-teams, global config must also be provided ...
-		if strings.Contains(fileName, "no-team.yml") {
+		if strings.Contains(fileName, "unassigned.yml") {
 			s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile, "--dry-run"}), true)
 		} else {
 			s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"}), true)
@@ -379,7 +379,7 @@ settings:
 	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}), true)
 	for _, fileName := range teamFileNames {
 		// When running no-teams, global config must also be provided ...
-		if strings.Contains(fileName, "no-team.yml") {
+		if strings.Contains(fileName, "unassigned.yml") {
 			s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile}), true)
 		} else {
 			s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName}), true)
@@ -1061,7 +1061,7 @@ policies:
 reports:
 `
 
-		noTeamTemplate = `name: No team
+		noTeamTemplate = `name: Unassigned
 controls:
 policies:
 software:
@@ -1112,7 +1112,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
@@ -1262,7 +1262,7 @@ reports:
 
 	// no team file setup
 	const (
-		noTeamTemplate = `name: No team
+		noTeamTemplate = `name: Unassigned
 policies:
 controls:
   macos_setup:
@@ -1277,7 +1277,7 @@ software:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
@@ -1354,7 +1354,7 @@ reports:
 
 	// Create a no-team.yml file with webhook settings
 	const noTeamTemplateWithWebhook = `
-name: No team
+name: Unassigned
 policies:
   - name: No Team Test Policy
     query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
@@ -1380,7 +1380,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
@@ -1411,7 +1411,7 @@ settings:
 
 	// Test updating webhook settings
 	const noTeamTemplateUpdatedWebhook = `
-name: No team
+name: Unassigned
 policies:
   - name: No Team Test Policy
     query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
@@ -1436,7 +1436,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFileUpdated.Close()
 	require.NoError(t, err)
-	noTeamFilePathUpdated := filepath.Join(filepath.Dir(noTeamFileUpdated.Name()), "no-team.yml")
+	noTeamFilePathUpdated := filepath.Join(filepath.Dir(noTeamFileUpdated.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFileUpdated.Name(), noTeamFilePathUpdated)
 	require.NoError(t, err)
 
@@ -1458,7 +1458,7 @@ settings:
 
 	// Test removing webhook settings entirely
 	const noTeamTemplateNoWebhook = `
-name: No team
+name: Unassigned
 policies:
   - name: No Team Test Policy
     query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
@@ -1474,7 +1474,7 @@ software:
 	require.NoError(t, err)
 	err = noTeamFileNoWebhook.Close()
 	require.NoError(t, err)
-	noTeamFilePathNoWebhook := filepath.Join(filepath.Dir(noTeamFileNoWebhook.Name()), "no-team.yml")
+	noTeamFilePathNoWebhook := filepath.Join(filepath.Dir(noTeamFileNoWebhook.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFileNoWebhook.Name(), noTeamFilePathNoWebhook)
 	require.NoError(t, err)
 
@@ -1503,7 +1503,7 @@ software:
 
 	// Now apply config with team_settings but no webhook_settings
 	const noTeamTemplateTeamSettingsNoWebhook = `
-name: No team
+name: Unassigned
 policies:
   - name: No Team Test Policy
     query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
@@ -1519,7 +1519,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFileTeamNoWebhook.Close()
 	require.NoError(t, err)
-	noTeamFilePathTeamNoWebhook := filepath.Join(filepath.Dir(noTeamFileTeamNoWebhook.Name()), "no-team.yml")
+	noTeamFilePathTeamNoWebhook := filepath.Join(filepath.Dir(noTeamFileTeamNoWebhook.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFileTeamNoWebhook.Name(), noTeamFilePathTeamNoWebhook)
 	require.NoError(t, err)
 
@@ -1548,7 +1548,7 @@ settings:
 
 	// Now apply config with webhook_settings but no failing_policies_webhook
 	const noTeamTemplateWebhookNoFailing = `
-name: No team
+name: Unassigned
 policies:
   - name: No Team Test Policy
     query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
@@ -1565,7 +1565,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFileWebhookNoFailing.Close()
 	require.NoError(t, err)
-	noTeamFilePathWebhookNoFailing := filepath.Join(filepath.Dir(noTeamFileWebhookNoFailing.Name()), "no-team.yml")
+	noTeamFilePathWebhookNoFailing := filepath.Join(filepath.Dir(noTeamFileWebhookNoFailing.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFileWebhookNoFailing.Name(), noTeamFilePathWebhookNoFailing)
 	require.NoError(t, err)
 
@@ -1714,7 +1714,7 @@ policies:
 reports:
 `
 
-		noTeamConfig = `name: No team
+		noTeamConfig = `name: Unassigned
 controls:
   macos_setup:
     bootstrap_package: %s
@@ -1751,7 +1751,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
@@ -1899,7 +1899,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupScriptWithFleetSecr
 	require.NoError(t, err)
 
 	// Create a no-team file with the script
-	const noTeamTemplate = `name: No team
+	const noTeamTemplate = `name: Unassigned
 policies:
 controls:
   macos_setup:
@@ -1912,7 +1912,7 @@ software:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
@@ -2426,7 +2426,7 @@ labels:
     query: SELECT 1
 `
 
-		noTeamTemplate = `name: No team
+		noTeamTemplate = `name: Unassigned
 controls:
 policies:
 software:
@@ -2464,7 +2464,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
@@ -2635,7 +2635,7 @@ policies:
 reports:
 `
 
-		noTeamTemplate = `name: No team
+		noTeamTemplate = `name: Unassigned
 controls:
 policies:
 software:
@@ -2672,7 +2672,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
@@ -2753,7 +2753,7 @@ policies:
 reports:
 `
 
-		noTeamTemplate = `name: No team
+		noTeamTemplate = `name: Unassigned
 controls:
 policies:
 software:
@@ -2808,7 +2808,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
@@ -3635,7 +3635,7 @@ settings:
 		},
 		{
 			specialCase: "No team",
-			teamName:    "No team",
+			teamName:    "Unassigned",
 		},
 	}
 	for _, tc := range testCases {
@@ -3657,7 +3657,7 @@ settings:
 			teamFileName := teamFile.Name()
 
 			if tc.specialCase == "No team" {
-				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "no-team.yml")
+				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "unassigned.yml")
 				err = os.Rename(teamFile.Name(), noTeamFilePath)
 				require.NoError(t, err)
 
@@ -3801,14 +3801,14 @@ team_settings:
 		{
 			testName:     "No team VPP",
 			VPPTeam:      "No team",
-			teamName:     "No team",
+			teamName:     "Unassigned",
 			teamTemplate: testVPP,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
 			testName:     "No team Installers",
 			VPPTeam:      "No team",
-			teamName:     "No team",
+			teamName:     "Unassigned",
 			teamTemplate: testPackages,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
@@ -3833,7 +3833,7 @@ team_settings:
 			teamFileName := teamFile.Name()
 
 			if tc.VPPTeam == "No team" {
-				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "no-team.yml")
+				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "unassigned.yml")
 				err = os.Rename(teamFile.Name(), noTeamFilePath)
 				require.NoError(t, err)
 				teamFileName = noTeamFilePath
@@ -3952,7 +3952,7 @@ policies:
 reports:
 `
 
-		noTeamTemplate = `name: No team
+		noTeamTemplate = `name: Unassigned
 controls:
 policies:
   - description: Test policy.
@@ -3996,7 +3996,7 @@ settings:
 	err := os.WriteFile(globalFile, []byte(globalTemplate), 0o644) //nolint:gosec
 	require.NoError(t, err)
 
-	noTeamFile := filepath.Join(tempDir, "no-team.yml")
+	noTeamFile := filepath.Join(tempDir, "unassigned.yml")
 	err = os.WriteFile(noTeamFile, []byte(noTeamTemplate), 0o644)
 	require.NoError(t, err)
 
@@ -4346,7 +4346,7 @@ org_settings:
 policies:
 reports:
 `
-		noTeamTemplate = `name: No team
+		noTeamTemplate = `name: Unassigned
 controls:
 policies:
 software:
@@ -4388,7 +4388,7 @@ settings:
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
-	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
