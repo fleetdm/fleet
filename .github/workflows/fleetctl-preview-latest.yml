@@ -87,7 +87,7 @@ jobs:
 
     - name: Build Fleet server Docker image
       run: |
-        make fleet
+        make fleet-static
         cp ./build/fleet fleet
         docker build -t fleetdm/fleet:dev -f tools/fleet-docker/Dockerfile .
         rm fleet

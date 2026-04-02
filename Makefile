@@ -58,14 +58,16 @@ ifdef CIRCLE_TAG
 	DOCKER_IMAGE_TAG = ${CIRCLE_TAG}
 endif
 
-LDFLAGS_VERSION = "\
+LDFLAGS_VERSION_RAW = \
 	-X github.com/fleetdm/fleet/v4/server/version.appName=${APP_NAME} \
 	-X github.com/fleetdm/fleet/v4/server/version.version=${VERSION} \
 	-X github.com/fleetdm/fleet/v4/server/version.branch=${BRANCH} \
 	-X github.com/fleetdm/fleet/v4/server/version.revision=${REVISION} \
 	-X github.com/fleetdm/fleet/v4/server/version.buildDate=${NOW} \
 	-X github.com/fleetdm/fleet/v4/server/version.buildUser=${USER} \
-	-X github.com/fleetdm/fleet/v4/server/version.goVersion=${GOVERSION}"
+	-X github.com/fleetdm/fleet/v4/server/version.goVersion=${GOVERSION}
+LDFLAGS_VERSION = "${LDFLAGS_VERSION_RAW}"
+LDFLAGS_VERSION_STATIC = "${LDFLAGS_VERSION_RAW} -extldflags '-static'"
 
 # Macro to allow targets to filter out their own arguments from the arguments
 # passed to the final command.
@@ -197,6 +199,9 @@ endif
 
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
+
+fleet-static: .prefix .pre-build .pre-fleet
+	CGO_ENABLED=1 go build -tags full,fts5,netgo -trimpath -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION_STATIC} ./cmd/fleet
 
 fleet-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleet-dev: fleet
