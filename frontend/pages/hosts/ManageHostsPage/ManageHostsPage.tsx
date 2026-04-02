@@ -1683,7 +1683,7 @@ const ManageHostsPage = ({
           name="status-filter"
           value={status || ""}
           className={`${baseClass}__status-filter`}
-          options={hostSelectStatuses}
+          options={hostSelectStatuses(isPremiumTier || false)}
           onChange={handleStatusDropdownChange}
           variant="table-filter"
         />
