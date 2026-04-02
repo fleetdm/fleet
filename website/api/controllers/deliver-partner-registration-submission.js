@@ -10,7 +10,7 @@ module.exports = {
   inputs: {
     submittersFirstName: { type: 'string', required: true },
     submittersLastName: { type: 'string', required: true },
-    submittersEmailAddress: { type: 'string', required: true },
+    submittersEmailAddress: { type: 'string', required: true, isEmail: true },
     submittersOrganization: { type: 'string', required: true },
     partnerType: { type: 'string', required: true },
     partnerWebsite: { type: 'string', required: true },
@@ -33,9 +33,10 @@ module.exports = {
     if(!sails.config.custom.dealRegistrationContactEmailAddress){
       throw new Error('Missing config variable! Please set sails.config.custom.dealRegistrationContactEmailAddress to be the email address of the person who receives deal registration submissions.');
     }
+
     if(inputs.partnerType === 'reseller') {
       if(!inputs.numberOfHosts) {
-        throw 'missingInput';// This should never happen because of frontend form validation.
+        throw 'missingInput';
       }
       if(!inputs.servicesOffered){
         throw 'missingInput';
@@ -52,6 +53,7 @@ module.exports = {
       'integrations': 'Build integrations with Fleet'
     };
     emailTemplateData.goal = partnerTypeFriendlyNameValuesByFormValue[inputs.partnerType];
+    // Default to sending these to the configured fromEmailAddress
     let toEmail = sails.config.custom.fromEmailAddress;
     if(inputs.partnerType === 'reseller') {
 
@@ -64,17 +66,16 @@ module.exports = {
       };
 
       let servicesOfferedAsAFormattedString = '';
-      // let formattedUseCaseString = '';
       for(let key of _.keysIn(inputs.servicesOffered)){
         if(inputs.servicesOffered[key] === true){
           servicesOfferedAsAFormattedString += `<br> ${servicesFriendlyNamesByFormValues[key]}`;
         }
       }
       emailTemplateData.servicesOffered = servicesOfferedAsAFormattedString;
+      // For new resellers registering, send the information to the deal registration contact email address.
       toEmail = sails.config.custom.dealRegistrationContactEmailAddress;
     }
 
-    // send the information to the deal registration contact email address.
     await sails.helpers.sendTemplateEmail.with({
       to: toEmail,
       subject: 'New parter registration form submission',

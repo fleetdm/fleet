@@ -38,11 +38,10 @@ module.exports = {
       throw new Error('Missing config variable! Please set sails.config.custom.dealRegistrationContactEmailAddress to be the email address of the person who receives deal registration submissions.');
     }
 
-
     let emailTemplateData = _.omit(inputs, ['platforms', 'useCase']);
 
-    // Format the submitted platforms and useCase values into strings.
 
+    // Format the submitted platforms and useCase values into strings.
     let platformFriendlyNamesByPlatformValues = {
       apple: 'Apple (macOS, iOS/iPadOS)',
       windows: 'Windows',
