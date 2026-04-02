@@ -3,6 +3,7 @@ parasails.registerPage('partners', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
+    // Used to adjust the logo carousel animation for safari users.
     isSafariThirteen: bowser.safari && _.startsWith(bowser.version, '13'),
     isIosThirteen: bowser.safari && _.startsWith(bowser.version, '13') && bowser.ios,
 
@@ -17,17 +18,15 @@ parasails.registerPage('partners', {
     partnerFormRules: {
       submittersFirstName: { required: true },
       submittersLastName: { required: true },
-      submittersEmailAddress: { required: true },
+      submittersEmailAddress: { required: true, isEmail: true },
       submittersOrganization: { required: true },
       partnerType: { required: true },
       partnerWebsite: { required: true },
       partnerCountry: { required: true },
       notes: {required: true },
-      // IF partnerType === reseller
+      // Note: because these values are required based on which partnerType is selected, these values are checked by the form's handleSubmitting function.
       // servicesOffered: {required: true,},
       // numberOfHosts: { required: true },
-
-      // IF partnerType === integrations
       // servicesCategory: { required: true },
     },
 
@@ -50,13 +49,13 @@ parasails.registerPage('partners', {
       numberOfHosts: { required: true },
       platforms: {
         required: true,
-        custom: (platforms)=>{
+        custom: (platforms)=>{// custom validation checks that there is at least one value selected
           return _.keysIn(platforms).length > 0 && _.contains(_.values(platforms), true);
         }
       },
       useCase: {
         required: true,
-        custom: (useCase)=>{
+        custom: (useCase)=>{// custom validation checks that there is at least one value selected
           return _.keysIn(useCase).length > 0 && _.contains(_.values(useCase), true);
         }
       },
@@ -78,7 +77,7 @@ parasails.registerPage('partners', {
     //…
   },
   mounted: async function() {
-    if(window.location.hash){
+    if(window.location.hash){// Open the deal registration modal if this user was redirected from /deals.
       if(window.location.hash === '#deals') {
         this.modal = 'deal-registration';
       }
@@ -92,10 +91,12 @@ parasails.registerPage('partners', {
     clickOpenModal: function(modalName) {
       this.modal = modalName;
     },
+
     clickOpenPartnerModal: function(partnerType) {
       this.partnerFormData.partnerType = partnerType;
       this.modal = 'partner';
     },
+
     clickSelectCustomCheckbox: async function() {
       await this.forceRender();
     },
@@ -115,7 +116,6 @@ parasails.registerPage('partners', {
       }
       this.formErrors = {};
     },
-
 
     handleSubmittingPartnerForm: async function(argins) {
       this.syncing = true;

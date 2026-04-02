@@ -315,12 +315,12 @@
           </div>
           <div class="form-group">
             <label for="submitters-email-address">Email</label>
-            <input class="form-control" id="submitters-email-address"  :class="[formErrors.submittersEmailAddress ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersEmailAddress" @input="typeClearOneFormError('submittersEmailAddress')">
+            <input class="form-control" id="submitters-email-address"  :class="[formErrors.submittersEmailAddress ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersEmailAddress">
             <div class="invalid-feedback" v-if="formErrors.submittersEmailAddress" focus-first>This doesn’t appear to be a valid email address</div>
           </div>
           <div class="form-group">
             <label for="submitters-organization">Company</label>
-            <input class="form-control" id="submitters-organization" type="text"  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersOrganization" @input="typeClearOneFormError('submittersOrganization')">
+            <input class="form-control" id="submitters-organization" type="text"  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersOrganization">
             <div class="invalid-feedback" v-if="formErrors.submittersOrganization">Please enter the name of your organization.</div>
           </div>
           <div class="form-group" :class="[formErrors.submitterIsExistingPartner ? 'is-invalid' : '']" >
