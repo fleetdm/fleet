@@ -225,9 +225,6 @@ func (s *MySQLStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) er
 	if err != nil {
 		return err
 	}
-	// For new enrollments (INSERT), check if the certificate serial is linked to a
-	// valid ACME order to set hardware_attested. For existing enrollments (ON DUPLICATE
-	// KEY UPDATE), hardware_attested was already set by StoreAuthenticate.
 	var certSerial int64
 	if r.Certificate != nil {
 		certSerial = r.Certificate.SerialNumber.Int64()
