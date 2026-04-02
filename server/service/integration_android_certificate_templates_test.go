@@ -1568,4 +1568,105 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	// Resend for a non-existent template returns 404
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, 99999),
 		nil, http.StatusNotFound, &struct{}{})
+
+	// ---- Automatic retry tests (reusing same host/cert/CA setup) ----
+	t.Run("automatic retry", func(t *testing.T) {
+
+		// Reset the certificate to pending with retry_count=0 for a fresh retry test
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_certificate_templates SET status = ?, retry_count = 0 WHERE host_uuid = ? AND certificate_template_id = ?`,
+				fleet.CertificateTemplatePending, host.UUID, certTemplateID)
+			return err
+		})
+
+		// Helper: report a certificate status from the device
+		reportCertStatus := func(status string, detail *string) {
+			req, err := json.Marshal(updateCertificateStatusRequest{Status: status, Detail: detail})
+			require.NoError(t, err)
+			resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), req, http.StatusOK, map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			})
+			_ = resp.Body.Close()
+		}
+
+		// Helper: deliver (pending -> delivered) via cron and verify
+		deliverCert := func() {
+			s.awaitTriggerAndroidProfileSchedule(t)
+			s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+				fleet.CertificateTemplateDelivered, "")
+		}
+
+		// Fail MaxCertificateInstallRetries times -- each should auto-retry (status resets to pending)
+		for i := range fleet.MaxCertificateInstallRetries {
+			deliverCert()
+			detail := fmt.Sprintf("SCEP failure %d", i+1)
+			reportCertStatus(string(fleet.MDMDeliveryFailed), &detail)
+
+			record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.CertificateTemplatePending, record.Status, "retry %d should auto-retry", i+1)
+			require.Equal(t, i+1, record.RetryCount)
+		}
+
+		// One more failure with retry_count at max -- should be terminal
+		deliverCert()
+		terminalDetail := "final failure"
+		reportCertStatus(string(fleet.MDMDeliveryFailed), &terminalDetail)
+
+		record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after max retries")
+
+		// Verify terminal failure activity was logged on the host with correct details
+		var hostActivitiesResp listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK,
+			&hostActivitiesResp, "per_page", "10")
+		foundTerminalFailActivity := false
+		for _, act := range hostActivitiesResp.Activities {
+			if act.Type == (fleet.ActivityTypeInstalledCertificate{}).ActivityName() && act.Details != nil {
+				var details map[string]any
+				err = json.Unmarshal(*act.Details, &details)
+				require.NoError(t, err)
+				if details["status"] == "failed_install" && details["detail"] == terminalDetail {
+					foundTerminalFailActivity = true
+					break
+				}
+			}
+		}
+		require.True(t, foundTerminalFailActivity, "expected installed_certificate activity with status=failed_install and terminal detail")
+
+		// Resend after terminal failure -- gets exactly one attempt (retry_count set to max)
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),
+			nil, http.StatusOK, &struct{}{})
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.MaxCertificateInstallRetries, record.RetryCount, "resend should set retry_count to max")
+
+		// Deliver and fail once more -- terminal immediately (no auto-retry after resend)
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryFailed), ptr.String("post-resend failure"))
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after resend failure")
+
+		// Success on retry: reset to fresh, fail once, then succeed
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_certificate_templates SET status = ?, retry_count = 0 WHERE host_uuid = ? AND certificate_template_id = ?`,
+				fleet.CertificateTemplatePending, host.UUID, certTemplateID)
+			return err
+		})
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryFailed), ptr.String("transient error"))
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, record.Status)
+
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryVerified), nil)
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateVerified, record.Status, "should succeed on retry")
+	}) // end "automatic retry" subtest
 }

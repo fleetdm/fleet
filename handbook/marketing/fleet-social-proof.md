@@ -42,7 +42,6 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Establishing visibility in a distributed hybrid environment](https://fleetdm.com/case-study/global-saas-company) | ✓ | ✓ | ✓ | <nobr>2025‑10‑07</nobr> |
 | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | ✓ | ✓ | ✓ | <nobr>2024‑12‑20</nobr> |
 | [How a global workforce management company achieved compliance and clarity with Fleet](https://fleetdm.com/case-study/global-workforce-management-company) | ✓ | ✓ | ✓ | <nobr>2024‑12‑17</nobr> |
-| [Global social media platform migrates to Fleet](https://fleetdm.com/case-study/global-social-media-platform) | ✓ | ✓ | ✓ | <nobr>2024‑12‑16</nobr> |
 | [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | ✓ | ✓ | ✓ | <nobr>2024‑06‑01</nobr> |
 
 ### Anonymous stories — security, IT services, healthcare & other
