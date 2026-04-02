@@ -158,7 +158,31 @@ UPDATE
     authenticate_at = CURRENT_TIMESTAMP;`,
 		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Set hardware_attested on any existing nano_enrollments row for this device.
+	// If the certificate serial is linked to a valid ACME order, mark it as attested;
+	// otherwise reset it. For new enrollments (no row yet), this is a no-op —
+	// StoreTokenUpdate handles the INSERT case.
+	if r.Certificate != nil {
+		certSerial := r.Certificate.SerialNumber.Int64()
+		_, err = s.db.ExecContext(
+			r.Context, `
+UPDATE nano_enrollments
+SET hardware_attested = EXISTS(
+    SELECT 1 FROM acme_orders WHERE issued_certificate_serial = ?
+)
+WHERE id = ?`,
+			certSerial, r.ID,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *MySQLStorage) storeDeviceTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) error {
@@ -221,12 +245,20 @@ func (s *MySQLStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) er
 	if err != nil {
 		return err
 	}
+	// For new enrollments (INSERT), check if the certificate serial is linked to a
+	// valid ACME order to set hardware_attested. For existing enrollments (ON DUPLICATE
+	// KEY UPDATE), hardware_attested was already set by StoreAuthenticate.
+	var certSerial int64
+	if r.Certificate != nil {
+		certSerial = r.Certificate.SerialNumber.Int64()
+	}
 	_, err = s.db.ExecContext(
 		r.Context, `
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally, hardware_attested)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)
+	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1,
+	 EXISTS(SELECT 1 FROM acme_orders WHERE issued_certificate_serial = ?))
 ON DUPLICATE KEY
 UPDATE
     device_id = VALUES(device_id),
@@ -245,6 +277,7 @@ UPDATE
 		msg.Topic,
 		msg.PushMagic,
 		msg.Token.String(),
+		certSerial,
 	)
 	return err
 }

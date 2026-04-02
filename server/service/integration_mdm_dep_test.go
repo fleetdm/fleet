@@ -3295,6 +3295,17 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 
 	require.Contains(t, appleSiliconDevice.EnrollInfo.ACMEURL, "/api/mdm/acme/"+expectIdent+"/directory", "ACME URL should be populated and contain the directory path")
 
+	var acmeHostID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `SELECT id FROM hosts WHERE hardware_serial = ?`
+		err := sqlx.GetContext(context.Background(), q, &acmeHostID, stmt, appleSiliconDevice.SerialNumber)
+		return err
+	})
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", acmeHostID), getHostRequest{}, http.StatusOK, &hostResp)
+	assert.True(t, hostResp.Host.MDMEnrollmentHardwareAttested)
+
 	// Intel Mac enrolls via SCEP, should not contain ACME directory URL in the profile
 	intelDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
 	intelDevice.SerialNumber = devices[1].SerialNumber
@@ -3303,6 +3314,16 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	err = intelDevice.Enroll()
 	require.NoError(t, err)
 	require.NotContains(t, string(intelDevice.EnrollInfo.RawProfile), "/api/mdm/acme/"+expectIdent+"/directory", "enrollment profile should not contain the ACME directory URL")
+
+	var intelHostID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `SELECT id FROM hosts WHERE hardware_serial = ?`
+		err := sqlx.GetContext(context.Background(), q, &intelHostID, stmt, intelDevice.SerialNumber)
+		return err
+	})
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", intelHostID), getHostRequest{}, http.StatusOK, &hostResp)
+	assert.False(t, hostResp.Host.MDMEnrollmentHardwareAttested)
 
 	// otaAppleSiliconDevice enrolls through OTA gets SCEP (not ACME) even though it would enroll
 	// via ACME if it enrolled through DEP, because OTA enrollments should not require hardware attestation and thus should not require ACME
@@ -3315,4 +3336,14 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	// next assertion is superflous with checks that happen inside the test client, but we'll keep
 	// it here to be explicit about the expectation that OTA enrollments should not be ACME
 	require.NotContains(t, string(otaAppleSiliconDevice.EnrollInfo.RawProfile), "/api/mdm/acme/", "enrollment profile should not contain the ACME directory URL")
+
+	var otaHostID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `SELECT id FROM hosts WHERE hardware_serial = ?`
+		err := sqlx.GetContext(context.Background(), q, &otaHostID, stmt, otaAppleSiliconDevice.SerialNumber)
+		return err
+	})
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", otaHostID), getHostRequest{}, http.StatusOK, &hostResp)
+	assert.False(t, hostResp.Host.MDMEnrollmentHardwareAttested)
 }

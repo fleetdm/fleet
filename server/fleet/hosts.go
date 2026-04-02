@@ -890,6 +890,8 @@ type HostDetail struct {
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
 
+	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
+
 	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
 }
 
