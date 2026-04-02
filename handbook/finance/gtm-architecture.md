@@ -72,6 +72,33 @@ We track certian social posts from the [LinkedIn company page](https://www.linke
 ## Salesforce
 
 
+### Single sign-on (SSO)
+
+Salesforce authentication for Fleet employees is managed through Okta SSO. The goal is to centralize authentication, enforce consistent security policies, and enable automated user provisioning and de-provisioning. A future effort will address automated provisioning of roles and permissions.
+
+All Fleet employees (using an `@fleetdm.com` email address) must authenticate to Salesforce via Okta SSO. Okta manages password reset cycles and multi-factor authentication (MFA) requirements for these users. Login with Salesforce credentials is disabled for Fleet employee profiles.
+
+SSO is configured via SAML and scoped to the `access-salesforce` Okta group. The Head of GTM Architecture (Sam) is a group admin for this Okta group. Delegated authentication is enabled and the "Disable login with Salesforce credentials" setting is checked on the Fleet User profile.
+
+
+#### Account types and profiles
+
+There are three categories of Salesforce accounts, each with its own profile:
+
+| Profile | Who | Authentication | Password policy |
+|:---|:---|:---|:---|
+| **Fleet User** | All `@fleetdm.com` employees | Okta SSO (enforced). Salesforce credential login is disabled. | Managed by Okta (rotation, MFA). |
+| **Third-party user** | Non-Fleet users (e.g., Uttr) | Salesforce login (existing method). | MFA required. 90-day password rotation. |
+| **Service account** | Service/integration accounts (e.g., Taylor) | Salesforce login (existing method). | MFA and rotation not required. Passwords must be 20+ characters and high complexity. |
+
+
+#### Future provisioning work
+
+A future effort will create an SSO admin account for API integration via OAuth (e.g., "Okta Admin") and document credentials in 1Password. This will enable automated role and permission provisioning.
+
+> For more information on configuring SSO with Salesforce, see [Salesforce: Set Up Single Sign-On](https://help.salesforce.com/s/articleView?id=000386846&type=1).
+
+
 ### Campaigns (SFDC)
 
 TODO
