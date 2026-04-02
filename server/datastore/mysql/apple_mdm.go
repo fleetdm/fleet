@@ -2026,7 +2026,9 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed,
+		       profile_uuid, assign_profile_response, response_updated_at
+		FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
@@ -5036,17 +5038,25 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 	})
 }
 
+// MDMLockCleanupMinutes is the minimum number of minutes that must have elapsed
+// since unlock_ref was set before CleanAppleMDMLock will clear the lock state.
+// This prevents the trailing Idle check-in (sent by the device right after
+// acknowledging the lock command) from prematurely clearing the lock state.
+const MDMLockCleanupMinutes = 5
+
 func (ds *Datastore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 UPDATE host_mdm_actions hma
 JOIN hosts h ON hma.host_id = h.id
 SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
 WHERE h.uuid = ? AND (
-	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin')
+	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin'
+		AND (STR_TO_DATE(hma.unlock_ref, '%%Y-%%m-%%d %%H:%%i:%%s') IS NULL
+			OR STR_TO_DATE(hma.unlock_ref, '%%Y-%%m-%%d %%H:%%i:%%s') <= UTC_TIMESTAMP() - INTERVAL %d MINUTE))
 	OR (hma.unlock_ref IS NOT NULL AND (h.platform = 'ios' OR h.platform = 'ipados'))
-)`
+)`, MDMLockCleanupMinutes)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up macOS lock")
@@ -6841,6 +6851,126 @@ WHERE (
 	return nil
 }
 
+func (ds *Datastore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+	// Step 1: Get up to 3 old command UUIDs from nano_enrollment_queue for this
+	// enrollment. The PK is (id, command_uuid) so filtering by id first is efficient,
+	// and the LIKE prefix on command_uuid narrows within that enrollment's entries.
+	// 3 may seem like too few but in load testing because of how often this runs it
+	// was found that larger numbers can cause too much contention
+	const selectOldCmds = `
+		SELECT command_uuid FROM nano_enrollment_queue
+		WHERE id = ?
+		  AND command_uuid LIKE ?
+		  AND command_uuid != ?
+		  AND created_at < NOW() - INTERVAL 30 DAY
+		LIMIT 3`
+
+	var oldCmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &oldCmdUUIDs, selectOldCmds, enrollmentID, commandUUIDPrefix+"%", currentCommandUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "select old nano refetch commands")
+	}
+	if len(oldCmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Step 2: From ncr, find which of those command UUIDs have been acknowledged or
+	// errored for this enrollment. The PK (id, command_uuid) makes this efficient
+	// since we provide both id and the command_uuid IN list.
+	selectAckQuery, args, err := sqlx.In(`
+		SELECT command_uuid FROM nano_command_results
+		WHERE id = ? AND command_uuid IN (?) AND status IN ('Acknowledged', 'Error')`,
+		enrollmentID, oldCmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for nano command results")
+	}
+
+	var ackCmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ackCmdUUIDs, selectAckQuery, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select acknowledged nano command results")
+	}
+	if len(ackCmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Step 3: Delete from neq and ncr in the same transaction, scoped to this enrollment. We may not
+	// need to delete in a transaction here but it's the easiest way to ensure we cleanup ncr and further
+	// we absolutely must ensure we don't delete from ncr before deleting from neq to avoid command resends
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		deleteNEQ, delArgs, err := sqlx.In(
+			`DELETE FROM nano_enrollment_queue WHERE id = ? AND command_uuid IN (?)`,
+			enrollmentID, ackCmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete neq query")
+		}
+		if _, err := tx.ExecContext(ctx, deleteNEQ, delArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale nano enrollment queue entries")
+		}
+
+		deleteNCR, delArgs, err := sqlx.In(
+			`DELETE FROM nano_command_results WHERE id = ? AND command_uuid IN (?)`,
+			enrollmentID, ackCmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete ncr query")
+		}
+		if _, err := tx.ExecContext(ctx, deleteNCR, delArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale nano command results entries")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) CleanupOrphanedNanoRefetchCommands(ctx context.Context) error {
+	// Find up to 100 old REFETCH- commands. Note I am doing this as two queries since nano_commands
+	// can be large and I want to make sure in the case of a large number of active commands there's
+	// not going to be a full table scan or something happening. This is a best effort deletion so it
+	// is OK if our sample deletes nothing
+	const selectStmt = `
+		SELECT command_uuid FROM nano_commands nc
+		WHERE nc.command_uuid LIKE 'REFETCH-%'
+		  AND nc.created_at < NOW() - INTERVAL 30 DAY
+		LIMIT 100`
+
+	var cmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "get mdm apple refetch commands")
+	}
+	if len(cmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Delete those that don't have a corresponding entry in nano_enrollment_queue
+	selectOrphanedCommandsStmt := `
+	SELECT command_uuid FROM nano_commands nc
+	WHERE nc.command_uuid IN (?) AND NOT EXISTS (
+		SELECT 1 FROM nano_enrollment_queue neq
+		WHERE neq.command_uuid = nc.command_uuid AND neq.active = 1
+		LIMIT 1
+	)`
+	selectOrphanedCommandsStmt, args, err := sqlx.In(selectOrphanedCommandsStmt, cmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for orphaned refetch commands")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, selectOrphanedCommandsStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "get orphaned refetch commands")
+	}
+	if len(cmdUUIDs) == 0 {
+		return nil
+	}
+
+	deleteOrphanedCommandsStmt := `
+	DELETE FROM nano_commands
+	WHERE command_uuid IN (?)`
+	deleteOrphanedCommandsStmt, args, err = sqlx.In(deleteOrphanedCommandsStmt, cmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for deleting orphaned refetch commands")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedCommandsStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete orphaned refetch commands")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 	stmt := `
 SELECT
@@ -7321,11 +7451,12 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 }
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+	const stmt = `SELECT encrypted_password, updated_at, auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
-		EncryptedPassword []byte    `db:"encrypted_password"`
-		UpdatedAt         time.Time `db:"updated_at"`
+		EncryptedPassword []byte     `db:"encrypted_password"`
+		UpdatedAt         time.Time  `db:"updated_at"`
+		AutoRotateAt      *time.Time `db:"auto_rotate_at"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -7341,8 +7472,9 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 	}
 
 	return &fleet.HostRecoveryLockPassword{
-		Password:  string(decrypted),
-		UpdatedAt: row.UpdatedAt,
+		Password:     string(decrypted),
+		UpdatedAt:    row.UpdatedAt,
+		AutoRotateAt: row.AutoRotateAt,
 	}, nil
 }
 
@@ -7678,10 +7810,10 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID 
 		}
 
 		if dest.HasPending {
-			return ctxerr.Errorf(ctx, "rotation already pending for host %s", hostUUID)
+			return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockRotationPending, fmt.Sprintf("host %s", hostUUID))
 		}
 
-		return ctxerr.Errorf(ctx, "host %s not eligible for rotation (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String)
+		return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockNotEligible, fmt.Sprintf("host %s (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String))
 	}
 
 	return nil
@@ -7689,13 +7821,15 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID 
 
 func (ds *Datastore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error {
 	// Move pending password to active and clear pending columns.
+	// Also clear auto_rotate_at since rotation is now complete.
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET encrypted_password = pending_encrypted_password,
 		    pending_encrypted_password = NULL,
 		    pending_error_message = NULL,
 		    status = '%s',
-		    error_message = NULL
+		    error_message = NULL,
+		    auto_rotate_at = NULL
 		WHERE host_uuid = ?
 		  AND deleted = 0
 		  AND pending_encrypted_password IS NOT NULL
@@ -7836,4 +7970,63 @@ func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUI
 	}
 
 	return hasPending, nil
+}
+
+func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
+	// Set auto_rotate_at to 1 hour from now when password is viewed.
+	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
+	rotateAt := time.Now().Add(1 * time.Hour)
+
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET auto_rotate_at = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND operation_type = '%s'
+	`, fleet.MDMOperationTypeInstall)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, rotateAt, hostUUID)
+	if err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return time.Time{}, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return rotateAt, nil
+}
+
+func (ds *Datastore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+	// Return hosts where:
+	// - auto_rotate_at is in the past (due for rotation)
+	// - status is verified (password is confirmed working)
+	// - no pending rotation (pending_encrypted_password IS NULL)
+	// - operation_type is install (not in remove state)
+	// - not deleted
+	// Join with hosts table to get host ID and display name for activity logging.
+	stmt := fmt.Sprintf(`
+		SELECT
+			hrkp.host_uuid,
+			h.id AS host_id,
+			COALESCE(NULLIF(h.computer_name, ''), h.hostname) AS display_name
+		FROM host_recovery_key_passwords hrkp
+		JOIN hosts h ON h.uuid = hrkp.host_uuid
+		WHERE hrkp.auto_rotate_at IS NOT NULL
+		  AND hrkp.auto_rotate_at <= NOW(6)
+		  AND hrkp.status = '%s'
+		  AND hrkp.pending_encrypted_password IS NULL
+		  AND hrkp.operation_type = '%s'
+		  AND hrkp.deleted = 0
+		LIMIT 100
+	`, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall)
+
+	var hosts []fleet.HostAutoRotationInfo
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hosts for auto rotation")
+	}
+
+	return hosts, nil
 }

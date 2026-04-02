@@ -282,7 +282,7 @@ const QueriesTable = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
-            name: "delete report",
+            name: "delete reports",
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "inverse",

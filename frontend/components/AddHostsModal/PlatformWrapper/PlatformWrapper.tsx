@@ -240,11 +240,11 @@ const PlatformWrapper = ({
       <>
         {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
-            Generate your installer with the{" "}
+            Use this command to generate Fleet&apos;s agent.{" "}
             <CustomLink
               className={`${baseClass}__command-line-tool`}
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/installing-fleetctl`}
-              text="Fleet command-line tool"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/generate-fleets-agent`}
+              text="Learn how"
               newTab
             />
           </span>
@@ -271,23 +271,23 @@ const PlatformWrapper = ({
     if (packageType === "deb") {
       packageTypeHelpText = (
         <>
-          Run this on your admin computer, then deploy the generated package to
-          your hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
+          Run this on your computer, then deploy the generated package to your
+          hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
           <code>--type=rpm</code>. For Arch Linux, use{" "}
-          <code>--type=pkg.tar.zst</code>.<br />
-          For ARM, use <code>--arch=arm64</code>
+          <code>--type=pkg.tar.zst</code>. For ARM, use{" "}
+          <code>--arch=arm64</code>
         </>
       );
     } else if (packageType === "msi") {
       packageTypeHelpText = (
         <>
-          Run this on your admin computer, then deploy the generated package to
-          your hosts. For ARM, use <code>--arch=arm64</code>
+          Run this on your computer, then deploy the generated package to your
+          hosts. For ARM, use <code>--arch=arm64</code>
         </>
       );
     } else if (packageType === "pkg") {
       packageTypeHelpText =
-        "Run this on your admin computer, then install the generated package on your hosts.";
+        "Run this on your computer, then deploy the generated package to your hosts.";
     } else {
       packageTypeHelpText = "";
     }

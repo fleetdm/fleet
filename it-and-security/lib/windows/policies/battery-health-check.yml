@@ -1,0 +1,13 @@
+- name: Windows - Battery healthy
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM battery WHERE designed_capacity > 0 AND CAST(max_capacity AS REAL) / designed_capacity <= 0.80);
+  critical: false
+  description: >-
+    This policy checks if the Windows device's battery retains more than 80% of its original designed capacity. Laptops whose battery full charge capacity has degraded to 80% or less of the designed capacity will fail this policy.
+    Desktop Windows devices (no battery) automatically pass.
+    A degraded battery can cause unexpected shutdowns, reduced portability, and decreased productivity.
+    Monitoring battery health helps IT plan for device replacements and ensures employees have reliable hardware.
+  resolution: |-
+    Check your battery health by running "powercfg /batteryreport" in an elevated Command Prompt and reviewing the generated report.
+
+    If your battery's full charge capacity is 80% or less of the designed capacity, please reach out in #help-it to arrange a battery replacement or device swap.
+  platform: windows

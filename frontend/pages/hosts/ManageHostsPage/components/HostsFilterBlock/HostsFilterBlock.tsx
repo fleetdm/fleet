@@ -24,6 +24,7 @@ import { SoftwareAggregateStatus } from "interfaces/software";
 import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
+  DepAssignProfileResponse,
 } from "services/entities/hosts";
 import { ScriptBatchHostCountV1 } from "services/entities/scripts";
 
@@ -37,6 +38,7 @@ import {
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 
@@ -94,6 +96,7 @@ interface IHostsFilterBlockProps {
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
     depProfileError: string; // string "true" as we don't handle booleans
+    depAssignProfileResponse?: DepAssignProfileResponse;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -156,6 +159,7 @@ const HostsFilterBlock = ({
     scriptBatchRanAt,
     scriptBatchScriptName,
     depProfileError,
+    depAssignProfileResponse,
   },
   selectedLabel,
   isOnlyObserver,
@@ -213,27 +217,34 @@ const HostsFilterBlock = ({
           {label_type !== "builtin" &&
             !isOnlyObserver &&
             (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
-              <>
-                {
-                  // TODO - remove condition if/when can edit host_vitals labels
-                  label_membership_type !== "host_vitals" && (
+              <GitOpsModeTooltipWrapper
+                entityType="labels"
+                renderChildren={(disableChildren) => (
+                  <>
+                    {
+                      // TODO - remove condition if/when can edit host_vitals labels
+                      label_membership_type !== "host_vitals" && (
+                        <Button
+                          className={`${baseClass}__action-btn`}
+                          onClick={onClickEditLabel}
+                          variant="icon"
+                          disabled={disableChildren}
+                        >
+                          <Icon name="pencil" size="small" />
+                        </Button>
+                      )
+                    }
                     <Button
                       className={`${baseClass}__action-btn`}
-                      onClick={onClickEditLabel}
+                      onClick={onClickDeleteLabel}
                       variant="icon"
+                      disabled={disableChildren}
                     >
-                      <Icon name="pencil" size="small" />
+                      <Icon name="trash" size="small" />
                     </Button>
-                  )
-                }
-                <Button
-                  className={`${baseClass}__action-btn`}
-                  onClick={onClickDeleteLabel}
-                  variant="icon"
-                >
-                  <Icon name="trash" size="small" />
-                </Button>
-              </>
+                  </>
+                )}
+              />
             )}
         </>
       );
@@ -316,7 +327,7 @@ const HostsFilterBlock = ({
   );
 
   const renderMacSettingsStatusFilterBlock = () => {
-    const label = "macOS settings";
+    const label = "Apple settings";
     return (
       <>
         <Dropdown
@@ -329,7 +340,9 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label={label}
-          onClear={() => handleClearFilter(["macos_settings"])}
+          onClear={() =>
+            handleClearFilter(["macos_settings", "apple_settings"])
+          }
         />
       </>
     );
@@ -518,7 +531,9 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label="macOS settings: bootstrap package"
-          onClear={() => handleClearFilter(["bootstrap_package"])}
+          onClear={() =>
+            handleClearFilter(["macos_bootstrap_package", "bootstrap_package"])
+          }
         />
       </>
     );
@@ -618,6 +633,65 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderDepAssignProfileResponse = () => {
+    const renderLabel = () => {
+      switch (depAssignProfileResponse) {
+        case "SUCCESS":
+          return "Apple Business Manager (ABM) profile assignment successful";
+        case "FAILED":
+          return "Apple Business Manager (ABM) issue: Failed";
+        case "THROTTLED":
+          return "Apple Business Manager (ABM) issue: Throttled";
+        case "NOT_ACCESSIBLE":
+          return "Apple Business Manager (ABM) issue: Not accessible";
+        default:
+          return "Apple Business Manager (ABM) issues";
+      }
+    };
+
+    const renderTooltip = () => {
+      switch (depAssignProfileResponse) {
+        case "SUCCESS":
+          return "Hosts that had a successful response from Apple Business Manager (ABM) for profile assignment.";
+        case "FAILED":
+          return (
+            <>
+              Migration or new Mac setup won&apos;t work. Apple&apos;s servers
+              rejected the request to assign a profile to these hosts. Fleet
+              will try again every hour.
+            </>
+          );
+        case "THROTTLED":
+          return (
+            <>
+              Migration or new Mac setup won&apos;t work. Fleet hit Apple&apos;s
+              API rate limit when preparing the macOS Setup Assistant for these
+              hosts. Fleet will try again every hour.
+            </>
+          );
+        case "NOT_ACCESSIBLE":
+          return (
+            <>
+              Migration or new Mac setup won&apos;t work. Details are not
+              accessible from Apple Business Manager (ABM). Verify these hosts
+              are assigned to your MDM server and Fleet has access permissions.
+            </>
+          );
+        default:
+          return abmIssueTooltip();
+      }
+    };
+
+    return (
+      <FilterPill
+        className={`${baseClass}__abm-issue-filter-pill`}
+        label={renderLabel()}
+        tooltipDescription={renderTooltip()}
+        onClear={() => handleClearFilter(["dep_assign_profile_response"])}
+      />
+    );
+  };
+
   const showSelectedLabel =
     selectedLabel &&
     selectedLabel.type !== "all" &&
@@ -643,7 +717,8 @@ const HostsFilterBlock = ({
     vulnerability ||
     (configProfileStatus && configProfileUUID && configProfile) ||
     (scriptBatchExecutionStatus && scriptBatchExecutionId) ||
-    depProfileError
+    depProfileError ||
+    depAssignProfileResponse
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -719,6 +794,8 @@ const HostsFilterBlock = ({
           return renderScriptBatchExecutionBlock();
         case !!depProfileError:
           return renderDepProfileError();
+        case !!depAssignProfileResponse:
+          return renderDepAssignProfileResponse();
         default:
           return null;
       }

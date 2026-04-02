@@ -32,7 +32,7 @@ func renderTemplate(content []byte, vars map[string]string) ([]byte, error) {
 	return []byte(buf.String()), nil
 }
 
-func printNextSteps(w io.Writer) {
+func printNextSteps(w io.Writer, outputDir string) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Next steps:")
 	fmt.Fprintln(w, "")
@@ -43,6 +43,9 @@ func printNextSteps(w io.Writer) {
 	fmt.Fprintln(w, "         --password <password> --global-role gitops --api-only")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "  3. Add FLEET_URL and FLEET_API_TOKEN as secrets (GitHub) or CI/CD variables (GitLab).")
+	fmt.Fprintln(w, "")
+	fmt.Fprintf(w, "For more information, see the README.md file at %s\n", filepath.Join(outputDir, "README.md"))
+	fmt.Fprintln(w, "")
 }
 
 func newCommand() *cli.Command {
@@ -174,7 +177,7 @@ func newCommand() *cli.Command {
 			fmt.Fprintf(c.App.Writer, "Created new Fleet GitOps repository at %s\n", outputDir)
 			fmt.Fprintf(c.App.Writer, "Organization name: %s\n", orgName)
 
-			printNextSteps(c.App.Writer)
+			printNextSteps(c.App.Writer, outputDir)
 
 			return nil
 		},

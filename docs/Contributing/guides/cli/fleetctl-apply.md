@@ -357,6 +357,8 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `mdm.macos_setup`, `mdm.volume_purchasing_program`, and `scripts`  only include the settings applied using `fleetctl apply`. To list settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
+
 ### Mobile device management (MDM) settings for fleets
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each fleet.

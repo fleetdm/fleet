@@ -1205,6 +1205,9 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
+			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
+		}),
 	)
 
 	return s, nil
@@ -1462,6 +1465,7 @@ func newAppleMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
+	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	certProfilesLimit int,
 ) (*schedule.Schedule, error) {
@@ -1478,7 +1482,7 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger, certProfilesLimit)
+			return service.ReconcileAppleProfiles(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
@@ -2034,6 +2038,7 @@ func newRecoveryLockPasswordSchedule(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronSendRecoveryLockCommands)
@@ -2045,7 +2050,7 @@ func newRecoveryLockPasswordSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
-			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger)
+			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 

@@ -922,21 +922,11 @@ const ManagePolicyPage = ({
       }
 
       await Promise.all(responses);
-      renderFlash(
-        "success",
-        `Successfully deleted ${
-          selectedPolicyIds?.length === 1 ? "policy" : "policies"
-        }.`
-      );
+      renderFlash("success", "Successfully deleted policies.");
       setResetSelectedRows(true);
       refetchPolicies(teamIdForApi);
     } catch {
-      renderFlash(
-        "error",
-        `Unable to delete ${
-          selectedPolicyIds?.length === 1 ? "policy" : "policies"
-        }. Please try again.`
-      );
+      renderFlash("error", "Unable to delete policies. Please try again.");
     } finally {
       toggleDeletePoliciesModal();
       setIsUpdatingPolicies(false);
