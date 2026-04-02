@@ -150,6 +150,47 @@ func Analyze(
 	return newVulns, nil
 }
 
+// findLatestOSVArtifactForVersion finds the most recent OSV artifact for a specific Ubuntu version
+func findLatestOSVArtifactForVersion(vulnPath string, ubuntuVersion string) (string, error) {
+	files, err := os.ReadDir(vulnPath)
+	if err != nil {
+		return "", fmt.Errorf("reading vulnerability path: %w", err)
+	}
+
+	// Pattern: osv-ubuntu-2204-YYYY-MM-DD.json.gz
+	prefix := fmt.Sprintf("osv-ubuntu-%s-", ubuntuVersion)
+	suffix := ".json.gz"
+
+	var latestFile os.DirEntry
+	var latestModTime time.Time
+
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+
+		name := f.Name()
+		// Skip delta files, same as downloader.go
+		if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) && !strings.Contains(name, "delta") {
+			info, err := f.Info()
+			if err != nil {
+				continue
+			}
+
+			if latestFile == nil || info.ModTime().After(latestModTime) {
+				latestFile = f
+				latestModTime = info.ModTime()
+			}
+		}
+	}
+
+	if latestFile == nil {
+		return "", fmt.Errorf("no OSV artifact found for Ubuntu %s", ubuntuVersion)
+	}
+
+	return filepath.Join(vulnPath, latestFile.Name()), nil
+}
+
 // loadOSVArtifact loads the full OSV artifact for the given Ubuntu version
 func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, logger *slog.Logger, date time.Time) (*OSVArtifact, error) {
 	// Extract Ubuntu version (e.g., "22.04.8 LTS" -> "2204")
@@ -158,11 +199,15 @@ func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, 
 		return nil, fmt.Errorf("could not extract Ubuntu version from %s", ver.Version)
 	}
 
-	// Find the OSV artifact file for this version
+	// Try to find date-specific artifact first, fall back to latest if not found
 	fileName := osvFilename(ubuntuVer, date)
-	artifactFile, err := utils.LatestFile(fileName, vulnPath)
-	if err != nil {
-		return nil, fmt.Errorf("finding OSV artifact for Ubuntu %s: %w", ubuntuVer, err)
+	artifactFile := filepath.Join(vulnPath, fileName)
+
+	if _, err := os.Stat(artifactFile); err != nil {
+		artifactFile, err = findLatestOSVArtifactForVersion(vulnPath, ubuntuVer)
+		if err != nil {
+			return nil, fmt.Errorf("finding OSV artifact for Ubuntu %s: %w", ubuntuVer, err)
+		}
 	}
 
 	f, err := os.Open(artifactFile)

@@ -32,8 +32,8 @@ func TestRemoveOldOSVArtifacts(t *testing.T) {
 	err := os.Mkdir(osvDir, 0o755)
 	require.NoError(t, err)
 
-	// Run the cleanup (should remove old file but keep current)
-	err = removeOldOSVArtifacts(today, tmpDir)
+	// Run the cleanup with 2204 as successfully downloaded (should remove old file but keep current)
+	err = removeOldOSVArtifacts(today, tmpDir, []string{"2204"})
 	require.NoError(t, err)
 
 	// Check that old file was removed
@@ -52,6 +52,39 @@ func TestRemoveOldOSVArtifacts(t *testing.T) {
 	stat, err := os.Stat(osvDir)
 	require.NoError(t, err)
 	require.True(t, stat.IsDir())
+}
+
+func TestRemoveOldOSVArtifacts_PreservesFailedVersions(t *testing.T) {
+	tmpDir := t.TempDir()
+	today := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
+
+	// Create artifacts for two versions, both old and new
+	files := []string{
+		"osv-ubuntu-2204-2026-03-30.json.gz", // Today's 22.04 (just downloaded)
+		"osv-ubuntu-2204-2026-03-29.json.gz", // Yesterday's 22.04 (should be removed)
+		"osv-ubuntu-2404-2026-03-29.json.gz", // Yesterday's 24.04 (should be KEPT - download failed)
+	}
+
+	for _, file := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644)
+		require.NoError(t, err)
+	}
+
+	// Only 2204 downloaded successfully, 2404 failed
+	err := removeOldOSVArtifacts(today, tmpDir, []string{"2204"})
+	require.NoError(t, err)
+
+	// Today's 2204 should still exist
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-30.json.gz"))
+	require.NoError(t, err)
+
+	// Old 2204 should be removed (new one downloaded)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-29.json.gz"))
+	require.True(t, os.IsNotExist(err))
+
+	// Old 2404 should be PRESERVED (download failed, need last-known-good)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2404-2026-03-29.json.gz"))
+	require.NoError(t, err, "old 2404 artifact should be preserved when download fails")
 }
 
 func TestGetNeededUbuntuVersions(t *testing.T) {

@@ -23,14 +23,14 @@ func Refresh(
 	vulnPath string,
 	now time.Time,
 ) ([]string, error) {
-	release, err := getLatestRelease(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting latest release: %w", err)
-	}
-
 	neededVersions := getNeededUbuntuVersions(versions)
 	if len(neededVersions) == 0 {
 		return nil, nil
+	}
+
+	release, err := getLatestRelease(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting latest release: %w", err)
 	}
 
 	syncResult, err := SyncOSV(ctx, vulnPath, neededVersions, now, release)
@@ -38,7 +38,7 @@ func Refresh(
 		return nil, fmt.Errorf("syncing OSV artifacts: %w", err)
 	}
 
-	err = removeOldOSVArtifacts(now, vulnPath)
+	err = removeOldOSVArtifacts(now, vulnPath, syncResult.Downloaded)
 	if err != nil {
 		return syncResult.Downloaded, fmt.Errorf("warning: failed to clean up old OSV artifacts: %w", err)
 	}
@@ -46,9 +46,14 @@ func Refresh(
 	return syncResult.Downloaded, nil
 }
 
-// removeOldOSVArtifacts walks 'path' removing any old OSV artifacts that don't match today's date
-func removeOldOSVArtifacts(date time.Time, rootPath string) error {
+// removeOldOSVArtifacts walks 'path' removing old OSV artifacts that don't match today's date
+func removeOldOSVArtifacts(date time.Time, rootPath string, successfulVersions []string) error {
 	dateSuffix := fmt.Sprintf("-%d-%02d-%02d.json.gz", date.Year(), date.Month(), date.Day())
+
+	successfulSet := make(map[string]struct{}, len(successfulVersions))
+	for _, v := range successfulVersions {
+		successfulSet[v] = struct{}{}
+	}
 
 	return filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -63,10 +68,20 @@ func removeOldOSVArtifacts(date time.Time, rootPath string) error {
 		}
 
 		baseName := d.Name()
-		if strings.HasPrefix(baseName, OSVFilePrefix) && strings.HasSuffix(baseName, ".json.gz") {
+		if strings.HasPrefix(baseName, OSVFilePrefix) && strings.HasSuffix(baseName, ".json.gz") && !strings.Contains(baseName, "delta") {
 			if !strings.HasSuffix(baseName, dateSuffix) {
-				if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-					return fmt.Errorf("removing old OSV artifact %s: %w", baseName, err)
+				versionStart := len(OSVFilePrefix)
+				versionEnd := strings.Index(baseName[versionStart:], "-")
+				if versionEnd == -1 {
+					return nil
+				}
+				ubuntuVersion := baseName[versionStart : versionStart+versionEnd]
+
+				if _, ok := successfulSet[ubuntuVersion]; ok {
+					// #nosec G122 -- path is from WalkDir in Fleet-controlled vuln directory, checked IsRegular above
+					if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+						return fmt.Errorf("removing old OSV artifact %s: %w", baseName, err)
+					}
 				}
 			}
 		}
@@ -102,6 +117,6 @@ func getNeededUbuntuVersions(osVers *fleet.OSVersions) []string {
 // osvFilename generates the OSV artifact filename for a given Ubuntu version and date
 // Format: osv-ubuntu-2204-2026-03-30.json.gz
 func osvFilename(ubuntuVersion string, date time.Time) string {
-	return fmt.Sprintf("osv-ubuntu-%s-%d-%02d-%02d.json.gz",
-		ubuntuVersion, date.Year(), date.Month(), date.Day())
+	return fmt.Sprintf("%s%s-%d-%02d-%02d.json.gz",
+		OSVFilePrefix, ubuntuVersion, date.Year(), date.Month(), date.Day())
 }

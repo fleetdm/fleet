@@ -1,7 +1,14 @@
 package osv
 
 import (
+	"compress/gzip"
+	"context"
+	"io"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
@@ -496,4 +503,119 @@ func TestMatchSoftwareToOSV(t *testing.T) {
 			require.ElementsMatch(t, tt.expected, result)
 		})
 	}
+}
+
+func TestFindLatestOSVArtifactForVersion(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test artifacts for different Ubuntu versions and dates
+	artifacts := []struct {
+		filename string
+		age      int // days old (to set mod time)
+	}{
+		{"osv-ubuntu-2204-2026-03-28.json.gz", 3},  // Older 22.04
+		{"osv-ubuntu-2204-2026-03-30.json.gz", 1},  // Newer 22.04 (should be selected)
+		{"osv-ubuntu-2204-2026-03-29.json.gz", 2},  // Middle 22.04
+		{"osv-ubuntu-2004-2026-03-30.json.gz", 1},  // 20.04 (different version)
+		{"osv-ubuntu-1804-2026-03-30.json.gz", 1},  // 18.04 (different version)
+		{"other-file.json.gz", 0},                  // Non-OSV file
+		{"osv-ubuntu-2204-delta-2026-03-30.json.gz", 1}, // Delta file (should be ignored by pattern)
+	}
+
+	for _, a := range artifacts {
+		path := filepath.Join(tmpDir, a.filename)
+		err := os.WriteFile(path, []byte("test"), 0644)
+		require.NoError(t, err)
+
+		// Set modification time to simulate different ages
+		modTime := time.Now().Add(-time.Duration(a.age) * 24 * time.Hour)
+		err = os.Chtimes(path, modTime, modTime)
+		require.NoError(t, err)
+	}
+
+	tests := []struct {
+		name          string
+		ubuntuVersion string
+		expectedFile  string
+		expectError   bool
+	}{
+		{
+			name:          "finds latest 22.04 artifact",
+			ubuntuVersion: "2204",
+			expectedFile:  "osv-ubuntu-2204-2026-03-30.json.gz", // Most recent
+		},
+		{
+			name:          "finds latest 20.04 artifact",
+			ubuntuVersion: "2004",
+			expectedFile:  "osv-ubuntu-2004-2026-03-30.json.gz",
+		},
+		{
+			name:          "finds latest 18.04 artifact",
+			ubuntuVersion: "1804",
+			expectedFile:  "osv-ubuntu-1804-2026-03-30.json.gz",
+		},
+		{
+			name:          "returns error for non-existent version",
+			ubuntuVersion: "2404",
+			expectError:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := findLatestOSVArtifactForVersion(tmpDir, tt.ubuntuVersion)
+
+			if tt.expectError {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "no OSV artifact found")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, filepath.Join(tmpDir, tt.expectedFile), result)
+			}
+		})
+	}
+}
+
+func TestLoadOSVArtifact_ZeroTimeUsesLatest(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create artifacts with different dates
+	artifacts := []struct {
+		filename string
+		age      int
+	}{
+		{"osv-ubuntu-2204-2026-03-28.json.gz", 3}, // Older
+		{"osv-ubuntu-2204-2026-03-30.json.gz", 1}, // Newer (should be selected)
+	}
+
+	for _, a := range artifacts {
+		path := filepath.Join(tmpDir, a.filename)
+
+		// Create a minimal valid gzipped JSON artifact
+		f, err := os.Create(path)
+		require.NoError(t, err)
+
+		gz := gzip.NewWriter(f)
+		_, err = gz.Write([]byte(`{"schema_version":"1.0.0","ubuntu_version":"2204","generated":"2026-03-30T00:00:00Z","total_cves":0,"total_packages":0,"vulnerabilities":{}}`))
+		require.NoError(t, err)
+		gz.Close()
+		f.Close()
+
+		// Set modification time
+		modTime := time.Now().Add(-time.Duration(a.age) * 24 * time.Hour)
+		err = os.Chtimes(path, modTime, modTime)
+		require.NoError(t, err)
+	}
+
+	// Test with zero time (simulates DisableDataSync=true)
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ver := fleet.OSVersion{Name: "Ubuntu 22.04.8 LTS", Version: "22.04.8 LTS"}
+
+	artifact, err := loadOSVArtifact(ctx, ver, tmpDir, logger, time.Time{})
+	require.NoError(t, err)
+	require.NotNil(t, artifact)
+
+	// Verify it loaded successfully (artifact should have schema_version)
+	require.Equal(t, "1.0.0", artifact.SchemaVersion)
 }

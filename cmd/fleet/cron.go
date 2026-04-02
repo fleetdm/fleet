@@ -488,8 +488,10 @@ func checkOSVVulnerabilities(
 		return nil
 	}
 
-	// Make Refresh and Analyze use the same date
-	now := time.Now()
+	var now time.Time
+	if !config.DisableDataSync {
+		now = time.Now()
+	}
 
 	if !config.DisableDataSync {
 		// Sync on disk OSV artifacts with current OS Versions

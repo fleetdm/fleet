@@ -209,6 +209,7 @@ func SyncOSV(ctx context.Context, dstDir string, ubuntuVersions []string, date t
 			err := downloadOSVArtifact(ctx, assetInfo.ID, dstPath)
 			if err != nil {
 				// Download failed, skip
+				os.Remove(dstPath)
 				result.Failed = append(result.Failed, ubuntuVersion)
 				continue
 			}
