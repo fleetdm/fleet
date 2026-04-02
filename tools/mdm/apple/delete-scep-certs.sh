@@ -55,9 +55,9 @@ fi
 # Collect SHA-1 hash and Not Before date for every matching certificate.
 # Output is written to a temp file as: <epoch> <hash>
 tmpfile=$(mktemp)
-trap 'rm -f "$tmpfile" "$tmpfile.raw"' EXIT
+trap 'rm -f "$tmpfile" "$tmpfile.raw" "$tmpfile.err"' EXIT
 
-security find-certificate -a -c "$CN" -Z -p "$KEYCHAIN" 2>/dev/null > "$tmpfile.raw"
+security find-certificate -a -c "$CN" -Z -p "$KEYCHAIN" >"$tmpfile.raw" 2>"$tmpfile.err" || true
 
 # Split the raw output into individual cert blocks and extract hash + date.
 current_hash=""
