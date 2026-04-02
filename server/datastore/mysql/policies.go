@@ -112,12 +112,16 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	}
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
+	policyType := args.Type
+	if policyType == "" {
+		policyType = fleet.PolicyTypeDynamic
+	}
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum, type, mdm_check_definition) VALUES (?, ?, ?, ?, ?, ?, ?, %s, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
-		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical, args.Type, args.MDMCheckDefinition,
+		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical, policyType, args.MDMCheckDefinition,
 	)
 	switch {
 	case err == nil:
@@ -1152,6 +1156,11 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
+	policyType := args.Type
+	if policyType == "" {
+		policyType = fleet.PolicyTypeDynamic
+	}
+
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (
@@ -1164,7 +1173,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
-		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.MDMCheckDefinition,
+		args.ConditionalAccessEnabled, policyType, args.PatchSoftwareTitleID, args.MDMCheckDefinition,
 	)
 	switch {
 	case err == nil:

@@ -125,10 +125,9 @@ const generateTableHeaders = (
                   </PillBadge>
                 )}
                 {type === "mdm" && (
-                  <PillBadge
-                    text="MDM"
-                    tipContent="This policy evaluates iOS/iPadOS devices via MDM device information queries"
-                  />
+                  <PillBadge tipContent="This policy evaluates iOS/iPadOS devices via MDM device information queries">
+                    MDM
+                  </PillBadge>
                 )}
                 {viewingTeamPolicies && team_id === null && (
                   <PillBadge tipContent="This policy runs on all hosts.">
