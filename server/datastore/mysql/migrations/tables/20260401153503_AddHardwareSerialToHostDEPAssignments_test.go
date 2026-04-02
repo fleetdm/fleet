@@ -13,6 +13,7 @@ func TestUp_20260401153503_SomeAssignments(t *testing.T) {
 
 	// create a dozen hosts each for macOS, Windows and Linux
 	macIDs, _, _, _ := insertHosts(t, db, 12, 12, 12)
+	require.Len(t, macIDs, 12)
 
 	// load the serials for the mac hosts
 	type host struct {
@@ -85,6 +86,7 @@ func TestUp_20260401153503_ManyAssignments(t *testing.T) {
 
 	// create a thousand macOS hosts and a few other
 	macIDs, _, _, _ := insertHosts(t, db, 1000, 10, 10)
+	require.Len(t, macIDs, 1000)
 
 	// load the serials for the mac hosts
 	type host struct {
