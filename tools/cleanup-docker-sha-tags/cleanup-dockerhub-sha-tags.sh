@@ -1,23 +1,22 @@
 #!/bin/bash
 #
-# cleanup-docker-sha-tags.sh — One-time script to remove commit-SHA-tagged Docker images
-# from Docker Hub and Quay.io for the fleetdm/fleet repository.
+# cleanup-dockerhub-sha-tags.sh — One-time script to remove commit-SHA-tagged
+# Docker images from Docker Hub for the fleetdm/fleet repository.
 #
 # Usage:
-#   ./cleanup-docker-sha-tags.sh [--dry-run] [--delay SECONDS] [--skip-quay]
+#   ./cleanup-dockerhub-sha-tags.sh [--dry-run] [--delay SECONDS]
 #
 # Environment variables:
 #   DOCKERHUB_USERNAME       Docker Hub username (required)
 #   DOCKERHUB_ACCESS_TOKEN   Docker Hub access token (required)
-#   QUAY_REGISTRY_PASSWORD   Quay.io bearer token (required unless --skip-quay)
 #
-# This script is intended to be run manually by an engineer.
+# This script is intended to be run manually by an engineer. It is NOT wired
+# into any CI workflow. Requires jq and curl to be installed.
 
 set -euo pipefail
 
 DRY_RUN=false
 DELAY=1
-SKIP_QUAY=false
 REPO="fleetdm/fleet"
 SHA_PATTERN="^[0-9a-f]{7,12}$"
 PAGE_SIZE=100
@@ -26,22 +25,16 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)  DRY_RUN=true; shift ;;
     --delay)    DELAY="$2"; shift 2 ;;
-    --skip-quay) SKIP_QUAY=true; shift ;;
     *)          echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
 
-# Validate required env vars
 if [[ -z "${DOCKERHUB_USERNAME:-}" || -z "${DOCKERHUB_ACCESS_TOKEN:-}" ]]; then
   echo "Error: DOCKERHUB_USERNAME and DOCKERHUB_ACCESS_TOKEN must be set." >&2
   exit 1
 fi
-if [[ "$SKIP_QUAY" == "false" && -z "${QUAY_REGISTRY_PASSWORD:-}" ]]; then
-  echo "Error: QUAY_REGISTRY_PASSWORD must be set (or use --skip-quay)." >&2
-  exit 1
-fi
 
-# Authenticate to Docker Hub
+# Authenticate
 echo "Authenticating to Docker Hub..."
 DOCKERHUB_TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
   -H "Content-Type: application/json" \
@@ -88,11 +81,17 @@ fi
 
 if [[ "$DRY_RUN" == "true" ]]; then
   echo ""
-  echo "=== DRY RUN — the following tags would be deleted ==="
-  for tag in "${SHA_TAGS[@]}"; do
-    echo "  $tag"
+  echo "=== Tags that will be KEPT (do not match SHA pattern) ==="
+  KEPT=0
+  for tag in "${ALL_TAGS[@]}"; do
+    if ! [[ "$tag" =~ $SHA_PATTERN ]]; then
+      echo "  $tag"
+      KEPT=$((KEPT + 1))
+    fi
   done
-  echo "=== End dry run (${#SHA_TAGS[@]} tags) ==="
+  echo "=== ${KEPT} tags kept ==="
+  echo ""
+  echo "=== DRY RUN — ${#SHA_TAGS[@]} tags would be deleted ==="
   exit 0
 fi
 
@@ -102,10 +101,9 @@ FAILED=0
 TOTAL=${#SHA_TAGS[@]}
 
 echo ""
-echo "Deleting ${TOTAL} SHA tags..."
+echo "Deleting ${TOTAL} SHA tags from Docker Hub..."
 
 for tag in "${SHA_TAGS[@]}"; do
-  # Delete from Docker Hub
   ATTEMPT=0
   MAX_RETRIES=3
   while true; do
@@ -113,7 +111,10 @@ for tag in "${SHA_TAGS[@]}"; do
       "https://hub.docker.com/v2/repositories/${REPO}/tags/${tag}/" \
       -H "Authorization: Bearer $DOCKERHUB_TOKEN")
 
-    if [[ "$HTTP_STATUS" == "204" || "$HTTP_STATUS" == "404" ]]; then
+    if [[ "$HTTP_STATUS" == "204" ]]; then
+      DELETED=$((DELETED + 1))
+      break
+    elif [[ "$HTTP_STATUS" == "404" ]]; then
       break
     elif [[ "$HTTP_STATUS" == "429" ]]; then
       ATTEMPT=$((ATTEMPT + 1))
@@ -132,24 +133,14 @@ for tag in "${SHA_TAGS[@]}"; do
     fi
   done
 
-  # Delete from Quay.io
-  if [[ "$SKIP_QUAY" == "false" && ("$HTTP_STATUS" == "204" || "$HTTP_STATUS" == "404") ]]; then
-    curl -s -o /dev/null -X DELETE \
-      "https://quay.io/api/v1/repository/${REPO}/tag/${tag}" \
-      -H "Authorization: Bearer $QUAY_REGISTRY_PASSWORD" || true
-  fi
-
-  if [[ "$HTTP_STATUS" == "204" || "$HTTP_STATUS" == "404" ]]; then
-    DELETED=$((DELETED + 1))
-  fi
-
   # Progress
-  if (( DELETED % 50 == 0 )); then
-    echo "  Progress: ${DELETED}/${TOTAL} deleted (${FAILED} failed)"
+  PROCESSED=$((DELETED + FAILED))
+  if (( PROCESSED % 50 == 0 )); then
+    echo "  Progress: ${PROCESSED}/${TOTAL} processed (${DELETED} deleted, ${FAILED} failed)"
   fi
 
   sleep "$DELAY"
 done
 
 echo ""
-echo "Done. Deleted: ${DELETED}/${TOTAL}, Failed: ${FAILED}"
+echo "Done. ${DELETED} deleted, ${FAILED} failed (out of ${TOTAL})"

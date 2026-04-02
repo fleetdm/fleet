@@ -46,6 +46,12 @@ jobs:
             -d "{\"username\": \"$DOCKERHUB_USERNAME\", \"password\": \"$DOCKERHUB_ACCESS_TOKEN\"}" \
             | jq -r .token)
 
+          # Bail if the token is empty (authentication failed)
+          if [[ -z "$TOKEN" ]]; then
+            echo "Failed to authenticate with Docker Hub. Check credentials."
+            exit 1
+          fi
+
           # Delete the tag (ignore 404 — tag may not exist)
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
             "https://hub.docker.com/v2/repositories/fleetdm/fleet/tags/${TAG}/" \
