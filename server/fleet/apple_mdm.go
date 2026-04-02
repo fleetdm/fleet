@@ -611,7 +611,7 @@ type MDMAppleCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
-	// Name is the optional human-readable name of the command.
+	// Name is the optional human-readable name of the command, used for indicating the profile added/removed, if any.
 	Name *string `json:"name" db:"name"`
 }
 
