@@ -459,15 +459,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /deals': {
-    action: 'view-deals',
-    locals: {
-      pageTitleForMeta: 'Deal registration',
-      pageDescriptionForMeta: 'Register an opportunity with a potential customer.',
-      hideFooterLinks: true,
-    }
-  },
-
   'GET /customers': {
     action: 'view-customers',
     locals: {
@@ -615,6 +606,14 @@ module.exports.routes = {
     action: 'articles/view-articles',
     locals: {
       currentSection: 'more',
+    }
+  },
+
+  'GET /partners': {
+    action: 'view-partners',
+    locals: {
+      pageTitleForMeta: 'Partners',
+      pageDescriptionForMeta: 'Join Fleet’s partner program. Sell, integrate, and deliver device management with open APIs, flexible deployment, and support from the Fleet team.'
     }
   },
 
@@ -1105,6 +1104,8 @@ module.exports.routes = {
   'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
   'GET /announcements/foursquare-quickly-migrates-to-fleet': '/case-study/foursquare',
 
+  'GET /deals': '/partners#deals',
+
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
   'GET /it': '/observability?utm_content=eo-it',
@@ -1341,7 +1342,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
-
+  'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
