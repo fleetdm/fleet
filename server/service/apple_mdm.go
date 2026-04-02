@@ -5129,6 +5129,7 @@ func ReconcileAppleProfiles(
 			target = &fleet.CmdTarget{
 				CmdUUID:           uuid.New().String(),
 				ProfileIdentifier: p.ProfileIdentifier,
+				ProfileName:       p.ProfileName,
 			}
 			installTargets[p.ProfileUUID] = target
 		}
@@ -5232,6 +5233,7 @@ func ReconcileAppleProfiles(
 			target = &fleet.CmdTarget{
 				CmdUUID:           uuid.New().String(),
 				ProfileIdentifier: p.ProfileIdentifier,
+				ProfileName:       p.ProfileName,
 			}
 			removeTargets[p.ProfileUUID] = target
 		}
@@ -5523,7 +5525,7 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
 		}
 
-		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsWithoutRefs, profile); err != nil {
+		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsWithoutRefs, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 		}
 	}
@@ -5562,7 +5564,7 @@ func RenewSCEPCertificates(
 			}
 
 			// each host with association needs a different enrollment profile, and thus a different command.
-			if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+			if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending account driven enrollment profile renewal to hosts")
 			}
 		}
@@ -5586,7 +5588,7 @@ func RenewSCEPCertificates(
 		}
 
 		// each host with association needs a different enrollment profile, and thus a different command.
-		if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+		if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 		}
 	}
@@ -5603,7 +5605,7 @@ func RenewSCEPCertificates(
 	}
 	if migrationEnrollmentProfile != "" && hasAssocsFromMigration {
 		profileBytes := []byte(migrationEnrollmentProfile)
-		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsFromMigration, profileBytes); err != nil {
+		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsFromMigration, profileBytes, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts from migration")
 		}
 	}
@@ -5618,6 +5620,7 @@ func renewSCEPWithProfile(
 	logger *slog.Logger,
 	assocs []fleet.SCEPIdentityAssociation,
 	profile []byte,
+	profileName string,
 ) error {
 	cmdUUID := uuid.NewString()
 	var uuids []string
@@ -5639,6 +5642,13 @@ func renewSCEPWithProfile(
 
 	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
 		return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", uuids)
+	}
+
+	// Set the display name on the nano_commands row.
+	if profileName != "" {
+		if err := ds.SetCommandName(ctx, cmdUUID, profileName); err != nil {
+			logger.ErrorContext(ctx, "setting command name for SCEP renewal profile", "command_uuid", cmdUUID, "profile_name", profileName, "err", err)
+		}
 	}
 
 	if err := ds.SetCommandForPendingSCEPRenewal(ctx, assocs, cmdUUID); err != nil {

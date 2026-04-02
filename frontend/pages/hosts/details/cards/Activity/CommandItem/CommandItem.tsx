@@ -18,26 +18,50 @@ interface ICommandItemProps {
   onShowDetails: ShowCommandDetailsHandler;
 }
 
-const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
-  const { command_status, request_type, updated_at } = command;
+const isProfileCommand = (requestType: string): boolean =>
+  requestType === "InstallProfile" || requestType === "RemoveProfile";
 
-  let statusVerb = "";
+const getStatusText = (command: ICommand): string => {
+  const { command_status, status } = command;
+
+  // Differentiate NotNow from regular Pending
+  if (status === "NotNow") {
+    return "is deferred";
+  }
+
   switch (command_status) {
     case "pending":
-      statusVerb = "will run";
-      break;
+      return "is pending";
     case "ran":
+      return isProfileCommand(command.request_type)
+        ? "was acknowledged"
+        : "ran";
     case "failed":
-      statusVerb = command_status;
-      break;
+      return "failed";
     default:
-      statusVerb = "ran";
+      return "was acknowledged";
   }
+};
+
+const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
+  const { request_type, updated_at, name } = command;
+
+  const statusText = getStatusText(command);
 
   const onShowCommandDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onShowDetails(command);
   };
+
+  const activityText = name ? (
+    <>
+      The <b>{request_type}</b> command for <b>{name}</b> {statusText}.
+    </>
+  ) : (
+    <>
+      The <b>{request_type}</b> command {statusText}.
+    </>
+  );
 
   return (
     <FeedListItem
@@ -47,7 +71,7 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
       createdAt={new Date(updated_at)}
       onClickFeedItem={onShowCommandDetails}
     >
-      The <b>{request_type}</b> command {statusVerb}.
+      {activityText}
     </FeedListItem>
   );
 };
