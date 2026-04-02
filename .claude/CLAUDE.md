@@ -23,3 +23,4 @@ MYSQL_TEST=1 go test -run TestFunctionName ./server/datastore/mysql/...
 - Use `require` and `assert` from `github.com/stretchr/testify` in tests.
 - Use `t.Context()` in tests instead of `context.Background()`.
 - Use `any` instead of `interface{}`
+- Use `math/rand/v2` instead of `math/rand`.
