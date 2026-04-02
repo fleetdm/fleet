@@ -1830,7 +1830,6 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-
 // acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.
 type acmeCSRSigner struct {
 	signer *scepdepot.Signer

@@ -1528,7 +1528,6 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 }
 
-
 // acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.
 type acmeCSRSigner struct {
 	signer *depot.Signer
