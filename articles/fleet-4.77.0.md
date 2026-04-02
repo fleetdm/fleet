@@ -69,7 +69,7 @@ Fleet added [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-
 - Optimized the cleanup Apple host profiles query to reduce probability of DB locking.
 - Implemented UI logic to call existing manual update IdP API functionality.
 - Implemented UI logic and new DELETE endpoint to manually remove host IdP mappings.
-- Added experimental `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT` configuration to allow deploying custom OS settings including Filevault payloads and macOS and Windows update settings.
+- Added `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT` configuration to allow deploying custom OS settings including FileVault payloads and macOS and Windows update settings.
 - Added ability to change software display names in the UI.
 - Fixed table styling for selecting table rows.
 - Simplified setup experience configuration UI.

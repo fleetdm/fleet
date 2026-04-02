@@ -3369,6 +3369,36 @@ The enrollment profile must be base64-encoded. This is only supported as an envi
 - Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
 - Note: If you are experiencing systems failing SCEP renewal, please contact [Fleet support](https://fleetdm.com/support).
 
+### mdm.enable_custom_os_updates_and_filevault
+
+> **Warning:** Enabling this setting may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet uses for these features. This setting requires a Fleet Premium license.
+
+If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) profile, [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_custom_os_updates_and_filevault: true
+  ```
+
+### mdm.allow_all_declarations
+
+> **Warning:** Enabling this setting bypasses all safety checks for Apple DDM declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Only enable this when you need to deploy declarations that Fleet would otherwise block.
+
+If set to `true`, you can add all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations). By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+
+[Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_all_declarations: true
+  ```
+
 ## Conditional access
 
 ### conditional_access_cert_serial_format
