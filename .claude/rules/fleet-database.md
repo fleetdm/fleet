@@ -36,6 +36,10 @@ paths:
 - Use `CreateMySQLDS(t)` helper for test datastore setup
 - Table-driven tests with `t.Run` subtests
 
+## Transactions
+- Inside `withTx`/`withRetryTxx` callbacks, use the transaction argument — NEVER call `ds.reader(ctx)` or `ds.writer(ctx)` inside a transaction (custom linter rule catches this)
+- Same applies to any function that receives a `sqlx.ExtContext` or `sqlx.ExecContext` as an argument — use that argument, not the datastore's reader/writer
+
 ## Batch Operations
 - Use configurable batch size variables for large operations
 - Order key allowlists for user-facing sort fields (prevent SQL injection via ORDER BY)

@@ -14,7 +14,8 @@ paths:
 
 ## Error Handling
 - Wrap errors with `ctxerr.Wrap(ctx, err, "description")` — never `pkg/errors` or `fmt.Errorf` with `%w`
-- The `depguard` linter will reject `github.com/pkg/errors` imports
+- For error messages without wrapping, use `errors.New("msg")` not `fmt.Errorf("msg")` (the linter catches this)
+- Banned imports: `github.com/pkg/errors`, `github.com/valyala/fastjson`, `github.com/valyala/fasttemplate`
 - Use the right error type for the right situation:
   - `fleet.NewInvalidArgumentError(field, reason)` — input validation (422). Accumulate with `.Append(field, reason)`, check `.HasErrors()`
   - `&fleet.BadRequestError{Message: "..."}` — malformed request (400)
@@ -72,9 +73,8 @@ paths:
 
 ## Imports & Utilities
 - Internal packages: `github.com/fleetdm/fleet/v4/server/` prefix
-- Pointer utilities: `server/ptr` — `ptr.String()`, `ptr.Uint()`, `ptr.Bool()`, `ptr.T(val)` (generic)
-- Safe dereference: `ptr.ValOrZero(somePtr)` — returns zero value if nil
-- Conditional nil: `ptr.UintOrNilIfZero(val)` — nil if 0, else pointer
+- **HTTP clients**: Use `fleethttp.NewClient()` — never `http.Client{}` or `new(http.Client)` directly (custom linter rule)
+- **Pointers (Go 1.26+)**: Use `new(expression)` for pointer values: `new("value")`, `new(true)`, `new(yearsSince(born))`. Do NOT use the `server/ptr` package (`ptr.String()`, `ptr.Uint()`, etc.) in new code — it's legacy. You'll see it throughout the existing codebase but should not follow that pattern.
 - Sets: use `map[T]struct{}`, convert to slice with `slices.Collect(maps.Keys(m))`
 - Flexible JSON: use `json.RawMessage` for configs stored as JSON blobs
 
@@ -90,6 +90,15 @@ paths:
 - Integration tests need `MYSQL_TEST=1 REDIS_TEST=1`
 - Use `t.Context()` instead of `context.Background()`
 
+## Bounded contexts
+
+Some domains use a self-contained bounded context pattern instead of the traditional `fleet/` → `service/` → `datastore/` layers:
+- `server/activity/` — internal types, mysql, service, API, and bootstrap in one directory
+- `server/mdm/` — similar self-contained structure for MDM
+
+When working in these directories, follow the local patterns (internal packages, local types) rather than the top-level Fleet architecture.
+
 ## Linting
 - Follow `.golangci.yml` — enabled linters: depguard, forbidigo, gosec, gocritic, revive, errcheck, staticcheck
-- Run `golangci-lint run ./path/...` to check before submitting
+- After editing: `make lint-go-incremental` (only checks changes since branching from main)
+- Before committing: `make lint-go` (full lint)

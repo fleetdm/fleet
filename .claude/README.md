@@ -14,11 +14,12 @@ To test this setup without switching branches, pull the `.claude/` folder into y
 # Add the configuration to your branch
 git checkout origin/cc-setup-teamwide -- .claude/
 
-# Start a Claude Code session and work normally
-claude
+# Start a Claude Code session and work normally (use --debug to see hooks firing)
+claude --debug
 
-# When you're done testing, remove it so it doesn't end up in your PR
+# When you're done testing, fully remove it so nothing ends up in your PR
 git checkout -- .claude/
+git clean -fd .claude/
 ```
 
 This drops the full setup (rules, skills, agents, hooks, and permissions) into your working tree. Start a new Claude Code session and everything loads automatically. When you're done, the second command reverts `.claude/` to whatever's on your branch.
@@ -254,7 +255,7 @@ Four hooks run automatically:
 | `guard-dangerous-commands.sh` | PreToolUse (Bash) | All commands | Blocks `rm -rf /`, force push to main/master, `git reset --hard origin/`, and pipe-to-shell attacks |
 | `goimports.sh` | PostToolUse (Edit/Write) | `**/*.go` | Formats with `goimports` → `gofumpt` → `gofmt` (first available) |
 | `prettier-frontend.sh` | PostToolUse (Edit/Write) | `frontend/**` | Formats with `npx prettier --write` |
-| `lint-on-save.sh` | PostToolUse (Edit/Write) | `**/*.go`, `**/*.ts`, `**/*.tsx` | Runs `golangci-lint` (Go) or `eslint` (TypeScript) and feeds violations back to Claude as context so it self-corrects |
+| `lint-on-save.sh` | PostToolUse (Edit/Write) | `**/*.go`, `**/*.ts`, `**/*.tsx` | Auto-fixes with `golangci-lint --fix`, then runs `make lint-go-incremental` (only changes since branching from main) and feeds remaining violations back to Claude for self-correction. For TypeScript, runs `eslint --fix` then reports remaining issues. |
 
 Hooks run in order: formatters first (goimports, prettier), then the linter. The linter is non-blocking — it doesn't reject the edit, but Claude sees the output and fixes violations in its next step. All hooks exit gracefully if the tool isn't installed. To add project-level hooks, edit `.claude/settings.json` on a branch. For personal hooks, add them to `~/.claude/settings.json`.
 

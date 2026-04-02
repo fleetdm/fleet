@@ -78,7 +78,13 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`
 - Context providers in `frontend/context/` — `AppContext` for global state, `NotificationContext` for flash messages
 
+## Terminology
+- "Teams" are now called "fleets" in the product. Code still uses `team_id`, `useTeamIdParam`, `permissions.isTeamAdmin`, etc. — don't rename existing APIs, but use "fleet" in new user-facing strings and comments.
+- "Queries" are now called "reports." The word "query" now refers solely to a SQL query. Code still uses `useQuery`, `queryKey`, etc. for React Query — that's unrelated to the product terminology change.
+
 ## Linting & Formatting
 - ESLint: extends airbnb + typescript-eslint + prettier
 - Prettier: default config (`.prettierrc.json`)
-- Run `yarn lint` and `npx prettier --check frontend/` before submitting
+- `console.log` is allowed (`no-console` is off) — useful for debugging, but clean up before merging
+- `react-hooks/exhaustive-deps` is enforced as a warning — include all dependencies in hook dependency arrays
+- Run `make lint-js` or `yarn lint` and `npx prettier --check frontend/` before submitting

@@ -9,13 +9,23 @@ if [ -z "$COMMAND" ]; then
   exit 0
 fi
 
-# Block rm -rf with dangerous targets
-case "$COMMAND" in
-  *"rm -rf /"*|*"rm -rf ~"*|*"rm -rf *"*|*"rm -rf ."*)
-    echo "BLOCKED: dangerous rm -rf" >&2
-    exit 2
-    ;;
-esac
+# Block rm -rf with dangerous targets (/, ~, *, bare . but not ./path)
+echo "$COMMAND" | grep -qE 'rm\s+-rf\s+/' && {
+  echo "BLOCKED: rm -rf with absolute path" >&2
+  exit 2
+}
+echo "$COMMAND" | grep -qE 'rm\s+-rf\s+~' && {
+  echo "BLOCKED: rm -rf home directory" >&2
+  exit 2
+}
+echo "$COMMAND" | grep -qE 'rm\s+-rf\s+\*' && {
+  echo "BLOCKED: rm -rf wildcard" >&2
+  exit 2
+}
+echo "$COMMAND" | grep -qE 'rm\s+-rf\s+\.$' && {
+  echo "BLOCKED: rm -rf current directory" >&2
+  exit 2
+}
 
 # Block force push to main/master
 echo "$COMMAND" | grep -qiE 'git\s+push\s+.*(--force|-f)\s+.*(main|master)' && {

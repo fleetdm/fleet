@@ -8,10 +8,10 @@ Fleet is an open-source platform for IT and security teams: device management (M
 
 ## Architecture
 
-### Backend Request Flow
+### Backend request flow
 HTTP request → `server/service/handler.go` routes → endpoint function (decode request) → service method (auth + business logic) → datastore method (SQL) → response struct
 
-### Key Layers
+### Key layers
 - **Types & interfaces**: `server/fleet/` — `Service` in `service.go`, `Datastore` in `datastore.go`
 - **Service implementations**: `server/service/` — business logic, auth checks
 - **Datastore (MySQL)**: `server/datastore/mysql/` — SQL queries, migrations
@@ -20,39 +20,29 @@ HTTP request → `server/service/handler.go` routes → endpoint function (decod
 - **Frontend**: `frontend/pages/` (routes), `frontend/components/` (reusable UI), `frontend/services/` (API client)
 - **CLI tools**: `cmd/fleet/` (server), `cmd/fleetctl/` (management CLI), `orbit/` (agent)
 
-### Enterprise vs Core
+### Enterprise vs core
 - Core features: no special build tags, available in all deployments
 - Enterprise features: in `ee/` directory, license checks at service layer
 - Use `//go:build !premium` for core-only features when needed
 
-## Fleet-Specific Patterns
+## Terminology
 
-### Go Backend
+The following terms were recently renamed. Use the new terms in conversation and new code, but don't rename existing variables or API parameters without guidance:
+- **"Teams" → "Fleets"** — the concept of grouping hosts. Legacy code still uses `team_id`, `teams` table, etc.
+- **"Queries" → "Reports"** — what was formerly a "query" in the product is now a "report." The word "query" now refers solely to a SQL query, which is one aspect of a report.
+
+## Fleet-specific patterns
+
+### Go backend
 - **Error wrapping**: `ctxerr.Wrap(ctx, err, "description")` — never pkg/errors
 - **Request/Response**: lowercase struct types, `Err error` field, `Error()` method returning `r.Err`
 - **Endpoint registration**: `ue.POST("/api/_version_/fleet/resource", fn, reqType{})`
 - **Authorization**: `svc.authz.Authorize(ctx, entity, fleet.ActionX)` at start of service methods
 - **Logging**: slog with `DebugContext/InfoContext/WarnContext/ErrorContext` — never bare slog.Debug/Info/Warn/Error
-- **Pointer utilities**: `server/ptr` — `ptr.String()`, `ptr.Uint()`, `ptr.Bool()`, `ptr.ValOrZero()`
+- **Pointers**: Use Go 1.26 `new(expression)` for pointer values (e.g., `new("value")`, `new(true)`, `new(42)`). Do NOT use the legacy `server/ptr` package in new code — it exists throughout the codebase but is superseded by `new(expr)`.
 - **Reference example**: `server/service/vulnerabilities.go`
 
-### Go Code Style
-- Prefer `map[T]struct{}` over `map[T]bool` for sets
-- Convert map keys to slice: `slices.Collect(maps.Keys(m))`
-- Avoid `time.Sleep` in tests — use `testing/synctest`, polling helpers, channels, or `require.Eventually`
-- Use `require`/`assert` from `github.com/stretchr/testify`
-- Use `t.Context()` instead of `context.Background()` in tests
-- Use `any` instead of `interface{}`
-
-### Frontend
-- **Component structure**: `.tsx` + `_styles.scss` + `.tests.tsx` + `index.ts`
-- **Data fetching**: React Query (`useQuery` with `[key, dep]` and `enabled`)
-- **API calls**: `sendRequest(method, path, body?, params?)` from `frontend/services/`
-- **Styling**: SCSS with BEM — `const baseClass = "component-name"`
-- **Interfaces**: `frontend/interfaces/` with `I` prefix (IHost, IUser)
-- **Component generator**: `./frontend/components/generate -n PascalName -p optional/path`
-
-## Before Writing a Fix
+## Before writing a fix
 
 - Identify WHERE in the request lifecycle the problem manifests (creation vs team-addition vs sync vs query). Fix it there, not at the reproduction step.
 - Read the surrounding 100 lines. If similar checks exist nearby, follow their pattern exactly.
@@ -61,57 +51,42 @@ HTTP request → `server/service/handler.go` routes → endpoint function (decod
 - For declarative/batch endpoints, validate within the incoming payload, not against the DB.
 - When checking for duplicates, exclude the current entity to avoid false conflicts on upserts.
 - Run `go test ./server/service/` after adding new datastore interface methods — uninitialized mocks crash other tests.
-- Use existing utilities (`ptr.ValOrZero`, etc.) and follow parameter style conventions.
 
-## Development Commands
+## Development commands
 
-### Building & Running
+Check the `Makefile` for the full list of available targets. Key ones below.
+
+### Building and running
 ```bash
 make build          # Build fleet + fleetctl
-make fleet          # Build fleet server only
-make fleetctl       # Build fleetctl CLI only
 make serve          # Start dev server (or: make up)
-make generate       # Generate frontend assets + Go code
 make generate-dev   # Webpack watch mode for frontend dev
 make deps           # Install dependencies
 ```
 
 ### Testing
 ```bash
-# Go tests
 go test ./server/fleet/...                                          # Quick (no external deps)
 MYSQL_TEST=1 go test ./server/datastore/mysql/...                   # MySQL integration
 MYSQL_TEST=1 REDIS_TEST=1 go test ./server/service/...              # Service integration
 MYSQL_TEST=1 go test -run TestFunctionName ./server/datastore/mysql/... # Specific test
-FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 MYSQL_TEST=1 REDIS_TEST=1 go test -run TestName ./server/service/... # Quiet mode
+yarn test                                                            # Frontend Jest tests
+```
 
-# Frontend
-yarn test                   # Jest tests
-yarn lint                   # ESLint
-npx prettier --check frontend/  # Formatting check
-
-# Full suite
-make test           # Lint + Go + JS
-make lint-go        # Go linters only
-make lint-js        # JS/TS linters only
+### Linting
+```bash
+make lint-go-incremental  # Go — ONLY changes since branching from main (use after editing)
+make lint-go              # Go — full (use before committing)
+make lint-js              # JS/TS linters
 ```
 
 ### Database
 ```bash
 make migration name=CamelCaseName   # Create new migration
 make db-reset                       # Reset dev database
-make db-backup                      # Backup dev database
-make db-restore                     # Restore from backup
 ```
 
-### E2E
-```bash
-make e2e-reset-db       # Reset E2E database
-make e2e-serve-free     # Start server (free edition)
-make e2e-serve-premium  # Start server (premium edition)
-```
-
-### CI Test Bundles
+### CI test bundles
 | Bundle | Packages | Env vars |
 |--------|----------|----------|
 | `fast` | No external deps | none |
@@ -124,57 +99,20 @@ make e2e-serve-premium  # Start server (premium edition)
 | `vuln` | `server/vulnerabilities/...` | varies |
 | `main` | Everything else | varies |
 
-## Common Workflows
+## Skills and agents
 
-1. **Starting development**: `make deps && make generate-dev && make serve`
-2. **Running tests**: `make test` (full) or `make run-go-tests PKG_TO_TEST="specific/package"`
-3. **Database changes**: `make migration name=YourChange` then `make db-reset`
-4. **Frontend changes**: `make generate-dev` for live reloading
-5. **Adding features**: service → datastore → API → frontend pattern
+Type `/` to see available skills. Key ones: `/test`, `/lint`, `/review-pr`, `/fix-ci`, `/spec-story`, `/new-endpoint`, `/new-migration`, `/project`, `/fleet-gitops`, `/find-related-tests`, `/update-data-dictionary`.
 
-## Scale & Performance
-
-- Deployments manage thousands of hosts — queries must be efficient at scale
-- Multi-tenant architecture with team-based permissions
-- Consider impact of real-time features and WebSocket connections
-- osquery integration requires careful resource management
-
-## Skills & Agents
-
-### Skills (type `/` to invoke)
-- `/review-pr <PR#>` — Review a pull request
-- `/fix-ci <run-url>` — Diagnose and fix failing CI tests
-- `/test [filter]` — Run tests related to recent changes
-- `/find-related-tests` — Find test files for changes
-- `/fleet-gitops` — Help with GitOps config files
-- `/project <name>` — Load workstream context
-- `/new-endpoint` — Scaffold a new API endpoint
-- `/new-migration` — Create a database migration
-- `/spec-story <issue#>` — Break down a story into implementable sub-issues with technical specs
-- `/lint [go|frontend]` — Run linters on recent changes
-- `/update-data-dictionary` — Sync DATA-DICTIONARY.md with recent migrations
-
-### Agents (invoked automatically or by name)
-- **go-reviewer** — Go changes: bugs, conventions, security (proactive)
-- **frontend-reviewer** — React/TypeScript: conventions, type safety (proactive)
-- **fleet-security-auditor** — MDM, auth, osquery, device management security
+Agents: **go-reviewer** (proactive after Go edits), **frontend-reviewer** (proactive after TS edits), **fleet-security-auditor** (on-demand for auth/MDM/security).
 
 ## Documentation
 
-All Fleet documentation lives in this repo. When answering questions about Fleet's features, APIs, deployment, or workflows, check these sources before searching the web:
+All Fleet documentation lives in this repo. Check these sources before searching the web:
 
-- **`docs/`** — User-facing documentation
-  - `docs/01-Using-Fleet/` — Feature guides
-  - `docs/REST API/` — REST API reference
-  - `docs/Configuration/` — Server and agent configuration
-  - `docs/Deploy/` — Deployment guides
-  - `docs/Contributing/` — Development guides, API conventions, and audit log reference
-- **`handbook/`** — Internal procedures and workflows
-  - `handbook/engineering/` — Engineering practices and rituals
-  - `handbook/company/` — Company-wide policies including writing style guide
-  - `handbook/product-design/` — Product and design processes
-- **`articles/`** — Blog posts and tutorials (438 articles)
-- **Root files** — `README.md`, `CHANGELOG.md`, `SECURITY.md`, `DATA-DICTIONARY.md`
+- **`docs/`** — User-facing docs: feature guides, REST API reference, configuration, deployment, contributing
+- **`handbook/`** — Internal procedures: engineering practices, company policies, product design
+- **`articles/`** — Blog posts and tutorials
+- **`DATA-DICTIONARY.md`** — Database schema reference
 
 ## Other references
 
