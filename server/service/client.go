@@ -2814,13 +2814,13 @@ func resolvePolicySoftwareTitleID(
 	policy *spec.GitOpsPolicySpec,
 	byURL, byAppStoreID, byHash, bySlug map[string]uint,
 ) (titleID uint, resolved bool) {
-	if policy.InstallSoftware.Other == nil {
-		return 0, false
-	}
 	if policy.InstallSoftwareURL != "" {
 		if id, ok := byURL[policy.InstallSoftwareURL]; ok {
 			return id, true
 		}
+	}
+	if policy.InstallSoftware.Other == nil {
+		return 0, false
 	}
 	if policy.InstallSoftware.Other.AppStoreID != "" {
 		if id, ok := byAppStoreID[policy.InstallSoftware.Other.AppStoreID]; ok {
