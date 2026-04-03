@@ -135,12 +135,11 @@ git checkout main
 git pull origin main
 git checkout -b bring-fleetd-android-v1.X.X-to-main
 git checkout rc-minor-fleetd-android-v1.X.X -- android/app/build.gradle.kts android/CHANGELOG.md
-git rm android/changes/*
-git checkout HEAD -- android/changes/.keep
+git diff --name-only --diff-filter=D main...rc-minor-fleetd-android-v1.X.X -- android/changes/ | xargs git rm --ignore-unmatch
 git commit -m "Update version and CHANGELOG for fleetd-android-v1.X.X"
 git push origin bring-fleetd-android-v1.X.X-to-main
 ```
 
 Then open a PR to merge `bring-fleetd-android-v1.X.X-to-main` into `main`.
 
-This brings the version bump and CHANGELOG updates to main and removes the processed changelog entries, keeping only the `.keep` file in `android/changes/`.
+This brings the version bump and CHANGELOG updates to main and removes only the changelog entries that were processed in the RC, preserving any new entries added to main after the RC branch was cut.

@@ -605,9 +605,10 @@ changelog-chrome:
 changelog-android:
 	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
 	@echo -e "## Android agent $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
-	sh -c "find android/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {} | sed -E \"s/^-/*/\"; echo' >> new-CHANGELOG.md"
+	sh -c "find android/changes -type f ! -name .keep -exec awk 'NF' {} + | sed -E 's/^-/*/' >> new-CHANGELOG.md"
+	@echo "" >> new-CHANGELOG.md
 	sh -c "cat new-CHANGELOG.md android/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md android/CHANGELOG.md"
-	sh -c "git rm android/changes/*"
+	sh -c "find android/changes -type f ! -name .keep -exec git rm {} +"
 
 # Updates the documentation for the currently released versions of fleetd components in old Fleet's TUF (tuf.fleetctl.com).
 fleetd-old-tuf:
