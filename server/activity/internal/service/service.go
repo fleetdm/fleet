@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/otel"
 )
@@ -199,7 +198,7 @@ func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JS
 			OrderDirection: api.OrderAscending,
 			PerPage:        streamBatchSize,
 			After:          idCursor(afterID),
-			Streamed:       ptr.Bool(false),
+			Streamed:       new(false),
 		})
 		if err != nil {
 			return ctxerr.Wrap(systemCtx, err, "list activities")

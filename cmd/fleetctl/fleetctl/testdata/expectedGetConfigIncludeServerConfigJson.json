@@ -91,6 +91,7 @@
       },
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
+      "apple_require_hardware_attestation": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -257,7 +258,12 @@
     },
     "gitops": {
       "gitops_mode_enabled": false,
-      "repository_url": ""
+      "repository_url": "",
+      "exceptions": {
+        "labels": false,
+        "software": false,
+        "secrets": false
+      }
     }
   }
 }

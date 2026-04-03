@@ -141,6 +141,7 @@
       "enable_turn_on_windows_mdm_manually": false,
       "windows_entra_tenant_ids": null,
       "windows_require_bitlocker_pin": null,
+      "apple_require_hardware_attestation": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -194,7 +195,12 @@
     "scripts": null,
     "gitops": {
       "gitops_mode_enabled": false,
-      "repository_url": ""
+      "repository_url": "",
+      "exceptions": {
+        "labels": false,
+        "software": false,
+        "secrets": false
+      }
     }
   }
 }

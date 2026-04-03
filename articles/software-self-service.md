@@ -4,6 +4,12 @@ _Available in Fleet Premium_
 
 Fleet’s self-service lets end users update and install approved apps and run scripts from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive.
 
+For macOS, Windows, and Linux hosts, self-service is accessible via the **Self-service** page in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). 
+
+> **Note:** The **Self-service** page is hidden by default to avoid confusion in organizations that use a different self-service tool. It appears after you add self-service software or scripts.
+
+For iOS/iPadOS hosts, [deploy a webclip](#deploy-self-service-on-ios-and-ipados) to give end users access. For Android hosts, all self-service software is available in the Managed Google Play store. [Learn more](https://fleetdm.com/guides/install-app-store-apps#google-play-android2).
+
 ## Add software
 
 1. Select the fleet to which you want to add the software from the dropdown in the upper left corner of the page.

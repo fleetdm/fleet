@@ -227,6 +227,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	// create MDM enrolled macOS host
 	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{

@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -27,6 +30,8 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
@@ -43,6 +48,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -53,6 +59,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
@@ -61,6 +68,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -94,7 +102,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage                      nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer                          fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                               clock.Clock                   = clock.C
-		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
+		scepConfigService                                             = scep.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
 		estCAService                                                  = est.NewService(est.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
@@ -302,6 +310,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		opts[0].ActivityMock = activityMock
 	}
 
+	// Set up mock ACME service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real service module.
+	svc.SetACMEService(&fleet_mock.MockACMEService{})
+
 	return svc, ctx
 }
 
@@ -446,6 +458,9 @@ type TestServerOpts struct {
 	// ActivityMock is populated automatically by newTestServiceWithConfig.
 	// After setup, tests can use it to intercept or assert on activity creation.
 	ActivityMock *fleet_mock.MockActivityService
+
+	ACMECertCA  *x509.Certificate
+	ACMECertKey *ecdsa.PrivateKey
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -520,6 +535,20 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		redisPool = redistest.SetupRedis(t, t.Name(), false, false, false) // We are good to initalize a redis pool here as it is only called by integration tests
 	}
 
+	// Wire real ACME service module if DBConns is provided (overrides the mock set in newTestServiceWithConfig).
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		var acmeOpts []acme_bootstrap.ServiceOption
+		if opts[0].ACMECertCA != nil && opts[0].ACMECertKey != nil {
+			rootCAPool := x509.NewCertPool()
+			rootCAPool.AddCert(opts[0].ACMECertCA)
+			acmeOpts = append(acmeOpts, acme_bootstrap.WithTestAppleRootCAs(rootCAPool))
+		}
+		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365), depot.WithAllowRenewalDays(14))}
+		acmeSvc, acmeRoutes := acme_bootstrap.New(opts[0].DBConns, redisPool, acmeacl.NewFleetDatastoreAdapter(ds, acmeSigner), logger, acmeOpts...)
+		svc.SetACMEService(acmeSvc)
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes(log.Logged))
+	}
+
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
@@ -550,7 +579,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		if opts[0].EnableSCEPProxy {
 			var timeout *time.Duration
 			if opts[0].SCEPConfigService != nil {
-				scepConfig, ok := opts[0].SCEPConfigService.(*eeservice.SCEPConfigService)
+				scepConfig, ok := opts[0].SCEPConfigService.(*scep.SCEPConfigService)
 				if ok {
 					// In tests, we share the same Timeout pointer between SCEPConfigService and SCEPProxy
 					timeout = scepConfig.Timeout
@@ -1426,6 +1455,7 @@ type fmaTestState struct {
 	installerBytes []byte
 	sha256         string
 	installerPath  string
+	patchQuery     string
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1479,8 +1509,11 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 
 		versions := []*ma.FMAManifestApp{
 			{
-				Version:            state.version,
-				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				Version: state.version,
+				Queries: ma.FMAQueries{
+					Exists:  "SELECT 1 FROM osquery_info;",
+					Patched: state.patchQuery,
+				},
 				InstallerURL:       installerServer.URL + state.installerPath,
 				InstallScriptRef:   "foobaz",
 				UninstallScriptRef: "foobaz",
@@ -1499,4 +1532,34 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		installerServer.Close()
 	})
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+}
+
+// acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.
+type acmeCSRSigner struct {
+	signer *depot.Signer
+}
+
+func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	return a.signer.Signx509CSR(csr)
+}
+
+// mockRoundTripper is a custom http.RoundTripper that redirects requests to a mock server.
+type mockRoundTripper struct {
+	mockServer  string
+	origBaseURL string
+	next        http.RoundTripper
+}
+
+func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if strings.Contains(req.URL.String(), rt.origBaseURL) {
+		path := strings.TrimPrefix(req.URL.Path, "/")
+		newURL := fmt.Sprintf("%s/%s", rt.mockServer, path)
+		newReq, err := http.NewRequestWithContext(req.Context(), req.Method, newURL, req.Body) //nolint:gosec // test helper, URL is from mock server
+		if err != nil {
+			return nil, err
+		}
+		newReq.Header = req.Header
+		return rt.next.RoundTrip(newReq)
+	}
+	return rt.next.RoundTrip(req)
 }

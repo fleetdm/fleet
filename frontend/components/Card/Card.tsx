@@ -8,7 +8,7 @@ import { Link } from "react-router";
 const baseClass = "card";
 
 type BorderRadiusSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
-type CardColor = "white" | "grey" | "purple" | "yellow";
+type CardColor = "white" | "grey" | "yellow";
 type PaddingSize =
   | "small"
   | "medium"

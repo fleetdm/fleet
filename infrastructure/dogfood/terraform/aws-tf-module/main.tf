@@ -80,6 +80,8 @@ locals {
     # Webhook Results & Status Logging Destination
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
     FLEET_SERVER_GZIP_RESPONSES     = "true"
+    # https://github.com/fleetdm/fleet/issues/38366
+    FLEET_MDM_ALLOW_ALL_DECLARATIONS = "true"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path
@@ -150,7 +152,7 @@ module "main" {
   rds_config = {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
     name                         = "${local.customer}-1"
-    engine_version               = "8.0.mysql_aurora.3.08.2"
+    engine_version               = "8.0.mysql_aurora.3.10.3"
     restore_to_point_in_time = {
       source_cluster_identifier = local.customer
       restore_to_time           = "2026-03-09T22:40:59Z"

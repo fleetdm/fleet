@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -1253,7 +1253,7 @@ func TestHostDetailQueries(t *testing.T) {
 		logger:   slog.New(slog.DiscardHandler),
 		config:   config.TestConfig(),
 		ds:       ds,
-		jitterMu: new(sync.Mutex),
+		jitterMu: new(sync.RWMutex),
 		jitterH:  make(map[time.Duration]*jitterHashTable),
 	}
 
@@ -2296,7 +2296,7 @@ func TestMDMQueries(t *testing.T) {
 		logger:   slog.New(slog.DiscardHandler),
 		config:   config.TestConfig(),
 		ds:       ds,
-		jitterMu: new(sync.Mutex),
+		jitterMu: new(sync.RWMutex),
 		jitterH:  make(map[time.Duration]*jitterHashTable),
 	}
 

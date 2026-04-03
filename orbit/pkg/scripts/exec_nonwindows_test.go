@@ -59,7 +59,7 @@ func TestExecCmdNonWindows(t *testing.T) {
 		},
 		{
 			name:     "unsupported shebang",
-			contents: "#!/bin/python",
+			contents: "#!/bin/ksh\necho 1",
 			error:    fleet.ErrUnsupportedInterpreter,
 			exitCode: -1,
 		},

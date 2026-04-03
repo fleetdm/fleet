@@ -238,6 +238,10 @@ type MDM struct {
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
+	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
+	// certain Apple MDM enrollments.
+	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
+
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
@@ -273,9 +277,16 @@ type DiskEncryptionConfig struct {
 	BitLockerPINRequired bool
 }
 
-type UIGitOpsModeConfig struct {
-	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
-	RepositoryURL     string `json:"repository_url"`
+type GitOpsExceptions struct {
+	Labels   bool `json:"labels"`
+	Software bool `json:"software"`
+	Secrets  bool `json:"secrets"`
+}
+
+type GitOpsConfig struct {
+	GitopsModeEnabled bool             `json:"gitops_mode_enabled"`
+	RepositoryURL     string           `json:"repository_url"`
+	Exceptions        GitOpsExceptions `json:"exceptions"`
 }
 
 func (c *AppConfig) MDMUrl() string {
@@ -673,7 +684,7 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
-	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
+	GitOpsConfig GitOpsConfig `json:"gitops"`
 
 	// Scripts is a slice of script file paths.
 	//
@@ -1064,6 +1075,10 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 
 	c.Features.ApplyDefaultsForNewInstalls()
 
+	c.GitOpsConfig.Exceptions.Secrets = true
+	c.GitOpsConfig.Exceptions.Labels = false
+	c.GitOpsConfig.Exceptions.Software = false
+
 	c.ApplyDefaults()
 }
 
@@ -1365,6 +1380,16 @@ type ListQueryOptions struct {
 	// Return queries that are scheduled to run on this platform. One of "macos",
 	// "windows", or "linux"
 	Platform *string
+}
+
+// ListHostReportsOptions defines options for listing reports (queries) associated with a host.
+type ListHostReportsOptions struct {
+	ListOptions
+	// IncludeReportsDontStoreResults controls whether queries that don't store
+	// results (discard_data=1 OR logging_type!='snapshot') are included.
+	// false (default): only queries with discard_data=0 AND logging_type='snapshot' are returned.
+	// true: all queries are returned, including ones that don't store results.
+	IncludeReportsDontStoreResults bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.

@@ -59,14 +59,12 @@ const AddPatchPolicyModal = ({
     >
       <>
         <p>
-          Later you can add software automation for this software on{" "}
-          <strong>
-            Policies &gt; Manage automations &gt; Install software
-          </strong>
-          .
+          This creates a read-only policy. Later, to enforce remediation, head
+          to this policy&apos;s page.
         </p>
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
+            entityType="software"
             renderChildren={(disableChildren) => (
               <Button
                 onClick={onAddPatchPolicy}

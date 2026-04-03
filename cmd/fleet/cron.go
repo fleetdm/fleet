@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -42,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/winoffice"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"go.opentelemetry.io/otel/attribute"
@@ -195,6 +197,7 @@ func scanVulnerabilities(
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
@@ -219,10 +222,11 @@ func scanVulnerabilities(
 		trace.WithAttributes(attribute.String("automation_type", vulnAutomationEnabled)))
 	defer automationSpan.End()
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns)+len(winOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, winOfficeVulns...)
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
@@ -594,6 +598,45 @@ func checkMacOfficeVulnerabilities(
 	return r
 }
 
+func checkWinOfficeVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_winoffice")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.winoffice.sync")
+		err := winoffice.SyncFromGithub(syncCtx, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating windows office bulletin", err)
+		}
+		syncSpan.End()
+
+		logger.DebugContext(ctx, "finished sync windows office bulletin")
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.winoffice.analyze")
+	start := time.Now()
+	r, err := winoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
+	elapsed := time.Since(start)
+
+	logger.DebugContext(analyzeCtx, "win-office-analysis-done",
+		"elapsed", elapsed,
+		"found new", len(r))
+
+	if err != nil {
+		errHandler(analyzeCtx, logger, "analyzing windows office products for vulnerabilities", err)
+	}
+	analyzeSpan.End()
+
+	return r
+}
+
 func newAutomationsSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -732,8 +775,6 @@ func newWorkerIntegrationsSchedule(
 	logger *slog.Logger,
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
-	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
-	vppInstaller fleet.AppleMDMVPPInstaller,
 	androidModule android.Service,
 ) (*schedule.Schedule, error) {
 	const (
@@ -782,13 +823,7 @@ func newWorkerIntegrationsSchedule(
 		DEPService: depSvc,
 		DEPClient:  depCli,
 	}
-	appleMDM := &worker.AppleMDM{
-		Datastore:             ds,
-		Log:                   logger,
-		Commander:             commander,
-		BootstrapPackageStore: bootstrapPackageStore,
-		VPPInstaller:          vppInstaller,
-	}
+
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
 		Log:       logger,
@@ -803,7 +838,7 @@ func newWorkerIntegrationsSchedule(
 		Log:           logger,
 		AndroidModule: androidModule,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -904,6 +939,53 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 	return failerClient
 }
 
+func newAppleMDMWorkerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	commander *apple_mdm.MDMAppleCommander,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+) (*schedule.Schedule, error) {
+	const (
+		name             = string(fleet.CronAppleMDMWorker)
+		scheduleInterval = 10 * time.Second // schedule a worker to run every 10 seconds if none is running
+		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
+	)
+
+	logger = logger.With("cron", name)
+
+	w := worker.NewWorker(ds, logger)
+
+	appleMDM := &worker.AppleMDM{
+		Datastore:             ds,
+		Log:                   logger,
+		Commander:             commander,
+		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
+	}
+
+	w.Register(appleMDM)
+
+	s := schedule.New(
+		ctx, name, instanceID, scheduleInterval, ds, ds,
+		schedule.WithAltLockID("apple_mdm"),
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_worker", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
+			if err := w.ProcessJobs(workCtx); err != nil {
+				return fmt.Errorf("processing apple mdm jobs: %w", err)
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
 func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -918,6 +1000,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
+	acmeSvc acme_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1054,7 +1137,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"renew_scep_certificates",
 			func(ctx context.Context) error {
-				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
+				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander, acmeSvc)
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
@@ -1165,6 +1248,9 @@ func newCleanupsAndAggregationSchedule(
 				logger.InfoContext(ctx, "reverted stale certificate templates", "count", affected)
 			}
 			return nil
+		}),
+		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
+			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
 		}),
 	)
 
@@ -1423,7 +1509,9 @@ func newAppleMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
+	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
+	certProfilesLimit int,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -1438,7 +1526,7 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+			return service.ReconcileAppleProfiles(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
@@ -1994,6 +2082,7 @@ func newRecoveryLockPasswordSchedule(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronSendRecoveryLockCommands)
@@ -2005,7 +2094,7 @@ func newRecoveryLockPasswordSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
-			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger)
+			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 

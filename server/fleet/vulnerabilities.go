@@ -128,6 +128,7 @@ const (
 	MacOfficeReleaseNotesSource
 	CustomSource
 	GovalDictionarySource
+	WinOfficeSource
 )
 
 type VulnerabilityWithMetadata struct {

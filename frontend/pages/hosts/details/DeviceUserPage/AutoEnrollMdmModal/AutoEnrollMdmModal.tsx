@@ -61,7 +61,7 @@ const AutoEnrollMdmModal = ({
           Enter your password, and select <b>Enroll</b>.
         </li>
         <li>
-          Select <b>Done</b> to close this window and select <b>Refetch</b> on
+          Select <b>Close</b> to close this window and select <b>Refetch</b> on
           your My device page to tell your organization that MDM is on.
         </li>
       </ol>
@@ -103,7 +103,7 @@ const AutoEnrollMdmModal = ({
           Enter your password, and select <b>Enroll</b>.
         </li>
         <li>
-          Select <b>Done</b> to close this window and select <b>Refetch</b> on
+          Select <b>Close</b> to close this window and select <b>Refetch</b> on
           your My device page to tell your organization that MDM is on.
         </li>
       </ol>
@@ -122,7 +122,7 @@ const AutoEnrollMdmModal = ({
         {isMacOsSonomaOrLater ? sonomaAndAboveBody : preSonomaBody}
         <div className="modal-cta-wrap">
           <Button type="button" onClick={onCancel}>
-            Done
+            Close
           </Button>
         </div>
       </div>

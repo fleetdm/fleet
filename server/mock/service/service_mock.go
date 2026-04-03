@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -190,6 +191,8 @@ type GetQueryReportResultsFunc func(ctx context.Context, id uint, teamID *uint) 
 type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID uint) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, err error)
 
 type QueryReportIsClippedFunc func(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
+
+type ListHostReportsFunc func(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, err error)
 
 type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error)
 
@@ -395,6 +398,10 @@ type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, apply
 
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
 
+type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
+
+type NewACMEEnrollmentFunc func(ctx context.Context, hostIdentifier string) (string, error)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
@@ -418,6 +425,8 @@ type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.
 type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
 
 type UpdateCertificateStatusFunc func(ctx context.Context, update *fleet.CertificateStatusUpdate) error
+
+type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
 
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
@@ -456,6 +465,8 @@ type AutofillPolicySqlFunc func(ctx context.Context, sql string) (description st
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*fleet.Software, error)
+
+type SoftwareLiteByIDFunc func(ctx context.Context, id uint) (fleet.SoftwareLite, error)
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
@@ -511,7 +522,7 @@ type ListSoftwareByCVEFunc func(ctx context.Context, cve string, teamID *uint) (
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -519,7 +530,7 @@ type ModifyTeamPolicyFunc func(ctx context.Context, teamID uint, id uint, p flee
 
 type GetTeamPolicyByIDQueriesFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
-type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error)
+type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error)
 
 type LookupGeoIPFunc func(ctx context.Context, ip string) *fleet.GeoLocation
 
@@ -555,6 +566,8 @@ type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloa
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error)
 
+type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error)
+
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error)
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error)
@@ -577,7 +590,7 @@ type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*f
 
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
+type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *fleet.MDMAppleMachineInfo) (profile []byte, err error)
 
 type GetMDMAppleAccountEnrollmentProfileFunc func(ctx context.Context, enrollReference string) (profile []byte, err error)
 
@@ -799,6 +812,8 @@ type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, er
 
 type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
 
+type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
+
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
@@ -843,7 +858,7 @@ type MaybeCancelPendingSetupExperienceStepsFunc func(ctx context.Context, host *
 
 type IsAllSetupExperienceSoftwareRequiredFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
-type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error)
+type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string, labelsIncludeAll []string) (uint, error)
 
 type ListFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
@@ -1149,6 +1164,9 @@ type Service struct {
 
 	QueryReportIsClippedFunc        QueryReportIsClippedFunc
 	QueryReportIsClippedFuncInvoked bool
+
+	ListHostReportsFunc        ListHostReportsFunc
+	ListHostReportsFuncInvoked bool
 
 	NewQueryFunc        NewQueryFunc
 	NewQueryFuncInvoked bool
@@ -1456,6 +1474,12 @@ type Service struct {
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
 
+	SetACMEServiceFunc        SetACMEServiceFunc
+	SetACMEServiceFuncInvoked bool
+
+	NewACMEEnrollmentFunc        NewACMEEnrollmentFunc
+	NewACMEEnrollmentFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
@@ -1491,6 +1515,9 @@ type Service struct {
 
 	UpdateCertificateStatusFunc        UpdateCertificateStatusFunc
 	UpdateCertificateStatusFuncInvoked bool
+
+	ResendHostCertificateTemplateFunc        ResendHostCertificateTemplateFunc
+	ResendHostCertificateTemplateFuncInvoked bool
 
 	GlobalScheduleQueryFunc        GlobalScheduleQueryFunc
 	GlobalScheduleQueryFuncInvoked bool
@@ -1548,6 +1575,9 @@ type Service struct {
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
+
+	SoftwareLiteByIDFunc        SoftwareLiteByIDFunc
+	SoftwareLiteByIDFuncInvoked bool
 
 	CountSoftwareFunc        CountSoftwareFunc
 	CountSoftwareFuncInvoked bool
@@ -1695,6 +1725,9 @@ type Service struct {
 
 	GetHostDEPAssignmentFunc        GetHostDEPAssignmentFunc
 	GetHostDEPAssignmentFuncInvoked bool
+
+	GetHostDEPAssignmentDetailsFunc        GetHostDEPAssignmentDetailsFunc
+	GetHostDEPAssignmentDetailsFuncInvoked bool
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
@@ -2061,6 +2094,9 @@ type Service struct {
 
 	WipeHostFunc        WipeHostFunc
 	WipeHostFuncInvoked bool
+
+	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
+	RotateRecoveryLockPasswordFuncInvoked bool
 
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
@@ -2805,6 +2841,13 @@ func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQue
 	return s.QueryReportIsClippedFunc(ctx, queryID, maxQueryReportRows)
 }
 
+func (s *Service) ListHostReports(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, err error) {
+	s.mu.Lock()
+	s.ListHostReportsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostReportsFunc(ctx, hostID, opts)
+}
+
 func (s *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
 	s.mu.Lock()
 	s.NewQueryFuncInvoked = true
@@ -3519,6 +3562,20 @@ func (s *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	s.SetActivityServiceFunc(activitySvc)
 }
 
+func (s *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
+	s.mu.Lock()
+	s.SetACMEServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetACMEServiceFunc(acmeSvc)
+}
+
+func (s *Service) NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error) {
+	s.mu.Lock()
+	s.NewACMEEnrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewACMEEnrollmentFunc(ctx, hostIdentifier)
+}
+
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	s.mu.Lock()
 	s.NewActivityFuncInvoked = true
@@ -3601,6 +3658,13 @@ func (s *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.Cer
 	s.UpdateCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateCertificateStatusFunc(ctx, update)
+}
+
+func (s *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
+	s.mu.Lock()
+	s.ResendHostCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendHostCertificateTemplateFunc(ctx, hostID, templateID)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
@@ -3734,6 +3798,13 @@ func (s *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inclu
 	s.SoftwareByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.SoftwareByIDFunc(ctx, id, teamID, includeCVEScores)
+}
+
+func (s *Service) SoftwareLiteByID(ctx context.Context, id uint) (fleet.SoftwareLite, error) {
+	s.mu.Lock()
+	s.SoftwareLiteByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftwareLiteByIDFunc(ctx, id)
 }
 
 func (s *Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
@@ -3925,11 +3996,11 @@ func (s *Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.NewTea
 	return s.NewTeamPolicyFunc(ctx, teamID, p)
 }
 
-func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.mu.Lock()
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts, mergeInherited, automationFilter)
+	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts, mergeInherited, automationType)
 }
 
 func (s *Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
@@ -3953,11 +4024,11 @@ func (s *Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, pol
 	return s.GetTeamPolicyByIDQueriesFunc(ctx, teamID, policyID)
 }
 
-func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error) {
+func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {
 	s.mu.Lock()
 	s.CountTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountTeamPoliciesFunc(ctx, teamID, matchQuery, mergeInherited)
+	return s.CountTeamPoliciesFunc(ctx, teamID, matchQuery, mergeInherited, automationType)
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -4079,6 +4150,13 @@ func (s *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*
 	return s.GetHostDEPAssignmentFunc(ctx, host)
 }
 
+func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+	s.mu.Lock()
+	s.GetHostDEPAssignmentDetailsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostDEPAssignmentDetailsFunc(ctx, hostID)
+}
+
 func (s *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleConfigProfileFuncInvoked = true
@@ -4156,11 +4234,11 @@ func (s *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) 
 	return s.GetMDMAppleProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error) {
+func (s *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *fleet.MDMAppleMachineInfo) (profile []byte, err error) {
 	s.mu.Lock()
 	s.GetMDMAppleEnrollmentProfileByTokenFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, enrollmentToken, enrollmentRef)
+	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, enrollmentToken, enrollmentRef, machineInfo)
 }
 
 func (s *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error) {
@@ -4933,6 +5011,13 @@ func (s *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDM
 	return s.WipeHostFunc(ctx, hostID, metadata)
 }
 
+func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.RotateRecoveryLockPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateRecoveryLockPasswordFunc(ctx, hostID)
+}
+
 func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
 	s.UploadSoftwareInstallerFuncInvoked = true
@@ -5087,11 +5172,11 @@ func (s *Service) IsAllSetupExperienceSoftwareRequired(ctx context.Context, host
 	return s.IsAllSetupExperienceSoftwareRequiredFunc(ctx, host)
 }
 
-func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string) (uint, error) {
+func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string, labelsIncludeAll []string) (uint, error) {
 	s.mu.Lock()
 	s.AddFleetMaintainedAppFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddFleetMaintainedAppFunc(ctx, teamID, appID, installScript, preInstallQuery, postInstallScript, uninstallScript, selfService, automaticInstall, labelsIncludeAny, labelsExcludeAny)
+	return s.AddFleetMaintainedAppFunc(ctx, teamID, appID, installScript, preInstallQuery, postInstallScript, uninstallScript, selfService, automaticInstall, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll)
 }
 
 func (s *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {

@@ -101,6 +101,7 @@ func (e *BadRequestError) IsClientError() bool {
 type PayloadTooLargeError struct {
 	ContentLength  string
 	MaxRequestSize int64
+	Gzipped        bool
 }
 
 func (e PayloadTooLargeError) Error() string {
@@ -117,7 +118,11 @@ func (e PayloadTooLargeError) Internal() string {
 			// We don't care if we failed to parse the number, only if we were successful
 			size = units.HumanSize(contentLengthAsNumber)
 		}
-		msg += fmt.Sprintf(", Incoming Content-Length: %s", size)
+		label := "Incoming Content-Length"
+		if e.Gzipped {
+			label = "Incoming Content-Length (compressed)"
+		}
+		msg += fmt.Sprintf(", %s: %s", label, size)
 	}
 	return msg
 }
