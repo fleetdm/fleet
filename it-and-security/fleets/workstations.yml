@@ -336,7 +336,6 @@ software:
         - Productivity
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
-      display_name: "Mozilla Firefox"
       categories:
         - Browsers
       labels_include_any:
