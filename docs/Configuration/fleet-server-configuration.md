@@ -3371,9 +3371,11 @@ The enrollment profile must be base64-encoded. This is only supported as an envi
 
 ### mdm.enable_custom_os_updates_and_filevault
 
-> **Warning:** Enabling this setting may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet uses for these features. This setting requires a Fleet Premium license.
+_Available in Fleet Premium_
 
 If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) profile, [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
+
+> Note that enabling this setting may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet uses for these features.
 
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
@@ -3385,9 +3387,9 @@ If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecif
 
 ### mdm.allow_all_declarations
 
-> **Warning:** Enabling this setting bypasses all safety checks for Apple DDM declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Only enable this when you need to deploy declarations that Fleet would otherwise block.
-
 If set to `true`, you can add all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations). By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+
+> Enabling this setting bypasses all safety checks for Apple DDM declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Only enable this when you need to deploy declarations that Fleet would otherwise block.
 
 [Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
 
