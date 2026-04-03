@@ -3290,97 +3290,92 @@ func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, host
 	stmt := `
 		SELECT 1
 		WHERE
-			-- There are some labels for this software (otherwise it applies to all hosts)
 			EXISTS (
-				SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = :software_id
+				SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?
 			)
-			AND
-			-- Include-any condition: no include-any labels exist, OR host is in at least one
-			(
+			AND (
 				NOT EXISTS (
 					SELECT 1 FROM %[1]s_labels sil
-					WHERE sil.%[1]s_id = :software_id AND sil.exclude = 0 AND sil.require_all = 0
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 0
 				)
 				OR EXISTS (
 					SELECT 1 FROM %[1]s_labels sil
-					INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = :host_id
-					WHERE sil.%[1]s_id = :software_id AND sil.exclude = 0 AND sil.require_all = 0
+					INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = ?
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 0
 				)
 			)
-			AND
-			-- Include-all condition: no include-all labels exist, OR host is in ALL of them
-			(
+			AND (
 				NOT EXISTS (
 					SELECT 1 FROM %[1]s_labels sil
-					WHERE sil.%[1]s_id = :software_id AND sil.exclude = 0 AND sil.require_all = 1
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 1
 				)
 				OR (
 					SELECT COUNT(*) FROM %[1]s_labels sil
-					INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = :host_id
-					WHERE sil.%[1]s_id = :software_id AND sil.exclude = 0 AND sil.require_all = 1
+					INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = ?
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 1
 				) = (
 					SELECT COUNT(*) FROM %[1]s_labels sil
-					WHERE sil.%[1]s_id = :software_id AND sil.exclude = 0 AND sil.require_all = 1
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 1
 				)
 			)
-			AND
-			-- Exclude-any condition: host is NOT in any exclude label
-			-- (only considers labels where we have results: dynamic labels must have
-			-- been evaluated after their creation, manual labels always count)
-			NOT EXISTS (
+			AND NOT EXISTS (
 				SELECT 1 FROM %[1]s_labels sil
 				INNER JOIN labels lbl ON lbl.id = sil.label_id
-				INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = :host_id
-				WHERE sil.%[1]s_id = :software_id
+				INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = ?
+				WHERE sil.%[1]s_id = ?
 					AND sil.exclude = 1
 					AND sil.require_all = 0
 					AND (
 						lbl.label_membership_type = 1
 						OR (lbl.label_membership_type = 0
-							AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at)
+							AND (SELECT label_updated_at FROM hosts WHERE id = ?) >= lbl.created_at)
 					)
 			)
-			-- Also check that all exclude labels have been evaluated (fail-safe:
-			-- if we haven't evaluated a label yet, don't install)
 			AND (
 				NOT EXISTS (
 					SELECT 1 FROM %[1]s_labels sil
-					WHERE sil.%[1]s_id = :software_id AND sil.exclude = 1 AND sil.require_all = 0
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 1 AND sil.require_all = 0
 				)
 				OR (
 					SELECT COUNT(*) FROM %[1]s_labels sil
 					INNER JOIN labels lbl ON lbl.id = sil.label_id
-					WHERE sil.%[1]s_id = :software_id
+					WHERE sil.%[1]s_id = ?
 						AND sil.exclude = 1
 						AND sil.require_all = 0
 						AND (
 							lbl.label_membership_type = 1
 							OR (lbl.label_membership_type = 0
-								AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at)
+								AND (SELECT label_updated_at FROM hosts WHERE id = ?) >= lbl.created_at)
 						)
 				) = (
 					SELECT COUNT(*) FROM %[1]s_labels sil
-					WHERE sil.%[1]s_id = :software_id AND sil.exclude = 1 AND sil.require_all = 0
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 1 AND sil.require_all = 0
 				)
 			)
 
 		UNION ALL
 
-		-- No labels at all = applies to all hosts
 		SELECT 1
 		WHERE NOT EXISTS (
-			SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = :software_id
+			SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?
 		)
 	`
 
 	stmt = fmt.Sprintf(stmt, swType)
-	namedArgs := map[string]any{
-		"host_id":     hostID,
-		"software_id": softwareID,
-	}
-	stmt, args, err := sqlx.Named(stmt, namedArgs)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "build named query for is software label scoped")
+
+	// positional args: software_id and host_id repeated for each subquery reference
+	args := []any{
+		softwareID,         // EXISTS labels
+		softwareID,         // NOT EXISTS include-any
+		hostID, softwareID, // EXISTS include-any membership
+		softwareID,         // NOT EXISTS include-all
+		hostID, softwareID, // COUNT include-all membership
+		softwareID,                 // COUNT include-all total
+		hostID, softwareID, hostID, // NOT EXISTS exclude membership + label_updated_at
+		softwareID,         // NOT EXISTS exclude labels
+		softwareID, hostID, // COUNT exclude evaluated
+		softwareID, // COUNT exclude total
+		softwareID, // UNION ALL no labels
 	}
 
 	var res bool
