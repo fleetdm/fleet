@@ -47,6 +47,8 @@ You can install a Fleet-maintained app three ways:
 
 You can track the installation process in the **Activities** section on the **Details** tab of this **Host Details** page.
 
+To keep the app up to date automatically, add a [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet).
+
 ## Uninstall the app
 
 To remove the app, navigate to the **Host Details** page for the appropriate host, then to the **Software** tab. Find the app, then click on the **Actions** drop-down, then **Uninstall**.
@@ -64,6 +66,18 @@ To get the latest version of a Fleet-maintained app,
 3. Install the new version of the app via one of the three methods above.
 
 A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/32993).
+
+With a [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) and [GitOps](https://fleetdm.com/docs/configuration/yaml-files#patch-policy), the query automatically updates to include the latest version each time specs are applied. Combined with install automation, outdated hosts receive the update automatically.
+
+## Keep apps up to date with patch policies
+
+You can create a **patch policy** for a Fleet-maintained app to automatically detect hosts running outdated versions. With [GitOps](https://fleetdm.com/docs/configuration/yaml-files#patch-policy), the patch policy query automatically updates to include the latest version each time specs are applied.
+
+To add a patch policy, open the app's details page under **Software**, then select **Actions > Patch**.
+
+To automatically install updates when the policy fails, enable the automation at **Policies > Manage automations > Install software**.
+
+For a detailed walkthrough, see the [patch management guide](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet).
 
 ## Manage apps with GitOps
 

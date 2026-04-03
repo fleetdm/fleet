@@ -1243,7 +1243,7 @@ func TestParser(t *testing.T) {
 				bulletin := bulletins[pName]
 
 				for cve, vuln := range v {
-					sut := bulletin.Vulnerabities[cve]
+					sut := bulletin.Vulnerabilities[cve]
 					require.Equal(t, *vuln.PublishedEpoch, *sut.PublishedEpoch, pName)
 					require.Equal(t, vuln.RemediatedBy, sut.RemediatedBy, pName)
 					require.Equal(t, vuln.ProductIDs, sut.ProductIDs, pName)
@@ -1275,7 +1275,7 @@ func TestParser(t *testing.T) {
 		t.Run("each bulletin should have the right vulnerabilities", func(t *testing.T) {
 			for _, g := range bulletins {
 				var actual []string
-				for v := range g.Vulnerabities {
+				for v := range g.Vulnerabilities {
 					actual = append(actual, v)
 				}
 				require.ElementsMatch(t, actual, expectedCVEs[g.ProductName], g.ProductName)
@@ -1310,7 +1310,7 @@ func TestParser(t *testing.T) {
 				}
 			}
 			actual := make(map[string]bool)
-			for _, v := range xmlResult.WinVulnerabities {
+			for _, v := range xmlResult.WinVulnerabilities {
 				actual[v.CVE] = true
 			}
 			require.Equal(t, expected, actual)
@@ -1318,7 +1318,7 @@ func TestParser(t *testing.T) {
 
 		t.Run("scores are parsed correctly", func(t *testing.T) {
 			// Check the score of a random CVE (CVE-2022-24466)
-			for _, v := range xmlResult.WinVulnerabities {
+			for _, v := range xmlResult.WinVulnerabilities {
 				if v.CVE == "CVE-2022-24466" {
 					require.Equal(t, 4.1, v.Score)
 				}
@@ -1327,7 +1327,7 @@ func TestParser(t *testing.T) {
 
 		t.Run("the revision history is parsed correctly", func(t *testing.T) {
 			// Check the revision history of a random CVE (CVE-2022-29114)
-			for _, v := range xmlResult.WinVulnerabities {
+			for _, v := range xmlResult.WinVulnerabilities {
 				if v.CVE == "CVE-2022-29114" {
 					require.Len(t, v.Revisions, 1)
 					require.Equal(t, "2022-05-10T08:00:00", v.Revisions[0].Date)
@@ -1367,7 +1367,7 @@ func TestParser(t *testing.T) {
 			)
 
 			// Should have vulnerabilities with vendor fixes
-			require.NotEmpty(t, winServer2025.Vulnerabities, "expected vulnerabilities for Windows Server 2025")
+			require.NotEmpty(t, winServer2025.Vulnerabilities, "expected vulnerabilities for Windows Server 2025")
 			require.NotEmpty(t, winServer2025.VendorFixes, "expected vendor fixes for Windows Server 2025")
 		})
 
@@ -1564,7 +1564,7 @@ func TestParser(t *testing.T) {
 					URL:         "https://support.microsoft.com/help/5014018",
 				},
 			}
-			for _, v := range xmlResult.WinVulnerabities {
+			for _, v := range xmlResult.WinVulnerabilities {
 				if v.CVE == "CVE-2022-29126" {
 					require.Len(t, v.Remediations, len(expectedRemediations))
 					require.ElementsMatch(t, v.Remediations, expectedRemediations)
