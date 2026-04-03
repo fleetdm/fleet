@@ -132,8 +132,8 @@ export interface IPolicyFormData {
   type?: "dynamic" | "patch" | "mdm";
   /** Required for creating patch policy */
   patch_software_title_id?: number;
-  /** JSON string of MDM check definition for mdm policy type */
-  mdm_check_definition?: string;
+  /** MDM check definitions for mdm policy type — sent as JSON array to API */
+  mdm_check_definition?: IMDMPolicyCheck[] | string;
 }
 
 export interface IPolicyNew {

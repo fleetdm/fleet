@@ -386,7 +386,7 @@ const PolicyForm = ({
       };
       if (isMdmPolicy) {
         const validChecks = mdmChecks.filter((c) => c.field && c.expected);
-        payload.mdm_check_definition = JSON.stringify(validChecks);
+        payload.mdm_check_definition = validChecks;
       }
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;

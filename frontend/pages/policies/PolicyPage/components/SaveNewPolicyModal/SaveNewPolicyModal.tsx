@@ -156,7 +156,7 @@ const SaveNewPolicyModal = ({
         platform: "ios,ipados" as CommaSeparatedPlatformString,
         critical: lastEditedQueryCritical,
         type: "mdm",
-        mdm_check_definition: JSON.stringify(validChecks),
+        mdm_check_definition: validChecks,
       });
     } else {
       // Standard query-based policy
