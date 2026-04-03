@@ -410,7 +410,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: `Profile name "Windows OS Updates" is not allowed`,
 		},
 		{
-			name: "Valid XML with reserved name but experimental allow custom OS updates flag enabled is still not allowed",
+			name: "Valid XML with reserved name but allow custom OS updates flag enabled is still not allowed",
 			profile: MDMWindowsConfigProfile{
 				Name:   mdm.FleetWindowsOSUpdatesProfileName,
 				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`),
@@ -419,7 +419,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr:              `Profile name "Windows OS Updates" is not allowed`,
 		},
 		{
-			name: "Valid XML with Windows Update LocURI without experimental allow custom OS updates flag enabled is blocked",
+			name: "Valid XML with Windows Update LocURI without allow custom OS updates flag enabled is blocked",
 			profile: MDMWindowsConfigProfile{
 				Name:   "FleetieUpdater",
 				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
@@ -428,7 +428,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr:              "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.",
 		},
 		{
-			name: "Valid XML with Windows Update LocURI but experimental allow custom OS updates flag enabled is allowed",
+			name: "Valid XML with Windows Update LocURI but allow custom OS updates flag enabled is allowed",
 			profile: MDMWindowsConfigProfile{
 				Name:   "FleetieUpdater",
 				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
@@ -437,7 +437,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr:              "",
 		},
 		{
-			name: "Valid XML with Bitlocker LocURI without experimental allow custom OS updates flag enabled is blocked",
+			name: "Valid XML with Bitlocker LocURI without allow custom OS updates flag enabled is blocked",
 			profile: MDMWindowsConfigProfile{
 				Name:   "FleetieUpdater",
 				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/BitLocker/something</LocURI></Target></Replace>`),
@@ -446,7 +446,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr:              "Couldn't add. The configuration profile can't include BitLocker settings.",
 		},
 		{
-			name: "Valid XML with Bitlocker LocURI without experimental allow custom OS updates flag enabled is blocked",
+			name: "Valid XML with Bitlocker LocURI with allow custom OS updates flag enabled is still blocked",
 			profile: MDMWindowsConfigProfile{
 				Name:   "FleetieUpdater",
 				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/BitLocker/something</LocURI></Target></Replace>`),
