@@ -155,6 +155,7 @@ $max-width: 2560px;
 
   &:hover {
     color: $ui-fleet-black-75-over;
+    cursor: pointer;
   }
 
   &:focus-visible {

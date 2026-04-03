@@ -1,1 +1,0 @@
-* Fixed a bug where vulnerability counts increased over time due to orphaned entries remaining in the database after hosts were removed.

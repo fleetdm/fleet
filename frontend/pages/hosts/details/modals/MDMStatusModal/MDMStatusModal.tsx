@@ -43,7 +43,7 @@ interface IMDMStatusModal {
   depProfileError?: boolean;
   router: InjectedRouter;
   isPremiumTier?: boolean;
-  isMacOSHost?: boolean;
+  isAppleDevice?: boolean;
   onExit: () => void;
 }
 
@@ -150,7 +150,7 @@ const MDMStatusModal = ({
   enrollmentStatus,
   depProfileError = false,
   isPremiumTier = false,
-  isMacOSHost = false,
+  isAppleDevice = false,
   router,
   onExit,
 }: IMDMStatusModal) => {
@@ -466,7 +466,7 @@ const MDMStatusModal = ({
   return (
     <Modal title="MDM status" className={baseClass} onExit={onExit}>
       {renderMDMStatus()}
-      {isPremiumTier && isMacOSHost && renderProfileAssignment()}
+      {isPremiumTier && isAppleDevice && renderProfileAssignment()}
       {renderFooter()}
     </Modal>
   );

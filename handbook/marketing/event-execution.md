@@ -39,13 +39,13 @@ See the section "Settle event strategy" below for the process.
 
 ##### Settle event strategy (approve proposed events)
 
-Anyone at Fleet can propose a future event.
-Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
+Anyone at Fleet can propose a future event. Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
 
-- Field/sales events and GitOps workshops are settled 1 sprint in advance.
-- Conferences are settled 1 quarter in advance. 
+The "Settle events strategy" meeting is held on the first Wednesday of every quarter to discuss and lock in all events (conferences, field/sales events, and GitOps workshops) for the next quarter.
 
-Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
+The [Marketing Campaign Manager](https://fleetdm.com/handbook/marketing#team) is the DRI for this meeting. 
+
+Once events have been settled for the upcoming quarter, Fleet does not make changes except in extreme circumstances.
 
 1. Add all upcoming proposed in issues using the template (Propose an event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
 2. Proposed events will include the following information:
@@ -60,9 +60,8 @@ Once events have been settled for a particular time frame, i.e, decided in a pre
   - Who from Fleet will attend?
   - Which talk proposal will Fleet submit?
   - Estimated budget, including sponsorship or airfare, and lodging for attendees.
-2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, or Manager of Training and Enablement.
-  - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
-  - Next, Marketing will decide which conferences in the **following quarter** the company will invest time or money into. 
+2. Attend the 30m quarterly event strategy meeting with the CMO, Head of Demand Generation, and Marketing Campaign Manager.
+  - During this meeting, Marketing will decide which events (conferences, field/sales events, and GitOps workshops) Fleet will execute in the **following quarter**.
 3. After the meeting, the Content Specialist will communicate the settled events by
   - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
   - Using the following template, post a message in the [#oooh-events Slack channel](https://fleetdm.slack.com/archives/C054TGK0H7X).
@@ -132,7 +131,8 @@ We use GitHub labels to organize the difference between overall event issues and
 We utilize two general event plans, which act as templates depending on the scale and type of the event:
 
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
-2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
+2. **Workshop/Dinner:** Used for our GitOps workshop series (which often includes a post workshop dinner).
+3. **Meetups/Happy Hours** ...wip
 
 ### **Execution process**
 
@@ -466,7 +466,7 @@ echo "Done."
 
 ## How to automate workshop creation
 
-The workshop tracking process uses the same GitHub parent/child issue structure as conferences, but with a smaller, workshop-specific set of tasks. Use this script instead of the conference script when running a GitOps workshop (with or without a happy hour).
+The workshop tracking process uses the same GitHub parent/child issue structure as conferences, but with a smaller, workshop-specific set of tasks. Use this script instead of the conference script when running a GitOps workshop.
 
 > If you haven't set up the GitHub CLI yet, follow the **Setup** steps in the [How to automate event creation](#how-to-automate-event-creation) section above before continuing.
 
@@ -683,9 +683,9 @@ Plan the post-workshop networking. This is treated as a separate event to allow 
 - [ ] Update the $PLANNING_DOC_URL with these details
 - Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
 - Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
-- IF NEEDED: Create Happy Hour registration page on Eventbrite or Luma and promote separately
+- IF NEEDED: Create Dinner registration page on Eventbrite or Luma and promote separately
 EOF
-create_sub_issue "3. Happy Hour Planning & Promotion"
+create_sub_issue "3. Dinner Planning"
 
 
 # --- Child 4 ---
@@ -724,7 +724,7 @@ cat > "$BODY_FILE" << EOF
 **Description**
 To be completed within 48 hours after the event. Close the loop on leads and technical feedback.
 - [ ] Update the $PLANNING_DOC_URL with these details
-- Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Happy Hour
+- Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Dinner
 - Log technical issues — document any WiFi drops or firewall blockers for future reference
 - CRM upload — upload attendee list to Salesforce/HubSpot
 - Send follow-up email with slides and repo links
@@ -735,106 +735,6 @@ create_sub_issue "6. Post-Mortem & Follow-Up"
 echo "Done."
 ```
 
-## **Connecting Eventbrite registrations to Salesforce campaigns (event ID key)**
-
-#### **Purpose**
-
-We need a reliable, repeatable way to associate each Eventbrite registration with the correct Salesforce Campaign **without adding any visible fields to the attendee experience**. This approach uses the Eventbrite **Event ID** as the canonical key to map registrations to Campaigns in Salesforce.
-
-#### **Core idea**
-
-Each Eventbrite event has a unique identifier (`event_id`). We store that identifier on the corresponding Salesforce Campaign. When a new registration occurs, our integration (e.g., Clay) reads the `event_id` from the registration payload, finds the matching Campaign, then creates/updates the Campaign Member.
-
-This creates a clean 1:1 relationship:
-
-**1 Eventbrite Event → 1 Salesforce Campaign → Many Campaign Members (registrants)**
-
-#### **Why this approach**
-
-* **Invisible to attendees:** No hidden checkout questions or user-facing “tags.”  
-* **Stable and unambiguous:** Event IDs are unique and don’t depend on event names.  
-* **Easy to operationalize:** Simple to document and enforce as a process.  
-* **Scalable to other platforms:** The same pattern could be extended to Lu.ma later using a platform-specific ID or key (if we ever want to use Lu.ma)
-
-### **Data model (Salesforce)**
-
-#### **Campaign fields**
-
-Add the following fields to **Campaign**:
-
-* **Event platform** (Picklist) – identifies the source platform
-  * Options: `Eventbrite`, `Luma`, etc.
-
-* **External event ID** (Text) – stores the platform-specific event identifier
-  * Example: Eventbrite event ID `123456789`
-
-* **Event key** (Formula) – composite key for matching integrations
-  * Formula: `"Event platform"&"-"&"External event ID"`
-  * Example output: `Eventbrite-123456789`
-
-The composite key pattern lets us use one matching field across platforms and avoid collisions if we ever want to use [Lu.ma](http://Lu.ma) or others.
-
-
-### **Operational workflow**
-
-##### **1\) Capture the Eventbrite event ID**
-
-The Event ID can be sourced from:
-
-* Eventbrite event page URL (contains the ID), or  
-* Event settings / Event details in Eventbrite, or  
-* Eventbrite API / integration payload
-
-**Important:** Do not use event name as a key (names can change and are not guaranteed unique).
-
-##### **2\) Create the Salesforce Campaign**
-
-* Create a Campaign for the event.
-* Set:
-  * **Event platform**: `Eventbrite` (or the appropriate platform)
-  * **External event ID**: `{event_id}` (e.g., `123456789`)
-  * **Event key**: Auto-populated by formula (no manual entry needed)
-
-##### **3\) Integration logic (Clay)**
-
-When Clay receives a new Eventbrite registration/attendee record:
-
-1. **Extract** `event_id` from the Eventbrite payload
-   * Clay matches the `Event key` from Zapier to the corresponding campaign.
-2. **Find Campaign** in Salesforce where:
-   * *`Event key = Eventbrite-{event_id}`*
-3. **Create/update Person Record**
-   * Match/Create the Contact
-4. **Create/Update Campaign Member**
-   * Add the person as a Campaign Member on the matched Campaign
-   * Optionally set Campaign Member Status (e.g., `Registered`, `Attended`, `No Show`) if we later sync those states
-
-
-### **Assumptions / scope**
-* **One ticket type per Campaign** (i.e., we do not need ticket-type-level mapping).  
-* **One event maps to exactly one Salesforce Campaign**.  
-* We are focusing on **registrations** (Campaign Members). 
-
-### **Governance & quality controls**
-To keep the system clean and prevent broken mappings:
-
-* **Required fields:** Ensure Campaigns intended for Eventbrite syncing have `Event Key` populated.  
-* **Uniqueness guardrails:** Prevent multiple Campaigns from sharing the same Event Key (via process, reporting, or validation rules).  
-* **Monitoring:** Have a Clay/Salesforce report for “registrations received with no matching Campaign” to catch missing IDs early.
-
-### **(FUTURE) Extending this to Lu.ma (future)**
-
-If we adopt Lu.ma later, we can follow the same model:
-
-* Set **Event platform** to `Luma`
-* Set **External event ID** to Lu.ma’s stable event identifier (ID or slug)
-* **Event key** formula automatically generates the composite key: `Luma-{external_event_id}`
-* Clay uses this Event key to map inbound registrations to the correct Campaign
-* No attendee-visible fields required.
-
-### **Summary**
-
-This approach “connects” Eventbrite to Salesforce Campaigns by using the **Eventbrite Event ID as the system-of-record key**. Salesforce Campaigns store that key, and Clay uses it to automatically route registrations to the right Campaign and create/update Campaign Members—cleanly, invisibly, and in a way that can later support additional event platforms.
 
 
 <meta name="maintainedBy" value="johnjeremiah">
