@@ -1,1 +1,1 @@
-- remove the enrolled from migration status for a device when it is doing a new enrollment not that is not part of an mdm migration
+- Fixed an issue where silent migration status would persist even after re-enrolling the device normally, causing SCEP renewal to fail.

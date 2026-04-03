@@ -5055,7 +5055,7 @@ func (ds *Datastore) ClearHostEnrolledFromMigration(ctx context.Context, hostUUI
 	const stmt = `
 UPDATE nano_enrollments
 SET enrolled_from_migration = 0
-WHERE id = ? AND enabled = 1`
+WHERE id = ? AND enabled = 1 AND enrolled_from_migration = 1`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "resetting enrolled_from_migration value")
