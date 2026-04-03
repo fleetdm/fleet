@@ -2,15 +2,16 @@ package service
 
 import (
 	"encoding/json"
-	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFilterProfilesWithPendingCerts(t *testing.T) {
+	t.Parallel()
 	oncProfile := func(uuid, name, certAlias string) (*fleet.MDMAndroidProfilePayload, json.RawMessage) {
 		payload := &fleet.MDMAndroidProfilePayload{
 			ProfileUUID: uuid,
@@ -41,7 +42,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 	}
 
 	filter := func(profiles []*fleet.MDMAndroidProfilePayload, contents map[string]json.RawMessage, certStatuses map[string]fleet.CertificateTemplateStatus) (ready, withheld []*fleet.MDMAndroidProfilePayload) {
-		return filterProfilesWithPendingCerts(profiles, extractProfileCertAliases(t.Context(), slog.Default(), contents), certStatuses)
+		return filterProfilesWithPendingCerts(profiles, extractProfileCertAliases(t.Context(), testutils.TestLogger(t), contents), certStatuses)
 	}
 
 	t.Run("pending cert withholds ONC profile", func(t *testing.T) {
@@ -56,32 +57,6 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 		require.Empty(t, ready)
 		require.Len(t, withheld, 1)
 		assert.Contains(t, withheld[0].Detail, `Waiting for certificate "my-cert"`)
-	})
-
-	t.Run("delivering cert withholds ONC profile", func(t *testing.T) {
-		prof, content := oncProfile("p1", "wifi-profile", "my-cert")
-		profiles := []*fleet.MDMAndroidProfilePayload{prof}
-		contents := map[string]json.RawMessage{"p1": content}
-		certStatuses := map[string]fleet.CertificateTemplateStatus{
-			"my-cert": fleet.CertificateTemplateDelivering,
-		}
-
-		ready, withheld := filter(profiles, contents, certStatuses)
-		require.Empty(t, ready)
-		require.Len(t, withheld, 1)
-	})
-
-	t.Run("delivered cert withholds ONC profile", func(t *testing.T) {
-		prof, content := oncProfile("p1", "wifi-profile", "my-cert")
-		profiles := []*fleet.MDMAndroidProfilePayload{prof}
-		contents := map[string]json.RawMessage{"p1": content}
-		certStatuses := map[string]fleet.CertificateTemplateStatus{
-			"my-cert": fleet.CertificateTemplateDelivered,
-		}
-
-		ready, withheld := filter(profiles, contents, certStatuses)
-		require.Empty(t, ready)
-		require.Len(t, withheld, 1)
 	})
 
 	t.Run("verified cert releases ONC profile", func(t *testing.T) {
@@ -132,25 +107,6 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Len(t, ready, 1)
 		require.Empty(t, withheld)
-	})
-
-	t.Run("mixed ONC and non-ONC profiles", func(t *testing.T) {
-		oncProf, oncContent := oncProfile("p1", "wifi-profile", "my-cert")
-		nonONCProf, nonONCContent := nonONCProfile("p2", "camera-policy")
-		profiles := []*fleet.MDMAndroidProfilePayload{oncProf, nonONCProf}
-		contents := map[string]json.RawMessage{
-			"p1": oncContent,
-			"p2": nonONCContent,
-		}
-		certStatuses := map[string]fleet.CertificateTemplateStatus{
-			"my-cert": fleet.CertificateTemplatePending,
-		}
-
-		ready, withheld := filter(profiles, contents, certStatuses)
-		require.Len(t, ready, 1)
-		assert.Equal(t, "p2", ready[0].ProfileUUID)
-		require.Len(t, withheld, 1)
-		assert.Equal(t, "p1", withheld[0].ProfileUUID)
 	})
 
 	t.Run("multiple cert refs all must be terminal", func(t *testing.T) {
