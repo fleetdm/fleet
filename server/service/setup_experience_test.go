@@ -225,9 +225,10 @@ func TestIsAllSetupExperienceSoftwareRequired(t *testing.T) {
 	ds := new(mock.Store)
 
 	teamID := uint(1)
+	// Use different values for macOS vs Windows to ensure the correct field is read for each platform.
 	appCfg := &fleet.AppConfig{}
 	appCfg.MDM.MacOSSetup.RequireAllSoftware = true
-	appCfg.MDM.MacOSSetup.RequireAllSoftwareWindows = true
+	appCfg.MDM.MacOSSetup.RequireAllSoftwareWindows = false
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return appCfg, nil
@@ -239,7 +240,7 @@ func TestIsAllSetupExperienceSoftwareRequired(t *testing.T) {
 			Config: fleet.TeamConfigLite{
 				MDM: fleet.TeamMDM{
 					MacOSSetup: fleet.MacOSSetup{
-						RequireAllSoftware:        true,
+						RequireAllSoftware:        false,
 						RequireAllSoftwareWindows: true,
 					},
 				},
@@ -253,22 +254,22 @@ func TestIsAllSetupExperienceSoftwareRequired(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "macOS host, no team",
+			name:     "macOS host, no team, reads macOS global config (true)",
 			host:     &fleet.Host{Platform: "darwin"},
 			expected: true,
 		},
 		{
-			name:     "macOS host, with team",
+			name:     "macOS host, with team, reads macOS team config (false)",
 			host:     &fleet.Host{Platform: "darwin", TeamID: &teamID},
-			expected: true,
+			expected: false,
 		},
 		{
-			name:     "windows host, no team",
+			name:     "windows host, no team, reads Windows global config (false)",
 			host:     &fleet.Host{Platform: "windows"},
-			expected: true,
+			expected: false,
 		},
 		{
-			name:     "windows host, with team",
+			name:     "windows host, with team, reads Windows team config (true)",
 			host:     &fleet.Host{Platform: "windows", TeamID: &teamID},
 			expected: true,
 		},

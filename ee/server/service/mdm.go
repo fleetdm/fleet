@@ -316,7 +316,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return fleet.ErrMDMNotConfigured
 	}
 
-	if payload.RequireAllSoftwareWindows != nil && !ac.MDM.WindowsEnabledAndConfigured {
+	if payload.RequireAllSoftwareWindows != nil && *payload.RequireAllSoftwareWindows && !ac.MDM.WindowsEnabledAndConfigured {
 		return fleet.ErrWindowsMDMNotConfigured
 	}
 
