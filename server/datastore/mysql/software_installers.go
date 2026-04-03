@@ -1085,14 +1085,9 @@ LIMIT 1`,
 		}
 	}
 
-	var count int
-	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
-		if len(set) > 0 {
-			count++
-		}
-	}
-	if count > 1 {
-		ds.logger.WarnContext(ctx, "software installer has more than one scope of labels", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
+	// include_any + include_all is invalid; include + exclude is allowed
+	if len(inclAny) > 0 && len(inclAll) > 0 {
+		ds.logger.WarnContext(ctx, "software installer has conflicting include scopes", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny

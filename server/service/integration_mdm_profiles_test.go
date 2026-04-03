@@ -2139,7 +2139,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 		}
   }`), http.StatusUnprocessableEntity)
 	msg := extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `Deprecated "labels" field cannot be combined with other label fields.`)
 
 	// include_all + exclude_any is now allowed (combined scoping)
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -2173,7 +2173,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 		}
   }`), http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `Deprecated "labels" field cannot be combined with other label fields.`)
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
@@ -2292,7 +2292,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	assert.Contains(t, errMsg, `Deprecated "labels" field cannot be combined with other label fields.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
@@ -4719,7 +4719,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 		}
 	`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	assert.Contains(t, errMsg, `Deprecated "labels" field cannot be combined with other label fields.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
@@ -4937,12 +4937,12 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the configuration profile.`)
 
-	// mix of labels fields
+	// mix of labels fields (deprecated "labels" with other label field)
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl2.Name}},
 	}}, http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `Deprecated "labels" field cannot be combined with other label fields.`)
 
 	// successful batch-set
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -5236,12 +5236,12 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the configuration profile.`)
 
-	// mix of labels fields
+	// mix of labels fields (include_all + include_any is still an error)
 	res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
-		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl2.Name}},
+		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name}, LabelsIncludeAny: []string{lbl2.Name}},
 	}}, http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `"labels_include_all" and "labels_include_any" cannot be combined.`)
 
 	// successful batch-set
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
