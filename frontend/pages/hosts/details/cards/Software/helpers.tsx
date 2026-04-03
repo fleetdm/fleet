@@ -31,22 +31,37 @@ export const getHostSoftwareFilterFromQueryParams = (
 const PRE_RELEASE_ORDER = ["alpha", "beta", "rc", ""];
 
 /**
- * Removes build metadata and parenthesized build info from a version string.
+ * Removes build metadata, edition markers, and distribution tags from a
+ * version string so that comparisons use only the semantic core.
  * Examples:
- *   "1.0.0+build.1"        -> "1.0.0"
- *   "8.0 (build 6300)"     -> "8.0"
- *   "8.1.2 (Build 6300)"   -> "8.1.2"
+ *   "1.0.0+build.1"           -> "1.0.0"
+ *   "8.0 (build 6300)"        -> "8.0"
+ *   "8.1.2 (Build 6300)"      -> "8.1.2"
+ *   "Build 4200"              -> "4200"
+ *   "8.0.46.CE"               -> "8.0.46"
+ *   "2026.3.251250-latest"    -> "2026.3.251250"
  */
 const stripBuildMetadata = (version: string): string => {
   if (typeof version !== "string") {
     return "";
   }
 
-  // First drop any parenthesized "build ..." suffix, e.g. "8.0 (build 6300)" -> "8.0"
-  const withoutParenBuild = version.replace(/\s*\(build\s+[^)]+\)\s*$/i, "");
+  // Strip leading "Build " prefix, e.g. "Build 4200" -> "4200" (Sublime Text/Merge)
+  let cleaned = version.replace(/^Build\s+/i, "");
 
-  // Then drop standard SemVer +build metadata, e.g. "1.0.0+build.1" -> "1.0.0"
-  return withoutParenBuild.split("+")[0];
+  // Drop any parenthesized "build ..." suffix, e.g. "8.0 (build 6300)" -> "8.0"
+  cleaned = cleaned.replace(/\s*\(build\s+[^)]+\)\s*$/i, "");
+
+  // Drop standard SemVer +build metadata, e.g. "1.0.0+build.1" -> "1.0.0"
+  cleaned = cleaned.split("+")[0];
+
+  // Strip trailing edition suffixes like ".CE" (MySQL Workbench Community Edition)
+  cleaned = cleaned.replace(/\.CE$/i, "");
+
+  // Strip trailing "-latest" distribution channel tag (Lens)
+  cleaned = cleaned.replace(/-latest$/i, "");
+
+  return cleaned;
 };
 
 /**

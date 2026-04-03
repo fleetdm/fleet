@@ -23,6 +23,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -1495,7 +1496,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		// By performing the same check inside main, we can make server startups
 		// more efficient after the first startup.
 		if setupRequired {
-			apiHandler = service.WithSetup(svc, logger, apiHandler)
+			// Pass in a closure to run the fleetctl command, so that the service layer
+			// doesn't need to import the CLI package.
+			applyStarterLibrary := func(ctx context.Context, serverURL, token string) error {
+				return service.ApplyStarterLibrary(ctx, serverURL, token, logger, func(args []string) error {
+					_, err := fleetctl.RunApp(args)
+					return err
+				})
+			}
+			apiHandler = service.WithSetup(svc, logger, applyStarterLibrary, apiHandler)
 			frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 		} else {
 			frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
