@@ -1001,63 +1001,19 @@ a branch you're working on. Step 1 Option A below describes the former and B des
 You will also need to serve the `meta.json` for the fleetd-base.msi installer, creation of which is
 described below.
 
-For Autopilot, Microsoft Entra requires the Fleet server to have a **verified custom domain** for the MDM application URIs (see `/settings/integrations/automatic-enrollment/windows` on your Fleet instance). You cannot use a raw `*.ngrok.io` URL — Entra will reject it during domain verification. You can test this flow with Dogfood/QA (already configured) or set up your own custom domain as described below.
-
-#### Setting up a custom domain with ngrok
-
-1. **Register a domain** (e.g., a cheap `.xyz` domain from Namecheap). You don't need to purchase SSL — ngrok handles TLS termination.
-2. **Add the domain in ngrok's dashboard** (Domains section). ngrok will provide a CNAME target (e.g., `xxx.ngrok-dns.com`).
-3. **Configure DNS in your domain registrar:**
-   - Add a **CNAME record** pointing your domain to the ngrok CNAME target.
-   - Add the **TXT record** that Microsoft Entra provides for domain verification (see next step).
-4. **Verify the domain in Entra:** go to [Entra > Domain names](https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Domains) > Add custom domain, enter your domain, and verify it using the TXT record.
-5. **Configure the MDM application in Entra** following the [Windows MDM Setup guide](https://fleetdm.com/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id). Use your custom domain for all MDM URLs (Application ID URI, discovery URL, terms of use URL).
-
-#### Required licenses
-
-Your Entra test user needs **both** of the following:
-- **Microsoft Intune Plan 1** — required for Autopilot device management.
-- **Microsoft Entra ID P1** (or a bundle that includes it, such as Microsoft 365 Business Premium, E3, or E5) — required for automatic MDM enrollment. Note: Microsoft 365 Business Standard does **not** include Entra P1.
-
-Assign licenses from the [Microsoft 365 Admin Center](https://admin.cloud.microsoft/?#/licenses). See the [Windows Autopilot guide](../../product-groups/mdm/windows-autopilot.md#assigning-an-intune-license-to-your-user) for details.
+For Autopilot, Azure requires the Fleet server instance to have a proper domain name with some TXT/MX records added (see `/settings/integrations/automatic-enrollment/windows` on your Fleet instance).
+For that reason, currently the only way to test this flow is to use Dogfood or the QA fleet server,
+which already have this configured, or to [configure an alternate server for this workflow](../../product-groups/mdm/windows-autopilot.md#setting-up-a-custom-domain-with-ngrok).
 
 #### Pre-requisites
 
-- The URL of your Fleet server (must be your verified custom domain for Autopilot)
+- The URL of your Fleet server
 - An ngrok tunnel URL pointed at your local TUF server. In the examples below this is
   https://tuf.fleetdm-example.ngrok.app and the TUF server is running on http://localhost:8081
 - An ngrok tunnel URL for serving the `fleetd-base.msi` installer and a properly formatted
   `meta.json` file under the `stable/` path. In the examples below this is
   https://installers.fleetdm-example.ngrok.app and the installers are served from http://localhost:8085
 - Perform a deployment with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the "installers" ngrok URL.
-
-Example ngrok config with a custom domain for the Fleet server:
-```yaml
-version: "3"
-agent:
-    authtoken: <your_ngrok_authtoken>
-tunnels:
-    fleet:
-        proto: http
-        schemes: [https]
-        hostname: yourdomain.xyz  # your verified custom domain
-        addr: https://localhost:8080
-        inspect: true
-    installers:
-        proto: http
-        schemes: [https]
-        hostname: installers.your-ngrok-subdomain.ngrok.io
-        addr: http://localhost:8085
-        inspect: true
-    tuf:
-        proto: http
-        schemes: [http]
-        hostname: tuf.your-ngrok-subdomain.ngrok.io
-        addr: http://localhost:8081
-        inspect: true
-```
-
-Only the Fleet server tunnel needs the custom domain. The installer and TUF tunnels can use regular ngrok subdomains.
 
 #### Step 1 Option A: Building a signed fleetd-base.msi installer from `edge`
 
