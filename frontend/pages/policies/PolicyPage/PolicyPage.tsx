@@ -352,6 +352,7 @@ const PolicyPage = ({
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(LIVE_POLICY_STEPS[2]),
       onOpenSchemaSidebar,
+      onCloseSchemaSidebar,
       renderLiveQueryWarning,
       teamIdForApi,
       currentAutomatedPolicies,

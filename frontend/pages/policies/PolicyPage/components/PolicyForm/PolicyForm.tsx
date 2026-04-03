@@ -68,6 +68,7 @@ interface IPolicyFormProps {
   goToSelectTargets: () => void;
   onUpdate: (formData: IPolicyFormData) => void;
   onOpenSchemaSidebar: () => void;
+  onCloseSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
   isFetchingAutofillDescription: boolean;
@@ -102,6 +103,7 @@ const PolicyForm = ({
   goToSelectTargets,
   onUpdate,
   onOpenSchemaSidebar,
+  onCloseSchemaSidebar,
   renderLiveQueryWarning,
   backendValidators,
   isFetchingAutofillDescription,
@@ -845,7 +847,10 @@ const PolicyForm = ({
                 checked={newPolicyType === "query"}
                 value="query"
                 name="policy-type"
-                onChange={() => setNewPolicyType("query")}
+                onChange={() => {
+                  setNewPolicyType("query");
+                  onOpenSchemaSidebar();
+                }}
               />
               <Radio
                 label="MDM device check"
@@ -853,7 +858,10 @@ const PolicyForm = ({
                 checked={newPolicyType === "mdm"}
                 value="mdm"
                 name="policy-type"
-                onChange={() => setNewPolicyType("mdm")}
+                onChange={() => {
+                  setNewPolicyType("mdm");
+                  onCloseSchemaSidebar();
+                }}
               />
             </div>
           )}
