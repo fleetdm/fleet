@@ -858,7 +858,7 @@ When writing the time in the UI using "am" and "pm" abbreviations, write them **
 ### Writing error messages
 
 When writing error messages in the UI or CLI, follow these rules:
-- If the solution to the error isn't obvious, write a message with the **error** followed by the **solution**. For example, "Couldn't run MDM command. No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
+- If the solution to the error isn't obvious, write a message with the failed **action** and it's **reason** followed by the **solution**. For example, "Couldn't run MDM command. No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
 - If the solution is obvious when additional info is provided, write a message with the **error** followed by **additional info**. For example, "Couldn't run. Only users with the maintainer role and above can run scripts."
 
 Template: `Couldn't {action}. {Reason}. {Solution}`. Solution is optional.
