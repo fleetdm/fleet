@@ -65,6 +65,7 @@ spec:
       macos_setup_assistant: null
       manual_agent_install: null
       require_all_software_macos: false
+      require_all_software_windows: false
       enable_release_device_manually: false
       script: null
       software: null
@@ -75,6 +76,7 @@ spec:
       apple_setup_assistant: null
       macos_manual_agent_install: null
       require_all_software_macos: false
+      require_all_software_windows: false
       apple_enable_release_device_manually: false
       macos_script: null
       software: null
