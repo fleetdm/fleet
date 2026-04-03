@@ -797,9 +797,11 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	require.True(t, anythingEnqueued)
 
 	// --- Verify all rows are globally ordered by display name ---
-	// ListSetupExperienceResultsByHostUUID sorts software (installers and
-	// VPP apps) alphabetically by display name (falling back to st.name),
-	// with scripts last. Installers and VPP apps are interleaved.
+	// enqueueSetupExperienceItems inserts software (installers and VPP apps)
+	// together in a single query ordered by COALESCE(display_name, st.name),
+	// so the auto-incremented id reflects the global display-name order.
+	// ListSetupExperienceResultsByHostUUID returns rows ordered by sesr.id,
+	// preserving that insert order. Scripts are inserted last.
 	//
 	// Expected order (all software globally sorted by display name):
 	//   0. ZZZ_Software  (installer, display name "Alpha Custom")
@@ -884,8 +886,10 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	// Use ListSetupExperienceResultsByHostUUID to verify the globally
-	// interleaved order across installers and VPP apps.
+	// Verify the globally interleaved order across installers and VPP apps.
+	// The combined INSERT in enqueueSetupExperienceItems orders by
+	// COALESCE(display_name, st.name), and ListSetupExperienceResultsByHostUUID
+	// returns rows ordered by sesr.id (i.e. insert order).
 	//
 	// Expected global order (sorted by COALESCE(display_name, st.name)):
 	//   0. ZZZ_Software          (installer, display name "Alpha Custom")

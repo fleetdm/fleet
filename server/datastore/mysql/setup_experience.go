@@ -97,18 +97,24 @@ WHERE host_uuid = ? AND %s`
 		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
 	}
 
-	// stmtSoftwareInstallers query currently supports installers for macOS and Linux.
-	stmtSoftwareInstallers := `
-INSERT INTO setup_experience_status_results (
-	host_uuid,
-	name,
-	status,
-	software_installer_id
-) SELECT
-	?,
-	st.name,
-	'pending',
-	si.id
+	// Build combined software query (installers + VPP apps) before the transaction.
+	fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
+
+	var softwareUnionParts []string
+	var softwareArgs []any
+
+	includeSoftwareInstallers := fleetPlatform != "ios" && fleetPlatform != "ipados"
+	includeVPPApps := fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados"
+
+	if includeSoftwareInstallers {
+		installerSelect := `
+SELECT
+	? AS host_uuid,
+	st.name AS name,
+	'pending' AS status,
+	si.id AS software_installer_id,
+	NULL AS vpp_app_team_id,
+	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
@@ -118,47 +124,44 @@ WHERE install_during_setup = true
 AND global_or_team_id = ?
 AND si.is_active = TRUE
 AND (
-	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
 	AND
 	(
-		-- platform is 'darwin' or 'windows', so nothing else to check.
 		(si.platform = 'darwin' OR si.platform = 'windows')
-		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
-			-- tar.gz and sh can be installed on any Linux distribution
 			(si.extension = 'tar.gz' OR si.extension = 'sh')
 			OR
 			(
-				-- deb packages can only be installed on Debian-based hosts.
 				(si.extension = 'deb' AND ? = 'debian')
 				OR
-				-- rpm packages can only be installed on RHEL-based hosts.
 				(si.extension = 'rpm' AND ? = 'rhel')
 			)
 		)
 	)
 )
-AND %s ORDER BY COALESCE(stdn.display_name, st.name) ASC
-`
-	if resetFailedSetupSteps {
-		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
-	} else {
-		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "TRUE")
+AND %s`
+		if resetFailedSetupSteps {
+			installerSelect = fmt.Sprintf(installerSelect, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
+		} else {
+			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
+		}
+		softwareUnionParts = append(softwareUnionParts, installerSelect)
+		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		if resetFailedSetupSteps {
+			softwareArgs = append(softwareArgs, hostUUID)
+		}
 	}
 
-	stmtVPPApps := `
-INSERT INTO setup_experience_status_results (
-	host_uuid,
-	name,
-	status,
-	vpp_app_team_id
-) SELECT
-	?,
-	st.name,
-	'pending',
-	vat.id
+	if includeVPPApps {
+		vppSelect := `
+SELECT
+	? AS host_uuid,
+	st.name AS name,
+	'pending' AS status,
+	NULL AS software_installer_id,
+	vat.id AS vpp_app_team_id,
+	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
 	ON vat.adam_id = va.adam_id
@@ -170,13 +173,33 @@ LEFT JOIN software_title_display_names stdn
 WHERE vat.install_during_setup = true
 AND vat.global_or_team_id = ?
 AND va.platform = ?
-AND %s
-ORDER BY COALESCE(stdn.display_name, st.name) ASC
-`
-	if resetFailedSetupSteps {
-		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
-	} else {
-		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "TRUE")
+AND %s`
+		if resetFailedSetupSteps {
+			vppSelect = fmt.Sprintf(vppSelect, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
+		} else {
+			vppSelect = fmt.Sprintf(vppSelect, "TRUE")
+		}
+		softwareUnionParts = append(softwareUnionParts, vppSelect)
+		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform)
+		if resetFailedSetupSteps {
+			softwareArgs = append(softwareArgs, hostUUID)
+		}
+	}
+
+	var stmtSoftwareCombined string
+	if len(softwareUnionParts) > 0 {
+		stmtSoftwareCombined = fmt.Sprintf(`
+INSERT INTO setup_experience_status_results (
+	host_uuid,
+	name,
+	status,
+	software_installer_id,
+	vpp_app_team_id
+)
+SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id FROM (
+	%s
+) AS combined
+ORDER BY sort_name ASC`, strings.Join(softwareUnionParts, " UNION ALL "))
 	}
 
 	stmtSetupScripts := `
@@ -202,37 +225,15 @@ WHERE global_or_team_id = ?`
 			return ctxerr.Wrap(ctx, err, "removing stale setup experience entries")
 		}
 
-		// Software installers
-		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
-		args := []any{hostUUID, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike}
-		if resetFailedSetupSteps {
-			args = append(args, hostUUID)
-		}
-		if fleetPlatform != "ios" && fleetPlatform != "ipados" {
-			res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, args...)
+		// Combined software (installers + VPP apps)
+		if stmtSoftwareCombined != "" {
+			res, err := tx.ExecContext(ctx, stmtSoftwareCombined, softwareArgs...)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+				return ctxerr.Wrap(ctx, err, "inserting setup experience software items")
 			}
 			inserts, err := res.RowsAffected()
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
-			}
-			totalInsertions += uint(inserts) // nolint: gosec
-		}
-
-		// VPP apps
-		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
-			args := []any{hostUUID, teamID, teamID, fleetPlatform}
-			if resetFailedSetupSteps {
-				args = append(args, hostUUID)
-			}
-			res, err := tx.ExecContext(ctx, stmtVPPApps, args...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
-			}
-			inserts, err := res.RowsAffected()
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
+				return ctxerr.Wrap(ctx, err, "retrieving number of inserted software items")
 			}
 			totalInsertions += uint(inserts) // nolint: gosec
 		}
@@ -575,6 +576,7 @@ LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
 LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id AND vat.platform = va.platform
 WHERE host_uuid = ?
+ORDER BY sesr.id
 	`
 	var results []*fleet.SetupExperienceStatusResult
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostUUID); err != nil {
@@ -614,37 +616,6 @@ WHERE host_uuid = ?
 			}
 		}
 	}
-
-	// Sort results so that software (installers and VPP apps) comes first,
-	// ordered alphabetically by display name (falling back to name), and
-	// scripts come last.
-	slices.SortStableFunc(results, func(a, b *fleet.SetupExperienceStatusResult) int {
-		aIsScript := a.IsForScript()
-		bIsScript := b.IsForScript()
-		// Scripts always sort after software.
-		if aIsScript != bIsScript {
-			if aIsScript {
-				return 1
-			}
-			return -1
-		}
-		// Within the same category, sort by display name (or name if no display name).
-		aName := a.DisplayName
-		if aName == "" {
-			aName = a.Name
-		}
-		bName := b.DisplayName
-		if bName == "" {
-			bName = b.Name
-		}
-		if aName < bName {
-			return -1
-		}
-		if aName > bName {
-			return 1
-		}
-		return 0
-	})
 
 	return results, nil
 }

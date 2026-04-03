@@ -193,7 +193,9 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 
 	// Software (installers and VPP apps) are treated as a single group,
 	// ordered alphabetically by display name (falling back to name). This
-	// ordering is determined by ListSetupExperienceResultsByHostUUID.
+	// ordering is determined at enqueue time by enqueueSetupExperienceItems,
+	// which inserts them with auto-incremented IDs in the correct order.
+	// ListSetupExperienceResultsByHostUUID returns rows ordered by sesr.id.
 	// Scripts always run after all software is done.
 	var softwarePending, scriptsPending []*fleet.SetupExperienceStatusResult
 	var softwareRunning, scriptsRunning int
@@ -226,8 +228,8 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 		// Enqueue only the first pending software item (installer or VPP app).
 		// On the next call, this item will be in "running" state and the next
 		// pending item will be picked up. This ensures software is installed
-		// one at a time in the alphabetical display-name order determined by
-		// ListSetupExperienceResultsByHostUUID.
+		// one at a time in the alphabetical display-name order determined at
+		// enqueue time (rows are ordered by sesr.id).
 		sw := softwarePending[0]
 
 		switch {
