@@ -53,6 +53,7 @@ describe("PolicyForm - component", () => {
     goToSelectTargets: jest.fn(),
     onUpdate: jest.fn(),
     onOpenSchemaSidebar: jest.fn(),
+    onCloseSchemaSidebar: jest.fn(),
     renderLiveQueryWarning: jest.fn(),
     backendValidators: {},
     onClickAutofillDescription: jest.fn(),
@@ -138,6 +139,7 @@ describe("PolicyForm - component", () => {
           goToSelectTargets={jest.fn()}
           onUpdate={jest.fn()}
           onOpenSchemaSidebar={jest.fn()}
+          onCloseSchemaSidebar={jest.fn()}
           renderLiveQueryWarning={jest.fn()}
           backendValidators={{}}
           onClickAutofillDescription={jest.fn()}
@@ -201,6 +203,7 @@ describe("PolicyForm - component", () => {
           goToSelectTargets={jest.fn()}
           onUpdate={jest.fn()}
           onOpenSchemaSidebar={jest.fn()}
+          onCloseSchemaSidebar={jest.fn()}
           renderLiveQueryWarning={jest.fn()}
           backendValidators={{}}
           onClickAutofillDescription={jest.fn()}
@@ -277,6 +280,7 @@ describe("PolicyForm - component", () => {
           goToSelectTargets={jest.fn()}
           onUpdate={jest.fn()}
           onOpenSchemaSidebar={jest.fn()}
+          onCloseSchemaSidebar={jest.fn()}
           renderLiveQueryWarning={jest.fn()}
           backendValidators={{}}
           onClickAutofillDescription={jest.fn()}
