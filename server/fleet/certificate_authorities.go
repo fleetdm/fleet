@@ -50,6 +50,7 @@ const (
 	CATypeHydrant         CAType = "hydrant"
 	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
+	CATypeACMEProxy       CAType = "acme_proxy"
 )
 
 type CertificateAuthoritySummary struct {
@@ -106,6 +107,7 @@ type CertificateAuthorityPayload struct {
 	Hydrant         *HydrantCA            `json:"hydrant,omitempty"`
 	CustomESTProxy  *ESTProxyCA           `json:"custom_est_proxy,omitempty"`
 	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
+	ACMEProxy       *ACMEProxyCA          `json:"acme_proxy,omitempty"`
 }
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
@@ -233,6 +235,56 @@ func (s *CustomSCEPProxyCA) Preprocess() {
 	s.URL = Preprocess(s.URL)
 }
 
+// ACMEProxyCA configures an ACME relay to an upstream CA (via a local step-ca RA
+// or directly via EAB). Fleet acts as an ACME server to devices and relays
+// certificate issuance to the upstream CA.
+type ACMEProxyCA struct {
+	ID          uint   `json:"-"`
+	Name        string `json:"name"`
+	URL         string `json:"url"`           // Upstream ACME directory URL (e.g., RA's ACME endpoint)
+	EABKeyID    string `json:"eab_key_id"`    // External Account Binding key ID (optional)
+	EABHMACKey  string `json:"eab_hmac_key"`  // EAB HMAC key, base64url-encoded (optional)
+	RootCertPEM string `json:"root_cert_pem"` // PEM-encoded root cert for upstream TLS (optional)
+}
+
+func (a *ACMEProxyCA) Equals(other *ACMEProxyCA) bool {
+	return a.Name == other.Name &&
+		a.URL == other.URL &&
+		a.EABKeyID == other.EABKeyID &&
+		(a.EABHMACKey == "" || a.EABHMACKey == MaskedPassword || a.EABHMACKey == other.EABHMACKey) &&
+		a.RootCertPEM == other.RootCertPEM
+}
+
+func (a *ACMEProxyCA) Preprocess() {
+	a.Name = Preprocess(a.Name)
+	a.URL = Preprocess(a.URL)
+}
+
+type ACMEProxyCAUpdatePayload struct {
+	Name        *string `json:"name"`
+	URL         *string `json:"url"`
+	EABKeyID    *string `json:"eab_key_id"`
+	EABHMACKey  *string `json:"eab_hmac_key"`
+	RootCertPEM *string `json:"root_cert_pem"`
+}
+
+func (a ACMEProxyCAUpdatePayload) IsEmpty() bool {
+	return a.Name == nil && a.URL == nil && a.EABKeyID == nil && a.EABHMACKey == nil && a.RootCertPEM == nil
+}
+
+func (a *ACMEProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	return nil
+}
+
+func (a *ACMEProxyCAUpdatePayload) Preprocess() {
+	if a.Name != nil {
+		*a.Name = Preprocess(*a.Name)
+	}
+	if a.URL != nil {
+		*a.URL = Preprocess(*a.URL)
+	}
+}
+
 type CertificateAuthorityUpdatePayload struct {
 	*DigiCertCAUpdatePayload           `json:"digicert,omitempty"`
 	*NDESSCEPProxyCAUpdatePayload      `json:"ndes_scep_proxy,omitempty"`
@@ -240,6 +292,7 @@ type CertificateAuthorityUpdatePayload struct {
 	*HydrantCAUpdatePayload            `json:"hydrant,omitempty"`
 	*CustomESTCAUpdatePayload          `json:"custom_est_proxy,omitempty"`
 	*SmallstepSCEPProxyCAUpdatePayload `json:"smallstep,omitempty"`
+	*ACMEProxyCAUpdatePayload          `json:"acme_proxy,omitempty"`
 }
 
 // ValidatePayload checks that only one CA type is specified in the update payload and that the private key is provided.
@@ -261,6 +314,9 @@ func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, e
 		caInPayload++
 	}
 	if p.SmallstepSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.ACMEProxyCAUpdatePayload != nil {
 		caInPayload++
 	}
 	if caInPayload == 0 {

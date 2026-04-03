@@ -156,6 +156,26 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		activity = fleet.ActivityAddedSmallstep{Name: p.Smallstep.Name}
 	}
 
+	if p.ACMEProxy != nil {
+		p.ACMEProxy.Preprocess()
+
+		if err := svc.validateACMEProxy(p.ACMEProxy, errPrefix); err != nil {
+			return nil, err
+		}
+
+		caToCreate.Type = string(fleet.CATypeACMEProxy)
+		caToCreate.Name = &p.ACMEProxy.Name
+		caToCreate.URL = &p.ACMEProxy.URL
+		// Store EAB credentials in existing username/password fields for the POC.
+		if p.ACMEProxy.EABKeyID != "" {
+			caToCreate.Username = &p.ACMEProxy.EABKeyID
+		}
+		if p.ACMEProxy.EABHMACKey != "" {
+			caToCreate.Password = &p.ACMEProxy.EABHMACKey
+		}
+		caDisplayType = "ACME proxy"
+	}
+
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
 		if errors.As(err, &fleet.ConflictError{}) {
@@ -192,6 +212,9 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 		casToCreate++
 	}
 	if p.CustomESTProxy != nil {
+		casToCreate++
+	}
+	if p.ACMEProxy != nil {
 		casToCreate++
 	}
 	if casToCreate == 0 {
@@ -429,6 +452,16 @@ func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCE
 	if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, *smallstepSCEP); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate Smallstep SCEP admin URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
+	}
+	return nil
+}
+
+func (svc *Service) validateACMEProxy(acmeCA *fleet.ACMEProxyCA, errPrefix string) error {
+	if err := validateCAName(acmeCA.Name, errPrefix); err != nil {
+		return err
+	}
+	if err := validateURL(acmeCA.URL, "ACME", errPrefix); err != nil {
+		return err
 	}
 	return nil
 }
