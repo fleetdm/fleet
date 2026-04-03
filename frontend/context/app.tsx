@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useContext,
   useReducer,
   useMemo,
   useCallback,
@@ -488,6 +489,8 @@ const reducer = (state: InitialStateType, action: IAction) => {
 };
 
 export const AppContext = createContext<InitialStateType>(initialState);
+
+export const useAppContext = () => useContext(AppContext);
 
 const AppProvider = ({ children }: Props): JSX.Element => {
   const [state, dispatch] = useReducer(reducer, initialState);

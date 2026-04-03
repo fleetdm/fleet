@@ -91,14 +91,16 @@ import PATHS from "router/paths";
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
 
-import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
-import AuthAnyAdminRoutes from "./components/AuthAnyAdminRoutes";
+import {
+  AuthGlobalAdminRoutes,
+  AuthAnyAdminRoutes,
+  AuthGlobalAdminMaintainerRoutes,
+  AuthAnyMaintainerAnyAdminRoutes,
+  AuthAnyMaintainerAdminTechnicianRoutes,
+  AuthAnyMaintainerAdminObserverPlusRoutes,
+} from "./components/AuthRoute";
 import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
 import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
-import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
-import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
-import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
-import AuthAnyMaintainerAdminTechnicianRoutes from "./components/AuthAnyMaintainerAdminTechnicianRoutes/AuthAnyMaintainerAdminTechnicianRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 

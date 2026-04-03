@@ -323,6 +323,32 @@ const PageOrComponent = (props) => {
 data that is desired and allows for retrieval of that data in whatever component is in need.
 View currently working contexts in the [context directory](../context).
 
+### Accessing context
+
+Each context should export a custom hook (e.g. `useAppContext`, `useRoutingContext`)
+that wraps `useContext`. Consumers should use the hook instead of calling
+`useContext(SomeContext)` directly. This abstracts the context dependency into a
+single import and keeps components cleaner.
+
+```tsx
+// good
+import { useAppContext } from "context/app";
+
+const MyComponent = () => {
+  const { isGlobalAdmin, currentUser } = useAppContext();
+  // ...
+};
+
+// avoid
+import { useContext } from "react";
+import { AppContext } from "context/app";
+
+const MyComponent = () => {
+  const { isGlobalAdmin, currentUser } = useContext(AppContext);
+  // ...
+};
+```
+
 ## Fleet API calls
 
 ### Making API calls
