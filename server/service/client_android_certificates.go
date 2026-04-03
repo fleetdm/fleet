@@ -1,11 +1,7 @@
 package service
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // GetCertificateTemplates retrieves the list of Certificate Templates for a team.
@@ -25,15 +21,7 @@ func (c *Client) ApplyCertificateSpecs(specs []*fleet.CertificateRequestSpec) er
 	req := applyCertificateTemplateSpecsRequest{Specs: specs}
 	verb, path := "POST", "/api/latest/fleet/spec/certificates"
 	var responseBody applyCertificateTemplateSpecsResponse
-	data, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("ApplyCertificateSpecs: %w", err)
-	}
-	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
-	if err != nil {
-		return fmt.Errorf("ApplyCertificateSpecs: %w", err)
-	}
-	return c.authenticatedRequest(data, verb, path, &responseBody)
+	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
 // DeleteCertificateTemplates sends a list of certificate template IDs to be deleted.
@@ -41,13 +29,5 @@ func (c *Client) DeleteCertificateTemplates(certificateTemplateIDs []uint, teamI
 	verb, path := "DELETE", "/api/latest/fleet/spec/certificates"
 	req := deleteCertificateTemplateSpecsRequest{IDs: certificateTemplateIDs, TeamID: teamID}
 	var responseBody deleteCertificateTemplateSpecsResponse
-	data, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("DeleteCertificateTemplates: %w", err)
-	}
-	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
-	if err != nil {
-		return fmt.Errorf("DeleteCertificateTemplates: %w", err)
-	}
-	return c.authenticatedRequest(data, verb, path, &responseBody)
+	return c.authenticatedRequest(req, verb, path, &responseBody)
 }

@@ -12,7 +12,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 
 	ws "github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/gorilla/websocket"
@@ -77,15 +76,7 @@ func (c *Client) LiveQueryWithContext(
 	}
 	verb, path := "POST", "/api/latest/fleet/reports/run_by_identifiers"
 	var responseBody createDistributedQueryCampaignResponse
-	data, err := json.Marshal(req)
-	if err != nil {
-		return nil, ctxerr.Errorf(ctx, "create live query: %v", err)
-	}
-	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
-	if err != nil {
-		return nil, ctxerr.Errorf(ctx, "create live query: %v", err)
-	}
-	err = c.authenticatedRequest(data, verb, path, &responseBody)
+	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
 		return nil, ctxerr.Errorf(ctx, "create live query: %v", err)
 	}

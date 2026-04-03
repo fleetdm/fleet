@@ -2,13 +2,11 @@ package service
 
 import (
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // GetHosts retrieves the list of all Hosts
@@ -113,15 +111,7 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 		verb, path := "POST", "/api/latest/fleet/hosts/transfer"
 		var responseBody addHostsToTeamResponse
 		params := addHostsToTeamRequest{TeamID: teamIDPtr, HostIDs: hostIDs}
-		data, err := json.Marshal(params)
-		if err != nil {
-			return fmt.Errorf("TransferHosts: %w", err)
-		}
-		data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(params))
-		if err != nil {
-			return fmt.Errorf("TransferHosts: %w", err)
-		}
-		return c.authenticatedRequest(data, verb, path, &responseBody)
+		return c.authenticatedRequest(params, verb, path, &responseBody)
 	}
 
 	filter := make(map[string]interface{})
@@ -144,15 +134,8 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 		TeamID:  teamIDPtr,
 		Filters: &filter,
 	}
-	data, err := json.Marshal(params)
-	if err != nil {
-		return fmt.Errorf("TransferHosts: %w", err)
-	}
-	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(params))
-	if err != nil {
-		return fmt.Errorf("TransferHosts: %w", err)
-	}
-	return c.authenticatedRequest(data, verb, path, &responseBody)
+
+	return c.authenticatedRequest(params, verb, path, &responseBody)
 }
 
 // GetHostsReport returns a report of all hosts.

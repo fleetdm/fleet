@@ -1,11 +1,9 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // SearchTargets searches for the supplied targets in the Fleet instance.
@@ -20,17 +18,9 @@ func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*fleet.T
 	}
 	verb, path := "POST", "/api/latest/fleet/targets"
 	var responseBody searchTargetsResponse
-	data, err := json.Marshal(req)
+	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
-		return nil, fmt.Errorf("SearchTargets: %w", err)
-	}
-	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
-	if err != nil {
-		return nil, fmt.Errorf("SearchTargets: %w", err)
-	}
-	err = c.authenticatedRequest(data, verb, path, &responseBody)
-	if err != nil {
-		return nil, fmt.Errorf("SearchTargets: %w", err)
+		return nil, fmt.Errorf("SearchTargets: %s", err)
 	}
 
 	hosts := make([]*fleet.Host, len(responseBody.Targets.Hosts))

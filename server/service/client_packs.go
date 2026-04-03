@@ -1,12 +1,9 @@
 package service
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // ApplyPacks sends the list of Packs to be applied (upserted) to the
@@ -15,15 +12,7 @@ func (c *Client) ApplyPacks(specs []*fleet.PackSpec) error {
 	req := applyPackSpecsRequest{Specs: specs}
 	verb, path := "POST", "/api/latest/fleet/spec/packs"
 	var responseBody applyPackSpecsResponse
-	data, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("ApplyPacks: %w", err)
-	}
-	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
-	if err != nil {
-		return fmt.Errorf("ApplyPacks: %w", err)
-	}
-	return c.authenticatedRequest(data, verb, path, &responseBody)
+	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
 // GetPackSpec retrieves information about a pack in apply spec format.
