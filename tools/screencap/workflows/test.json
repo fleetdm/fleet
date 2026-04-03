@@ -1,0 +1,110 @@
+{
+  "name": "test",
+  "steps": [
+    {
+      "name": "step-1",
+      "path": "/software/add/fleet-maintained?fleet_id=310",
+      "actions": [
+        {
+          "kind": "click",
+          "selector": ".software-page__title",
+          "text": "option All fleets selected, 1 of 7. 7 results available. Use Up and Down to choose options, press En"
+        },
+        {
+          "kind": "click",
+          "selector": ".software-page__title",
+          "text": "option 🧪 Testing \u0026 QA focused, 7 of 7. 7 results available. Use Up and Down to choose options, pres"
+        },
+        {
+          "kind": "hover",
+          "selector": "#app \u003e div \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(1) \u003e table \u003e tbody \u003e tr:nth-of-type(2) \u003e td:nth-of-type(1) \u003e a \u003e div \u003e div:nth-of-type(1)",
+          "text": "true"
+        },
+        {
+          "kind": "hover",
+          "selector": "#app \u003e div \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(1) \u003e table \u003e tbody \u003e tr:nth-of-type(1) \u003e td:nth-of-type(1) \u003e a \u003e div \u003e div:nth-of-type(1)",
+          "text": "true"
+        },
+        {
+          "kind": "hover",
+          "selector": "#app \u003e div \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div:nth-of-type(2) \u003e span:nth-of-type(1) \u003e div",
+          "text": "true"
+        },
+        {
+          "kind": "hover",
+          "selector": "#app \u003e div \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div:nth-of-type(2) \u003e span:nth-of-type(2) \u003e div",
+          "text": "true"
+        },
+        {
+          "kind": "click",
+          "selector": ".button.button--default",
+          "text": "Add software"
+        }
+      ]
+    },
+    {
+      "name": "step-2",
+      "path": "/software/add/app-store?fleet_id=310",
+      "actions": [
+        {
+          "kind": "tab",
+          "selector": "[data-text=\"App store\"]",
+          "text": "App store"
+        }
+      ]
+    },
+    {
+      "name": "step-3",
+      "path": "/software/add/package?fleet_id=310",
+      "actions": [
+        {
+          "kind": "tab",
+          "selector": "[data-text=\"Custom package\"]",
+          "text": "Custom package"
+        }
+      ]
+    },
+    {
+      "name": "step-4",
+      "path": "/software/add/package?fleet_id=310",
+      "scroll_y": 243,
+      "actions": [
+        {
+          "kind": "click",
+          "selector": ".target-label-selector.package-form__target.form",
+          "text": "TargetAll hostsCustom"
+        },
+        {
+          "kind": "radio",
+          "selector": "#custom-target-radio-btn"
+        },
+        {
+          "kind": "click",
+          "selector": ".target-label-selector__custom-label-chooser",
+          "text": "Include anyInclude anyExclude anySoftware will only be available for install on hosts that have any "
+        }
+      ]
+    },
+    {
+      "name": "step-5",
+      "path": "/software/vulnerabilities?fleet_id=310\u0026page=0",
+      "actions": [
+        {
+          "kind": "click",
+          "selector": "#app \u003e div \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(3) \u003e div \u003e form \u003e div:nth-of-type(3) \u003e button:nth-of-type(2)",
+          "text": "Cancel"
+        },
+        {
+          "kind": "tab",
+          "selector": "[data-text=\"OS\"]",
+          "text": "OS"
+        },
+        {
+          "kind": "tab",
+          "selector": "[data-text=\"Vulnerabilities\"]",
+          "text": "Vulnerabilities"
+        }
+      ]
+    }
+  ]
+}
