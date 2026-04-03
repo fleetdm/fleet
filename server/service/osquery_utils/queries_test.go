@@ -3355,7 +3355,7 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 			},
 		},
 		{
-			name: "version falls back to file_version when product_version is empty",
+			name:        "version falls back to file_version when product_version is empty",
 			mainResults: []map[string]string{},
 			fileScanResults: []map[string]string{
 				{"path": `C:\Program Files\SomeApp\app.exe`, "filename": "app.exe", "product_version": "", "file_version": "1.0.0.0"},
