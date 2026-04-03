@@ -413,7 +413,7 @@ controls:
   setup_experience: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
-    apple_apple_enable_release_device_manually: true
+    apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
   macos_migration: # Available in Fleet Premium
