@@ -1808,6 +1808,7 @@ type GetHostCertificateTemplateRecordFunc func(ctx context.Context, hostUUID str
 type RetryHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
 
 type GetCertificateTemplateStatusesByNameForHostsFunc func(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error)
+
 type RequeueWithheldONCProfilesForHostFunc func(ctx context.Context, hostUUID string) error
 
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
