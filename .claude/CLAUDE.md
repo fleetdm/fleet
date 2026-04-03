@@ -36,7 +36,7 @@ make migration name=MyMigration
 ```
 
 Your new migration will be created under server/datastore/mysql/migrations/tables/[timestamp]_MyMigration.go along with a corresponding _test.go file
-Add your migration and test code to those files, then regenerate the DB schema file(used for tests):
+Add your migration and test code to those files, then regenerate the DB schema file (used for tests):
 ```bash
 make test-schema
 ```
