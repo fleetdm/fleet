@@ -1683,7 +1683,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// (Vendor\app.exe) and depth 1 (Vendor\Subfolder\app.exe), excluding WindowsApps (already
 	// covered by the programs table). Deduplication against programs entries is handled server-side
 	// via SoftwareProcessResults. Also enables detection of Windows Defender (MsMpEng.exe) which
-	// does not create registry entries (#18494).
+	// does not create registry entries (#42878).
 	"windows_program_files_scan": {
 		Description: "A software override query[^1] to detect Windows software installed to Program Files without registry entries.",
 		Platforms:   []string{"windows"},
@@ -2455,7 +2455,7 @@ var (
 		{
 			// Windows Defender's service executable (MsMpEng.exe) is installed under
 			// C:\Program Files\Windows Defender without registry Uninstall entries.
-			// Map it to a user-friendly name for software inventory. (#18494)
+			// Map it to a user-friendly name for software inventory. (#42878)
 			matches: func(s *fleet.Software) bool {
 				return s.Source == "programs" &&
 					strings.EqualFold(s.Name, "MsMpEng.exe")
