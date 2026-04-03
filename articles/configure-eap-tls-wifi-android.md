@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 This guide walks through configuring enterprise Wi-Fi network (802.1X) with EAP-TLS method on Android hosts. Supported on fully-managed and work profile (BYOD) hosts.
 
-Follow steps below to connect your Android hosts to enterprise Wi-Fi:
+Follow the steps below to connect your Android hosts to enterprise Wi-Fi:
 
 1. [Add SCEP certificate authority](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#any-scep-simple-certificate-enrollment-protocol-ca) to Fleet
 2. [Deployed SCEP certificate](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#android-deploy-certificate) to Android hosts.
