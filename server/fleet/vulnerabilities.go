@@ -129,6 +129,7 @@ const (
 	CustomSource
 	GovalDictionarySource
 	WinOfficeSource
+	UbuntuOSVSource
 )
 
 type VulnerabilityWithMetadata struct {
