@@ -583,7 +583,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'disabled_disk_encryption' type activity for a team", () => {
+  it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacDiskEncryption,
       details: { team_name: "Alphas" },
