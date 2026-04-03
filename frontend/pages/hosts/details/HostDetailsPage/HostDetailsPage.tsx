@@ -1752,7 +1752,7 @@ const HostDetailsPage = ({
             depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
-            isMacOSHost={isMacOSHost}
+            isAppleDevice={isAppleDeviceHost}
             router={router}
             onExit={toggleMDMStatusModal}
           />

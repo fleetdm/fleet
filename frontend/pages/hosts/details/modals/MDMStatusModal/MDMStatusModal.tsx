@@ -33,6 +33,7 @@ import List from "components/List";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IconNames } from "components/icons";
+import { isAppleDevice } from "interfaces/platform";
 
 const baseClass = "mdm-status-modal";
 
@@ -43,7 +44,7 @@ interface IMDMStatusModal {
   depProfileError?: boolean;
   router: InjectedRouter;
   isPremiumTier?: boolean;
-  isMacOSHost?: boolean;
+  isAppleDevice?: boolean;
   onExit: () => void;
 }
 
@@ -150,7 +151,7 @@ const MDMStatusModal = ({
   enrollmentStatus,
   depProfileError = false,
   isPremiumTier = false,
-  isMacOSHost = false,
+  isAppleDevice = false,
   router,
   onExit,
 }: IMDMStatusModal) => {
@@ -466,7 +467,7 @@ const MDMStatusModal = ({
   return (
     <Modal title="MDM status" className={baseClass} onExit={onExit}>
       {renderMDMStatus()}
-      {isPremiumTier && isMacOSHost && renderProfileAssignment()}
+      {isPremiumTier && isAppleDevice && renderProfileAssignment()}
       {renderFooter()}
     </Modal>
   );
