@@ -15,6 +15,8 @@ Currently, these are supported platforms for each certificate authority:
 - **Custom SCEP server**: macOS, Windows, iOS, iPadOS, and Android
 - **Custom EST**: Linux
 
+NOTE - if hosting Fleet yourself, you must have a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key) configured to deploy certificates.
+
 ## Okta
 
 The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA). 
