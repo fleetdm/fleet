@@ -1,0 +1,12 @@
+- name: macOS - Screen lock enabled
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND CAST(value AS INTEGER) <= 1200;
+  critical: false
+  description: >-
+    This policy checks that the screen lock is configured to activate after no more than 20 minutes
+    of inactivity. Screen lock is a common CIS benchmark and SOC 2 requirement that protects
+    unattended devices from unauthorized physical access.
+  resolution: |-
+    A configuration profile should enforce this setting automatically. If you are failing this policy,
+    please reach out in #help-it.
+  platform: darwin
+  calendar_events_enabled: false
