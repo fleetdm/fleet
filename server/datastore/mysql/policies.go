@@ -608,12 +608,20 @@ func filterNotExecuted(results map[uint]*bool) map[uint]bool {
 	return filtered
 }
 
-func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
+func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error {
 	// Identify policies that flipped failing -> passing for this host using current incoming results.
 	// We compute this before updating policy_membership so we compare against the previous state.
-	_, newPassing, err := ds.FlippingPoliciesForHost(ctx, host.ID, results)
-	if err != nil {
-		return err
+	// When newlyPassingPolicyIDs is non-nil, the caller has already computed flipping policies
+	// (e.g. SubmitDistributedQueryResults computes it once for all consumers) so we reuse that result.
+	var newPassing []uint
+	if newlyPassingPolicyIDs != nil {
+		newPassing = newlyPassingPolicyIDs
+	} else {
+		var err error
+		_, newPassing, err = ds.FlippingPoliciesForHost(ctx, host.ID, results)
+		if err != nil {
+			return err
+		}
 	}
 	if len(newPassing) > 0 {
 		slices.Sort(newPassing)
@@ -645,7 +653,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	// semantically equivalent, even though here it processes a single host and
 	// in async mode it processes a batch of hosts).
 
-	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if len(results) > 0 {
 			query := fmt.Sprintf(
 				`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
