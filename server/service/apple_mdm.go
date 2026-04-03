@@ -6841,8 +6841,13 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 
 ///////////////////////////////////////////////////////////////////////////////
 // Apple MDM Recovery Lock Password
+//
+// Deprecated: These functions are kept for backward compatibility.
+// Use the recoverylock package instead.
 
 // recoveryLockResult wraps mdm.CommandResults to implement fleet.MDMCommandResults
+//
+// Deprecated: Use recoverylock.Result instead.
 type recoveryLockResult struct {
 	cmdResult *mdm.CommandResults
 }
@@ -6852,6 +6857,8 @@ func (r *recoveryLockResult) UUID() string     { return r.cmdResult.CommandUUID 
 func (r *recoveryLockResult) HostUUID() string { return r.cmdResult.UDID } // SetRecoveryLock is device-only, UDID is always present
 
 // NewRecoveryLockResult wraps an mdm.CommandResults to implement fleet.MDMCommandResults
+//
+// Deprecated: Use recoverylock.NewResult instead.
 func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResults {
 	return &recoveryLockResult{cmdResult: cmdResult}
 }
@@ -6861,6 +6868,8 @@ func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResult
 // - SET: When acknowledged, marks the recovery lock as verified. On error, marks as failed.
 // - CLEAR: When acknowledged, deletes the recovery lock password record. On error, marks as failed.
 // - ROTATE: When acknowledged, moves pending password to active. On error, marks rotation as failed.
+//
+// Deprecated: Use recoverylock.NewResultsHandler instead.
 func NewSetRecoveryLockResultsHandler(
 	ds fleet.Datastore,
 	logger *slog.Logger,
