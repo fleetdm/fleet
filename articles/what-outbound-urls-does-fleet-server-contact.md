@@ -2,6 +2,8 @@
 
 This guide lists all external URLs and API endpoints that the Fleet server makes outbound requests to. This is useful for configuring firewall rules, allowlists, and understanding Fleet's network dependencies.
 
+Find out which Fleet endpoints to [expose to the public internet](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet).
+
 ## Fleet-hosted proxies
 
 Fleet routes some external API calls through proxies hosted on `fleetdm.com`. These proxies manage authentication when only Fleet can access these external services.
