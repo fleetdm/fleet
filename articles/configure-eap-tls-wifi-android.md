@@ -57,7 +57,7 @@ Follow the steps below to connect your Android hosts to enterprise Wi-Fi:
 |---|---|
 | `SSID` | Must match the router's SSID exactly (case-sensitive). |
 | `Name` | Display label, can be anything. For human readability only. |
-| `GUID` | Unique identifier for the each network. Use a different GUID for each network if you have multiple networks under `NetworkConfigurations`, or multiple configuration profiles with `openNetworkConfiguration` setting. |
+| `GUID` | Unique identifier for the network. Use a different GUID for each network if you have multiple networks under `NetworkConfigurations`, or multiple configuration profiles with `openNetworkConfiguration` setting. |
 | `AutoConnect` | Determines if the network is automatically connected. This setting is independent of the auto-connect option per network available to end users in the host's Wi-Fi settings. |
 | `Identity` | It's usually user's identifier like email. |
 | `DomainSuffixMatch` | Domain suffix used to verify the RADIUS server's identity. The host checks that the server certificate's SAN DNS name (or CN if no SAN is present) ends with this suffix. |
