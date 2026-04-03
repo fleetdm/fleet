@@ -13844,7 +13844,7 @@ If `api_endpoints` is specified, these do not grant additional permissions other
 
 #### Example
 
-`POST /api/v1/fleet/users/admin`
+`POST /api/v1/fleet/users/api_only`
 
 ##### Request body
 
