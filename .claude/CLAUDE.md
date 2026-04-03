@@ -31,7 +31,7 @@ MYSQL_TEST=1 go test -run TestFunctionName ./server/datastore/mysql/...
 Use the following command to create a new migration
 
 ```bash
-# Make a new migration named MyMigration(add your actual migration name)
+# Make a new migration named MyMigration (add your actual migration name)
 make migration name=MyMigration
 ```
 
