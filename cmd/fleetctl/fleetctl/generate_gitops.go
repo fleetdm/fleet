@@ -57,6 +57,7 @@ type Software struct {
 	AppStoreId      string
 	Comment         string
 	MaintainedAppID uint
+	Slug            string
 }
 
 type teamToProcess struct {
@@ -1319,6 +1320,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value) > 0 {
 				result[jsonFieldName(mdmT, "WindowsEntraTenantIDs")] = cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value
 			}
+			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
@@ -1542,11 +1544,16 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
-				if software.Hash != "" {
+				switch {
+				case software.MaintainedAppID != 0 && software.Slug != "":
+					policySpec["install_software"] = map[string]any{
+						"fleet_maintained_app_slug": software.Slug,
+					}
+				case software.Hash != "":
 					policySpec["install_software"] = map[string]any{
 						"hash_sha256": software.Hash + " " + software.Comment,
 					}
-				} else if software.AppStoreId != "" {
+				case software.AppStoreId != "":
 					policySpec["install_software"] = map[string]any{
 						"app_store_id": software.AppStoreId,
 					}
@@ -1869,6 +1876,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				}
 				if sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil {
 					swEntry.MaintainedAppID = *sw.SoftwarePackage.FleetMaintainedAppID
+					slug, err := slugResolver.resolve(*sw.SoftwarePackage.FleetMaintainedAppID)
+					if err != nil {
+						return nil, err
+					}
+					swEntry.Slug = slug
 				}
 
 				cmd.SoftwareList[sw.ID] = swEntry

@@ -123,6 +123,7 @@ const Vitals = ({
   const {
     platform,
     os_version,
+    mdm_enrollment_hardware_attested,
     disk_encryption_enabled: diskEncryptionEnabled,
   } = vitalsData;
 
@@ -386,6 +387,24 @@ const Vitals = ({
       });
     }
 
+    // MDM attestation
+    if (mdm_enrollment_hardware_attested) {
+      vitals.push({
+        sortKey: "MDM attestation",
+        element: (
+          <DataSet
+            key="mdm-attestation"
+            title="MDM attestation"
+            value={
+              <TooltipWrapper tipContent="Host provided a Managed Device Attestation signed by Apple at enrollment.">
+                Yes
+              </TooltipWrapper>
+            }
+          />
+        ),
+      });
+    }
+
     // MDM
     if (mdm?.enrollment_status) {
       vitals.push(
@@ -552,6 +571,16 @@ const Vitals = ({
               </TooltipWrapper>
             }
             value={<TooltipTruncatedText value={vitalsData.public_ip} />}
+          />
+        ),
+      });
+      vitals.push({
+        sortKey: "MAC address",
+        element: (
+          <DataSet
+            key="mac-address"
+            title="MAC address"
+            value={<TooltipTruncatedText value={vitalsData.primary_mac} />}
           />
         ),
       });

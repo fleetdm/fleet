@@ -156,7 +156,7 @@ span multiple regions for more advanced configurations (_not included in the [re
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`, there can be benefits to read performance.
 
-**Note:Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
+**Note: Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
 
 #### Traffic load balancing
 Load balancing enables distributing request traffic over many instances of the backend application. Using [AWS Application
@@ -189,8 +189,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 6 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.t4g.small | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.t4g.small | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.medium   | 2     |
 
 ###### [Up to 10000 hosts](https://calculator.aws/#/estimate?id=5ea231525450b1cd4fa847f4564351d2c17d2ee2)
@@ -200,8 +200,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 8 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type    | Nodes |
-| ------------ | ----------------------- | ---------------- | ----- |
-| Redis        | 6.x                     | cache.t4g.medium | 3     |
+| ------------ |-------------------------| ---------------- | ----- |
+| Redis        | 7.x                     | cache.t4g.medium | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.large     | 2     |
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4700e7a36ef34b84ae9ad4f444690f1df2ca3753)
@@ -211,8 +211,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 10 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.large    | 2     |
 
 ###### [Up to 50000 hosts](https://calculator.aws/#/estimate?id=3887d782a8f6cfeb9e0463686b5629aeb4cd678e)
@@ -222,8 +222,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 15 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.xlarge   | 3     |
 
 ###### [Up to 80000 hosts](https://calculator.aws/#/estimate?id=7d0dee9241aff55fc733a9eead816baea14aee21)
@@ -233,8 +233,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 20 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.2xlarge  | 3     |
 
 ###### [Up to 100000 hosts](https://calculator.aws/#/estimate?id=cd17a0dda5e1ee5f919ac0a2a0ea8a6e1557e307)
@@ -244,8 +244,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 25 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.2xlarge  | 3     |
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=a53e31063df9e5941b0c4b019b03ca2bd226fd48)
@@ -255,8 +255,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 40 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.4xlarge  | 3     |
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=1f54ccc80e27a78f192b0e9db02ab957eff0c26c)
@@ -266,8 +266,8 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | 70 Fargate tasks | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type    | Nodes |
-| ------------ | ----------------------- | ---------------- | ----- |
-| Redis        | 6.x                     | cache.r6g.xlarge | 3     |
+| ------------ |-------------------------| ---------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.xlarge | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.8xlarge   | 3     |
 
 
@@ -355,8 +355,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 2 Cloud Run     | 1   | 2GB |
 
 | Dependencies | Version               | Instance type |
-| ------------ | --------------------- | ------------- |
-| Redis        | MemoryStore Redis 6   | M1 Basic      |
+| ------------ |-----------------------| ------------- |
+| Redis        | MemoryStore Redis 7   | M1 Basic      |
 | MySQL        | Cloud SQL for MySQL 8 | db-standard-1 |
 
 ###### [Up to 25000 hosts](https://cloud.google.com/products/calculator/#id=fadbb96c-967c-4397-9921-743d75b98d42)
@@ -366,8 +366,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 10 Cloud Run    | 1   | 2GB |
 
 | Dependencies | Version               | Instance type |
-| ------------ | --------------------- | ------------- |
-| Redis        | MemoryStore Redis 6   | M1 2GB        |
+| ------------ |-----------------------| ------------- |
+| Redis        | MemoryStore Redis 7   | M1 2GB        |
 | MySQL        | Cloud SQL for MySQL 8 | db-standard-4 |
 
 
@@ -378,8 +378,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 30 Cloud Run    | 1 CPU | 2GB |
 
 | Dependencies | Version               | Instance type | Nodes |
-| ------------ | --------------------- | ------------- | ----- |
-| Redis        | MemoryStore Redis 6   | M1 4GB        | 1     |
+| ------------ |-----------------------| ------------- | ----- |
+| Redis        | MemoryStore Redis 7   | M1 4GB        | 1     |
 | MySQL        | Cloud SQL for MySQL 8 | db-highmem-16 | 1     |
 
 #### Azure
