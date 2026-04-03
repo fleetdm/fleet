@@ -5410,6 +5410,17 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
+	// Fake the hardware attested flag to true
+	_, err = ds.writer(ctx).Exec(`
+		  UPDATE nano_enrollments SET hardware_attested = true
+		  WHERE id = ?
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, _, hardwareAttested, err := ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	require.NoError(t, err)
+	require.True(t, hardwareAttested)
+
 	// host has no boostrap package command yet
 	_, err = ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
 	require.Error(t, err)
@@ -5460,6 +5471,10 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.Zero(t, sum.Failed)
 	require.Zero(t, sum.Installed)
 	require.Zero(t, sum.Pending)
+
+	_, _, hardwareAttested, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	require.NoError(t, err)
+	require.False(t, hardwareAttested)
 }
 
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
