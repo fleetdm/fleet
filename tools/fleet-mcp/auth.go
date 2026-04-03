@@ -41,6 +41,10 @@ func (rl *rateLimiter) isRateLimited(ip string) bool {
 			recent = append(recent, t)
 		}
 	}
+	if len(recent) == 0 {
+		delete(rl.failures, ip)
+		return false
+	}
 	rl.failures[ip] = recent
 
 	return len(recent) >= rateLimitMax
