@@ -146,8 +146,8 @@ Turn off the setting using the same path as enabling (UI, fleetctl, or API). Fle
   activity feed.
 
 <meta name="articleTitle" value="Recovery lock password">
-<meta name="authorFullName" value="Fleet">
-<meta name="authorGitHubUsername" value="fleetdm">
+<meta name="authorFullName" value="Jacob Shandling">
+<meta name="authorGitHubUsername" value="jacobshandling">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-03-13">
 <meta name="description" value="Set, view, and rotate recovery lock passwords on Apple Silicon Macs with Fleet MDM.">
