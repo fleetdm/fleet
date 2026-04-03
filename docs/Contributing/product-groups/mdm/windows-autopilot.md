@@ -50,7 +50,7 @@ Microsoft Entra requires a **verified custom domain** for the MDM application UR
 2. **Add the domain in ngrok's dashboard** (Domains section). ngrok will provide a CNAME target (e.g., `xxx.ngrok-dns.com`).
 3. **Configure DNS in your domain registrar:**
    - Add a **CNAME record** pointing your domain to the ngrok CNAME target.
-   - Add the **TXT record** that Microsoft Entra provides for domain verification (see next step).
+   - Add the **TXT record** that Microsoft Entra provides for domain verification.
 4. **Verify the domain in Entra:** go to [Entra > Domain names](https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Domains) > Add custom domain, enter your domain, and verify it using the TXT record.
 5. **Configure the MDM application in Entra** following the [Windows MDM Setup guide](https://fleetdm.com/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id). Use your custom domain for all MDM URLs (Application ID URI, discovery URL, terms of use URL).
 
