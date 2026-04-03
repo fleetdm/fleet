@@ -133,7 +133,8 @@
         "script": null,
         "software": null,
         "manual_agent_install": null,
-        "require_all_software_macos": false
+        "require_all_software_macos": false,
+        "require_all_software_windows": false
       },
       "setup_experience": {
         "macos_bootstrap_package": null,
@@ -144,7 +145,8 @@
         "macos_script": null,
         "software": null,
         "macos_manual_agent_install": null,
-        "require_all_software_macos": false
+        "require_all_software_macos": false,
+        "require_all_software_windows": false
       },
       "windows_settings": {
         "custom_settings": null,
