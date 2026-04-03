@@ -33,7 +33,6 @@ import List from "components/List";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IconNames } from "components/icons";
-import { isAppleDevice } from "interfaces/platform";
 
 const baseClass = "mdm-status-modal";
 
