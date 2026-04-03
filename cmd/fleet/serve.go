@@ -1499,11 +1499,20 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if setupRequired {
 			// Pass in a closure to run the fleetctl command, so that the service layer
 			// doesn't need to import the CLI package.
-			applyStarterLibrary := func(ctx context.Context, serverURL, token string) error {
-				return service.ApplyStarterLibrary(ctx, serverURL, token, logger, func(args []string) error {
-					_, err := fleetctl.RunApp(args)
-					return err
-				})
+			// When Primo mode is enabled, skip the starter library as Primo has its own setup flow.
+			var applyStarterLibrary func(ctx context.Context, serverURL, token string) error
+			if config.Partnerships.EnablePrimo {
+				applyStarterLibrary = func(ctx context.Context, _, _ string) error {
+					logger.DebugContext(ctx, "Skipping starter library application due to Primo being enabled")
+					return nil
+				}
+			} else {
+				applyStarterLibrary = func(ctx context.Context, serverURL, token string) error {
+					return service.ApplyStarterLibrary(ctx, serverURL, token, logger, func(args []string) error {
+						_, err := fleetctl.RunApp(args)
+						return err
+					})
+				}
 			}
 			apiHandler = service.WithSetup(svc, logger, applyStarterLibrary, apiHandler)
 			frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
