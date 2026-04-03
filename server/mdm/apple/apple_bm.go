@@ -72,7 +72,7 @@ func SetDecryptedABMTokenMetadata(
 			// Request.
 			msg := err.Error()
 			if authErr.StatusCode == http.StatusUnauthorized {
-				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/learn-more-about/setup-abm for help."
+				msg = "The Apple Business certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/learn-more-about/setup-abm for help."
 			}
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message:     msg,
