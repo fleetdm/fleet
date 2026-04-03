@@ -2655,12 +2655,10 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 				toInstallStmt,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
 				fleet.MDMOperationTypeRemove,
 			)
 		} else {
-			stmt, args, err = sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+			stmt, args, err = sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		}
 
 		if err != nil {
@@ -2737,13 +2735,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 				toRemoveStmt,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
 				batchUUIDs, onlyProfileUUIDs,
 				fleet.MDMOperationTypeRemove,
 			)
 		} else {
-			stmt, args, err = sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+			stmt, args, err = sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		}
 
 		if err != nil {
