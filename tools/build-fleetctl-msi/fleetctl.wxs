@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX 3 installer for the fleetctl command-line tool.
+
+  Build:
+    candle.exe -arch x64 -dVersion=X.Y.Z -ext WixUtilExtension fleetctl.wxs -out fleetctl.wixobj
+    light.exe  -ext WixUtilExtension -b . fleetctl.wixobj -out fleetctl_vX.Y.Z_windows_amd64.msi
+
+  The $(var.Version) variable is set via -dVersion on the candle.exe command line.
+  The fleetctl.exe source file must be accessible in the directory passed to -b.
+
+  Install location:  %ProgramFiles%\Fleet\fleetctl\fleetctl.exe
+  PATH:              [FLEETCTLDIR] appended to system PATH (HKLM), removed on uninstall
+  Upgrade:           MajorUpgrade with AllowDowngrades="yes"
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <Product
+    Id="*"
+    Name="fleetctl"
+    Language="1033"
+    Version="$(var.Version)"
+    Manufacturer="Fleet Device Management (fleetdm.com)"
+    UpgradeCode="F5B8A3C2-1D4E-4987-B6A5-8C9D0E1F2A3B">
+
+    <Package
+      Keywords="fleetctl"
+      Description="fleetctl command-line tool for Fleet Device Management"
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      InstallPrivileges="elevated"
+      Languages="1033" />
+
+    <MajorUpgrade AllowDowngrades="yes" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="FLEETDIR" Name="Fleet">
+          <Directory Id="FLEETCTLDIR" Name="fleetctl">
+            <Component Id="C_FLEETCTLEXE" Guid="C1D2E3F4-A5B6-4789-8C9D-0E1F2A3B4C5D">
+              <File Id="F_FLEETCTLEXE" Source="fleetctl.exe" KeyPath="yes" />
+              <Environment
+                Id="E_PATH"
+                Name="PATH"
+                Value="[FLEETCTLDIR]"
+                Action="set"
+                Part="last"
+                System="yes"
+                Permanent="no" />
+              <util:BroadcastEnvironmentChange />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="FleetCtl" Title="fleetctl" Level="1">
+      <ComponentRef Id="C_FLEETCTLEXE" />
+    </Feature>
+
+  </Product>
+</Wix>
