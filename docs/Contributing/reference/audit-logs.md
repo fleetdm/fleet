@@ -988,6 +988,40 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_macos_setup_create_local_idp_user_account
+
+Generated when a user turns on "Create local account from IdP" for macOS hosts that automatically enroll to a fleet (or no fleet).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are unassigned.
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are unassigned.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## disabled_macos_setup_create_local_idp_user_account
+
+Generated when a user turns off "Create local account from IdP" for macOS hosts that automatically enroll to a fleet (or no fleet).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
 ## enabled_windows_mdm
 
 Generated when a user turns on MDM features for all Windows hosts (servers excluded).
