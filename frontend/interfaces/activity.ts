@@ -86,13 +86,9 @@ export enum ActivityType {
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
   ResentCertificate = "resent_certificate",
-  // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
-  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-  EnabledDiskEncryption = "enabled_disk_encryption",
+  // Note: This activity is generated for all platforms.
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
-  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-  DisabledDiskEncryption = "disabled_disk_encryption",
+  // Note: This activity is generated for all platforms.
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
@@ -353,7 +349,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_conditional_access_automations:
     "Disabled conditional access automations",
   disabled_gitops_mode: "Disabled GitOps mode",
-  disabled_disk_encryption: "Turned off disk encryption",
   disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
@@ -385,7 +380,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_conditional_access_automations:
     "Enabled conditional access automations",
   enabled_gitops_mode: "Enabled GitOps mode",
-  enabled_disk_encryption: "Turned on disk encryption",
   enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
