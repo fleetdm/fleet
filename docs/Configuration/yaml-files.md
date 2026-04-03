@@ -527,7 +527,7 @@ setup_experience:
   macos_manual_agent_install: false
   enable_end_user_authentication: true
   lock_end_user_info: true
-  apple_apple_enable_release_device_manually: false
+  apple_enable_release_device_manually: false
   apple_setup_assistant: "./setup_assistant.json"
   macos_script: "./post_setup.sh"
 ```
