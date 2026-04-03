@@ -4,7 +4,6 @@ import { noop } from "lodash";
 
 import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
@@ -12,7 +11,6 @@ import {
 } from "interfaces/mdm";
 import { getErrorReason } from "interfaces/errors";
 
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
@@ -203,39 +201,38 @@ const formatDetailWindowsProfile = (detail: string) => {
 };
 
 /**
- * generates the error tooltip for the error column. This will be formatted or
- * unformatted.
+ * generates the formatted error tooltip for a failed profile.
  */
-const generateErrorTooltip = (
-  cellValue: string,
-  profile: IHostMdmProfileWithAddedStatus
+export const generateErrorTooltip = (
+  detail: string,
+  profile: Pick<IHostMdmProfileWithAddedStatus, "status" | "detail" | "platform">
 ) => {
   if (profile.status !== "failed") return null;
 
   // Special case to handle IdP email errors
-  const idpEmailError = formatDetailIdpEmailError(profile.detail);
+  const idpEmailError = formatDetailIdpEmailError(detail);
   if (idpEmailError) {
     return idpEmailError;
   }
 
   // Special case to handle certificate profile errors
-  const certificateError = formatDetailCertificateError(profile.detail);
+  const certificateError = formatDetailCertificateError(detail);
   if (certificateError) {
     return certificateError;
   }
 
   const androidProfileNotAppliedError = formatAndroidProfileNotAppliedError(
-    profile.detail
+    detail
   );
   if (androidProfileNotAppliedError) {
     return androidProfileNotAppliedError;
   }
 
   if (profile.platform === "windows") {
-    return formatDetailWindowsProfile(profile.detail);
+    return formatDetailWindowsProfile(detail);
   }
 
-  return cellValue;
+  return detail;
 };
 
 interface IRotateButtonProps {
@@ -341,22 +338,13 @@ const OSSettingsErrorCell = ({
     profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
   const showRotateButton =
     canRotateRecoveryLockPassword && (isFailed || isVerified);
-  const value = (isFailed && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
 
-  const tooltip = generateErrorTooltip(value, profile);
+  if (!showResendButton && !showRotateButton) {
+    return null;
+  }
 
   return (
     <div className={baseClass}>
-      <TooltipTruncatedTextCell
-        tooltipBreakOnWord
-        tooltip={tooltip}
-        value={value}
-        className={
-          isFailed || showResendButton || showRotateButton
-            ? `${baseClass}__failed-message`
-            : undefined
-        }
-      />
       {showResendButton && (
         <ResendButton isResending={isResending} onClick={onResendProfile} />
       )}

@@ -83,6 +83,7 @@ const generateTableConfig = (
             status={cellProps.row.original.status}
             operationType={cellProps.row.original.operation_type}
             profileName={cellProps.row.original.name}
+            detail={cellProps.row.original.detail}
             hostPlatform={cellProps.row.original.platform}
             profileUUID={cellProps.row.original.profile_uuid}
           />
@@ -90,7 +91,7 @@ const generateTableConfig = (
       },
     },
     {
-      Header: "Error",
+      Header: "",
       disableSortBy: true,
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => {

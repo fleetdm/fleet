@@ -64,7 +64,7 @@ const OSSettingsModal = ({
         onProfileResent={onProfileResent}
       />
       <div className="modal-cta-wrap">
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>Done</Button>
       </div>
     </Modal>
   );

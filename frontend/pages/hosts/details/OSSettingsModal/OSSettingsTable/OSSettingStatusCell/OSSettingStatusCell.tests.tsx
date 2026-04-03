@@ -17,6 +17,7 @@ describe("OS setting status cell", () => {
         profileName="Test Profile"
         status={status}
         operationType={operationType}
+        detail=""
       />
     );
 
@@ -34,6 +35,7 @@ describe("OS setting status cell", () => {
         profileName="Test Profile"
         status={status}
         operationType={operationType}
+        detail=""
       />
     );
 
@@ -56,10 +58,11 @@ describe("OS setting status cell", () => {
         operationType="install"
         hostPlatform="android"
         profileUUID={FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID}
+        detail=""
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
@@ -79,10 +82,11 @@ describe("OS setting status cell", () => {
         operationType="install"
         hostPlatform="android"
         profileUUID={FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID}
+        detail=""
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
@@ -102,10 +106,11 @@ describe("OS setting status cell", () => {
         operationType="install"
         hostPlatform="android"
         profileUUID={FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID}
+        detail=""
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
@@ -125,10 +130,11 @@ describe("OS setting status cell", () => {
         operationType="remove"
         hostPlatform="android"
         profileUUID={FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID}
+        detail=""
       />
     );
 
-    const statusText = screen.getByText("Removing enforcement (pending)");
+    const statusText = screen.getByText("Removing enforcement");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
@@ -148,10 +154,11 @@ describe("OS setting status cell", () => {
         operationType="remove"
         hostPlatform="android"
         profileUUID={FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID}
+        detail=""
       />
     );
 
-    const statusText = screen.getByText("Removing enforcement (pending)");
+    const statusText = screen.getByText("Removing enforcement");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);

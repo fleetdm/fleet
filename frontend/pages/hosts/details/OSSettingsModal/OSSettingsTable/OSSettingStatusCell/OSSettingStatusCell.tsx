@@ -14,6 +14,7 @@ import {
 import TooltipWrapper from "components/TooltipWrapper";
 
 import { OsSettingsTableStatusValue } from "../OSSettingsTableConfig";
+import { generateErrorTooltip } from "../OSSettingsErrorCell/OSSettingsErrorCell";
 import TooltipContent from "./components/Tooltip/TooltipContent";
 import {
   isDiskEncryptionProfile,
@@ -32,6 +33,7 @@ interface IOSSettingStatusCellProps {
   status: OsSettingsTableStatusValue;
   operationType: ProfileOperationType | null;
   profileName: string;
+  detail: string;
   hostPlatform?: ProfilePlatform;
   profileUUID?: string;
 }
@@ -40,6 +42,7 @@ const OSSettingStatusCell = ({
   status,
   operationType,
   profileName = "",
+  detail,
   hostPlatform,
   profileUUID,
 }: IOSSettingStatusCellProps) => {
@@ -65,14 +68,14 @@ const OSSettingStatusCell = ({
       case "delivered":
         if (operationType === "install") {
           displayOption = {
-            statusText: "Enforcing (pending)",
+            statusText: "Enforcing",
             iconName: "pending-outline",
             tooltip:
               "The host is running the command to apply settings or will run it when the host comes online.",
           };
         } else {
           displayOption = {
-            statusText: "Removing enforcement (pending)",
+            statusText: "Removing enforcement",
             iconName: "pending-outline",
             tooltip:
               "The host is running the command to remove settings or will run it when the host comes online.",
@@ -120,14 +123,29 @@ const OSSettingStatusCell = ({
 
   if (displayOption) {
     const { statusText, iconName, tooltip } = displayOption;
+
+    // For "Failed" status, show the error detail as tooltip instead of generic tooltip
+    const errorTooltip =
+      status === "failed" && detail
+        ? generateErrorTooltip(detail, {
+            status,
+            detail,
+            platform: hostPlatform ?? "darwin",
+          })
+        : null;
+
+    const hasTooltip = errorTooltip || tooltip;
+
     return (
       <span className={baseClass}>
         <Icon name={iconName} />
-        {tooltip ? (
+        {hasTooltip ? (
           <TooltipWrapper
             tipContent={
               <span className="tooltip__tooltip-text">
-                {status !== "action_required" ? (
+                {errorTooltip ? (
+                  <>{errorTooltip}</>
+                ) : tooltip && status !== "action_required" ? (
                   <TooltipContent
                     innerContent={tooltip}
                     innerProps={{
@@ -136,12 +154,12 @@ const OSSettingStatusCell = ({
                       ),
                     }}
                   />
-                ) : (
+                ) : tooltip ? (
                   <TooltipContent
                     innerContent={tooltip}
                     innerProps={{ isDeviceUser, profileName }}
                   />
-                )}
+                ) : null}
               </span>
             }
             position="top"

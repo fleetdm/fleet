@@ -1,27 +1,15 @@
 .os-settings-table {
-  // stylings for the table cells. This was the explicit width we want
-  // for these cells in the table. Total width of the table cell will be
-  // 240px including the padding.
   .data-table-block .data-table {
     &__wrapper {
       width: initial;
     }
-    tbody td.detail__cell {
-      // these styles are a little trick that allows the cell to
-      // shrink while still follwing the auto width behavior of the table.
-      // This is needed to show the error text and button in the
-      // error cell correctly without overflowing outside of the table.
-      max-width: 0;
+    // The name column should be the widest
+    tbody td.name__cell {
       width: 100%;
     }
-    tbody td {
-      .os-settings-name-cell {
-        max-width: 166px;
-      }
-      .os-settings-error-cell {
-        min-width: 0;
-        width: 100%;
-      }
+    // Resend/action column should not grow
+    tbody td.detail__cell {
+      white-space: nowrap;
     }
   }
 
