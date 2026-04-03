@@ -143,10 +143,15 @@ const BOOLEAN_VALUE_OPTIONS = [
   { value: "false", label: "false" },
 ];
 
-const fieldOptions = MDM_FIELD_CATALOG.map((f) => ({
-  value: f.field,
-  label: `${f.label} (${f.category})`,
-}));
+const CUSTOM_FIELD_SENTINEL = "__custom__";
+
+const fieldOptions = [
+  ...MDM_FIELD_CATALOG.map((f) => ({
+    value: f.field,
+    label: `${f.label} (${f.category})`,
+  })),
+  { value: CUSTOM_FIELD_SENTINEL, label: "Custom field..." },
+];
 
 const getFieldType = (fieldName: string): string => {
   return MDM_FIELD_CATALOG.find((f) => f.field === fieldName)?.type || "string";
@@ -180,13 +185,43 @@ const MDMCheckBuilder = ({
   disabled,
 }: IMDMCheckBuilderProps) => {
   const [showTemplates, setShowTemplates] = useState(false);
+  const [customFieldIndices, setCustomFieldIndices] = useState<Set<number>>(
+    new Set()
+  );
 
-  const updateCheck = (index: number, updates: Partial<IMDMPolicyCheck>) => {
+  const isCustomField = (field: string, index: number) => {
+    return (
+      customFieldIndices.has(index) ||
+      (field !== "" && !MDM_FIELD_CATALOG.some((f) => f.field === field))
+    );
+  };
+
+  const switchToDropdown = (index: number) => {
+    setCustomFieldIndices((prev) => {
+      const next = new Set(prev);
+      next.delete(index);
+      return next;
+    });
+    const newChecks = [...checks];
+    newChecks[index] = {
+      ...newChecks[index],
+      field: "",
+      operator: "eq",
+      expected: "",
+    };
+    onChange(newChecks);
+  };
+
+  const updateCheck = (
+    index: number,
+    updates: Partial<IMDMPolicyCheck>,
+    resetOperator = false
+  ) => {
     const newChecks = [...checks];
     newChecks[index] = { ...newChecks[index], ...updates };
 
-    // Reset operator and expected when field changes
-    if (updates.field) {
+    // Reset operator and expected when selecting a catalog field (not custom typing)
+    if (updates.field && resetOperator) {
       const type = getFieldType(updates.field);
       const operators = OPERATORS_BY_TYPE[type] || OPERATORS_BY_TYPE.string;
       newChecks[index].operator = operators[0]?.value || "eq";
@@ -215,6 +250,7 @@ const MDMCheckBuilder = ({
   };
 
   const renderCheckRow = (check: IMDMPolicyCheck, index: number) => {
+    const usingCustomField = isCustomField(check.field, index);
     const fieldType = check.field ? getFieldType(check.field) : "string";
     const operators = check.field
       ? getOperatorsForField(check.field)
@@ -226,16 +262,44 @@ const MDMCheckBuilder = ({
         key={`check-${check.field || "empty"}-${index}`}
         className={`${baseClass}__check-row`}
       >
-        <Dropdown
-          name={`field-${index}`}
-          value={check.field}
-          options={fieldOptions}
-          onChange={(value: string) => updateCheck(index, { field: value })}
-          placeholder="Select field..."
-          className={`${baseClass}__field-dropdown`}
-          disabled={disabled}
-          searchable
-        />
+        {usingCustomField ? (
+          <div className={`${baseClass}__custom-field`}>
+            <InputField
+              name={`custom-field-${index}`}
+              value={check.field}
+              onChange={(value: string) => updateCheck(index, { field: value })}
+              placeholder="e.g. QueryResponses.CustomField"
+              inputClassName={`${baseClass}__custom-field-input`}
+              disabled={disabled}
+            />
+            <Button
+              variant="text-link"
+              onClick={() => switchToDropdown(index)}
+              className={`${baseClass}__back-to-catalog`}
+              disabled={disabled}
+            >
+              Back to catalog
+            </Button>
+          </div>
+        ) : (
+          <Dropdown
+            name={`field-${index}`}
+            value={check.field}
+            options={fieldOptions}
+            onChange={(value: string) => {
+              if (value === CUSTOM_FIELD_SENTINEL) {
+                setCustomFieldIndices((prev) => new Set(prev).add(index));
+                updateCheck(index, { field: "" });
+              } else {
+                updateCheck(index, { field: value }, true);
+              }
+            }}
+            placeholder="Select field..."
+            className={`${baseClass}__field-dropdown`}
+            disabled={disabled}
+            searchable
+          />
+        )}
         <Dropdown
           name={`operator-${index}`}
           value={check.operator}

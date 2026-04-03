@@ -15,14 +15,11 @@ import useDeepEffect from "hooks/useDeepEffect";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
-import Radio from "components/forms/fields/Radio";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import Icon from "components/Icon";
-
-import MDMCheckBuilder from "../MDMCheckBuilder";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -38,6 +35,8 @@ export interface ISaveNewPolicyModalProps {
   onClickAutofillDescription: () => Promise<void>;
   onClickAutofillResolution: () => Promise<void>;
   labels: ILabelSummary[];
+  policyType?: "query" | "mdm";
+  mdmChecks?: IMDMPolicyCheck[];
 }
 
 const validatePolicyName = (name: string) => {
@@ -65,6 +64,8 @@ const SaveNewPolicyModal = ({
   onClickAutofillDescription,
   onClickAutofillResolution,
   labels,
+  policyType = "query",
+  mdmChecks: mdmChecksProp,
 }: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const {
@@ -90,12 +91,6 @@ const SaveNewPolicyModal = ({
   );
   const [selectedLabels, setSelectedLabels] = useState({});
 
-  // MDM policy type selector state
-  const [policyType, setPolicyType] = useState<"query" | "mdm">("query");
-  const [mdmChecks, setMdmChecks] = useState<IMDMPolicyCheck[]>([
-    { field: "", operator: "eq", expected: "" },
-  ]);
-
   const isMdmType = policyType === "mdm";
 
   const onSelectLabel = ({
@@ -115,7 +110,7 @@ const SaveNewPolicyModal = ({
     isFetchingAutofillDescription || isFetchingAutofillResolution;
 
   const disableSave = isMdmType
-    ? disableForm
+    ? disableForm || !(mdmChecksProp || []).some((c) => c.field && c.expected)
     : !platformSelector.isAnyPlatformSelected ||
       disableForm ||
       (selectedTargetType === "Custom" &&
@@ -150,7 +145,9 @@ const SaveNewPolicyModal = ({
 
     if (isMdmType) {
       // MDM policy: send type, mdm_check_definition, platform locked to ios/ipados
-      const validChecks = mdmChecks.filter((c) => c.field && c.expected);
+      const validChecks = (mdmChecksProp || []).filter(
+        (c) => c.field && c.expected
+      );
       onCreatePolicy({
         description: lastEditedQueryDescription,
         name: lastEditedQueryName,
@@ -269,25 +266,6 @@ const SaveNewPolicyModal = ({
           className={`${baseClass}__save-modal-form`}
           autoComplete="off"
         >
-          <div className={`${baseClass}__policy-type-selector`}>
-            <Radio
-              label="Query-based policy"
-              id="policy-type-query"
-              value="query"
-              checked={policyType === "query"}
-              onChange={() => setPolicyType("query")}
-              name="policy-type"
-            />
-            <Radio
-              label="MDM device check"
-              id="policy-type-mdm"
-              value="mdm"
-              checked={policyType === "mdm"}
-              onChange={() => setPolicyType("mdm")}
-              name="policy-type"
-              helpText="Evaluates iOS/iPadOS devices via MDM device information queries"
-            />
-          </div>
           <InputField
             name="name"
             onChange={(value: string) => setLastEditedQueryName(value)}
@@ -321,13 +299,6 @@ const SaveNewPolicyModal = ({
             helpText="If this policy fails, what should the end user expect?"
             disabled={disableForm}
           />
-          {isMdmType && (
-            <MDMCheckBuilder
-              checks={mdmChecks}
-              onChange={setMdmChecks}
-              disabled={disableForm}
-            />
-          )}
           {!isMdmType && platformSelector.render()}
           {!isMdmType && isPremiumTier && (
             <TargetLabelSelector

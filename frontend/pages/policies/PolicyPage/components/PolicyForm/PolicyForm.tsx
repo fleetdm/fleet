@@ -32,6 +32,7 @@ import { validateQuery } from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
+import Radio from "components/forms/fields/Radio";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
@@ -127,6 +128,8 @@ const PolicyForm = ({
 
   const isPatchPolicy = storedPolicy?.type === "patch";
   const isMdmPolicy = storedPolicy?.type === "mdm";
+  const [newPolicyType, setNewPolicyType] = useState<"query" | "mdm">("query");
+  const isNewMdmPolicy = !policyIdForEdit && newPolicyType === "mdm";
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
   const [mdmChecks, setMdmChecks] = useState<IMDMPolicyCheck[]>([
     { field: "", operator: "eq", expected: "" },
@@ -834,7 +837,27 @@ const PolicyForm = ({
           {renderPolicyFleetName()}
           {renderDescription()}
           {renderResolution()}
-          {!isMdmPolicy && (
+          {!policyIdForEdit && !isPatchPolicy && (
+            <div className={`${baseClass}__type-selector`}>
+              <Radio
+                label="Query-based policy"
+                id="policy-type-query"
+                checked={newPolicyType === "query"}
+                value="query"
+                name="policy-type"
+                onChange={() => setNewPolicyType("query")}
+              />
+              <Radio
+                label="MDM device check"
+                id="policy-type-mdm"
+                checked={newPolicyType === "mdm"}
+                value="mdm"
+                name="policy-type"
+                onChange={() => setNewPolicyType("mdm")}
+              />
+            </div>
+          )}
+          {!isMdmPolicy && !isNewMdmPolicy && (
             <SQLEditor
               value={lastEditedQueryBody}
               error={errors.query}
@@ -864,14 +887,14 @@ const PolicyForm = ({
               readOnly={isPatchPolicy}
             />
           )}
-          {isMdmPolicy && (
+          {(isMdmPolicy || isNewMdmPolicy) && (
             <MDMCheckBuilder
               checks={mdmChecks}
               onChange={setMdmChecks}
               disabled={!!gitOpsModeEnabled}
             />
           )}
-          {!isMdmPolicy && renderPlatformCompatibility()}
+          {!isMdmPolicy && !isNewMdmPolicy && renderPlatformCompatibility()}
           {isExistingPolicy &&
             !isPatchPolicy &&
             !isMdmPolicy &&
@@ -994,6 +1017,8 @@ const PolicyForm = ({
             onClickAutofillDescription={onClickAutofillDescription}
             onClickAutofillResolution={onClickAutofillResolution}
             labels={labels}
+            policyType={newPolicyType}
+            mdmChecks={isNewMdmPolicy ? mdmChecks : undefined}
           />
         )}
       </>
