@@ -79,7 +79,7 @@ jobs:
 
           aws s3 sync "${SYNC_ARGS[@]}" \
             ./ee/maintained-apps/outputs \
-            s3://${{ env.R2_BUCKET }} \
+            s3://${{ env.R2_BUCKET }}/manifests \
             --endpoint-url="${R2_ENDPOINT}" || {
             EXIT_CODE=$?
             echo "❌ Sync failed with exit code: $EXIT_CODE" >&2
