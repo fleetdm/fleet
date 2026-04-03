@@ -1497,12 +1497,16 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledInstallSoftware: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title: title,
+      host_display_name: hostName,
+      from_setup_experience: fromSetupExperience,
+    } = activity.details || {};
     return (
       <>
         {" "}
-        canceled <b>{title}</b> install on <b>{hostName}</b>.
+        canceled <b>{title}</b> install on <b>{hostName}</b>
+        {fromSetupExperience ? " during setup experience" : ""}.
       </>
     );
   },
