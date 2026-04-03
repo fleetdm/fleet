@@ -27,12 +27,12 @@
 1. <To be described>
 
 ## Process to publish a public case study
-1. Gather all information you can pull from Momentum and take this will you to your meeting with the CSM. 
-2. Interview CSM, and have go through all information collected, and anything else they feel is important to the case study.
+1. Gather all information you can pull from Momentum and take this with you to your meeting with the CSM. 
+2. Interview CSM, and have them go through all the information collected, and anything else they feel is important to the case study.
 3. Write a draft case study
 4. Send to CSM and have them edit it to their approval.
 6. Get approved by CSM
-7. Get CSM to connect you with their point of contact of the customer.
+7. Get CSM to connect you with their point of contact for the customer.
 8. Review with the customer, and make edits and changes where needed.
 9. Finalize case study.
 10. Publish case study to Fleet's [customer page](https://fleetdm.com/customers).
