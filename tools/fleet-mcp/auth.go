@@ -1,15 +1,80 @@
 package main
 
-import "net/http"
+import (
+	"crypto/subtle"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/sirupsen/logrus"
+)
+
+// rateLimiter tracks failed authentication attempts per IP address.
+type rateLimiter struct {
+	mu       sync.Mutex
+	failures map[string][]time.Time
+}
+
+var authLimiter = &rateLimiter{
+	failures: make(map[string][]time.Time),
+}
+
+const (
+	rateLimitWindow = 5 * time.Minute
+	rateLimitMax    = 10 // max failures per IP within the window
+)
+
+// isRateLimited returns true if the given IP has exceeded the failure threshold.
+func (rl *rateLimiter) isRateLimited(ip string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-rateLimitWindow)
+
+	// Evict stale entries.
+	recent := rl.failures[ip][:0]
+	for _, t := range rl.failures[ip] {
+		if t.After(cutoff) {
+			recent = append(recent, t)
+		}
+	}
+	rl.failures[ip] = recent
+
+	return len(recent) >= rateLimitMax
+}
+
+// recordFailure records a failed auth attempt for the given IP.
+func (rl *rateLimiter) recordFailure(ip string) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	rl.failures[ip] = append(rl.failures[ip], time.Now())
+}
 
 // bearerAuthMiddleware rejects requests whose Authorization header does not
-// match "Bearer <token>", returning 401 Unauthorized.
+// match "Bearer <token>", returning 401 Unauthorized. The comparison uses
+// crypto/subtle.ConstantTimeCompare to prevent timing side-channel attacks.
+// Failed attempts are logged and rate-limited per source IP.
 func bearerAuthMiddleware(token string, next http.Handler) http.Handler {
+	expected := []byte("Bearer " + token)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer "+token {
+		ip := r.RemoteAddr
+
+		if authLimiter.isRateLimited(ip) {
+			logrus.WithField("ip", ip).Warn("auth rate limit exceeded, rejecting request")
+			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+			return
+		}
+
+		got := []byte(r.Header.Get("Authorization"))
+		if subtle.ConstantTimeCompare(got, expected) != 1 {
+			authLimiter.recordFailure(ip)
+			logrus.WithField("ip", ip).Warn("authentication failed: invalid bearer token")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }

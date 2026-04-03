@@ -69,6 +69,9 @@ func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *
 	}
 
 	if tlsSkipVerify {
+		if !strings.HasPrefix(baseURL, "https://localhost") && !strings.HasPrefix(baseURL, "https://127.0.0.1") {
+			logrus.Errorf("FLEET_TLS_SKIP_VERIFY is set but FLEET_BASE_URL (%s) does not point at localhost — this is unsafe for non-local deployments", baseURL)
+		}
 		logrus.Warn("TLS certificate verification is disabled — do not use in production")
 		tlsCfg.InsecureSkipVerify = true //nolint:gosec
 	} else if caFile != "" {
