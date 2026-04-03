@@ -1,5 +1,6 @@
 .mdm-check-builder {
   margin-bottom: 24px;
+  min-height: 400px; // Ensure enough scrollable space for dropdown menus
 
   &__header {
     display: flex;
@@ -31,6 +32,9 @@
     .Select-menu-outer {
       max-height: 300px;
       overflow-y: auto;
+      position: absolute;
+      width: 100%;
+      z-index: 10;
     }
   }
 
