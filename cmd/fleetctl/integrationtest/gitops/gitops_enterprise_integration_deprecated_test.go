@@ -2557,15 +2557,15 @@ settings:
 	})
 
 	// Apply configs — dry-run first, then real run
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(),
 		"-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(),
 		"--dry-run",
-	}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+	}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(),
 		"-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(),
-	}))
+	}), true)
 
 	// Retrieve the team so we have its ID
 	team, err := s.DS.TeamByName(ctx, teamName)
@@ -2607,15 +2607,15 @@ settings:
 	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, slug, noLabels, teamName), 0o644)
 	require.NoError(t, err)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(),
 		"-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(),
 		"--dry-run",
-	}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+	}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(),
 		"-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(),
-	}))
+	}), true)
 
 	// Labels should now be empty for no-team
 	noTeamMeta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
