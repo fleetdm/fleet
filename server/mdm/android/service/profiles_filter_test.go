@@ -20,6 +20,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 				"NetworkConfigurations": [{
 					"WiFi": {
 						"EAP": {
+							"ClientCertType": "KeyPairAlias",
 							"ClientCertKeyPairAlias": "` + certAlias + `"
 						}
 					}
@@ -155,8 +156,8 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 		content := json.RawMessage([]byte(`{
 			"openNetworkConfiguration": {
 				"NetworkConfigurations": [
-					{"WiFi": {"EAP": {"ClientCertKeyPairAlias": "cert-a"}}},
-					{"VPN": {"ClientCertKeyPairAlias": "cert-b"}}
+					{"WiFi": {"EAP": {"ClientCertType": "KeyPairAlias", "ClientCertKeyPairAlias": "cert-a"}}},
+					{"VPN": {"ClientCertType": "KeyPairAlias", "ClientCertKeyPairAlias": "cert-b"}}
 				]
 			}
 		}`))

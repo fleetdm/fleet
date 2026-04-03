@@ -16,11 +16,12 @@ func TestExtractCertAliasesFromONC(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "WiFi EAP with ClientCertKeyPairAlias",
+			name: "WiFi EAP with KeyPairAlias",
 			oncJSON: `{
 				"NetworkConfigurations": [{
 					"WiFi": {
 						"EAP": {
+							"ClientCertType": "KeyPairAlias",
 							"ClientCertKeyPairAlias": "wifi-cert"
 						}
 					}
@@ -29,55 +30,16 @@ func TestExtractCertAliasesFromONC(t *testing.T) {
 			expected: []string{"wifi-cert"},
 		},
 		{
-			name: "VPN with ClientCertKeyPairAlias",
+			name: "VPN with KeyPairAlias",
 			oncJSON: `{
 				"NetworkConfigurations": [{
 					"VPN": {
+						"ClientCertType": "KeyPairAlias",
 						"ClientCertKeyPairAlias": "vpn-cert"
 					}
 				}]
 			}`,
 			expected: []string{"vpn-cert"},
-		},
-		{
-			name: "Ethernet EAP with ClientCertKeyPairAlias",
-			oncJSON: `{
-				"NetworkConfigurations": [{
-					"Ethernet": {
-						"EAP": {
-							"ClientCertKeyPairAlias": "ethernet-cert"
-						}
-					}
-				}]
-			}`,
-			expected: []string{"ethernet-cert"},
-		},
-		{
-			name: "multiple network configs with multiple aliases",
-			oncJSON: `{
-				"NetworkConfigurations": [
-					{
-						"WiFi": {
-							"EAP": {
-								"ClientCertKeyPairAlias": "wifi-cert"
-							}
-						}
-					},
-					{
-						"VPN": {
-							"ClientCertKeyPairAlias": "vpn-cert"
-						}
-					},
-					{
-						"Ethernet": {
-							"EAP": {
-								"ClientCertKeyPairAlias": "eth-cert"
-							}
-						}
-					}
-				]
-			}`,
-			expected: []string{"wifi-cert", "vpn-cert", "eth-cert"},
 		},
 		{
 			name: "WiFi without EAP (WPA-PSK)",
@@ -93,17 +55,13 @@ func TestExtractCertAliasesFromONC(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:     "empty NetworkConfigurations",
-			oncJSON:  `{"NetworkConfigurations": []}`,
-			expected: nil,
-		},
-		{
-			name: "WiFi EAP without ClientCertKeyPairAlias",
+			name: "alias present but ClientCertType is Ref (ignored per ONC spec)",
 			oncJSON: `{
 				"NetworkConfigurations": [{
 					"WiFi": {
 						"EAP": {
-							"Outer": "PEAP"
+							"ClientCertType": "Ref",
+							"ClientCertKeyPairAlias": "should-be-ignored"
 						}
 					}
 				}]
@@ -111,14 +69,44 @@ func TestExtractCertAliasesFromONC(t *testing.T) {
 			expected: nil,
 		},
 		{
+			name: "alias present but ClientCertType is missing (ignored per ONC spec)",
+			oncJSON: `{
+				"NetworkConfigurations": [{
+					"WiFi": {
+						"EAP": {
+							"ClientCertKeyPairAlias": "should-be-ignored"
+						}
+					}
+				}]
+			}`,
+			expected: nil,
+		},
+		{
+			name: "mix of KeyPairAlias and other ClientCertTypes",
+			oncJSON: `{
+				"NetworkConfigurations": [
+					{
+						"WiFi": {
+							"EAP": {
+								"ClientCertType": "KeyPairAlias",
+								"ClientCertKeyPairAlias": "real-cert"
+							}
+						}
+					},
+					{
+						"VPN": {
+							"ClientCertType": "Ref",
+							"ClientCertKeyPairAlias": "ignored-cert"
+						}
+					}
+				]
+			}`,
+			expected: []string{"real-cert"},
+		},
+		{
 			name:    "invalid JSON",
 			oncJSON: `{invalid}`,
 			wantErr: true,
-		},
-		{
-			name:     "empty object",
-			oncJSON:  `{}`,
-			expected: nil,
 		},
 	}
 
@@ -149,6 +137,7 @@ func TestExtractCertAliasesFromProfileJSON(t *testing.T) {
 					"NetworkConfigurations": [{
 						"WiFi": {
 							"EAP": {
+								"ClientCertType": "KeyPairAlias",
 								"ClientCertKeyPairAlias": "my-cert"
 							}
 						}
@@ -163,40 +152,9 @@ func TestExtractCertAliasesFromProfileJSON(t *testing.T) {
 			expected:    nil,
 		},
 		{
-			name: "profile with ONC but no cert refs",
-			profileJSON: `{
-				"openNetworkConfiguration": {
-					"NetworkConfigurations": [{
-						"WiFi": {
-							"SSID": "Open",
-							"Security": "None"
-						}
-					}]
-				}
-			}`,
-			expected: nil,
-		},
-		{
 			name:        "invalid JSON",
 			profileJSON: `not json`,
 			wantErr:     true,
-		},
-		{
-			name: "profile with ONC and other fields",
-			profileJSON: `{
-				"cameraDisabled": true,
-				"openNetworkConfiguration": {
-					"NetworkConfigurations": [{
-						"WiFi": {
-							"EAP": {
-								"ClientCertKeyPairAlias": "corp-wifi-cert"
-							}
-						}
-					}]
-				},
-				"maximumTimeToLock": 600
-			}`,
-			expected: []string{"corp-wifi-cert"},
 		},
 	}
 

@@ -1282,6 +1282,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 					"Security": "WPA-EAP",
 					"EAP": {
 						"Outer": "EAP-TLS",
+						"ClientCertType": "KeyPairAlias",
 						"ClientCertKeyPairAlias": %q
 					}
 				}

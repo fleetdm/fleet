@@ -1732,6 +1732,7 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 					"Security": "WPA-EAP",
 					"EAP": {
 						"Outer": "EAP-TLS",
+						"ClientCertType": "KeyPairAlias",
 						"ClientCertKeyPairAlias": %q
 					}
 				}

@@ -2,7 +2,7 @@ package android
 
 import "encoding/json"
 
-// ONC structs - minimal types for extracting certificate alias references from
+// ONC structs. Minimal types for extracting certificate alias references from
 // Android's openNetworkConfiguration policy field (Chrome OS ONC spec).
 
 type oncConfig struct {
@@ -10,25 +10,30 @@ type oncConfig struct {
 }
 
 type oncNetworkConfiguration struct {
-	WiFi     *oncWiFi     `json:"WiFi,omitempty"`
-	Ethernet *oncEthernet `json:"Ethernet,omitempty"`
-	VPN      *oncVPN      `json:"VPN,omitempty"`
+	WiFi     *oncEAPWrapper    `json:"WiFi,omitempty"`
+	Ethernet *oncEAPWrapper    `json:"Ethernet,omitempty"`
+	VPN      *oncCertKeyHolder `json:"VPN,omitempty"`
 }
 
-type oncWiFi struct {
-	EAP *oncEAP `json:"EAP,omitempty"`
+// oncEAPWrapper is shared by WiFi and Ethernet, which nest the cert alias inside an EAP sub-object.
+type oncEAPWrapper struct {
+	EAP *oncCertKeyHolder `json:"EAP,omitempty"`
 }
 
-type oncEthernet struct {
-	EAP *oncEAP `json:"EAP,omitempty"`
-}
-
-type oncEAP struct {
+// oncCertKeyHolder holds certificate client auth fields. ClientCertKeyPairAlias is only
+// meaningful when ClientCertType is "KeyPairAlias" per the ONC spec; otherwise it is ignored.
+type oncCertKeyHolder struct {
+	ClientCertType         string `json:"ClientCertType,omitempty"`
 	ClientCertKeyPairAlias string `json:"ClientCertKeyPairAlias,omitempty"`
 }
 
-type oncVPN struct {
-	ClientCertKeyPairAlias string `json:"ClientCertKeyPairAlias,omitempty"`
+// extractAlias returns the ClientCertKeyPairAlias only when ClientCertType is "KeyPairAlias".
+// Per the ONC spec, the alias field is ignored for all other ClientCertType values.
+func extractAlias(h *oncCertKeyHolder) string {
+	if h.ClientCertType == "KeyPairAlias" && h.ClientCertKeyPairAlias != "" {
+		return h.ClientCertKeyPairAlias
+	}
+	return ""
 }
 
 // ExtractCertAliasesFromONC parses an openNetworkConfiguration JSON blob
@@ -41,14 +46,20 @@ func ExtractCertAliasesFromONC(oncJSON json.RawMessage) ([]string, error) {
 
 	var aliases []string
 	for _, nc := range onc.NetworkConfigurations {
-		if nc.WiFi != nil && nc.WiFi.EAP != nil && nc.WiFi.EAP.ClientCertKeyPairAlias != "" {
-			aliases = append(aliases, nc.WiFi.EAP.ClientCertKeyPairAlias)
+		if nc.WiFi != nil && nc.WiFi.EAP != nil {
+			if a := extractAlias(nc.WiFi.EAP); a != "" {
+				aliases = append(aliases, a)
+			}
 		}
-		if nc.Ethernet != nil && nc.Ethernet.EAP != nil && nc.Ethernet.EAP.ClientCertKeyPairAlias != "" {
-			aliases = append(aliases, nc.Ethernet.EAP.ClientCertKeyPairAlias)
+		if nc.Ethernet != nil && nc.Ethernet.EAP != nil {
+			if a := extractAlias(nc.Ethernet.EAP); a != "" {
+				aliases = append(aliases, a)
+			}
 		}
-		if nc.VPN != nil && nc.VPN.ClientCertKeyPairAlias != "" {
-			aliases = append(aliases, nc.VPN.ClientCertKeyPairAlias)
+		if nc.VPN != nil {
+			if a := extractAlias(nc.VPN); a != "" {
+				aliases = append(aliases, a)
+			}
 		}
 	}
 	return aliases, nil
