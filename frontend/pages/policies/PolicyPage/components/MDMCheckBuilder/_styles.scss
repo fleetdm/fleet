@@ -27,6 +27,24 @@
   &__field-dropdown {
     flex: 2;
     min-width: 200px;
+
+    .Select-menu-outer {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+  }
+
+  &__custom-field {
+    flex: 2;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__back-to-catalog {
+    font-size: 12px;
+    align-self: flex-start;
   }
 
   &__operator-dropdown {

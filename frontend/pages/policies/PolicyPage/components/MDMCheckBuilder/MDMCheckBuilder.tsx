@@ -258,10 +258,7 @@ const MDMCheckBuilder = ({
     const isBooleanField = fieldType === "boolean";
 
     return (
-      <div
-        key={`check-${check.field || "empty"}-${index}`}
-        className={`${baseClass}__check-row`}
-      >
+      <div key={`check-${index}`} className={`${baseClass}__check-row`}>
         {usingCustomField ? (
           <div className={`${baseClass}__custom-field`}>
             <InputField
