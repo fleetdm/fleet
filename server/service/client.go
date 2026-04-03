@@ -282,7 +282,8 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 		return fmt.Errorf("%s %s: %w (API time: %s)", verb, path, err, time.Since(start).Truncate(time.Millisecond))
 	}
 	if err := c.ParseResponse(verb, path, response, responseDest); err != nil {
-		return fmt.Errorf("%s %s: %w (API time: %s)", verb, path, err, time.Since(start).Truncate(time.Millisecond))
+		// ParseResponse already adds verb and path to the err.
+		return fmt.Errorf("%w (API time: %s)", err, time.Since(start).Truncate(time.Millisecond))
 	}
 	return nil
 }
