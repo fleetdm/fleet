@@ -185,8 +185,6 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		return nil
 	}
 
-	var totalExpected int
-
 	// Insert include labels (exclude=false)
 	if len(includeNames) > 0 {
 		labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, false, includeNames)
@@ -201,7 +199,6 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting policy include labels rows affected")
 		}
-		totalExpected += len(includeNames)
 		if int(rowsAffected) < len(includeNames) {
 			return ctxerr.New(ctx, "some include labels not found")
 		}
@@ -221,7 +218,6 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting policy exclude labels rows affected")
 		}
-		totalExpected += len(excludeNames)
 		if int(rowsAffected) < len(excludeNames) {
 			return ctxerr.New(ctx, "some exclude labels not found")
 		}

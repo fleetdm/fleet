@@ -664,7 +664,7 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 	// Insert exclude labels when combined with an include scope
 	if labels.HasExcludeLabels() {
 		var placeholders string
-		var insertArgs []interface{}
+		var insertArgs []any
 		for _, label := range labels.ExcludeByName {
 			placeholders += "(?, ?, ?, ?),"
 			insertArgs = append(insertArgs, installerID, label.LabelID, true, false)
