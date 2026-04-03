@@ -255,6 +255,7 @@
       "5b84b6dd-d257-415e-b8b4-0240666ba4d4",
       "9d30f55f-d117-4574-acf0-ff593e3e06e3"
     ],
+    "apple_require_hardware_attestation": false,
     "end_user_authentication": {
       "entity_id": "some-mdm-entity-id.com",
       "issuer_uri": "https://some-mdm-issuer-uri.com",

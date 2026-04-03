@@ -457,6 +457,7 @@ export const HOST_VITALS_DATA = [
   "cpu_type",
   "os_version",
   "timezone",
+  "mdm_enrollment_hardware_attested",
   "primary_mac",
 ];
 
