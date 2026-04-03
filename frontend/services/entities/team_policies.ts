@@ -82,6 +82,7 @@ export default {
       labels_exclude_any,
       type,
       patch_software_title_id,
+      mdm_check_definition,
       // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
@@ -99,6 +100,7 @@ export default {
       labels_exclude_any,
       type,
       patch_software_title_id,
+      mdm_check_definition,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -118,6 +120,7 @@ export default {
       script_id,
       labels_include_any,
       labels_exclude_any,
+      mdm_check_definition,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -135,6 +138,7 @@ export default {
       script_id,
       labels_include_any,
       labels_exclude_any,
+      mdm_check_definition,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {

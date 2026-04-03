@@ -153,6 +153,26 @@ const PolicyForm = ({
     return [{ field: "", operator: "eq", expected: "" }];
   });
 
+  // Sync mdmChecks when storedPolicy loads asynchronously (useState initializer
+  // runs before useQuery resolves, so we need this effect to populate checks)
+  useEffect(() => {
+    if (storedPolicy?.type === "mdm" && storedPolicy?.mdm_check_definition) {
+      const checks = storedPolicy.mdm_check_definition;
+      if (Array.isArray(checks) && checks.length > 0) {
+        setMdmChecks(checks);
+      } else if (typeof checks === "string") {
+        try {
+          const parsed = JSON.parse(checks);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMdmChecks(parsed);
+          }
+        } catch {
+          // invalid JSON, keep current state
+        }
+      }
+    }
+  }, [storedPolicy]);
+
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
