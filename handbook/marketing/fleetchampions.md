@@ -38,10 +38,8 @@
 10. Publish case study to Fleet's [customer page](https://fleetdm.com/customers).
 
 ## Process to publish an anonymous case study
-1.
-Follow this process to publish a case study without identifying the customer. Anonymous case studies help share real outcomes while protecting the customer’s identity.
 
-## Process
+Follow this process to publish a case study without identifying the customer. Anonymous case studies help share real outcomes while protecting the customer’s identity.
 
 1. **Gather customer information using Momentum**
 
@@ -116,6 +114,17 @@ Follow this process to publish a case study without identifying the customer. An
 
    Once published, post about the new case study in the #help-marketing slack channel.
 
+8. **Add the case study to the marketing assets page**
+
+   Add the new case study to the marketing assets page under the [social proof](https://fleetdm.com/handbook/marketing/fleet-social-proof#social-proof) section in the handbook.
+
+   Add the case study to the correct **Anonymous stories** industry table.
+
+   Include the following information in the table:
+ 
+   - The description of the story.
+   - The devices that are managed: macOS, Windows, Linux. 
+   - The date the case study was published. 
 
 ## Process to publish customer testimonials on the website
 Spontaneous, nice things that customers say about Fleet in:
