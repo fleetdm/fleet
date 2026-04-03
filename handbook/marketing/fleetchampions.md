@@ -33,7 +33,7 @@
 4. Send to CSM and have them edit it to their approval.
 6. Get approved by CSM
 7. Get CSM to connect you with their point of contact of the customer.
-8. Review with customer, and make edits and changes where needed.
+8. Review with the customer, and make edits and changes where needed.
 9. Finalize case study.
 10. Publish case study to Fleet's [customer page](https://fleetdm.com/customers).
 
@@ -71,7 +71,7 @@ Follow this process to publish a case study without identifying the customer. An
 
 2. **Gather information in the Momentum Google Doc**
 
-   Copy and paste the answers into one of the following Google Docs [2026 case study doc 1 of 2](https://docs.google.com/document/d/1sKFQltFrxbw3PRxHvuG1w3G4kIYvneqbFczFmRYSw8M/edit?tab=t.q8v261l8024n) or [2026 case study doc 2 of 2](https://docs.google.com/document/d/1VzpHZv4FUUvSQGPcTKXWoFXtkREGnRul-jaaQd6xJ-Y/edit?tab=t.v89887xyfpt#heading=h.gzruz789w7i7) where the rest of the marketing team can have access to the information.
+   Copy and paste the answers into one of the following Google Docs [2026 case study doc 1 of 2](https://docs.google.com/document/d/1sKFQltFrxbw3PRxHvuG1w3G4kIYvneqbFczFmRYSw8M/edit?tab=t.q8v261l8024n) or [2026 case study doc 2 of 2](https://docs.google.com/document/d/1VzpHZv4FUUvSQGPcTKXWoFXtkREGnRul-jaaQd6xJ-Y/edit?tab=t.v89887xyfpt#heading=h.gzruz789w7i7), where the rest of the marketing team can have access to the information.
 
    Make sure the information is laid out in a question-and-answer format. 
 
@@ -81,7 +81,7 @@ Follow this process to publish a case study without identifying the customer. An
 
 5. **Draft the case study**
 
-   Create the case study using Fleet's writing guidelines and previously published case studies, which can be found [here](https://fleetdm.com/customers) for reference.
+   Create the case study using Fleet's writing guidelines and previously published case studies, which can be found on the [customers page](https://fleetdm.com/customers) for reference.
    
    Remove any information that could identify the customer, including:
 
@@ -104,7 +104,7 @@ Follow this process to publish a case study without identifying the customer. An
 
    Use the **customer's GitHub code name** listed in the [**Fleet Champions Community spreadsheet**](https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772). This spreadsheet is the source of truth.
 
-   Make sure you include the metatag for the case study on the **Customers** page, so a title is created and shows up on the [customer reference page](https://fleetdm.com/customers).
+   Make sure you include the metatag for the case study on the **Customers** page, so a tile is created and shows up on the [customer reference page](https://fleetdm.com/customers).
 
    Make sure your meta description for the case study stays within 150 words or fewer, and gives an overview of what the case study is about.
 
