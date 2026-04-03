@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "7.8.3925.81",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Vivaldi' AND publisher = 'Vivaldi Technologies AS.';"
+      },
+      "installer_url": "https://downloads.vivaldi.com/stable/Vivaldi.7.8.3925.81.x64.exe",
+      "install_script_ref": "81b0529a",
+      "uninstall_script_ref": "dd74a7d3",
+      "sha256": "4d9ad6cffc65e644fbdd3896634b27be6d2fd6062a7adb4895f0fe4c0f260b5f",
+      "default_categories": [
+        "Browsers"
+      ]
+    }
+  ],
+  "refs": {
+    "81b0529a": "# Install Vivaldi silently (user-scoped Chromium-based browser)\n$process = Start-Process -FilePath $env:INSTALLER_PATH `\n  -ArgumentList \"--vivaldi-silent --do-not-launch-chrome\" `\n  -NoNewWindow -PassThru -Wait\nExit $process.ExitCode\n",
+    "dd74a7d3": "# Uninstall Vivaldi (user-scoped Chromium-based browser)\n\n$displayName = \"Vivaldi\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and $_.DisplayName -eq $displayName\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found for '$displayName'\"\n  Exit 1\n}\n\n# Kill any running Vivaldi processes before uninstalling\nStop-Process -Name \"vivaldi\" -Force -ErrorAction SilentlyContinue\nStart-Sleep -Seconds 2\n\n$uninstallCommand = if ($uninstall.QuietUninstallString) {\n  $uninstall.QuietUninstallString\n} else {\n  $uninstall.UninstallString\n}\n\n# Parse quoted executable from any trailing args in the registry string\n$splitArgs = $uninstallCommand.Split('\"')\n$exe = $splitArgs[1]\n$existingArgs = if ($splitArgs.Length -eq 3) { $splitArgs[2].Trim() } else { \"\" }\n\n# Chromium-based uninstaller flags\n$uninstallArgs = \"$existingArgs --uninstall --force-uninstall\".Trim()\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n  $process = Start-Process -FilePath $exe -ArgumentList $uninstallArgs -NoNewWindow -PassThru -Wait\n  $exitCode = $process.ExitCode\n  Write-Host \"Uninstall exit code: $exitCode\"\n\n  # Chromium uninstallers return 19 on success\n  if ($exitCode -eq 0 -or $exitCode -eq 19) {\n    Exit 0\n  }\n  Exit $exitCode\n} catch {\n  Write-Host \"Error running uninstaller: $_\"\n  Exit 1\n}\n"
+  }
+}
