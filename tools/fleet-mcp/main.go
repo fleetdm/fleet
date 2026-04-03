@@ -24,7 +24,7 @@ func main() {
 		logrus.Fatalf("FLEET_API_KEY is required but is not set")
 	}
 	if strings.TrimSpace(config.MCPAuthToken) == "" {
-		logrus.Fatalf("MCP_AUTH_TOKEN is required but is not set")
+		logrus.Fatalf("MCP_AUTH_TOKEN is required at startup for all transports, including stdio, but is not set")
 	}
 
 	// Stderr is required for stdio transport — logs must not corrupt the JSON-RPC stdout stream.
