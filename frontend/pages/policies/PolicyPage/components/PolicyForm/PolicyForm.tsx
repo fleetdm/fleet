@@ -265,9 +265,7 @@ const PolicyForm = ({
     const hasInclude = lastEditedQueryLabelsIncludeAny.length > 0;
     const hasExclude = lastEditedQueryLabelsExcludeAny.length > 0;
 
-    setSelectedTargetType(
-      !hasInclude && !hasExclude ? "All hosts" : "Custom"
-    );
+    setSelectedTargetType(!hasInclude && !hasExclude ? "All hosts" : "Custom");
 
     // When both include and exclude exist, the primary mode is include
     // and excludes are in the separate exclude section.

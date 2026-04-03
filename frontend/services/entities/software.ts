@@ -329,10 +329,7 @@ const handleEditPackageForm = (
     });
 
     // Add exclude labels when combining include+exclude
-    if (
-      data.excludeLabelTargets &&
-      data.customTarget !== "labelsExcludeAny"
-    ) {
+    if (data.excludeLabelTargets && data.customTarget !== "labelsExcludeAny") {
       const excludeLabels = listNamesFromSelectedLabels(
         data.excludeLabelTargets
       );

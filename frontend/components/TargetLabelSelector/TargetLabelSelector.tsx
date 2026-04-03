@@ -44,8 +44,9 @@ export const generateLabelKey = (
     customTargetOption !== "labelsExcludeAny" &&
     listNamesFromSelectedLabels(selectedExcludeLabels).length > 0
   ) {
-    result.labelsExcludeAny =
-      listNamesFromSelectedLabels(selectedExcludeLabels);
+    result.labelsExcludeAny = listNamesFromSelectedLabels(
+      selectedExcludeLabels
+    );
   }
 
   return result;
