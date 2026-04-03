@@ -1957,15 +1957,11 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
     }
-    // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
-    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-    case ActivityType.EnabledDiskEncryption:
+    // Note: This activity is generated for all platforms.
     case ActivityType.EnabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
     }
-    // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
-    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-    case ActivityType.DisabledDiskEncryption:
+    // Note: This activity is generated for all platforms.
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
