@@ -100,7 +100,7 @@ Follow this process to publish a case study without identifying the customer. An
 
    Add the case study to the website through create a PR in the articles folder on GitHub.
 
-   Use the **customer's GitHub code name** listed in the [**Fleet Champions Community spreadsheet**](https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772). This spreadsheet is the source of truth.
+   Use the **customer's GitHub code name** listed in the [**Fleet Champions Community spreadsheet**](https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772) in the branch name. This spreadsheet is the source of truth.
 
    Make sure you include the metatag for the case study on the **Customers** page, so a tile is created and shows up on the [customer reference page](https://fleetdm.com/customers).
 
