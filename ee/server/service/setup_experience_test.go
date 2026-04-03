@@ -52,7 +52,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	}
 
 	var mockListSetupExperience []*fleet.SetupExperienceStatusResult
-	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 		return mockListSetupExperience, nil
 	}
 

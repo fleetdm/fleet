@@ -22896,7 +22896,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -22905,7 +22905,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
 			}
 		}
-		require.NotEmpty(t, executionIDs["vim"])
+		require.Empty(t, executionIDs["vim"]) // hasn't run yet due to alphanumeric ordering
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
 		// Record a result for vim.
@@ -22936,6 +22936,16 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// get execution ID for vim
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
 
 		// Record a result for vim
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -23021,7 +23031,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		fedoraHostUUID, err := fleet.HostUUIDForSetupExperience(fedoraHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23031,7 +23041,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			}
 		}
 		require.NotEmpty(t, executionIDs["ruby"])
-		require.NotEmpty(t, executionIDs["test.tar.gz"])
+		require.Empty(t, executionIDs["test.tar.gz"]) // hasn't run yet due to alphanumeric ordering
 
 		// Record a result for vim.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -23061,6 +23071,16 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[1].Name)
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// get exec ID for test.tar.gz
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID, team.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
 
 		// Record a result for test.tar.gz.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -23130,7 +23150,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23139,7 +23159,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
 			}
 		}
-		require.NotEmpty(t, executionIDs["vim"])
+		require.Empty(t, executionIDs["vim"]) // hasn't run yet due to alphanumeric ordering
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
 		// Cancel the software install for test.tar.gz.
@@ -23158,9 +23178,19 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
+		require.Equal(t, fleet.SetupExperienceStatusPending, getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get execution ID for vim
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
 
 		// Record a result for vim.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -23187,9 +23217,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
 	t.Run("ubuntu-software-edited-during-se", func(t *testing.T) {
@@ -23224,7 +23254,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23233,20 +23263,21 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
 			}
 		}
-		require.NotEmpty(t, executionIDs["vim"])
+		require.Empty(t, executionIDs["vim"]) // hasn't run yet due to alphanumeric ordering
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
-		// Modify the vim installer, which should cause the setup experience item to fail.
-		// update should succeed
-		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-			SelfService:       ptr.Bool(true),
-			InstallScript:     ptr.String("some updated install script"),
-			PreInstallQuery:   ptr.String("some new pre install query"),
-			PostInstallScript: ptr.String("some new post install script"),
-			Filename:          "vim.deb",
-			TitleID:           debVimTitleID,
-			TeamID:            &team.ID,
-		}, http.StatusOK, "")
+		// Record a result for test.tar.gz.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*ubuntuHost.OrbitNodeKey,
+				executionIDs["test.tar.gz"],
+			),
+		), http.StatusNoContent)
 
 		// Get status of the "Setup experience" for the Ubuntu host.
 		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
@@ -23260,9 +23291,48 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Modify the vim installer, which should cause the setup experience item to fail.
+		// update should succeed
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			SelfService:       new(true),
+			InstallScript:     ptr.String("some updated install script"),
+			PreInstallQuery:   ptr.String("some new pre install query"),
+			PostInstallScript: ptr.String("some new post install script"),
+			Filename:          "vim.deb",
+			TitleID:           debVimTitleID,
+			TeamID:            &team.ID,
+		}, http.StatusOK, "")
+
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get execution ID for vim
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["vim"])
+		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
 			"host_id": %d,
@@ -23303,9 +23373,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
 		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
-		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
 	// Transfer the Ubuntu host to "No team".
@@ -23378,7 +23448,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// so pull it out manually
 		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		require.NotNil(t, results[0].HostSoftwareInstallsExecutionID)
@@ -23512,7 +23582,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	// so pull it out manually
 	ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
 	require.NoError(t, err)
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23521,10 +23591,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 			executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
 		}
 	}
-	require.NotEmpty(t, executionIDs["vim"])
+	require.Empty(t, executionIDs["vim"]) // hasn't run yet due to alphanumeric ordering
 	require.NotEmpty(t, executionIDs["test.tar.gz"])
 
-	// Record a result for vim.
+	// Record a result for test.tar.gz.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 		fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -23552,6 +23622,16 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
 	require.Equal(t, "vim", orbitRes.Results.Software[1].Name)
 	require.EqualValues(t, "running", orbitRes.Results.Software[1].Status)
+
+	// Get execution ID for vim
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	for _, result := range results {
+		if result.HostSoftwareInstallsExecutionID != nil {
+			executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+		}
+	}
 
 	// Record a result for vim.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -23756,7 +23836,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		// so pull it out manually
 		windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost1)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23766,7 +23846,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 			}
 		}
 		require.NotEmpty(t, executionIDs["Fleet osquery"])
-		require.NotEmpty(t, executionIDs["Hello world"])
+		require.Empty(t, executionIDs["Hello world"]) // hasn't run yet due to alphanumeric ordering
 
 		// Record a result for Fleet osquery.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -23796,6 +23876,18 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "Hello world", getDeviceStatusResponse.Results.Software[1].Name)
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get execution ID for Hello world
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["Fleet osquery"])
+		require.NotEmpty(t, executionIDs["Hello world"])
 
 		// Record a result for Hello world.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -23975,7 +24067,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		// so pull it out manually
 		windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost2)
 		require.NoError(t, err)
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -23985,7 +24077,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 			}
 		}
 		require.NotEmpty(t, executionIDs["Fleet osquery"])
-		require.NotEmpty(t, executionIDs["Hello world"])
+		require.Empty(t, executionIDs["Hello world"]) // hasn't run yet due to alphanumeric ordering
 
 		// Record a failing result for Fleet osquery.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -24015,6 +24107,18 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "Hello world", getDeviceStatusResponse.Results.Software[1].Name)
 		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get execution ID for Hello world
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["Fleet osquery"])
+		require.NotEmpty(t, executionIDs["Hello world"])
 
 		// Record a result for Hello world.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -24176,9 +24280,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 
 	// The setup_experience/status endpoint doesn't return the various IDs for executions,
 	// so pull it out manually
-	ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost)
+	windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost)
 	require.NoError(t, err)
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -24187,8 +24291,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 			executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
 		}
 	}
-	require.NotEmpty(t, executionIDs["Fleet osquery"])
-	require.NotEmpty(t, executionIDs["Hello world"])
+
+	require.NotEmpty(t, executionIDs["Fleet osquery"]) // has started running because it's first alphabetically
+	require.Empty(t, executionIDs["Hello world"])      // not running yet
 
 	// Record a result for Fleet osquery.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
@@ -24203,7 +24308,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 		),
 	), http.StatusNoContent)
 
-	// Again get status of the "Setup experience" for the Windos host.
+	// Again get status of the "Setup experience" for the Windows host.
 	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
 		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
@@ -24211,9 +24316,16 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 	require.NotNil(t, orbitRes.Results)
 	require.NotNil(t, orbitRes.Results)
 	require.Len(t, orbitRes.Results.Software, 2)
-	sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
-		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
-	})
+
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID, team.ID)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	for _, result := range results {
+		if result.HostSoftwareInstallsExecutionID != nil {
+			executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+		}
+	}
+
 	require.Equal(t, "Fleet osquery", orbitRes.Results.Software[0].Name)
 	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
 	require.Equal(t, "Hello world", orbitRes.Results.Software[1].Name)
@@ -24232,7 +24344,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 		),
 	), http.StatusNoContent)
 
-	// One last time get status of the "Setup experience" for the Ubuntu host.
+	// One last time get status of the "Setup experience" for the Windows host.
 	orbitRes = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
 		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
