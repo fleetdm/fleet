@@ -37,7 +37,7 @@ var (
 )
 
 var (
-	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
+	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "h.hardware_serial", "primary_ip"}
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
 )
 
@@ -6085,7 +6085,7 @@ func (ds *Datastore) GetMatchingHostSerialsMarkedDeleted(ctx context.Context, se
 
 	stmt := `
 SELECT
-	hardware_serial
+	h.hardware_serial
 FROM
 	hosts h
 	JOIN host_dep_assignments hdep ON hdep.host_id = h.id

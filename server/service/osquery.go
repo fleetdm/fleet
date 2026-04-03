@@ -849,15 +849,22 @@ func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
-	svc.jitterMu.Lock()
-	defer svc.jitterMu.Unlock()
+	svc.jitterMu.RLock()
+	jh := svc.jitterH[interval]
+	svc.jitterMu.RUnlock()
 
-	if svc.jitterH[interval] == nil {
-		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
-		svc.logger.DebugContext(context.TODO(), "jitter table created", "bucketCount", svc.jitterH[interval].bucketCount)
+	if jh == nil {
+		svc.jitterMu.Lock()
+		// Double-check after acquiring write lock.
+		if svc.jitterH[interval] == nil {
+			svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
+			svc.logger.DebugContext(context.TODO(), "jitter table created", "bucketCount", svc.jitterH[interval].bucketCount)
+		}
+		jh = svc.jitterH[interval]
+		svc.jitterMu.Unlock()
 	}
 
-	jitter := svc.jitterH[interval].jitterForHost(hostID)
+	jitter := jh.jitterForHost(hostID)
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
 }
