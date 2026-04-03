@@ -19,6 +19,7 @@ import (
 	"log"
 	"maps"
 	"math/rand"
+	randv2 "math/rand/v2"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -704,6 +705,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	// (1) distributed thread:
 	go func() {
+		time.Sleep(randv2.N(a.QueryInterval))
 		liveQueryTicker := time.NewTicker(a.QueryInterval)
 		defer liveQueryTicker.Stop()
 
@@ -716,6 +718,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	// (2) config thread:
 	go func() {
+		time.Sleep(randv2.N(a.ConfigInterval))
 		configTicker := time.NewTicker(a.ConfigInterval)
 		defer configTicker.Stop()
 
@@ -725,6 +728,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	}()
 
 	// (3) logger thread:
+	time.Sleep(randv2.N(a.LogInterval))
 	logTicker := time.NewTicker(a.LogInterval)
 	defer logTicker.Stop()
 	for range logTicker.C {
