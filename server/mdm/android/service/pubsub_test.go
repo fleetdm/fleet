@@ -320,7 +320,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	}
 
 	t.Run("single install pending profile with empty compliance details", func(t *testing.T) {
-		policyVersion := new(1)
+		policyVersion := ptr.Int(1)
 
 		installPendingProfile := &fleet.MDMAndroidProfilePayload{
 			ProfileUUID:             uuid.NewString(),
@@ -363,7 +363,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	})
 
 	t.Run("compliance details has failure", func(t *testing.T) {
-		policyVersion := new(1)
+		policyVersion := ptr.Int(1)
 
 		policyRequestUUID := uuid.NewString()
 		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{
@@ -460,7 +460,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	})
 
 	t.Run("profile failed due to non-compliance but is reverified", func(t *testing.T) {
-		policyVersion := new(1)
+		policyVersion := ptr.Int(1)
 
 		policyRequestUUID := uuid.NewString()
 		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{
@@ -1392,7 +1392,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
 		})
 
-		policyVersion := new(1)
+		policyVersion := ptr.Int(1)
 
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
@@ -1439,7 +1439,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := new(1)
+		policyVersion := ptr.Int(1)
 		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil)
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
@@ -1477,7 +1477,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := new(2)
+		policyVersion := ptr.Int(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
 		}, nil)
@@ -1517,7 +1517,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := new(2)
+		policyVersion := ptr.Int(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
 		}, []*androidmanagement.NonComplianceDetail{
@@ -1559,7 +1559,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := new(2)
+		policyVersion := ptr.Int(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "APPLICATION_STATE_UNSPECIFIED"},
 		}, []*androidmanagement.NonComplianceDetail{
@@ -1601,7 +1601,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := new(2)
+		policyVersion := ptr.Int(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil, []*androidmanagement.NonComplianceDetail{
 			{PackageName: pendingApp.AdamID, NonComplianceReason: "PENDING", InstallationFailureReason: "IN_PROGRESS"},
 		})
@@ -1682,7 +1682,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return &fleet.User{}, &fleet.ActivityInstalledAppStoreApp{CommandUUID: cmdUUID, Status: string(status)}, nil
 		}
 
-		policyVersion := new(2)
+		policyVersion := ptr.Int(2)
 		// app1 and app2 verified, app3 not reported at all so failed, app4 failed with compliance report
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApps[0].AdamID, State: "INSTALLED"},

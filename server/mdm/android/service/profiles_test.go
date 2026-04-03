@@ -1241,9 +1241,9 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	// Create a certificate authority and certificate template
 	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("Test CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("Test CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 
@@ -1261,14 +1261,15 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	// Create a host_certificate_template record in "delivered" status (agent has received it
 	// but hasn't completed SCEP enrollment yet). We use "delivered" instead of "pending" to
 	// avoid triggering cert template reconciliation (which would try to call AMAPI).
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: certTemplate.ID,
+		Status:                fleet.CertificateTemplateDelivered,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		Name:                  certTemplate.Name,
+	}})
+	require.NoError(t, err)
 	mds := ds.(*mysql.Datastore)
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name) VALUES (?, ?, ?, ?, ?)",
-			host.UUID, certTemplate.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, certTemplate.Name,
-		)
-		return err
-	})
 
 	// Create an ONC profile referencing the certificate by alias (= template name)
 	oncProfile := androidProfileWithPayloadForTest("onc-wifi", fmt.Sprintf(`{
@@ -1309,7 +1310,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 			HostUUID: host.UUID, ProfileUUID: nonONCProfile.ProfileUUID, ProfileName: nonONCProfile.Name,
 			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
 			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
-			PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""),
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
 		},
 		// ONC profile is withheld (pending with detail, no policy/device request)
 		{
@@ -1345,21 +1346,20 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	require.NoError(t, err)
 
 	// Both profiles should now be applied (included in policy, with request UUIDs)
-	var phase2Profiles []*fleet.MDMAndroidProfilePayload
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &phase2Profiles,
-			"SELECT profile_uuid, profile_name, status, operation_type, detail, policy_request_uuid, included_in_policy_version FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY profile_name",
-			host.UUID,
-		)
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{
+			HostUUID: host.UUID, ProfileUUID: nonONCProfile.ProfileUUID, ProfileName: nonONCProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
+		},
+		{
+			HostUUID: host.UUID, ProfileUUID: oncProfile.ProfileUUID, ProfileName: oncProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
+		},
 	})
-	require.Len(t, phase2Profiles, 2)
-	// Both profiles included in policy (non-nil policy_request_uuid and included_in_policy_version)
-	for _, p := range phase2Profiles {
-		require.Equal(t, &fleet.MDMDeliveryPending, p.Status)
-		require.NotNil(t, p.PolicyRequestUUID, "profile %s should have policy request UUID", p.ProfileName)
-		require.NotNil(t, p.IncludedInPolicyVersion, "profile %s should have included_in_policy_version", p.ProfileName)
-		require.Empty(t, p.Detail, "profile %s should not have waiting detail", p.ProfileName)
-	}
 
 	// --- Phase 3: test that ONC is also released on terminal failure ---
 	// Reset cert to pending and profile to need re-delivery
@@ -1382,14 +1382,14 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	err = reconciler.ReconcileProfiles(ctx)
 	require.NoError(t, err)
 
-	var oncStatus *fleet.MDMDeliveryStatus
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &oncStatus,
-			"SELECT status FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_uuid = ?",
-			host.UUID, oncProfile.ProfileUUID,
-		)
-	})
-	require.Equal(t, &fleet.MDMDeliveryPending, oncStatus)
+	phase3Profiles, err := ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	for _, p := range phase3Profiles {
+		if p.ProfileUUID == oncProfile.ProfileUUID {
+			require.Equal(t, &fleet.MDMDeliveryPending, p.Status)
+			require.Contains(t, p.Detail, "Waiting for certificate")
+		}
+	}
 
 	// Now set cert to "failed" (terminal) and re-reconcile
 	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
@@ -1411,13 +1411,11 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	require.NoError(t, err)
 
 	// Both profiles applied (cert is terminally failed, ONC released)
-	var oncDetail string
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &oncDetail,
-			"SELECT COALESCE(detail, '') FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_uuid = ?",
-			host.UUID, oncProfile.ProfileUUID,
-		)
-	})
-	// ONC profile should NOT have the "waiting for certificate" detail anymore
-	require.NotContains(t, oncDetail, "Waiting for certificate")
+	finalProfiles, err := ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	for _, p := range finalProfiles {
+		if p.ProfileUUID == oncProfile.ProfileUUID {
+			require.NotContains(t, p.Detail, "Waiting for certificate")
+		}
+	}
 }
