@@ -1659,15 +1659,14 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
 	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
 
-	// validate that only one of the labels type is provided
-	var count int
-	for _, b := range []bool{existsInclAll, existsInclAny, existsExclAny, existsDepr} {
-		if b {
-			count++
-		}
+	// validate label combinations: allow combining an include scope with
+	// exclude_any, but disallow include_any + include_all and deprecated
+	// labels + anything else.
+	if existsDepr && (existsInclAll || existsInclAny || existsExclAny) {
+		return nil, &fleet.BadRequestError{Message: `Deprecated "labels" field cannot be combined with "labels_exclude_any", "labels_include_all", or "labels_include_any".`}
 	}
-	if count > 1 {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`}
+	if existsInclAll && existsInclAny {
+		return nil, &fleet.BadRequestError{Message: `"labels_include_all" and "labels_include_any" cannot be combined.`}
 	}
 	if existsDepr {
 		decoded.LabelsIncludeAll = deprecatedLabels
@@ -1702,20 +1701,30 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	isMobileConfig := strings.EqualFold(fileExt, ".mobileconfig")
 	isJSON := strings.EqualFold(fileExt, ".json")
 
-	var labels []string
+	// Determine include labels and mode
+	var includeLabels []string
 	var labelsMode fleet.MDMLabelsMode
 	switch {
 	case len(req.LabelsIncludeAny) > 0:
-		labels = req.LabelsIncludeAny
+		includeLabels = req.LabelsIncludeAny
 		labelsMode = fleet.LabelsIncludeAny
-	case len(req.LabelsExcludeAny) > 0:
-		labels = req.LabelsExcludeAny
-		labelsMode = fleet.LabelsExcludeAny
 	default:
 		// default include all
-		labels = req.LabelsIncludeAll
+		includeLabels = req.LabelsIncludeAll
 		labelsMode = fleet.LabelsIncludeAll
 	}
+	// Exclude labels can be combined with any include scope
+	excludeLabels := req.LabelsExcludeAny
+
+	// If only exclude labels are provided with no include labels, use exclude mode
+	if len(includeLabels) == 0 && len(excludeLabels) > 0 {
+		includeLabels = excludeLabels
+		excludeLabels = nil
+		labelsMode = fleet.LabelsExcludeAny
+	}
+
+	// Merge for backward-compatible single-label-list code path
+	labels := includeLabels
 
 	isAppleDeclarationJSON, isAndroidJSON := false, false
 	if isJSON {
@@ -1738,7 +1747,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	if isMobileConfig || isAppleDeclarationJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, excludeLabels)
 			if err != nil {
 				errStr := err.Error()
 				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
@@ -1755,7 +1764,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 		}
 
-		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode)
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode, excludeLabels)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1765,7 +1774,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isAndroidJSON {
-		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode)
+		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, excludeLabels)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1775,7 +1784,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
-		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, excludeLabels)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1810,7 +1819,7 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
 }
 
-func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAndroidConfigProfile, error) {
+func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode, excludeLabels []string) (*fleet.MDMAndroidConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1853,6 +1862,15 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	default:
 		// default include all
 		cp.LabelsIncludeAll = labelMap
+	}
+
+	// Handle combined include + exclude labels
+	if len(excludeLabels) > 0 {
+		excludeLabelMap, err := svc.validateProfileLabels(ctx, &teamID, excludeLabels)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating exclude labels")
+		}
+		cp.LabelsExcludeAny = excludeLabelMap
 	}
 
 	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
@@ -2716,20 +2734,19 @@ func getAndroidProfiles(ctx context.Context,
 
 func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
-		// validate that only one of labels, labels_include_all and labels_exclude_any is provided.
-		var count int
-		for _, b := range []bool{
-			len(profile.LabelsIncludeAll) > 0,
-			len(profile.LabelsIncludeAny) > 0,
-			len(profile.LabelsExcludeAny) > 0,
-			len(profile.Labels) > 0,
-		} {
-			if b {
-				count++
-			}
+		// Validate label combinations: allow combining an include scope with
+		// exclude_any, but disallow include_any + include_all and deprecated
+		// labels + anything else.
+		hasLabels := len(profile.Labels) > 0
+		hasInclAll := len(profile.LabelsIncludeAll) > 0
+		hasInclAny := len(profile.LabelsIncludeAny) > 0
+		hasExclAny := len(profile.LabelsExcludeAny) > 0
+
+		if hasLabels && (hasInclAll || hasInclAny || hasExclAny) {
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. Deprecated "labels" field cannot be combined with other label fields.`)
 		}
-		if count > 1 {
-			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+		if hasInclAll && hasInclAny {
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. "labels_include_all" and "labels_include_any" cannot be combined.`)
 		}
 
 		if len(profile.Contents) > 1024*1024 {

@@ -448,13 +448,13 @@ controls:
 - `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
-Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. `labels_include_any` or `labels_include_all` can be combined with `labels_exclude_any` for inclusion+exclusion scoping. `labels_include_any` and `labels_include_all` cannot be combined with each other. If none are specified, all hosts are targeted.
 
 ### android_settings
 
 - `android_settings.custom_settings` is a list of paths to Android configuration profiles (.json).
 
-Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. `labels_include_any` or `labels_include_all` can be combined with `labels_exclude_any` for inclusion+exclusion scoping. `labels_include_any` and `labels_include_all` cannot be combined with each other. If none are specified, all hosts are targeted.
 
 #### android_settings.certificates
 

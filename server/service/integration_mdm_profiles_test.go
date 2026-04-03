@@ -2141,7 +2141,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
 
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	// include_all + exclude_any is now allowed (combined scoping)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
 				"custom_settings": [
@@ -2149,11 +2150,10 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 				]
 			}
 		}
-  }`), http.StatusUnprocessableEntity)
-	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+  }`), http.StatusOK)
 
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	// include_any + exclude_any is now allowed (combined scoping)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
 				"custom_settings": [
@@ -2161,9 +2161,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 				]
 			}
 		}
-  }`), http.StatusUnprocessableEntity)
-	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+  }`), http.StatusOK)
 
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
@@ -3397,14 +3395,21 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAndroidProfile("android-profile-with-labels.json", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// profiles with invalid mix of labels
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "-bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	// profiles with invalid mix of labels: include_all + deprecated labels, include_all + include_any
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined with other label fields.`)
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `"labels_include_all" and "labels_include_any" cannot be combined.`)
+	// include_all + exclude_any is now VALID (combined scoping)
+	assertAppleDeclaration("apple-decl-with-incl-all-excl-any.json", "ident-decl-combined", 0, []string{"foo", "-bar"}, http.StatusOK, "")
+	// include_all + include_any is still INVALID
+	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `"labels_include_all" and "labels_include_any" cannot be combined.`)
+	// exclude_any + deprecated labels is still INVALID
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined with other label fields.`)
+	// exclude_any + include_any is now VALID (combined scoping)
+	assertWindowsProfile("win-profile-with-incl-any-excl-any.xml", "./Test", 0, []string{"-foo", "~bar"}, http.StatusOK, "")
+	// exclude_any + deprecated labels is still INVALID
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined with other label fields.`)
+	// exclude_any + include_any is now VALID (combined scoping)
+	assertAndroidProfile("android-profile-with-incl-any-excl-any.json", 0, []string{"-foo", "~bar"}, http.StatusOK, "")
 
 	// profiles with valid labels
 	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"!foo"}, http.StatusOK, "")

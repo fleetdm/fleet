@@ -223,50 +223,91 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 		return nil, fleet.NewAuthRequiredError("validate software labels: method requires previous authorization")
 	}
 
-	var count int
-	for _, set := range [][]string{labelsIncludeAny, labelsExcludeAny, labelsIncludeAll} {
-		if len(set) > 0 {
-			count++
-		}
-	}
-	if count > 1 {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`}
+	// Validate that include_any and include_all are not combined (they conflict),
+	// but allow combining either include scope with exclude_any.
+	hasIncludeAny := len(labelsIncludeAny) > 0
+	hasExcludeAny := len(labelsExcludeAny) > 0
+	hasIncludeAll := len(labelsIncludeAll) > 0
+
+	if hasIncludeAny && hasIncludeAll {
+		return nil, &fleet.BadRequestError{Message: `"labels_include_all" and "labels_include_any" cannot be combined.`}
 	}
 
-	var names []string
+	// Determine the primary include scope
+	var includeNames []string
 	var scope fleet.LabelScope
 	switch {
-	case len(labelsIncludeAny) > 0:
-		names = labelsIncludeAny
+	case hasIncludeAny:
+		includeNames = labelsIncludeAny
 		scope = fleet.LabelScopeIncludeAny
-	case len(labelsExcludeAny) > 0:
-		names = labelsExcludeAny
-		scope = fleet.LabelScopeExcludeAny
-	case len(labelsIncludeAll) > 0:
-		names = labelsIncludeAll
+	case hasIncludeAll:
+		includeNames = labelsIncludeAll
 		scope = fleet.LabelScopeIncludeAll
+	case hasExcludeAny:
+		// exclude-only (no include labels)
+		scope = fleet.LabelScopeExcludeAny
 	}
 
-	if len(names) == 0 {
+	if len(includeNames) == 0 && len(labelsExcludeAny) == 0 {
 		// nothing to validate, return empty result
 		return &fleet.LabelIdentsWithScope{}, nil
 	}
 
-	byName, err := svc.BatchValidateLabels(ctx, teamID, names)
-	if err != nil {
-		var missingLabelErr *fleet.MissingLabelError
-		if errors.As(err, &missingLabelErr) {
-			return nil, &fleet.BadRequestError{
-				InternalErr: missingLabelErr,
-				Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", missingLabelErr.MissingLabelName),
+	// Validate include labels
+	var includeByName map[string]fleet.LabelIdent
+	if len(includeNames) > 0 {
+		var err error
+		includeByName, err = svc.BatchValidateLabels(ctx, teamID, includeNames)
+		if err != nil {
+			var missingLabelErr *fleet.MissingLabelError
+			if errors.As(err, &missingLabelErr) {
+				return nil, &fleet.BadRequestError{
+					InternalErr: missingLabelErr,
+					Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", missingLabelErr.MissingLabelName),
+				}
+			}
+			return nil, err
+		}
+	}
+
+	// Validate exclude labels
+	var excludeByName map[string]fleet.LabelIdent
+	if hasExcludeAny {
+		if len(includeNames) > 0 {
+			// Combined include + exclude: validate exclude labels separately
+			var err error
+			excludeByName, err = svc.BatchValidateLabels(ctx, teamID, labelsExcludeAny)
+			if err != nil {
+				var missingLabelErr *fleet.MissingLabelError
+				if errors.As(err, &missingLabelErr) {
+					return nil, &fleet.BadRequestError{
+						InternalErr: missingLabelErr,
+						Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", missingLabelErr.MissingLabelName),
+					}
+				}
+				return nil, err
+			}
+		} else {
+			// Exclude-only: put exclude labels in ByName (backward compatible)
+			var err error
+			includeByName, err = svc.BatchValidateLabels(ctx, teamID, labelsExcludeAny)
+			if err != nil {
+				var missingLabelErr *fleet.MissingLabelError
+				if errors.As(err, &missingLabelErr) {
+					return nil, &fleet.BadRequestError{
+						InternalErr: missingLabelErr,
+						Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", missingLabelErr.MissingLabelName),
+					}
+				}
+				return nil, err
 			}
 		}
-		return nil, err
 	}
 
 	return &fleet.LabelIdentsWithScope{
-		LabelScope: scope,
-		ByName:     byName,
+		LabelScope:    scope,
+		ByName:        includeByName,
+		ExcludeByName: excludeByName,
 	}, nil
 }
 

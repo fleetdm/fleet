@@ -316,6 +316,32 @@ const (
 type LabelIdentsWithScope struct {
 	LabelScope LabelScope
 	ByName     map[string]LabelIdent
+
+	// ExcludeByName holds exclude-any labels when combining an include scope
+	// (include_any or include_all) with exclude_any. When only a single scope
+	// is used this field is nil and ByName holds all labels for that scope.
+	ExcludeByName map[string]LabelIdent
+}
+
+// HasExcludeLabels returns true if this scope set has additional exclude labels
+// that should be applied alongside the primary include scope.
+func (l *LabelIdentsWithScope) HasExcludeLabels() bool {
+	return l != nil && len(l.ExcludeByName) > 0
+}
+
+// AllLabelIDs returns all label IDs across both include and exclude scopes.
+func (l *LabelIdentsWithScope) AllLabelIDs() []uint {
+	if l == nil {
+		return nil
+	}
+	ids := make([]uint, 0, len(l.ByName)+len(l.ExcludeByName))
+	for _, li := range l.ByName {
+		ids = append(ids, li.LabelID)
+	}
+	for _, li := range l.ExcludeByName {
+		ids = append(ids, li.LabelID)
+	}
+	return ids
 }
 
 // Equal returns whether or not 2 LabelIdentsWithScope pointers point to equivalent values.
@@ -328,25 +354,30 @@ func (l *LabelIdentsWithScope) Equal(other *LabelIdentsWithScope) bool {
 		return false
 	}
 
-	if l.ByName == nil && other.ByName == nil {
-		return true
-	}
-
-	if len(l.ByName) != len(other.ByName) {
+	if !labelMapEqual(l.ByName, other.ByName) {
 		return false
 	}
 
-	for k, v := range l.ByName {
-		otherV, ok := other.ByName[k]
-		if !ok {
-			return false
-		}
+	if !labelMapEqual(l.ExcludeByName, other.ExcludeByName) {
+		return false
+	}
 
-		if v != otherV {
+	return true
+}
+
+func labelMapEqual(a, b map[string]LabelIdent) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		otherV, ok := b[k]
+		if !ok || v != otherV {
 			return false
 		}
 	}
-
 	return true
 }
 

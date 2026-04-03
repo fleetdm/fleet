@@ -327,6 +327,19 @@ const handleEditPackageForm = (
     selectedLabels?.forEach((label) => {
       formData.append(labelKey, label);
     });
+
+    // Add exclude labels when combining include+exclude
+    if (
+      data.excludeLabelTargets &&
+      data.customTarget !== "labelsExcludeAny"
+    ) {
+      const excludeLabels = listNamesFromSelectedLabels(
+        data.excludeLabelTargets
+      );
+      excludeLabels?.forEach((label) => {
+        formData.append("labels_exclude_any", label);
+      });
+    }
   }
 };
 

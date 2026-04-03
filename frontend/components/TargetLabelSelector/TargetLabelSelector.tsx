@@ -27,15 +27,28 @@ export const listNamesFromSelectedLabels = (dict: Record<string, boolean>) => {
 export const generateLabelKey = (
   target: string,
   customTargetOption: string,
-  selectedLabels: Record<string, boolean>
+  selectedLabels: Record<string, boolean>,
+  selectedExcludeLabels?: Record<string, boolean>
 ) => {
   if (target !== "Custom") {
     return {};
   }
 
-  return {
+  const result: Record<string, string[]> = {
     [customTargetOption]: listNamesFromSelectedLabels(selectedLabels),
   };
+
+  // When combining include + exclude, also add the exclude labels
+  if (
+    selectedExcludeLabels &&
+    customTargetOption !== "labelsExcludeAny" &&
+    listNamesFromSelectedLabels(selectedExcludeLabels).length > 0
+  ) {
+    result.labelsExcludeAny =
+      listNamesFromSelectedLabels(selectedExcludeLabels);
+  }
+
+  return result;
 };
 
 interface ITargetChooserProps {
@@ -186,6 +199,18 @@ interface ITargetLabelSelectorProps {
   title?: string;
   suppressTitle?: boolean;
   subTitle?: string;
+  /** Optional: enable combined include+exclude label selection.
+   * When true and an include mode is selected, an additional exclude label
+   * section is shown below the include labels. */
+  enableExcludeLabels?: boolean;
+  selectedExcludeLabels?: Record<string, boolean>;
+  onSelectExcludeLabel?: ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => void;
 }
 
 const TargetLabelSelector = ({
@@ -206,8 +231,18 @@ const TargetLabelSelector = ({
   title = "Target",
   subTitle,
   suppressTitle = false,
+  enableExcludeLabels = false,
+  selectedExcludeLabels = {},
+  onSelectExcludeLabel,
 }: ITargetLabelSelectorProps) => {
   const classNames = classnames(baseClass, className, "form");
+
+  // Show the exclude section when an include mode is active (not "labelsExcludeAny")
+  const showExcludeSection =
+    enableExcludeLabels &&
+    selectedTargetType === "Custom" &&
+    selectedCustomTarget !== "labelsExcludeAny" &&
+    onSelectExcludeLabel;
 
   return (
     <div className={classNames}>
@@ -219,19 +254,44 @@ const TargetLabelSelector = ({
         subTitle={subTitle}
       />
       {selectedTargetType === "Custom" && (
-        <LabelChooser
-          selectedCustomTarget={selectedCustomTarget}
-          customTargetOptions={customTargetOptions}
-          isError={isErrorLabels}
-          isLoading={isLoadingLabels}
-          labels={labels || []}
-          selectedLabels={selectedLabels}
-          customHelpText={customHelpText}
-          dropdownHelpText={dropdownHelpText}
-          onSelectCustomTarget={onSelectCustomTarget}
-          onSelectLabel={onSelectLabel}
-          disableOptions={disableOptions}
-        />
+        <>
+          <LabelChooser
+            selectedCustomTarget={selectedCustomTarget}
+            customTargetOptions={customTargetOptions}
+            isError={isErrorLabels}
+            isLoading={isLoadingLabels}
+            labels={labels || []}
+            selectedLabels={selectedLabels}
+            customHelpText={customHelpText}
+            dropdownHelpText={dropdownHelpText}
+            onSelectCustomTarget={onSelectCustomTarget}
+            onSelectLabel={onSelectLabel}
+            disableOptions={disableOptions}
+          />
+          {showExcludeSection && labels.length > 0 && (
+            <div className={`${baseClass}__exclude-section`}>
+              <div className={`${baseClass}__exclude-header`}>
+                Additionally exclude hosts with any of these labels:
+              </div>
+              <div className={`${baseClass}__checkboxes`}>
+                {labels.map((label) => (
+                  <div className={`${baseClass}__label`} key={label.name}>
+                    <Checkbox
+                      className={`${baseClass}__checkbox`}
+                      name={label.name}
+                      value={!!selectedExcludeLabels[label.name]}
+                      onChange={onSelectExcludeLabel}
+                      parseTarget
+                    />
+                    <div className={`${baseClass}__label-name`}>
+                      {label.name}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -123,6 +123,9 @@ const PolicyForm = ({
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
+  const [selectedExcludeLabels, setSelectedExcludeLabels] = useState<
+    Record<string, boolean>
+  >({});
 
   const isPatchPolicy = storedPolicy?.type === "patch";
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
@@ -157,6 +160,19 @@ const PolicyForm = ({
   }) => {
     setSelectedLabels({
       ...selectedLabels,
+      [labelName]: value,
+    });
+  };
+
+  const onSelectExcludeLabel = ({
+    name: labelName,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedExcludeLabels({
+      ...selectedExcludeLabels,
       [labelName]: value,
     });
   };
@@ -246,27 +262,44 @@ const PolicyForm = ({
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   useEffect(() => {
+    const hasInclude = lastEditedQueryLabelsIncludeAny.length > 0;
+    const hasExclude = lastEditedQueryLabelsExcludeAny.length > 0;
+
     setSelectedTargetType(
-      !lastEditedQueryLabelsIncludeAny.length &&
-        !lastEditedQueryLabelsExcludeAny.length
-        ? "All hosts"
-        : "Custom"
+      !hasInclude && !hasExclude ? "All hosts" : "Custom"
     );
-    setSelectedCustomTarget(
-      lastEditedQueryLabelsExcludeAny.length
-        ? "labelsExcludeAny"
-        : "labelsIncludeAny"
-    );
-    setSelectedLabels(
-      lastEditedQueryLabelsIncludeAny
-        .concat(lastEditedQueryLabelsExcludeAny)
-        .reduce((acc, label) => {
-          return {
-            ...acc,
-            [label.name]: true,
-          };
-        }, {}) || {}
-    );
+
+    // When both include and exclude exist, the primary mode is include
+    // and excludes are in the separate exclude section.
+    // When only exclude exists, the primary mode is exclude.
+    if (hasInclude) {
+      setSelectedCustomTarget("labelsIncludeAny");
+      setSelectedLabels(
+        lastEditedQueryLabelsIncludeAny.reduce(
+          (acc, label) => ({ ...acc, [label.name]: true }),
+          {} as Record<string, boolean>
+        )
+      );
+      setSelectedExcludeLabels(
+        lastEditedQueryLabelsExcludeAny.reduce(
+          (acc, label) => ({ ...acc, [label.name]: true }),
+          {} as Record<string, boolean>
+        )
+      );
+    } else if (hasExclude) {
+      setSelectedCustomTarget("labelsExcludeAny");
+      setSelectedLabels(
+        lastEditedQueryLabelsExcludeAny.reduce(
+          (acc, label) => ({ ...acc, [label.name]: true }),
+          {} as Record<string, boolean>
+        )
+      );
+      setSelectedExcludeLabels({});
+    } else {
+      setSelectedCustomTarget("labelsIncludeAny");
+      setSelectedLabels({});
+      setSelectedExcludeLabels({});
+    }
   }, [lastEditedQueryLabelsIncludeAny, lastEditedQueryLabelsExcludeAny]);
 
   useEffect(() => {
@@ -397,26 +430,34 @@ const PolicyForm = ({
     if (!isExistingPolicy) {
       setIsSaveNewPolicyModalOpen(true);
     } else {
+      // Build include/exclude label arrays based on the selected target mode
+      let includeAny: string[] = [];
+      let excludeAny: string[] = [];
+
+      if (selectedTargetType === "Custom") {
+        const primaryLabels = Object.entries(selectedLabels)
+          .filter(([, selected]) => selected)
+          .map(([labelName]) => labelName);
+
+        if (selectedCustomTarget === "labelsIncludeAny") {
+          includeAny = primaryLabels;
+          // Also include exclude labels from the separate section
+          excludeAny = Object.entries(selectedExcludeLabels)
+            .filter(([, selected]) => selected)
+            .map(([labelName]) => labelName);
+        } else if (selectedCustomTarget === "labelsExcludeAny") {
+          excludeAny = primaryLabels;
+        }
+      }
+
       const payload: IPolicyFormData = {
         name: lastEditedQueryName,
         description: lastEditedQueryDescription,
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
         platform: newPlatformString,
-        labels_include_any:
-          selectedTargetType === "Custom" &&
-          selectedCustomTarget === "labelsIncludeAny"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
-        labels_exclude_any:
-          selectedTargetType === "Custom" &&
-          selectedCustomTarget === "labelsExcludeAny"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
+        labels_include_any: includeAny,
+        labels_exclude_any: excludeAny,
       };
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
@@ -865,6 +906,9 @@ const PolicyForm = ({
                 </span>
               }
               suppressTitle
+              enableExcludeLabels
+              selectedExcludeLabels={selectedExcludeLabels}
+              onSelectExcludeLabel={onSelectExcludeLabel}
             />
           )}
           {isExistingPolicy && storedPolicy && (
