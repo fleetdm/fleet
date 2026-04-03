@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -170,6 +171,62 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 	}
 
 	return &result, nil
+}
+
+// GetCertificateTemplateStatusesByNameForHosts returns cert template statuses keyed by
+// host UUID and template name for all given hosts in a single query. Only install records
+// are considered; pending-remove rows are excluded so that the name-to-status mapping is
+// deterministic when both exist for the same template name.
+func (ds *Datastore) GetCertificateTemplateStatusesByNameForHosts(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
+	}
+
+	result := make(map[string]map[string]fleet.CertificateTemplateStatus, len(hostUUIDs))
+	if err := platform_mysql.BatchProcessSimple(hostUUIDs, 5000, func(batch []string) error {
+		stmt, args, err := sqlx.In(`
+			SELECT hct.host_uuid, ct.name, hct.status
+			FROM host_certificate_templates hct
+			JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
+			WHERE hct.host_uuid IN (?) AND hct.operation_type = ?
+		`, batch, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build IN query for cert template statuses")
+		}
+
+		var rows []struct {
+			HostUUID string `db:"host_uuid"`
+			Name     string `db:"name"`
+			Status   string `db:"status"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get certificate template statuses by name for hosts")
+		}
+
+		for _, r := range rows {
+			if result[r.HostUUID] == nil {
+				result[r.HostUUID] = make(map[string]fleet.CertificateTemplateStatus)
+			}
+			result[r.HostUUID][r.Name] = fleet.CertificateTemplateStatus(r.Status)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// RequeueWithheldONCProfilesForHost resets status to NULL for pending android
+// profiles on a host that were withheld waiting for a certificate, so the reconciler
+// re-evaluates them on its next run. This is called when a certificate reaches a
+// terminal state to release any ONC profiles that were withheld waiting for it.
+func (ds *Datastore) RequeueWithheldONCProfilesForHost(ctx context.Context, hostUUID string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_mdm_android_profiles SET status = NULL
+		WHERE host_uuid = ? AND status = ? AND detail LIKE ?`,
+		hostUUID, fleet.MDMDeliveryPending, fleet.ONCProfileWithheldDetailPrefix+"%",
+	)
+	return ctxerr.Wrap(ctx, err, "requeue pending android profiles for host")
 }
 
 // RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry,

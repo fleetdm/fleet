@@ -1675,3 +1675,140 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.Equal(t, fleet.CertificateTemplateVerified, record.Status, "should succeed on retry")
 	}) // end "automatic retry" subtest
 }
+
+// TestONCProfileWithheldUntilCertReady tests the end-to-end flow where an
+// Android ONC profile referencing a certificate via ClientCertKeyPairAlias is
+// withheld during profile reconciliation until the certificate reaches a
+// terminal state (verified or failed).
+func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
+	t := s.T()
+	ctx := t.Context()
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Create team with enroll secret
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{
+		{Secret: "secret-" + t.Name(), TeamID: &team.ID},
+	}))
+
+	// Create certificate authority and certificate template
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+	var certTemplateResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{{
+			Name:                   "wifi-cert",
+			Team:                   team.Name,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=WiFi Cert",
+		}},
+	}, http.StatusOK, &certTemplateResp)
+
+	// Get the certificate template ID
+	var certTemplateID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &certTemplateID,
+			"SELECT id FROM certificate_templates WHERE name = ? AND team_id = ?", "wifi-cert", team.ID)
+	})
+	require.NotZero(t, certTemplateID)
+
+	// Create an enrolled Android host
+	host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &team.ID, "1")
+
+	// Insert host_certificate_template in "delivered" status (simulating cert was sent to device
+	// but agent hasn't completed SCEP enrollment yet)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name) VALUES (?, ?, ?, ?, ?)",
+			host.UUID, certTemplateID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "wifi-cert",
+		)
+		return err
+	})
+
+	// Create ONC profile referencing the certificate + a non-ONC profile
+	oncProfileJSON := fmt.Appendf(nil, `{
+		"openNetworkConfiguration": {
+			"NetworkConfigurations": [{
+				"GUID": "corp-wifi",
+				"Name": "Corporate WiFi",
+				"Type": "WiFi",
+				"WiFi": {
+					"SSID": "CorpNet",
+					"Security": "WPA-EAP",
+					"EAP": {
+						"Outer": "EAP-TLS",
+						"ClientCertType": "KeyPairAlias",
+						"ClientCertKeyPairAlias": %q
+					}
+				}
+			}]
+		}
+	}`, "wifi-cert")
+	cameraProfileJSON := []byte(`{"cameraDisabled": true}`)
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "onc-wifi", Contents: oncProfileJSON},
+		{Name: "camera-policy", Contents: cameraProfileJSON},
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+	// Trigger profile reconciliation
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Verify: ONC profile withheld (pending with detail), camera profile applied
+	var profileStatuses []struct {
+		ProfileName string  `db:"profile_name"`
+		Status      string  `db:"status"`
+		Detail      *string `db:"detail"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &profileStatuses,
+			"SELECT profile_name, status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY profile_name",
+			host.UUID)
+	})
+	require.Len(t, profileStatuses, 2)
+
+	// camera-policy should be applied (pending with policy included)
+	require.Equal(t, "camera-policy", profileStatuses[0].ProfileName)
+	require.Equal(t, "pending", profileStatuses[0].Status)
+	if profileStatuses[0].Detail != nil {
+		require.NotContains(t, *profileStatuses[0].Detail, "Waiting for certificate")
+	}
+
+	// onc-wifi should be withheld
+	require.Equal(t, "onc-wifi", profileStatuses[1].ProfileName)
+	require.Equal(t, "pending", profileStatuses[1].Status)
+	require.NotNil(t, profileStatuses[1].Detail)
+	require.Contains(t, *profileStatuses[1].Detail, `Waiting for certificate "wifi-cert"`)
+
+	// Transition certificate to "verified"
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateVerified, host.UUID, certTemplateID)
+		return err
+	})
+
+	// Force profiles to be re-evaluated
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_mdm_android_profiles SET status = NULL WHERE host_uuid = ?", host.UUID)
+		return err
+	})
+
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Both profiles should now be applied (included in policy)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &profileStatuses,
+			"SELECT profile_name, status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY profile_name",
+			host.UUID)
+	})
+	require.Len(t, profileStatuses, 2)
+	for _, ps := range profileStatuses {
+		require.Equal(t, "pending", ps.Status, "profile %s should be pending (delivered to AMAPI)", ps.ProfileName)
+		if ps.Detail != nil {
+			require.NotContains(t, *ps.Detail, "Waiting for certificate",
+				"profile %s should not have waiting detail after cert verified", ps.ProfileName)
+		}
+	}
+}

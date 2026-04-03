@@ -2792,6 +2792,14 @@ type Datastore interface {
 	// RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry, increments
 	// retry_count, preserves the error detail, and clears challenge/cert fields.
 	RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
+	// GetCertificateTemplateStatusesByNameForHosts returns cert template statuses
+	// keyed by host UUID and template name for all given hosts in a single query.
+	// Only install records are considered; pending-remove rows are excluded.
+	GetCertificateTemplateStatusesByNameForHosts(ctx context.Context, hostUUIDs []string) (map[string]map[string]CertificateTemplateStatus, error)
+	// RequeueWithheldONCProfilesForHost resets status to NULL for pending android profiles
+	// that were withheld waiting for a certificate (matching ONCProfileWithheldDetailPrefix).
+	// Called when a cert reaches terminal state so the reconciler re-evaluates them.
+	RequeueWithheldONCProfilesForHost(ctx context.Context, hostUUID string) error
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records

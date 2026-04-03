@@ -47,6 +47,7 @@ const config: StorybookConfig = {
     "../frontend/components/**/*.stories.@(js|jsx|ts|tsx)",
     "../frontend/pages/SoftwarePage/components/**/*.stories.@(js|jsx|ts|tsx)",
     "../frontend/pages/admin/IntegrationsPage/**/*.stories.@(js|jsx|ts|tsx)",
+    "../frontend/pages/hosts/details/**/*.stories.@(js|jsx|ts|tsx)",
   ],
   addons: [
     "@storybook/addon-links",

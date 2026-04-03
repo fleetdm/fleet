@@ -1815,6 +1815,10 @@ type GetHostCertificateTemplateRecordFunc func(ctx context.Context, hostUUID str
 
 type RetryHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
 
+type GetCertificateTemplateStatusesByNameForHostsFunc func(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error)
+
+type RequeueWithheldONCProfilesForHostFunc func(ctx context.Context, hostUUID string) error
+
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
@@ -4543,6 +4547,12 @@ type DataStore struct {
 
 	RetryHostCertificateTemplateFunc        RetryHostCertificateTemplateFunc
 	RetryHostCertificateTemplateFuncInvoked bool
+
+	GetCertificateTemplateStatusesByNameForHostsFunc        GetCertificateTemplateStatusesByNameForHostsFunc
+	GetCertificateTemplateStatusesByNameForHostsFuncInvoked bool
+
+	RequeueWithheldONCProfilesForHostFunc        RequeueWithheldONCProfilesForHostFunc
+	RequeueWithheldONCProfilesForHostFuncInvoked bool
 
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
 	BulkInsertHostCertificateTemplatesFuncInvoked bool
@@ -10877,6 +10887,20 @@ func (s *DataStore) RetryHostCertificateTemplate(ctx context.Context, hostUUID s
 	s.RetryHostCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.RetryHostCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID, detail)
+}
+
+func (s *DataStore) GetCertificateTemplateStatusesByNameForHosts(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateStatusesByNameForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateStatusesByNameForHostsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) RequeueWithheldONCProfilesForHost(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.RequeueWithheldONCProfilesForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.RequeueWithheldONCProfilesForHostFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {

@@ -741,6 +741,17 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 		}
 	}
 
+	// Requeue withheld ONC profiles BEFORE updating the cert status. This ordering
+	// ensures that if the requeue fails, the cert stays in "delivered" state and the
+	// agent can retry. If we did it after, a successful upsert + failed requeue would
+	// leave withheld profiles stuck (the agent's retry would be rejected at line 691
+	// because the cert is no longer "delivered").
+	if update.OperationType == fleet.MDMOperationTypeInstall {
+		if err := svc.ds.RequeueWithheldONCProfilesForHost(ctx, host.UUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "requeue withheld ONC profiles")
+		}
+	}
+
 	return svc.ds.UpsertCertificateStatus(ctx, update)
 }
 
