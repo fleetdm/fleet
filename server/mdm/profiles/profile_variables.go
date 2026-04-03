@@ -3,6 +3,7 @@ package profiles
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"log/slog"
@@ -83,7 +84,7 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	hostIDForUUIDCache map[string]uint,
 	onError func(errMsg string) error,
 ) (replacedContents string, replacedVariable bool, err error) {
-	user, ok, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
+	user, ok, err := GetHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
 	if err != nil {
 		return "", false, err
 	}
@@ -115,7 +116,7 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	return replacedContents, true, nil
 }
 
-func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
+func GetHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 	hostUUID, fleetVar string, hostIDForUUIDCache map[string]uint,
 	onError func(errMsg string) error,
 ) (*fleet.HostEndUser, bool, error) {
@@ -200,6 +201,20 @@ func ReplaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents
 		return "", err
 	}
 	return re.ReplaceAllLiteralString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
+}
+
+// ReplaceFleetVariableInJSON replaces a Fleet variable in JSON content with a JSON-safe value.
+func ReplaceFleetVariableInJSON(regExp *regexp.Regexp, contents string, replacement string) string {
+	// JSON-encode the replacement value to ensure special characters are properly escaped.
+	// json.Marshal wraps the string in quotes, so we strip them.
+	encoded, err := json.Marshal(replacement)
+	if err != nil {
+		// Should never happen for a string, but fall back to the raw value.
+		return regExp.ReplaceAllLiteralString(contents, replacement)
+	}
+	// Strip surrounding quotes from JSON-encoded string
+	jsonSafe := string(encoded[1 : len(encoded)-1])
+	return regExp.ReplaceAllLiteralString(contents, jsonSafe)
 }
 
 func ReplaceFleetVariableInXML(regExp *regexp.Regexp, contents string, replacement string) string {

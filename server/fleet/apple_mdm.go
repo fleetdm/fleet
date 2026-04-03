@@ -719,6 +719,11 @@ type MDMAppleDeclaration struct {
 	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+
+	// FleetVariables holds the detected Fleet variable names (without the FLEET_VAR_ prefix)
+	// for this declaration. Not stored in the declarations table directly; used to
+	// populate the mdm_declaration_variables junction table.
+	FleetVariables []string `db:"-" json:"-"`
 }
 
 type MDMAppleRawDeclaration struct {
@@ -811,11 +816,15 @@ type MDMAppleHostDeclaration struct {
 
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+
+	// VariablesUpdatedAt is the timestamp when the Fleet variables were last resolved for this host-declaration pair.
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
 	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
+	variablesEqual := p.VariablesUpdatedAt == nil && other.VariablesUpdatedAt == nil || p.VariablesUpdatedAt != nil && other.VariablesUpdatedAt != nil && p.VariablesUpdatedAt.Equal(*other.VariablesUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -824,7 +833,8 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.Token == other.Token &&
-		secretsEqual
+		secretsEqual &&
+		variablesEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -886,12 +896,13 @@ type MDMAppleDDMManifest struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
-	DeclarationUUID string    `db:"declaration_uuid"`
-	Identifier      string    `db:"identifier"`
-	ServerToken     string    `db:"token"`
-	Status          *string   `db:"status"`
-	OperationType   *string   `db:"operation_type"`
-	UploadedAt      time.Time `db:"uploaded_at"`
+	DeclarationUUID    string     `db:"declaration_uuid"`
+	Identifier         string     `db:"identifier"`
+	ServerToken        string     `db:"token"`
+	Status             *string    `db:"status"`
+	OperationType      *string    `db:"operation_type"`
+	UploadedAt         time.Time  `db:"uploaded_at"`
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM

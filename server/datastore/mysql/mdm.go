@@ -447,7 +447,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
-		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
@@ -2127,6 +2127,101 @@ func batchSetProfileVariableAssociationsDB(
 	err = batchProcessDB(profVars, batchSize, generateValueArgs, executeUpsertBatch)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "upserting profile variables")
+	}
+	return true, nil
+}
+
+func batchSetDeclarationVariableAssociationsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	declVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
+) (didUpdate bool, err error) {
+	if len(declVariablesByUUID) == 0 {
+		return false, nil
+	}
+
+	declUUIDsToDelete := make([]string, 0, len(declVariablesByUUID))
+	var varsToSet bool
+	for _, dv := range declVariablesByUUID {
+		declUUIDsToDelete = append(declUUIDsToDelete, dv.ProfileUUID)
+		if len(dv.FleetVariables) > 0 {
+			varsToSet = true
+		}
+	}
+
+	clearStmt := `DELETE FROM mdm_declaration_variables WHERE declaration_uuid IN (?)`
+	clearStmt, args, err := sqlx.In(clearStmt, declUUIDsToDelete)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete variables for declarations")
+	}
+	var res sql.Result
+	if res, err = tx.ExecContext(ctx, clearStmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "deleting variables for declarations")
+	}
+	rowsDeleted, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected for deleting variables for declarations")
+	}
+
+	if !varsToSet {
+		return rowsDeleted > 0, nil
+	}
+
+	type varDef struct {
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		IsPrefix bool   `db:"is_prefix"`
+	}
+	var varDefs []varDef
+	const varsStmt = `SELECT id, name, is_prefix FROM fleet_variables`
+	if err := sqlx.SelectContext(ctx, tx, &varDefs, varsStmt); err != nil {
+		return false, fmt.Errorf("failed to load fleet variables: %w", err)
+	}
+
+	type declVarTuple struct {
+		DeclUUID string
+		VarID    uint
+	}
+	declVars := make([]declVarTuple, 0, len(declVariablesByUUID))
+	for _, dv := range declVariablesByUUID {
+		for _, v := range dv.FleetVariables {
+			varWithPrefix := "FLEET_VAR_" + string(v)
+			for _, def := range varDefs {
+				if !def.IsPrefix && def.Name == varWithPrefix {
+					declVars = append(declVars, declVarTuple{dv.ProfileUUID, def.ID})
+					break
+				}
+				if def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name) {
+					declVars = append(declVars, declVarTuple{dv.ProfileUUID, def.ID})
+					break
+				}
+			}
+		}
+	}
+
+	const batchSize = 1000
+	generateValueArgs := func(d declVarTuple) (string, []any) {
+		return "(?, ?),", []any{d.DeclUUID, d.VarID}
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+			INSERT INTO mdm_declaration_variables (
+				declaration_uuid,
+				fleet_variable_id
+			)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				fleet_variable_id = VALUES(fleet_variable_id)
+		`, strings.TrimSuffix(valuePart, ","))
+
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	}
+
+	err = batchProcessDB(declVars, batchSize, generateValueArgs, executeUpsertBatch)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "upserting declaration variables")
 	}
 	return true, nil
 }

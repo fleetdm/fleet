@@ -45,6 +45,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
+	profiles "github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
@@ -884,7 +885,8 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
-	if err := validateDeclarationFleetVariables(dataWithSecrets); err != nil {
+	declFleetVars, err := validateDeclarationFleetVariables(dataWithSecrets)
+	if err != nil {
 		return nil, err
 	}
 
@@ -903,6 +905,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
 	d.SecretsUpdatedAt = secretsUpdatedAt
+	d.FleetVariables = declFleetVars
 
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
@@ -944,11 +947,33 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	return decl, nil
 }
 
-func validateDeclarationFleetVariables(contents string) error {
-	if variables.Contains(contents) {
-		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in DDM profiles"}
+var fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserEmailIDP))
+
+var fleetVarsSupportedInDeclarations = []fleet.FleetVarName{
+	fleet.FleetVarHostEndUserEmailIDP,
+	fleet.FleetVarHostHardwareSerial,
+	fleet.FleetVarHostEndUserIDPUsername,
+	fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+	fleet.FleetVarHostEndUserIDPGroups,
+	fleet.FleetVarHostEndUserIDPDepartment,
+	fleet.FleetVarHostEndUserIDPFullname,
+	fleet.FleetVarHostUUID,
+	fleet.FleetVarHostPlatform,
+}
+
+func validateDeclarationFleetVariables(contents string) ([]string, error) {
+	fleetVars := variables.Find(contents)
+	if len(fleetVars) == 0 {
+		return nil, nil
 	}
-	return nil
+
+	for _, fleetVar := range fleetVars {
+		if !slices.Contains(fleetVarsSupportedInDeclarations, fleet.FleetVarName(fleetVar)) {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in DDM declarations.", fleetVar)}
+		}
+	}
+
+	return fleetVars, nil
 }
 
 func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string, teamID uint) (map[string]fleet.ConfigurationProfileLabel, error) {
@@ -5959,18 +5984,19 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	// Calculate token based on count and concatenated tokens for install items
 	var count int
 	type tokenSorting struct {
-		token           string
-		uploadedAt      time.Time
-		declarationUUID string
+		token              string
+		uploadedAt         time.Time
+		declarationUUID    string
+		variablesUpdatedAt *time.Time
 	}
 	var tokens []tokenSorting
 	for _, d := range di {
 		if d.OperationType != nil && *d.OperationType == string(fleet.MDMOperationTypeInstall) {
-			// Extract d.ServerToken and order by d.UploadedAt descending and then by d.DeclarationUUID ascending
 			sorting := tokenSorting{
-				token:           d.ServerToken,
-				uploadedAt:      d.UploadedAt,
-				declarationUUID: d.DeclarationUUID,
+				token:              d.ServerToken,
+				uploadedAt:         d.UploadedAt,
+				declarationUUID:    d.DeclarationUUID,
+				variablesUpdatedAt: d.VariablesUpdatedAt,
 			}
 			tokens = append(tokens, sorting)
 			count++
@@ -5986,6 +6012,10 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	var tokenBuilder strings.Builder
 	for _, t := range tokens {
 		tokenBuilder.WriteString(t.token)
+		// Must match MySQL's IFNULL(hmad.variables_updated_at, '') format
+		if t.variablesUpdatedAt != nil {
+			tokenBuilder.WriteString(t.variablesUpdatedAt.Format("2006-01-02 15:04:05.000000"))
+		}
 	}
 
 	var token string
@@ -6078,6 +6108,12 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expanding embedded secrets for identifier:%s hostUUID:%s", parts[2], hostUUID))
 	}
 
+	// Interpolate Fleet variables in the declaration JSON
+	expanded, err = svc.interpolateDeclarationVariables(ctx, expanded, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "interpolating declaration variables")
+	}
+
 	var tempd map[string]any
 	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
@@ -6089,6 +6125,119 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
 	}
 	return b, nil
+}
+
+// interpolateDeclarationVariables replaces Fleet variables ($FLEET_VAR_*) in declaration JSON
+// with their resolved per-host values using JSON-safe escaping.
+func (svc *MDMAppleDDMService) interpolateDeclarationVariables(ctx context.Context, contents string, hostUUID string) (string, error) {
+	fleetVars := variables.Find(contents)
+	if len(fleetVars) == 0 {
+		return contents, nil
+	}
+
+	var hostLite fleet.Host
+	hostLite.UUID = hostUUID
+	hostIDForUUIDCache := make(map[string]uint)
+
+	onHostCountMismatch := func(count int) error {
+		return fmt.Errorf("unexpected number of hosts (%d) for UUID %s", count, hostUUID)
+	}
+	onVarError := func(errMsg string) error {
+		return &fleet.BadRequestError{Message: errMsg}
+	}
+
+	for _, fleetVar := range fleetVars {
+		var rx *regexp.Regexp
+		var value string
+
+		switch {
+		case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):
+			emails, err := svc.ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting host IDP emails")
+			}
+			if len(emails) == 0 {
+				return "", &fleet.BadRequestError{Message: fmt.Sprintf("There is no IdP email for this host. "+
+					"Fleet couldn't populate $FLEET_VAR_%s. "+
+					"[Learn more](https://fleetdm.com/learn-more-about/idp-email)",
+					fleet.FleetVarHostEndUserEmailIDP)}
+			}
+			rx = fleetVarHostEndUserEmailIDPRegexp
+			value = emails[0]
+
+		case fleetVar == string(fleet.FleetVarHostHardwareSerial):
+			var ok bool
+			var err error
+			hostLite, ok, err = profiles.HydrateHost(ctx, svc.ds, hostLite, onHostCountMismatch)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting host hardware serial")
+			}
+			if !ok {
+				continue
+			}
+			rx = fleet.FleetVarHostHardwareSerialRegexp
+			value = hostLite.HardwareSerial
+
+		case fleetVar == string(fleet.FleetVarHostPlatform):
+			var ok bool
+			var err error
+			hostLite, ok, err = profiles.HydrateHost(ctx, svc.ds, hostLite, onHostCountMismatch)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting host platform")
+			}
+			if !ok {
+				continue
+			}
+			rx = fleet.FleetVarHostPlatformRegexp
+			platform := hostLite.Platform
+			if platform == "darwin" {
+				platform = "macos"
+			}
+			value = platform
+
+		case fleetVar == string(fleet.FleetVarHostUUID):
+			rx = fleet.FleetVarHostUUIDRegexp
+			value = hostUUID
+
+		case fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
+			fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
+			fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
+			user, ok, err := profiles.GetHostEndUserIDPUser(ctx, svc.ds, hostUUID, fleetVar, hostIDForUUIDCache, onVarError)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting host end user IDP variables")
+			}
+			if !ok {
+				continue
+			}
+			switch fleetVar {
+			case string(fleet.FleetVarHostEndUserIDPUsername):
+				rx = fleet.FleetVarHostEndUserIDPUsernameRegexp
+				value = user.IdpUserName
+			case string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
+				rx = fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp
+				local, _, _ := strings.Cut(user.IdpUserName, "@")
+				value = local
+			case string(fleet.FleetVarHostEndUserIDPGroups):
+				rx = fleet.FleetVarHostEndUserIDPGroupsRegexp
+				value = strings.Join(user.IdpGroups, ",")
+			case string(fleet.FleetVarHostEndUserIDPDepartment):
+				rx = fleet.FleetVarHostEndUserIDPDepartmentRegexp
+				value = user.Department
+			case string(fleet.FleetVarHostEndUserIDPFullname):
+				rx = fleet.FleetVarHostEndUserIDPFullnameRegexp
+				value = strings.TrimSpace(user.IdpFullName)
+			}
+
+		default:
+			continue
+		}
+
+		if rx != nil {
+			contents = profiles.ReplaceFleetVariableInJSON(rx, contents, value)
+		}
+	}
+
+	return contents, nil
 }
 
 func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement) error {

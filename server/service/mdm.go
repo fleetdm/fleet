@@ -2301,9 +2301,14 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		}
 	}
 	for _, p := range appleDecls {
-		err = validateDeclarationFleetVariables(string(p.RawJSON))
+		declVars, err := validateDeclarationFleetVariables(string(p.RawJSON))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
+		}
+		if len(declVars) > 0 {
+			// Use a "decl:" prefix to avoid collisions with Apple profile identifiers
+			// in the shared map, since both use reverse-domain identifiers.
+			profileVarsByProfIdentifier["decl:"+p.Identifier] = declVars
 		}
 	}
 	return profileVarsByProfIdentifier, nil

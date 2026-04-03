@@ -407,4 +407,102 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		require.Contains(t, activationTokens, token7)
 		require.Contains(t, activationTokens, token8)
 	})
+
+	t.Run("VariablesUpdatedAtTokenParity", func(t *testing.T) {
+		// This test verifies that the sync token computed by MySQL (MDMAppleDDMDeclarationsToken)
+		// matches the one computed by Go (handleDeclarationItems) when variables_updated_at is set.
+		// This is critical because any format mismatch between MySQL's IFNULL(datetime6, '')
+		// and Go's time.Format would cause the device to constantly re-sync.
+		hostUUID := "test-host-uuid-vartoken"
+		hardwareSerial := "ABC-VARTOKEN"
+
+		createHost(t, hostUUID, hardwareSerial)
+		setupDeviceAndEnrollment(t, hostUUID, hardwareSerial)
+
+		// Create two declarations
+		decl1 := createDeclaration(t, "test-decl-vartoken-1", "Test Decl VarToken 1", "com.example.vartoken.1")
+		decl2 := createDeclaration(t, "test-decl-vartoken-2", "Test Decl VarToken 2", "com.example.vartoken.2")
+
+		// Insert host declarations
+		insertHostDeclaration(t, hostUUID, decl1.DeclarationUUID, "pending", "install", decl1.Identifier)
+		insertHostDeclaration(t, hostUUID, decl2.DeclarationUUID, "pending", "install", decl2.Identifier)
+
+		// Case 1: variables_updated_at is NULL for both — baseline parity check
+		expectedToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		require.NoError(t, err)
+		response := callDeclarativeManagementAndVerify(t, hostUUID, 2, 2)
+		require.Equal(t, expectedToken.DeclarationsToken, response.DeclarationsToken,
+			"token mismatch with NULL variables_updated_at")
+		baselineToken := response.DeclarationsToken
+
+		// Case 2: Set variables_updated_at with non-zero microseconds on one declaration
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_declarations
+				SET variables_updated_at = '2026-04-03 12:34:56.123456'
+				WHERE host_uuid = ? AND declaration_uuid = ?`,
+				hostUUID, decl1.DeclarationUUID)
+			return err
+		})
+
+		expectedToken, err = ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		require.NoError(t, err)
+		response = callDeclarativeManagementAndVerify(t, hostUUID, 2, 2)
+		require.Equal(t, expectedToken.DeclarationsToken, response.DeclarationsToken,
+			"token mismatch with non-zero microseconds variables_updated_at")
+		require.NotEqual(t, baselineToken, response.DeclarationsToken,
+			"token should change when variables_updated_at is set")
+
+		// Case 3: Set variables_updated_at with zero microseconds (edge case —
+		// MySQL may render differently with .000000 vs without)
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_declarations
+				SET variables_updated_at = '2026-04-03 12:34:56.000000'
+				WHERE host_uuid = ? AND declaration_uuid = ?`,
+				hostUUID, decl1.DeclarationUUID)
+			return err
+		})
+
+		expectedToken, err = ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		require.NoError(t, err)
+		response = callDeclarativeManagementAndVerify(t, hostUUID, 2, 2)
+		require.Equal(t, expectedToken.DeclarationsToken, response.DeclarationsToken,
+			"token mismatch with zero-microsecond variables_updated_at")
+
+		// Case 4: Set variables_updated_at on BOTH declarations
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_declarations
+				SET variables_updated_at = '2026-04-03 18:00:00.999999'
+				WHERE host_uuid = ? AND declaration_uuid = ?`,
+				hostUUID, decl2.DeclarationUUID)
+			return err
+		})
+
+		expectedToken, err = ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		require.NoError(t, err)
+		response = callDeclarativeManagementAndVerify(t, hostUUID, 2, 2)
+		require.Equal(t, expectedToken.DeclarationsToken, response.DeclarationsToken,
+			"token mismatch with variables_updated_at on both declarations")
+
+		// Case 5: Clear variables_updated_at back to NULL — token should return to a
+		// value different from case 4 (since the variable timestamps were part of the hash)
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_declarations
+				SET variables_updated_at = NULL
+				WHERE host_uuid = ?`,
+				hostUUID)
+			return err
+		})
+
+		expectedToken, err = ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+		require.NoError(t, err)
+		response = callDeclarativeManagementAndVerify(t, hostUUID, 2, 2)
+		require.Equal(t, expectedToken.DeclarationsToken, response.DeclarationsToken,
+			"token mismatch after clearing variables_updated_at back to NULL")
+		require.Equal(t, baselineToken, response.DeclarationsToken,
+			"token should return to baseline when variables_updated_at is cleared")
+	})
 }

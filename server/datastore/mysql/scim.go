@@ -1317,12 +1317,34 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		fv.name IN (:affected_vars)
 `
 
+	const declarationUpdateStatusQuery = `
+	UPDATE
+		host_mdm_apple_declarations hmad
+		JOIN hosts h
+			ON h.uuid = hmad.host_uuid
+		JOIN mdm_apple_declarations mad
+			ON (mad.team_id = h.team_id OR (COALESCE(mad.team_id, 0) = 0 AND h.team_id IS NULL)) AND
+				 mad.declaration_uuid = hmad.declaration_uuid
+		JOIN mdm_declaration_variables mdv
+			ON mdv.declaration_uuid = mad.declaration_uuid
+		JOIN fleet_variables fv
+			ON mdv.fleet_variable_id = fv.id
+	SET
+		hmad.status = NULL,
+		hmad.variables_updated_at = NOW(6)
+	WHERE
+		h.id IN (:host_ids) AND
+		hmad.operation_type = :operation_type_install AND
+		hmad.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
 	vars := make([]any, len(affectedVars))
 	for i, v := range affectedVars {
 		vars[i] = "FLEET_VAR_" + string(v)
 	}
 
-	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery} {
+	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery} {
 		updateStmt, args, err := sqlx.Named(query, map[string]any{
 			"host_ids":               hostIDs,
 			"operation_type_install": fleet.MDMOperationTypeInstall,
