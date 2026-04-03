@@ -401,7 +401,7 @@ controls:
           - Engineering
           - Product
   windows_settings:
-    cconfiguration_profiles:
+    configuration_profiles:
       - path: ../lib/windows-profile.xml
   android_settings:
     configuration_profiles:
