@@ -37,6 +37,9 @@ var (
 )
 
 func (s *Service) ValidateChallenge(ctx context.Context, enrollment *types.Enrollment, account *types.Account, challengeID uint, payload string) (*types.ChallengeResponse, error) {
+	ctx, span := tracer.Start(ctx, "acme.service.ValidateChallenge")
+	defer span.End()
+
 	challenge, err := s.store.GetChallengeByID(ctx, account.ID, challengeID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting challenge by ID")
