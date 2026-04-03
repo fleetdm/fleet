@@ -133,9 +133,25 @@ const PolicyForm = ({
   const [newPolicyType, setNewPolicyType] = useState<"query" | "mdm">("query");
   const isNewMdmPolicy = !policyIdForEdit && newPolicyType === "mdm";
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
-  const [mdmChecks, setMdmChecks] = useState<IMDMPolicyCheck[]>([
-    { field: "", operator: "eq", expected: "" },
-  ]);
+  const [mdmChecks, setMdmChecks] = useState<IMDMPolicyCheck[]>(() => {
+    if (storedPolicy?.type === "mdm" && storedPolicy?.mdm_check_definition) {
+      const checks = storedPolicy.mdm_check_definition;
+      if (Array.isArray(checks) && checks.length > 0) {
+        return checks;
+      }
+      if (typeof checks === "string") {
+        try {
+          const parsed = JSON.parse(checks);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch {
+          // fall through to default
+        }
+      }
+    }
+    return [{ field: "", operator: "eq", expected: "" }];
+  });
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id

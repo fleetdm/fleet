@@ -52,6 +52,7 @@ export interface IPolicy {
   patch_software?: IPolicySoftwareToInstall;
   labels_include_any?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
+  mdm_check_definition?: IMDMPolicyCheck[] | null;
 }
 export interface IPolicySoftwareToInstall {
   name: string;
