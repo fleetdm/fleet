@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -172,28 +173,45 @@ func (ds *Datastore) GetHostCertificateTemplateRecord(ctx context.Context, hostU
 	return &result, nil
 }
 
-// GetCertificateTemplateStatusesByNameForHost returns a map of certificate template
-// name -> status for all certificate templates assigned to this host.
-// Only install records are considered; pending-remove rows are excluded so that the
-// name-to-status mapping is deterministic when both exist for the same template name.
-func (ds *Datastore) GetCertificateTemplateStatusesByNameForHost(ctx context.Context, hostUUID string) (map[string]fleet.CertificateTemplateStatus, error) {
-	const stmt = `
-		SELECT ct.name, hct.status
-		FROM host_certificate_templates hct
-		JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
-		WHERE hct.host_uuid = ? AND hct.operation_type = ?
-	`
-	var rows []struct {
-		Name   string `db:"name"`
-		Status string `db:"status"`
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get certificate template statuses by name for host")
+// GetCertificateTemplateStatusesByNameForHosts returns cert template statuses keyed by
+// host UUID and template name for all given hosts in a single query. Only install records
+// are considered; pending-remove rows are excluded so that the name-to-status mapping is
+// deterministic when both exist for the same template name.
+func (ds *Datastore) GetCertificateTemplateStatusesByNameForHosts(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
 	}
 
-	result := make(map[string]fleet.CertificateTemplateStatus, len(rows))
-	for _, r := range rows {
-		result[r.Name] = fleet.CertificateTemplateStatus(r.Status)
+	result := make(map[string]map[string]fleet.CertificateTemplateStatus, len(hostUUIDs))
+	if err := platform_mysql.BatchProcessSimple(hostUUIDs, 5000, func(batch []string) error {
+		stmt, args, err := sqlx.In(`
+			SELECT hct.host_uuid, ct.name, hct.status
+			FROM host_certificate_templates hct
+			JOIN certificate_templates ct ON ct.id = hct.certificate_template_id
+			WHERE hct.host_uuid IN (?) AND hct.operation_type = ?
+		`, batch, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build IN query for cert template statuses")
+		}
+
+		var rows []struct {
+			HostUUID string `db:"host_uuid"`
+			Name     string `db:"name"`
+			Status   string `db:"status"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get certificate template statuses by name for hosts")
+		}
+
+		for _, r := range rows {
+			if result[r.HostUUID] == nil {
+				result[r.HostUUID] = make(map[string]fleet.CertificateTemplateStatus)
+			}
+			result[r.HostUUID][r.Name] = fleet.CertificateTemplateStatus(r.Status)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return result, nil
 }

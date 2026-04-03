@@ -117,10 +117,21 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 		toRemoveByHostUUID[prof.HostUUID] = append(toRemoveByHostUUID[prof.HostUUID], prof)
 	}
 
+	// Extract ONC cert aliases once for all hosts (profile contents are shared),
+	// then batch-fetch cert statuses for all hosts in a single DB query.
+	certAliases := extractProfileCertAliases(ctx, r.Logger, profilesContents)
+	var allCertStatuses map[string]map[string]fleet.CertificateTemplateStatus
+	if len(certAliases) > 0 {
+		allCertStatuses, err = r.DS.GetCertificateTemplateStatusesByNameForHosts(ctx, slices.Collect(maps.Keys(profilesByHostUUID)))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch get certificate template statuses")
+		}
+	}
+
 	var bulkHostProfs []*fleet.MDMAndroidProfilePayload
 	for hostUUID, toInstallProfs := range profilesByHostUUID {
 		toRemove := toRemoveByHostUUID[hostUUID]
-		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, toInstallProfs, toRemove, profilesContents)
+		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, toInstallProfs, toRemove, profilesContents, certAliases, allCertStatuses[hostUUID])
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "send profiles for host %s", hostUUID)
 		}
@@ -130,7 +141,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 
 	// if there are hosts with only profiles to remove, process them too
 	for hostUUID, toRemove := range toRemoveByHostUUID {
-		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, nil, toRemove, nil)
+		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, nil, toRemove, nil, nil, nil)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "send profiles for host %s", hostUUID)
 		}
@@ -149,6 +160,8 @@ func (r *profileReconciler) sendHostProfiles(
 	profilesToMerge []*fleet.MDMAndroidProfilePayload,
 	profilesToRemove []*fleet.MDMAndroidProfilePayload,
 	profilesContents map[string]json.RawMessage,
+	certAliases map[string][]string,
+	certStatuses map[string]fleet.CertificateTemplateStatus,
 ) ([]*fleet.MDMAndroidProfilePayload, error) {
 	const maxRequestFailures = 3
 
@@ -163,15 +176,11 @@ func (r *profileReconciler) sendHostProfiles(
 	})
 
 	// Withhold profiles whose openNetworkConfiguration references certificates
-	// that are not yet verified or terminally failed on this host. This ensures
-	// Wi-Fi/VPN/Ethernet configs are only applied after referenced certificates
-	// are installed.
+	// that are not yet verified or terminally failed on this host.
 	var withheldProfiles []*fleet.MDMAndroidProfilePayload
-	certStatuses, err := r.DS.GetCertificateTemplateStatusesByNameForHost(ctx, hostUUID)
-	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "get certificate template statuses for host %s", hostUUID)
+	if len(certAliases) > 0 {
+		profilesToMerge, withheldProfiles = filterProfilesWithPendingCerts(profilesToMerge, certAliases, certStatuses)
 	}
-	profilesToMerge, withheldProfiles = filterProfilesWithPendingCerts(profilesToMerge, profilesContents, certStatuses)
 
 	// map of the bulk struct keyed by profile UUID
 	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidProfilePayload, len(profilesToMerge)+len(profilesToRemove)+len(withheldProfiles))
@@ -442,31 +451,38 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 	return fmt.Sprintf(sb.String(), args...)
 }
 
+// profileCertAliases holds the extracted cert aliases (or parse error) for a profile.
+// extractProfileCertAliases parses ONC cert aliases from all profile contents upfront.
+// Returns a non-empty map only if at least one profile has aliases.
+func extractProfileCertAliases(ctx context.Context, logger *slog.Logger, profilesContents map[string]json.RawMessage) map[string][]string {
+	result := make(map[string][]string)
+	for profileUUID, content := range profilesContents {
+		aliases, err := android.ExtractCertAliasesFromProfileJSON(content)
+		if err != nil {
+			// Should not happen since profiles are validated on upload.
+			logger.ErrorContext(ctx, "failed to extract ONC cert aliases from profile", "profile.uuid", profileUUID, "err", err)
+			ctxerr.Handle(ctx, err)
+			continue
+		}
+		if len(aliases) > 0 {
+			result[profileUUID] = aliases
+		}
+	}
+	return result
+}
+
 // filterProfilesWithPendingCerts separates profiles into those ready to merge
 // and those that should be withheld because they contain openNetworkConfiguration
 // with ClientCertKeyPairAlias references to certificates not yet in a terminal
 // state (verified or failed) on the host.
 func filterProfilesWithPendingCerts(
 	profiles []*fleet.MDMAndroidProfilePayload,
-	profilesContents map[string]json.RawMessage,
+	profileAliases map[string][]string,
 	certStatuses map[string]fleet.CertificateTemplateStatus,
 ) (ready, withheld []*fleet.MDMAndroidProfilePayload) {
 	for _, prof := range profiles {
-		content, ok := profilesContents[prof.ProfileUUID]
+		aliases, ok := profileAliases[prof.ProfileUUID]
 		if !ok {
-			ready = append(ready, prof)
-			continue
-		}
-
-		aliases, err := android.ExtractCertAliasesFromProfileJSON(content)
-		if err != nil {
-			// Fail closed: if we can't parse the ONC content, withhold the profile
-			// rather than risk delivering it without certificate gating.
-			prof.Detail = "Failed to parse openNetworkConfiguration for certificate references; withholding profile until parsing succeeds."
-			withheld = append(withheld, prof)
-			continue
-		}
-		if len(aliases) == 0 {
 			ready = append(ready, prof)
 			continue
 		}

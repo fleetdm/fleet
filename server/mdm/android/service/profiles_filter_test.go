@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -39,6 +40,10 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 		return payload, content
 	}
 
+	filter := func(profiles []*fleet.MDMAndroidProfilePayload, contents map[string]json.RawMessage, certStatuses map[string]fleet.CertificateTemplateStatus) (ready, withheld []*fleet.MDMAndroidProfilePayload) {
+		return filterProfilesWithPendingCerts(profiles, extractProfileCertAliases(t.Context(), slog.Default(), contents), certStatuses)
+	}
+
 	t.Run("pending cert withholds ONC profile", func(t *testing.T) {
 		prof, content := oncProfile("p1", "wifi-profile", "my-cert")
 		profiles := []*fleet.MDMAndroidProfilePayload{prof}
@@ -47,7 +52,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 			"my-cert": fleet.CertificateTemplatePending,
 		}
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Empty(t, ready)
 		require.Len(t, withheld, 1)
 		assert.Contains(t, withheld[0].Detail, `Waiting for certificate "my-cert"`)
@@ -61,7 +66,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 			"my-cert": fleet.CertificateTemplateDelivering,
 		}
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Empty(t, ready)
 		require.Len(t, withheld, 1)
 	})
@@ -74,7 +79,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 			"my-cert": fleet.CertificateTemplateDelivered,
 		}
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Empty(t, ready)
 		require.Len(t, withheld, 1)
 	})
@@ -87,7 +92,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 			"my-cert": fleet.CertificateTemplateVerified,
 		}
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Len(t, ready, 1)
 		require.Empty(t, withheld)
 	})
@@ -100,7 +105,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 			"my-cert": fleet.CertificateTemplateFailed,
 		}
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Len(t, ready, 1)
 		require.Empty(t, withheld)
 	})
@@ -111,7 +116,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 		contents := map[string]json.RawMessage{"p1": content}
 		certStatuses := map[string]fleet.CertificateTemplateStatus{}
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Len(t, ready, 1)
 		require.Empty(t, withheld)
 	})
@@ -124,7 +129,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 			"my-cert": fleet.CertificateTemplatePending,
 		}
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Len(t, ready, 1)
 		require.Empty(t, withheld)
 	})
@@ -141,7 +146,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 			"my-cert": fleet.CertificateTemplatePending,
 		}
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Len(t, ready, 1)
 		assert.Equal(t, "p2", ready[0].ProfileUUID)
 		require.Len(t, withheld, 1)
@@ -169,16 +174,15 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 			"cert-a": fleet.CertificateTemplateVerified,
 			"cert-b": fleet.CertificateTemplatePending,
 		}
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld := filter(profiles, contents, certStatuses)
 		require.Empty(t, ready)
 		require.Len(t, withheld, 1)
 		assert.Contains(t, withheld[0].Detail, `"cert-b"`)
 
 		// both verified: release
 		certStatuses["cert-b"] = fleet.CertificateTemplateVerified
-		// reset the Detail field
 		payload.Detail = ""
-		ready, withheld = filterProfilesWithPendingCerts(profiles, contents, certStatuses)
+		ready, withheld = filter(profiles, contents, certStatuses)
 		require.Len(t, ready, 1)
 		require.Empty(t, withheld)
 	})
@@ -191,7 +195,7 @@ func TestFilterProfilesWithPendingCerts(t *testing.T) {
 		profiles := []*fleet.MDMAndroidProfilePayload{prof}
 		contents := map[string]json.RawMessage{} // no content for p1
 
-		ready, withheld := filterProfilesWithPendingCerts(profiles, contents, nil)
+		ready, withheld := filter(profiles, contents, nil)
 		require.Len(t, ready, 1)
 		require.Empty(t, withheld)
 	})
