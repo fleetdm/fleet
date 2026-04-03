@@ -282,9 +282,7 @@ const SaveNewPolicyModal = ({
             onChange={(value: string) => setLastEditedQueryDescription(value)}
             value={lastEditedQueryDescription}
             inputClassName={`${baseClass}__policy-save-modal-description`}
-            label={
-              isMdmType ? "Description" : renderAutofillLabel("Description")
-            }
+            label={renderAutofillLabel("Description")}
             helpText="How does this policy's failure put the organization at risk?"
             type="textarea"
             disabled={disableForm}
@@ -294,13 +292,22 @@ const SaveNewPolicyModal = ({
             onChange={(value: string) => setLastEditedQueryResolution(value)}
             value={lastEditedQueryResolution}
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
-            label={isMdmType ? "Resolution" : renderAutofillLabel("Resolution")}
+            label={renderAutofillLabel("Resolution")}
             type="textarea"
             helpText="If this policy fails, what should the end user expect?"
             disabled={disableForm}
           />
-          {!isMdmType && platformSelector.render()}
-          {!isMdmType && isPremiumTier && (
+          {isMdmType ? (
+            <div className={`${baseClass}__mdm-platform-info`}>
+              <label className="form-field__label">Target</label>
+              <p className="form-field__help-text">
+                iOS and iPadOS (automatically selected for MDM policies)
+              </p>
+            </div>
+          ) : (
+            platformSelector.render()
+          )}
+          {isPremiumTier && (
             <TargetLabelSelector
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
