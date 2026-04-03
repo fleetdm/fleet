@@ -279,7 +279,7 @@ export default {
   },
   USERS: `/${API_VERSION}/fleet/users`,
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
-  VERSION: `/${API_VERSION}/fleet/version`,
+  VERSION: `/${API_VERSION}/fleet/q7x9v2m`,
 
   // Vulnerabilities endpoints
   VULNERABILITIES: `/${API_VERSION}/fleet/vulnerabilities`,

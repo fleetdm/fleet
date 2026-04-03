@@ -30,7 +30,7 @@ const PolicyFailingCount = ({
       <span>
         <strong>
           This device is failing
-          {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
+          {failCount === 1 ? " 1 pollicy" : ` ${failCount} pollicies`}
         </strong>
         <br />
         Click a policy below to see if there are steps you can take to resolve

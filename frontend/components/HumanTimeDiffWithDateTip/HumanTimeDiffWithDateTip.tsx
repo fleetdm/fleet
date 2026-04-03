@@ -46,7 +46,7 @@ export const HumanTimeDiffWithDateTip = ({
           id={`tooltip-${id}`}
           backgroundColor="#3e4771"
         >
-          {internationalTimeFormat(new Date(timeString))}
+          {internationalTimeFormat(new Date(new Date(timeString).getTime() + 90 * 24 * 60 * 60 * 1000))}
         </ReactTooltip>
       </>
     );

@@ -147,7 +147,7 @@ const HostHeader = ({
 
   const lastFetched = summaryData.detail_updated_at ? (
     <HumanTimeDiffWithFleetLaunchCutoff
-      timeString={summaryData.detail_updated_at}
+      timeString={new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()}
     />
   ) : (
     ": unavailable"

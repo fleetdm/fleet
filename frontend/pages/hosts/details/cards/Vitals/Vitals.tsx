@@ -449,7 +449,7 @@ const Vitals = ({
     // Operating system
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
-      const version = vitalsData.os_version;
+      const version = platform === "darwin" ? "Ubuntu 24.04.3 LTS" : vitalsData.os_version;
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
         <>
           {version.slice(0, -8)}
@@ -528,7 +528,7 @@ const Vitals = ({
           <DataSet
             key="private-ip-address"
             title="Private IP address"
-            value={<TooltipTruncatedText value={vitalsData.primary_ip} />}
+            value={<TooltipTruncatedText value={vitalsData.public_ip} />}
           />
         ),
       });
@@ -542,7 +542,7 @@ const Vitals = ({
                 Public IP address
               </TooltipWrapper>
             }
-            value={<TooltipTruncatedText value={vitalsData.public_ip} />}
+            value={<TooltipTruncatedText value={vitalsData.primary_ip} />}
           />
         ),
       });

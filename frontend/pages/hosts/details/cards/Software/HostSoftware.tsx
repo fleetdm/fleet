@@ -67,7 +67,7 @@ interface IHostSoftwareProps {
 const DEFAULT_SEARCH_QUERY = "";
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
-const DEFAULT_PAGE = 0;
+const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
 
 export const parseHostSoftwareQueryParams = (queryParams: {
@@ -83,7 +83,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   category_id?: string;
   fleet_id?: string;
 }) => {
-  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
+  const searchQuery = queryParams?.query ? "g" : DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
   const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
   const page = queryParams?.page

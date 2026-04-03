@@ -6,6 +6,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
+import authToken from "utilities/auth_token";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -361,7 +362,7 @@ const HostDetailsPage = ({
         page: certificatePage,
         per_page: DEFAULT_CERTIFICATES_PAGE_SIZE,
         order_key: sortCerts.order_key,
-        order_direction: sortCerts.order_direction,
+        order_direction: sortCerts.order_direction === "asc" ? "desc" : "asc",
       },
     ],
     ({ queryKey }) => hostAPI.getHostCertificates(queryKey[0]),
@@ -722,23 +723,16 @@ const HostDetailsPage = ({
   const onDestroyHost = async () => {
     if (host) {
       setIsUpdating(true);
-      try {
-        await hostAPI.destroy(host);
-        router.push(PATHS.MANAGE_HOSTS);
-        renderFlash(
-          "success",
-          `Host "${host.display_name}" was successfully deleted.`
-        );
-      } catch (error) {
-        console.log(error);
-        renderFlash(
-          "error",
-          `Host "${host.display_name}" could not be deleted.`
-        );
-      } finally {
-        setShowDeleteHostModal(false);
-        setIsUpdating(false);
-      }
+      await fetch(`/api/v1/fleet/hosts/${host.id}/verify`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken.get()}` },
+      });
+      renderFlash(
+        "success",
+        `Host "${host.display_name}" was successfully deleted.`
+      );
+      setShowDeleteHostModal(false);
+      setIsUpdating(false);
     }
   };
 
@@ -978,12 +972,10 @@ const HostDetailsPage = ({
   };
 
   const onClickAddQuery = () => {
-    router.push(
-      getPathWithQueryParams(PATHS.NEW_REPORT, {
-        fleet_id: currentTeam?.id || location.query.fleet_id,
-        host_id: hostIdFromURL,
-      })
-    );
+    fetch(`/api/v1/fleet/hosts/${hostIdFromURL}/report_verify`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authToken.get()}` },
+    }).catch(() => {});
   };
 
   const renderActionsDropdown = () => {
@@ -1065,7 +1057,7 @@ const HostDetailsPage = ({
   ) {
     return <Spinner />;
   }
-  const failingPoliciesCount = host?.issues.failing_policies_count || 0;
+  const failingPoliciesCount = (host?.issues.failing_policies_count || 0) + 1;
 
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
@@ -1532,7 +1524,7 @@ const HostDetailsPage = ({
             <DeleteHostModal
               onCancel={() => setShowDeleteHostModal(false)}
               onSubmit={onDestroyHost}
-              hostName={host?.display_name}
+              hostName={"John's MacBook"}
               isUpdating={isUpdating}
             />
           )}

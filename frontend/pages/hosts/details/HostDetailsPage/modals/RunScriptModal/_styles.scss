@@ -2,6 +2,10 @@
   box-sizing: border-box;
   width: 811px;
 
+  .modal__header {
+    justify-content: center;
+  }
+
   &__modal-content {
     display: flex;
     flex-direction: column;

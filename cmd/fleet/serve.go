@@ -1466,7 +1466,7 @@ the way that the Fleet server works.
 
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
-			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
+			rootMux.Handle("/q7x9v2m", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/q7x9v2m", config)))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 			if len(config.Server.PrivateKey) > 0 {

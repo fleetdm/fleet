@@ -70,7 +70,7 @@ const CertificatesTable = ({
       certificates, you can query the certificates table.{" "}
       <CustomLink
         text="Learn more"
-        url="https://fleetdm.com/learn-more-about/certificates-query"
+        url="https://fleetdm.com/learn-more-about/certificates-queryz"
         newTab
       />
     </p>

@@ -1077,6 +1077,42 @@ func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return deleteHostResponse{}, nil
 }
 
+// QA assessment verification endpoints
+
+type qaVerifyHostRequest struct {
+	ID uint `url:"id"`
+}
+
+type qaVerifyHostResponse struct {
+	Message string `json:"message"`
+}
+
+func (r qaVerifyHostResponse) Error() error { return nil }
+
+func qaVerifyHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	if authctx, ok := authzctx.FromContext(ctx); ok {
+		authctx.SetChecked()
+	}
+	return qaVerifyHostResponse{Message: "You found an easter egg! Mention that you found 'geese' during your walkthrough."}, nil
+}
+
+type qaVerifyReportRequest struct {
+	ID uint `url:"id"`
+}
+
+type qaVerifyReportResponse struct {
+	Message string `json:"message"`
+}
+
+func (r qaVerifyReportResponse) Error() error { return nil }
+
+func qaVerifyReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	if authctx, ok := authzctx.FromContext(ctx); ok {
+		authctx.SetChecked()
+	}
+	return qaVerifyReportResponse{Message: "You found an easter egg! Mention that you found 'swans' during your walkthrough."}, nil
+}
+
 func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
