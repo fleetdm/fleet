@@ -185,6 +185,23 @@ func (r *profileReconciler) sendHostProfiles(
 	// map of the bulk struct keyed by profile UUID
 	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidProfilePayload, len(profilesToMerge)+len(profilesToRemove)+len(withheldProfiles))
 
+	// appendWithheld adds withheld profiles to the result. Called before every return
+	// so they're always persisted, but after the policy patch loop so they don't get
+	// policy request metadata set on them.
+	appendWithheld := func() {
+		for _, prof := range withheldProfiles {
+			status := fleet.MDMDeliveryPending
+			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
+				HostUUID:      hostUUID,
+				Status:        &status,
+				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:   prof.ProfileUUID,
+				ProfileName:   prof.ProfileName,
+				Detail:        prof.Detail,
+			}
+		}
+	}
+
 	// if every profile to install has > max failures, mark all as failed and done.
 	setFailCount := initRequestFailCountForSetOfProfiles(profilesToMerge, profilesToRemove)
 	if setFailCount >= maxRequestFailures {
@@ -231,6 +248,7 @@ func (r *profileReconciler) sendHostProfiles(
 				Detail:        detail,
 			}
 		}
+		appendWithheld()
 		return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
 	}
 
@@ -338,6 +356,7 @@ func (r *profileReconciler) sendHostProfiles(
 		}
 	}
 	if patchPolicyReqFailed {
+		appendWithheld()
 		return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
 	}
 
@@ -389,20 +408,7 @@ func (r *profileReconciler) sendHostProfiles(
 		}
 	}
 
-	// Add withheld profiles after policy/device patching so they don't get
-	// policy request metadata set on them.
-	for _, prof := range withheldProfiles {
-		status := fleet.MDMDeliveryPending
-		bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
-			HostUUID:      hostUUID,
-			Status:        &status,
-			OperationType: fleet.MDMOperationTypeInstall,
-			ProfileUUID:   prof.ProfileUUID,
-			ProfileName:   prof.ProfileName,
-			Detail:        prof.Detail,
-		}
-	}
-
+	appendWithheld()
 	return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
 }
 
