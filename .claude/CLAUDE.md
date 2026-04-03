@@ -24,3 +24,20 @@ MYSQL_TEST=1 go test -run TestFunctionName ./server/datastore/mysql/...
 - Use `t.Context()` in tests instead of `context.Background()`.
 - Use `any` instead of `interface{}`
 - Use `math/rand/v2` instead of `math/rand`.
+- Use `for i := range 10` style loops instead of `for i := 0; i < 10; i++` to loop over integers
+
+## DB Migrations
+
+Use the following command to create a new migration
+
+```bash
+# Make a new migration named MyMigration(add your actual migration name)
+make migration name=MyMigration
+```
+
+Your new migration will be created under server/datastore/mysql/migrations/tables/[timestam]_MyMigration.go along with a corresponding _test.go file
+Add your migration and test code to those files, then regenerate the DB schema file(used for tests):
+```bash
+make test-schema
+```
+
