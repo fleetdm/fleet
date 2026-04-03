@@ -123,6 +123,7 @@ const Vitals = ({
   const {
     platform,
     os_version,
+    mdm_enrollment_hardware_attested,
     disk_encryption_enabled: diskEncryptionEnabled,
   } = vitalsData;
 
@@ -381,6 +382,24 @@ const Vitals = ({
             key="location"
             title="Location"
             value={geoLocationButton}
+          />
+        ),
+      });
+    }
+
+    // MDM attestation
+    if (mdm_enrollment_hardware_attested) {
+      vitals.push({
+        sortKey: "MDM attestation",
+        element: (
+          <DataSet
+            key="mdm-attestation"
+            title="MDM attestation"
+            value={
+              <TooltipWrapper tipContent="Host provided a Managed Device Attestation signed by Apple at enrollment.">
+                Yes
+              </TooltipWrapper>
+            }
           />
         ),
       });
