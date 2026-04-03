@@ -291,9 +291,9 @@ const MDMCheckBuilder = ({
       <div className={`${baseClass}__preview`}>
         <span className={`${baseClass}__preview-label`}>Preview:</span>
         <span className={`${baseClass}__preview-text`}>
-          {validChecks.map((c) => (
+          {validChecks.map((c, idx) => (
             <span key={`${c.field}-${c.operator}-${c.expected}`}>
-              {i > 0 && <strong> AND </strong>}
+              {idx > 0 && <strong> AND </strong>}
               {getFieldLabel(c.field)} {getOperatorLabel(c.operator)}{" "}
               <em>{c.expected}</em>
             </span>
