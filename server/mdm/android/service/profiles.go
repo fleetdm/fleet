@@ -506,7 +506,7 @@ func filterProfilesWithPendingCerts(
 
 		if shouldWithhold {
 			prof.Detail = fmt.Sprintf(
-				"Waiting for certificate %q to be installed on the host before applying this profile.",
+				fleet.ONCProfileWithheldDetailPrefix+" %q to be installed on the host before applying this profile.",
 				pendingCertName,
 			)
 			withheld = append(withheld, prof)

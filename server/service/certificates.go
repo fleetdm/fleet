@@ -741,7 +741,21 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 		}
 	}
 
-	return svc.ds.UpsertCertificateStatus(ctx, update)
+	if err := svc.ds.UpsertCertificateStatus(ctx, update); err != nil {
+		return err
+	}
+
+	// When a cert reaches a terminal state, re-evaluate any ONC profiles that
+	// were withheld waiting for this certificate. Return the error so the agent
+	// retries the status report -- a duplicate upsert is harmless, but failing
+	// to requeue withheld profiles would leave them stuck indefinitely.
+	if update.OperationType == fleet.MDMOperationTypeInstall {
+		if err := svc.ds.RequeueWithheldONCProfilesForHost(ctx, host.UUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "requeue withheld ONC profiles")
+		}
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

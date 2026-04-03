@@ -216,6 +216,19 @@ func (ds *Datastore) GetCertificateTemplateStatusesByNameForHosts(ctx context.Co
 	return result, nil
 }
 
+// RequeueWithheldONCProfilesForHost resets status to NULL for pending android
+// profiles on a host that were withheld waiting for a certificate, so the reconciler
+// re-evaluates them on its next run. This is called when a certificate reaches a
+// terminal state to release any ONC profiles that were withheld waiting for it.
+func (ds *Datastore) RequeueWithheldONCProfilesForHost(ctx context.Context, hostUUID string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_mdm_android_profiles SET status = NULL
+		WHERE host_uuid = ? AND status = ? AND detail LIKE ?`,
+		hostUUID, fleet.MDMDeliveryPending, fleet.ONCProfileWithheldDetailPrefix+"%",
+	)
+	return ctxerr.Wrap(ctx, err, "requeue pending android profiles for host")
+}
+
 // RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry,
 // increments retry_count, preserves the error detail, and clears challenge/cert fields.
 func (ds *Datastore) RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error {

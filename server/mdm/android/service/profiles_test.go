@@ -1330,14 +1330,10 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 		return err
 	})
 
-	// Reset the non-ONC profile to need re-delivery so the reconciler processes this host
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			"UPDATE host_mdm_android_profiles SET status = NULL WHERE host_uuid = ?",
-			host.UUID,
-		)
-		return err
-	})
+	// Simulate what the service layer does when a cert reaches terminal state:
+	// invalidate withheld profiles so the reconciler re-evaluates them.
+	err = ds.RequeueWithheldONCProfilesForHost(ctx, host.UUID)
+	require.NoError(t, err)
 
 	client.EnterprisesPoliciesPatchFuncInvoked = false
 	client.EnterprisesDevicesPatchFuncInvoked = false
@@ -1399,13 +1395,8 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 		)
 		return err
 	})
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			"UPDATE host_mdm_android_profiles SET status = NULL WHERE host_uuid = ?",
-			host.UUID,
-		)
-		return err
-	})
+	err = ds.RequeueWithheldONCProfilesForHost(ctx, host.UUID)
+	require.NoError(t, err)
 
 	err = reconciler.ReconcileProfiles(ctx)
 	require.NoError(t, err)
