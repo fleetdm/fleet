@@ -1242,6 +1242,28 @@ SELECT
 		GROUP BY executable_path
 ```
 
+## software_windows_program_files_scan
+
+- Description: A software override query[^1] to detect Windows software installed to Program Files without registry entries.
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT
+  path,
+  filename,
+  file_version,
+  product_version,
+  size
+FROM file
+WHERE (
+    path LIKE 'C:\Program Files\%\%.exe'
+    OR path LIKE 'C:\Program Files\%\%\%.exe'
+  )
+  AND path NOT LIKE 'C:\Program Files\WindowsApps\%'
+```
+
 ## system_info
 
 - Platforms: all
