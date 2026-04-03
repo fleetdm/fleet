@@ -539,6 +539,14 @@ func checkOSVVulnerabilities(
 	return results
 }
 
+const (
+	// deleteAllVulnerabilitiesTime is used with DeleteOutOfDateVulnerabilities to delete
+	// all vulnerabilities for a given source, regardless of their updated_at timestamp.
+	// DeleteOutOfDateVulnerabilities deletes records where updated_at < olderThan,
+	// so we use 100 years into the future.
+	deleteAllVulnerabilitiesTime = 100 * 365 * 24 * time.Hour
+)
+
 // cleanupStaleOSVVulnerabilities removes OSV vulnerabilities for platforms supported by OSV
 func cleanupStaleOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
 	if osvEnabled {
@@ -546,7 +554,7 @@ func cleanupStaleOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, log
 	}
 
 	logger.DebugContext(ctx, "cleaning up Ubuntu OSV vulnerabilities because OSV is disabled")
-	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOSVSource, time.Now().Add(100*365*24*time.Hour)); err != nil {
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOSVSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
 		errHandler(ctx, logger, "cleaning up Ubuntu OSV vulnerabilities", err)
 	}
 }
@@ -554,7 +562,7 @@ func cleanupStaleOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, log
 // cleanupStaleOVALVulnerabilities removes OVAL vulnerabilities for platforms supported by OSV
 func cleanupStaleOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
 	logger.DebugContext(ctx, "cleaning up Ubuntu OVAL vulnerabilities because OSV is enabled")
-	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOVALSource, time.Now().Add(100*365*24*time.Hour)); err != nil {
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOVALSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
 		errHandler(ctx, logger, "cleaning up Ubuntu OVAL vulnerabilities", err)
 	}
 }

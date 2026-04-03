@@ -137,7 +137,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 }
 
 func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
 	ds := mysql.CreateMySQLDS(t)
 
