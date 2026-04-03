@@ -299,7 +299,7 @@ const SaveNewPolicyModal = ({
           />
           {isMdmType ? (
             <div className={`${baseClass}__mdm-platform-info`}>
-              <label className="form-field__label">Target</label>
+              <span className="form-field__label">Target</span>
               <p className="form-field__help-text">
                 iOS and iPadOS (automatically selected for MDM policies)
               </p>
