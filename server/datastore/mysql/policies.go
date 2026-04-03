@@ -1066,12 +1066,10 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 }
 
 func (ds *Datastore) MDMPoliciesForHost(ctx context.Context, host *fleet.Host) ([]fleet.Policy, error) {
-	const stmt = `
-		SELECT
-			p.id, p.name, p.query, p.critical, p.description,
-			p.author_id, COALESCE(u.name, '') AS author_name, COALESCE(u.email, '') AS author_email,
-			p.team_id, p.resolution, p.platforms, p.created_at, p.updated_at,
-			p.type, p.mdm_check_definition
+	stmt := `
+		SELECT ` + policyCols + `,
+			COALESCE(u.name, '') AS author_name,
+			COALESCE(u.email, '') AS author_email
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE

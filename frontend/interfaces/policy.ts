@@ -110,6 +110,7 @@ export interface IMDMPolicyCheck {
   field: string;
   operator: string;
   expected: string;
+  source?: string;
 }
 
 export interface IPolicyFormData {

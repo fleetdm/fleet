@@ -283,6 +283,8 @@ type ModifyPolicyPayload struct {
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"-"`
+	// MDMCheckDefinition is the updated JSON definition of MDM checks for type=mdm policies.
+	MDMCheckDefinition *json.RawMessage `json:"mdm_check_definition"`
 }
 
 // Verify verifies the policy payload is valid.

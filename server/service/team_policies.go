@@ -676,6 +676,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.ConditionalAccessEnabled != nil {
 		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
 	}
+	if p.MDMCheckDefinition != nil {
+		policy.MDMCheckDefinition = p.MDMCheckDefinition
+	}
 	if removeStats {
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
