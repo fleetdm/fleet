@@ -21,12 +21,7 @@ import hostAPI, {
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
 
-import {
-  IHost,
-  IMacadminsResponse,
-  IHostResponse,
-  IHostMdmData,
-} from "interfaces/host";
+import { IHost, IMacadminsResponse, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
@@ -325,19 +320,6 @@ const HostDetailsPage = ({
     }
   );
 
-  const { data: mdm, refetch: refetchMdm } = useQuery<IHostMdmData>(
-    ["mdm", hostIdFromURL],
-    () => hostAPI.getMdm(hostIdFromURL),
-    {
-      enabled: !!hostIdFromURL,
-      retry: false,
-      onError: (err) => {
-        // no handling needed atm. data is simply not shown.
-        console.error(err);
-      },
-    }
-  );
-
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
@@ -382,7 +364,6 @@ const HostDetailsPage = ({
 
   const refetchExtensions = () => {
     macadmins !== null && refetchMacadmins();
-    mdm?.enrollment_status !== null && refetchMdm();
     hostCertificates && refetchHostCertificates();
   };
 
@@ -1175,7 +1156,7 @@ const HostDetailsPage = ({
       isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
-  const showReportsEmptyState = mdm?.enrollment_status === "Pending";
+  const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
@@ -1371,7 +1352,7 @@ const HostDetailsPage = ({
                   className={fullWidthCardClass}
                   vitalsData={vitalsData}
                   munki={macadmins?.munki}
-                  mdm={mdm}
+                  mdm={host?.mdm}
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
@@ -1768,9 +1749,10 @@ const HostDetailsPage = ({
           <MDMStatusModal
             fleetId={currentTeam?.id}
             hostId={host.id}
+            depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
-            isMacOSHost={isMacOSHost}
+            isAppleDevice={isAppleDeviceHost}
             router={router}
             onExit={toggleMDMStatusModal}
           />

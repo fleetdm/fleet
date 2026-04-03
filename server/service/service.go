@@ -48,7 +48,7 @@ type Service struct {
 
 	authz *authz.Authorizer
 
-	jitterMu *sync.Mutex
+	jitterMu *sync.RWMutex
 	jitterH  map[time.Duration]*jitterHashTable
 
 	geoIP fleet.GeoIP
@@ -172,7 +172,7 @@ func NewService(
 		failingPolicySet:  failingPolicySet,
 		authz:             authorizer,
 		jitterH:           make(map[time.Duration]*jitterHashTable),
-		jitterMu:          new(sync.Mutex),
+		jitterMu:          new(sync.RWMutex),
 		geoIP:             geoIP,
 		enrollHostLimiter: enrollHostLimiter,
 		depStorage:        depStorage,
