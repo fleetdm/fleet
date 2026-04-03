@@ -1,21 +1,21 @@
-# What outbound URLs does the Fleet server contact?
+# Outbound requests from Fleet
 
-This guide details all external URLs and API endpoints that the Fleet server makes outbound requests to. This is useful for configuring firewall rules, allowlists, and understanding Fleet's network dependencies.
+This guide lists all external URLs and API endpoints that the Fleet server makes outbound requests to. This is useful for configuring firewall rules, allowlists, and understanding Fleet's network dependencies.
 
 ## Fleet-hosted proxies
 
-Fleet routes some external API calls through proxies hosted on `fleetdm.com`. These proxies handle authentication so that Fleet server operators don't need to manage credentials for each upstream service directly.
+Fleet routes some external API calls through proxies hosted on `fleetdm.com`. These proxies manage authentication when only Fleet can access these external services.
 
 ### Apple VPP app metadata
 
-- `https://fleetdm.com/api/vpp/v1/metadata/{region}`: Fetches app metadata from Apple's catalog.
+- `https://fleetdm.com/api/vpp/v1/metadata/{region}`: Fetches app metadata for App Store (VPP) apps from Apple.
 - `https://fleetdm.com/api/vpp/v1/auth`: Authenticates with the proxy.
 
-Upstream API: `https://api.ent.apple.com/v1/catalog/{region}/stoken-authenticated-apps`
+Upstream API endpoint: `https://api.ent.apple.com/v1/catalog/{region}/stoken-authenticated-apps`
 
-To bypass the proxy and contact Apple directly, set the `mdm.apple_vpp_app_metadata_api_bearer_token` server config option with your own Apple Connect JWT token.
+To bypass the proxy and request from Apple directly, set the [mdm.apple_vpp_app_metadata_api_bearer_token](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-vpp-app-metadata-api-bearer-token) server config option.
 
-### Android management
+### Android MDM
 
 - `https://fleetdm.com/api/android/`: Proxies requests to Google's Android Management API.
 
@@ -29,9 +29,9 @@ To use a different proxy, set the `microsoft_compliance_partner.proxy_uri` and `
 
 ### Osquery policy autofill
 
-- `https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql`: AI-powered human interpretation of osquery SQL for policies. This is not a proxy but a Fleet-specific service.
+- `https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql`: AI-powered human interpretation of osquery SQL for policies. This is Fleet-specific service. This is optional. Only used if enabled.
 
-## Apple MDM and device management
+## Apple MDM
 
 ### Apple DEP / Apple Business Manager (ABM)
 
@@ -60,7 +60,7 @@ Both endpoints are also available on port `2197`.
 
 ### Apple Volume Purchase Program (VPP)
 
-- `https://vpp.itunes.apple.com/mdm/v2`: Manages app licenses and device assignments.
+- `https://vpp.itunes.apple.com/mdm/v2`: Manages App Store app licenses and device assignments.
 
 ## Google services
 
@@ -167,4 +167,5 @@ All AWS endpoints are regional and configured by the Fleet admin.
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="publishedOn" value="2026-04-03">
-<meta name="articleTitle" value="What outbound URLs does the Fleet server contact?">
+<meta name="articleTitle" value="Outbound requests from Fleet">
+<meta name="description" value="List of all external URLs and API endpoints that the Fleet server makes outbound requests to.">
