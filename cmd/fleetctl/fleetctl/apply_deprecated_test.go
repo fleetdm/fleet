@@ -62,7 +62,7 @@ func runAppNoChecksDeprecated(args []string) (*bytes.Buffer, error) {
 // output while preserving other [!] warnings (e.g. "[!] ignoring labels").
 func stripDeprecationWarnings(s string) string {
 	var lines []string
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		if strings.HasPrefix(line, "[!]") && strings.Contains(line, "is deprecated") {
 			continue
 		}
@@ -1151,7 +1151,7 @@ spec:
 				}
 
 				mockStore.Lock()
-				assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
+				assert.Empty(t, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
 				mockStore.Unlock()
 
 				// create the app config yaml with server url for bootstrap package
@@ -1164,7 +1164,7 @@ spec:
 					assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 					assert.False(t, ds.SaveAppConfigFuncInvoked)
 					mockStore.Lock()
-					assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
+					assert.Empty(t, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
 					mockStore.Unlock()
 				} else {
 					assert.Equal(t, "[+] applied fleet config\n", runAppForTestDeprecated(t, []string{"apply", "-f", tmpFilename}))
@@ -1194,7 +1194,7 @@ spec:
 		}
 
 		mockStore.Lock()
-		assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
+		assert.Empty(t, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
 		mockStore.Unlock()
 
 		spec := `
@@ -1235,8 +1235,8 @@ spec:
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, pkgName))
 			if n, err := w.Write(pkgBytes); err != nil {
-				require.NoError(t, err)
-				require.Equal(t, len(pkgBytes), n)
+				assert.NoError(t, err)
+				assert.Equal(t, len(pkgBytes), n)
 			}
 		}))
 		defer srv.Close()
@@ -1246,7 +1246,7 @@ spec:
 			mockStore.Lock()
 			defer mockStore.Unlock()
 			require.Equal(t, pkgName, bp.Name)
-			require.Equal(t, len(bp.Bytes), len(pkgBytes))
+			require.Len(t, bp.Bytes, len(pkgBytes))
 			require.Equal(t, pkgHash.Sum(nil), bp.Sha256)
 			mockStore.metaHash = bp.Sha256
 			return nil
@@ -1315,7 +1315,7 @@ spec:
 		assert.True(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
 		mockStore.Lock()
-		assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
+		assert.Empty(t, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
 		mockStore.Unlock()
 	})
 
