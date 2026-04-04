@@ -2088,6 +2088,12 @@ func (svc *Service) BatchSetMDMProfiles(
 	// Process labels first, since we do not need to expand secrets in the profiles for this validation.
 	labels := []string{}
 	for i := range profiles {
+		// Check for deprecated "labels" field combined with other label fields BEFORE
+		// converting Labels to LabelsIncludeAll, so the validation catches the conflict.
+		if len(profiles[i].Labels) > 0 && (len(profiles[i].LabelsIncludeAll) > 0 || len(profiles[i].LabelsIncludeAny) > 0 || len(profiles[i].LabelsExcludeAny) > 0) {
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. Deprecated "labels" field cannot be combined with other label fields.`)
+		}
+
 		// from this point on (after this condition), only LabelsIncludeAll, LabelsIncludeAny or
 		// LabelsExcludeAny need to be checked.
 		if len(profiles[i].Labels) > 0 {
