@@ -605,16 +605,14 @@ const (
 // setOrUpdateSoftwareInstallerLabelsDB sets or updates the label associations for the specified software
 // installer. If no labels are provided, it will remove all label associations with the software installer.
 func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, labels fleet.LabelIdentsWithScope, softwareType softwareType) error {
-	labelIds := make([]uint, 0, len(labels.ByName))
-	for _, label := range labels.ByName {
-		labelIds = append(labelIds, label.LabelID)
-	}
+	// Collect ALL label IDs (both include and exclude) for the delete-except logic
+	allLabelIds := labels.AllLabelIDs()
 
-	// remove existing labels
+	// remove existing labels that are not in the new set
 	delArgs := []interface{}{installerID}
 	delStmt := fmt.Sprintf(`DELETE FROM %[1]s_labels WHERE %[1]s_id = ?`, softwareType)
-	if len(labelIds) > 0 {
-		inStmt, args, err := sqlx.In(` AND label_id NOT IN (?)`, labelIds)
+	if len(allLabelIds) > 0 {
+		inStmt, args, err := sqlx.In(` AND label_id NOT IN (?)`, allLabelIds)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build delete existing software labels query")
 		}
@@ -626,37 +624,56 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 		return ctxerr.Wrap(ctx, err, "delete existing software labels")
 	}
 
-	// insert new labels
-	if len(labelIds) > 0 {
-		var exclude, requireAll bool
-		switch labels.LabelScope {
-		case fleet.LabelScopeIncludeAny:
-			exclude = false
-			requireAll = false
-		case fleet.LabelScopeExcludeAny:
-			exclude = true
-			requireAll = false
-		case fleet.LabelScopeIncludeAll:
-			exclude = false
-			requireAll = true
-		default:
-			// this should never happen
+	// Determine the primary scope's exclude/requireAll flags
+	var primaryExclude, primaryRequireAll bool
+	switch labels.LabelScope {
+	case fleet.LabelScopeIncludeAny:
+		primaryExclude = false
+		primaryRequireAll = false
+	case fleet.LabelScopeExcludeAny:
+		primaryExclude = true
+		primaryRequireAll = false
+	case fleet.LabelScopeIncludeAll:
+		primaryExclude = false
+		primaryRequireAll = true
+	default:
+		if len(labels.ByName) > 0 {
 			return ctxerr.New(ctx, "invalid label scope")
 		}
+	}
 
-		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude, require_all) VALUES %s
-							ON DUPLICATE KEY UPDATE exclude = VALUES(exclude), require_all = VALUES(require_all)`
+	insertStmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude, require_all) VALUES %s
+						ON DUPLICATE KEY UPDATE exclude = VALUES(exclude), require_all = VALUES(require_all)`
+
+	// Insert primary scope labels (include or standalone exclude)
+	if len(labels.ByName) > 0 {
 		var placeholders string
 		var insertArgs []interface{}
-		for _, lid := range labelIds {
+		for _, label := range labels.ByName {
 			placeholders += "(?, ?, ?, ?),"
-			insertArgs = append(insertArgs, installerID, lid, exclude, requireAll)
+			insertArgs = append(insertArgs, installerID, label.LabelID, primaryExclude, primaryRequireAll)
 		}
 		placeholders = strings.TrimSuffix(placeholders, ",")
 
-		_, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, softwareType, placeholders), insertArgs...)
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(insertStmt, softwareType, placeholders), insertArgs...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert software label")
+		}
+	}
+
+	// Insert exclude labels when combined with an include scope
+	if labels.HasExcludeLabels() {
+		var placeholders string
+		var insertArgs []any
+		for _, label := range labels.ExcludeByName {
+			placeholders += "(?, ?, ?, ?),"
+			insertArgs = append(insertArgs, installerID, label.LabelID, true, false)
+		}
+		placeholders = strings.TrimSuffix(placeholders, ",")
+
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(insertStmt, softwareType, placeholders), insertArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert software exclude label")
 		}
 	}
 
@@ -1068,14 +1085,9 @@ LIMIT 1`,
 		}
 	}
 
-	var count int
-	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
-		if len(set) > 0 {
-			count++
-		}
-	}
-	if count > 1 {
-		ds.logger.WarnContext(ctx, "software installer has more than one scope of labels", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
+	// include_any + include_all is invalid; include + exclude is allowed
+	if len(inclAny) > 0 && len(inclAll) > 0 {
+		ds.logger.WarnContext(ctx, "software installer has conflicting include scopes", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
@@ -3268,91 +3280,102 @@ func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, host
 }
 
 func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
+	// This query uses AND logic between the three label conditions:
+	// 1. Include-any: host must be in at least one include label (or no include-any labels exist)
+	// 2. Include-all: host must be in ALL include-all labels (or no include-all labels exist)
+	// 3. Exclude-any: host must NOT be in any exclude label (or no exclude labels exist,
+	//    also respects label_updated_at timing for dynamic labels)
+	//
+	// All three conditions are AND-ed together, enabling combined include+exclude scoping.
 	stmt := `
-		SELECT 1 FROM (
-
-			-- no labels
-			SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
-			WHERE NOT EXISTS (
-				SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = :software_id
+		SELECT 1
+		WHERE
+			EXISTS (
+				SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?
+			)
+			AND (
+				NOT EXISTS (
+					SELECT 1 FROM %[1]s_labels sil
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 0
+				)
+				OR EXISTS (
+					SELECT 1 FROM %[1]s_labels sil
+					INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = ?
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 0
+				)
+			)
+			AND (
+				NOT EXISTS (
+					SELECT 1 FROM %[1]s_labels sil
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 1
+				)
+				OR (
+					SELECT COUNT(*) FROM %[1]s_labels sil
+					INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = ?
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 1
+				) = (
+					SELECT COUNT(*) FROM %[1]s_labels sil
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 0 AND sil.require_all = 1
+				)
+			)
+			AND NOT EXISTS (
+				SELECT 1 FROM %[1]s_labels sil
+				INNER JOIN labels lbl ON lbl.id = sil.label_id
+				INNER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = ?
+				WHERE sil.%[1]s_id = ?
+					AND sil.exclude = 1
+					AND sil.require_all = 0
+					AND (
+						lbl.label_membership_type = 1
+						OR (lbl.label_membership_type = 0
+							AND (SELECT label_updated_at FROM hosts WHERE id = ?) >= lbl.created_at)
+					)
+			)
+			AND (
+				NOT EXISTS (
+					SELECT 1 FROM %[1]s_labels sil
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 1 AND sil.require_all = 0
+				)
+				OR (
+					SELECT COUNT(*) FROM %[1]s_labels sil
+					INNER JOIN labels lbl ON lbl.id = sil.label_id
+					WHERE sil.%[1]s_id = ?
+						AND sil.exclude = 1
+						AND sil.require_all = 0
+						AND (
+							lbl.label_membership_type = 1
+							OR (lbl.label_membership_type = 0
+								AND (SELECT label_updated_at FROM hosts WHERE id = ?) >= lbl.created_at)
+						)
+				) = (
+					SELECT COUNT(*) FROM %[1]s_labels sil
+					WHERE sil.%[1]s_id = ? AND sil.exclude = 1 AND sil.require_all = 0
+				)
 			)
 
-			UNION
+		UNION ALL
 
-			-- include any
-			SELECT
-				COUNT(*) AS count_installer_labels,
-				COUNT(lm.label_id) AS count_host_labels,
-				0 as count_host_updated_after_labels
-			FROM
-				%[1]s_labels sil
-				LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
-				AND lm.host_id = :host_id
-			WHERE
-				sil.%[1]s_id = :software_id
-				AND sil.exclude = 0
-				AND sil.require_all = 0
-			HAVING
-				count_installer_labels > 0 AND count_host_labels > 0
-
-			UNION
-
-			-- exclude any, ignore software that depends on labels created
-			-- _after_ the label_updated_at timestamp of the host (because
-			-- we don't have results for that label yet, the host may or may
-			-- not be a member).
-			SELECT
-				COUNT(*) AS count_installer_labels,
-				COUNT(lm.label_id) AS count_host_labels,
-				SUM(CASE
-				WHEN
-					lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1
-				WHEN
-					lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
-				ELSE
-					0
-				END) as count_host_updated_after_labels
-			FROM
-				%[1]s_labels sil
-				LEFT OUTER JOIN labels lbl
-					ON lbl.id = sil.label_id
-				LEFT OUTER JOIN label_membership lm
-					ON lm.label_id = sil.label_id AND lm.host_id = :host_id
-			WHERE
-				sil.%[1]s_id = :software_id
-				AND sil.exclude = 1
-				AND sil.require_all = 0
-			HAVING
-				count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
-
-			UNION
-
-			-- include all
-			SELECT
-				COUNT(*) AS count_installer_labels,
-				COUNT(lm.label_id) AS count_host_labels,
-				0 as count_host_updated_after_labels
-			FROM
-				%[1]s_labels sil
-				LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
-				AND lm.host_id = :host_id
-			WHERE
-				sil.%[1]s_id = :software_id
-				AND sil.exclude = 0
-				AND sil.require_all = 1
-			HAVING
-				count_installer_labels > 0 AND count_host_labels = count_installer_labels
-			) t
+		SELECT 1
+		WHERE NOT EXISTS (
+			SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?
+		)
 	`
 
 	stmt = fmt.Sprintf(stmt, swType)
-	namedArgs := map[string]any{
-		"host_id":     hostID,
-		"software_id": softwareID,
-	}
-	stmt, args, err := sqlx.Named(stmt, namedArgs)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "build named query for is software label scoped")
+
+	// positional args: software_id and host_id repeated for each subquery reference
+	args := []any{
+		softwareID,         // EXISTS labels
+		softwareID,         // NOT EXISTS include-any
+		hostID, softwareID, // EXISTS include-any membership
+		softwareID,         // NOT EXISTS include-all
+		hostID, softwareID, // COUNT include-all membership
+		softwareID,                 // COUNT include-all total
+		hostID, softwareID, hostID, // NOT EXISTS exclude membership + label_updated_at
+		softwareID,         // NOT EXISTS exclude labels
+		softwareID, hostID, // COUNT exclude evaluated
+		softwareID, // COUNT exclude total
+		softwareID, // UNION ALL no labels
 	}
 
 	var res bool

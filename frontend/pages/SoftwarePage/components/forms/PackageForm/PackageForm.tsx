@@ -23,6 +23,7 @@ import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
   generateSelectedLabels,
+  generateSelectedExcludeLabels,
   getCustomTarget,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
@@ -53,6 +54,7 @@ export interface IPackageFormData {
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
+  excludeLabelTargets: Record<string, boolean>;
   automaticInstall: boolean; // Used on add but not edit
   categories: string[];
 }
@@ -190,6 +192,7 @@ const PackageForm = ({
     targetType: getTargetType(defaultSoftware),
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
+    excludeLabelTargets: generateSelectedExcludeLabels(defaultSoftware),
     automaticInstall: false,
     categories: defaultCategories || [],
   };
@@ -333,6 +336,24 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onSelectExcludeLabel = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    const newData = {
+      ...formData,
+      excludeLabelTargets: {
+        ...formData.excludeLabelTargets,
+        [name]: value,
+      },
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
   const onSelectVersion = (version: string) => {
     // For now we can only update version in GitOps
     // Selection is currently disabled in the UI
@@ -438,6 +459,9 @@ const PackageForm = ({
         formData.targetType === "Custom" &&
         generateHelpText(formData.automaticInstall, formData.customTarget)
       }
+      enableExcludeLabels
+      selectedExcludeLabels={formData.excludeLabelTargets}
+      onSelectExcludeLabel={onSelectExcludeLabel}
     />
   );
 

@@ -360,7 +360,7 @@ describe("PolicyForm - component", () => {
         const saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeDisabled();
 
-        const funButton = screen.getByLabelText("Fun");
+        const funButton = screen.getAllByLabelText("Fun")[0];
         expect(funButton).not.toBeChecked();
         await userEvent.click(funButton);
         await waitFor(() => {
@@ -378,7 +378,7 @@ describe("PolicyForm - component", () => {
 
         // Set a label.
         await userEvent.click(screen.getByLabelText("Custom"));
-        await userEvent.click(screen.getByLabelText("Fun"));
+        await userEvent.click(screen.getAllByLabelText("Fun")[0]);
 
         const saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
@@ -398,7 +398,7 @@ describe("PolicyForm - component", () => {
 
         // Set a label.
         await userEvent.click(screen.getByLabelText("Custom"));
-        await userEvent.click(screen.getByLabelText("Fun"));
+        await userEvent.click(screen.getAllByLabelText("Fun")[0]);
 
         // Click "Include any" to open the dropdown.
         const includeAnyOption = screen.getByRole("option", {
@@ -433,7 +433,7 @@ describe("PolicyForm - component", () => {
 
         // Set a label.
         await userEvent.click(screen.getByLabelText("Custom"));
-        await userEvent.click(screen.getByLabelText("Fun"));
+        await userEvent.click(screen.getAllByLabelText("Fun")[0]);
 
         await userEvent.click(screen.getByLabelText("All hosts"));
 

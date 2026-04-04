@@ -76,14 +76,9 @@ WHERE
 		}
 	}
 
-	var count int
-	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
-		if len(set) > 0 {
-			count++
-		}
-	}
-	if count > 1 {
-		ds.logger.WarnContext(ctx, "vpp app has more than one scope of labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
+	// include_any + include_all is invalid; include + exclude is allowed
+	if len(inclAny) > 0 && len(inclAll) > 0 {
+		ds.logger.WarnContext(ctx, "vpp app has conflicting include scopes", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include_any", fmt.Sprintf("%v", inclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	app.LabelsExcludeAny = exclAny
 	app.LabelsIncludeAny = inclAny
@@ -370,45 +365,46 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 		}
 	}
 
-	var count int
-	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
-		if len(set) > 0 {
-			count++
-		}
-	}
-	if count > 1 {
-		// there's a bug somewhere
-		return nil, ctxerr.New(ctx, "found labels for more than one scope on a vpp app")
+	// include_any + include_all is invalid
+	if len(inclAny) > 0 && len(inclAll) > 0 {
+		return nil, ctxerr.New(ctx, "found conflicting include scopes (include_any + include_all) on a vpp app")
 	}
 
+	// Determine primary scope
 	switch {
-	case len(exclAny) > 0:
-		labels.LabelScope = fleet.LabelScopeExcludeAny
-		labels.ByName = make(map[string]fleet.LabelIdent, len(exclAny))
-		for _, l := range exclAny {
-			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
-		}
-		return &labels, nil
-
 	case len(inclAny) > 0:
 		labels.LabelScope = fleet.LabelScopeIncludeAny
 		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAny))
 		for _, l := range inclAny {
 			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
-		return &labels, nil
-
 	case len(inclAll) > 0:
 		labels.LabelScope = fleet.LabelScopeIncludeAll
 		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAll))
 		for _, l := range inclAll {
 			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
+	case len(exclAny) > 0:
+		// Exclude-only (no include labels)
+		labels.LabelScope = fleet.LabelScopeExcludeAny
+		labels.ByName = make(map[string]fleet.LabelIdent, len(exclAny))
+		for _, l := range exclAny {
+			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
 		return &labels, nil
-
 	default:
 		return nil, nil
 	}
+
+	// When combining include + exclude, populate ExcludeByName
+	if (len(inclAny) > 0 || len(inclAll) > 0) && len(exclAny) > 0 {
+		labels.ExcludeByName = make(map[string]fleet.LabelIdent, len(exclAny))
+		for _, l := range exclAny {
+			labels.ExcludeByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+	}
+
+	return &labels, nil
 }
 
 func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID uint) ([]uint, error) {

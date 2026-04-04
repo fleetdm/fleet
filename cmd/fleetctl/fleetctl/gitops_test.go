@@ -3788,13 +3788,13 @@ func TestGitOpsCustomSettings(t *testing.T) {
 	}{
 		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `"labels_include_any" and "labels_include_all" cannot be combined.`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `"labels_include_any" and "labels_include_all" cannot be combined.`},
 		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `"labels_include_any" and "labels_include_all" cannot be combined.`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `"labels_include_any" and "labels_include_all" cannot be combined.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 	}
 	for _, c := range cases {

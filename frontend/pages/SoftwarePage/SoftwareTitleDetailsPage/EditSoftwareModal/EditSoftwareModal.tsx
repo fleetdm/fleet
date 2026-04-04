@@ -109,6 +109,7 @@ const EditSoftwareModal = ({
     targetType: "",
     customTarget: "",
     labelTargets: {},
+    excludeLabelTargets: {},
     categories: [],
   });
   const [

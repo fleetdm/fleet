@@ -12483,28 +12483,17 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			LabelsIncludeAny: []string{t.Name()},
 		}
 
-		// validate that providing more than 1 type of label
-		// results in an error
-		testCases := []struct {
+		// validate that include_any + include_all is still an error
+		invalidLabelCases := []struct {
 			desc    string
 			incAny  []string
 			exclAny []string
 			incAll  []string
 		}{
 			{
-				desc:    "include_any_exclude_any",
-				incAny:  []string{lblA.Name},
-				exclAny: []string{lblB.Name},
-			},
-			{
 				desc:   "include_any_include_all",
 				incAny: []string{lblA.Name},
 				incAll: []string{lblB.Name},
-			},
-			{
-				desc:    "exclude_any_include_all",
-				exclAny: []string{lblA.Name},
-				incAll:  []string{lblB.Name},
 			},
 			{
 				desc:    "all_types",
@@ -12513,25 +12502,24 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 				incAll:  []string{lblC.Name},
 			},
 		}
-		for _, tc := range testCases {
+		for _, tc := range invalidLabelCases {
 			t.Run(tc.desc, func(t *testing.T) {
 				payload := &fleet.UploadSoftwareInstallerPayload{
 					InstallScript:     "some install script",
 					PreInstallQuery:   "some pre install query",
 					PostInstallScript: "some post install script",
 					Filename:          "ruby.deb",
-					// additional fields below are pre-populated so we can re-use the payload later for the test assertions
-					Title:            "ruby",
-					Version:          "1:2.5.1",
-					Source:           "deb_packages",
-					StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
-					Platform:         "linux",
-					LabelsIncludeAny: tc.incAny,
-					LabelsIncludeAll: tc.incAll,
-					LabelsExcludeAny: tc.exclAny,
+					Title:             "ruby",
+					Version:           "1:2.5.1",
+					Source:            "deb_packages",
+					StorageID:         "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+					Platform:          "linux",
+					LabelsIncludeAny:  tc.incAny,
+					LabelsIncludeAll:  tc.incAll,
+					LabelsExcludeAny:  tc.exclAny,
 				}
 
-				s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
+				s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, `"labels_include_all" and "labels_include_any" cannot be combined.`)
 			})
 		}
 
@@ -13920,28 +13908,17 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	lblC, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "C"})
 	require.NoError(t, err)
 
-	// validate that providing more than 1 type of label
-	// results in an error
-	testCases := []struct {
+	// validate that include_any + include_all is still an error
+	invalidCases := []struct {
 		desc    string
 		incAny  []string
 		exclAny []string
 		incAll  []string
 	}{
 		{
-			desc:    "include_any_exclude_any",
-			incAny:  []string{lblA.Name},
-			exclAny: []string{lblB.Name},
-		},
-		{
 			desc:   "include_any_include_all",
 			incAny: []string{lblA.Name},
 			incAll: []string{lblB.Name},
-		},
-		{
-			desc:    "exclude_any_include_all",
-			exclAny: []string{lblA.Name},
-			incAll:  []string{lblB.Name},
 		},
 		{
 			desc:    "all_types",
@@ -13950,7 +13927,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 			incAll:  []string{lblC.Name},
 		},
 	}
-	for _, tc := range testCases {
+	for _, tc := range invalidCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			softwareToInstall = []*fleet.SoftwareInstallerPayload{
 				{
@@ -13961,7 +13938,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 				},
 			}
 			res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
-			assert.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
+			assert.Contains(t, extractServerErrorText(res.Body), `"labels_include_all" and "labels_include_any" cannot be combined.`)
 		})
 	}
 
@@ -20564,12 +20541,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the software.`)
 
-	// Can't set both labels_include_any and labels_exclude_any
+	// Can't set both labels_include_any and labels_include_all
 	req.LabelsIncludeAny = []string{lbl1.Name, lbl2.Name}
-	req.LabelsExcludeAny = []string{lbl1.Name}
+	req.LabelsExcludeAny = nil
+	req.LabelsIncludeAll = []string{lbl1.Name}
 	addMAResp = addFleetMaintainedAppResponse{}
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included`)
+	require.Contains(t, extractServerErrorText(r.Body), `"labels_include_all" and "labels_include_any" cannot be combined.`)
 }
 
 func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
