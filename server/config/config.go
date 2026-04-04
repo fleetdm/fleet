@@ -1622,7 +1622,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
-	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
+	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
 
 	// Conditional Access
 	man.addConfigString("conditional_access.cert_serial_format", "hex",
