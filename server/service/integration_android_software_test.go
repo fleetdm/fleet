@@ -809,6 +809,36 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		require.Equal(t, "app_2", *titleResp.SoftwareTitle.ApplicationID)
 		require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), `"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"`)
 
+		// installType: a valid installType is accepted and persisted.
+		var installTypeAppResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{
+				TeamID:        teamID,
+				AppStoreID:    "com.test.install_type",
+				Platform:      fleet.AndroidPlatform,
+				Configuration: json.RawMessage(`{"installType":"FORCE_INSTALLED"}`),
+			},
+			http.StatusOK, &installTypeAppResp,
+		)
+		var installTypeTitleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", installTypeAppResp.TitleID),
+			&getSoftwareTitleRequest{ID: installTypeAppResp.TitleID, TeamID: teamID},
+			http.StatusOK, &installTypeTitleResp,
+		)
+		require.Contains(t, string(installTypeTitleResp.SoftwareTitle.AppStoreApp.Configuration), `"installType"`)
+		require.Contains(t, string(installTypeTitleResp.SoftwareTitle.AppStoreApp.Configuration), `"FORCE_INSTALLED"`)
+
+		// installType: an invalid installType is rejected with 400.
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{
+				TeamID:        teamID,
+				AppStoreID:    "com.test.invalid_install_type",
+				Platform:      fleet.AndroidPlatform,
+				Configuration: json.RawMessage(`{"installType":"BOGUS_TYPE"}`),
+			},
+			http.StatusBadRequest, &installTypeAppResp,
+		)
+
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{
 				DryRun: false,
