@@ -13,13 +13,15 @@ Run the appropriate linters on files changed in the current branch. Use the proj
 
 ### 1. Detect changed files
 
+Find recently changed files (last commit, staged, and unstaged):
+
 ```bash
-git diff --name-only HEAD~1
-git diff --name-only --cached
-git diff --name-only
+git diff --name-only HEAD~1   # Last commit
+git diff --name-only --cached # Staged but not committed
+git diff --name-only          # Unstaged changes
 ```
 
-Combine all three to get the full set of changed files.
+Combine all three and deduplicate to get the full set.
 
 ### 2. Run linters by language
 

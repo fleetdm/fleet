@@ -56,14 +56,23 @@ case "$FILE_PATH" in
     ;;
 
   *.ts|*.tsx)
-    if command -v npx >/dev/null 2>&1; then
+    # Determine eslint binary (prefer local, avoid npx auto-install)
+    if [ -x ./node_modules/.bin/eslint ]; then
+      ESLINT="./node_modules/.bin/eslint"
+    elif command -v npx >/dev/null 2>&1 && npx --no-install eslint --version >/dev/null 2>&1; then
+      ESLINT="npx --no-install eslint"
+    else
+      exit 0
+    fi
+
+    if [ -n "$ESLINT" ]; then
       # First pass: auto-fix
-      npx eslint --fix "$FILE_PATH" 2>/dev/null
+      $ESLINT --fix "$FILE_PATH" > /dev/null 2>&1
 
-      # Second pass: capture remaining issues
-      npx eslint "$FILE_PATH" > "$TMPFILE" 2>/dev/null
+      # Second pass: capture remaining issues (include stderr for config/parser errors)
+      $ESLINT "$FILE_PATH" > "$TMPFILE" 2>&1
 
-      if grep -q "error\|warning" "$TMPFILE"; then
+      if grep -q "error\|warning\|Error:" "$TMPFILE"; then
         jq -Rsc --arg fp "$FILE_PATH" \
           '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: ("ESLint found issues after editing " + $fp + ":\n" + .)}}' \
           < "$TMPFILE"

@@ -11,8 +11,11 @@ fi
 
 case "$FILE_PATH" in
   *.ts|*.tsx|*.scss|*.css|*.js|*.jsx)
-    if command -v npx >/dev/null 2>&1; then
-      npx prettier --write "$FILE_PATH" 2>/dev/null
+    # Use local prettier (avoid npx auto-install over network)
+    if [ -x ./node_modules/.bin/prettier ]; then
+      ./node_modules/.bin/prettier --write "$FILE_PATH" 2>/dev/null
+    elif command -v npx >/dev/null 2>&1 && npx --no-install prettier --version >/dev/null 2>&1; then
+      npx --no-install prettier --write "$FILE_PATH" 2>/dev/null
     fi
     ;;
 esac
