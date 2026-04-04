@@ -87,6 +87,17 @@ To manage Fleet-maintained apps using Fleet's best practice GitOps, check out `f
 
 > Note: with GitOps enabled, any Fleet-maintained apps added using the web UI will not persist if not also added in YAML.
 
+## Migrate from Apple VPP to Fleet-maintained apps
+
+If you're currently using Apple App Store (VPP) apps and want to switch to Fleet-maintained apps, follow these steps:
+
+1. In Fleet, head to the **Software** page and select the relevant fleet.
+2. Remove the VPP app you want to replace.
+3. Add the same app from the Fleet-maintained apps list (see [Add a Fleet-maintained app](#add-a-fleet-maintained-app) above).
+4. Install the Fleet-maintained app via one of the three methods above.
+
+> **Important:** VPP apps are sandboxed by macOS, which means their preferences and application state are stored in a different location than non-VPP apps. For example, Slack's preferences are stored at `~/Library/Containers/com.tinyspeck.slackmacgap/Data/Library/Preferences/` for VPP, vs. `~/Library/Preferences/` for a regular install. When you replace a VPP app with a Fleet-maintained app, end users may need to reconfigure their app preferences and settings. Plan to communicate this to your end users before making the switch.
+
 ## How does Fleet maintain these apps?
 
 Fleet:
