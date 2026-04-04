@@ -3396,18 +3396,18 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// profiles with invalid mix of labels
 	// profiles with invalid mix of labels: include_all + deprecated labels, include_all + include_any
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined with other label fields.`)
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined`)
 	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `"labels_include_all" and "labels_include_any" cannot be combined.`)
 	// include_all + exclude_any is now VALID (combined scoping)
 	assertAppleDeclaration("apple-decl-with-incl-all-excl-any.json", "ident-decl-combined", 0, []string{"foo", "-bar"}, http.StatusOK, "")
 	// include_all + include_any is still INVALID
 	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `"labels_include_all" and "labels_include_any" cannot be combined.`)
 	// exclude_any + deprecated labels is still INVALID
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined with other label fields.`)
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined`)
 	// exclude_any + include_any is now VALID (combined scoping)
 	assertWindowsProfile("win-profile-with-incl-any-excl-any.xml", "./Test", 0, []string{"-foo", "~bar"}, http.StatusOK, "")
 	// exclude_any + deprecated labels is still INVALID
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined with other label fields.`)
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined`)
 	// exclude_any + include_any is now VALID (combined scoping)
 	assertAndroidProfile("android-profile-with-incl-any-excl-any.json", 0, []string{"-foo", "~bar"}, http.StatusOK, "")
 
