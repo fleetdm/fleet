@@ -52,10 +52,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			"testdata/gitops/team_software_installer_invalid_self_service_value.yml",
 			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.self_service\", expected type bool but got string",
 		},
-		{
-			"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml",
-			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified`,
-		},
+		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_include_all.yml", ""},
@@ -359,10 +356,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml",
 			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.self_service\", expected type bool but got string",
 		},
-		{
-			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
-			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified`,
-		},
+		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_include_all.yml", ""},
@@ -523,8 +517,8 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_both.yml",
-			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour),
-			map[string]uint{},
+			"", time.Now().Add(24 * time.Hour),
+			map[string]uint{"label 1": 1, "label 2": 2},
 		},
 	}
 

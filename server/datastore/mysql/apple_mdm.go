@@ -3180,7 +3180,7 @@ func generateEntitiesToInstallQuery(entityType string, hostUUID string) (string,
 	hostCondition := "TRUE" // We specify true here as it gets passed to the AND (%s) later, and is the default value.
 	if hostUUID != "" {
 		hostCondition = "h.uuid = ?"
-		args = append(args, hostUUID, hostUUID, hostUUID, hostUUID)
+		args = append(args, hostUUID, hostUUID)
 	}
 
 	args = append(args, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
