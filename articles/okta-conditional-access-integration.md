@@ -6,6 +6,8 @@ When a host fails a policy in Fleet, IT and Security teams can block access to t
 
 ## Prerequisites
 
+> This section is only for self-hosted instances of Fleet. If you are on a cloud-managed instance, skip down to [Step 1](#step-1-download-idp-signature-certificate-from-fleet).
+
 Conditional access with Okta requires an mTLS reverse proxy on a separate subdomain (e.g., `okta.fleet.example.com`). All other Fleet traffic continues to use your existing Fleet server URL. If you're a managed-cloud customer, please reach out to Fleet to set up the mTLS infrastructure for you.
 
 If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/okta-conditional-access-testing.md).
