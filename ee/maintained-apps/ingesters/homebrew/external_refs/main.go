@@ -26,6 +26,18 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"github/darwin":                 {GitHubDesktopVersionShortener},
 	"camtasia/darwin":               {CamtasiaVersionTransformer},
 	"warp/darwin":                   {WarpDirectInstaller},
+	"android-studio/darwin":         {AndroidStudioVersionShortener},
+	"microsoft-auto-update/darwin":  {MicrosoftAutoUpdateVersionShortener},
+	"opera/darwin":                  {OperaVersionShortener},
+	"twingate/darwin":               {TwingateVersionShortener},
+	"citrix-workspace/darwin":       {CitrixWorkspaceVersionShortener},
+	"elgato-stream-deck/darwin":     {ElgatoStreamDeckVersionShortener},
+	"filemaker-pro/darwin":          {FileMakerProVersionShortener},
+	"royal-tsx/darwin":              {RoyalTSXVersionShortener},
+	"sublime-text/darwin":           {SublimeVersionTransformer},
+	"sublime-merge/darwin":          {SublimeVersionTransformer},
+	"mysqlworkbench/darwin":         {MySQLWorkbenchVersionTransformer},
+	"lens/darwin":                   {LensVersionTransformer},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

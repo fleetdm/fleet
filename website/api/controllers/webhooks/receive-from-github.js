@@ -109,7 +109,6 @@ module.exports = {
       'spalmesano0',
       'escomeau',
       'cdcme',
-      'kevinmalkin12',
       'karmine05',
       'kitzy',
       'Seedity',
