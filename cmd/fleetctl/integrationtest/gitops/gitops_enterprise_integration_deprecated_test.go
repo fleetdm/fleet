@@ -2024,8 +2024,8 @@ reports:
 	// Verify the secret was saved
 	secretVariables, err := s.DS.GetSecretVariables(ctx, []string{secretName})
 	require.NoError(t, err)
-	require.Equal(t, secretVariables[0].Name, secretName)
-	require.Equal(t, secretVariables[0].Value, secretValue)
+	require.Equal(t, secretName, secretVariables[0].Name)
+	require.Equal(t, secretValue, secretVariables[0].Value)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestSpecialCaseTeamsVPPAppsDeprecated() {
@@ -2406,7 +2406,7 @@ org_settings:
 	// Verify policies were cleared.
 	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, policies, 0)
+	require.Empty(t, policies)
 
 	appCfg, err = s.DS.AppConfig(ctx)
 	require.NoError(t, err)
@@ -2420,17 +2420,17 @@ org_settings:
 	// Verify reports were cleared.
 	queries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{})
 	require.NoError(t, err)
-	require.Len(t, queries, 0)
+	require.Empty(t, queries)
 
 	// Verify secrets are cleared.
 	globalSecrets, err = s.DS.GetEnrollSecrets(ctx, nil)
 	require.NoError(t, err)
-	require.Len(t, globalSecrets, 0)
+	require.Empty(t, globalSecrets)
 
 	// Verify labels are cleared.
 	labels, err = s.DS.LabelsByName(ctx, []string{"Test Global Label"}, fleet.TeamFilter{})
 	require.NoError(t, err)
-	require.Len(t, labels, 0)
+	require.Empty(t, labels)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestFMALabelsIncludeAllDeprecated() {
@@ -2542,7 +2542,7 @@ settings:
 			Refs:     map[string]string{"fooscript": "echo hello"},
 		}
 		err := json.NewEncoder(w).Encode(manifest)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	defer manifestServer.Close()
 
