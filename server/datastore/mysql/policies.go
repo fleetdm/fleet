@@ -39,7 +39,7 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
 	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
-	p.patch_software_title_id
+	p.patch_software_title_id, p.mdm_check_definition
 `
 
 const (
@@ -112,12 +112,16 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	}
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
+	policyType := args.Type
+	if policyType == "" {
+		policyType = fleet.PolicyTypeDynamic
+	}
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum, type, mdm_check_definition) VALUES (?, ?, ?, ?, ?, ?, ?, %s, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
-		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
+		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical, policyType, args.MDMCheckDefinition,
 	)
 	switch {
 	case err == nil:
@@ -370,11 +374,12 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 			SET name = ?, query = ?, description = ?, resolution = ?,
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
-			conditional_access_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			conditional_access_enabled = ?, mdm_check_definition = ?,
+			checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.MDMCheckDefinition, p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -1013,6 +1018,8 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		SELECT p.id, p.query
 		FROM policies p
 		WHERE
+			-- MDM policies are evaluated server-side, not by osquery
+			p.type != 'mdm' AND
 			-- team_id == NULL are global policies that apply to all hosts
 			-- team_id == 0 are policies that apply to hosts in "No team"
 			-- team_id > 0 are policies that apply to hosts in teams
@@ -1058,9 +1065,28 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	return results, nil
 }
 
+func (ds *Datastore) MDMPoliciesForHost(ctx context.Context, host *fleet.Host) ([]fleet.Policy, error) {
+	stmt := `
+		SELECT ` + policyCols + `,
+			COALESCE(u.name, '') AS author_name,
+			COALESCE(u.email, '') AS author_email
+		FROM policies p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE
+			p.type = 'mdm' AND
+			(p.team_id IS NULL OR p.team_id = COALESCE(?, 0)) AND
+			(p.platforms = '' OR FIND_IN_SET(?, p.platforms))
+	`
+	var policies []fleet.Policy
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, stmt, host.TeamID, host.FleetPlatform()); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting MDM policies for host")
+	}
+	return policies, nil
+}
+
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
 	var newPolicy *fleet.Policy
-	if args.Type != fleet.PolicyTypePatch {
+	if args.Type != fleet.PolicyTypePatch && args.Type != fleet.PolicyTypeMDM {
 		// type should already be set to dynamic when called from the service layer
 		args.Type = fleet.PolicyTypeDynamic
 	}
@@ -1128,19 +1154,24 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
+	policyType := args.Type
+	if policyType == "" {
+		policyType = fleet.PolicyTypeDynamic
+	}
+
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
 				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
-				type, patch_software_title_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)`,
+				type, patch_software_title_id, mdm_check_definition
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
-		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID,
+		args.ConditionalAccessEnabled, policyType, args.PatchSoftwareTitleID, args.MDMCheckDefinition,
 	)
 	switch {
 	case err == nil:
@@ -1436,8 +1467,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			conditional_access_enabled,
 			checksum,
 			type,
-			patch_software_title_id
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)
+			patch_software_title_id,
+			mdm_check_definition
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1451,7 +1483,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			script_id = VALUES(script_id),
 			conditional_access_enabled = VALUES(conditional_access_enabled),
 			type = VALUES(type),
-			patch_software_title_id = VALUES(patch_software_title_id)
+			patch_software_title_id = VALUES(patch_software_title_id),
+			mdm_check_definition = VALUES(mdm_check_definition)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1495,12 +1528,22 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					spec.Query = generated.Query
 				}
 
+				var mdmCheckDef *json.RawMessage
+				if spec.Type == fleet.PolicyTypeMDM && len(spec.MDMChecks) > 0 {
+					raw, jsonErr := json.Marshal(spec.MDMChecks)
+					if jsonErr != nil {
+						return ctxerr.Wrap(ctx, jsonErr, "marshalling mdm_checks for policy spec")
+					}
+					rawMsg := json.RawMessage(raw)
+					mdmCheckDef = &rawMsg
+				}
+
 				res, err := tx.ExecContext(
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
-					spec.Type, fmaTitleID,
+					spec.Type, fmaTitleID, mdmCheckDef,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")

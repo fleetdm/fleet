@@ -5232,6 +5232,9 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.Equal(t, commandUUID, currentCommandUUID)
 		return nil
 	}
+	ds.MDMPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]fleet.Policy, error) {
+		return nil, nil
+	}
 
 	_, err := svc.CommandAndReportResults(
 		&mdm.Request{Context: ctx},

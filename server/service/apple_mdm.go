@@ -4746,6 +4746,13 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
+
+	// Evaluate MDM policies for this iOS/iPadOS host
+	if err := svc.evaluateMDMPoliciesForHost(ctx, host, deviceInformationResponse.QueryResponses); err != nil {
+		svc.logger.ErrorContext(ctx, "evaluating MDM policies for host", "host_id", host.ID, "err", err)
+		// Don't return error — policy evaluation failure shouldn't block refetch
+	}
+
 	if err := svc.ds.SetOrUpdateHostDisksSpace(ctx, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
 		deviceCapacity, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host storage")
@@ -4791,6 +4798,70 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	}
 
 	return nil, nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) evaluateMDMPoliciesForHost(
+	ctx context.Context, host *fleet.Host, queryResponses map[string]any,
+) error {
+	policies, err := svc.ds.MDMPoliciesForHost(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "loading MDM policies for host")
+	}
+	if len(policies) == 0 {
+		return nil
+	}
+
+	// Build device data map from QueryResponses
+	deviceData := make(map[string]fleet.DeviceStateEntry, len(queryResponses))
+	for k, v := range queryResponses {
+		deviceData[k] = fleet.DeviceStateEntry{
+			Value:      toStringValue(v),
+			Source:     "mdm_poll",
+			ObservedAt: time.Now(),
+		}
+	}
+
+	// Evaluate each policy
+	policyResults := make(map[uint]*bool, len(policies))
+	for _, policy := range policies {
+		if policy.MDMCheckDefinition == nil {
+			continue
+		}
+		var checks []fleet.MDMPolicyCheck
+		if err := json.Unmarshal(*policy.MDMCheckDefinition, &checks); err != nil {
+			svc.logger.ErrorContext(ctx, "unmarshalling MDM check definition",
+				"policy_id", policy.ID, "err", err)
+			continue
+		}
+		def := fleet.MDMPolicyDefinition{Checks: checks}
+		result := EvaluateMDMPolicy(policy.ID, host.ID, def, deviceData)
+		policyResults[policy.ID] = &result.Passes
+	}
+
+	if len(policyResults) > 0 {
+		if err := svc.ds.RecordPolicyQueryExecutions(ctx, host, policyResults, time.Now(), false); err != nil {
+			return ctxerr.Wrap(ctx, err, "recording MDM policy results")
+		}
+	}
+	return nil
+}
+
+// toStringValue converts a value to a string representation for MDM policy evaluation.
+func toStringValue(v any) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case bool:
+		return strconv.FormatBool(val)
+	case int64:
+		return strconv.FormatInt(val, 10)
+	case uint64:
+		return strconv.FormatUint(val, 10)
+	case float64:
+		return strconv.FormatFloat(val, 'f', -1, 64)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,

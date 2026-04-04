@@ -16,7 +16,7 @@ import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 import CUSTOM_TARGET_OPTIONS from "pages/policies/helpers";
 
-import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import { IPolicy, IPolicyFormData, IMDMPolicyCheck } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
@@ -32,6 +32,7 @@ import { validateQuery } from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
+import Radio from "components/forms/fields/Radio";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
@@ -51,6 +52,7 @@ import teamPoliciesAPI from "services/entities/team_policies";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 import PolicyAutomations from "../PolicyAutomations";
+import MDMCheckBuilder from "../MDMCheckBuilder";
 
 const baseClass = "policy-form";
 
@@ -66,6 +68,7 @@ interface IPolicyFormProps {
   goToSelectTargets: () => void;
   onUpdate: (formData: IPolicyFormData) => void;
   onOpenSchemaSidebar: () => void;
+  onCloseSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
   isFetchingAutofillDescription: boolean;
@@ -100,6 +103,7 @@ const PolicyForm = ({
   goToSelectTargets,
   onUpdate,
   onOpenSchemaSidebar,
+  onCloseSchemaSidebar,
   renderLiveQueryWarning,
   backendValidators,
   isFetchingAutofillDescription,
@@ -125,7 +129,49 @@ const PolicyForm = ({
   const [selectedLabels, setSelectedLabels] = useState({});
 
   const isPatchPolicy = storedPolicy?.type === "patch";
+  const isMdmPolicy = storedPolicy?.type === "mdm";
+  const [newPolicyType, setNewPolicyType] = useState<"query" | "mdm">("query");
+  const isNewMdmPolicy = !policyIdForEdit && newPolicyType === "mdm";
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
+  const [mdmChecks, setMdmChecks] = useState<IMDMPolicyCheck[]>(() => {
+    if (storedPolicy?.type === "mdm" && storedPolicy?.mdm_check_definition) {
+      const checks = storedPolicy.mdm_check_definition;
+      if (Array.isArray(checks) && checks.length > 0) {
+        return checks;
+      }
+      if (typeof checks === "string") {
+        try {
+          const parsed = JSON.parse(checks);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch {
+          // fall through to default
+        }
+      }
+    }
+    return [{ field: "", operator: "eq", expected: "" }];
+  });
+
+  // Sync mdmChecks when storedPolicy loads asynchronously (useState initializer
+  // runs before useQuery resolves, so we need this effect to populate checks)
+  useEffect(() => {
+    if (storedPolicy?.type === "mdm" && storedPolicy?.mdm_check_definition) {
+      const checks = storedPolicy.mdm_check_definition;
+      if (Array.isArray(checks) && checks.length > 0) {
+        setMdmChecks(checks);
+      } else if (typeof checks === "string") {
+        try {
+          const parsed = JSON.parse(checks);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMdmChecks(parsed);
+          }
+        } catch {
+          // invalid JSON, keep current state
+        }
+      }
+    }
+  }, [storedPolicy]);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -355,20 +401,29 @@ const PolicyForm = ({
       });
     }
 
-    if (isExistingPolicy && !isPatchPolicy && !isAnyPlatformSelected) {
+    if (
+      isExistingPolicy &&
+      !isPatchPolicy &&
+      !isMdmPolicy &&
+      !isAnyPlatformSelected
+    ) {
       return setErrors({
         ...errors,
         name: "At least one platform must be selected",
       });
     }
 
-    if (isPatchPolicy && isExistingPolicy) {
-      // Patch policies: only send editable fields, not query/platform
+    if ((isPatchPolicy || isMdmPolicy) && isExistingPolicy) {
+      // Patch/MDM policies: only send editable fields, not query/platform
       const payload: IPolicyFormData = {
         name: lastEditedQueryName,
         description: lastEditedQueryDescription,
         resolution: lastEditedQueryResolution,
       };
+      if (isMdmPolicy) {
+        const validChecks = mdmChecks.filter((c) => c.field && c.expected);
+        payload.mdm_check_definition = validChecks;
+      }
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
       }
@@ -799,7 +854,10 @@ const PolicyForm = ({
     // Save disabled for no platforms selected, query name blank on existing query, or sql errors
     const disableSaveFormErrors =
       isAddingAutomation ||
-      (isExistingPolicy && !isPatchPolicy && !isAnyPlatformSelected) ||
+      (isExistingPolicy &&
+        !isPatchPolicy &&
+        !isMdmPolicy &&
+        !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
@@ -817,37 +875,75 @@ const PolicyForm = ({
           {renderPolicyFleetName()}
           {renderDescription()}
           {renderResolution()}
-          <SQLEditor
-            value={lastEditedQueryBody}
-            error={errors.query}
-            label="Query"
-            labelActionComponent={
-              isPatchPolicy ? (
-                <TooltipWrapper
-                  tipContent="Query is read-only for patch policies."
-                  position="top"
-                  underline={false}
-                  showArrow
-                  tipOffset={12}
-                >
-                  <Icon name="info" size="small" />
-                </TooltipWrapper>
-              ) : (
-                renderLabelComponent()
-              )
-            }
-            name="query editor"
-            onLoad={onLoad}
-            wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
-            onChange={onChangePolicySql}
-            handleSubmit={promptSavePolicy}
-            wrapEnabled
-            focus={!isExistingPolicy}
-            readOnly={isPatchPolicy}
-          />
-          {renderPlatformCompatibility()}
-          {isExistingPolicy && !isPatchPolicy && platformSelector.render()}
-          {isExistingPolicy && isPremiumTier && !isPatchPolicy && (
+          {!policyIdForEdit && !isPatchPolicy && (
+            <div className={`${baseClass}__type-selector`}>
+              <Radio
+                label="Query-based policy"
+                id="policy-type-query"
+                checked={newPolicyType === "query"}
+                value="query"
+                name="policy-type"
+                onChange={() => {
+                  setNewPolicyType("query");
+                  onOpenSchemaSidebar();
+                }}
+              />
+              <Radio
+                label="MDM device check"
+                id="policy-type-mdm"
+                checked={newPolicyType === "mdm"}
+                value="mdm"
+                name="policy-type"
+                onChange={() => {
+                  setNewPolicyType("mdm");
+                  onCloseSchemaSidebar();
+                }}
+              />
+            </div>
+          )}
+          {!isMdmPolicy && !isNewMdmPolicy && (
+            <SQLEditor
+              value={lastEditedQueryBody}
+              error={errors.query}
+              label="Query"
+              labelActionComponent={
+                isPatchPolicy ? (
+                  <TooltipWrapper
+                    tipContent="Query is read-only for patch policies."
+                    position="top"
+                    underline={false}
+                    showArrow
+                    tipOffset={12}
+                  >
+                    <Icon name="info" size="small" />
+                  </TooltipWrapper>
+                ) : (
+                  renderLabelComponent()
+                )
+              }
+              name="query editor"
+              onLoad={onLoad}
+              wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
+              onChange={onChangePolicySql}
+              handleSubmit={promptSavePolicy}
+              wrapEnabled
+              focus={!isExistingPolicy}
+              readOnly={isPatchPolicy}
+            />
+          )}
+          {(isMdmPolicy || isNewMdmPolicy) && (
+            <MDMCheckBuilder
+              checks={mdmChecks}
+              onChange={setMdmChecks}
+              disabled={!!gitOpsModeEnabled}
+            />
+          )}
+          {!isMdmPolicy && !isNewMdmPolicy && renderPlatformCompatibility()}
+          {isExistingPolicy &&
+            !isPatchPolicy &&
+            !isMdmPolicy &&
+            platformSelector.render()}
+          {isExistingPolicy && isPremiumTier && !isPatchPolicy && !isMdmPolicy && (
             <TargetLabelSelector
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
@@ -965,6 +1061,8 @@ const PolicyForm = ({
             onClickAutofillDescription={onClickAutofillDescription}
             onClickAutofillResolution={onClickAutofillResolution}
             labels={labels}
+            policyType={newPolicyType}
+            mdmChecks={isNewMdmPolicy ? mdmChecks : undefined}
           />
         )}
       </>

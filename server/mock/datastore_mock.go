@@ -643,6 +643,8 @@ type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
+type MDMPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]fleet.Policy, error)
+
 type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error)
 
 type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error)
@@ -2785,6 +2787,9 @@ type DataStore struct {
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
+
+	MDMPoliciesForHostFunc        MDMPoliciesForHostFunc
+	MDMPoliciesForHostFuncInvoked bool
 
 	GetTeamHostsPolicyMembershipsFunc        GetTeamHostsPolicyMembershipsFunc
 	GetTeamHostsPolicyMembershipsFuncInvoked bool
@@ -6775,6 +6780,13 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	s.PolicyQueriesForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.PolicyQueriesForHostFunc(ctx, host)
+}
+
+func (s *DataStore) MDMPoliciesForHost(ctx context.Context, host *fleet.Host) ([]fleet.Policy, error) {
+	s.mu.Lock()
+	s.MDMPoliciesForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMPoliciesForHostFunc(ctx, host)
 }
 
 func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error) {
