@@ -72,7 +72,6 @@ module.exports = {
       'lukeheath',
       'zwass',
       'rachelelysia',
-      'gillespi314',
       'mna',
       'eashaw',
       'lucasmrod',
