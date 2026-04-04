@@ -5575,6 +5575,29 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
+
+### Rotate host's managed local account password
+
+_Available in Fleet Premium_
+
+Rotates the managed local account password for a host.
+
+`POST /api/v1/fleet/hosts/:id/managed_local_account/rotate`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                        |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
+| id                            | integer | path  | The host ID to rotate Recovery Lock password for.                                                  |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/managed_local_account/rotate`
+
+##### Default response
+
+`204`
+
 ---
 
 
