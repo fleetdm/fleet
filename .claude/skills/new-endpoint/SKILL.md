@@ -2,6 +2,7 @@
 name: new-endpoint
 description: Scaffold a new Fleet API endpoint with request/response structs, endpoint function, service method, datastore interface, handler registration, and test stubs.
 allowed-tools: Read, Write, Edit, Grep, Glob
+model: sonnet
 effort: high
 disable-model-invocation: true
 ---

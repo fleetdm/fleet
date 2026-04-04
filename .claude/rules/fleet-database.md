@@ -15,7 +15,7 @@ paths:
       MigrationClient.AddMigration(Up_YYYYMMDDHHMMSS, Down_YYYYMMDDHHMMSS)
   }
   func Up_YYYYMMDDHHMMSS(tx *sql.Tx) error { ... }
-  func Down_YYYYMMDDHHMMSS(tx *sql.Tx) error { ... }
+  func Down_YYYYMMDDHHMMSS(tx *sql.Tx) error { return nil }  // always no-op
   ```
 - Test pattern: `applyUpToPrev(t)` → set up data → `applyNext(t, db)` → verify
 - Create with: `make migration name=YourChangeName`

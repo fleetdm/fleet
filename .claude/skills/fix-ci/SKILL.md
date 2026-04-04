@@ -2,6 +2,7 @@
 name: fix-ci
 description: Diagnose and fix failing CI tests from a GitHub Actions run. Use when asked to "fix CI", "CI failure", or "failing tests in CI".
 allowed-tools: Bash(gh *), Bash(go test *), Bash(go build *), Bash(MYSQL_TEST*), Bash(MYSQL_TEST=1 REDIS_TEST=1 *), Bash(FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 *), Read, Grep, Glob, Edit
+model: opus
 effort: high
 ---
 

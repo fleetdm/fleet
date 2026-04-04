@@ -101,7 +101,7 @@ make db-reset                       # Reset dev database
 
 ## Skills and agents
 
-Type `/` to see available skills. Key ones: `/test`, `/lint`, `/review-pr`, `/fix-ci`, `/spec-story`, `/new-endpoint`, `/new-migration`, `/project`, `/fleet-gitops`, `/find-related-tests`, `/update-data-dictionary`.
+Type `/` to see available skills. Key ones: `/test`, `/lint`, `/review-pr`, `/fix-ci`, `/spec-story`, `/new-endpoint`, `/new-migration`, `/bump-migration`, `/project`, `/fleet-gitops`, `/find-related-tests`.
 
 Agents: **go-reviewer** (proactive after Go edits), **frontend-reviewer** (proactive after TS edits), **fleet-security-auditor** (on-demand for auth/MDM/security).
 
@@ -112,7 +112,6 @@ All Fleet documentation lives in this repo. Check these sources before searching
 - **`docs/`** — User-facing docs: feature guides, REST API reference, configuration, deployment, contributing
 - **`handbook/`** — Internal procedures: engineering practices, company policies, product design
 - **`articles/`** — Blog posts and tutorials
-- **`DATA-DICTIONARY.md`** — Database schema reference
 
 ## Other references
 

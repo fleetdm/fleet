@@ -166,8 +166,8 @@ Your local settings override project settings, so you can always customize witho
 │   ├── project/               #   /project <name>
 │   ├── new-endpoint/          #   /new-endpoint
 │   ├── new-migration/         #   /new-migration
-│   ├── spec-story/            #   /spec-story <issue#>
-│   └── update-data-dictionary/ #  /update-data-dictionary
+│   ├── bump-migration/        #   /bump-migration <filename>
+│   └── spec-story/            #   /spec-story <issue#>
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -192,10 +192,10 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/fleet-gitops` | `/fleet-gitops` | Validates GitOps YAML: osquery queries against Fleet schema, Apple/Windows/Android profiles against upstream references, and software against the Fleet-maintained app catalog. |
 | `/project` | `/project android-mdm` | Loads or creates a workstream context file in your Claude memory directory. Includes a minimal self-improvement mechanism — Claude adds discoveries, gotchas, and key file paths as you work, so each session starts with slightly richer context than the last. |
 | `/new-endpoint` | `/new-endpoint` | Scaffolds a Fleet API endpoint: request/response structs, endpoint function, service method, datastore interface, handler registration, and test stubs. |
-| `/new-migration` | `/new-migration` | Creates a timestamped migration file and test file with proper naming, init registration, and Up/Down functions. |
+| `/new-migration` | `/new-migration` | Creates a timestamped migration file and test file with proper naming, init registration, and Up function (Down is always a no-op). |
+| `/bump-migration` | `/bump-migration YYYYMMDDHHMMSS_Name.go` | Bumps a migration's timestamp to current time when it conflicts with a migration already merged to main. Renames files and updates function names in both migration and test files. |
 | `/spec-story` | `/spec-story 12345` | Breaks down a GitHub story into implementable sub-issues: maps codebase impact, decomposes into atomic tasks per layer (migration/datastore/service/API/frontend), and writes specs with acceptance criteria and a dependency graph. Requires `gh`. |
 | `/lint` | `/lint` or `/lint go` | Runs the appropriate linters (golangci-lint, eslint, prettier) on recently changed files. Accepts `go`, `frontend`, or a file path to narrow scope. |
-| `/update-data-dictionary` | `/update-data-dictionary` | Compares recent migrations against `DATA-DICTIONARY.md` and updates it with missing tables, columns, renames, and schema changes. |
 
 ### Using `/project` for workstream context
 

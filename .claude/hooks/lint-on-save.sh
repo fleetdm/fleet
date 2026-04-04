@@ -24,9 +24,9 @@ trap 'rm -f "$TMPFILE"' EXIT
 
 case "$FILE_PATH" in
   *.go)
-    # Skip third_party
+    # Skip third_party (with or without leading path)
     case "$FILE_PATH" in
-      */third_party/*) exit 0 ;;
+      third_party/*|*/third_party/*) exit 0 ;;
     esac
 
     # First pass: auto-fix what we can (uses golangci-lint directly for --fix)
@@ -36,31 +36,23 @@ case "$FILE_PATH" in
     fi
 
     # Second pass: use project's incremental linter (only changes since branching from main)
-    LINT_FAILED=0
     if [ -f Makefile ] && grep -q "lint-go-incremental" Makefile; then
       make lint-go-incremental > "$TMPFILE" 2>&1
-      LINT_EXIT=$?
     elif command -v golangci-lint >/dev/null 2>&1; then
       # Fallback if make target isn't available
       golangci-lint run "$PKG_DIR/..." > "$TMPFILE" 2>&1
-      LINT_EXIT=$?
     else
       exit 0
     fi
 
-    # Distinguish linter errors (broken setup) from lint violations (code issues)
-    if grep -q "Error:" "$TMPFILE" && ! grep -q "\.go:" "$TMPFILE"; then
-      # Linter itself errored (e.g., wrong Go version, missing binary) — report as a tool problem
-      jq -Rsc \
-        '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: ("Linter error (not a code issue — the linter setup may need fixing):\n" + .)}}' \
-        < "$TMPFILE"
-    elif grep -q "\.go:" "$TMPFILE"; then
-      # Actual lint violations found in Go files
-      jq -Rsc --arg fp "$FILE_PATH" \
-        '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: ("make lint-go-incremental found issues after editing " + $fp + ":\n" + .)}}' \
-        < "$TMPFILE"
+    # Filter out noise (level=warning, command echo, summary) and keep only real violations
+    # Real violations look like: path/to/file.go:LINE:COL: message (lintername)
+    VIOLATIONS=$(grep -v "^level=" "$TMPFILE" | grep -v "^\\./" | grep -v "^[0-9]* issues" | grep -v "^$" | grep -E '\.go:[0-9]+:[0-9]+:' | head -20)
+
+    if [ -n "$VIOLATIONS" ]; then
+      echo "$VIOLATIONS" | jq -Rsc --arg fp "$FILE_PATH" \
+        '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: ("make lint-go-incremental found issues after editing " + $fp + ":\n" + .)}}'
     fi
-    # If neither matched (e.g., "0 issues"), produce no output (clean)
     ;;
 
   *.ts|*.tsx)

@@ -1,9 +1,9 @@
 ---
 name: new-migration
-description: Create a new Fleet database migration with timestamp naming, Up/Down functions, init registration, and test file.
+description: Create a new Fleet database migration with timestamp naming, Up function, init registration, and test file.
 allowed-tools: Bash(date *), Bash(make migration *), Bash(go build *), Bash(go test *), Bash(MYSQL_TEST*), Read, Write, Grep, Glob
-effort: low
-disable-model-invocation: true
+model: sonnet
+effort: medium
 ---
 
 # Create a New Database Migration
@@ -73,6 +73,6 @@ func TestUp_{TIMESTAMP}(t *testing.T) {
 
 ## Rules
 - Every migration MUST have a test file
-- Down migrations should be safe (use `IF EXISTS`, `IF NOT EXISTS`)
+- Down migrations are always no-ops (`return nil`) — Fleet doesn't use rollback migrations
 - Never modify existing migration files — create new ones
 - Data migrations go in the `data/` subdirectory

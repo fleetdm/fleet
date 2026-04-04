@@ -2,6 +2,7 @@
 name: spec-story
 description: Break down a Fleet GitHub story issue into implementable sub-issues with technical specs. Use when asked to "spec", "break down", or "analyze" a story or issue.
 allowed-tools: Bash(gh *), Read, Grep, Glob, Write, Edit, WebFetch(domain:github.com), WebFetch(domain:fleetdm.com), WebSearch
+model: opus
 effort: high
 argument-hint: "<issue-number-or-url>"
 ---
@@ -22,7 +23,7 @@ Break down the GitHub story into implementable sub-issues: $ARGUMENTS
 Search the codebase to understand what exists and what needs to change:
 - Find existing implementations of related features (Grep for key terms)
 - Identify the tables, service methods, API endpoints, and frontend pages involved
-- Check `DATA-DICTIONARY.md` for relevant schema
+- Check migration files and `server/fleet/datastore.go` for relevant schema
 - Trace the request flow: API endpoint → service method → datastore → frontend
 
 ### 3. Identify Sub-Issues
