@@ -18,17 +18,17 @@ $shadow-transition-width: 10px;
       background-image:
       /* Shadows */ linear-gradient(
           to right,
-          white,
+          $core-fleet-white,
           $transparent
         ),
-        linear-gradient(to left, white, $transparent),
+        linear-gradient(to left, $core-fleet-white, $transparent),
         /* Shadow covers */
-          linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
-        linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
+          linear-gradient(to right, $ui-shadow, $core-fleet-white $shadow-transition-width),
+        linear-gradient(to left, $ui-shadow, $core-fleet-white $shadow-transition-width);
 
       background-position: left center, right center, left center, right center;
       background-repeat: no-repeat;
-      background-color: white;
+      background-color: $core-fleet-white;
       background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%,
         50% 100%;
 

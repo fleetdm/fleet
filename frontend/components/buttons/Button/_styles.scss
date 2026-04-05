@@ -140,6 +140,10 @@ $base-class: "button";
     );
     display: flex;
     text-wrap: nowrap;
+
+    body.dark-mode & {
+      opacity: 0.8;
+    }
   }
 
   &--success {
@@ -369,7 +373,7 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      background-color: rgba($core-fleet-black, 0.05);
+      background-color: $core-fleet-black-overlay-05;
       color: $core-fleet-green-over;
 
       svg {

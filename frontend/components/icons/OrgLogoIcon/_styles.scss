@@ -9,3 +9,7 @@
 .default-fleet-logo {
   transform: scale(0.5);
 }
+
+body.dark-mode .default-fleet-logo {
+  filter: brightness(0) invert(1);
+}
