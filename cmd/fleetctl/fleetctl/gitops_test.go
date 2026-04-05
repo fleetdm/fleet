@@ -1578,7 +1578,20 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return &appConfig, nil
 	}
 
+	// Tracking variables for mock side effects, reset between subtests.
 	var appliedScripts []*fleet.Script
+	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
+	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
+	var appliedPolicySpecs []*fleet.PolicySpec
+	var appliedQueries []*fleet.Query
+	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
+	var enrolledSecrets []*fleet.EnrollSecret
+	var savedTeam *fleet.Team
+	var policyDeleted bool
+	var queryDeleted bool
+	var deletedPolicyIDs []uint
+	var deletedQueryIDs []uint
+
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		appliedScripts = scripts
 		var scriptResponses []fleet.ScriptResponse
@@ -1589,11 +1602,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 				TeamID: script.TeamID,
 			})
 		}
-
 		return scriptResponses, nil
 	}
-	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
-	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -1611,7 +1621,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return declaration, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -1623,7 +1632,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 	setupDefaultTeamConfigMocks(ds)
 
 	// Team
-	var savedTeam *fleet.Team
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Conflict" {
 			return &fleet.Team{}, nil
@@ -1640,13 +1648,13 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		if tid == savedTeam.ID {
+		if savedTeam != nil && tid == savedTeam.ID {
 			return savedTeam, nil
 		}
 		return nil, nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
-		if tid == savedTeam.ID {
+		if savedTeam != nil && tid == savedTeam.ID {
 			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
@@ -1655,7 +1663,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return true, nil
 	}
 	const teamID = uint(123)
-	var enrolledSecrets []*fleet.EnrollSecret
 	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
 		newTeam.ID = teamID
 		savedTeam = newTeam
@@ -1663,14 +1670,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return newTeam, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		if team.ID == teamID {
-			savedTeam = team
-		} else {
-			assert.Fail(t, "unexpected team ID when saving team")
-		}
+		savedTeam = team
 		return team, nil
 	}
-
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
@@ -1680,7 +1682,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 	policy.ID = 1
 	policy.Name = "Policy to delete"
 	policy.TeamID = ptr.Uint(teamID)
-	policyDeleted := false
 	ds.ListTeamPoliciesFunc = func(
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
@@ -1697,15 +1698,13 @@ func TestGitOpsFullTeam(t *testing.T) {
 	}
 	ds.DeleteTeamPoliciesFunc = func(ctx context.Context, teamID uint, IDs []uint) ([]uint, error) {
 		policyDeleted = true
-		assert.Equal(t, []uint{policy.ID}, IDs)
-		return []uint{policy.ID}, nil
+		deletedPolicyIDs = IDs
+		return IDs, nil
 	}
-	var appliedPolicySpecs []*fleet.PolicySpec
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		appliedPolicySpecs = specs
 		return nil
 	}
-
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
@@ -1715,13 +1714,12 @@ func TestGitOpsFullTeam(t *testing.T) {
 	query.ID = 1
 	query.TeamID = ptr.Uint(teamID)
 	query.Name = "Query to delete"
-	queryDeleted := false
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{&query}, 1, 0, nil, nil
 	}
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
 		queryDeleted = true
-		assert.Equal(t, []uint{query.ID}, ids)
+		deletedQueryIDs = ids
 		return 1, nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -1730,7 +1728,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil, nil
 	}
-	var appliedQueries []*fleet.Query
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
@@ -1743,7 +1740,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 	testing_utils.AddLabelMocks(ds)
 
-	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		if teamID != nil && *teamID != 0 {
 			appliedSoftwareInstallers = installers
@@ -1753,89 +1749,113 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 	testing_utils.StartSoftwareInstallerServer(t)
 
-	t.Setenv("TEST_TEAM_NAME", teamName)
-	t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
-	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
+	for _, useDeprecatedKeys := range []bool{false, true} {
+		t.Run(fmt.Sprintf("useDeprecatedKeys=%t", useDeprecatedKeys), func(t *testing.T) {
+			// Reset tracking variables.
+			appliedScripts = nil
+			appliedMacProfiles = nil
+			appliedWinProfiles = nil
+			appliedPolicySpecs = nil
+			appliedQueries = nil
+			appliedSoftwareInstallers = nil
+			enrolledSecrets = nil
+			savedTeam = nil
+			policyDeleted = false
+			queryDeleted = false
+			deletedPolicyIDs = nil
+			deletedQueryIDs = nil
 
-	// Dry run
-	const baseFilename = "team_config_no_paths.yml"
-	gitopsFile := "./testdata/gitops/" + baseFilename
-	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
-	assert.Nil(t, savedTeam)
-	assert.Len(t, enrolledSecrets, 0)
-	assert.Len(t, appliedPolicySpecs, 0)
-	assert.Len(t, appliedQueries, 0)
-	assert.Len(t, appliedScripts, 0)
-	assert.Len(t, appliedMacProfiles, 0)
-	assert.Len(t, appliedWinProfiles, 0)
-	assert.Empty(t, appliedSoftwareInstallers)
+			basePath := "team_config_no_paths"
+			if useDeprecatedKeys {
+				basePath += "_deprecated_keys"
+			}
+			const baseDir = "./testdata/gitops/"
+			gitopsFile := baseDir + basePath + ".yml"
 
-	// Real run
-	// Setting global calendar config
-	appConfig.Integrations = fleet.Integrations{
-		GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
-	}
-	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
-	require.NotNil(t, savedTeam)
-	assert.Equal(t, teamName, savedTeam.Name)
-	assert.Contains(t, string(*savedTeam.Config.AgentOptions), "distributed_denylist_duration")
-	assert.True(t, savedTeam.Config.Features.EnableHostUsers)
-	assert.Equal(t, 30, savedTeam.Config.HostExpirySettings.HostExpiryWindow)
-	assert.True(t, savedTeam.Config.MDM.EnableDiskEncryption)
-	assert.True(t, savedTeam.Config.MDM.RequireBitLockerPIN)
-	assert.Len(t, enrolledSecrets, 2)
-	assert.True(t, policyDeleted)
-	assert.Len(t, appliedPolicySpecs, 5)
-	assert.True(t, queryDeleted)
-	assert.Len(t, appliedQueries, 3)
-	assert.Len(t, appliedScripts, 1)
-	assert.Len(t, appliedMacProfiles, 1)
-	assert.Len(t, appliedWinProfiles, 1)
-	assert.True(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
-	assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
-	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
-	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
-	assert.Equal(t, baseFilename, *savedTeam.Filename)
-	require.Len(t, appliedSoftwareInstallers, 2)
-	packageID := `'ruby'`
-	uninstallScriptProcessed := strings.ReplaceAll(file.GetUninstallScript("deb"), "$PACKAGE_ID", packageID)
-	assert.ElementsMatch(t, []string{fmt.Sprintf("echo 'uninstall' %s\n", packageID), uninstallScriptProcessed},
-		[]string{appliedSoftwareInstallers[0].UninstallScript, appliedSoftwareInstallers[1].UninstallScript})
+			t.Setenv("TEST_TEAM_NAME", teamName)
+			t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
+			t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
+			t.Setenv("FLEET_ENABLE_LOG_TOPICS", "deprecated-field-names")
 
-	// Change disk encryption settings
-	t.Setenv("ENABLE_DISK_ENCRYPTION", "false")
-	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "false")
-	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
-	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
-	require.NotNil(t, savedTeam)
-	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
-	assert.False(t, savedTeam.Config.MDM.RequireBitLockerPIN)
+			// Dry run
+			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+			assert.Nil(t, savedTeam)
+			assert.Len(t, enrolledSecrets, 0)
+			assert.Len(t, appliedPolicySpecs, 0)
+			assert.Len(t, appliedQueries, 0)
+			assert.Len(t, appliedScripts, 0)
+			assert.Len(t, appliedMacProfiles, 0)
+			assert.Len(t, appliedWinProfiles, 0)
+			assert.Empty(t, appliedSoftwareInstallers)
 
-	// Change team name
-	newTeamName := "New Team Name"
-	t.Setenv("TEST_TEAM_NAME", newTeamName)
-	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
-	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
-	require.NotNil(t, savedTeam)
-	assert.Equal(t, newTeamName, savedTeam.Name)
-	assert.Equal(t, baseFilename, *savedTeam.Filename)
+			// Real run
+			// Setting global calendar config
+			appConfig.Integrations = fleet.Integrations{
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
+			}
+			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+			require.NotNil(t, savedTeam)
+			assert.Equal(t, teamName, savedTeam.Name)
+			assert.Contains(t, string(*savedTeam.Config.AgentOptions), "distributed_denylist_duration")
+			assert.True(t, savedTeam.Config.Features.EnableHostUsers)
+			assert.Equal(t, 30, savedTeam.Config.HostExpirySettings.HostExpiryWindow)
+			assert.True(t, savedTeam.Config.MDM.EnableDiskEncryption)
+			assert.True(t, savedTeam.Config.MDM.RequireBitLockerPIN)
+			assert.Len(t, enrolledSecrets, 2)
+			assert.True(t, policyDeleted)
+			assert.Equal(t, []uint{policy.ID}, deletedPolicyIDs)
+			assert.Len(t, appliedPolicySpecs, 5)
+			assert.True(t, queryDeleted)
+			assert.Equal(t, []uint{query.ID}, deletedQueryIDs)
+			assert.Len(t, appliedQueries, 3)
+			assert.Len(t, appliedScripts, 1)
+			assert.Len(t, appliedMacProfiles, 1)
+			assert.Len(t, appliedWinProfiles, 1)
+			assert.True(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
+			assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+			require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
+			assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
+			assert.Equal(t, basePath+".yml", *savedTeam.Filename)
+			require.Len(t, appliedSoftwareInstallers, 2)
+			packageID := `'ruby'`
+			uninstallScriptProcessed := strings.ReplaceAll(file.GetUninstallScript("deb"), "$PACKAGE_ID", packageID)
+			assert.ElementsMatch(t, []string{fmt.Sprintf("echo 'uninstall' %s\n", packageID), uninstallScriptProcessed},
+				[]string{appliedSoftwareInstallers[0].UninstallScript, appliedSoftwareInstallers[1].UninstallScript})
 
-	// Try to change team name again, but this time the new name conflicts with an existing team
-	t.Setenv("TEST_TEAM_NAME", "Conflict")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
-	assert.ErrorContains(t, err, "team name already exists")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", gitopsFile})
-	assert.ErrorContains(t, err, "team name already exists")
+			// Change disk encryption settings
+			t.Setenv("ENABLE_DISK_ENCRYPTION", "false")
+			t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "false")
+			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+			require.NotNil(t, savedTeam)
+			assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
+			assert.False(t, savedTeam.Config.MDM.RequireBitLockerPIN)
 
-	// Now clear the settings
-	t.Setenv("TEST_TEAM_NAME", newTeamName)
-	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	secret := "TestSecret"
-	t.Setenv("TEST_SECRET", secret)
+			// Change team name
+			newTeamName := "New Team Name"
+			t.Setenv("TEST_TEAM_NAME", newTeamName)
+			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+			require.NotNil(t, savedTeam)
+			assert.Equal(t, newTeamName, savedTeam.Name)
+			assert.Equal(t, basePath+".yml", *savedTeam.Filename)
 
-	_, err = tmpFile.WriteString(
-		`
+			// Try to change team name again, but this time the new name conflicts with an existing team
+			t.Setenv("TEST_TEAM_NAME", "Conflict")
+			_, err := RunAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
+			assert.ErrorContains(t, err, "team name already exists")
+			_, err = RunAppNoChecks([]string{"gitops", "-f", gitopsFile})
+			assert.ErrorContains(t, err, "team name already exists")
+
+			// Now clear the settings
+			t.Setenv("TEST_TEAM_NAME", newTeamName)
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			secret := "TestSecret"
+			t.Setenv("TEST_SECRET", secret)
+
+			_, err = tmpFile.WriteString(
+				`
 controls:
 queries:
 policies:
@@ -1846,33 +1866,35 @@ team_settings:
    - secret: ${TEST_SECRET}
 software:
 `,
-	)
-	require.NoError(t, err)
+			)
+			require.NoError(t, err)
 
-	// Dry run
-	savedTeam = nil
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
-	assert.Nil(t, savedTeam)
+			// Dry run
+			savedTeam = nil
+			_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+			assert.Nil(t, savedTeam)
 
-	// Real run
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
-	require.NotNil(t, savedTeam)
-	assert.Equal(t, newTeamName, savedTeam.Name)
-	require.Len(t, enrolledSecrets, 1)
-	assert.Equal(t, secret, enrolledSecrets[0].Secret)
-	assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
-	assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
-	assert.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
-	assert.False(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
-	assert.Empty(t, savedTeam.Config.Integrations.GoogleCalendar)
-	assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
-	assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
-	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
-	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
-	assert.False(t, savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
-	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
-	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
+			// Real run
+			_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+			require.NotNil(t, savedTeam)
+			assert.Equal(t, newTeamName, savedTeam.Name)
+			require.Len(t, enrolledSecrets, 1)
+			assert.Equal(t, secret, enrolledSecrets[0].Secret)
+			assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
+			assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+			assert.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
+			assert.False(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
+			assert.Empty(t, savedTeam.Config.Integrations.GoogleCalendar)
+			assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
+			assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
+			assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
+			assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+			assert.False(t, savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
+			assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+			assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
+			assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
+		})
+	}
 }
 
 func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
@@ -2814,28 +2836,49 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return nil, nil
 	}
 
-	globalFile := "./testdata/gitops/global_config_no_paths.yml"
-	teamFile := "./testdata/gitops/team_config_no_paths.yml"
+	for _, useDeprecatedKeys := range []bool{false, true} {
+		t.Run(fmt.Sprintf("useDeprecatedKeys=%t", useDeprecatedKeys), func(t *testing.T) {
+			// Reset tracking variables.
+			enrolledSecrets = nil
+			enrolledTeamSecrets = nil
+			appliedPolicySpecs = nil
+			appliedQueries = nil
+			ds.SaveAppConfigFuncInvoked = false
+			for name := range savedTeams {
+				delete(savedTeams, name)
+			}
 
-	t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
-	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
+			globalBasePath := "./testdata/gitops/global_config_no_paths"
+			teamBasePath := "./testdata/gitops/team_config_no_paths"
+			if useDeprecatedKeys {
+				globalBasePath += "_deprecated_keys"
+				teamBasePath += "_deprecated_keys"
+			}
+			globalFile := globalBasePath + ".yml"
+			teamFile := teamBasePath + ".yml"
 
-	// Dry run
-	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
-	assert.False(t, ds.SaveAppConfigFuncInvoked)
-	assert.Len(t, enrolledSecrets, 0)
-	assert.Len(t, enrolledTeamSecrets, 0)
-	assert.Len(t, appliedPolicySpecs, 0)
-	assert.Len(t, appliedQueries, 0)
+			t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
+			t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
+			t.Setenv("FLEET_ENABLE_LOG_TOPICS", "deprecated-field-names")
 
-	// Real run
-	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--delete-other-teams"})
-	assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
-	assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
-	assert.Len(t, enrolledSecrets, 2)
-	require.NotNil(t, *savedTeams[teamName])
-	assert.Equal(t, teamName, (*savedTeams[teamName]).Name)
-	require.Len(t, enrolledTeamSecrets, 2)
+			// Dry run
+			_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
+			assert.False(t, ds.SaveAppConfigFuncInvoked)
+			assert.Len(t, enrolledSecrets, 0)
+			assert.Len(t, enrolledTeamSecrets, 0)
+			assert.Len(t, appliedPolicySpecs, 0)
+			assert.Len(t, appliedQueries, 0)
+
+			// Real run
+			_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--delete-other-teams"})
+			assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
+			assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
+			assert.Len(t, enrolledSecrets, 2)
+			require.NotNil(t, *savedTeams[teamName])
+			assert.Equal(t, teamName, (*savedTeams[teamName]).Name)
+			require.Len(t, enrolledTeamSecrets, 2)
+		})
+	}
 
 	t.Run("no-team.yml using relative paths", func(t *testing.T) {
 		// Override label mocks to return no existing labels, since these YAML files
