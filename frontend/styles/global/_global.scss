@@ -239,8 +239,8 @@ input {
 // Pinned to dark palette — code blocks stay dark in both modes.
 pre {
   padding: $pad-large;
-  background-color: #192147;
-  color: #ffffff;
+  background-color: $static-black;
+  color: $static-white;
   border-radius: 4px;
   white-space: pre-wrap;
 
@@ -257,7 +257,7 @@ pre {
     color: magenta;
   }
   .key {
-    color: #ffffff;
+    color: $static-white;
   }
 }
 

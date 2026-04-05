@@ -4,6 +4,7 @@ import classnames from "classnames";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { isDarkMode } from "utilities/theme";
 
 import { AppContext } from "context/app";
 
@@ -139,7 +140,9 @@ const SiteTopNav = ({
 
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
-    const orgLogoURL = config.org_info.org_logo_url_light_background;
+    const orgLogoURL = isDarkMode()
+      ? config.org_info.org_logo_url
+      : config.org_info.org_logo_url_light_background;
     const active = navItem.location.regex.test(currentPath);
 
     const navItemBaseClass = "site-nav-item";

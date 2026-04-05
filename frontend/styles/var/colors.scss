@@ -88,6 +88,7 @@
   // Overlay / semi-transparent (used in Modal & Button)
   --core-fleet-black-overlay-40: rgba(25, 33, 71, 0.4);
   --core-fleet-black-overlay-05: rgba(25, 33, 71, 0.05);
+  --loading-overlay: rgba(255, 255, 255, 0.8);
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +175,7 @@ body.dark-mode {
   // Overlays
   --core-fleet-black-overlay-40: rgba(0, 0, 0, 0.6);
   --core-fleet-black-overlay-05: rgba(226, 228, 234, 0.06);
+  --loading-overlay: rgba(15, 17, 30, 0.8);
 }
 
 // =============================================================================
@@ -260,6 +262,12 @@ $transparent: rgba(255, 255, 255, 0);
 // Overlay aliases (replace inline rgba($core-fleet-black, …) calls)
 $core-fleet-black-overlay-40: var(--core-fleet-black-overlay-40);
 $core-fleet-black-overlay-05: var(--core-fleet-black-overlay-05);
+$loading-overlay: var(--loading-overlay);
+
+// Static colors — not themed, same in both light and dark mode.
+// Use for elements that are always dark surfaces with light text (tooltips, code blocks).
+$static-white: #e8eaf0;
+$static-black: #192147;
 
 // Opaque colors for table shadows — compile-time SCSS math, not themed.
 // These are subtle edge effects; dark-mode polish can refine them later.
