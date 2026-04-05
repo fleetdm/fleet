@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -19,8 +18,6 @@ import (
 )
 
 const (
-	defaultMaxS3Keys = 1000
-	cleanupSize      = 1000
 	// This is Golang's way of formatting timestrings, it's confusing, I know.
 	// If you are used to more conventional timestrings, this is equivalent
 	// to %Y/%m/%d/%H (year/month/day/hour)
@@ -98,72 +95,11 @@ func (c *CarveStore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetad
 	return c.metadatadb.UpdateCarve(ctx, metadata)
 }
 
-// listS3Carves lists all keys up to a given one or if the passed max number
-// of keys has been reached; keys are returned in a set-like map
-func (c *CarveStore) listS3Carves(ctx context.Context, lastPrefix string, maxKeys int) (map[string]bool, error) {
-	var err error
-	var continuationToken string
-	result := make(map[string]bool)
-	if maxKeys <= 0 {
-		maxKeys = defaultMaxS3Keys
-	}
-	if !strings.HasPrefix(lastPrefix, c.prefix) {
-		lastPrefix = c.prefix + lastPrefix
-	}
-	for {
-		carveFilesPage, err := c.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-			Bucket:            &c.bucket,
-			Prefix:            &c.prefix,
-			ContinuationToken: &continuationToken,
-		})
-		if err != nil {
-			return nil, err
-		}
-		for _, carveObject := range carveFilesPage.Contents {
-			result[*carveObject.Key] = true
-			if strings.HasPrefix(*carveObject.Key, lastPrefix) || len(result) >= maxKeys {
-				return result, nil
-			}
-		}
-		if !*carveFilesPage.IsTruncated {
-			break
-		}
-		continuationToken = *carveFilesPage.ContinuationToken
-	}
-	return result, err
-}
-
 // CleanupCarves is a noop on the S3 side since users should rely on the bucket
-// lifecycle configurations provided by AWS. This will compare a portion of the
-// metadata present in the database and mark as expired the carves no longer
-// available in S3 (ignores the `now` argument)
-func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, error) {
-	var err error
-	// Get the 1000 oldest carves
-	nonExpiredCarves, err := c.ListCarves(ctx, fleet.CarveListOptions{
-		ListOptions: fleet.ListOptions{PerPage: cleanupSize},
-		Expired:     false,
-	})
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "s3 carve cleanup")
-	}
-	// List carves in S3 up to a hour+1 prefix
-	lastCarveNextHour := nonExpiredCarves[len(nonExpiredCarves)-1].CreatedAt.Add(time.Hour)
-	lastCarvePrefix := c.prefix + lastCarveNextHour.Format(timePrefixFormat)
-	carveKeys, err := c.listS3Carves(ctx, lastCarvePrefix, 2*cleanupSize)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "s3 carve cleanup")
-	}
-	// Compare carve metadata in DB with S3 listing and update expiration flag
-	cleanCount := 0
-	for _, carve := range nonExpiredCarves {
-		if _, ok := carveKeys[c.generateS3Key(carve)]; !ok {
-			carve.Expired = true
-			err = c.UpdateCarve(ctx, carve)
-			cleanCount++
-		}
-	}
-	return cleanCount, err
+// lifecycle configurations provided by AWS. The MySQL datastore's CleanupCarves
+// handles DB-side expiration and is called by the cleanup cron job.
+func (c *CarveStore) CleanupCarves(_ context.Context, _ time.Time) (int, error) {
+	return 0, nil
 }
 
 // Carve returns carve metadata by ID
