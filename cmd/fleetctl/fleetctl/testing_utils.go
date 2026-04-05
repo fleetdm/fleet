@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -126,9 +125,6 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 		return nil, &gitopsTestNotFoundError{}
 	}
 	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error { return nil }
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
-	}
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
 		return nil
 	}

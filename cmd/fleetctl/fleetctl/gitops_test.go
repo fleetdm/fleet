@@ -683,12 +683,6 @@ func TestGitOpsExceptionsPreserveOmittedKeys(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return errors.New("unexpected ApplyEnrollSecretsFunc call - should not apply enroll secrets when excepted")
 	}
-	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
-	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
-	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
-	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
-		return nil, nil
-	}
 	var savedTeam *fleet.Team
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if savedTeam != nil && savedTeam.Name == name {
@@ -749,6 +743,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 			KeyValueStore: testing_utils.NewMemKeyValueStore(),
 		},
 	)
+	setupEmptyGitOpsMocks(ds)
 
 	// --- Shared mocks ---
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -770,81 +765,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
-		return []fleet.ScriptResponse{}, nil
-	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-		return nil, nil
-	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, 0, nil, nil
-	}
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
 	}
 	setupDefaultTeamConfigMocks(ds)
-	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
-		return nil, nil
-	}
-	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
-		return nil
-	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
-		return nil
-	}
 	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
 		return &fleet.Label{ID: 1, Name: name}, nil
-	}
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-		return nil
-	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
-		return map[string]*fleet.Label{}, nil
-	}
-	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-		return nil
-	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-		return map[string]uint{}, nil
-	}
-	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
-	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
-		return nil
-	}
-	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-		return &fleet.GroupedCertificateAuthorities{}, nil
-	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
-	}
-	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
-	}
-	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
-		return nil, nil
-	}
-	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
-		return false, nil
-	}
-	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
-		return nil, nil
-	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
-		return nil, nil, nil
-	}
-	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
-		return &fleet.TeamLite{}, nil
-	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
-		return &fleet.MDMAppleDeclaration{}, nil
-	}
-	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-		return &fleet.Job{}, nil
-	}
-	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
-		return nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Test Fleet" {
@@ -852,26 +778,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error { return nil }
-	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
-		return nil
-	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return team, nil
 	}
 	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
-	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
-		return nil
-	}
-	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
-		return nil, nil
-	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return nil, nil
-	}
-
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		policySpecsByTeam[specs[0].Team] = specs
 		return nil
@@ -1094,9 +1006,6 @@ func TestGitOpsNoExceptionsClearOmittedKeys(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		appliedSecrets = secrets
 		return nil
-	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-		return map[string]uint{}, nil
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		return savedTeam, nil
@@ -1532,74 +1441,13 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
-	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{}, nil
-	}
-	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return []*fleet.ABMToken{}, nil
-	}
-
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
 
 	// Premium mocks
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return nil, nil
-	}
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
-		return nil, &notFoundError{}
-	}
-	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-		return &fleet.MDMAppleBootstrapPackage{}, nil
-	}
-	ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
-		return nil
-	}
-	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
-		return nil, &notFoundError{}
-	}
-	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
-		return nil
-	}
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-		return &fleet.MDMAppleConfigProfile{}, nil
-	}
-	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
-		return nil
-	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
-		return &fleet.MDMAppleDeclaration{}, nil
-	}
-	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
-		return nil
-	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{"a": 1, "b": 2}, nil
-	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
-	}
-	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
-	}
-	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
-		return nil, nil
-	}
-	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
-		return []fleet.SoftwareAutoUpdateSchedule{}, nil
-	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam, appStoreAppIDsToTitleIDs map[string]uint) (bool, error) {
-		return false, nil
-	}
-	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
-		return &fleet.TeamLite{}, nil
-	}
-	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
-		return nil, nil
-	}
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
-		return nil
 	}
 
 	const (
@@ -1695,6 +1543,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 		},
 	)
 
+	setupEmptyGitOpsMocks(ds)
+
 	appConfig := fleet.AppConfig{
 		// During dry run, the global calendar integration setting may not be set
 		MDM: fleet.MDM{
@@ -1729,16 +1579,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 		appliedWinProfiles = winProfiles
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
-	) (updates fleet.MDMProfilesUpdates, err error) {
-		return fleet.MDMProfilesUpdates{}, nil
-	}
-	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
-		return nil
-	}
-	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
-		return nil
-	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
 	}
@@ -1755,39 +1595,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
-	}
-	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
-		return nil
-	}
-	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-		return &fleet.MDMAppleBootstrapPackage{}, nil
-	}
-	ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
-		return nil
-	}
-	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
-		return nil, nil
-	}
-	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
-		return nil
-	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
-	}
-	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
-		return nil
-	}
-
-	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
-		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
-	}
-
-	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
-		return nil, nil
-	}
-
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return nil, nil
 	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
@@ -1919,31 +1726,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 		if teamID != nil && *teamID != 0 {
 			appliedSoftwareInstallers = installers
 		}
-		return nil
-	}
-	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
-	}
-	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
-		return nil, nil
-	}
-	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
-		return false, nil
-	}
-	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
-		return nil
-	}
-	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
-		return []fleet.SoftwareAutoUpdateSchedule{}, nil
-	}
-	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-		enrolledSecrets = secrets
-		return nil
-	}
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, nil, nil
-	}
-	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
 
