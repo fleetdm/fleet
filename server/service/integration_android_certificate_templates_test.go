@@ -1674,20 +1674,23 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 // TestONCProfileWithheldUntilCertReady tests the end-to-end flow where an
 // Android ONC profile referencing a certificate via ClientCertKeyPairAlias is
 // withheld during profile reconciliation until the certificate reaches a
-// terminal state (verified or failed).
+// terminal state (verified or failed). It uses the real PubSub enrollment path
+// to verify that cert template records are created automatically during enrollment,
+// ensuring the ONC withholding logic works for newly enrolled devices.
 func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	t := s.T()
 	ctx := t.Context()
-	enterpriseID := s.enableAndroidMDM(t)
+	s.enableAndroidMDM(t)
+	s.setSkipWorkerJobs(t)
 
 	// Create team with enroll secret
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Secrets: []*fleet.EnrollSecret{
+		{Secret: "secret-" + t.Name()},
+	}})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{
-		{Secret: "secret-" + t.Name(), TeamID: &team.ID},
-	}))
 
-	// Create certificate authority and certificate template
+	// Create certificate authority and certificate template BEFORE enrolling the host.
+	// This ensures CreatePendingCertificateTemplatesForNewHost finds it during enrollment.
 	caID, _ := s.createTestCertificateAuthority(t, ctx)
 	var certTemplateResp applyCertificateTemplateSpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -1707,18 +1710,25 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	})
 	require.NotZero(t, certTemplateID)
 
-	// Create an enrolled Android host
-	host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &team.ID, "1")
+	// Enroll the Android host through the real PubSub enrollment path.
+	// This exercises CreatePendingCertificateTemplatesForNewHost automatically.
+	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-test", &team.ID, true)
 
-	// Insert host_certificate_template in "delivered" status (simulating cert was sent to device
-	// but agent hasn't completed SCEP enrollment yet)
+	// Set orbit_node_key so the host can authenticate to the cert status API.
+	// In production, Orbit enrollment sets this; PubSub enrollment only sets node_key.
+	orbitNodeKey := "android/" + host.UUID
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Verify that enrollment created the cert template record for this host.
+	var certStatus string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name) VALUES (?, ?, ?, ?, ?)",
-			host.UUID, certTemplateID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, "wifi-cert",
-		)
-		return err
+		return sqlx.GetContext(ctx, q, &certStatus,
+			"SELECT status FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			host.UUID, certTemplateID)
 	})
+	require.Equal(t, string(fleet.CertificateTemplatePending), certStatus,
+		"enrollment should have created a pending cert template record")
 
 	// Create ONC profile referencing the certificate + a non-ONC profile
 	oncProfileJSON := fmt.Appendf(nil, `{
@@ -1775,20 +1785,18 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	require.NotNil(t, profileStatuses[1].Detail)
 	require.Contains(t, *profileStatuses[1].Detail, `Waiting for certificate "wifi-cert"`)
 
-	// Transition certificate to "verified"
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
-			fleet.CertificateTemplateVerified, host.UUID, certTemplateID)
-		return err
+	// Report certificate as verified through the real API endpoint.
+	// After the first reconciliation, reconcileCertificateTemplates transitioned the cert
+	// to "delivered", so the status API will accept the update and trigger RequeueWithheldONCProfilesForHost.
+	updateReq, err := json.Marshal(updateCertificateStatusRequest{
+		Status: string(fleet.CertificateTemplateVerified),
+		Detail: new("Certificate installed successfully"),
 	})
-
-	// Force profiles to be re-evaluated
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			"UPDATE host_mdm_android_profiles SET status = NULL WHERE host_uuid = ?", host.UUID)
-		return err
+	require.NoError(t, err)
+	resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), updateReq, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 	})
+	resp.Body.Close()
 
 	s.awaitTriggerAndroidProfileSchedule(t)
 
