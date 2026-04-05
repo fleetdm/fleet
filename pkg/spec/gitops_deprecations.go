@@ -25,6 +25,26 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"team_settings", "settings"},
 	{"queries", "reports"},
 
+	// Controls: macos_settings -> apple_settings (parent first, then children)
+	{"controls.macos_settings", "controls.apple_settings"},
+	{"controls.apple_settings.custom_settings", "controls.apple_settings.configuration_profiles"},
+
+	// Controls: windows_settings children
+	{"controls.windows_settings.custom_settings", "controls.windows_settings.configuration_profiles"},
+
+	// Controls: macos_setup -> setup_experience (parent first, then children)
+	{"controls.macos_setup", "controls.setup_experience"},
+	{"controls.setup_experience.bootstrap_package", "controls.setup_experience.macos_bootstrap_package"},
+	{"controls.setup_experience.macos_setup_assistant", "controls.setup_experience.apple_setup_assistant"},
+	{"controls.setup_experience.enable_release_device_manually", "controls.setup_experience.apple_enable_release_device_manually"},
+	{"controls.setup_experience.script", "controls.setup_experience.macos_script"},
+	{"controls.setup_experience.manual_agent_install", "controls.setup_experience.macos_manual_agent_install"},
+
+	// Org settings: server_settings
+	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},
+	{"org_settings.server_settings.query_reports_disabled", "org_settings.server_settings.discard_reports_data"},
+	{"org_settings.server_settings.query_report_cap", "org_settings.server_settings.report_cap"},
+
 	// Nested keys in org_settings.mdm.apple_business_manager[]
 	{"org_settings.mdm.apple_business_manager[].macos_team", "org_settings.mdm.apple_business_manager[].macos_fleet"},
 	{"org_settings.mdm.apple_business_manager[].ios_team", "org_settings.mdm.apple_business_manager[].ios_fleet"},
