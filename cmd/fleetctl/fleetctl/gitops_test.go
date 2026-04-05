@@ -1284,184 +1284,193 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	)
 	setupEmptyGitOpsMocks(ds)
 
+	// Tracking variables for mock side effects, reset between subtests.
+	var appliedScripts []*fleet.Script
+	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
+	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
+	var appliedPolicySpecs []*fleet.PolicySpec
+	var appliedQueries []*fleet.Query
+	var appliedLabelSpecs []*fleet.LabelSpec
+	var deletedLabels []string
+	var enrolledSecrets []*fleet.EnrollSecret
+	var savedAppConfig *fleet.AppConfig
+	var policyDeleted bool
+	var queryDeleted bool
+	var deletedPolicyIDs []uint
+	var deletedQueryIDs []uint
+
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		appliedScripts = scripts
+		var scriptResponses []fleet.ScriptResponse
+		for _, script := range scripts {
+			scriptResponses = append(scriptResponses, fleet.ScriptResponse{
+				ID:     script.ID,
+				Name:   script.Name,
+				TeamID: script.TeamID,
+			})
+		}
+		return scriptResponses, nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		appliedMacProfiles = macProfiles
+		appliedWinProfiles = winProfiles
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
+	}
+
+	// Policies
+	policy := fleet.Policy{}
+	policy.ID = 1
+	policy.Name = "Policy to delete"
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return []*fleet.Policy{&policy}, nil
+	}
+	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
+		if slices.Contains(ids, 1) {
+			return map[uint]*fleet.Policy{1: &policy}, nil
+		}
+		return nil, nil
+	}
+	ds.DeleteGlobalPoliciesFunc = func(ctx context.Context, ids []uint) ([]uint, error) {
+		policyDeleted = true
+		deletedPolicyIDs = ids
+		return ids, nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedPolicySpecs = specs
+		return nil
+	}
+
+	// Queries
+	query := fleet.Query{}
+	query.ID = 1
+	query.Name = "Query to delete"
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return []*fleet.Query{&query}, 1, 0, nil, nil
+	}
+	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
+		queryDeleted = true
+		deletedQueryIDs = ids
+		return 1, nil
+	}
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		if id == query.ID {
+			return &query, nil
+		}
+		return nil, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, &notFoundError{}
+	}
+	ds.ApplyQueriesFunc = func(
+		ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{},
+	) error {
+		appliedQueries = queries
+		return nil
+	}
+
+	// Labels
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return []*fleet.LabelSpec{
+			{
+				Name:                "a",
+				Description:         "A global label",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts:               []string{"host2", "host3"},
+			},
+			{
+				Name:                "c",
+				Description:         "A label that should be deleted",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				Query:               "SELECT 1 from osquery_info",
+			},
+		}, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
+		appliedLabelSpecs = specs
+		return nil
+	}
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{Name: name}, nil
+	}
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		deletedLabels = append(deletedLabels, name)
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {ID: 1, Name: "a"},
+			"b": {ID: 2, Name: "b"},
+		}, nil
+	}
+
+	// App config
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		enrolledSecrets = secrets
+		return nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{"a": 1, "b": 2}, nil
+	}
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+	)
+
 	for _, useDeprecatedKeys := range []bool{false, true} {
 		t.Run(fmt.Sprintf("useDeprecatedKeys=%t", useDeprecatedKeys), func(t *testing.T) {
+			// Reset tracking variables.
+			appliedScripts = nil
+			appliedMacProfiles = nil
+			appliedWinProfiles = nil
+			appliedPolicySpecs = nil
+			appliedQueries = nil
+			appliedLabelSpecs = nil
+			deletedLabels = nil
+			enrolledSecrets = nil
+			savedAppConfig = &fleet.AppConfig{}
+			policyDeleted = false
+			queryDeleted = false
+			deletedPolicyIDs = nil
+			deletedQueryIDs = nil
+
 			basePath := "./testdata/gitops/global_config_no_paths"
 			path := basePath
 			if useDeprecatedKeys {
 				path += "_deprecated_keys"
 			}
 			path += ".yml"
-			var appliedScripts []*fleet.Script
-			ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
-				appliedScripts = scripts
-				var scriptResponses []fleet.ScriptResponse
-				for _, script := range scripts {
-					scriptResponses = append(scriptResponses, fleet.ScriptResponse{
-						ID:     script.ID,
-						Name:   script.Name,
-						TeamID: script.TeamID,
-					})
-				}
 
-				return scriptResponses, nil
-			}
-			var appliedMacProfiles []*fleet.MDMAppleConfigProfile
-			var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
-			ds.BatchSetMDMProfilesFunc = func(
-				ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
-			) (updates fleet.MDMProfilesUpdates, err error) {
-				appliedMacProfiles = macProfiles
-				appliedWinProfiles = winProfiles
-				return fleet.MDMProfilesUpdates{}, nil
-			}
-			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
-			) (updates fleet.MDMProfilesUpdates, err error) {
-				return fleet.MDMProfilesUpdates{}, nil
-			}
-			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-				return job, nil
-			}
-
-			// Policies
-			policy := fleet.Policy{}
-			policy.ID = 1
-			policy.Name = "Policy to delete"
-			policyDeleted := false
-			ds.ListTeamPoliciesFunc = func(
-				ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
-			) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
-				return nil, nil, nil
-			}
-			ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-				return []*fleet.Policy{&policy}, nil
-			}
-			ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
-				if slices.Contains(ids, 1) {
-					return map[uint]*fleet.Policy{1: &policy}, nil
-				}
-				return nil, nil
-			}
-			ds.DeleteGlobalPoliciesFunc = func(ctx context.Context, ids []uint) ([]uint, error) {
-				policyDeleted = true
-				assert.Equal(t, []uint{policy.ID}, ids)
-				return ids, nil
-			}
-			var appliedPolicySpecs []*fleet.PolicySpec
-			ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
-				appliedPolicySpecs = specs
-				return nil
-			}
-
-			// Queries
-			query := fleet.Query{}
-			query.ID = 1
-			query.Name = "Query to delete"
-			queryDeleted := false
-			ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
-				return []*fleet.Query{&query}, 1, 0, nil, nil
-			}
-			ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
-				queryDeleted = true
-				assert.Equal(t, []uint{query.ID}, ids)
-				return 1, nil
-			}
-			ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-				if id == query.ID {
-					return &query, nil
-				}
-				return nil, nil
-			}
-			var appliedQueries []*fleet.Query
-			ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
-				return nil, &notFoundError{}
-			}
-			ds.ApplyQueriesFunc = func(
-				ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{},
-			) error {
-				appliedQueries = queries
-				return nil
-			}
-
-			var appliedLabelSpecs []*fleet.LabelSpec
-			var deletedLabels []string
-			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
-				return []*fleet.LabelSpec{
-					{
-						Name:                "a",
-						Description:         "A global label",
-						LabelMembershipType: fleet.LabelMembershipTypeManual,
-						Hosts:               []string{"host2", "host3"},
-					},
-					{
-						Name:                "c",
-						Description:         "A label that should be deleted",
-						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-						Query:               "SELECT 1 from osquery_info",
-					},
-				}, nil
-			}
-			ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
-				appliedLabelSpecs = specs
-				return nil
-			}
-
-			ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-				return &fleet.Label{Name: name}, nil
-			}
-			ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-				deletedLabels = append(deletedLabels, name)
-				return nil
-			}
-
-			ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
-				return map[string]*fleet.Label{
-					"a": {
-						ID:   1,
-						Name: "a",
-					},
-					"b": {
-						ID:   2,
-						Name: "b",
-					},
-				}, nil
-			}
-
-			// Mock appConfig
-			savedAppConfig := &fleet.AppConfig{}
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
-			}
-			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
-				savedAppConfig = config
-				return nil
-			}
-			ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
-				return true, nil
-			}
-			var enrolledSecrets []*fleet.EnrollSecret
-			ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-				enrolledSecrets = secrets
-				return nil
-			}
-
-			// Needed for checking tokens
-			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
-				return nil
-			}
-			ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
-				return document, nil, nil
-			}
-
-			// Premium mocks
-			ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-				return map[string]uint{"a": 1, "b": 2}, nil
-			}
-
-			const (
-				fleetServerURL = "https://fleet.example.com"
-				orgName        = "GitOps Test"
-			)
 			t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 			t.Setenv("ORG_NAME", orgName)
 			t.Setenv("SOFTWARE_INSTALLER_URL", fleetServerURL)
@@ -1491,6 +1500,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			assert.Equal(t, 2000, savedAppConfig.ServerSettings.QueryReportCap)
 			assert.Len(t, enrolledSecrets, 2)
 			assert.True(t, policyDeleted)
+			assert.Equal(t, []uint{policy.ID}, deletedPolicyIDs)
 			assert.Len(t, appliedPolicySpecs, 5)
 			assert.Len(t, appliedPolicySpecs[0].LabelsIncludeAny, 1)
 			assert.Len(t, appliedPolicySpecs[0].LabelsExcludeAny, 0)
@@ -1500,6 +1510,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			assert.Equal(t, appliedPolicySpecs[1].LabelsExcludeAny[0], "b")
 
 			assert.True(t, queryDeleted)
+			assert.Equal(t, []uint{query.ID}, deletedQueryIDs)
 			assert.Len(t, appliedQueries, 3)
 			assert.Len(t, appliedQueries[0].LabelsIncludeAny, 2)
 			assert.Contains(t, []string{appliedQueries[0].LabelsIncludeAny[0].LabelName, appliedQueries[0].LabelsIncludeAny[1].LabelName}, "a")
