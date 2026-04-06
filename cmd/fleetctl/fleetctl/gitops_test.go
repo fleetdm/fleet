@@ -1708,6 +1708,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
+		return nil
+	}
 
 	// Queries
 	query := fleet.Query{}
@@ -1815,6 +1818,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 			assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 			require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
 			assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
+			assert.False(t, savedTeam.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+			assert.False(t, savedTeam.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
+			assert.True(t, ds.SetSetupExperienceScriptFuncInvoked)
 			assert.Equal(t, basePath+".yml", *savedTeam.Filename)
 			require.Len(t, appliedSoftwareInstallers, 2)
 			packageID := `'ruby'`
