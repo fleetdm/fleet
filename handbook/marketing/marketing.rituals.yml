@@ -150,3 +150,13 @@
   autoIssue:  
     labels: [ ":help-marketing" ] 
     repo: "confidential" 
+-
+  task: "Approval draft orders in Printful"
+  startedOn: "2026-04-09"
+  frequency: "Weekly"
+  description: "Once a week, the Content Specialist will go through the Printful orders and confirm the request swag to be sent out."
+  moreInfoUrl: "https://www.printful.com/dashboard/default/orders"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential" 
