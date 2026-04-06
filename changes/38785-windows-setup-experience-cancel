@@ -1,0 +1,1 @@
+- Added `require_all_software_windows` setting to cancel the Windows setup experience if any software install fails during Autopilot enrollment, matching the existing macOS behavior.
