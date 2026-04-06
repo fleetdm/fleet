@@ -603,7 +603,9 @@ const PolicyForm = ({
                 />
                 <Icon
                   name="pencil"
-                  className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+                  className={`${baseClass}__edit-icon ${
+                    isEditingDescription ? `${baseClass}__edit-icon--hide` : ""
+                  }`}
                   size="small-medium"
                   color="core-fleet-green"
                 />
@@ -651,7 +653,9 @@ const PolicyForm = ({
                   />
                   <Icon
                     name="pencil"
-                    className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
+                    className={`${baseClass}__edit-icon ${
+                      isEditingResolution ? `${baseClass}__edit-icon--hide` : ""
+                    }`}
                     size="small-medium"
                     color="core-fleet-green"
                   />

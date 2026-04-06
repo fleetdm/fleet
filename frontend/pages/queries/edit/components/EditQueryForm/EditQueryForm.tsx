@@ -515,7 +515,9 @@ const EditQueryForm = ({
                 />
                 <Icon
                   name="pencil"
-                  className={`edit-icon ${isEditingName ? "hide" : ""}`}
+                  className={`${baseClass}__edit-icon ${
+                    isEditingName ? `${baseClass}__edit-icon--hide` : ""
+                  }`}
                   size="small-medium"
                   color="core-fleet-green"
                 />
@@ -567,7 +569,9 @@ const EditQueryForm = ({
                 />
                 <Icon
                   name="pencil"
-                  className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+                  className={`${baseClass}__edit-icon ${
+                    isEditingDescription ? `${baseClass}__edit-icon--hide` : ""
+                  }`}
                   size="small-medium"
                   color="core-fleet-green"
                 />
