@@ -1480,6 +1480,9 @@ type Service interface {
 
 	// UnenrollMDM unenrolls the host from MDM
 	UnenrollMDM(ctx context.Context, hostID uint) error
+
+	// GetChartData returns time-series chart data for the given metric.
+	GetChartData(ctx context.Context, metric string, opts ChartRequestOpts) (*ChartResponse, error)
 }
 
 type KeyValueStore interface {

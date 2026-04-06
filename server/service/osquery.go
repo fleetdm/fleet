@@ -85,6 +85,12 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	}
 	host.SeenTime = svc.clock.Now()
 
+	// Record uptime bitmap for chart data. Non-blocking — log and continue on error.
+	now := svc.clock.Now()
+	if err := svc.ds.RecordHostHourlyData(ctx, host.ID, "uptime", 0, now, now.Hour()); err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "record host uptime chart data"))
+	}
+
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
