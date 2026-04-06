@@ -342,39 +342,73 @@ Perform a quick visual scan of the UI and confirm:
 
 ### All Product Groups
 <table>
- <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
-<tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>
-  
-1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
-2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`)  channels.
-</td><td>pass/fail</td>
-<tr><td>Load tests - minor releases only unless otherwise specified</td><td>Verify all load test metrics are within acceptable range on final build of RC.</td><td>
-  
-1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
-2. After all expected changes have been merged to the RC branch, two load tests will need to be run - a new instance with no data, and a migrated instance.
-3. For the new instance with no data, set up a load test environment using the RC branch and allow it at least 24hrs of run time.
-4. For the migrated instance, set up a load test environment on the previous minor release branch. Once the environment has been set up and stabilized, follow the instructions in [Deploying code changes to fleet](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md#deploying-code-changes-to-fleet) to migrate to the RC branch. Monitor the metrics post-migration to determine if any performance issues arise.
-5. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the two load test runs. 
-</td><td>pass/fail</td></tr> 
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/Fail</th></tr>
 
-<tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
+<tr>
+<td>$Name</td>
+<td>{what a tester should do}</td>
+<td>{what a tester should see when they do that}</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Release blockers</td>
+<td>Verify there are no outstanding release blocking tickets.</td>
+<td>
+
+1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.  
+2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`) channels.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Load tests - minor releases only unless otherwise specified</td>
+<td>Verify all load test metrics are within acceptable range on final build of RC.</td>
+<td>
+
+1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.  
+2. After all expected changes have been merged to the RC branch, two load tests will need to be run - a new instance with no data, and a migrated instance.  
+3. For the new instance with no data, set up a load test environment using the RC branch and allow it at least 24hrs of run time.  
+4. For the migrated instance, set up a load test environment on the previous minor release branch. Once the environment has been set up and stabilized, follow the instructions in [Deploying code changes to fleet](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md#deploying-code-changes-to-fleet) to migrate to the RC branch. Monitor the metrics post-migration to determine if any performance issues arise.  
+5. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the two load test runs.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Migration Test</td>
+<td>Verify Fleet can migrate to the next version with no issues.</td>
+<td>
 
 Using [this github action](https://github.com/fleetdm/fleet/actions/workflows/db-upgrade-test.yml)
-1. Using the most recent stable version of Fleet and `main`, click `Run workflow`
-2. Enter the Docker tag of Fleet starting version, e.g. 'v4.64.2'
-3. Enter the Docker tag of Fleet version to upgrade to, e.g. 'rc-minor-fleet-v4.65.0'
-4. Click `Run workflow`.
-5. Action should complete successfully.
-</td><td>pass/fail</td></tr>
 
-<tr><td>Cloud migration tests</td><td>Verify Fleet can migrate when using real world data.</td><td>
+1. Using the most recent stable version of Fleet and `main`, click `Run workflow`  
+2. Enter the Docker tag of Fleet starting version, e.g. `v4.64.2`  
+3. Enter the Docker tag of Fleet version to upgrade to, e.g. `rc-minor-fleet-v4.65.0`  
+4. Click `Run workflow`  
+5. Action should complete successfully
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Cloud migration tests</td>
+<td>Verify Fleet can migrate when using real world data.</td>
+<td>
 
 Using [this github action](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml)
-1. Enter `fleetdm/fleet:rc-minor-fleet-<version>` for the `The image to test`
-2. Select `all` for `Where will we deploy?`
-4. Action should complete successfully and the total time for each instance shouldn't be drastically different from previous releases.
-</td><td>pass/fail</td></tr>
+
+1. Enter `fleetdm/fleet:rc-minor-fleet-<version>` for `The image to test`  
+2. Select `all` for `Where will we deploy?`  
+3. Action should complete successfully and the total time for each instance shouldn't be drastically different from previous releases
+
+</td>
+<td>pass/fail</td>
+</tr>
 
 </table>
 
