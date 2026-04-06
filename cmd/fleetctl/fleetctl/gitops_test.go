@@ -1790,12 +1790,12 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Dry run
 			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
 			assert.Nil(t, savedTeam)
-			assert.Len(t, enrolledSecrets, 0)
-			assert.Len(t, appliedPolicySpecs, 0)
-			assert.Len(t, appliedQueries, 0)
-			assert.Len(t, appliedScripts, 0)
-			assert.Len(t, appliedMacProfiles, 0)
-			assert.Len(t, appliedWinProfiles, 0)
+			assert.Empty(t, enrolledSecrets)
+			assert.Empty(t, appliedPolicySpecs)
+			assert.Empty(t, appliedQueries)
+			assert.Empty(t, appliedScripts)
+			assert.Empty(t, appliedMacProfiles)
+			assert.Empty(t, appliedWinProfiles)
 			assert.Empty(t, appliedSoftwareInstallers)
 
 			// Real run
@@ -1857,9 +1857,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Try to change team name again, but this time the new name conflicts with an existing team
 			t.Setenv("TEST_TEAM_NAME", "Conflict")
 			_, err := RunAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
-			assert.ErrorContains(t, err, "team name already exists")
+			require.ErrorContains(t, err, "team name already exists")
 			_, err = RunAppNoChecks([]string{"gitops", "-f", gitopsFile})
-			assert.ErrorContains(t, err, "team name already exists")
+			require.ErrorContains(t, err, "team name already exists")
 
 			// Now clear the settings
 			t.Setenv("TEST_TEAM_NAME", newTeamName)
@@ -1895,7 +1895,7 @@ software:
 			require.Len(t, enrolledSecrets, 1)
 			assert.Equal(t, secret, enrolledSecrets[0].Secret)
 			assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
-			assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+			assert.Empty(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 			assert.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
 			assert.False(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 			assert.Empty(t, savedTeam.Config.Integrations.GoogleCalendar)
@@ -2045,12 +2045,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	vppToken := &fleet.VPPTokenDB{ //nolint:gosec
+	vppToken := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
 		Location:  "Foobar",
 		RenewDate: time.Now().Add(24 * 365 * time.Hour),
 		Token:     "vpp-token",
 	}
-	vppToken2 := &fleet.VPPTokenDB{ //nolint:gosec
+	vppToken2 := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
 		Location:  "Gadzooks",
 		RenewDate: time.Now().Add(24 * 365 * time.Hour),
 		Token:     "vpp-token2",
@@ -2886,10 +2886,10 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			// Dry run
 			_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
 			assert.False(t, ds.SaveAppConfigFuncInvoked)
-			assert.Len(t, enrolledSecrets, 0)
-			assert.Len(t, enrolledTeamSecrets, 0)
-			assert.Len(t, appliedPolicySpecs, 0)
-			assert.Len(t, appliedQueries, 0)
+			assert.Empty(t, enrolledSecrets)
+			assert.Empty(t, enrolledTeamSecrets)
+			assert.Empty(t, appliedPolicySpecs)
+			assert.Empty(t, appliedQueries)
 
 			// Real run
 			_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--delete-other-teams"})
@@ -3228,13 +3228,13 @@ software:
 				ipadTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
