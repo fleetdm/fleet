@@ -22,7 +22,7 @@ module.exports = {
 
     downloading = await sails.startDownload(sails.config.custom.uploadedInstallerFileDescriptor, {bucket: sails.config.uploads.bucket});
 
-    this.res.type('application/octet-stream');
+    this.res.type('application/x-ms-installer');
     this.res.attachment('Fleet-installer.msi');
 
     return downloading;
