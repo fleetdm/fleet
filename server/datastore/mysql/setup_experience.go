@@ -130,9 +130,10 @@ AND (
 	(
 		-- platform is 'darwin' or 'windows', so nothing else to check.
 		(si.platform = 'darwin' OR si.platform = 'windows')
+		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
-			-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
+			-- tar.gz and sh can be installed on any Linux distribution
 			(si.extension = 'tar.gz' OR si.extension = 'sh')
 			OR
 			(
