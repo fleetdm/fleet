@@ -3150,10 +3150,6 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return []*fleet.EnrollSecret{}, nil
 	}
 
-	ds.SetCommandNameFunc = func(ctx context.Context, commandUUID string, name string) error {
-		return nil
-	}
-
 	checkAndReset := func(t *testing.T, want bool, invoked *bool) {
 		if want {
 			assert.True(t, *invoked)
@@ -3627,10 +3623,6 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 		}, nil
 	}
 
-	ds.SetCommandNameFunc = func(ctx context.Context, commandUUID string, name string) error {
-		return nil
-	}
-
 	kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
 		return make(map[string]*string), nil
 	}
@@ -3874,9 +3866,6 @@ func TestReconcileAppleProfilesSkipsHostBeingProcessed(t *testing.T) {
 	}
 	ds.GetNanoMDMUserEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return nil, nil
-	}
-	ds.SetCommandNameFunc = func(ctx context.Context, commandID string, name string) error {
-		return nil
 	}
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, allCAs bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
@@ -4836,10 +4825,6 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 			}
 
 			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
-				return nil
-			}
-
-			ds.SetCommandNameFunc = func(ctx context.Context, commandUUID string, name string) error {
 				return nil
 			}
 

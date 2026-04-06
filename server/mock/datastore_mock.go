@@ -1261,8 +1261,6 @@ type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID strin
 
 type GetLinuxDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error)
 
-type SetCommandNameFunc func(ctx context.Context, commandUUID string, name string) error
-
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error)
@@ -3706,9 +3704,6 @@ type DataStore struct {
 
 	GetLinuxDiskEncryptionSummaryFunc        GetLinuxDiskEncryptionSummaryFunc
 	GetLinuxDiskEncryptionSummaryFuncInvoked bool
-
-	SetCommandNameFunc        SetCommandNameFunc
-	SetCommandNameFuncInvoked bool
 
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
@@ -8923,13 +8918,6 @@ func (s *DataStore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *u
 	s.GetLinuxDiskEncryptionSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetLinuxDiskEncryptionSummaryFunc(ctx, teamID)
-}
-
-func (s *DataStore) SetCommandName(ctx context.Context, commandUUID string, name string) error {
-	s.mu.Lock()
-	s.SetCommandNameFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetCommandNameFunc(ctx, commandUUID, name)
 }
 
 func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {

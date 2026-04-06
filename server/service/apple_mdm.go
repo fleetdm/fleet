@@ -2211,7 +2211,7 @@ func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	cmdUUID := uuid.New().String()
-	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{nanoEnroll.ID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
+	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{nanoEnroll.ID}, apple_mdm.FleetPayloadIdentifier, cmdUUID, "")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
@@ -5625,15 +5625,8 @@ func renewSCEPWithProfile(
 		uuids = append(uuids, assoc.HostUUID)
 	}
 
-	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
+	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID, profileName); err != nil {
 		return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", uuids)
-	}
-
-	// Set the display name on the nano_commands row.
-	if profileName != "" {
-		if err := ds.SetCommandName(ctx, cmdUUID, profileName); err != nil {
-			logger.ErrorContext(ctx, "setting command name for SCEP renewal profile", "command_uuid", cmdUUID, "profile_name", profileName, "err", err)
-		}
 	}
 
 	if err := ds.SetCommandForPendingSCEPRenewal(ctx, assocs, cmdUUID); err != nil {
