@@ -289,6 +289,11 @@ We have specific channels for various topics, but we also have more general chan
 | `#random`                   | Be random.
 
 
+### Converting a private Slack channel to public
+
+Slack does not allow regular members or channel creators to convert a private channel to public. To convert a private channel to public, invite `@Pepper` (Andrea Pepper), the [IT support administrator](https://fleetdm.com/handbook/it#team), to the channel and she will convert it.
+
+
 ## AI usage guidelines
 
 We encourage everyone to use AI tools to work more efficiently, think more creatively, and free yourself from repetitive, low-value tasks so you can spend more time on work that's interesting, complex, and uniquely human. These guidelines exist not to restrict how you use AI, but to make sure we're using it responsibly and in a way that protects our customers, our teammates, and the quality of our work.
