@@ -912,6 +912,8 @@ type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecre
 
 type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
 
+type GetChartDataFunc func(ctx context.Context, metric string, opts fleet.ChartRequestOpts) (*fleet.ChartResponse, error)
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2250,6 +2252,9 @@ type Service struct {
 
 	UnenrollMDMFunc        UnenrollMDMFunc
 	UnenrollMDMFuncInvoked bool
+
+	GetChartDataFunc        GetChartDataFunc
+	GetChartDataFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5374,4 +5379,11 @@ func (s *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	s.UnenrollMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnenrollMDMFunc(ctx, hostID)
+}
+
+func (s *Service) GetChartData(ctx context.Context, metric string, opts fleet.ChartRequestOpts) (*fleet.ChartResponse, error) {
+	s.mu.Lock()
+	s.GetChartDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetChartDataFunc(ctx, metric, opts)
 }

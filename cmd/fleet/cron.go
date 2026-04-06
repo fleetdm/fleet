@@ -1377,6 +1377,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
 			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
 		}),
+		schedule.WithJob("cleanup_host_hourly_data", func(ctx context.Context) error {
+			return ds.CleanupHostHourlyData(ctx, 30)
+		}),
 	)
 
 	return s, nil
