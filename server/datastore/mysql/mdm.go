@@ -2149,7 +2149,7 @@ func batchSetDeclarationVariableAssociationsDB(
 		}
 	}
 
-	clearStmt := `DELETE FROM mdm_declaration_variables WHERE declaration_uuid IN (?)`
+	clearStmt := `DELETE FROM mdm_configuration_profile_variables WHERE apple_declaration_uuid IN (?)`
 	clearStmt, args, err := sqlx.In(clearStmt, declUUIDsToDelete)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete variables for declarations")
@@ -2206,8 +2206,8 @@ func batchSetDeclarationVariableAssociationsDB(
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		stmt := fmt.Sprintf(`
-			INSERT INTO mdm_declaration_variables (
-				declaration_uuid,
+			INSERT INTO mdm_configuration_profile_variables (
+				apple_declaration_uuid,
 				fleet_variable_id
 			)
 			VALUES %s

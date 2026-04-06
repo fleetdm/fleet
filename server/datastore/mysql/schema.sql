@@ -1778,16 +1778,19 @@ CREATE TABLE `mdm_configuration_profile_variables` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `apple_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `windows_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `apple_declaration_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `fleet_variable_id` int unsigned NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_mdm_configuration_profile_variables_apple_variable` (`apple_profile_uuid`,`fleet_variable_id`),
   UNIQUE KEY `idx_mdm_configuration_profile_variables_windows_label_name` (`windows_profile_uuid`,`fleet_variable_id`),
+  UNIQUE KEY `idx_mdm_configuration_profile_variables_declaration_variable` (`apple_declaration_uuid`,`fleet_variable_id`),
   KEY `mdm_configuration_profile_variables_fleet_variable_id` (`fleet_variable_id`),
   CONSTRAINT `fk_mdm_configuration_profile_variables_apple_profile_uuid` FOREIGN KEY (`apple_profile_uuid`) REFERENCES `mdm_apple_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mdm_configuration_profile_variables_declaration_uuid` FOREIGN KEY (`apple_declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
   CONSTRAINT `fk_mdm_configuration_profile_variables_windows_profile_uuid` FOREIGN KEY (`windows_profile_uuid`) REFERENCES `mdm_windows_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
   CONSTRAINT `mdm_configuration_profile_variables_fleet_variable_id` FOREIGN KEY (`fleet_variable_id`) REFERENCES `fleet_variables` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `ck_mdm_configuration_profile_variables_apple_or_windows` CHECK (((`apple_profile_uuid` is null) <> (`windows_profile_uuid` is null)))
+  CONSTRAINT `ck_mdm_configuration_profile_variables_exactly_one` CHECK (((IF(`apple_profile_uuid` IS NULL, 0, 1) + IF(`windows_profile_uuid` IS NULL, 0, 1) + IF(`apple_declaration_uuid` IS NULL, 0, 1)) = 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1807,20 +1810,6 @@ CREATE TABLE `mdm_declaration_labels` (
   CONSTRAINT `mdm_declaration_labels_ibfk_1` FOREIGN KEY (`apple_declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
   CONSTRAINT `mdm_declaration_labels_ibfk_3` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE SET NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `mdm_declaration_variables` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `declaration_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `fleet_variable_id` int unsigned NOT NULL,
-  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_mdm_declaration_variables_decl_variable` (`declaration_uuid`,`fleet_variable_id`),
-  KEY `mdm_declaration_variables_fleet_variable_id` (`fleet_variable_id`),
-  CONSTRAINT `fk_mdm_declaration_variables_declaration_uuid` FOREIGN KEY (`declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
-  CONSTRAINT `mdm_declaration_variables_fleet_variable_id` FOREIGN KEY (`fleet_variable_id`) REFERENCES `fleet_variables` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

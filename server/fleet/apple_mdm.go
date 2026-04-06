@@ -722,7 +722,7 @@ type MDMAppleDeclaration struct {
 
 	// FleetVariables holds the detected Fleet variable names (without the FLEET_VAR_ prefix)
 	// for this declaration. Not stored in the declarations table directly; used to
-	// populate the mdm_declaration_variables junction table.
+	// populate the mdm_configuration_profile_variables table (declaration_uuid column).
 	FleetVariables []string `db:"-" json:"-"`
 }
 

@@ -1325,8 +1325,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		JOIN mdm_apple_declarations mad
 			ON (mad.team_id = h.team_id OR (COALESCE(mad.team_id, 0) = 0 AND h.team_id IS NULL)) AND
 				 mad.declaration_uuid = hmad.declaration_uuid
-		JOIN mdm_declaration_variables mdv
-			ON mdv.declaration_uuid = mad.declaration_uuid
+		JOIN mdm_configuration_profile_variables mdv
+			ON mdv.apple_declaration_uuid = mad.declaration_uuid
 		JOIN fleet_variables fv
 			ON mdv.fleet_variable_id = fv.id
 	SET
