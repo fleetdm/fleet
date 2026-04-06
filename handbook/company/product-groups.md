@@ -188,9 +188,9 @@ The goal of the First Impressions working group is to make changes to the core F
 > The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
 
 
-### Power to PC group
+### Power to the PC group
 
-The goal of the Power to PC working group is to empower Windows users to fully leverage Fleet as an MDM.
+The goal of the Power to the PC working group is to empower Windows users to fully leverage Fleet as an MDM.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
