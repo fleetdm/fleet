@@ -1711,6 +1711,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
 		return nil
 	}
+	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
+		return nil
+	}
 
 	// Queries
 	query := fleet.Query{}
@@ -1767,6 +1770,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 			queryDeleted = false
 			deletedPolicyIDs = nil
 			deletedQueryIDs = nil
+			ds.SetSetupExperienceScriptFuncInvoked = false
+			ds.InsertMDMAppleBootstrapPackageFuncInvoked = false
 
 			basePath := "team_config_no_paths"
 			if useDeprecatedKeys {
@@ -1821,6 +1826,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 			assert.False(t, savedTeam.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 			assert.False(t, savedTeam.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
 			assert.True(t, ds.SetSetupExperienceScriptFuncInvoked)
+			assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 			assert.Equal(t, basePath+".yml", *savedTeam.Filename)
 			require.Len(t, appliedSoftwareInstallers, 2)
 			packageID := `'ruby'`

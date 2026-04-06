@@ -50,7 +50,7 @@ controls:
     mode: ""
     webhook_url: ""
   setup_experience:
-    macos_bootstrap_package: null
+    macos_bootstrap_package: ${SOFTWARE_INSTALLER_URL}/signed.pkg
     enable_end_user_authentication: false
     apple_setup_assistant: null
     apple_enable_release_device_manually: false
