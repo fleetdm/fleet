@@ -2096,14 +2096,16 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		reqNotInOOBE = true
 	}
 
-	// Determine if the device is awaiting configuration. This is true when the enrollment is
+	// Determine if the device is awaiting configuration. Set to Pending when the enrollment is
 	// non-programmatic (Autopilot via JWT/WSTEP, not orbit node key) AND the device is in OOBE
-	// (NotInOobe is false, since the field name is inverted).
+	// (NotInOobe is false, since the field name is inverted). Later phases transition to Active
+	// (ESP commands enqueued) and back to None (setup complete/failed).
+	awaitingConfiguration := fleet.WindowsMDMAwaitingConfigurationNone
+	var awaitingConfigurationAt *time.Time
 	isProgrammatic := hostUUID != ""
 	isInOOBE := !reqNotInOOBE
-	awaitingConfiguration := !isProgrammatic && isInOOBE
-	var awaitingConfigurationAt *time.Time
-	if awaitingConfiguration {
+	if !isProgrammatic && isInOOBE {
+		awaitingConfiguration = fleet.WindowsMDMAwaitingConfigurationPending
 		now := time.Now().UTC()
 		awaitingConfigurationAt = &now
 	}
