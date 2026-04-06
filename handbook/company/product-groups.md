@@ -160,6 +160,22 @@ Items to cover in the section:
 - Who is involved. This should include who the DRI is.
 - Timeline. When will the working group start? When do we think we'll be done by?
 
+
+### Continuous flow
+
+Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. With AI-augmented engineering, well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, stories flow continuously from "drafted" to "in progress" to "in QA" to "ready for release."
+
+#### Weekly planning
+
+Each working group holds a weekly planning session where the group and [HPD](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) review what's done, what's in progress, and what's next. There is no formal sprint boundary, sprint commitment, or velocity tracking.
+
+#### What is the same
+
+- **3-week release cadence**: Planning is decoupled from the release boundary.
+- **Daily standups**: These remain important for staying in sync and getting unblocked quickly.
+- **Release retrospectives**: These become even more important as we calibrate a new way of working.
+
+
 ### Website group
 
 The goal of the website group is to increase and exceed Fleet's product maturity goals for fleetdm.com.
