@@ -460,39 +460,31 @@ Learn how to contribute to the handbook, documentation, and articles at Fleet on
 When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don't necessarily represent your company or peers.
 
 
-## Create content for YouTube
+### Create content for YouTube
 
-### Demo recording standards
+#### Recording standards
+- Record at 1920x1080, 30 fps. Save as `.mp4` (h.264/AAC) or `.mov`. Don't use `.webm`.
+- Add a few seconds of silence at the start and end of each recording.
+- Name files: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
 
-- Record at 1920x1080, 30 fps.
-- Save as .mp4 (h.264 video, AAC audio) or .mov (native Mac screen record). Don't use .webm.
-- Add a few seconds of silence at the start and end of each recording for easier editing.
-- Name the file: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
+#### Best practices
+**Browser and terminal:**
+- Zoom in so text is legible at 1080p (most viewers watch smaller than full screen).
+- Use a clean browser profile. Close unnecessary tabs.
 
-### Demo recording best practices
+**Desktop:**
+- Pause notifications. Close or minimize anything that might expose private data.
+- Hide desktop icons or confirm no filenames contain sensitive info.
 
-**Browser and terminal**
-- Increase browser zoom or terminal font size so text is legible at 1080p. Most viewers watch at smaller than full screen.
-- Use a clean browser profile with no personal bookmarks bar.
-- Close unnecessary tabs.
+**Mouse:**
+- Move deliberately. Pause briefly on important UI elements and wait for results to load before moving on.
 
-**Desktop**
-- Pause notifications.
-- Close or minimize email, Slack, and any window that might show private data.
-- Hide desktop icons or confirm nothing visible contains sensitive info (e.g., a filename with a customer name).
-
-**Mouse and interactions**
-- Move the mouse deliberately. Don't circle the cursor.
-- Pause briefly on important UI elements so viewers can follow along.
-- After clicking, wait for the result to load before moving on.
-
-**Privacy**
-- Don't show public IP addresses (RFC 1918 addresses are fine).
-- Don't show passwords, tokens, or other credentials unless you delete them immediately after.
+**Privacy:**
+- Don't show public IPs, passwords, tokens, or credentials.
 - Don't show or say customer names, codenames, or real email addresses.
 
-**Playback**
-- Don't enable closed captions during playback. Captions are added later if needed.
+**Playback:**
+- Don't enable closed captions during recording (they're added later if needed).
 
 
 ## Feedback
