@@ -122,6 +122,11 @@ interface ITableContainerProps<T = any> {
   onClearSelection?: () => void;
   /** don't show the Clear selection button and selected item count when items are selected */
   suppressHeaderActions?: boolean;
+  /** Optional override for react-table's row ID derivation. When not provided,
+   *  defaults to using `row.id` if available, otherwise the row index.
+   *  Note: avoid index-only row IDs in server-side paginated or selectable tables,
+   *  as IDs would collide across pages. */
+  getRowId?: (row: any, index: number) => string;
 }
 
 const baseClass = "table-container";
@@ -184,6 +189,7 @@ const TableContainer = <T,>({
   persistSelectedRows,
   onClearSelection = noop,
   suppressHeaderActions,
+  getRowId,
 }: ITableContainerProps<T>) => {
   const isControlledSearchQuery = controlledSearchQuery !== undefined;
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
@@ -578,6 +584,7 @@ const TableContainer = <T,>({
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
                 suppressHeaderActions={suppressHeaderActions}
+                getRowId={getRowId}
                 persistSelectedRows={persistSelectedRows}
                 hideFooter={hideFooter}
               />
