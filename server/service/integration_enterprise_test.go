@@ -23195,9 +23195,6 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.NoError(t, getDeviceStatusResponse.Err)
 		require.NotNil(t, getDeviceStatusResponse.Results)
 		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
-		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
-			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
-		})
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
