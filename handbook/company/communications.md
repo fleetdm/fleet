@@ -291,7 +291,7 @@ We have specific channels for various topics, but we also have more general chan
 
 ### Converting a private Slack channel to public
 
-Slack does not allow regular members or channel creators to convert a private channel to public. To convert a private channel to public, invite Pepper (Andrea Pepper), the IT admin, to the channel and she will convert it.
+Slack does not allow regular members or channel creators to convert a private channel to public. To convert a private channel to public, invite `@Pepper` (Andrea Pepper), the [IT support administrator](https://fleetdm.com/handbook/it#team), to the channel and she will convert it.
 
 
 ## AI usage guidelines
