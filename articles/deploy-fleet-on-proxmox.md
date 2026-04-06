@@ -248,6 +248,8 @@ These steps include:
 
 Once you have fully configured Fleet, you will be automatically redirected to the main server dashboard.
 
+![Main server dashboard](../website/assets/images/articles/deploy-fleet-on-proxmox-3-500x302@2x.png)
+
 ## Next steps
 
 Getting started with Fleet on Proxmox is easy, thanks to Fleet’s container-native architecture and support for Docker Compose. In this tutorial, you deployed a Fleet server running inside of an Ubuntu VM on Proxmox, as a simple environment that is appropriate for evaluation. Larger environments should consult the [Fleet Reference Architectures guide](https://fleetdm.com/docs/deploy/reference-architectures) to understand production considerations.
