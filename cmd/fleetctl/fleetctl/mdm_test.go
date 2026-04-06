@@ -1402,7 +1402,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 		return nil, nil
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
-		return nil, nil
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 		h, ok := hostsByID[hostID]

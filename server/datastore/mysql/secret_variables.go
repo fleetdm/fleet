@@ -474,7 +474,7 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Errorf(ctx, "no MDM enrollment details found for host %s", enrollmentID)
 			}
 			if details.UnlockToken == nil {
-				return "", ctxerr.Errorf(ctx, fleet.CantClearPasscodePersonalHostsMessage)
+				return "", ctxerr.Errorf(ctx, "%s", fleet.CantClearPasscodePersonalHostsMessage)
 			}
 
 			// We need to send base64 encoded data in the <data> field.
