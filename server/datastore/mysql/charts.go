@@ -113,9 +113,9 @@ func (ds *Datastore) GetChartData(
 	query = ds.reader(ctx).Rebind(query)
 
 	type row struct {
-		ChartDate string `db:"chart_date"`
-		HourNum   int    `db:"hour_num"`
-		Value     int    `db:"value"`
+		ChartDate time.Time `db:"chart_date"`
+		HourNum   int       `db:"hour_num"`
+		Value     int       `db:"value"`
 	}
 
 	var rows []row
@@ -125,11 +125,7 @@ func (ds *Datastore) GetChartData(
 
 	results := make([]fleet.ChartDataPoint, 0, len(rows))
 	for _, r := range rows {
-		date, err := time.Parse("2006-01-02", r.ChartDate)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "parse chart date")
-		}
-		ts := date.Add(time.Duration(r.HourNum) * time.Hour)
+		ts := time.Date(r.ChartDate.Year(), r.ChartDate.Month(), r.ChartDate.Day(), r.HourNum, 0, 0, 0, time.UTC)
 		results = append(results, fleet.ChartDataPoint{
 			Timestamp: ts,
 			Value:     r.Value,
