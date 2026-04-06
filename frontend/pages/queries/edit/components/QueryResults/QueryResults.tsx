@@ -234,9 +234,6 @@ const QueryResults = ({
             tableType === "results" ? setFilteredResults : setFilteredErrors
           }
           renderCount={() => renderCount(tableType)}
-          // Query result rows have no stable identity — use the array index
-          // to prevent react-table from deduplicating rows that share the
-          // same `id` value (e.g., `SELECT id FROM dns_resolvers`).
           getRowId={(_row, index) => String(index)}
         />
       </div>

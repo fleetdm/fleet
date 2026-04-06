@@ -81,8 +81,7 @@ interface IDataTableProps {
   setExportRows?: (rows: Row[]) => void;
   onClearSelection?: () => void;
   suppressHeaderActions?: boolean;
-  /** Optional override for react-table's row ID derivation. When not provided,
-   *  defaults to using `row.id` if available, otherwise the row index.
+  /** Optional override for react-table's row ID derivation.
    *  Note: avoid index-only row IDs in server-side paginated or selectable tables,
    *  as IDs would collide across pages. */
   getRowId?: (row: any, index: number) => string;
