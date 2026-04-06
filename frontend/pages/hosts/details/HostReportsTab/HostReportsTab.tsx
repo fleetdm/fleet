@@ -70,7 +70,7 @@ interface IHostReportsTabProps {
     };
   };
   saveReportsDisabledInConfig?: boolean;
-  showReportsTab?: boolean;
+  showReportsEmptyState?: boolean;
 }
 
 const HostReportsTab = ({
@@ -79,7 +79,7 @@ const HostReportsTab = ({
   router,
   location,
   saveReportsDisabledInConfig,
-  showReportsTab = true,
+  showReportsEmptyState = false,
 }: IHostReportsTabProps): JSX.Element => {
   const searchQuery = location.query.query ?? "";
   const sortOption: SortOption =
@@ -199,7 +199,7 @@ const HostReportsTab = ({
 
   // No reports should be available if MDM enrollment is pending so hide any previous reports
   // that may be associated with the host to prevent confusion while pending
-  if ((totalCount === 0 && !searchQuery) || !showReportsTab) {
+  if ((totalCount === 0 && !searchQuery) || showReportsEmptyState) {
     return <EmptyReports isSearching={false} />;
   }
 

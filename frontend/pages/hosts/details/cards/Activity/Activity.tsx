@@ -32,10 +32,8 @@ const UpcomingTooltip = () => {
     <TooltipWrapper
       tipContent={
         <>
-          Failure of one activity won&apos;t cancel other activities.
-          <br />
-          <br />
-          Currently, only software and scripts are guaranteed to run in order.
+          Software and scripts always run in order. Each waits until the
+          previous one runs successfully or fails.
         </>
       }
       className={`${baseClass}__upcoming-tooltip`}

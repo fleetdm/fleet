@@ -15,6 +15,7 @@ import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
+import Marvel from "./Marvel";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
@@ -319,6 +320,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
+  marvel: Marvel,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,

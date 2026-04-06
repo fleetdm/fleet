@@ -29,7 +29,24 @@ The Finance department maintains the documentation of [Fleet's existing trademar
 
 ## Responsibilities
 
-The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well as the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+
+### Monthly and quarterly budget-to-actuals review with CEO’s direct reports
+
+Finance will prepare monthly and quarterly budget-to-actuals files for review with the CEO's direct reports: 
+1. Finance to close the prior month's books within the first 10 business days.
+2. Generate the monthly and quarterly budget-to-actuals (“BVA”) report, including variance analysis.
+3. Identify and flag significant variances in the comments section of the file. 
+4. Aggregate the monthly data for quarterly and year-to-date review. 
+5. Save a copy of the BVA file in the shared drive with the department leaders.
+	- [R&D](https://drive.google.com/drive/folders/1BcsTdDWTvljeYW197dTW3GhGyghVzNpB)
+	- [Sales](https://drive.google.com/drive/folders/1WEsk7IArPUPvC2JXMVpZupL6EE8XlgrS)
+	- [CS](https://drive.google.com/drive/folders/114KsxfOTPGdSQSf8psXEYkJHM-OveBs7)
+	- [Marketing](https://drive.google.com/drive/folders/1XX2O5qZ2_V6PAn-UBXthRJar3P2vk7n9)
+	- [Corporate](https://drive.google.com/drive/folders/14mYIcuaFNkjNMxdLEcmPxs90blfFlb0L)
+6. Department leaders review their section of the report, focusing on flagged variances.
+7. Finance reforecasts the remainder of the year using department inputs and updated assumptions
+8. Finance to schedule meetings with department leaders if further review is needed, and vice versa. 
 
 
 ### Prepare for OCV meeting

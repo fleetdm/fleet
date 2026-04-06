@@ -1,0 +1,45 @@
+- name: Macs with Google Chrome installed
+  description: macOS hosts with Google Chrome installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Brave Browser installed
+  description: macOS hosts with Brave Browser installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Docker Desktop installed
+  description: macOS hosts with Docker Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Microsoft Edge installed
+  description: macOS hosts with Microsoft Edge installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Visual Studio Code installed
+  description: macOS hosts with Visual Studio Code installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Microsoft Teams installed
+  description: macOS hosts with Microsoft Teams installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Slack installed
+  description: macOS hosts with Slack installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Okta Verify installed
+  description: macOS hosts with Okta Verify installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.okta.mobile';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Claude installed
+  description: macOS hosts with Claude installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop';
+  label_membership_type: dynamic
+  platform: darwin

@@ -188,7 +188,7 @@ describe("PolicyForm - component", () => {
         },
       });
 
-      const { container, user } = render(
+      const { user } = render(
         <PolicyForm
           policyIdForEdit={mockPolicy.id}
           showOpenSchemaActionText={false}
@@ -214,15 +214,12 @@ describe("PolicyForm - component", () => {
 
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      await user.hover(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => {
-        waitFor(() => {
-          user.hover(screen.getByRole("button", { name: "Save" }));
-        });
-
         expect(
-          container.querySelector("#save-policy-button")
-        ).toHaveTextContent(/to save or run the policy/i);
+          screen.getByText(/to save or run the policy/i)
+        ).toBeInTheDocument();
       });
     });
 

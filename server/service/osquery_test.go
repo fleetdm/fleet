@@ -1253,7 +1253,7 @@ func TestHostDetailQueries(t *testing.T) {
 		logger:   slog.New(slog.DiscardHandler),
 		config:   config.TestConfig(),
 		ds:       ds,
-		jitterMu: new(sync.Mutex),
+		jitterMu: new(sync.RWMutex),
 		jitterH:  make(map[time.Duration]*jitterHashTable),
 	}
 
@@ -2296,7 +2296,7 @@ func TestMDMQueries(t *testing.T) {
 		logger:   slog.New(slog.DiscardHandler),
 		config:   config.TestConfig(),
 		ds:       ds,
-		jitterMu: new(sync.Mutex),
+		jitterMu: new(sync.RWMutex),
 		jitterH:  make(map[time.Duration]*jitterHashTable),
 	}
 
