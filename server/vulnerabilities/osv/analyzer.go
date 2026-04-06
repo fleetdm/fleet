@@ -267,7 +267,8 @@ func matchSoftwareToOSV(software []fleet.Software, artifact *OSVArtifact) []flee
 			if isVulnerable(sw.Version, vuln, isKernelPackage) {
 				var resolvedIn *string
 				if vuln.Fixed != "" {
-					resolvedIn = &vuln.Fixed
+					fixed := vuln.Fixed // Create a copy to get a stable pointer
+					resolvedIn = &fixed
 				}
 				result = append(result, fleet.SoftwareVulnerability{
 					SoftwareID:        sw.ID,
