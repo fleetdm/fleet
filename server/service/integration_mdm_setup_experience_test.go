@@ -1253,19 +1253,17 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
 	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
-	require.NotNil(t, statusResp.Results.Script)
-	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
-	// Both software items are in terminal states (success/failure) and
-	// softwarePending is empty, so NextStep enqueues the script in the
-	// same call — it should already be "running".
-	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 2)
-	// App 5 has no licenses available, so we should get a status failed here and setup experience
-	// should continue
+	// App 5 has no licenses available, so we should get a status failed here...
 	require.Equal(t, "App 5", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
+	// ...but setup experience should still continue with the next app in the list
 	require.Equal(t, "DummyApp", statusResp.Results.Software[1].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
+	// Script goes last
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 
 	// The status for DummyApp should be "running" now, since it's started installing
 	// but we haven't sent back an installation status from orbit yet
