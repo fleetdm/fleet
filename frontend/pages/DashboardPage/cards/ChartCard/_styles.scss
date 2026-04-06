@@ -1,0 +1,105 @@
+.chart-card {
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: $pad-medium;
+  }
+
+  &__header-left {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__title {
+    font-size: $medium;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__total-hosts {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+
+  &__header-right {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__filter-btn {
+    padding: $pad-xsmall;
+    color: $ui-fleet-black-75;
+
+    &:hover {
+      color: $core-fleet-black;
+    }
+  }
+
+  &__days-selector {
+    display: flex;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    overflow: hidden;
+  }
+
+  &__days-btn {
+    padding: $pad-xsmall $pad-small;
+    font-size: $xx-small;
+    border: none;
+    background: $core-fleet-white;
+    cursor: pointer;
+    color: $ui-fleet-black-75;
+    transition: background-color 150ms ease;
+
+    &:hover {
+      background: $ui-fleet-black-10;
+    }
+
+    &--active {
+      background: $core-fleet-blue;
+      color: $core-fleet-white;
+
+      &:hover {
+        background: $core-fleet-blue;
+      }
+    }
+
+    & + & {
+      border-left: 1px solid $ui-fleet-black-10;
+    }
+  }
+
+  &__chart-container {
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__no-data {
+    color: $ui-fleet-black-50;
+    font-size: $x-small;
+    text-align: center;
+  }
+
+  &__tooltip {
+    background: $core-fleet-black;
+    color: $core-fleet-white;
+    padding: $pad-small $pad-medium;
+    border-radius: $border-radius;
+    font-size: $xx-small;
+    box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  &__tooltip-label {
+    margin-bottom: $pad-xsmall;
+    opacity: 0.8;
+  }
+
+  &__tooltip-value {
+    font-weight: $bold;
+  }
+}
