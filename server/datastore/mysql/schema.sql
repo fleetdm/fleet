@@ -2974,8 +2974,8 @@ CREATE TABLE `upcoming_activities` (
 CREATE TABLE `user_api_endpoints` (
   `user_id` int unsigned NOT NULL,
   `endpoint_hash` binary(32) NOT NULL,
-  `is_allowed` tinyint(1) DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `is_allowed` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `created_by_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`user_id`,`endpoint_hash`),
   KEY `created_by_id` (`created_by_id`),
