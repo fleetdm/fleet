@@ -5,6 +5,18 @@ import (
 	"time"
 )
 
+// ChartService is the bounded-context service for chart data operations.
+type ChartService interface {
+	// RecordUptime records a host check-in for uptime chart data.
+	RecordUptime(ctx context.Context, hostID uint, timestamp time.Time) error
+
+	// GetChartData returns time-series chart data for the given metric.
+	GetChartData(ctx context.Context, metric string, opts ChartRequestOpts) (*ChartResponse, error)
+
+	// RegisterDataset registers a chart dataset.
+	RegisterDataset(ds ChartDataset)
+}
+
 // ChartDataset defines the interface for a chartable dataset.
 type ChartDataset interface {
 	// Name returns the dataset identifier used in the DB and API path.

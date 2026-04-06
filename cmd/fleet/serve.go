@@ -1112,6 +1112,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the ACME service module into the main service
 	svc.SetACMEService(acmeSvc)
 
+	// Bootstrap chart service module
+	chartSvc := service.NewChartService(ds)
+	chartSvc.RegisterDataset(&service.UptimeDataset{})
+	svc.SetChartService(chartSvc)
+
 	// Perform a cleanup of cron_stats outside of the cronSchedules because the
 	// schedule package uses cron_stats entries to decide whether a schedule will
 	// run or not (see https://github.com/fleetdm/fleet/issues/9486).

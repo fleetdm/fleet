@@ -10,13 +10,106 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// Chart datasets registered at startup.
-var chartDatasets = map[string]fleet.ChartDataset{}
-
-// RegisterChartDataset registers a chart dataset by name.
-func RegisterChartDataset(ds fleet.ChartDataset) {
-	chartDatasets[ds.Name()] = ds
+// chartServiceImpl implements fleet.ChartService.
+type chartServiceImpl struct {
+	ds       fleet.Datastore
+	datasets map[string]fleet.ChartDataset
 }
+
+// NewChartService creates a new ChartService.
+func NewChartService(ds fleet.Datastore) fleet.ChartService {
+	return &chartServiceImpl{
+		ds:       ds,
+		datasets: make(map[string]fleet.ChartDataset),
+	}
+}
+
+func (cs *chartServiceImpl) RegisterDataset(ds fleet.ChartDataset) {
+	cs.datasets[ds.Name()] = ds
+}
+
+func (cs *chartServiceImpl) RecordUptime(ctx context.Context, hostID uint, timestamp time.Time) error {
+	return cs.ds.RecordHostHourlyData(ctx, hostID, "uptime", 0, timestamp, timestamp.Hour())
+}
+
+func (cs *chartServiceImpl) GetChartData(ctx context.Context, metric string, opts fleet.ChartRequestOpts) (*fleet.ChartResponse, error) {
+	dataset, ok := cs.datasets[metric]
+	if !ok {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("unknown chart metric: %s", metric)}
+	}
+
+	// Validate days preset.
+	validDays := map[int]bool{1: true, 7: true, 14: true, 30: true}
+	if !validDays[opts.Days] {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be 1, 7, 14, or 30)", opts.Days)}
+	}
+
+	// Resolve dataset-specific filters to entity IDs.
+	entityIDs, err := dataset.ResolveFilters(ctx, cs.ds, opts.DatasetFilters)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate date range.
+	now := time.Now().UTC()
+	endDate := now
+	startDate := now.AddDate(0, 0, -opts.Days)
+
+	// Build host filter.
+	var hostFilter *fleet.ChartHostFilter
+	if len(opts.LabelIDs) > 0 || len(opts.Platforms) > 0 || len(opts.IncludeHostIDs) > 0 || len(opts.ExcludeHostIDs) > 0 {
+		hostFilter = &fleet.ChartHostFilter{
+			LabelIDs:       opts.LabelIDs,
+			Platforms:      opts.Platforms,
+			IncludeHostIDs: opts.IncludeHostIDs,
+			ExcludeHostIDs: opts.ExcludeHostIDs,
+		}
+	}
+
+	downsample := opts.Days == 30
+
+	data, err := cs.ds.GetChartData(ctx, metric, startDate, endDate, hostFilter, entityIDs, dataset.HasEntityDimension(), downsample)
+	if err != nil {
+		return nil, err
+	}
+
+	totalHosts, err := cs.ds.CountHostsForChartFilter(ctx, hostFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	resolution := "hourly"
+	if downsample {
+		resolution = "2-hour"
+	}
+
+	data = fillZeroValues(data, startDate, endDate, downsample)
+
+	return &fleet.ChartResponse{
+		Metric:        metric,
+		Visualization: dataset.DefaultVisualization(),
+		TotalHosts:    totalHosts,
+		Resolution:    resolution,
+		Days:          opts.Days,
+		Filters: fleet.ChartFilters{
+			LabelIDs:       opts.LabelIDs,
+			Platforms:      opts.Platforms,
+			IncludeHostIDs: opts.IncludeHostIDs,
+			ExcludeHostIDs: opts.ExcludeHostIDs,
+		},
+		Data: data,
+	}, nil
+}
+
+// GetChartData on the main Service delegates to chartSvc after authorization.
+func (svc *Service) GetChartData(ctx context.Context, metric string, opts fleet.ChartRequestOpts) (*fleet.ChartResponse, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return svc.chartSvc.GetChartData(ctx, metric, opts)
+}
+
+// Endpoint request/response types and handler.
 
 type getChartDataRequest struct {
 	Metric         string `url:"metric"`
@@ -58,81 +151,6 @@ func getChartDataEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return getChartDataResponse{ChartResponse: resp}, nil
 }
 
-func (svc *Service) GetChartData(ctx context.Context, metric string, opts fleet.ChartRequestOpts) (*fleet.ChartResponse, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	dataset, ok := chartDatasets[metric]
-	if !ok {
-		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("unknown chart metric: %s", metric)}
-	}
-
-	// Validate days preset.
-	validDays := map[int]bool{1: true, 7: true, 14: true, 30: true}
-	if !validDays[opts.Days] {
-		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be 1, 7, 14, or 30)", opts.Days)}
-	}
-
-	// Resolve dataset-specific filters to entity IDs.
-	entityIDs, err := dataset.ResolveFilters(ctx, svc.ds, opts.DatasetFilters)
-	if err != nil {
-		return nil, err
-	}
-
-	// Calculate date range.
-	now := time.Now().UTC()
-	endDate := now
-	startDate := now.AddDate(0, 0, -opts.Days)
-
-	// Build host filter.
-	var hostFilter *fleet.ChartHostFilter
-	if len(opts.LabelIDs) > 0 || len(opts.Platforms) > 0 || len(opts.IncludeHostIDs) > 0 || len(opts.ExcludeHostIDs) > 0 {
-		hostFilter = &fleet.ChartHostFilter{
-			LabelIDs:       opts.LabelIDs,
-			Platforms:      opts.Platforms,
-			IncludeHostIDs: opts.IncludeHostIDs,
-			ExcludeHostIDs: opts.ExcludeHostIDs,
-		}
-	}
-
-	downsample := opts.Days == 30
-
-	data, err := svc.ds.GetChartData(ctx, metric, startDate, endDate, hostFilter, entityIDs, dataset.HasEntityDimension(), downsample)
-	if err != nil {
-		return nil, err
-	}
-
-	totalHosts, err := svc.ds.CountHostsForChartFilter(ctx, hostFilter)
-	if err != nil {
-		return nil, err
-	}
-
-	// Determine resolution label.
-	resolution := "hourly"
-	if downsample {
-		resolution = "2-hour"
-	}
-
-	// Fill in zero-value entries for time buckets with no data.
-	data = fillZeroValues(data, startDate, endDate, downsample)
-
-	return &fleet.ChartResponse{
-		Metric:        metric,
-		Visualization: dataset.DefaultVisualization(),
-		TotalHosts:    totalHosts,
-		Resolution:    resolution,
-		Days:          opts.Days,
-		Filters: fleet.ChartFilters{
-			LabelIDs:       opts.LabelIDs,
-			Platforms:      opts.Platforms,
-			IncludeHostIDs: opts.IncludeHostIDs,
-			ExcludeHostIDs: opts.ExcludeHostIDs,
-		},
-		Data: data,
-	}, nil
-}
-
 // fillZeroValues fills in missing time buckets with zero values.
 func fillZeroValues(data []fleet.ChartDataPoint, startDate, endDate time.Time, downsample bool) []fleet.ChartDataPoint {
 	existing := make(map[time.Time]int, len(data))
@@ -145,17 +163,12 @@ func fillZeroValues(data []fleet.ChartDataPoint, startDate, endDate time.Time, d
 		step = 2
 	}
 
-	// Align start to the beginning of its day.
 	start := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, time.UTC)
-	// End at the current hour of endDate.
 	end := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), endDate.Hour(), 0, 0, 0, time.UTC)
 
 	var result []fleet.ChartDataPoint
 	for t := start; !t.After(end); t = t.Add(time.Duration(step) * time.Hour) {
-		val, ok := existing[t]
-		if !ok {
-			val = 0
-		}
+		val := existing[t]
 		result = append(result, fleet.ChartDataPoint{
 			Timestamp: t,
 			Value:     val,
