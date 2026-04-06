@@ -269,9 +269,6 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				ForSetupExperience: true,
 			})
 
-			sw.NanoCommandUUID = &cmdUUID
-			sw.Status = fleet.SetupExperienceStatusRunning
-
 			if err != nil {
 				// if we get an error (e.g. no available licenses) while attempting to enqueue the
 				// install, then we should immediately go to an error state so setup experience
@@ -291,6 +288,9 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 						return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
 					}
 				}
+			} else {
+				sw.NanoCommandUUID = &cmdUUID
+				sw.Status = fleet.SetupExperienceStatusRunning
 			}
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
