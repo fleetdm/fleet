@@ -2155,9 +2155,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 		_, ok := expectedAppsByName[software.Name]
 		require.True(t, ok)
 		if software.Name == macOSApp1.Name {
-			require.Equal(t, fleet.SetupExperienceStatusSuccess, software.Status)
+			require.Equalf(t, fleet.SetupExperienceStatusSuccess, software.Status, "software %s should have succeeded", software.Name)
 		} else {
-			require.Equal(t, fleet.SetupExperienceStatusPending, software.Status)
+			require.Equalf(t, fleet.SetupExperienceStatusPending, software.Status, "software %s should be pending", software.Name)
 		}
 		require.NotNil(t, software.SoftwareTitleID)
 		require.NotZero(t, *software.SoftwareTitleID)
@@ -2200,6 +2200,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 			_, shouldBeInstalled := installedApps[software.Name]
 			if shouldBeInstalled {
 				require.Equalf(t, fleet.SetupExperienceStatusSuccess, software.Status, "software %s should have succeeded", software.Name)
+			} else {
+				require.Equalf(t, fleet.SetupExperienceStatusPending, software.Status, "software %s should be pending", software.Name)
 			}
 			require.NotNil(t, software.SoftwareTitleID)
 			require.NotZero(t, *software.SoftwareTitleID)
