@@ -921,7 +921,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             )}
           </>
         </div>
-        <div className={`${baseClass}__section`}>
+        <div className={`${baseClass}__host-sections`}>
           <Card paddingSize="xlarge" borderRadiusSize="large">
             <ChartCard />
           </Card>
