@@ -122,11 +122,21 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
-	// sort the list of directories in descending order
-	slices.SortFunc(repoContents, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
+	versionDirs := make([]*github.RepositoryContent, 0, len(repoContents))
+	for _, c := range repoContents {
+		if c.GetType() == "dir" {
+			versionDirs = append(versionDirs, c)
+		}
+	}
+	if len(versionDirs) == 0 {
+		return nil, ctxerr.New(ctx, "no version directories found under winget package path")
+	}
+
+	// sort the list of version directories in descending order
+	slices.SortFunc(versionDirs, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
 
 	// this directory has the latest version data in it
-	latestVersionDir := repoContents[0]
+	latestVersionDir := versionDirs[0]
 	if latestVersionDir.GetName() == "" {
 		return nil, ctxerr.New(ctx, "latest version for app not found")
 	}
@@ -203,11 +213,14 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		uninstallScript = string(scriptBytes)
 	}
 
-	for _, installer := range m.Installers {
+	for idx := range m.Installers {
+		installer := &m.Installers[idx]
 		i.logger.DebugContext(ctx, "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
-		installerType := m.InstallerType
-		if installerType == "" || isVendorType(installerType) {
-			installerType = installer.InstallerType
+		// Prefer per-installer fields; winget manifests often set a default InstallerType at the
+		// package level (e.g. exe) that does not apply to every nested installer (e.g. a wix MSI).
+		installerType := installer.InstallerType
+		if installerType == "" {
+			installerType = m.InstallerType
 		}
 
 		if installerType == "" || isVendorType(installerType) {
@@ -225,17 +238,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installerType = installerTypeExe
 		}
 
-		scope := m.Scope
+		scope := installer.Scope
 		if scope == "" {
-			scope = installer.Scope
-			if scope == "" {
-				switch installerType {
-				case installerTypeMSI:
-					scope = machineScope
-				case installerTypeMSIX, "zip":
-					// AppX/MSIX packages and zip files containing AppX are typically user-scoped
-					scope = userScope
-				}
+			scope = m.Scope
+		}
+		if scope == "" {
+			switch installerType {
+			case installerTypeMSI:
+				scope = machineScope
+			case installerTypeMSIX, "zip":
+				// AppX/MSIX packages and zip files containing AppX are typically user-scoped
+				scope = userScope
 			}
 		}
 
@@ -261,19 +274,34 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			urlExt := strings.Trim(filepath.Ext(installer.InstallerURL), ".")
 			if urlExt == input.InstallerType {
 				// Perfect match - URL extension matches desired type
-				selectedInstaller = &installer
+				selectedInstaller = installer
 				break
 			}
 			// Keep as fallback candidate if we haven't found a perfect match yet
 			if selectedInstaller == nil {
-				selectedInstaller = &installer
+				selectedInstaller = installer
 			}
 		}
 
 	}
 
 	if selectedInstaller == nil {
-		return nil, ctxerr.New(ctx, "failed to find installer for app")
+		var detail strings.Builder
+		fmt.Fprintf(
+			&detail,
+			"failed to find installer for app %s (%s) version %s: want arch=%s type=%s scope=%s locale=%q; manifest has:",
+			input.Slug,
+			input.PackageIdentifier,
+			m.PackageVersion,
+			input.InstallerArch,
+			input.InstallerType,
+			input.InstallerScope,
+			input.InstallerLocale,
+		)
+		for _, ins := range m.Installers {
+			fmt.Fprintf(&detail, " [%s type=%s scope=%s locale=%q]", ins.Architecture, ins.InstallerType, ins.Scope, ins.InstallerLocale)
+		}
+		return nil, ctxerr.New(ctx, detail.String())
 	}
 
 	if input.InstallerType == installerTypeMSI && input.InstallerScope == machineScope {

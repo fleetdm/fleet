@@ -205,6 +205,31 @@ func TestIngestValidations(t *testing.T) {
 				upgradeCode:       "{ABCDEF}",
 			},
 		},
+		{
+			name:    "root default exe does not hide per-row wix MSI",
+			wantErr: "",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:        "{ABCDEF}",
+				installerType:      "msi",
+				rootInstallerType:  "exe",
+				rowInstallerType:   "wix",
+				installerScope:     "machine",
+				installerArch:      "x64",
+				installerProdCode:  "{ACBDEF}",
+				upgradeCode:        "{ABCDEF}",
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -234,6 +259,8 @@ func TestIngestValidations(t *testing.T) {
 type serverConfig struct {
 	productCode       string
 	installerType     string
+	rootInstallerType string // manifest root InstallerType when set (else installerType)
+	rowInstallerType  string // per-row InstallerType when set (else installerType)
 	installerScope    string
 	installerArch     string
 	installerProdCode string
@@ -241,17 +268,29 @@ type serverConfig struct {
 }
 
 func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
+	rootInstType := cfg.rootInstallerType
+	if rootInstType == "" {
+		rootInstType = cfg.installerType
+	}
+	rowInstType := cfg.rowInstallerType
+	if rowInstType == "" {
+		rowInstType = cfg.installerType
+	}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 
 		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
-			content := []github.RepositoryContent{{Name: ptr.String("Foo")}}
+			dirType := "dir"
+			content := []github.RepositoryContent{{
+				Name: ptr.String("Foo"),
+				Type: &dirType,
+			}}
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
 		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.installer.yaml":
 			manifest := installerManifest{
 				ProductCode:    cfg.productCode,
-				InstallerType:  cfg.installerType,
+				InstallerType:  rootInstType,
 				Scope:          cfg.installerScope,
 				PackageVersion: "1.0",
 				AppsAndFeaturesEntries: []appsAndFeaturesEntries{
@@ -259,10 +298,12 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 				},
 				Installers: []installer{
 					{
-						Architecture:  cfg.installerArch,
-						InstallerType: cfg.installerType,
-						ProductCode:   cfg.installerProdCode,
-						Scope:         cfg.installerScope,
+						Architecture:    cfg.installerArch,
+						InstallerType:   rowInstType,
+						InstallerURL:    "https://example.com/foo.msi",
+						ProductCode:     cfg.installerProdCode,
+						Scope:           cfg.installerScope,
+						InstallerSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 					},
 				},
 			}
