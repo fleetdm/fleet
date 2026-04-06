@@ -95,14 +95,14 @@ Champion stories and case studies showing real customers achieving real outcomes
 | # | Company | Industry | Name | Title | Quote |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Foursquare | Technology & Geospatial Intelligence | Mike Meyer | Senior Manager, Corporate Engineer | "One of the easiest, quickest, smoothest migrations I've ever done." |
-| 2 | NVIDIA | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy." |
+| 2 | Leading GPU manufacturer| Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy." |
 | 3 | Stripe | Financial Software | Scott MacVicar | Head of Developer Infrastructure & Corporate Technology | "We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment." |
 | 4 | Reddit | Internet Content & Social Media | Nick Fohs | Systems and Infrastructure Manager | "Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners." |
 | 5 | Stripe | Financial Software | Wes Whetstone | Staff CPE at Stripe | "Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy." |
 | 6 | Stripe | Financial Software | Erik Gomez | Former Staff Client Platform Engineer | "Exciting. This is a team that listens to feedback." |
 | 7 | Robinhood | Financial Software | Matt Carr | CPE Manager | "I'm a huge fan of Fleet and their approach to GitOps." |
 | 8 | — (Community) | — | Nico Waisman | Former CISO of Lyft | "Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet." |
-| 9 | NVIDIA | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback." |
+| 9 | Leading GPU manufacturer | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback." |
 | 10 | — (Community) | — | Dan Grzelak | Former Security Chief of Staff | "I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work." |
 | 11 | Flock Safety | Public Safety Technology | Eric Tan | CIO & CSO | "This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf." |
 | 12 | ConductorOne | Identity Governance & Access Management | Chayce O'Neal | Head of IT | "Fleet is incredibly easy to deploy and perfect for lean IT teams. It's everything we need in a device management platform, simple, efficient, and powerful." |
