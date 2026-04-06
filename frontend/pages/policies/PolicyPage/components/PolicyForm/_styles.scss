@@ -131,7 +131,7 @@
   }
 
   &__policy-name {
-   font-size:$large;
+    font-size: $large;
 
     &.input-field--error {
       border: 1px solid $core-vibrant-red;
@@ -142,21 +142,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    .autofill-tooltip-wrapper {
-      display: flex; // Required for vertical centering
-    }
-
-    .autofill-button-tooltip {
-      font-weight: $regular;
-    }
   }
 
   &__button-wrap {
-    &--tooltip {
-      display: flex;
-    }
-
     .policy-form__run {
       min-width: 64px;
     }

@@ -400,9 +400,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				address,
 				token,
 				logger,
-				fleethttp.NewClient,
-				service.NewClient,
-				nil, // No mock ApplyGroup for production code
+				func(args []string) error {
+					_, err := RunApp(args)
+					return err
+				},
 			); err != nil {
 				return fmt.Errorf("failed to apply starter library: %w", err)
 			}

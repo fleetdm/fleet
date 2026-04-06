@@ -55,6 +55,14 @@ var (
 	CertificateTemplateVerified   CertificateTemplateStatus = "verified"
 )
 
+// CertificateActivityStatus represents the status of a certificate install activity.
+type CertificateActivityStatus string
+
+const (
+	CertificateActivityInstalled     CertificateActivityStatus = "installed"
+	CertificateActivityFailedInstall CertificateActivityStatus = "failed_install"
+)
+
 // CertificateTemplateStatusToMDMDeliveryStatus converts a CertificateTemplateStatus to MDMDeliveryStatus.
 // This is used when converting HostCertificateTemplate to HostMDMProfile for the GetHost endpoint.
 func CertificateTemplateStatusToMDMDeliveryStatus(s CertificateTemplateStatus) MDMDeliveryStatus {

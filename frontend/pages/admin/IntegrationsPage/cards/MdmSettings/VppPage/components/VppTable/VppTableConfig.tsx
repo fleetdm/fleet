@@ -111,7 +111,7 @@ export const generateTableConfig = (
       Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
-        <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />
+        <TeamsCell teams={cellProps.cell.value} />
       ),
     },
     {

@@ -5,10 +5,6 @@ settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids:
-        - 38244 # Linux - Sufficient disk space available
-        - 38230 # macOS - Sufficient disk space available
-        - 38239 # Windows - Sufficient disk space available
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -121,19 +117,16 @@ policies:
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-nudge.yml
-  - path: ../lib/macos/policies/update-claude.yml
-  - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/macos/policies/battery-health-check.yml
   # Windows policies
-  - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
-  - path: ../lib/windows/policies/update-claude.yml
-  - path: ../lib/windows/policies/update-slack.yml
+  - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
@@ -336,7 +329,6 @@ software:
         - Productivity
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
-      display_name: "Mozilla Firefox"
       categories:
         - Browsers
       labels_include_any:
