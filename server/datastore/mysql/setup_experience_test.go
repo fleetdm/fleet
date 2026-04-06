@@ -819,10 +819,12 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	assert.Equal(t, "ZZZ_VPP_App", allResults[1].Name, "row 1: ZZZ_VPP_App (display name 'Alpha VPP Custom')")
 	assert.Equal(t, "Alpha VPP Custom", allResults[1].DisplayName, "row 1: display name should be 'Alpha VPP Custom'")
 	assert.NotNil(t, allResults[1].VPPAppTeamID, "row 1: should be a VPP app")
+	assert.Less(t, allResults[0].ID, allResults[1].ID)
 
 	assert.Equal(t, "AAA_Software", allResults[2].Name, "row 2: AAA_Software (display name 'Zulu Custom')")
 	assert.Equal(t, "Zulu Custom", allResults[2].DisplayName, "row 2: display name should be 'Zulu Custom'")
 	assert.NotNil(t, allResults[2].SoftwareInstallerID, "row 2: should be a software installer")
+	assert.Less(t, allResults[1].ID, allResults[2].ID)
 
 	assert.Equal(t, "AAA_VPP_App", allResults[3].Name, "row 3: AAA_VPP_App (display name 'Zulu VPP Custom')")
 	assert.Equal(t, "Zulu VPP Custom", allResults[3].DisplayName, "row 3: display name should be 'Zulu VPP Custom'")
@@ -909,10 +911,12 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	assert.Equal(t, "ZZZ_VPP_App", fallbackResults[1].Name, "row 1: ZZZ_VPP_App (display name 'Alpha VPP Custom')")
 	assert.Equal(t, "Alpha VPP Custom", fallbackResults[1].DisplayName)
 	assert.NotNil(t, fallbackResults[1].VPPAppTeamID)
+	assert.Less(t, fallbackResults[0].ID, fallbackResults[1].ID)
 
 	assert.Equal(t, "MMM_NoDisplayName", fallbackResults[2].Name, "row 2: MMM_NoDisplayName (no display name, falls back to st.name)")
 	assert.Empty(t, fallbackResults[2].DisplayName)
 	assert.NotNil(t, fallbackResults[2].SoftwareInstallerID)
+	assert.Less(t, fallbackResults[1].ID, fallbackResults[2].ID)
 
 	assert.Equal(t, "MMM_VPP_NoDisplayName", fallbackResults[3].Name, "row 3: MMM_VPP_NoDisplayName (no display name, falls back to st.name)")
 	assert.Empty(t, fallbackResults[3].DisplayName)
@@ -925,6 +929,7 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 	assert.Equal(t, "AAA_VPP_App", fallbackResults[5].Name, "row 5: AAA_VPP_App (display name 'Zulu VPP Custom')")
 	assert.Equal(t, "Zulu VPP Custom", fallbackResults[5].DisplayName)
 	assert.NotNil(t, fallbackResults[5].VPPAppTeamID)
+	assert.Less(t, fallbackResults[4].ID, fallbackResults[5].ID)
 }
 
 type setupExperienceInsertTestRows struct {
