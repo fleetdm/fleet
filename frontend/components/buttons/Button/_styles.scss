@@ -140,10 +140,6 @@ $base-class: "button";
     );
     display: flex;
     text-wrap: nowrap;
-
-    body.dark-mode & {
-      opacity: 0.8;
-    }
   }
 
   &--success {
