@@ -1,5 +1,6 @@
 package com.fleetdm.agent
 
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
@@ -31,6 +32,15 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
     }
 
     private suspend fun doEnrollment(): Result {
+        // Gate on CERT_INSTALL delegation. After a fresh MDM enrollment, the delegated scope may not be available
+        // immediately. Retrying here (before any SCEP work) avoids consuming single-use SCEP challenges.
+        val dpm = applicationContext.getSystemService(DevicePolicyManager::class.java)
+        val scopes = dpm?.getDelegatedScopes(null, applicationContext.packageName) ?: emptyList()
+        if (!scopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL)) {
+            Log.w(TAG, "CERT_INSTALL delegation not available yet, will retry. Current scopes: $scopes")
+            return Result.retry()
+        }
+
         return try {
             Log.d(TAG, "Starting certificate enrollment worker (attempt ${runAttemptCount + 1})")
 
