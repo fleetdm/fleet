@@ -199,7 +199,7 @@ INSERT INTO setup_experience_status_results (
 SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id FROM (
 	%s
 ) AS combined
-ORDER BY sort_name ASC`, strings.Join(softwareUnionParts, " UNION ALL "))
+ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
 	}
 
 	stmtSetupScripts := `
