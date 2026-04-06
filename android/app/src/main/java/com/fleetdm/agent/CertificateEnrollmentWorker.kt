@@ -34,15 +34,20 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
     private suspend fun doEnrollment(): Result {
         // Gate on CERT_INSTALL delegation. After a fresh MDM enrollment, the delegated scope may not be available
         // immediately. Retrying here (before any SCEP work) avoids consuming single-use SCEP challenges.
+        val attempt = runAttemptCount + 1
         val dpm = applicationContext.getSystemService(DevicePolicyManager::class.java)
         val scopes = dpm?.getDelegatedScopes(null, applicationContext.packageName) ?: emptyList()
         if (!scopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL)) {
-            Log.w(TAG, "CERT_INSTALL delegation not available yet, will retry. Current scopes: $scopes")
+            if (attempt >= MAX_RETRY_ATTEMPTS) {
+                Log.w(TAG, "CERT_INSTALL delegation unavailable after $attempt attempts, deferring to next scheduled run. Scopes: $scopes")
+                return Result.success()
+            }
+            Log.w(TAG, "CERT_INSTALL delegation not available yet (attempt $attempt/$MAX_RETRY_ATTEMPTS), will retry. Scopes: $scopes")
             return Result.retry()
         }
 
         return try {
-            Log.d(TAG, "Starting certificate enrollment worker (attempt ${runAttemptCount + 1})")
+            Log.d(TAG, "Starting certificate enrollment worker (attempt $attempt)")
 
             // Get orchestrator from Application
             val orchestrator = AgentApplication.getCertificateOrchestrator(applicationContext)
