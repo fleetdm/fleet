@@ -163,7 +163,7 @@ Items to cover in the section:
 
 ### Continuous flow
 
-Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. With AI-augmented engineering, well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, stories flow continuously from "drafted" to "in progress" to "in QA" to "ready for release."
+Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. With AI-augmented engineering, well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, stories flow continuously from "in drafting" to "in progress" to "in QA" to "ready for release."
 
 #### Weekly planning
 
