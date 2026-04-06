@@ -32,6 +32,9 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	// Controls: windows_settings children
 	{"controls.windows_settings.custom_settings", "controls.windows_settings.configuration_profiles"},
 
+	// Controls: android_settings children
+	{"controls.android_settings.custom_settings", "controls.android_settings.configuration_profiles"},
+
 	// Controls: macos_setup -> setup_experience (parent first, then children)
 	{"controls.macos_setup", "controls.setup_experience"},
 	{"controls.setup_experience.bootstrap_package", "controls.setup_experience.macos_bootstrap_package"},
