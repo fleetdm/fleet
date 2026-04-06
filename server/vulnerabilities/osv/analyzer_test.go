@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -475,7 +476,7 @@ func TestMatchSoftwareToOSV(t *testing.T) {
 				},
 			},
 			expected: []fleet.SoftwareVulnerability{
-				{SoftwareID: 1, CVE: "CVE-2024-5555"},
+				{SoftwareID: 1, CVE: "CVE-2024-5555", ResolvedInVersion: ptr.String("2.4.50")},
 			},
 		},
 		{
