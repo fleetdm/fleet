@@ -2045,12 +2045,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
-	vppToken := &fleet.VPPTokenDB{
+	vppToken := &fleet.VPPTokenDB{ //nolint:gosec
 		Location:  "Foobar",
 		RenewDate: time.Now().Add(24 * 365 * time.Hour),
 		Token:     "vpp-token",
 	}
-	vppToken2 := &fleet.VPPTokenDB{
+	vppToken2 := &fleet.VPPTokenDB{ //nolint:gosec
 		Location:  "Gadzooks",
 		RenewDate: time.Now().Add(24 * 365 * time.Hour),
 		Token:     "vpp-token2",
