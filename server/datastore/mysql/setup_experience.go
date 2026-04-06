@@ -124,17 +124,22 @@ WHERE install_during_setup = true
 AND global_or_team_id = ?
 AND si.is_active = TRUE
 AND (
+	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
 	AND
 	(
+		-- platform is 'darwin' or 'windows', so nothing else to check.
 		(si.platform = 'darwin' OR si.platform = 'windows')
 		OR
 		(
+			-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 			(si.extension = 'tar.gz' OR si.extension = 'sh')
 			OR
 			(
+				-- deb packages can only be installed on Debian-based hosts.
 				(si.extension = 'deb' AND ? = 'debian')
 				OR
+				-- rpm packages can only be installed on RHEL-based hosts.
 				(si.extension = 'rpm' AND ? = 'rhel')
 			)
 		)
