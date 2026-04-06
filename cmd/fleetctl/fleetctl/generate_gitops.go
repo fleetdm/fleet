@@ -119,42 +119,13 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 }
 
 // aliasRules maps deprecated JSON key names to their new canonical names.
-// Used by replaceAliasKeys and yamlMarshalRenamed to rename keys in serialized output,
-// including both generate_gitops and fleetctl get (via printSpec).
-// Derived from spec.DeprecatedGitOpsKeyMappings (using leaf key segments) plus
-// additional renames for struct fields that appear in fleetctl get output.
+// Used by replaceAliasKeys and yamlMarshalRenamed to rename keys in serialized output
+// for generate_gitops, fleetctl get (via printSpec), and fleetctl apply.
+// Derived entirely from spec.DeprecatedGitOpsKeyMappings using leaf key segments.
 var aliasRules = buildAliasRules()
 
 func buildAliasRules() map[string]string {
-	// Additional renames for API response fields used by fleetctl get / printSpec.
-	// These are renameto tags on struct fields that appear in serialized API output
-	// but are not gitops input keys.
-	rules := map[string]string{
-		"available_teams":       "available_fleets",
-		"default_team":          "default_fleet",
-		"host_team_id":          "host_fleet_id",
-		"inherited_query_count": "inherited_report_count",
-		"ios_team_id":           "ios_fleet_id",
-		"ipados_team_id":        "ipados_fleet_id",
-		"live_query_results":    "discard_reports_data",
-		"macos_team_id":         "macos_fleet_id",
-		"query_count":           "report_count",
-		"query_id":              "report_id",
-		"query_ids":             "report_ids",
-		"query_name":            "report_name",
-		"query_stats":           "report_stats",
-		// Deliberately not aliasing "query" as it is used exclusively to refer to SQL in GitOps.
-		// "query":               "report",
-		"scheduled_query_id":   "scheduled_report_id",
-		"scheduled_query_name": "scheduled_report_name",
-		"team":                 "fleet",
-		"team_id":              "fleet_id",
-		"team_ids_by_name":     "fleet_ids_by_name",
-		"team_ids":             "fleet_ids",
-		"team_name":            "fleet_name",
-	}
-
-	// Derive leaf key renames from DeprecatedGitOpsKeyMappings.
+	rules := make(map[string]string)
 	for _, m := range spec.DeprecatedGitOpsKeyMappings {
 		// Take the last segment of the old and new paths as the leaf key names.
 		// Remove any array indicators (e.g. "[]") in case an array key is renamed.
