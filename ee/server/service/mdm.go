@@ -1692,6 +1692,17 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 		}
 	}
 
+	nanoDetails, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get nanomdm enrollment details")
+	}
+
+	if nanoDetails == nil || nanoDetails.UnlockToken == nil {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
 	commandUUID := uuid.NewString()
 	if err := svc.mdmAppleCommander.ClearPasscode(ctx, []string{host.UUID}, commandUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "clearing passcode")
