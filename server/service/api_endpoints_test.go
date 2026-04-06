@@ -26,9 +26,9 @@ func TestAPIEndpointValidate(t *testing.T) {
 	base := APIEndpoint{Method: "GET", Path: "/api/_version_/fleet/foo", Name: "foo"}
 
 	tests := []struct {
-		name        string
-		modify      func(APIEndpoint) APIEndpoint
-		wantErr     string
+		name    string
+		modify  func(APIEndpoint) APIEndpoint
+		wantErr string
 	}{
 		{
 			name:   "valid endpoint",
@@ -81,11 +81,11 @@ func TestValidateAPIEndpoints(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		handler    http.Handler
-		wantOK     bool
+		name        string
+		handler     http.Handler
+		wantOK      bool
 		wantMissing []string
-		wantPanic  string
+		wantPanic   string
 	}{
 		{
 			name:    "all routes present",
@@ -93,9 +93,9 @@ func TestValidateAPIEndpoints(t *testing.T) {
 			wantOK:  true,
 		},
 		{
-			name:        "no routes registered",
-			handler:     mux.NewRouter(),
-			wantOK:      false,
+			name:    "no routes registered",
+			handler: mux.NewRouter(),
+			wantOK:  false,
 			wantMissing: func() []string {
 				var s []string
 				for _, r := range allRoutes {
@@ -105,8 +105,8 @@ func TestValidateAPIEndpoints(t *testing.T) {
 			}(),
 		},
 		{
-			name:    "non-mux handler panics",
-			handler: http.NewServeMux(),
+			name:      "non-mux handler panics",
+			handler:   http.NewServeMux(),
 			wantPanic: "ValidateAPIEndpoints: expected *mux.Router, got *http.ServeMux",
 		},
 	}
