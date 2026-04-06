@@ -14,7 +14,7 @@ When you select **Connect**, Fleet will open the Google signup page. The signup 
 
 ### Google Workspace
 
-> You'll need super administrator privileges in Google Workspace to connect Android Enterprise. If your organization doesn't want this account to have super admin permissions, they can be lowered after the integration is complete.
+> You must use a Google Workspace account with super administrator privileges. Privileges can be reduced after MDM is turned on.
 
 1. If your organization already uses Google Workspace, use your admin account to sign up for Android Enterprise. If you don't know your admin account credentials, ask your Google Workspace admin.
 2. Follow the steps in Google's signup flow.
