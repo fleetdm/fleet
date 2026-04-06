@@ -77,6 +77,7 @@ import WelcomeHost from "./cards/WelcomeHost";
 import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
+import ChartCard from "./cards/ChartCard";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
@@ -919,6 +920,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               HostCountCards
             )}
           </>
+        </div>
+        <div className={`${baseClass}__section`}>
+          <Card paddingSize="xlarge" borderRadiusSize="large">
+            <ChartCard />
+          </Card>
         </div>
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
