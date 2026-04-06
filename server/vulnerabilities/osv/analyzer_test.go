@@ -480,6 +480,24 @@ func TestMatchSoftwareToOSV(t *testing.T) {
 			},
 		},
 		{
+			name: "Range-based vulnerability matching with multiple fixed versions",
+			software: []fleet.Software{
+				{ID: 1, Name: "apache2", Version: "2.4.41"},
+			},
+			artifact: &OSVArtifact{
+				Vulnerabilities: map[string][]OSVVulnerability{
+					"apache2": {
+						{CVE: "CVE-2024-5555", Introduced: "2.4.0", Fixed: "2.4.50"},
+						{CVE: "CVE-2024-6666", Introduced: "2.4.10", Fixed: "2.4.48"},
+					},
+				},
+			},
+			expected: []fleet.SoftwareVulnerability{
+				{SoftwareID: 1, CVE: "CVE-2024-5555", ResolvedInVersion: ptr.String("2.4.50")},
+				{SoftwareID: 1, CVE: "CVE-2024-6666", ResolvedInVersion: ptr.String("2.4.48")},
+			},
+		},
+		{
 			name: "emacs-common not vulnerable",
 			software: []fleet.Software{
 				{ID: 60992, Name: "emacs-common", Version: "1:29.3+1-1ubuntu2"},
