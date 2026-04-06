@@ -178,7 +178,25 @@ Device management
 9. There should be a Marketing ritual for processing the commented out spontaneous testimonials at some reasonable interval (quarterly, monthly, etc.) that is either captured here or in another spot in the Marketing handbook.
    
 ## Process to publish logo on website
-1. <To be described>
+Follow this process to add a customer’s logo to the website. Only publish logos that are approved in the contract.
+
+1. **Create an issue after the contract is signed**
+
+   Once the contract is signed, the Content Specialist will create an issue on the marketing board. This is so marketing can keep track of it's process.
+
+   The Content Specialist will then add the issue to the finance board, and assign it to Deal Desk.
+
+2. **Confirm logo approval**
+
+   The Deal Desk reviews the contract and confirms whether we can use the customer’s logo on the website.
+
+3. **Update the Fleet Champions Community spreadsheet**
+
+   Once approved, the Content Specialist marks the customer as “yes” for logo usage (found in column K) in the [Fleet Champions Community spreadsheet](https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772).
+
+4. **Assign to design**
+
+   The Content Specialist will assign the issue to the Head of Design to add the logo to the website.
 
 ## Process to publish quote on peer review site such as Gartner Peer Review or G2
 Follow this process to collect a quote on a peer review site such as Gartner Peer Insights or G2. These reviews help potential customers hear directly from other IT teams using Fleet.

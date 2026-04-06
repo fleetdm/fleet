@@ -457,7 +457,34 @@ To propose an event, complete the steps in the [Propose event issue](https://git
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 
 ## Social media 
-When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don’t necessarily represent your company or peers.
+When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don't necessarily represent your company or peers.
+
+
+### Create content for YouTube
+
+#### Recording standards
+- Record at 1920x1080, 30 fps. Save as `.mp4` (h.264/AAC) or `.mov`. Don't use `.webm`.
+- Add a few seconds of silence at the start and end of each recording.
+- Name files: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
+
+#### Best practices
+**Browser and terminal:**
+- Zoom in so text is legible at 1080p (most viewers watch smaller than full screen).
+- Use a clean browser profile. Close unnecessary tabs.
+
+**Desktop:**
+- Pause notifications. Close or minimize anything that might expose private data.
+- Hide desktop icons or confirm no filenames contain sensitive info.
+
+**Mouse:**
+- Move deliberately. Pause briefly on important UI elements and wait for results to load before moving on.
+
+**Privacy:**
+- Don't show public IPs, passwords, tokens, or credentials.
+- Don't show or say customer names, codenames, or real email addresses.
+
+**Playback:**
+- Don't enable closed captions during recording (they're added later if needed).
 
 
 ## Feedback
