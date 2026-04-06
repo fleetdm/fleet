@@ -268,7 +268,7 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 
 	// Insert cert auth association (no SCEP renewal yet).
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO nano_cert_auth_associations (id, sha256) VALUES (?, 'abc123')`,
+		`INSERT INTO nano_cert_auth_associations (id, sha256) VALUES (?, '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef')`,
 		deviceUUID)
 	require.NoError(t, err)
 
