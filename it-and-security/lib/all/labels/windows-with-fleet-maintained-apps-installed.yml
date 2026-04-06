@@ -1,21 +1,21 @@
-- name: Windows hosts with Slack installed
-  description: Windows hosts with Slack installed
-  query: SELECT 1 FROM programs WHERE name = 'Slack';
+- name: x86 Windows hosts with Slack installed
+  description: x86 Windows hosts with Slack installed
+  query: SELECT 1 FROM programs WHERE name = 'Slack' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
-- name: Windows hosts with Claude installed
-  description: Windows hosts with Claude installed
-  query: SELECT 1 FROM programs WHERE name = 'Claude';
+- name: x86 Windows hosts with Claude installed
+  description: x86 Windows hosts with Claude installed
+  query: SELECT 1 FROM programs WHERE name = 'Claude' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
-- name: Windows hosts with Firefox installed
-  description: Windows hosts with Firefox installed
-  query: SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%' AND name NOT LIKE '%ESR%';
+- name: x86 Windows hosts with Firefox installed
+  description: x86 Windows hosts with Firefox installed
+  query: SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%' AND name NOT LIKE '%ESR%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
-- name: Windows hosts with Google Chrome installed
-  description: Windows hosts with Google Chrome installed
-  query: SELECT 1 FROM programs WHERE name = 'Google Chrome';
+- name: x86 Windows hosts with Google Chrome installed
+  description: x86 Windows hosts with Google Chrome installed
+  query: SELECT 1 FROM programs WHERE name = 'Google Chrome' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
 - name: Windows hosts with Brave Browser installed
