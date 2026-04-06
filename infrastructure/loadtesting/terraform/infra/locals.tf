@@ -29,6 +29,7 @@ locals {
       CLOUDWATCH_REGION    = "us-east-2"
       # PROMETHEUS_SCRAPE_URL = "http://localhost:8080/metrics"
 
+      FLEET_VULNERABILITIES_OSV_FOR_VULNERABILITIES = "false"      
       FLEET_VULNERABILITIES_DATABASES_PATH           = "/home/fleet"
       FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING     = "false"
       FLEET_LOGGING_JSON                             = "true"
