@@ -1722,15 +1722,34 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 
 	// Build a set of normalized installed paths from existing programs entries.
 	// normalizeWindowsDir ensures consistent trailing backslash and lowercase.
+	//
+	// We skip over-broad locations (drive roots, Windows\System32) because some
+	// programs report install_location as e.g. "C:\" which would prefix-match
+	// every file scan result. See the analogous skipInstallPaths filter in the
+	// windows_last_opened_at handler.
+	skipInstallPaths := map[string]struct{}{
+		`\`:                     {},
+		`\windows\`:             {},
+		`\windows\system32\`:    {},
+		`\program files\`:       {},
+		`\program files (x86)\`: {},
+	}
 	knownPaths := make(map[string]struct{})
 	for _, row := range mainSoftwareResults {
 		if row["source"] != "programs" {
 			continue
 		}
 		p := normalizeWindowsDir(row["installed_path"])
-		if p != "" {
-			knownPaths[p] = struct{}{}
+		if p == "" {
+			continue
 		}
+		// Strip the drive letter (e.g. "c:") to get a volume-relative path for skip checking.
+		if vol, rel, ok := strings.Cut(p, ":"); !ok || len(vol) != 1 || len(rel) == 0 {
+			continue
+		} else if _, skip := skipInstallPaths[rel]; skip {
+			continue
+		}
+		knownPaths[p] = struct{}{}
 	}
 
 	for _, row := range fileScanResults {
