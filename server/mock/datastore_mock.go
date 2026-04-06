@@ -1849,6 +1849,14 @@ type GetOrCreateFleetChallengeForCertificateTemplateFunc func(ctx context.Contex
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
+type RecordHostHourlyDataFunc func(ctx context.Context, hostID uint, dataset string, entityID uint, date time.Time, hour int) error
+
+type GetChartDataFunc func(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *fleet.ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsampleTo2h bool) ([]fleet.ChartDataPoint, error)
+
+type CountHostsForChartFilterFunc func(ctx context.Context, hostFilter *fleet.ChartHostFilter) (int, error)
+
+type CleanupHostHourlyDataFunc func(ctx context.Context, days int) error
+
 type GetWindowsMDMCommandsForResendingFunc func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error)
 
 type ResendWindowsMDMCommandFunc func(ctx context.Context, mdmDeviceId string, newCmd *fleet.MDMWindowsCommand, oldCmd *fleet.MDMWindowsCommand) error
@@ -4600,6 +4608,18 @@ type DataStore struct {
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
+
+	RecordHostHourlyDataFunc        RecordHostHourlyDataFunc
+	RecordHostHourlyDataFuncInvoked bool
+
+	GetChartDataFunc        GetChartDataFunc
+	GetChartDataFuncInvoked bool
+
+	CountHostsForChartFilterFunc        CountHostsForChartFilterFunc
+	CountHostsForChartFilterFuncInvoked bool
+
+	CleanupHostHourlyDataFunc        CleanupHostHourlyDataFunc
+	CleanupHostHourlyDataFuncInvoked bool
 
 	GetWindowsMDMCommandsForResendingFunc        GetWindowsMDMCommandsForResendingFunc
 	GetWindowsMDMCommandsForResendingFuncInvoked bool
@@ -11011,6 +11031,34 @@ func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
 	s.GetCurrentTimeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCurrentTimeFunc(ctx)
+}
+
+func (s *DataStore) RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, date time.Time, hour int) error {
+	s.mu.Lock()
+	s.RecordHostHourlyDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordHostHourlyDataFunc(ctx, hostID, dataset, entityID, date, hour)
+}
+
+func (s *DataStore) GetChartData(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *fleet.ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsampleTo2h bool) ([]fleet.ChartDataPoint, error) {
+	s.mu.Lock()
+	s.GetChartDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetChartDataFunc(ctx, dataset, startDate, endDate, hostFilter, entityIDs, hasEntityDimension, downsampleTo2h)
+}
+
+func (s *DataStore) CountHostsForChartFilter(ctx context.Context, hostFilter *fleet.ChartHostFilter) (int, error) {
+	s.mu.Lock()
+	s.CountHostsForChartFilterFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountHostsForChartFilterFunc(ctx, hostFilter)
+}
+
+func (s *DataStore) CleanupHostHourlyData(ctx context.Context, days int) error {
+	s.mu.Lock()
+	s.CleanupHostHourlyDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostHourlyDataFunc(ctx, days)
 }
 
 func (s *DataStore) GetWindowsMDMCommandsForResending(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
