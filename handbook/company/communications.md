@@ -35,7 +35,7 @@ The ambition of Fleet's product roadmap is to reach [product maturity](http://fl
 
 ## Security 
 
-Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), [carry Yubikeys](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
+Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), use [hardware security keys](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
 
 
 ### Trust
@@ -604,7 +604,7 @@ When Fleeties relocate, there are vendors that need to be notified of the change
 
 ## Tools and equipment
 
-Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
+Fleet provides laptops and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
 
 
 ### Requesting new equipment
