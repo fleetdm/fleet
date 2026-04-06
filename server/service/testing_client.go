@@ -649,7 +649,7 @@ func (ts *withServer) lastHostActivityMatches(hostID uint, name, details string,
 	t := ts.s.T()
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
-	require.True(t, len(listActivities.Activities) > 0)
+	require.NotEmpty(t, listActivities.Activities)
 
 	act := listActivities.Activities[0]
 

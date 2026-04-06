@@ -340,7 +340,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
-		unlockToken := "TEST-MDM-UNLOCK-TOKEN"
+		unlockToken := "TEST-MDM-UNLOCK-TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, unlock_token, authenticate, platform) VALUES (?, ?, 'fake-auth', 'ios')`, hostMDM.UUID, unlockToken)
 			require.NoError(t, err)

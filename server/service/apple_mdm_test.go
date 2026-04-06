@@ -456,7 +456,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 
-		rawB64PremiumCmd = base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+		rawB64PremiumCmd = base64.RawStdEncoding.EncodeToString(fmt.Appendf([]byte{}, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -468,7 +468,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <key>CommandUUID</key>
     <string>uuid</string>
 </dict>
-</plist>`, "ClearPasscode")))
+</plist>`, "ClearPasscode"))
 		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())

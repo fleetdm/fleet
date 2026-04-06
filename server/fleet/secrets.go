@@ -28,7 +28,7 @@ const (
 
 	// HostSecretMDMUnlockToken is the host secret type for MDM unlock tokens.
 	// The token is stored in the nano_devices table and injected at delivery time for ClearPasscode commands sent to Apple MDM-enrolled hosts.
-	HostSecretMDMUnlockToken = "MDM_UNLOCK_TOKEN"
+	HostSecretMDMUnlockToken = "MDM_UNLOCK_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
 )
 
 type MissingSecretsError struct {
