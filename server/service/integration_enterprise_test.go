@@ -28184,3 +28184,75 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		)
 	})
 }
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesObsoletePatchPolicy() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team_" + t.Name()})
+	require.NoError(t, err)
+
+	// Set up two FMAs: zoom/windows and 1password/darwin.
+	states := make(map[string]*fmaTestState, 2)
+	states["/zoom/windows.json"] = &fmaTestState{
+		version:        "1.0",
+		installerBytes: []byte("xyz"),
+		installerPath:  "/zoom.msi",
+	}
+	states["/1password/darwin.json"] = &fmaTestState{
+		version:        "1.0",
+		installerBytes: []byte("abc"),
+		installerPath:  "/1password.pkg",
+	}
+	startFMAServers(t, s.ds, states)
+
+	// Setup: batch set only zoom/windows.
+	var resp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+		http.StatusAccepted, &resp,
+		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	// Batch set both zoom/windows and 1password/darwin.
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("zoom/windows")},
+			{Slug: ptr.String("1password/darwin")},
+		}, TeamName: team.Name},
+		http.StatusAccepted, &resp,
+		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	// Create a patch policy for 1password/darwin.
+	applyResp := applyPolicySpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+		applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{{
+			Name:                   "1password patch policy",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "1password/darwin",
+		}}},
+		http.StatusOK, &applyResp,
+	)
+
+	// Verify the patch policy exists.
+	listPolResp := listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+	require.Len(t, listPolResp.Policies, 1)
+	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+
+	// Batch set only zoom/windows — should not fail and should delete the obsolete patch policy.
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+		http.StatusAccepted, &resp,
+		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	// Verify the patch policy was deleted.
+	listPolResp = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+	require.Len(t, listPolResp.Policies, 0)
+}

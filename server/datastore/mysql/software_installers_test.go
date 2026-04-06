@@ -58,7 +58,6 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
-		{"BatchSetSoftwareInstallersDeletesObsoletePatchPolicy", testBatchSetSoftwareInstallersDeletesObsoletePatchPolicy},
 	}
 
 	for _, c := range cases {
@@ -4606,70 +4605,4 @@ func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, metadata.InstallerID, *policyAfterUpdate.SoftwareInstallerID)
 	})
-}
-
-func testBatchSetSoftwareInstallersDeletesObsoletePatchPolicy(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	fooApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "Foo",
-		Slug:             "foo",
-		Platform:         "darwin",
-		UniqueIdentifier: "fleet.foo",
-	})
-	require.NoError(t, err)
-
-	fooPayload := &fleet.UploadSoftwareInstallerPayload{
-		FleetMaintainedAppID: new(fooApp.ID),
-		Title:                "foo",
-		Source:               "apps",
-		Platform:             "darwin",
-		StorageID:            "foo-storageid",
-		Filename:             "foo.pkg",
-		Version:              "1.0",
-		UserID:               user.ID,
-		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		TeamID:               new(team.ID),
-	}
-
-	// Setup: batch set foo only.
-	err = ds.BatchSetSoftwareInstallers(ctx, new(team.ID), []*fleet.UploadSoftwareInstallerPayload{fooPayload})
-	require.NoError(t, err)
-
-	// Add bar FMA, create its installer, and attach a patch policy to it.
-	barApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "Bar",
-		Slug:             "bar",
-		Platform:         "darwin",
-		UniqueIdentifier: "fleet.bar",
-	})
-	require.NoError(t, err)
-
-	_, barTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		FleetMaintainedAppID: new(barApp.ID),
-		Title:                "bar",
-		Source:               "apps",
-		Platform:             "darwin",
-		StorageID:            "bar-storageid",
-		Filename:             "bar.pkg",
-		Version:              "1.0",
-		UserID:               user.ID,
-		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		TeamID:               new(team.ID),
-	})
-	require.NoError(t, err)
-
-	_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
-		Name:                 "patch_bar",
-		Type:                 fleet.PolicyTypePatch,
-		PatchSoftwareTitleID: &barTitleID,
-	})
-	require.NoError(t, err)
-
-	// Batch set only foo, should not fail even though bar has a patch policy.
-	err = ds.BatchSetSoftwareInstallers(ctx, new(team.ID), []*fleet.UploadSoftwareInstallerPayload{fooPayload})
-	require.NoError(t, err)
 }
