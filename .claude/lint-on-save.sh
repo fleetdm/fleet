@@ -1,7 +1,8 @@
 #!/bin/sh
 # PostToolUse hook: auto-fix lint issues, then report anything remaining
-# Uses the project's own make lint-go-incremental (only checks changes since branching from main)
-# Runs after formatters (goimports, prettier) so it only sees convention violations
+# Runs golangci-lint on the affected package (not make lint-go-incremental, which is too
+# slow for a PostToolUse hook). Runs after formatters (goimports, prettier) so it only
+# sees convention violations.
 
 INPUT=$(cat)
 # Extract file_path with grep to avoid jq parse errors from control chars in tool input
