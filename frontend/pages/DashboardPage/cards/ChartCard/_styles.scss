@@ -2,25 +2,13 @@
   &__header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     margin-bottom: $pad-medium;
   }
 
   &__header-left {
     display: flex;
-    flex-direction: column;
-    gap: $pad-xsmall;
-  }
-
-  &__title {
-    font-size: $medium;
-    font-weight: $bold;
-    margin: 0;
-  }
-
-  &__total-hosts {
-    font-size: $x-small;
-    color: $ui-fleet-black-75;
+    align-items: center;
   }
 
   &__header-right {
@@ -29,46 +17,41 @@
     gap: $pad-small;
   }
 
-  &__filter-btn {
-    padding: $pad-xsmall;
-    color: $ui-fleet-black-75;
+  &__days-dropdown {
+    .dropdown-wrapper__label {
+      display: none;
+    }
 
-    &:hover {
-      color: $core-fleet-black;
+    .Select-value-label,
+    .dropdown-wrapper__single-value {
+      font-size: $small;
+      font-weight: $bold;
     }
   }
 
-  &__days-selector {
-    display: flex;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius;
-    overflow: hidden;
+  &__chart-type-dropdown {
+    min-width: 200px;
+
+    .dropdown-wrapper__label {
+      display: none;
+    }
   }
 
-  &__days-btn {
-    padding: $pad-xsmall $pad-small;
-    font-size: $xx-small;
-    border: none;
+  &__settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
     background: $core-fleet-white;
     cursor: pointer;
     color: $ui-fleet-black-75;
-    transition: background-color 150ms ease;
+    transition: border-color 150ms ease;
 
     &:hover {
-      background: $ui-fleet-black-10;
-    }
-
-    &--active {
-      background: $core-fleet-blue;
-      color: $core-fleet-white;
-
-      &:hover {
-        background: $core-fleet-blue;
-      }
-    }
-
-    & + & {
-      border-left: 1px solid $ui-fleet-black-10;
+      border-color: $ui-fleet-black-50;
     }
   }
 
