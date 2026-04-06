@@ -1483,6 +1483,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
 
+		if ok, missing := service.ValidateAPIEndpoints(apiHandler); !ok {
+			panic(fmt.Sprintf("api_endpoints.yml contains routes not registered in the router: %v", missing))
+		}
+
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
 			apiHandler = endpointer.BrowserSecurityHeadersHandler(serveCSP, apiHandler)

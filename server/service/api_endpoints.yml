@@ -1,0 +1,4 @@
+- method: POST
+  path: "/api/_version_/fleet/trigger"
+  name: "trigger"
+  deprecated: false
