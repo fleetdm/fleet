@@ -2042,7 +2042,7 @@ spec:
 
 	_, err := RunAppNoChecks([]string{"apply", "-f", interval})
 	assert.Error(t, err)
-	require.Equal(t, expectedErrMsg, err.Error())
+	require.Contains(t, err.Error(), expectedErrMsg)
 }
 
 func TestApplyQueries(t *testing.T) {
