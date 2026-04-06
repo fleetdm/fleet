@@ -2,6 +2,7 @@ package service
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -14,11 +15,9 @@ import (
 //go:embed api_endpoints.yml
 var apiEndpointsYAML []byte
 
-// apiEndpoints is parsed and validated once at package init time.
-// Any malformed entry in api_endpoints.yml causes a panic on startup.
 var apiEndpoints = mustParseAPIEndpoints()
 
-// APIEndpoint represents an API endpoint that we attach permissions to.
+// APIEndpoint represents an API endpoint that we can attach permissions to.
 type APIEndpoint struct {
 	Method     string `yaml:"method"`
 	Path       string `yaml:"path"`
@@ -38,7 +37,7 @@ var validHTTPMethods = map[string]struct{}{
 // It returns an error describing the first violation found.
 func (e APIEndpoint) validate() error {
 	if e.Name == "" {
-		return fmt.Errorf("name is required")
+		return errors.New("name is required")
 	}
 	if _, ok := validHTTPMethods[strings.ToUpper(e.Method)]; !ok {
 		return fmt.Errorf("invalid HTTP method %q", e.Method)
@@ -50,7 +49,6 @@ func (e APIEndpoint) validate() error {
 }
 
 // mustParseAPIEndpoints parses and validates api_endpoints.yml.
-// It is called once at package init via the apiEndpoints package-level var.
 func mustParseAPIEndpoints() []APIEndpoint {
 	var routes []APIEndpoint
 	if err := yaml.Unmarshal(apiEndpointsYAML, &routes); err != nil {
@@ -79,8 +77,7 @@ var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
 // registered in h. It returns (true, nil) on success, or (false, <missing routes>)
 // when one or more routes are absent.
 //
-// It panics if h is not a *mux.Router, because that indicates a programming error
-// (MakeHandler always returns a *mux.Router).
+// It panics if h is not a *mux.Router
 func ValidateAPIEndpoints(h http.Handler) (bool, []string) {
 	r, ok := h.(*mux.Router)
 	if !ok {
