@@ -359,7 +359,7 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Meeting Requested:** The prospect has booked a meeting
 
 ## Contact source (Lead source)
-At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  Historically, we've had the field *Contact source*, which effecively told us what form or activity a person did.  This is good data, and works alongside the overall attribution framework.
+At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  Historically, we've had the field *Contact source*, which effectively told us what form or activity a person did.  This is good data, and works alongside the overall attribution framework.
 
 Here are the values for the contact source:
 
