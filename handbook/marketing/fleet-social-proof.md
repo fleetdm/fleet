@@ -45,7 +45,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Design platform company adopts GitOps device management with Fleet](https://fleetdm.com/case-study/design-platform) | ✓ |  | ✓ | 2026‑04‑01 |
 | [Data platform company cuts $5–6M in hardware costs with API-driven device management](https://fleetdm.com/case-study/data-platform-company) | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [DevOps platform company consolidates endpoint management with Fleet](https://fleetdm.com/case-study/devops-platform) | ✓ | ✓ | ✓ | 2026‑04‑01 |
-| [Observability platform company consolidates device management with Fleet](https://fleetdm.com/case-study/observability-platform) | ✓ | ✓ | ✓ | 2026‑04‑01 |
+| [Observability platform company consolidates device management with Fleet](https://fleetdm.com/case-study/observability-platform-company) | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [Consumer electronics company simplifies cross-platform management with Fleet](https://fleetdm.com/case-study/consumer-electronics) | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [Technology platform](https://fleetdm.com/case-study/technology-platform) | Technology | ✓ |  |  | 2026‑03‑14 |
 | [Global technology platform](https://fleetdm.com/case-study/global-technology-platform) | Technology | ✓ | ✓ | ✓ | 2026‑03‑03 |
@@ -85,9 +85,9 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [IT services company builds zero-touch workflows with Fleet](https://fleetdm.com/case-study/it-service-company) | IT / MSP | ✓ |  |  | 2026‑03‑21 |
 | [National research lab scales host visibility with Fleet](https://fleetdm.com/case-study/national-research-lab) | Research / HPC |  |  | ✓ | 2026‑03‑14 |
 | [Cybersecurity company improves endpoint visibility with Fleet](https://fleetdm.com/case-study/cybersecurity-company) | Security | ✓ | ✓ | ✓ | 2026‑03‑14 |
-| [Computational research company unifies endpoint management with Fleet](https://fleetdm.com/case-study/computational-research) | Research / HPC | ✓ | ✓ | ✓ | 2026‑04‑01 |
+| [Computational research company unifies endpoint management with Fleet](https://fleetdm.com/case-study/computational-research-company) | Research / HPC | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [Open-source technology company scales endpoint management with Fleet](https://fleetdm.com/case-study/open-source-technology) | Open Source / Software | ✓ | ✓ | ✓ | 2026‑04‑01 |
-| [Digital asset security company strengthens Linux compliance with Fleet](https://fleetdm.com/case-study/digital-asset) | Crypto / Digital Assets |  |  | ✓ | 2026‑04‑01 |
+| [Digital asset security company strengthens Linux compliance with Fleet](https://fleetdm.com/case-study/digital-asset-security) | Crypto / Digital Assets |  |  | ✓ | 2026‑04‑01 |
 | [Cybersecurity company](https://fleetdm.com/case-study/cybersecurity-company-1) | Cybersecurity and security |  |  | ✓ | 2026‑03‑14 |
 | [Financial data company](https://fleetdm.com/case-study/financial-data-company) | Financial data and media | ✓ | ✓ | ✓ | 2026‑03‑04 |
 | [Financial technology company](https://fleetdm.com/case-study/fintech-company-strengthens-infrastructure-visibility) | Financial and payroll services | ✓ | ✓ |  | 2026‑03‑14 |
