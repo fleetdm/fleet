@@ -43,8 +43,8 @@ Next, deploy a new Ubuntu virtual machine with the following parameters:
 | Memory | 4GB (4096 MB) |
 | Network | The Fleet VM must have outbound Internet connectivity to perform the installation. Clients must also be able to reach the Fleet VM using the default port of 1337. |
 
-Confirm all of the settings and create the VM:
 
+Confirm all of the settings and create the VM:
 ![Confirm settings](../website/assets/images/articles/deploy-fleet-on-proxmox-2-400x300@2x.png)
 
 ## Install Ubuntu
@@ -244,7 +244,7 @@ These steps include:
 1. Setting up an initial user and password
 2. Providing a name and optional logo for your organization
 3. Setting up the Fleet web address
-    1. This should be set to the fully-qualified domain name (FQDN) of your Fleet server. Clients will use this web address to connect with Fleet
+    - This should be set to the fully-qualified domain name (FQDN) of your Fleet server. Clients will use this web address to connect with Fleet
 
 Once you have fully configured Fleet, you will be automatically redirected to the main server dashboard.
 
