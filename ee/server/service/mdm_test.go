@@ -17,8 +17,10 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	mocksvc "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	svcmock "github.com/fleetdm/fleet/v4/server/service/mock"
+
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanolib/log/stdlogfmt"
@@ -249,8 +251,11 @@ func TestClearPasscode(t *testing.T) {
 	}
 	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
 	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-
-	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander}
+	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander, Service: &mocksvc.Service{
+		NewActivityFunc: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		},
+	}}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -285,6 +290,9 @@ func TestClearPasscode(t *testing.T) {
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{}, nil
+		}
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{UnlockToken: new("fake-token")}, nil
 		}
 
 		cases := []struct {
