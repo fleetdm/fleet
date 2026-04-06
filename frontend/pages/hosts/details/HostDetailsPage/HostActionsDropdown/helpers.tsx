@@ -70,6 +70,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Clear passcode",
+    value: "clearPasscode",
+    disabled: false,
+  },
+  {
     label: "Delete",
     disabled: false,
     value: "delete",
@@ -312,6 +317,43 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
   return isRecoveryLockPasswordEnabled;
 };
 
+const canClearPasscode = (config: IHostActionConfigOptions) => {
+  if (!config.isPremiumTier) {
+    return false;
+  }
+
+  if (!isIPadOrIPhone(config.hostPlatform)) {
+    return false;
+  }
+
+  if (!config.isEnrolledInMdm) {
+    return false;
+  }
+
+  if (!config.isConnectedToFleetMdm) {
+    return false;
+  }
+
+  if (!config.isMacMdmEnabledAndConfigured) {
+    return false;
+  }
+
+  if (
+    config.hostMdmEnrollmentStatus !== "On (company-owned)" &&
+    config.hostMdmEnrollmentStatus !== "On (automatic)" && // Not sure why we have both company-owned and automatic types
+    config.hostMdmEnrollmentStatus !== "On (manual)"
+  ) {
+    return false;
+  }
+
+  return (
+    config.isGlobalAdmin ||
+    config.isGlobalMaintainer ||
+    config.isTeamAdmin ||
+    config.isTeamMaintainer
+  );
+};
+
 const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
@@ -354,6 +396,10 @@ const removeUnavailableOptions = (
     options = options.filter(
       (option) => option.value !== "recoveryLockPassword"
     );
+  }
+
+  if (!canClearPasscode(config)) {
+    options = options.filter((option) => option.value !== "clearPasscode");
   }
 
   if (!canTurnOffMdm(config)) {
@@ -552,6 +598,27 @@ const modifyOptions = (
     }
   }
 
+  if (
+    ["locked", "locking", "unlocking", "locating"].includes(hostMdmDeviceStatus)
+  ) {
+    const clearPasscodeOption = options.find(
+      (option) => option.value === "clearPasscode"
+    );
+    if (clearPasscodeOption) {
+      clearPasscodeOption.disabled = true;
+      clearPasscodeOption.tooltipContent =
+        "Clear passcode is unavailable while host is in Lost Mode.";
+    }
+  } else if (["wiped", "wiping"].includes(hostMdmDeviceStatus)) {
+    const clearPasscodeOption = options.find(
+      (option) => option.value === "clearPasscode"
+    );
+    if (clearPasscodeOption) {
+      clearPasscodeOption.disabled = true;
+      clearPasscodeOption.tooltipContent =
+        "Clear passcode is unavailable while host is pending wipe.";
+    }
+  }
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);
   return options;
