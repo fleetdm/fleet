@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
@@ -160,6 +161,12 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 			bodyBytes, err = json.Marshal(params)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "marshaling json")
+			}
+			if rules := endpointer.ExtractAliasRules(params); len(rules) > 0 {
+				bodyBytes, err = endpointer.RewriteOldToNewKeys(bodyBytes, rules)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "rewriting deprecated keys")
+				}
 			}
 		}
 	}

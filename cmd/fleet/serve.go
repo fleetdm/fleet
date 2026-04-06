@@ -294,7 +294,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	//
 	// For example:
 	// platform_logging.DisableTopic("deprecated-api-keys")
-	platform_logging.DisableTopic(platform_logging.DeprecatedFieldTopic)
 
 	// Apply log topic overrides from config. Enables run first, then
 	// disables, so disable wins on conflict.
