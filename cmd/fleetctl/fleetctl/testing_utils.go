@@ -52,8 +52,6 @@ func (e *gitopsTestNotFoundError) IsNotFound() bool { return true }
 // setupEmptyGitOpsMocks sets all datastore mock functions needed by the gitops command to
 // no-op defaults. Tests should override individual mocks after calling this to add tracking
 // or return specific values.
-//
-//nolint:unused // used in tests
 func setupEmptyGitOpsMocks(ds *mock.Store) {
 	// App config
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

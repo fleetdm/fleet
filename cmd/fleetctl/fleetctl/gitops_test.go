@@ -1478,8 +1478,18 @@ func TestGitOpsFullGlobal(t *testing.T) {
 
 			// Dry run w/ top-level labels key
 			logs := RunAppForTest(t, []string{"gitops", "-f", path, "--dry-run"})
-			fmt.Printf("%s", logs)
-			fmt.Printf("-----------\n")
+			if useDeprecatedKeys {
+				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
+				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
+				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
+			}
 			assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 			assert.Empty(t, enrolledSecrets)
 			assert.Empty(t, appliedPolicySpecs)
@@ -1492,8 +1502,18 @@ func TestGitOpsFullGlobal(t *testing.T) {
 
 			// Real run w/ top-level labels key
 			logs = RunAppForTest(t, []string{"gitops", "-f", path})
-			fmt.Printf("%s", logs)
-			fmt.Printf("-----------\n")
+			if useDeprecatedKeys {
+				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
+				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
+				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
+			}
 			assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 			assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 			assert.Contains(t, string(*savedAppConfig.AgentOptions), "distributed_denylist_duration")
@@ -1788,7 +1808,20 @@ func TestGitOpsFullTeam(t *testing.T) {
 			t.Setenv("FLEET_ENABLE_LOG_TOPICS", "deprecated-field-names")
 
 			// Dry run
-			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+			logs := RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+			if useDeprecatedKeys {
+				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
+				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
+				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
+				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.enable_release_device_manually' is deprecated; use 'controls.setup_experience.apple_enable_release_device_manually' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.script' is deprecated; use 'controls.setup_experience.macos_script' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.manual_agent_install' is deprecated; use 'controls.setup_experience.macos_manual_agent_install' instead")
+			}
 			assert.Nil(t, savedTeam)
 			assert.Empty(t, enrolledSecrets)
 			assert.Empty(t, appliedPolicySpecs)
@@ -1803,7 +1836,20 @@ func TestGitOpsFullTeam(t *testing.T) {
 			appConfig.Integrations = fleet.Integrations{
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
 			}
-			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+			logs = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+			if useDeprecatedKeys {
+				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
+				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
+				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
+				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.enable_release_device_manually' is deprecated; use 'controls.setup_experience.apple_enable_release_device_manually' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.script' is deprecated; use 'controls.setup_experience.macos_script' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.manual_agent_install' is deprecated; use 'controls.setup_experience.macos_manual_agent_install' instead")
+			}
 			require.NotNil(t, savedTeam)
 			assert.Equal(t, teamName, savedTeam.Name)
 			assert.Contains(t, string(*savedTeam.Config.AgentOptions), "distributed_denylist_duration")
@@ -1867,6 +1913,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 			require.NoError(t, err)
 			secret := "TestSecret"
 			t.Setenv("TEST_SECRET", secret)
+			settingsKey := "settings"
+			if useDeprecatedKeys {
+				settingsKey = "team_settings"
+			}
 
 			_, err = tmpFile.WriteString(
 				`
@@ -1875,7 +1925,7 @@ queries:
 policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
-team_settings:
+` + settingsKey + `:
   secrets:
    - secret: ${TEST_SECRET}
 software:
@@ -2883,8 +2933,38 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
 			t.Setenv("FLEET_ENABLE_LOG_TOPICS", "deprecated-field-names")
 
+			flagName := "--delete-other-fleets"
+			if useDeprecatedKeys {
+				flagName = "--delete-other-teams"
+			}
+
 			// Dry run
-			_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
+			logs := RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", flagName})
+			if useDeprecatedKeys {
+				// The test harness doesn't capture stderr output, so we miss this warning in the test.
+				// assert.Contains(t, logs, "'--delete-other-teams' is deprecated; use '--delete-other-fleets' instead")
+				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
+				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
+				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
+				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
+				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
+				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
+				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.enable_release_device_manually' is deprecated; use 'controls.setup_experience.apple_enable_release_device_manually' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.script' is deprecated; use 'controls.setup_experience.macos_script' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.manual_agent_install' is deprecated; use 'controls.setup_experience.macos_manual_agent_install' instead")
+			}
 			assert.False(t, ds.SaveAppConfigFuncInvoked)
 			assert.Empty(t, enrolledSecrets)
 			assert.Empty(t, enrolledTeamSecrets)
@@ -2892,7 +2972,32 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			assert.Empty(t, appliedQueries)
 
 			// Real run
-			_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--delete-other-teams"})
+			logs = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, flagName})
+			if useDeprecatedKeys {
+				// The test harness doesn't capture stderr output, so we miss this warning in the test.
+				// assert.Contains(t, logs, "'--delete-other-teams' is deprecated; use '--delete-other-fleets' instead")
+				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
+				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
+				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
+				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
+				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
+				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
+				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
+				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
+				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.enable_release_device_manually' is deprecated; use 'controls.setup_experience.apple_enable_release_device_manually' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.script' is deprecated; use 'controls.setup_experience.macos_script' instead")
+				assert.Contains(t, logs, "'controls.setup_experience.manual_agent_install' is deprecated; use 'controls.setup_experience.macos_manual_agent_install' instead")
+			}
 			assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
 			assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
 			assert.Len(t, enrolledSecrets, 2)
