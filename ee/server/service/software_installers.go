@@ -2226,11 +2226,6 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
 
-			// TODO(JK): currently this doesn't fail at all, and just uses the latest installer
-			// with the pinned major version and avoids downloading the new one.
-			// according to scenario 4 in the diagram this seems like the right behaviour, but I'm
-			// not totally sure so remove this comment if confirmed.
-
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
 			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.
 			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, versions[0].Version)
