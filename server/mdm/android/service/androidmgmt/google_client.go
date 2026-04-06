@@ -168,7 +168,8 @@ func generatePolicyFieldMask() string {
 	var p androidmanagement.Policy
 	t := reflect.TypeOf(p)
 	var mask []string
-	for f := range t.Fields() {
+	for i := range t.NumField() {
+		f := t.Field(i)
 		jsonTag, ok := f.Tag.Lookup("json")
 		// ignore applications because we manage that directly
 		if n := getJSONFieldName(jsonTag); ok &&

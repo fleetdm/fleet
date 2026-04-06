@@ -90,7 +90,7 @@ const generateTableConfig = (
       },
     },
     {
-      Header: "Error",
+      Header: "Details",
       disableSortBy: true,
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => {

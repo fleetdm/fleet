@@ -17,9 +17,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) error {
+func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	return eu.EncodeCommonResponse(ctx, w, response,
-		func(w http.ResponseWriter, response any) error {
+		func(w http.ResponseWriter, response interface{}) error {
 			return json.MarshalWrite(w, response, jsontext.WithIndent("  "))
 		},
 		nil, // no domain-specific error encoder
