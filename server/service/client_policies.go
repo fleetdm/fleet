@@ -1,11 +1,9 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 func (c *Client) CreateGlobalPolicy(name, query, description, resolution, platform string) error {
@@ -27,15 +25,7 @@ func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
 	req := applyPolicySpecsRequest{Specs: specs}
 	verb, path := "POST", "/api/latest/fleet/spec/policies"
 	var responseBody applyPolicySpecsResponse
-	data, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
-	if err != nil {
-		return err
-	}
-	return c.authenticatedRequest(data, verb, path, &responseBody)
+	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
 // GetPolicies retrieves the list of Policies. Inherited policies are excluded.

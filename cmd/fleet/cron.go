@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -40,8 +41,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/osv"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/winoffice"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"go.opentelemetry.io/otel/attribute"
@@ -192,9 +195,21 @@ func scanVulnerabilities(
 	}
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+
+	var ovalVulns []fleet.SoftwareVulnerability
+
+	// OVAL processes all platforms by default, but will exclude Ubuntu if OSV feature flag is enabled
+	ovalResults := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	ovalVulns = append(ovalVulns, ovalResults...)
+
+	if config.OSVForVulnerabilities {
+		osvVulns := checkOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		ovalVulns = append(ovalVulns, osvVulns...)
+	}
+
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
@@ -219,10 +234,11 @@ func scanVulnerabilities(
 		trace.WithAttributes(attribute.String("automation_type", vulnAutomationEnabled)))
 	defer automationSpan.End()
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns)+len(winOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, winOfficeVulns...)
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
@@ -401,10 +417,27 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
+	// If OSV feature flag is enabled, filter out platforms supported by OSV (OVAL will skip them)
+	processVersions := versions
+	if config.OSVForVulnerabilities {
+		var nonOSVPlatforms []fleet.OSVersion
+		for _, v := range versions.OSVersions {
+			if !osv.IsPlatformSupported(v.Platform) {
+				nonOSVPlatforms = append(nonOSVPlatforms, v)
+			}
+		}
+
+		processVersions = &fleet.OSVersions{
+			CountsUpdatedAt: versions.CountsUpdatedAt,
+			OSVersions:      nonOSVPlatforms,
+		}
+		logger.DebugContext(ctx, "oval-excluding-osv-platforms", "total_platforms", len(versions.OSVersions), "processing", len(nonOSVPlatforms))
+	}
+
 	if !config.DisableDataSync {
 		// Sync on disk OVAL definitions with current OS Versions.
 		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.oval.refresh")
-		downloaded, err := oval.Refresh(refreshCtx, versions, vulnPath)
+		downloaded, err := oval.Refresh(refreshCtx, processVersions, vulnPath)
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating oval definitions", err)
 		}
@@ -416,8 +449,8 @@ func checkOvalVulnerabilities(
 
 	// Analyze all supported os versions using the synched OVAL definitions.
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.oval.analyze",
-		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
-	for _, version := range versions.OSVersions {
+		trace.WithAttributes(attribute.Int("os_count", len(processVersions.OSVersions))))
+	for _, version := range processVersions.OSVersions {
 		start := time.Now()
 		r, err := oval.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns)
 		if err != nil && errors.Is(err, oval.ErrUnsupportedPlatform) {
@@ -437,7 +470,101 @@ func checkOvalVulnerabilities(
 	}
 	analyzeSpan.End()
 
+	cleanupStaleOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
+
 	return results
+}
+
+func checkOSVVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_osv")
+	defer span.End()
+
+	var results []fleet.SoftwareVulnerability
+
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for OSV", err)
+		return nil
+	}
+
+	var now time.Time
+	if !config.DisableDataSync {
+		now = time.Now()
+	}
+
+	if !config.DisableDataSync {
+		// Sync on disk OSV artifacts with current OS Versions
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.osv.refresh")
+		downloaded, err := osv.Refresh(refreshCtx, versions, vulnPath, now)
+		if err != nil {
+			errHandler(refreshCtx, logger, "updating OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(refreshCtx, "", "osv-sync-downloaded", d)
+		}
+		refreshSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.osv.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := osv.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger, now)
+		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
+			logger.DebugContext(analyzeCtx, "osv-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "osv-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger, "analyzing OSV artifacts", err)
+		}
+	}
+	analyzeSpan.End()
+
+	cleanupStaleOVALVulnerabilities(ctx, ds, logger)
+
+	return results
+}
+
+const (
+	// deleteAllVulnerabilitiesTime is used with DeleteOutOfDateVulnerabilities to delete
+	// all vulnerabilities for a given source, regardless of their updated_at timestamp.
+	// DeleteOutOfDateVulnerabilities deletes records where updated_at < olderThan,
+	// so we use 100 years into the future.
+	deleteAllVulnerabilitiesTime = 100 * 365 * 24 * time.Hour
+)
+
+// cleanupStaleOSVVulnerabilities removes OSV vulnerabilities for platforms supported by OSV
+func cleanupStaleOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
+	if osvEnabled {
+		return
+	}
+
+	logger.DebugContext(ctx, "cleaning up Ubuntu OSV vulnerabilities because OSV is disabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOSVSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up Ubuntu OSV vulnerabilities", err)
+	}
+}
+
+// cleanupStaleOVALVulnerabilities removes OVAL vulnerabilities for platforms supported by OSV
+func cleanupStaleOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	logger.DebugContext(ctx, "cleaning up Ubuntu OVAL vulnerabilities because OSV is enabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOVALSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up Ubuntu OVAL vulnerabilities", err)
+	}
 }
 
 func checkGovalDictionaryVulnerabilities(
@@ -588,6 +715,45 @@ func checkMacOfficeVulnerabilities(
 
 	if err != nil {
 		errHandler(analyzeCtx, logger, "analyzing mac office products for vulnerabilities", err)
+	}
+	analyzeSpan.End()
+
+	return r
+}
+
+func checkWinOfficeVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_winoffice")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.winoffice.sync")
+		err := winoffice.SyncFromGithub(syncCtx, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating windows office bulletin", err)
+		}
+		syncSpan.End()
+
+		logger.DebugContext(ctx, "finished sync windows office bulletin")
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.winoffice.analyze")
+	start := time.Now()
+	r, err := winoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
+	elapsed := time.Since(start)
+
+	logger.DebugContext(analyzeCtx, "win-office-analysis-done",
+		"elapsed", elapsed,
+		"found new", len(r))
+
+	if err != nil {
+		errHandler(analyzeCtx, logger, "analyzing windows office products for vulnerabilities", err)
 	}
 	analyzeSpan.End()
 
@@ -957,6 +1123,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
+	acmeSvc acme_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1093,7 +1260,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"renew_scep_certificates",
 			func(ctx context.Context) error {
-				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
+				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander, acmeSvc)
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
@@ -1204,6 +1371,9 @@ func newCleanupsAndAggregationSchedule(
 				logger.InfoContext(ctx, "reverted stale certificate templates", "count", affected)
 			}
 			return nil
+		}),
+		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
+			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
 		}),
 	)
 

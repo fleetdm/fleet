@@ -1574,11 +1574,11 @@ spec:
     windows_updates:
       deadline_days: 1
       grace_period_days: 0
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
       - %s
-    macos_setup:
-      macos_setup_assistant: %s
+    setup_experience:
+      apple_setup_assistant: %s
     windows_enabled_and_configured: true
 `, mobileConfigPath, emptySetupAsst))
 
@@ -1621,8 +1621,8 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
+    setup_experience:
+      macos_bootstrap_package: %s
 `, bootstrapURL))
 
 	// first apply with dry-run
@@ -1759,7 +1759,7 @@ spec:
     name: Team1
     mdm:
       macos_setup:
-        bootstrap_package: %s
+        macos_bootstrap_package: %s
 `, bootstrapURL))
 
 	// first apply with dry-run
@@ -2042,7 +2042,7 @@ spec:
 
 	_, err := RunAppNoChecks([]string{"apply", "-f", interval})
 	assert.Error(t, err)
-	require.Equal(t, expectedErrMsg, err.Error())
+	require.Contains(t, err.Error(), expectedErrMsg)
 }
 
 func TestApplyQueries(t *testing.T) {
@@ -2357,26 +2357,26 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
-      macos_setup_assistant: %s
+    setup_experience:
+      macos_bootstrap_package: %s
+      apple_setup_assistant: %s
 `
 		appConfigEnableReleaseSpec = appConfigSpec + `
-      enable_release_device_manually: %s
+      apple_enable_release_device_manually: %s
 `
 		appConfigNoKeySpec = `
 apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
 `
 		appConfigSpecEnableEndUserAuth = `
 apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
       enable_end_user_authentication: %s
 `
 		team1Spec = `
@@ -2386,12 +2386,12 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 `
 		team1EnableReleaseSpec = team1Spec + `
-        enable_release_device_manually: %s
+        apple_enable_release_device_manually: %s
         require_all_software_macos: %s
 `
 		team1NoKeySpec = `
@@ -2401,7 +2401,7 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
 `
 		team1And2Spec = `
 apiVersion: v1
@@ -2410,9 +2410,9 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 ---
 apiVersion: v1
 kind: fleet
@@ -2420,9 +2420,9 @@ spec:
   team:
     name: tm2
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 `
 		team1SpecEnableEndUserAuth = `
 apiVersion: v1
@@ -2431,7 +2431,7 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
         enable_end_user_authentication: %s
 `
 	)
@@ -2593,7 +2593,7 @@ spec:
 
 		// get, setup assistant still not set
 		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig for real, and enable release device
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
@@ -2610,7 +2610,7 @@ spec:
 
 		// get, setup assistant is now set
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
@@ -2646,7 +2646,7 @@ spec:
 
 		// get, results unchanged
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear appconfig for real
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
@@ -2666,7 +2666,7 @@ spec:
 
 		// get, results now empty
 		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1And2, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1And2, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply team 1 without the setup assistant key but enable device release
 		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))
@@ -2678,7 +2678,7 @@ spec:
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
-		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, RunAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
@@ -2781,9 +2781,9 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
-      manual_agent_install: true
+    setup_experience:
+      macos_bootstrap_package: %s
+      macos_manual_agent_install: true
 `
 
 		// create the app config yaml with server url for bootstrap package
@@ -3964,7 +3964,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption:
 `,
 			wantOutput: `[+] applied fleet config`,
@@ -3976,7 +3976,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: 123
 `,
 			wantErr: `400 Bad request: failed to decode app config`,
@@ -3988,7 +3988,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: true
 `,
 
@@ -4002,7 +4002,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: false
 `,
 			wantOutput: `[+] applied fleet config`,
@@ -4016,7 +4016,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption:
 `,
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got <nil>`,
@@ -4030,7 +4030,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: 123
 `,
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
@@ -4044,7 +4044,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: true
 `,
 			wantErr: `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`,
@@ -4058,7 +4058,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: false
 `,
 			wantOutput: `[+] applied 1 fleet`,
@@ -4072,8 +4072,8 @@ spec:
   team:
     name: team1
     mdm:
-      macos_setup:
-        macos_setup_assistant: %s
+      setup_experience:
+        apple_setup_assistant: %s
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},
@@ -4084,8 +4084,8 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      macos_setup_assistant: %s
+    setup_experience:
+      apple_setup_assistant: %s
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},

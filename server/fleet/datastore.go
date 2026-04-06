@@ -421,6 +421,16 @@ type Datastore interface {
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
 	CleanupHostMDMAppleProfiles(ctx context.Context) error
 
+	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
+	// their corresponding nano_command_results entries for the given enrollment ID
+	// and REFETCH command prefix type that were sent and acknowledged/errored at
+	// least 30 days ago. The current command UUID is excluded from deletion.
+	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
+
+	// CleanupOrphanedNanoRefetchCommands deletes up to 100 REFETCH-prefixed nano_commands
+	// older than 30 days that have no remaining references in nano_enrollment_queue.
+	CleanupOrphanedNanoRefetchCommands(ctx context.Context) error
+
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
@@ -1082,7 +1092,10 @@ type Datastore interface {
 
 	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
 	// Even if `results` is empty, the host's `policy_updated_at` will be updated.
-	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
+	// If newlyPassingPolicyIDs is non-nil, it contains the IDs of policies that flipped from failing to passing
+	// and is used directly instead of calling FlippingPoliciesForHost internally. This allows callers that have
+	// already computed flipping policies to avoid a redundant database query.
+	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
@@ -1145,6 +1158,9 @@ type Datastore interface {
 	// associations that are close to expire and don't have a renewal in
 	// progress based on the provided arguments.
 	GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]SCEPIdentityAssociation, error)
+
+	// GetDeviceInfoForACMERenewal retrieves the device information for ACMERenewal based on the provided host UUIDs.
+	GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]DeviceInfoForACMERenewal, error)
 
 	// SetCommandForPendingSCEPRenewal tracks the command used to renew a scep certificate
 	SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []SCEPIdentityAssociation, cmdUUID string) error
@@ -1427,6 +1443,9 @@ type Datastore interface {
 	// GetHostDEPAssignment returns the DEP assignment for the host.
 	GetHostDEPAssignment(ctx context.Context, hostID uint) (*HostDEPAssignment, error)
 
+	// GetHostDEPAssignmentsBySerial returns the DEP assignment for the host with the specified serial number.
+	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
@@ -1445,9 +1464,9 @@ type Datastore interface {
 	// overriden by a TokenUpdate but that should provide the latest username
 	UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string, userUUID string, username string) error
 
-	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
-	// MDM protocol seen time for the host with the given UUID
-	GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
+	// GetNanoMDMEnrollmentDetails returns the time of the most recent enrollment, the most recent
+	// MDM protocol seen time, and whether the enrollment is hardware attested for the host with the given UUID
+	GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -2114,7 +2133,10 @@ type Datastore interface {
 	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
-	// after it has been unlocked.
+	// after it has been unlocked. 	CleanAppleMDMLock will be a no-op when
+	// unlock_ref was set within the last 5 minutes, to prevent the trailing
+	// Idle (sent right after the device acknowledges the lock command)
+	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
@@ -2191,8 +2213,9 @@ type Datastore interface {
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
-	// fleet-maintained app for the given title and team.
-	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]FleetMaintainedVersion, error)
+	// fleet-maintained app for the given title and team. If byVersion is true
+	// the versions will be sorted by the version string.
+	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team.
@@ -2382,7 +2405,7 @@ type Datastore interface {
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
 
 	// ListSetupExperienceResultsByHostUUID lists the setup experience results for a host by its UUID.
-	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
+	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*SetupExperienceStatusResult, error)
 
 	// UpdateSetupExperienceStatusResult updates the given setup experience status result.
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error

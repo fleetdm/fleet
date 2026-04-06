@@ -238,6 +238,10 @@ type MDM struct {
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
+	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
+	// certain Apple MDM enrollments.
+	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
+
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
@@ -1614,6 +1618,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities"`
+	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities"`
 }
 
 type LoggingPlugin struct {

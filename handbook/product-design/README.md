@@ -203,7 +203,7 @@ Apple releases new major macOS versions every year (ex. [macOS Tahoe](https://fl
 
 In the lead up to release, Apple will announce new MDM features that Fleet's customers may expect Fleet, their MDM solution, to support. 
 
-When a new major macOS version is annouced, it's the Head of Product Design's responsibility to provide the VP of Customer Success with a list of the new features. This way, Customer Success Managers (CSMs) can bring this list of features to upcoming customer calls. It's up to the CSM to file new feature requests for the new features that customers would like Fleet to support. These requests will go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized).
+When a new major macOS version is announced, it's the Head of Product Design's responsibility to provide the VP of Customer Success with a list of the new features. This way, Customer Success Managers (CSMs) can bring this list of features to upcoming customer calls. It's up to the CSM to file new feature requests for the new features that customers would like Fleet to support. These requests will go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized).
 
 
 ## Rituals

@@ -477,6 +477,65 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.Empty(t, payload.InstallScript)
 	assert.Empty(t, payload.UninstallScript)
 	assert.False(t, payload.FleetMaintained)
+
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+			TitleID:          new(uint(1)),
+		}, nil
+	}
+
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "26.0.0"}}, nil
+	}
+
+	ds.GetCachedFMAInstallerMetadataFunc = func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+		}, nil
+	}
+
+	versionPinValidationTests := []struct {
+		name    string
+		version string
+		wantErr string
+	}{
+		{
+			name:    "valid",
+			version: "^26",
+		},
+		{
+			name:    "no version",
+			version: "^",
+			wantErr: "no version number provided",
+		},
+		{
+			name:    "invalid version",
+			version: "^26.0",
+			wantErr: errNonMajorVersion.Error(),
+		},
+	}
+
+	for _, vt := range versionPinValidationTests {
+		t.Run(vt.name, func(t *testing.T) {
+			payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin"), RollbackVersion: vt.version}
+			err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+			if vt.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, vt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestGetInHouseAppManifest(t *testing.T) {

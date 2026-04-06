@@ -91,6 +91,7 @@
       },
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
+      "apple_require_hardware_attestation": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -205,7 +206,8 @@
       "current_instance_checks": "",
       "disable_data_sync": false,
       "recent_vulnerability_max_age": "0s",
-      "disable_win_os_vulnerabilities": false
+      "disable_win_os_vulnerabilities": false,
+      "osv_for_vulnerabilities": true
     },
     "license": {
       "tier": "free",
