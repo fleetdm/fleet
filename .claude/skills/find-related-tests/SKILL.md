@@ -1,3 +1,10 @@
+---
+name: find-related-tests
+description: Find test files and functions related to recent git changes. Suggests exact go test commands with correct env vars.
+allowed-tools: Bash(git *), Read, Grep, Glob
+effort: low
+---
+
 Look at my recent git changes (`git diff` and `git diff --cached`) and find all related test files.
 
 For each modified file, find:

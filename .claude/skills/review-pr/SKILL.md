@@ -1,3 +1,12 @@
+---
+name: review-pr
+description: Review a Fleet pull request for correctness, Go idioms, SQL safety, test coverage, and conventions. Use when asked to "review PR" or "review pull request".
+context: fork
+allowed-tools: Bash(gh *), Read, Grep, Glob
+model: opus
+effort: high
+---
+
 Review the pull request: $ARGUMENTS
 
 Use `gh pr view` and `gh pr diff` to get the full context.
