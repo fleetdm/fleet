@@ -49,6 +49,9 @@ func (s *Service) CreateAccount(ctx context.Context, pathIdentifier string, enro
 }
 
 func (s *Service) CreateOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, partialOrder *types.Order) (*types.OrderResponse, error) {
+	ctx, span := tracer.Start(ctx, "acme.service.CreateOrder")
+	defer span.End()
+
 	// authorization is checked in the endpoint implementation for JWS-protected endpoints
 
 	if err := partialOrder.ValidateOrderCreation(enrollment); err != nil {
@@ -130,6 +133,9 @@ func (s *Service) createOrderResponse(
 }
 
 func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollment, account *types.Account, orderID uint, csr string) (*types.OrderResponse, error) {
+	ctx, span := tracer.Start(ctx, "acme.service.FinalizeOrder")
+	defer span.End()
+
 	order, authorizations, err := s.store.GetOrderByID(ctx, account.ID, orderID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting order from datastore")

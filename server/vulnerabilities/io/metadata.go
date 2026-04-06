@@ -41,6 +41,15 @@ func NewMacOfficeRelNotesMetadata(filename string) (MetadataFileName, error) {
 	return mfn, err
 }
 
+func NewWinOfficeMetadata(filename string) (MetadataFileName, error) {
+	mfn := MetadataFileName{prefix: winOfficePrefix, filename: filename}
+
+	// Check that the filename contains a valid timestamp
+	_, err := mfn.date()
+
+	return mfn, err
+}
+
 func (mfn MetadataFileName) date() (time.Time, error) {
 	parts := strings.Split(mfn.filename, "-")
 

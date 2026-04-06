@@ -3350,7 +3350,7 @@ func TestPolicyQueries(t *testing.T) {
 	}
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
-		deferred bool,
+		deferred bool, newlyPassingPolicyIDs []uint,
 	) error {
 		recordedResults = results
 		host = gotHost
@@ -3661,7 +3661,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
-		deferred bool,
+		deferred bool, newlyPassingPolicyIDs []uint,
 	) error {
 		recordedResults = results
 		host = gotHost
@@ -3696,12 +3696,30 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	checkPolicyResults(queries)
 
+	// Track FlippingPoliciesForHost calls to verify the deduplication optimization: it should be called exactly once
+	// per SubmitDistributedQueryResults with ALL policy results, not multiple times with subsets.
+	var flippingCallCount int
+	var flippingIncomingResults map[uint]*bool
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
 		err error,
 	) {
+		flippingCallCount++
+		flippingIncomingResults = incomingResults
 		return []uint{3}, nil, nil
 	}
 
+	// Track that pre-computed newlyPassingPolicyIDs is forwarded to RecordPolicyQueryExecutions.
+	var recordedNewlyPassing []uint
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
+		deferred bool, newlyPassingPolicyIDs []uint,
+	) error {
+		recordedResults = results
+		recordedNewlyPassing = newlyPassingPolicyIDs
+		host = gotHost
+		return nil
+	}
+
+	flippingCallCount = 0
 	// Record a query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
@@ -3725,6 +3743,14 @@ func TestPolicyWebhooks(t *testing.T) {
 	require.Nil(t, result)
 	require.NotNil(t, recordedResults[3])
 	require.False(t, *recordedResults[3])
+
+	// Verify FlippingPoliciesForHost was called exactly once with all 3 policy results.
+	require.Equal(t, 1, flippingCallCount, "FlippingPoliciesForHost should be called exactly once per SubmitDistributedQueryResults")
+	require.Len(t, flippingIncomingResults, 3, "FlippingPoliciesForHost should receive all policy results")
+	// Verify pre-computed newlyPassingPolicyIDs was forwarded (FlippingPoliciesForHost returned nil for newPassing,
+	// but the caller normalizes it to a non-nil empty slice).
+	require.NotNil(t, recordedNewlyPassing, "pre-computed newlyPassingPolicyIDs should be forwarded to RecordPolicyQueryExecutions")
+	require.Empty(t, recordedNewlyPassing)
 
 	cmpSets := func(expSets map[uint][]fleet.PolicySetHost) error {
 		actualSets, err := failingPolicySet.ListSets()
@@ -3805,9 +3831,12 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
 		err error,
 	) {
+		flippingCallCount++
+		flippingIncomingResults = incomingResults
 		return []uint{1}, []uint{3}, nil
 	}
 
+	flippingCallCount = 0
 	// Record another query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
@@ -3831,6 +3860,12 @@ func TestPolicyWebhooks(t *testing.T) {
 	require.Nil(t, result)
 	require.NotNil(t, recordedResults[3])
 	require.True(t, *recordedResults[3])
+
+	// Verify single call and correct forwarding when there are actual flips.
+	require.Equal(t, 1, flippingCallCount, "FlippingPoliciesForHost should be called exactly once")
+	require.Len(t, flippingIncomingResults, 3)
+	require.NotNil(t, recordedNewlyPassing)
+	require.ElementsMatch(t, []uint{3}, recordedNewlyPassing, "newlyPassingPolicyIDs should be forwarded from FlippingPoliciesForHost")
 
 	assert.Eventually(t, func() bool {
 		err = cmpSets(map[uint][]fleet.PolicySetHost{

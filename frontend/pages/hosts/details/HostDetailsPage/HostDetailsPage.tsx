@@ -542,8 +542,12 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.mdm
     : config?.mdm;
 
+  // We must check if the host has a UUID. Not-yet-enrolled hosts synced over from ABM will have
+  // a pending MDM status but no UUID, so there are no commands and no way to fetch them
   const canGetMDMCommands =
-    !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
+    !!isMacMdmEnabledAndConfigured &&
+    isAppleDevice(host?.platform) &&
+    !!host?.uuid;
 
   const {
     data: pastMDMCommands,
