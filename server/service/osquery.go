@@ -894,7 +894,7 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 		}
-		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID)
+		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
 		if err != nil && !fleet.IsNotFound(err) {
 			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
 		}
@@ -904,8 +904,8 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 	}
 }
 
-func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string) (bool, error) {
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
 	}
