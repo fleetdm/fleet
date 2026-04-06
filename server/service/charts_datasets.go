@@ -13,12 +13,11 @@ type UptimeDataset struct{}
 func (u *UptimeDataset) Name() string { return "uptime" }
 
 func (u *UptimeDataset) Collect(_ context.Context, _ fleet.Datastore, _ time.Time) error {
-	// No-op: uptime data is collected inline via RecordBit on host check-in.
+	// No-op: uptime data is collected inline via RecordUptime on host check-in.
 	return nil
 }
 
 func (u *UptimeDataset) ResolveFilters(_ context.Context, _ fleet.Datastore, _ map[string]string) ([]uint, error) {
-	// Uptime has no entity dimension — no entity filtering.
 	return nil, nil
 }
 
@@ -32,8 +31,4 @@ func (u *UptimeDataset) DefaultVisualization() string {
 
 func (u *UptimeDataset) HasEntityDimension() bool {
 	return false
-}
-
-func init() {
-	RegisterChartDataset(&UptimeDataset{})
 }
