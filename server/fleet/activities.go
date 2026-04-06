@@ -1861,3 +1861,11 @@ type ActivityTypeClearedPasscode struct {
 func (a ActivityTypeClearedPasscode) ActivityName() string {
 	return "cleared_passcode"
 }
+
+func (a ActivityTypeClearedPasscode) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeClearedPasscode) HostOnly() bool {
+	return true
+}
