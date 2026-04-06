@@ -50,6 +50,8 @@
 
   &__header--single-line {
     margin-bottom: 0;
+    padding: $pad-large 0;
+    font-weight: $regular;
   }
 
   &__description,
@@ -73,8 +75,5 @@
     }
     color: $core-fleet-black;
     font-size: $x-small;
-  }
-  &__header {
-    font-weight: $bold;
   }
 }

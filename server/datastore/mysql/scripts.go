@@ -2228,6 +2228,8 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 	})
 }
 
+// UnlockHostManually records a manual unlock request for the given host.
+// ts must be in UTC to ensure consistency with the STR_TO_DATE comparison in CleanAppleMDMLock.
 func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error {
 	const stmt = `
 	INSERT INTO host_mdm_actions
@@ -2249,7 +2251,7 @@ func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, hostFl
 	// from then on, the host is marked as "pending unlock" until the device is
 	// actually unlocked with the PIN. The actual unlocking happens when the
 	// device sends an Idle MDM request.
-	unlockRef := ts.Format(time.DateTime)
+	unlockRef := ts.UTC().Format(time.DateTime)
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, unlockRef, hostFleetPlatform)
 	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
 }
@@ -2276,7 +2278,8 @@ func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart s
 				// Currently only used for Apple MDM devices.
 				// We set the unlock_ref to current time since the device can be unlocked any time after the lock.
 				// Apple MDM does not have a concept of unlock pending.
-				stmt += fmt.Sprintf("%sunlock_ref = '%s', %[1]swipe_ref = NULL", alias, time.Now().Format(time.DateTime))
+				// UTC_TIMESTAMP() is used to ensure timezone consistency with the comparison in CleanAppleMDMLock.
+				stmt += fmt.Sprintf("%sunlock_ref = UTC_TIMESTAMP(), %[1]swipe_ref = NULL", alias)
 			}
 		case "unlock_ref":
 			// a successful unlock clears itself as well as the lock ref, because
