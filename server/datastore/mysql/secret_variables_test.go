@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"sort"
 	"testing"
@@ -347,8 +348,9 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 			return err
 		})
 
+		b64Encoded := base64.StdEncoding.EncodeToString([]byte(unlockToken))
 		doc := `<string>$FLEET_HOST_SECRET_MDM_UNLOCK_TOKEN</string>`
-		expected := `<string>TEST-MDM-UNLOCK-TOKEN</string>`
+		expected := `<string>` + b64Encoded + `</string>`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostMDM.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, expected, expanded)

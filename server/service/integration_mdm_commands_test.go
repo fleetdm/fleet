@@ -776,7 +776,7 @@ func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
 	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, clearPasscodeResp.RequestType)
 	require.Equal(t, "ios", clearPasscodeResp.Platform)
 
-	s.lastActivityMatches(fleet.ActivityTypeClearedPasscode{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, iosHost.ID, iosHost.DisplayName()), 0)
+	s.lastHostActivityMatches(iosHost.ID, fleet.ActivityTypeClearedPasscode{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, iosHost.ID, iosHost.DisplayName()), 0)
 
 	// Check in with the iOS device to receive the ClearPasscode command
 	cmd, err := iosMDMClient.Idle()
