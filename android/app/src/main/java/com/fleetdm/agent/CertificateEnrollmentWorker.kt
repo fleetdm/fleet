@@ -38,11 +38,11 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
         val dpm = applicationContext.getSystemService(DevicePolicyManager::class.java)
         val scopes = dpm?.getDelegatedScopes(null, applicationContext.packageName) ?: emptyList()
         if (!scopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL)) {
-            if (attempt >= MAX_RETRY_ATTEMPTS) {
+            if (attempt >= MAX_DELEGATION_ATTEMPTS) {
                 Log.w(TAG, "CERT_INSTALL delegation unavailable after $attempt attempts, deferring to next scheduled run. Scopes: $scopes")
                 return Result.success()
             }
-            Log.w(TAG, "CERT_INSTALL delegation not available yet (attempt $attempt/$MAX_RETRY_ATTEMPTS), will retry. Scopes: $scopes")
+            Log.w(TAG, "CERT_INSTALL delegation not available yet (attempt $attempt/$MAX_DELEGATION_ATTEMPTS), will retry. Scopes: $scopes")
             return Result.retry()
         }
 
@@ -164,6 +164,10 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
         const val WORK_NAME = "certificate_enrollment"
         private const val TAG = "fleet-CertificateEnrollmentWorker"
         private const val MAX_RETRY_ATTEMPTS = 5
+
+        // Higher limit for delegation gate since it's a lightweight check and delegation can take minutes to propagate.
+        // With exponential backoff from 10s, 7 attempts covers ~5 minutes before the periodic 15-minute schedule takes over.
+        private const val MAX_DELEGATION_ATTEMPTS = 7
 
         // Mutex to prevent concurrent enrollment runs across all worker instances
         private val enrollmentMutex = Mutex()
