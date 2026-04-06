@@ -457,7 +457,44 @@ To propose an event, complete the steps in the [Propose event issue](https://git
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 
 ## Social media 
-When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don’t necessarily represent your company or peers.
+When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don't necessarily represent your company or peers.
+
+
+## Creating content for YouTube
+
+### Demo recording standards
+
+- Recorded area dimension: 1920x1080 (more on how to do this easily later)
+- Record at 30 fps
+- Save to mp4 (w/ h.264 video and AAC audio) or .mov (native Mac screen record). Avoid .webm output.
+- Add a few seconds of silence (dead air) at the start and end of the recording (easier for cutting/splicing).
+- Filename for recording should match the following format: `[release number]-[issue #]-demo-[YYYY-MM-DD].[proper file extension]`
+
+### Demo recording best practices
+
+**Browser/Terminal**
+- Bump the browser zoom or terminal font size up so text is legible at 1080p (most viewers will be watching at smaller than full screen).
+- Use a clean browser profile with no personal bookmarks bar.
+- Close unnecessary browser tabs.
+
+**Desktop prep**
+- Pause notifications.
+- Other apps: close/minimize email, Slack, or any window which might have private data showing.
+- Clean desktop: if recording your desktop (even just a portion in background), hide your desktop icons or make sure that anything showing has no data that shouldn't be disclosed (e.g., filename with customer name in it).
+
+**Interactions**
+- Move the mouse deliberately, not frantically. Avoid nervous cursor circling.
+- Pause briefly on important UI elements so viewers can track what's happening.
+- If clicking something, let the result load before moving on.
+
+**Privacy protection**
+- Try not to show public IP addresses (RFC 1918 are ok).
+- Don't show passwords, tokens, or other credentials unless you plan to delete them right away.
+- No customer names or codenames visible or spoken.
+- Don't show real email addresses.
+
+**Playback**
+- Do not play back with closed captioning on. We will add later if needed.
 
 
 ## Feedback
