@@ -662,6 +662,10 @@ type Service interface {
 	// This should be called after service creation to inject the ACME service dependency.
 	SetACMEService(acmeSvc ACMEWriteService)
 
+	// SetChartService sets the chart service module.
+	// This should be called after service creation to inject the chart service dependency.
+	SetChartService(chartSvc ChartService)
+
 	// NewACMEEnrollment creates a new ACME enrollment using the ACME service module. It returns the
 	// ACME identifier for the new enrollment, which is used to track the enrollment process and link it to a host.
 	NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
@@ -1485,6 +1489,7 @@ type Service interface {
 	UnenrollMDM(ctx context.Context, hostID uint) error
 
 	// GetChartData returns time-series chart data for the given metric.
+	// Delegates to the ChartService module.
 	GetChartData(ctx context.Context, metric string, opts ChartRequestOpts) (*ChartResponse, error)
 }
 

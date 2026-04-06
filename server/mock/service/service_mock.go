@@ -402,6 +402,8 @@ type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
 
 type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
 
+type SetChartServiceFunc func(chartSvc fleet.ChartService)
+
 type NewACMEEnrollmentFunc func(ctx context.Context, hostIdentifier string) (string, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
@@ -1487,6 +1489,9 @@ type Service struct {
 
 	SetACMEServiceFunc        SetACMEServiceFunc
 	SetACMEServiceFuncInvoked bool
+
+	SetChartServiceFunc        SetChartServiceFunc
+	SetChartServiceFuncInvoked bool
 
 	NewACMEEnrollmentFunc        NewACMEEnrollmentFunc
 	NewACMEEnrollmentFuncInvoked bool
@@ -3594,6 +3599,13 @@ func (s *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
 	s.SetACMEServiceFuncInvoked = true
 	s.mu.Unlock()
 	s.SetACMEServiceFunc(acmeSvc)
+}
+
+func (s *Service) SetChartService(chartSvc fleet.ChartService) {
+	s.mu.Lock()
+	s.SetChartServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetChartServiceFunc(chartSvc)
 }
 
 func (s *Service) NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error) {
