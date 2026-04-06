@@ -333,10 +333,9 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 
 	// Expand host-scoped secrets for ClearPasscode commands.
 	if cmd.Command.Command.RequestType == fleet.AppleMDMCommandTypeClearPasscode {
-		fmt.Printf("Sending clear passcode\n")
 		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
 			// For ClearPasscode command, if we fail to expand host secrets, it likely means the unlock token is missing or invalid.
-			s.logger.Info("level", "error", "msg", "failed to expand host secrets for ClearPasscode command", "host_uuid", hostUUID, "error", errorMsg)
+			logger.Info("level", "error", "msg", "failed to expand host secrets for ClearPasscode command", "host_uuid", hostUUID, "err", errorMsg)
 		})
 		if didError {
 			return nil, nil
