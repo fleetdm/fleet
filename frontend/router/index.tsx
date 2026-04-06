@@ -76,9 +76,10 @@ import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSett
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
-import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
+import SoftwareInventory from "pages/SoftwarePage/SoftwareInventory";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
+import SoftwareLibrary from "pages/SoftwarePage/SoftwareLibrary";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
@@ -351,7 +352,7 @@ const routes = (
             />
           </Route>
           <Route path="software">
-            <IndexRedirect to="titles" />
+            <IndexRedirect to="inventory" />
             {/* we check the add route first otherwise a route like 'software/add' will be caught
              * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
@@ -370,23 +371,25 @@ const routes = (
               />
             </Route>
             <Route component={SoftwarePage}>
-              <Route path="titles" component={SoftwareTitles} />
-              <Route path="versions" component={SoftwareTitles} />
+              <Route path="inventory" component={SoftwareInventory} />
+              <Route path="versions" component={SoftwareInventory} />
               <Route path="os" component={SoftwareOS} />
               <Route
                 path="vulnerabilities"
                 component={SoftwareVulnerabilities}
               />
-              {/* This redirect keeps the old software/:id working */}
-              <Redirect from=":id" to="versions/:id" />
+              <Route path="library" component={SoftwareLibrary} />
             </Route>
+            <Route
+              path="titles/:id"
+              component={SoftwareTitleDetailsPage} // Used for both software title details and software version details pages
+            />
+            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
             <Route
               path="vulnerabilities/:cve"
               component={SoftwareVulnerabilityDetailsPage}
             />
-            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
-            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
-            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

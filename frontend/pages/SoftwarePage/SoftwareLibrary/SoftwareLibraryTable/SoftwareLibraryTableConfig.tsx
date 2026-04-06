@@ -1,0 +1,197 @@
+import React from "react";
+import { CellProps, Column } from "react-table";
+import { InjectedRouter } from "react-router";
+
+import {
+  ISoftwareTitle,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
+  formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
+} from "interfaces/software";
+import PATHS from "router/paths";
+
+import { getPathWithQueryParams } from "utilities/url";
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+
+import VersionCell from "../../components/tables/VersionCell";
+
+// NOTE: cellProps come from react-table
+// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
+
+type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
+type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
+type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
+type IVulnerabilitiesCellProps = IVersionsCellProps;
+type IHostCountCellProps = CellProps<
+  ISoftwareTitle,
+  ISoftwareTitle["hosts_count"]
+>;
+type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
+
+type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
+
+/**
+ * Gets the data needed to render the software name cell.
+ */
+const getSoftwareNameCellData = (
+  softwareTitle: ISoftwareTitle,
+  teamId?: number
+) => {
+  const softwareTitleDetailsPath = getPathWithQueryParams(
+    PATHS.SOFTWARE_TITLE_DETAILS(softwareTitle.id.toString()),
+    { fleet_id: teamId }
+  );
+
+  const { software_package, app_store_app } = softwareTitle;
+  let hasInstaller = false;
+  let isSelfService = false;
+  let installType: "manual" | "automatic" | undefined;
+  let iconUrl: string | null = null;
+  if (software_package) {
+    hasInstaller = true;
+    isSelfService = software_package.self_service;
+    installType =
+      software_package.automatic_install_policies &&
+      software_package.automatic_install_policies.length > 0
+        ? "automatic"
+        : "manual";
+  } else if (app_store_app) {
+    hasInstaller = true;
+    isSelfService = app_store_app.self_service;
+    iconUrl = app_store_app.icon_url;
+    installType =
+      app_store_app.automatic_install_policies &&
+      app_store_app.automatic_install_policies.length > 0
+        ? "automatic"
+        : "manual";
+  }
+  if (softwareTitle.icon_url) {
+    iconUrl = softwareTitle.icon_url;
+  }
+
+  const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
+    softwareTitle
+  );
+
+  const isAllTeams = teamId === undefined;
+
+  return {
+    name: softwareTitle.name,
+    displayName: softwareTitle.display_name,
+    source: softwareTitle.source,
+    path: softwareTitleDetailsPath,
+    hasInstaller: hasInstaller && !isAllTeams,
+    isSelfService,
+    installType,
+    iconUrl,
+    automaticInstallPoliciesCount,
+  };
+};
+
+const generateTableHeaders = (
+  router: InjectedRouter,
+  teamId?: number
+): ISoftwareTitlesTableConfig[] => {
+  const softwareTableHeaders: ISoftwareTitlesTableConfig[] = [
+    {
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
+      ),
+      disableSortBy: false,
+      accessor: "name",
+      Cell: (cellProps: ITableStringCellProps) => {
+        const nameCellData = getSoftwareNameCellData(
+          cellProps.row.original,
+          teamId
+        );
+        const isAndroidPlayStoreApp =
+          !!cellProps.row.original.app_store_app &&
+          cellProps.row.original.source === "android_apps";
+
+        return (
+          <SoftwareNameCell
+            name={nameCellData.name}
+            display_name={nameCellData.displayName}
+            source={nameCellData.source}
+            path={nameCellData.path}
+            router={router}
+            hasInstaller={nameCellData.hasInstaller}
+            isSelfService={nameCellData.isSelfService}
+            iconUrl={nameCellData.iconUrl ?? undefined}
+            automaticInstallPoliciesCount={
+              nameCellData.automaticInstallPoliciesCount
+            }
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
+            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+          />
+        );
+      },
+      sortType: "caseInsensitive",
+    },
+    {
+      Header: "Version",
+      disableSortBy: true,
+      accessor: "versions",
+      Cell: (cellProps: IVersionsCellProps) => (
+        <VersionCell versions={cellProps.cell.value} />
+      ),
+    },
+    {
+      Header: "Type",
+      disableSortBy: true,
+      accessor: "source",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={formatSoftwareType(cellProps.row.original)} />
+      ),
+    },
+    {
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          value="Hosts"
+          disableSortBy={false}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
+      accessor: "hosts_count",
+      Cell: (cellProps: IHostCountCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      Header: "",
+      id: "view-all-hosts",
+      disableSortBy: true,
+      Cell: (cellProps: IViewAllHostsLinkProps) => {
+        const { source } = cellProps.row.original;
+
+        const hostCountNotSupported = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+          source
+        );
+
+        if (hostCountNotSupported) return null;
+
+        return (
+          <ViewAllHostsLink
+            queryParams={{
+              software_title_id: cellProps.row.original.id,
+              fleet_id: teamId,
+            }}
+            className="software-link"
+            rowHover
+          />
+        );
+      },
+    },
+  ];
+
+  return softwareTableHeaders;
+};
+
+export default generateTableHeaders;

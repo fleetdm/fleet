@@ -10,7 +10,7 @@ import {
   buildSoftwareVulnFiltersQueryParams,
   getVulnFilterRenderDetails,
   ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 import {
   HostPlatform,
@@ -30,9 +30,6 @@ import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
-import { SUPPORT_LINK } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 

@@ -32,12 +32,15 @@ import PageDescription from "components/PageDescription";
 import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/modals/AddSoftwareModal";
 import {
-  buildSoftwareFilterQueryParams,
   buildSoftwareVulnFiltersQueryParams,
-  getSoftwareFilterFromQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
-} from "./SoftwareTitles/SoftwareTable/helpers";
+} from "./SoftwareInventory/SoftwareInventoryTable/helpers";
+// TODO: These imports will come from software library page
+import {
+  buildSoftwareFilterQueryParams,
+  getSoftwareFilterFromQueryParams,
+} from "./SoftwareLibrary/SoftwareLibraryTable/helpers";
 import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
@@ -47,8 +50,8 @@ interface ISoftwareSubNavItem {
 
 const softwareSubNav: ISoftwareSubNavItem[] = [
   {
-    name: "Software",
-    pathname: PATHS.SOFTWARE_TITLES,
+    name: "Inventory",
+    pathname: PATHS.SOFTWARE_INVENTORY,
   },
   {
     name: "OS",
@@ -60,13 +63,22 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
   },
 ];
 
-const getTabIndex = (path: string): number => {
-  return softwareSubNav.findIndex((navItem) => {
+const premiumSoftwareSubNav: ISoftwareSubNavItem[] = [
+  ...softwareSubNav,
+  {
+    name: "Library",
+    pathname: PATHS.SOFTWARE_LIBRARY,
+  },
+];
+
+const getTabIndex = (path: string, navItems: ISoftwareSubNavItem[]): number => {
+  return navItems.findIndex((navItem) => {
     // This check ensures that for software versions path we still
     // highlight the software tab.
-    if (navItem.name === "Software" && PATHS.SOFTWARE_VERSIONS === path) {
+    if (navItem.name === "Inventory" && PATHS.SOFTWARE_VERSIONS === path) {
       return true;
     }
+
     // tab stays highlighted for paths that start with same pathname
     return path.startsWith(navItem.pathname);
   });
@@ -304,6 +316,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     toggleSoftwareFiltersModal();
   };
 
+  const navItems = isPremiumTier ? premiumSoftwareSubNav : softwareSubNav;
+
   const navigateToNav = useCallback(
     (i: number): void => {
       // Only query param to persist between tabs is team id
@@ -312,14 +326,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         page: 0, // Fixes flakey page reset in API call when switching between tabs
       };
 
-      const navPath = getPathWithQueryParams(
-        softwareSubNav[i].pathname,
-        teamIdParam
-      );
-
+      const navPath = getPathWithQueryParams(navItems[i].pathname, teamIdParam);
       router.replace(navPath);
     },
-    [location, router]
+    [location?.query.fleet_id, navItems, router]
   );
 
   const renderPageActions = () => {
@@ -382,7 +392,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     return (
       <>
-        Manage software and search for installed software, OS, and
+        Manage aldkfjadljsoftware and search for installed software, OS, and
         vulnerabilities.
       </>
     );
@@ -393,11 +403,11 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       <div>
         <TabNav>
           <Tabs
-            selectedIndex={getTabIndex(location?.pathname || "")}
-            onSelect={navigateToNav}
+            selectedIndex={getTabIndex(location?.pathname || "", navItems)}
+            onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {softwareSubNav.map((navItem) => {
+              {navItems.map((navItem) => {
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
                     <TabText>{navItem.name}</TabText>

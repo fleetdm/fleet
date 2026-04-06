@@ -4,9 +4,9 @@ import EmptyState from "components/EmptyState";
 import { IEmptyStateProps } from "interfaces/empty_state";
 import {
   getVulnFilterRenderDetails,
-  ISoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
+import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareLibrary/SoftwareLibraryTable/helpers";
 import { HostPlatform, isAndroid } from "interfaces/platform";
 
 export interface IEmptySoftwareTableProps {

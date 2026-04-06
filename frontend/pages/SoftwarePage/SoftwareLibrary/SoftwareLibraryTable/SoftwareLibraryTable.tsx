@@ -22,29 +22,21 @@ import {
 import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
-import Slider from "components/forms/fields/Slider";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
-import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
-import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
+import generateTitlesTableConfig from "./SoftwareLibraryTableConfig";
 import {
   ISoftwareDropdownFilterVal,
-  ISoftwareVulnFiltersParams,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
   buildSoftwareFilterQueryParams,
-  buildSoftwareVulnFiltersQueryParams,
-  getVulnFilterRenderDetails,
 } from "./helpers";
 
 interface IRowProps extends Row {
@@ -65,44 +57,32 @@ const isSoftwareTitles = (
 interface ISoftwareTableProps {
   router: InjectedRouter;
   data?: ISoftwareTitlesResponse | ISoftwareVersionsResponse;
-  showVersions: boolean;
-  installableSoftwareExists: boolean;
   isSoftwareEnabled: boolean;
   query: string;
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
-  vulnFilters: ISoftwareVulnFiltersParams;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  onAddFiltersClick: () => void;
 }
 
-const baseClass = "software-table";
+const baseClass = "software-library-table";
 
 const SoftwareTable = ({
   router,
   data,
-  showVersions,
-  installableSoftwareExists,
   isSoftwareEnabled,
   query,
   perPage,
   orderDirection,
   orderKey,
   softwareFilter,
-  vulnFilters,
   currentPage,
   teamId,
   isLoading,
-  onAddFiltersClick,
 }: ISoftwareTableProps) => {
-  const currentPath = showVersions
-    ? PATHS.SOFTWARE_VERSIONS
-    : PATHS.SOFTWARE_TITLES;
-
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -131,11 +111,7 @@ const SoftwareTable = ({
         fleet_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
-        page:
-          changedParam === "pageIndex" || changedParam === "" // Changed param is "" on initial render, so we want to use the page index from the url query for bookmarkability
-            ? newTableQuery.pageIndex
-            : 0,
-        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+        page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
       };
       // Only include these filters when not on “All teams”
       if (teamId !== undefined) {
@@ -149,7 +125,7 @@ const SoftwareTable = ({
 
       return newQueryParam;
     },
-    [softwareFilter, teamId, vulnFilters]
+    [softwareFilter, teamId]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -163,14 +139,14 @@ const SoftwareTable = ({
       // to strip unwanted params with generateNewQueryParams so do NOT early return
 
       const newRoute = getNextLocationPath({
-        pathPrefix: currentPath,
+        pathPrefix: PATHS.SOFTWARE_LIBRARY,
         routeTemplate: "",
         queryParams: generateNewQueryParams(newTableQuery, changedParam),
       });
 
       router.replace(newRoute);
     },
-    [determineQueryParamChange, generateNewQueryParams, router, currentPath]
+    [determineQueryParamChange, generateNewQueryParams, router]
   );
 
   let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
@@ -182,48 +158,20 @@ const SoftwareTable = ({
   } else if (isSoftwareTitles(data)) {
     tableData = data.software_titles;
     generateTableConfig = generateTitlesTableConfig;
-  } else {
-    tableData = data.software;
-    generateTableConfig = generateVersionsTableConfig;
   }
 
   const softwareTableHeaders = useMemo(() => {
     if (!data) return [];
     return generateTableConfig(router, teamId);
-  }, [generateTableConfig, data, router, teamId]);
+  }, [data, router, teamId]);
 
   // Determines if a user should be able to filter or search in the table
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
   const hasSoftwareFilter = softwareFilter !== "allSoftware";
-  const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
-  const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
   const showFilterHeaders =
-    isSoftwareEnabled &&
-    (hasData || hasQuery || hasSoftwareFilter || hasVulnFilters);
-
-  const handleShowVersionsToggle = () => {
-    const queryParams: Record<string, string | number | boolean | undefined> = {
-      query,
-      fleet_id: teamId,
-      order_direction: orderDirection,
-      order_key: orderKey,
-      page: 0, // resets page index
-      ...buildSoftwareFilterQueryParams("allSoftware"), // Reset to all software
-      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
-    };
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: showVersions
-          ? PATHS.SOFTWARE_TITLES
-          : PATHS.SOFTWARE_VERSIONS,
-        routeTemplate: "",
-        queryParams,
-      })
-    );
-  };
+    isSoftwareEnabled && (hasData || hasQuery || hasSoftwareFilter);
 
   const handleCustomFilterDropdownChange = (
     value: ISoftwareDropdownFilterVal
@@ -233,16 +181,13 @@ const SoftwareTable = ({
       teamId,
       orderDirection,
       orderKey,
-      // Do not reset page as it creates a race condition with TableContainer's useDeepEffect
-      // Rely on TableContainer's prevPageIndex to reset to 0 when it detects additionalQueries changed
-      page: currentPage,
-      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      page: 0, // resets page index
       ...buildSoftwareFilterQueryParams(value),
     };
 
     router.replace(
       getNextLocationPath({
-        pathPrefix: currentPath,
+        pathPrefix: PATHS.SOFTWARE_LIBRARY,
         routeTemplate: "",
         queryParams: convertParamsToSnakeCase(queryParams),
       })
@@ -252,9 +197,9 @@ const SoftwareTable = ({
   const handleRowSelect = (row: IRowProps) => {
     if (!row.original.id) return;
 
-    const detailsPath = showVersions
-      ? PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString())
-      : PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString());
+    const detailsPath = PATHS.SOFTWARE_TITLE_DETAILS(
+      row.original.id.toString()
+    );
 
     router.push(getPathWithQueryParams(detailsPath, { fleet_id: teamId }));
   };
@@ -275,23 +220,12 @@ const SoftwareTable = ({
             }
           />
         )}
-        <Slider
-          value={showVersions}
-          onChange={handleShowVersionsToggle}
-          inactiveText="Show versions"
-          activeText="Show versions"
-        />
       </>
     );
   };
 
+  // TODO: Remake into slider
   const renderCustomControls = () => {
-    // Hidden when viewing versions table or viewing "All teams"
-    // or Fleet Free
-    if (showVersions || teamId === undefined) {
-      return null;
-    }
-
     return (
       <div className={`${baseClass}__filter-controls`}>
         <DropdownWrapper
@@ -308,25 +242,6 @@ const SoftwareTable = ({
           variant="table-filter"
         />
       </div>
-    );
-  };
-
-  const renderCustomFiltersButton = () => {
-    return (
-      <TooltipWrapper
-        className={`${baseClass}__filters`}
-        position="left"
-        underline={false}
-        showArrow
-        tipOffset={12}
-        tipContent={vulnFilterDetails.tooltipText}
-        disableTooltip={!hasVulnFilters}
-      >
-        <Button variant="inverse" onClick={onAddFiltersClick}>
-          <Icon name="filter" />
-          <span>{vulnFilterDetails.buttonText}</span>
-        </Button>
-      </TooltipWrapper>
     );
   };
 
@@ -351,10 +266,8 @@ const SoftwareTable = ({
         emptyComponent={() => (
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
-            vulnFilters={vulnFilters}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
-            installableSoftwareExists={installableSoftwareExists}
           />
         )}
         defaultSortHeader={orderKey}
@@ -375,9 +288,6 @@ const SoftwareTable = ({
         // This is necessary to remove unwanted query params from the URL
         additionalQueries={softwareFilter}
         customControl={showFilterHeaders ? renderCustomControls : undefined}
-        customFiltersButton={
-          showFilterHeaders ? renderCustomFiltersButton : undefined
-        }
         stackControls
         renderCount={renderSoftwareCount}
         renderTableHelpText={renderTableHelpText}

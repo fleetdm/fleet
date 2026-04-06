@@ -123,9 +123,9 @@ const SoftwareTitleDetailsPage = ({
       return;
     }
 
-    // redirect to software titles page if no versions are available
+    // redirect to software library page if no versions are available
     router.push(
-      getPathWithQueryParams(paths.SOFTWARE_TITLES, {
+      getPathWithQueryParams(paths.SOFTWARE_LIBRARY, {
         fleet_id: teamIdForApi,
       })
     );

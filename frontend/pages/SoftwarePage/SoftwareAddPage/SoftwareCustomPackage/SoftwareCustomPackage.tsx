@@ -101,7 +101,7 @@ const SoftwareCustomPackage = ({
 
   const onCancel = () => {
     router.push(
-      getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
         fleet_id: currentTeamId,
       })
     );
