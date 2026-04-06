@@ -5588,7 +5588,7 @@ _Available in Fleet Premium._
 
 Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sent its unlock token during MDM check-in.
 
-`POST /api/v1/fleet/hosts/:id/passcode`
+`POST /api/v1/fleet/hosts/:id/clear_passcode`
 
 #### Parameters
 
@@ -5599,7 +5599,7 @@ Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sen
 
 #### Example 
 
-`POST /api/v1/fleet/hosts/123/passcode`
+`POST /api/v1/fleet/hosts/123/clear_passcode`
 
 #### Default response 
 
