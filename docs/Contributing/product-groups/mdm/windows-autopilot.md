@@ -47,12 +47,13 @@ Once added, you should see the device with it's serial show up in [the Autopilot
 Microsoft Entra requires a **verified custom domain** for the MDM application URIs. You cannot use a raw `*.ngrok.io` URL — Entra will reject it during domain verification.
 
 1. **Register a domain** (e.g., a cheap `.xyz` domain from Namecheap). You don't need to purchase SSL — ngrok handles TLS termination.
-2. **Add the domain in ngrok's dashboard** (Domains section). ngrok will provide a CNAME target (e.g., `xxx.ngrok-dns.com`).
+2. **Add a subdomain in ngrok's dashboard** (Domains section) — e.g., `mdm.yourdomain.xyz`. ngrok will provide a CNAME target (e.g., `xxx.ngrok-dns.com`).
 3. **Configure DNS in your domain registrar:**
-   - Add a **CNAME record** pointing your domain to the ngrok CNAME target.
-   - Add the **TXT record** that Microsoft Entra provides for domain verification.
-4. **Verify the domain in Entra:** go to [Entra > Domain names](https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Domains) > Add custom domain, enter your domain, and verify it using the TXT record.
-5. **Configure the MDM application in Entra** following the [Windows MDM Setup guide](https://fleetdm.com/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id). Use your custom domain for all MDM URLs (Application ID URI, discovery URL, terms of use URL).
+   - Add a **CNAME record** for the subdomain (e.g., `mdm`) pointing to the ngrok CNAME target.
+   - Add the **TXT record** that Microsoft Entra provides on the **root domain** (e.g., `yourdomain.xyz`) for domain verification.
+   - Note: DNS standards don't allow CNAME records to coexist with other record types at the same name. Using a subdomain for the CNAME avoids this conflict — the root domain stays free for the Entra TXT verification record.
+4. **Verify the root domain in Entra:** go to [Entra > Domain names](https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Domains) > Add custom domain, enter your root domain (e.g., `yourdomain.xyz`), and verify it using the TXT record.
+5. **Configure the MDM application in Entra** following the [Windows MDM Setup guide](https://fleetdm.com/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id). Use your **subdomain** (e.g., `mdm.yourdomain.xyz`) for all MDM URLs (Application ID URI, discovery URL, terms of use URL).
 
 Example ngrok config with a custom domain for the Fleet server:
 ```yaml
@@ -63,7 +64,7 @@ tunnels:
     fleet:
         proto: http
         schemes: [https]
-        hostname: yourdomain.xyz  # your verified custom domain
+        hostname: mdm.yourdomain.xyz  # subdomain CNAME'd to ngrok
         addr: https://localhost:8080
         inspect: true
     installers:
