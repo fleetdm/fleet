@@ -1,0 +1,30 @@
+- name: Windows hosts with Slack installed
+  description: Windows hosts with Slack installed
+  query: SELECT 1 FROM programs WHERE name = 'Slack';
+  label_membership_type: dynamic
+  platform: windows
+- name: Windows hosts with Claude installed
+  description: Windows hosts with Claude installed
+  query: SELECT 1 FROM programs WHERE name = 'Claude';
+  label_membership_type: dynamic
+  platform: windows
+- name: Windows hosts with Firefox installed
+  description: Windows hosts with Firefox installed
+  query: SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%' AND name NOT LIKE '%ESR%';
+  label_membership_type: dynamic
+  platform: windows
+- name: Windows hosts with Google Chrome installed
+  description: Windows hosts with Google Chrome installed
+  query: SELECT 1 FROM programs WHERE name = 'Google Chrome';
+  label_membership_type: dynamic
+  platform: windows
+- name: Windows hosts with Brave Browser installed
+  description: Windows hosts with Brave Browser installed
+  query: SELECT 1 FROM programs WHERE name = 'Brave';
+  label_membership_type: dynamic
+  platform: windows
+- name: Windows hosts with Visual Studio Code installed
+  description: Windows hosts with Visual Studio Code installed
+  query: SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual Studio Code%';
+  label_membership_type: dynamic
+  platform: windows
