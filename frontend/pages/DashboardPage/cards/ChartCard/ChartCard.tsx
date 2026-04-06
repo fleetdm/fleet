@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { format, parseISO } from "date-fns";
+import { SingleValue } from "react-select-5";
 
 import chartsAPI, {
   IChartResponse,
@@ -20,23 +21,24 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
 
 const baseClass = "chart-card";
 
-const DAYS_OPTIONS = [
-  { label: "1d", value: 1 },
-  { label: "7d", value: 7 },
-  { label: "14d", value: 14 },
-  { label: "30d", value: 30 },
+const DAYS_OPTIONS: CustomOptionType[] = [
+  { label: "Last 24 hours", value: "1" },
+  { label: "Last 7 days", value: "7" },
+  { label: "Last 14 days", value: "14" },
+  { label: "Last 30 days", value: "30" },
 ];
 
-const DATASET_OPTIONS = [{ label: "Check-in activity", value: "uptime" }];
-
-interface IChartCardProps {
-  onOpenFilters?: () => void;
-}
+const CHART_TYPE_OPTIONS: CustomOptionType[] = [
+  { label: "Check-in activity", value: "uptime" },
+  { label: "Policy compliance", value: "policy", isDisabled: true },
+  { label: "Vulnerabilities", value: "cve", isDisabled: true },
+];
 
 interface IFormattedDataPoint {
   timestamp: string;
@@ -45,7 +47,7 @@ interface IFormattedDataPoint {
   percentage: number;
 }
 
-const ChartCard = ({ onOpenFilters }: IChartCardProps): JSX.Element => {
+const ChartCard = (): JSX.Element => {
   const [selectedDays, setSelectedDays] = useState(7);
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [filterParams, setFilterParams] = useState<IChartRequestParams>({});
@@ -77,8 +79,7 @@ const ChartCard = ({ onOpenFilters }: IChartCardProps): JSX.Element => {
     const totalHosts = chartData.total_hosts || 1;
     return chartData.data.map((point) => {
       const date = parseISO(point.timestamp);
-      const labelFormat =
-        selectedDays === 1 ? "h:mm a" : "MMM d, h:mm a";
+      const labelFormat = selectedDays === 1 ? "h:mm a" : "MMM d, h:mm a";
       return {
         timestamp: point.timestamp,
         label: format(date, labelFormat),
@@ -88,26 +89,19 @@ const ChartCard = ({ onOpenFilters }: IChartCardProps): JSX.Element => {
     });
   }, [chartData, selectedDays]);
 
-  const handleDaysChange = useCallback((days: number) => {
-    setSelectedDays(days);
-  }, []);
-
-  const renderTooltip = useCallback(
-    (props: any) => {
-      const { active, payload } = props;
-      if (!active || !payload?.length) return null;
-      const data = payload[0].payload as IFormattedDataPoint;
-      return (
-        <div className={`${baseClass}__tooltip`}>
-          <div className={`${baseClass}__tooltip-label`}>{data.label}</div>
-          <div className={`${baseClass}__tooltip-value`}>
-            {data.value.toLocaleString()} hosts ({data.percentage}%)
-          </div>
+  const renderTooltip = useCallback((props: any) => {
+    const { active, payload } = props;
+    if (!active || !payload?.length) return null;
+    const data = payload[0].payload as IFormattedDataPoint;
+    return (
+      <div className={`${baseClass}__tooltip`}>
+        <div className={`${baseClass}__tooltip-label`}>{data.label}</div>
+        <div className={`${baseClass}__tooltip-value`}>
+          {data.value.toLocaleString()} hosts ({data.percentage}%)
         </div>
-      );
-    },
-    []
-  );
+      </div>
+    );
+  }, []);
 
   const formatXAxis = useCallback(
     (timestamp: string) => {
@@ -138,7 +132,6 @@ const ChartCard = ({ onOpenFilters }: IChartCardProps): JSX.Element => {
       );
     }
 
-    // Calculate tick interval to avoid overcrowding.
     const tickInterval = Math.max(
       1,
       Math.floor(formattedData.length / 8)
@@ -175,47 +168,43 @@ const ChartCard = ({ onOpenFilters }: IChartCardProps): JSX.Element => {
     );
   };
 
-  const selectedDatasetLabel =
-    DATASET_OPTIONS.find((d) => d.value === selectedMetric)?.label ??
-    selectedMetric;
-
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header-left`}>
-          <h2 className={`${baseClass}__title`}>{selectedDatasetLabel}</h2>
-          {chartData && (
-            <span className={`${baseClass}__total-hosts`}>
-              {chartData.total_hosts.toLocaleString()} total hosts
-            </span>
-          )}
+          <DropdownWrapper
+            name="days-range"
+            value={String(selectedDays)}
+            options={DAYS_OPTIONS}
+            onChange={(option: SingleValue<CustomOptionType>) => {
+              if (option) {
+                setSelectedDays(Number(option.value));
+              }
+            }}
+            className={`${baseClass}__days-dropdown`}
+          />
         </div>
         <div className={`${baseClass}__header-right`}>
-          {onOpenFilters && (
-            <Button
-              variant="text-icon"
-              onClick={onOpenFilters}
-              className={`${baseClass}__filter-btn`}
-            >
-              <Icon name="filter" />
-            </Button>
-          )}
-          <div className={`${baseClass}__days-selector`}>
-            {DAYS_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                className={`${baseClass}__days-btn ${
-                  selectedDays === opt.value
-                    ? `${baseClass}__days-btn--active`
-                    : ""
-                }`}
-                onClick={() => handleDaysChange(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <DropdownWrapper
+            name="chart-type"
+            value={selectedMetric}
+            options={CHART_TYPE_OPTIONS}
+            onChange={(option: SingleValue<CustomOptionType>) => {
+              if (option) {
+                setSelectedMetric(option.value);
+              }
+            }}
+            className={`${baseClass}__chart-type-dropdown`}
+          />
+          <button
+            type="button"
+            className={`${baseClass}__settings-btn`}
+            onClick={() => {
+              // TODO: open filter modal
+            }}
+          >
+            <Icon name="settings" />
+          </button>
         </div>
       </div>
       <div className={`${baseClass}__chart-container`}>{renderChart()}</div>
