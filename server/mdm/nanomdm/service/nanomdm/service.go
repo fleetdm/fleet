@@ -338,7 +338,6 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 			// For ClearPasscode command, if we fail to expand host secrets, it likely means the unlock token is missing or invalid.
 			s.logger.Info("level", "error", "msg", "failed to expand host secrets for ClearPasscode command", "host_uuid", hostUUID, "error", errorMsg)
 		})
-		fmt.Printf("Done expanding secret didError: %b - hostExpanded \n%s\n", didError, hostExpanded)
 		if didError {
 			return nil, nil
 		}

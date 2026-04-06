@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -775,13 +776,15 @@ func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
 	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, clearPasscodeResp.RequestType)
 	require.Equal(t, "ios", clearPasscodeResp.Platform)
 
+	s.lastActivityMatches(fleet.ActivityTypeClearedPasscode{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, iosHost.ID, iosHost.DisplayName()), 0)
+
 	// Check in with the iOS device to recieve the ClearPasscode command
 	cmd, err := iosMDMClient.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
 	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, cmd.Command.RequestType)
-	t.Logf("Received command: %s", cmd.Raw)
-	require.Contains(t, string(cmd.Raw), "unlocktoken"+iosMDMClient.SerialNumber)
+	b64Encoded := base64.StdEncoding.EncodeToString([]byte("unlocktoken" + iosMDMClient.SerialNumber))
+	require.Contains(t, string(cmd.Raw), b64Encoded)
 
 	// Acknowledge the ClearPasscode command
 	_, err = iosMDMClient.Acknowledge(cmd.CommandUUID)

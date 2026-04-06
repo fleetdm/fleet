@@ -1697,6 +1697,13 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 		return nil, ctxerr.Wrap(ctx, err, "clearing passcode")
 	}
 
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeClearedPasscode{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for cleared passcode")
+	}
+
 	return &fleet.CommandEnqueueResult{
 		CommandUUID: commandUUID,
 		RequestType: fleet.AppleMDMCommandTypeClearPasscode,
