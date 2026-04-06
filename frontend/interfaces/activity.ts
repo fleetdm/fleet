@@ -164,6 +164,7 @@ export enum ActivityType {
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
+  ClearedPasscode = "cleared_passcode",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -184,7 +185,8 @@ export type IHostPastActivityType =
   | ActivityType.CanceledInstallSoftware
   | ActivityType.CanceledUninstallSoftware
   | ActivityType.InstalledCertificate
-  | ActivityType.ResentCertificate;
+  | ActivityType.ResentCertificate
+  | ActivityType.ClearedPasscode;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -465,4 +467,5 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.DeletedCertificate]: "Deleted certificate",
   [ActivityType.InstalledCertificate]: "Installed certificate",
   [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
+  [ActivityType.ClearedPasscode]: "Cleared passcode",
 };

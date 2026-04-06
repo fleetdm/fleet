@@ -1799,6 +1799,13 @@ const TAGGED_TEMPLATES = {
       <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
     );
   },
+  clearedPasscode: (activity: IActivity) => {
+    return (
+      <>
+        cleared the passcode on <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
