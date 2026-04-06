@@ -2036,8 +2036,13 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		RenewDate: time.Now().Add(24 * 365 * time.Hour),
 		Token:     "vpp-token",
 	}
+	vppToken2 := &fleet.VPPTokenDB{
+		Location:  "Gadzooks",
+		RenewDate: time.Now().Add(24 * 365 * time.Hour),
+		Token:     "vpp-token2",
+	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{vppToken}, nil
+		return []*fleet.VPPTokenDB{vppToken, vppToken2}, nil
 	}
 
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -2092,6 +2097,9 @@ org_settings:
   mdm:
     volume_purchasing_program:
     - location: Foobar
+      teams:
+      - "${TEST_TEAM_NAME}"
+    - location: Gadzooks
       teams:
       - "${TEST_TEAM_NAME}"
   secrets:
@@ -3164,6 +3172,43 @@ software:
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
+				workstations,
+				iosTeam,
+				ipadTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				assert.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.AppleBusinessManager.Value,
+					[]fleet.MDMAppleABMAssignmentInfo{
+						{
+							OrganizationName: "Fleet Device Management Inc.",
+							MacOSTeam:        "💻 Workstations",
+							IOSTeam:          "📱🏢 Company-owned iPhones",
+							IpadOSTeam:       "🔳🏢 Company-owned iPads",
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "renamed new key all valid",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      macos_fleet: "💻 Workstations"
+                                      ios_fleet: "📱🏢 Company-owned iPhones"
+                                      ipados_fleet: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,

@@ -127,7 +127,7 @@ func buildAliasRules() map[string]string {
 	rules := make(map[string]string)
 	for _, m := range spec.DeprecatedGitOpsKeyMappings {
 		// Take the last segment of the old and new paths as the leaf key names.
-		// Remove any array indicators (e.g. "[]") in case an array keys is renamed.
+		// Remove any array indicators (e.g. "[]") in case an array key is renamed.
 		oldLeaf := m.OldPath
 		if i := strings.LastIndex(oldLeaf, "."); i >= 0 {
 			oldLeaf = oldLeaf[i+1:]
