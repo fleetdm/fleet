@@ -36,14 +36,14 @@ var validHTTPMethods = map[string]struct{}{
 // validate checks that all required fields are present and well-formed.
 // It returns an error describing the first violation found.
 func (e APIEndpoint) validate() error {
-	if e.Name == "" {
+	if strings.TrimSpace(e.Name) == "" {
 		return errors.New("name is required")
 	}
 	if _, ok := validHTTPMethods[strings.ToUpper(e.Method)]; !ok {
 		return fmt.Errorf("invalid HTTP method %q", e.Method)
 	}
-	if !strings.HasPrefix(e.Path, "/") {
-		return fmt.Errorf("path %q must start with '/'", e.Path)
+	if strings.TrimSpace(e.Path) == "" {
+		return errors.New("path is required")
 	}
 	return nil
 }

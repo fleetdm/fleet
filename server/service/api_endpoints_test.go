@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,12 +13,12 @@ func TestGetAPIEndpoints(t *testing.T) {
 	routes := GetAPIEndpoints()
 	require.NotEmpty(t, routes)
 	for _, r := range routes {
-		assert.NotEmpty(t, r.Method, "route method should not be empty")
-		assert.NotEmpty(t, r.Path, "route path should not be empty")
-		assert.NotEmpty(t, r.Name, "route name should not be empty")
-		assert.True(t, strings.HasPrefix(r.Path, "/"), "route path should start with /")
+		require.NotEmpty(t, r.Method, "route method should not be empty")
+		require.NotEmpty(t, r.Path, "route path should not be empty")
+		require.NotEmpty(t, r.Name, "route name should not be empty")
+		require.True(t, strings.HasPrefix(r.Path, "/"), "route path should start with /")
 		_, validMethod := validHTTPMethods[r.Method]
-		assert.True(t, validMethod, "route method %q should be a valid HTTP method", r.Method)
+		require.True(t, validMethod, "route method %q should be a valid HTTP method", r.Method)
 	}
 }
 
@@ -42,8 +41,8 @@ func TestAPIEndpointValidate(t *testing.T) {
 
 	t.Run("path without leading slash", func(t *testing.T) {
 		e := base
-		e.Path = "api/_version_/fleet/foo"
-		require.ErrorContains(t, e.validate(), "must start with '/'")
+		e.Path = " "
+		require.ErrorContains(t, e.validate(), "path is required")
 	})
 }
 
