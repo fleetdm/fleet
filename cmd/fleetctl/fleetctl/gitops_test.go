@@ -1670,6 +1670,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return newTeam, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		require.Equal(t, teamID, team.ID, "unexpected team ID when saving team")
 		savedTeam = team
 		return team, nil
 	}
@@ -1696,7 +1697,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil, nil
 	}
-	ds.DeleteTeamPoliciesFunc = func(ctx context.Context, teamID uint, IDs []uint) ([]uint, error) {
+	ds.DeleteTeamPoliciesFunc = func(ctx context.Context, tid uint, IDs []uint) ([]uint, error) {
+		require.Equal(t, teamID, tid, "unexpected team ID when deleting policies")
 		policyDeleted = true
 		deletedPolicyIDs = IDs
 		return IDs, nil
