@@ -132,11 +132,13 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version,
 			enroll_client_version,
 			not_in_oobe,
+			awaiting_configuration,
+			awaiting_configuration_at,
 			host_uuid,
 			credentials_hash,
 			credentials_acknowledged)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
@@ -147,6 +149,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version  = VALUES(enroll_proto_version),
 			enroll_client_version = VALUES(enroll_client_version),
 			not_in_oobe           = VALUES(not_in_oobe),
+			awaiting_configuration = VALUES(awaiting_configuration),
+			awaiting_configuration_at = VALUES(awaiting_configuration_at),
 			host_uuid             = VALUES(host_uuid),
 			credentials_hash      = VALUES(credentials_hash),
 			credentials_acknowledged = VALUES(credentials_acknowledged)
@@ -164,6 +168,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.MDMEnrollProtoVersion,
 		device.MDMEnrollClientVersion,
 		device.MDMNotInOOBE,
+		device.AwaitingConfiguration,
+		device.AwaitingConfigurationAt,
 		device.HostUUID,
 		device.CredentialsHash,
 		device.CredentialsAcknowledged)

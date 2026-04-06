@@ -2096,6 +2096,18 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		reqNotInOOBE = true
 	}
 
+	// Determine if the device is awaiting configuration. This is true when the enrollment is
+	// non-programmatic (Autopilot via JWT/WSTEP, not orbit node key) AND the device is in OOBE
+	// (NotInOobe is false, since the field name is inverted).
+	isProgrammatic := hostUUID != ""
+	isInOOBE := !reqNotInOOBE
+	awaitingConfiguration := !isProgrammatic && isInOOBE
+	var awaitingConfigurationAt *time.Time
+	if awaitingConfiguration {
+		now := time.Now().UTC()
+		awaitingConfigurationAt = &now
+	}
+
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:             reqDeviceID,
@@ -2108,6 +2120,8 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		MDMEnrollProtoVersion:   reqEnrollVersion,
 		MDMEnrollClientVersion:  reqAppVersion,
 		MDMNotInOOBE:            reqNotInOOBE,
+		AwaitingConfiguration:   awaitingConfiguration,
+		AwaitingConfigurationAt: awaitingConfigurationAt,
 		HostUUID:                hostUUID,
 		CredentialsHash:         &credentialsHash,
 		CredentialsAcknowledged: true,
