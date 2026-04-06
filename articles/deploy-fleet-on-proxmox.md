@@ -32,7 +32,7 @@ The first step is to deploy a virtual machine to host the Fleet server. Fleet ca
 
 First, upload the ISO to Proxmox by navigating to your desired storage location and selecting **ISO Images > Download from URL**. Specify the URL to an appropriate ISO, such as https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-live-server-amd64.iso
 
-![Boot iso example](../website/assets/images/articles/deploy-fleet-on-proxmox-1-800x249.png)
+![Boot iso example](../website/assets/images/articles/deploy-fleet-on-proxmox-1-400x125@2x.png)
 
 Next, deploy a new Ubuntu virtual machine with the following parameters:
 
@@ -45,7 +45,7 @@ Next, deploy a new Ubuntu virtual machine with the following parameters:
 
 Confirm all of the settings and create the VM:
 
-![Confirm settings](../website/assets/images/articles/deploy-fleet-on-proxmox-2-800x600.png)
+![Confirm settings](../website/assets/images/articles/deploy-fleet-on-proxmox-2-400x300@2x.png)
 
 ## Install Ubuntu
 
