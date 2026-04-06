@@ -799,6 +799,8 @@ Each product group maintains two engineers assigned to incident on-call. Enginee
 
 #### Incident on-call responsibilities
 
+The incident on-call engineer leads the incident from acknowledgment through resolution and owns internal communication. Don't assume anyone is already aware. Mention the right people in the incident channel to pull them in: someone from CS (the reporter, if CS reported the issue), the relevant engineering manager, and any engineers or QA needed for investigation. Post regular status updates in the incident channel and keep the incident response issue up to date.
+
 **Outside of business hours**
 
 The incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning. They should file P1 issues for any immediate follow-up items that need to be addressed during the next business day.
