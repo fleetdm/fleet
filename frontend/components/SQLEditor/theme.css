@@ -185,13 +185,13 @@
 
 /* Dark mode overrides */
 body.dark-mode .ace_editor.ace-fleet {
-  background-color: #161929;
+  background-color: #161819;
   color: #b3b6c1;
-  border-color: #2e3250;
+  border-color: #2e3035;
 }
 
 body.dark-mode .ace_editor.ace-fleet:hover {
-  border-color: #636780;
+  border-color: #636777;
 }
 
 body.dark-mode .ace_editor.ace-fleet.ace_focus {
@@ -203,17 +203,17 @@ body.dark-mode .ace_editor.ace-fleet.ace_focus .ace_scroller {
 }
 
 body.dark-mode .ace-fleet .ace_content {
-  background: #0f111e;
+  background: #111214;
 }
 
 body.dark-mode .ace-fleet .ace_gutter {
-  background: #0f111e;
-  color: #636780;
-  border-right-color: #2e3250;
+  background: #111214;
+  color: #636777;
+  border-right-color: #2e3035;
 }
 
 body.dark-mode .ace-fleet .ace_gutter-active-line {
-  background-color: #1e2138;
+  background-color: #1e2024;
 }
 
 body.dark-mode .ace-fleet .ace_cursor {
@@ -229,17 +229,17 @@ body.dark-mode .ace-fleet .ace_marker-layer .ace_selection {
 }
 
 body.dark-mode .ace-fleet .ace_marker-layer .ace_bracket {
-  border-color: #3e4268;
+  border-color: #3e4248;
 }
 
 body.dark-mode .ace-fleet .ace_marker-layer .ace_selected-word {
-  border-color: #3e4268;
+  border-color: #3e4248;
 }
 
 body.dark-mode .ace-fleet .ace_invisible {
-  color: #3e4268;
+  color: #3e4248;
 }
 
 body.dark-mode .ace-fleet .ace_print-margin {
-  background: #1e2138;
+  background: #1e2024;
 }

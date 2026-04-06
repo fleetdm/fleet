@@ -98,41 +98,41 @@ body.dark-mode {
   // Branding — text lightens, backgrounds darken
   --core-fleet-black: #e2e4ea;
   --core-fleet-green: #009a7d;
-  --core-fleet-white: #0f111e;
+  --core-fleet-white: #111214;
   --ui-fleet-black-75: #b3b6c1;
   --ui-fleet-black-50: #8b8fa2;
-  --ui-fleet-black-33: #636780;
-  --ui-fleet-black-25: #3d4163;
-  --ui-fleet-black-10: #2e3250;
-  --ui-fleet-black-5: #1e2138;
+  --ui-fleet-black-33: #636777;
+  --ui-fleet-black-25: #3d4047;
+  --ui-fleet-black-10: #2e3035;
+  --ui-fleet-black-5: #1e2024;
 
   // Secondary / interaction
   --ui-fleet-black-75-over: #c5c7d1;
   --ui-fleet-black-75-down: #d5d7de;
   --core-fleet-green-over: #01a889;
   --core-fleet-green-down: #02be9c;
-  --ui-fleet-black-5-down: #252845;
+  --ui-fleet-black-5-down: #252729;
 
   // Core accent — slightly brighter for dark-bg contrast
-  --core-fleet-blue: #6a6fa0;
+  --core-fleet-blue: #6a6f8a;
   --core-vibrant-blue: #7b79ff;
   --core-vibrant-red: #ff7a9a;
   --core-fleet-purple: #c08ae8;
   --core-dark-blue-grey: #6e8eaf;
-  --site-nav-on-hover: #1e2138;
+  --site-nav-on-hover: #1e2024;
 
   // UI
-  --ui-fleet-blue-10: #161929;
-  --ui-dark-blue-gray: #4a5568;
-  --ui-blue-gray: #2a3040;
-  --ui-gray: #2e3250;
-  --ui-light-grey: #161929;
-  --ui-off-white: #161929;
-  --ui-shadow: #0a0c16;
+  --ui-fleet-blue-10: #161819;
+  --ui-dark-blue-gray: #4a5560;
+  --ui-blue-gray: #2a2d33;
+  --ui-gray: #2e3035;
+  --ui-light-grey: #161819;
+  --ui-off-white: #161819;
+  --ui-shadow: #0a0b0d;
   --ui-vibrant-blue-50: rgba(123, 121, 255, 0.3);
-  --ui-vibrant-blue-25: #252450;
-  --ui-vibrant-blue-10: #1a1940;
-  --tooltip-bg: #2e3250;
+  --ui-vibrant-blue-25: #252430;
+  --ui-vibrant-blue-10: #1a1b24;
+  --tooltip-bg: #2e3035;
 
   // Notifications & status — slightly brighter
   --ui-offline: #8b8fa2;
@@ -148,8 +148,8 @@ body.dark-mode {
   --ui-blue-hover: #8c8aff;
   --ui-blue-pressed: #6b69d9;
   --ui-blue-50: rgba(123, 121, 255, 0.3);
-  --ui-blue-25: #252450;
-  --ui-blue-10: #1a1940;
+  --ui-blue-25: #252430;
+  --ui-blue-10: #1a1b24;
   --status-success: #4dc98b;
   --status-warning: #f0ca5e;
   --status-error: #e07888;
@@ -160,7 +160,7 @@ body.dark-mode {
   --rainbow-blue: #70bbea;
 
   // Gradients — slightly lighter top for subtle depth, matching light mode's feel
-  --gradient-background: #161929;
+  --gradient-background: #161819;
 
   // Button hover / active
   --core-vibrant-red-over: #ff8da5;
@@ -169,13 +169,13 @@ body.dark-mode {
   --core-vibrant-blue-down: #6b69d9;
   --ui-success-over: #5dd99b;
   --ui-success-down: #4dc98b;
-  --core-fleet-blue-over: #7a7fac;
+  --core-fleet-blue-over: #7a7f96;
   --core-fleet-blue-down: #e2e4ea;
 
   // Overlays
   --core-fleet-black-overlay-40: rgba(0, 0, 0, 0.6);
   --core-fleet-black-overlay-05: rgba(226, 228, 234, 0.06);
-  --loading-overlay: rgba(15, 17, 30, 0.8);
+  --loading-overlay: rgba(17, 18, 20, 0.8);
 }
 
 // =============================================================================
@@ -239,11 +239,11 @@ $rainbow-blue: var(--rainbow-blue);
 // Gradients
 $gradient-background: var(--gradient-background);
 // These gradients are already dark; no theme swap needed.
-$gradients-dark-gradient: linear-gradient(270deg, #201e43 0%, #353d62 100%);
+$gradients-dark-gradient: linear-gradient(270deg, #202226 0%, #353840 100%);
 $gradients-dark-gradient-vertical: linear-gradient(
   360deg,
-  #201e43 0%,
-  #353d62 100%
+  #202226 0%,
+  #353840 100%
 );
 $gradients-bright-gradient: linear-gradient(180deg, #ae6ddf 0%, #6a67fe 100%);
 
