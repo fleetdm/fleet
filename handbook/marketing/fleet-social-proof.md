@@ -41,7 +41,6 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Global SaaS company modernizes device management with Fleet](https://fleetdm.com/case-study/global-saas-company) | ✓ | ✓ | ✓ | 2026‑03‑03 |
 | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | ✓ | ✓ | ✓ | 2024‑12‑20 |
 | [How a global workforce management company achieved compliance and clarity with Fleet](https://fleetdm.com/case-study/global-workforce-management-company) | ✓ | ✓ | ✓ | 2024‑12‑17 |
-| [Global social media platform migrates to Fleet](https://fleetdm.com/case-study/global-social-media-platform) | ✓ | ✓ | ✓ | 2024‑12‑16 |
 | [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | ✓ | ✓ | ✓ | 2024‑06‑01 |
 | [Design platform company adopts GitOps device management with Fleet](https://fleetdm.com/case-study/design-platform) | ✓ |  | ✓ | 2026‑04‑01 |
 | [Data platform company cuts $5–6M in hardware costs with API-driven device management](https://fleetdm.com/case-study/data-platform-company) | ✓ | ✓ | ✓ | 2026‑04‑01 |
