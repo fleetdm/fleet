@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -321,6 +322,36 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		expandedNonXML, err := ds.ExpandHostSecrets(ctx, docNonXML, hostXML.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, `Password: Pass&word<with>special"chars'`, expandedNonXML)
+	})
+
+	t.Run("mdm unlock token expansion", func(t *testing.T) {
+		// Create a host with an MDM unlock token
+		hostMDM, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("host-mdm-unlock-token-test"),
+			NodeKey:         ptr.String("host-mdm-unlock-token-test-key"),
+			UUID:            "host-mdm-unlock-token-test-uuid",
+			Hostname:        "host-mdm-unlock-token-test-hostname",
+			Platform:        "ios",
+		})
+		require.NoError(t, err)
+
+		unlockToken := "TEST-MDM-UNLOCK-TOKEN"
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, unlock_token, authenticate, platform) VALUES (?, ?, 'fake-auth', 'ios')`, hostMDM.UUID, unlockToken)
+			require.NoError(t, err)
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at) VALUES (?, ?, 'Device', 'fake-topic', 'fake-push-magic', 'fake-token-hex', NOW())`, hostMDM.UUID, hostMDM.UUID)
+			return err
+		})
+
+		doc := `<string>$FLEET_HOST_SECRET_MDM_UNLOCK_TOKEN</string>`
+		expected := `<string>TEST-MDM-UNLOCK-TOKEN</string>`
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostMDM.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, expected, expanded)
 	})
 }
 

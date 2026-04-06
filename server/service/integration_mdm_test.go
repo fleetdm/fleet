@@ -16108,6 +16108,9 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantWipePersonalHostsMessage)
 
+	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", host.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantClearPasscodePersonalHostsMessage)
+
 	// Confirm that turning off MDM for personal hosts are allowed - NEEDS to be last, to not turn off MDM for the other checks.
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusNoContent)
 }

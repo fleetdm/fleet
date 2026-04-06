@@ -199,8 +199,12 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: false}, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{
+			LastMDMEnrollmentTime: nil,
+			LastMDMSeenTime:       nil,
+			HardwareAttested:      false,
+		}, nil
 	}
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
@@ -448,6 +452,23 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <string>uuid</string>
 </dict>
 </plist>`, "DeviceLock")))
+		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
+
+		rawB64PremiumCmd = base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>%s</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>uuid</string>
+</dict>
+</plist>`, "ClearPasscode")))
 		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())

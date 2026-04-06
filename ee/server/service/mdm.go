@@ -1639,3 +1639,67 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 	}
 	return encryptedToken, decryptedToken, nil
 }
+
+func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	if fleet.IsApplePlatform(host.Platform) {
+		return svc.clearPasscodeApple(ctx, host, appCfg)
+	}
+
+	return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		Message: "Clearing passcode is only supported on Apple mobile platforms",
+	})
+}
+
+func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (*fleet.CommandEnqueueResult, error) {
+	if !appCfg.MDM.EnabledAndConfigured {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Apple MDM is not enabled and configured",
+		})
+	}
+
+	if !fleet.IsAppleMobilePlatform(host.Platform) {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Clearing passcode is only supported on Apple mobile platforms",
+		})
+	}
+
+	mdmData, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host MDM data")
+	}
+
+	if mdmData.IsPersonalEnrollment {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
+	commandUUID := uuid.NewString()
+	if err := svc.mdmAppleCommander.ClearPasscode(ctx, []string{host.UUID}, commandUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "clearing passcode")
+	}
+
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: commandUUID,
+		RequestType: fleet.AppleMDMCommandTypeClearPasscode,
+		Platform:    host.Platform,
+	}, nil
+}

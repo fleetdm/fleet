@@ -1852,3 +1852,12 @@ func (a ActivityTypeInstalledCertificate) WasFromAutomation() bool {
 func (a ActivityTypeInstalledCertificate) HostOnly() bool {
 	return true
 }
+
+type ActivityTypeClearedPasscode struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeClearedPasscode) ActivityName() string {
+	return "cleared_passcode"
+}

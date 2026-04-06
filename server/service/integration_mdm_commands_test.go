@@ -760,3 +760,39 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 		})
 	}
 }
+
+func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
+	t := s.T()
+
+	s.enableABM(t.Name())
+
+	// Create iOS host and enroll in MDM
+	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", mdmtest.RandSerialNumber())
+
+	// Trigger ClearPasscode endpoint
+	var clearPasscodeResp clearPasscodeResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", iosHost.ID), nil, http.StatusOK, &clearPasscodeResp)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, clearPasscodeResp.RequestType)
+	require.Equal(t, "ios", clearPasscodeResp.Platform)
+
+	// Check in with the iOS device to recieve the ClearPasscode command
+	cmd, err := iosMDMClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, cmd.Command.RequestType)
+	t.Logf("Received command: %s", cmd.Raw)
+	require.Contains(t, string(cmd.Raw), "unlocktoken"+iosMDMClient.SerialNumber)
+
+	// Acknowledge the ClearPasscode command
+	_, err = iosMDMClient.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// Fetch the command result and check the response is acknowledged (+ Payload has the expected unlock token value)
+	commandResultResp := &getMDMCommandResultsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", &getMDMCommandResultsRequest{
+		CommandUUID: clearPasscodeResp.CommandUUID,
+	}, http.StatusOK, commandResultResp)
+	require.Len(t, commandResultResp.Results, 1)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, commandResultResp.Results[0].RequestType)
+	require.NotNil(t, commandResultResp.Results[0].Result)
+}

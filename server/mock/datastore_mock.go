@@ -1005,7 +1005,7 @@ type GetNanoMDMUserEnrollmentUsernameAndUUIDFunc func(ctx context.Context, devic
 
 type UpdateNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID string, userUUID string, username string) error
 
-type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error)
+type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -8044,7 +8044,7 @@ func (s *DataStore) UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, dev
 	return s.UpdateNanoMDMUserEnrollmentUsernameFunc(ctx, deviceID, userUUID, username)
 }
 
-func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
+func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 	s.mu.Lock()
 	s.GetNanoMDMEnrollmentDetailsFuncInvoked = true
 	s.mu.Unlock()
