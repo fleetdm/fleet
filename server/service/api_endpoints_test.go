@@ -25,69 +25,121 @@ func TestGetAPIEndpoints(t *testing.T) {
 func TestAPIEndpointValidate(t *testing.T) {
 	base := APIEndpoint{Method: "GET", Path: "/api/_version_/fleet/foo", Name: "foo"}
 
-	require.NoError(t, base.validate())
-
-	t.Run("missing name", func(t *testing.T) {
-		e := base
-		e.Name = ""
-		require.ErrorContains(t, e.validate(), "name is required")
-	})
-
-	t.Run("invalid method", func(t *testing.T) {
-		e := base
-		e.Method = "GTE"
-		require.ErrorContains(t, e.validate(), "invalid HTTP method")
-	})
-
-	t.Run("path without leading slash", func(t *testing.T) {
-		e := base
-		e.Path = " "
-		require.ErrorContains(t, e.validate(), "path is required")
-	})
-}
-
-func TestValidateAPIEndpoints_ReturnsFalseWhenMissing(t *testing.T) {
-	r := mux.NewRouter()
-	// No routes registered — every YAML route is missing.
-	ok, missing := ValidateAPIEndpoints(r)
-	require.False(t, ok)
-	require.NotEmpty(t, missing)
-}
-
-func TestValidateAPIEndpoints_ReturnsTrueWhenAllPresent(t *testing.T) {
-	r := mux.NewRouter()
-	// Register every route defined in the YAML so that validation succeeds.
-	for _, route := range GetAPIEndpoints() {
-		// Convert /_version_/ to a concrete versioned segment so gorilla/mux accepts it.
-		path := strings.Replace(route.Path, "/_version_/", "/{fleetversion:(?:v1|latest)}/", 1)
-		r.Handle(path, http.NotFoundHandler()).Methods(route.Method)
-	}
-	ok, missing := ValidateAPIEndpoints(r)
-	require.True(t, ok)
-	require.Empty(t, missing)
-}
-
-func TestValidateAPIEndpoints_ReturnsFalseForPartiallyMissingRoutes(t *testing.T) {
-	routes := GetAPIEndpoints()
-	if len(routes) < 2 {
-		t.Skip("need at least 2 routes for this test")
+	tests := []struct {
+		name        string
+		modify      func(APIEndpoint) APIEndpoint
+		wantErr     string
+	}{
+		{
+			name:   "valid endpoint",
+			modify: func(e APIEndpoint) APIEndpoint { return e },
+		},
+		{
+			name:    "missing name",
+			modify:  func(e APIEndpoint) APIEndpoint { e.Name = ""; return e },
+			wantErr: "name is required",
+		},
+		{
+			name:    "whitespace name",
+			modify:  func(e APIEndpoint) APIEndpoint { e.Name = "   "; return e },
+			wantErr: "name is required",
+		},
+		{
+			name:    "invalid method",
+			modify:  func(e APIEndpoint) APIEndpoint { e.Method = "GTE"; return e },
+			wantErr: "invalid HTTP method",
+		},
+		{
+			name:    "empty path",
+			modify:  func(e APIEndpoint) APIEndpoint { e.Path = " "; return e },
+			wantErr: "path is required",
+		},
 	}
 
-	r := mux.NewRouter()
-	// Register all but the last route — validation must still return false.
-	for _, route := range routes[:len(routes)-1] {
-		path := strings.Replace(route.Path, "/_version_/", "/{fleetversion:(?:v1|latest)}/", 1)
-		r.Handle(path, http.NotFoundHandler()).Methods(route.Method)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.modify(base).validate()
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
+		})
 	}
-	ok, missing := ValidateAPIEndpoints(r)
-	require.False(t, ok)
-	last := routes[len(routes)-1]
-	require.Equal(t, []string{last.Method + " " + last.Path}, missing)
 }
 
-func TestValidateAPIEndpoints_PanicsForNonMuxRouter(t *testing.T) {
-	require.PanicsWithValue(t,
-		"ValidateAPIEndpoints: expected *mux.Router, got *http.ServeMux",
-		func() { ValidateAPIEndpoints(http.NewServeMux()) },
-	)
+func TestValidateAPIEndpoints(t *testing.T) {
+	allRoutes := GetAPIEndpoints()
+
+	routerWithRoutes := func(routes []APIEndpoint) *mux.Router {
+		r := mux.NewRouter()
+		for _, route := range routes {
+			path := strings.Replace(route.Path, "/_version_/", "/{fleetversion:(?:v1|latest)}/", 1)
+			r.Handle(path, http.NotFoundHandler()).Methods(route.Method)
+		}
+		return r
+	}
+
+	tests := []struct {
+		name       string
+		handler    http.Handler
+		wantOK     bool
+		wantMissing []string
+		wantPanic  string
+	}{
+		{
+			name:    "all routes present",
+			handler: routerWithRoutes(allRoutes),
+			wantOK:  true,
+		},
+		{
+			name:        "no routes registered",
+			handler:     mux.NewRouter(),
+			wantOK:      false,
+			wantMissing: func() []string {
+				var s []string
+				for _, r := range allRoutes {
+					s = append(s, r.Method+" "+r.Path)
+				}
+				return s
+			}(),
+		},
+		{
+			name:    "non-mux handler panics",
+			handler: http.NewServeMux(),
+			wantPanic: "ValidateAPIEndpoints: expected *mux.Router, got *http.ServeMux",
+		},
+	}
+
+	if len(allRoutes) >= 2 {
+		last := allRoutes[len(allRoutes)-1]
+		tests = append(tests, struct {
+			name        string
+			handler     http.Handler
+			wantOK      bool
+			wantMissing []string
+			wantPanic   string
+		}{
+			name:        "last route missing",
+			handler:     routerWithRoutes(allRoutes[:len(allRoutes)-1]),
+			wantOK:      false,
+			wantMissing: []string{last.Method + " " + last.Path},
+		})
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantPanic != "" {
+				require.PanicsWithValue(t, tt.wantPanic, func() { ValidateAPIEndpoints(tt.handler) })
+				return
+			}
+			ok, missing := ValidateAPIEndpoints(tt.handler)
+			require.Equal(t, tt.wantOK, ok)
+			if tt.wantMissing != nil {
+				require.Equal(t, tt.wantMissing, missing)
+			} else {
+				require.Empty(t, missing)
+			}
+		})
+	}
 }
