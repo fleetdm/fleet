@@ -1290,7 +1290,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	} else if hostWithoutPolicies {
 		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, nil); err != nil {
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{}); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}

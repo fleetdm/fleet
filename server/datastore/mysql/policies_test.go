@@ -500,6 +500,30 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), policies[1].PassingHostCount)
 	assert.Equal(t, uint(1), policies[1].FailingHostCount)
 
+	// Test with pre-computed newlyPassingPolicyIDs (non-nil) to exercise the path where
+	// RecordPolicyQueryExecutions skips calling FlippingPoliciesForHost internally.
+	// host1 currently has p.ID=failing, so flipping to passing with pre-computed IDs.
+	require.NoError(t, ds.RecordPolicyQueryExecutions(
+		ctx, host1, map[uint]*bool{p.ID: new(true)}, time.Now(), deferred, []uint{p.ID},
+	))
+	// Also test with an empty (but non-nil) slice, which means "already computed, no newly passing".
+	require.NoError(t, ds.RecordPolicyQueryExecutions(
+		ctx, host2, map[uint]*bool{p2.ID: new(true)}, time.Now(), deferred, []uint{},
+	))
+
+	require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+	// host1: p now passing again (was failing), host2: p still passing
+	assert.Equal(t, p.ID, policies[0].ID)
+	assert.Equal(t, uint(2), policies[0].PassingHostCount)
+	assert.Equal(t, uint(0), policies[0].FailingHostCount)
+	// host2: p2 now passing (was failing)
+	assert.Equal(t, p2.ID, policies[1].ID)
+	assert.Equal(t, uint(1), policies[1].PassingHostCount)
+	assert.Equal(t, uint(0), policies[1].FailingHostCount)
+
 	policy, err := ds.Policy(ctx, policies[0].ID)
 	require.NoError(t, err)
 	assert.Equal(t, policies[0], policy)
