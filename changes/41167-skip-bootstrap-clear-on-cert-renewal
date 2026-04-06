@@ -1,0 +1,1 @@
+* Fixed an issue where trying to wipe a device after it had its certificate renewed, failed with missing bootstrap token. _Note: The device might still have wiped_
