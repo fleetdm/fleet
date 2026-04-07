@@ -1,0 +1,176 @@
+name: Product & Engineering Handbook Weekly Summary
+
+on:
+  workflow_dispatch: # Manual trigger only for now; add schedule later
+
+permissions:
+  contents: read
+  models: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
+
+      - name: Collect handbook diffs
+        id: diffs
+        run: |
+          SINCE_DATE=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-7d '+%Y-%m-%d')
+          echo "since_date=$SINCE_DATE" >> "$GITHUB_OUTPUT"
+
+          HANDBOOK_PATHS="handbook/engineering/ handbook/product-design/"
+
+          # Get commit log for the period
+          COMMITS=$(git log --since="$SINCE_DATE" --pretty=format:'- %h %s (%an, %as)' -- $HANDBOOK_PATHS)
+
+          if [ -z "$COMMITS" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No handbook changes in the last 7 days."
+            exit 0
+          fi
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+          # Get the diff
+          FIRST_COMMIT=$(git log --since="$SINCE_DATE" --reverse --pretty=format:'%H' -- $HANDBOOK_PATHS | head -1)
+          DIFF=$(git diff "${FIRST_COMMIT}^..HEAD" -- $HANDBOOK_PATHS 2>/dev/null || git diff "${FIRST_COMMIT}..HEAD" -- $HANDBOOK_PATHS)
+
+          # Truncate diff to ~80K chars to stay within model context limits
+          DIFF=$(echo "$DIFF" | head -c 80000)
+
+          # Write to files for next steps
+          echo "$COMMITS" > /tmp/commits.txt
+          echo "$DIFF" > /tmp/diff.txt
+
+      - name: Summarize with AI
+        if: steps.diffs.outputs.has_changes == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SINCE_DATE: ${{ steps.diffs.outputs.since_date }}
+        run: |
+          COMMITS=$(cat /tmp/commits.txt)
+          DIFF=$(cat /tmp/diff.txt)
+
+          # Build the prompt
+          PROMPT="You are summarizing changes to a company handbook for a Slack post.
+
+          Below are the commits and diffs made to the Product Design and Engineering sections of the Fleet handbook in the past week (since ${SINCE_DATE}).
+
+          COMMITS:
+          ${COMMITS}
+
+          DIFF:
+          ${DIFF}
+
+          Write a concise, well-organized summary suitable for posting in Slack. Format it using Slack mrkdwn syntax (use *bold* not **bold**, use • for bullets).
+          Group changes by section (Engineering vs Product Design) if both have changes.
+          Focus on WHAT changed and WHY it matters — skip trivial whitespace or formatting-only changes.
+          Keep it under 3000 characters. Do not include a greeting or sign-off."
+
+          # Call GitHub Models API (OpenAI-compatible endpoint, no extra secrets needed)
+          RESPONSE=$(jq -n --arg prompt "$PROMPT" \
+            '{
+              "model": "openai/gpt-4.1",
+              "max_tokens": 1024,
+              "messages": [{"role": "user", "content": $prompt}]
+            }' | curl -sf -L -X POST "https://models.github.ai/inference/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d @-)
+
+          # Extract the text content (OpenAI-compatible response format)
+          SUMMARY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+          if [ -z "$SUMMARY" ]; then
+            echo "::error::Failed to get summary from GitHub Models API"
+            echo "$RESPONSE" | jq . || echo "$RESPONSE"
+            exit 1
+          fi
+
+          echo "$SUMMARY" > /tmp/summary.txt
+
+      - name: Post summary to Slack
+        if: steps.diffs.outputs.has_changes == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL }}
+          SINCE_DATE: ${{ steps.diffs.outputs.since_date }}
+        run: |
+          SUMMARY=$(cat /tmp/summary.txt)
+
+          # Build Slack Block Kit payload with jq for safe JSON escaping
+          jq -n --arg since "$SINCE_DATE" --arg summary "$SUMMARY" \
+            '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "📋 Product & Engineering Handbook Weekly Summary",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": ("Changes since " + $since)
+                    }
+                  ]
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": $summary
+                  }
+                }
+              ]
+            }' | curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d @-
+
+      - name: Post no-changes notice to Slack
+        if: steps.diffs.outputs.has_changes == 'false'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL }}
+        run: |
+          jq -n '{
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "📋 Product & Engineering Handbook Weekly Summary",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "No changes to the Product Design or Engineering handbook sections this week. 🎉"
+                }
+              }
+            ]
+          }' | curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d @-
