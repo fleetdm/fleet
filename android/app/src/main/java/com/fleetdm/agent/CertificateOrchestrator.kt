@@ -858,6 +858,13 @@ class CertificateOrchestrator(
             val dpm = context.getSystemService(DevicePolicyManager::class.java)
                 ?: error("DevicePolicyManager not available")
 
+            // Defensive check: verify delegation is present before consuming the certificate. The worker-level gate
+            // should catch this earlier, but this protects against code paths that skip the worker.
+            val scopes = dpm.getDelegatedScopes(null, context.packageName)
+            if (!scopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL)) {
+                error("CERT_INSTALL delegation not granted to ${context.packageName}, current scopes: $scopes")
+            }
+
             // The admin component is null because the caller is a DELEGATED application,
             // not the Device Policy Controller itself. The DPM recognizes the delegation
             // via the calling package's UID and the granted CERT_INSTALL scope.
@@ -872,7 +879,7 @@ class CertificateOrchestrator(
             if (success) {
                 Log.i(TAG, "Certificate successfully installed with alias: $alias")
             } else {
-                FleetLog.e(TAG, "Certificate installation failed. Check MDM policy and delegation status.")
+                FleetLog.e(TAG, "Certificate installation failed for alias '$alias': installKeyPair returned false")
             }
 
             return success
