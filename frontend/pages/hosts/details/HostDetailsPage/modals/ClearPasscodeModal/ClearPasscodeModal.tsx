@@ -21,7 +21,6 @@ const ClearPasscodeModal = ({ id, onExit }: IClearPasscodeModalProps) => {
     setIsClearingPasscode(true);
     try {
       await hostAPI.clearPasscode(id);
-      onExit();
       renderFlash(
         "success",
         "Successfully sent request to clear passcode on this host."
@@ -31,9 +30,10 @@ const ClearPasscodeModal = ({ id, onExit }: IClearPasscodeModalProps) => {
         "error",
         "Couldn't send request to clear passcode on this host. Please try again."
       );
+    } finally {
+      onExit();
+      setIsClearingPasscode(false);
     }
-    onExit();
-    setIsClearingPasscode(false);
   };
 
   const renderModalContent = () => {

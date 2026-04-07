@@ -1974,9 +1974,9 @@ describe("Host Actions Dropdown", () => {
       expect(option).toBeInTheDocument();
       expect(option).toHaveAttribute("aria-disabled", "true");
 
-      user.hover(option);
+      await user.hover(option);
 
-      waitFor(() => {
+      await waitFor(() => {
         expect(
           screen.getByText(
             /Clear passcode is unavailable while host is pending wipe./i

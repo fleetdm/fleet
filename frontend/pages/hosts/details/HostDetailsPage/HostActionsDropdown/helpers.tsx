@@ -340,7 +340,7 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
 
   if (
     config.hostMdmEnrollmentStatus !== "On (company-owned)" &&
-    config.hostMdmEnrollmentStatus !== "On (automatic)" && // Not sure why we have both company-owned and automatic types
+    config.hostMdmEnrollmentStatus !== "On (automatic)" &&
     config.hostMdmEnrollmentStatus !== "On (manual)"
   ) {
     return false;
