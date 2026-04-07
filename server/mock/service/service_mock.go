@@ -812,6 +812,8 @@ type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, er
 
 type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
 
+type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error)
+
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
@@ -2094,6 +2096,9 @@ type Service struct {
 
 	WipeHostFunc        WipeHostFunc
 	WipeHostFuncInvoked bool
+
+	ClearPasscodeFunc        ClearPasscodeFunc
+	ClearPasscodeFuncInvoked bool
 
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
@@ -5009,6 +5014,13 @@ func (s *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDM
 	s.WipeHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.WipeHostFunc(ctx, hostID, metadata)
+}
+
+func (s *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
+	s.mu.Lock()
+	s.ClearPasscodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearPasscodeFunc(ctx, hostID)
 }
 
 func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
