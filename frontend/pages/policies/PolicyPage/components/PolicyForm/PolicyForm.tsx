@@ -729,7 +729,10 @@ const PolicyForm = ({
               gitOpsModeEnabled={!!gitOpsModeEnabled}
             />
           )}
-          {isEditMode && isPremiumTier && !isPatchPolicy && renderCriticalPolicy()}
+          {isEditMode &&
+            isPremiumTier &&
+            !isPatchPolicy &&
+            renderCriticalPolicy()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
@@ -814,8 +817,7 @@ const PolicyForm = ({
                 )
               }
               disableTooltip={
-                (!isEditMode || isAnyPlatformSelected) &&
-                !disabledLiveQuery
+                (!isEditMode || isAnyPlatformSelected) && !disabledLiveQuery
               }
               underline={false}
               showArrow
