@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
+import { noop } from "lodash";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -10,6 +11,7 @@ import { ILabelPolicy } from "interfaces/label";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
 import globalPoliciesAPI from "services/entities/global_policies";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
@@ -25,6 +27,7 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import PolicyAutomations from "pages/policies/PolicyPage/components/PolicyAutomations";
 
 interface IPolicyDetailsPageProps {
   router: InjectedRouter;
@@ -50,6 +53,9 @@ const PolicyDetailsPage = ({
     currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalObserver,
+    isGlobalTechnician,
+    isOnGlobalTeam,
     config,
     currentTeam,
   } = useContext(AppContext);
@@ -76,6 +82,7 @@ const PolicyDetailsPage = ({
     isRouteOk,
     teamIdForApi,
     isTeamMaintainerOrTeamAdmin,
+    isTeamTechnician,
     isObserverPlus,
   } = useTeamIdParam({
     location,
@@ -130,6 +137,30 @@ const PolicyDetailsPage = ({
     onError: (error) => handlePageError(error),
   });
 
+  const { data: teamData } = useQuery<ILoadTeamResponse>(
+    ["team", teamIdForApi],
+    () => teamsAPI.load(teamIdForApi as number),
+    {
+      enabled: !!teamIdForApi && teamIdForApi > 0,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  let currentAutomatedPolicies: number[] = [];
+  if (teamData?.team) {
+    const {
+      webhook_settings: { failing_policies_webhook: webhook },
+      integrations,
+    } = teamData.team;
+    const isIntegrationEnabled =
+      (integrations?.jira?.some((j: any) => j.enable_failing_policies) ||
+        integrations?.zendesk?.some((z: any) => z.enable_failing_policies)) ??
+      false;
+    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
+      currentAutomatedPolicies = webhook?.policy_ids || [];
+    }
+  }
+
   useEffect(() => {
     if (storedPolicy?.name) {
       document.title = `${storedPolicy.name} | Policies | ${DOCUMENT_TITLE_SUFFIX}`;
@@ -138,10 +169,20 @@ const PolicyDetailsPage = ({
     }
   }, [location.pathname, storedPolicy?.name]);
 
-  const canEditPolicy =
-    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+  const isInheritedPolicy = storedPolicy?.team_id === null;
 
-  const canRunPolicy = canEditPolicy || isObserverPlus;
+  const canEditPolicy =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin) &&
+    // Team users cannot edit inherited (global) policies
+    !(isInheritedPolicy && !isOnGlobalTeam);
+
+  const canRunPolicy =
+    isObserverPlus ||
+    isTeamMaintainerOrTeamAdmin ||
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isGlobalTechnician ||
+    isTeamTechnician;
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
@@ -281,9 +322,12 @@ const PolicyDetailsPage = ({
                     onClick={() => {
                       policyId &&
                         router.push(
-                          getPathWithQueryParams(PATHS.EDIT_POLICY(policyId), {
-                            team_id: teamIdForApi,
-                          })
+                          `${getPathWithQueryParams(
+                            PATHS.EDIT_POLICY(policyId),
+                            {
+                              team_id: teamIdForApi,
+                            }
+                          )}#targets`
                         );
                     }}
                     disabled={!!disabledLiveQuery}
@@ -332,6 +376,15 @@ const PolicyDetailsPage = ({
             )}
             {renderPlatforms()}
             {renderLabels()}
+            {storedPolicy && (
+              <PolicyAutomations
+                storedPolicy={storedPolicy}
+                currentAutomatedPolicies={currentAutomatedPolicies}
+                onAddAutomation={noop}
+                isAddingAutomation={false}
+                gitOpsModeEnabled={false}
+              />
+            )}
           </>
         )}
       </>
