@@ -96,22 +96,25 @@
 // ---------------------------------------------------------------------------
 body.dark-mode {
   // Branding — text lightens, backgrounds darken
+  // Surface hierarchy (darkest → lightest):
+  //   Base #181a1f → Surface-0 #1e2128 → Surface-1 #252830
+  //   → Surface-2 #32363e → Surface-3 #42464f
   --core-fleet-black: #e2e4ea;
   --core-fleet-green: #009a7d;
-  --core-fleet-white: #111214;
+  --core-fleet-white: #181a1f;
   --ui-fleet-black-75: #b3b6c1;
   --ui-fleet-black-50: #8b8fa2;
   --ui-fleet-black-33: #636777;
-  --ui-fleet-black-25: #3d4047;
-  --ui-fleet-black-10: #2e3035;
-  --ui-fleet-black-5: #1e2024;
+  --ui-fleet-black-25: #42464f;
+  --ui-fleet-black-10: #32363e;
+  --ui-fleet-black-5: #252830;
 
   // Secondary / interaction
   --ui-fleet-black-75-over: #c5c7d1;
   --ui-fleet-black-75-down: #d5d7de;
   --core-fleet-green-over: #01a889;
   --core-fleet-green-down: #02be9c;
-  --ui-fleet-black-5-down: #252729;
+  --ui-fleet-black-5-down: #2c2f37;
 
   // Core accent — slightly brighter for dark-bg contrast
   --core-fleet-blue: #6a6f8a;
@@ -119,20 +122,20 @@ body.dark-mode {
   --core-vibrant-red: #ff7a9a;
   --core-fleet-purple: #c08ae8;
   --core-dark-blue-grey: #6e8eaf;
-  --site-nav-on-hover: #1e2024;
+  --site-nav-on-hover: #252830;
 
   // UI
-  --ui-fleet-blue-10: #161819;
+  --ui-fleet-blue-10: #1e2128;
   --ui-dark-blue-gray: #4a5560;
-  --ui-blue-gray: #2a2d33;
-  --ui-gray: #2e3035;
-  --ui-light-grey: #161819;
-  --ui-off-white: #161819;
-  --ui-shadow: #0a0b0d;
+  --ui-blue-gray: #2d313a;
+  --ui-gray: #32363e;
+  --ui-light-grey: #1e2128;
+  --ui-off-white: #1e2128;
+  --ui-shadow: #0e1014;
   --ui-vibrant-blue-50: rgba(123, 121, 255, 0.3);
-  --ui-vibrant-blue-25: #252430;
-  --ui-vibrant-blue-10: #1a1b24;
-  --tooltip-bg: #2e3035;
+  --ui-vibrant-blue-25: #282736;
+  --ui-vibrant-blue-10: #1e1f2a;
+  --tooltip-bg: #353940;
 
   // Notifications & status — slightly brighter
   --ui-offline: #8b8fa2;
@@ -140,16 +143,16 @@ body.dark-mode {
   --ui-warning: #f0ca5e;
   --ui-error: #e07888;
   --ui-info: #7b79ff;
-  --ui-yellow-banner: #2a2518;
-  --ui-yellow-banner-outline: #4a3d20;
+  --ui-yellow-banner: #2e291d;
+  --ui-yellow-banner-outline: #4e4125;
 
   // TS COLORS aliases
   --core-fleet-red: #ff7a9a;
   --ui-blue-hover: #8c8aff;
   --ui-blue-pressed: #6b69d9;
   --ui-blue-50: rgba(123, 121, 255, 0.3);
-  --ui-blue-25: #252430;
-  --ui-blue-10: #1a1b24;
+  --ui-blue-25: #282736;
+  --ui-blue-10: #1e1f2a;
   --status-success: #4dc98b;
   --status-warning: #f0ca5e;
   --status-error: #e07888;
@@ -159,8 +162,8 @@ body.dark-mode {
   --rainbow-green: #75d455;
   --rainbow-blue: #70bbea;
 
-  // Gradients — slightly lighter top for subtle depth, matching light mode's feel
-  --gradient-background: #161819;
+  // Gradients — slightly lighter top for subtle depth
+  --gradient-background: #1c1f25;
 
   // Button hover / active
   --core-vibrant-red-over: #ff8da5;
@@ -175,7 +178,7 @@ body.dark-mode {
   // Overlays
   --core-fleet-black-overlay-40: rgba(0, 0, 0, 0.6);
   --core-fleet-black-overlay-05: rgba(226, 228, 234, 0.06);
-  --loading-overlay: rgba(17, 18, 20, 0.8);
+  --loading-overlay: rgba(24, 26, 31, 0.8);
 }
 
 // =============================================================================
