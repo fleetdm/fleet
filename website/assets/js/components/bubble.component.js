@@ -22,8 +22,8 @@ parasails.registerComponent('bubble', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
     return {
-      rawType: this.type.replace(/\?$/, '').toLowerCase(),
-      isUncertain: this.type.match(/\?$/g) ? true : false,
+      rawType: this.type ? this.type.replace(/\?$/, '').toLowerCase() : '',
+      isUncertain: this.type ? this.type.match(/\?$/g) ? true : false : '',
     };
   },
 
