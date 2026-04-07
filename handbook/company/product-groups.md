@@ -160,6 +160,32 @@ Items to cover in the section:
 - Who is involved. This should include who the DRI is.
 - Timeline. When will the working group start? When do we think we'll be done by?
 
+
+### Continuous flow
+
+Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. With AI-augmented engineering, well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, stories flow continuously from "in drafting" to "in progress" to "in QA" to "ready for release."
+
+#### Weekly planning
+
+Each working group holds a weekly planning session where the group and [HPD](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) review what's done, what's in progress, and what's next. There is no formal sprint boundary, sprint commitment, or velocity tracking.
+
+#### What is the same
+
+- **3-week release cadence**: Planning is decoupled from the release boundary.
+- **Daily standups**: These remain important for staying in sync and getting unblocked quickly.
+- **Release retrospectives**: These become even more important as we calibrate a new way of working.
+
+#### Drafting tracks
+
+Working groups use two drafting tracks. Default to fast draft and escalate to full draft only when there is genuine design ambiguity or customer-facing risk. The HPD makes this call. Lower-stakes issues are a good opportunity for Product Designers to develop decision-making capabilities as that becomes a scarce resource.
+
+**Full draft** is for significant new features, architectural changes, and customer deliverables. Issues go through the [drafting board](https://github.com/orgs/fleetdm/projects/67) and keep the product checklist, user story review, and engineering checklist. Target one week from prioritization to implementation-ready.
+
+**Fast draft** is for bug fixes, improvements, well-understood patterns, and internal tooling. Once prioritized as ready, the issue goes straight to the working group's board. The Product Designer picks it up, moves it into the "In drafting" column, and collaborates with the team on what product design guidance is needed to implement the change. This may require Figma wireframes, a quick sketch, or a bulleted list of changes. Increasingly, the team may decide to draft changes by discussing them, implementing different options into the product, and choosing the best one. 
+
+> Fast draft items still receive review from appropriate stakeholders like the HPD and CTO before they ship, but review happens in the [weekly planning session](#weekly-planning), after implementation.
+
+
 ### Website group
 
 The goal of the website group is to increase and exceed Fleet's product maturity goals for fleetdm.com.
@@ -171,7 +197,7 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 | Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Software Engineer                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this working group is `#g-website`.
 
 
 ### First Impressions group
@@ -185,7 +211,7 @@ The goal of the First Impressions working group is to make changes to the core F
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
 | Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this working group is `#g-first-impressions`.
 
 
 ### Power to the PC group
@@ -200,6 +226,7 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
 | Software Engineer                 | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
 
+> The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this working group is `#g-power-to-pc`.
 
 <!--
 Example working group section
@@ -298,7 +325,6 @@ cd website
 The goal of drafting is to deliver software that works every time with less total effort and investment, without making contribution any less fun.  By researching and iterating [prior to development](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach), we design better product features, crystallize fewer bad, preemptive naming decisions, and achieve better throughput: getting more done in less time.
 
 > Fleet's drafting process is focused first and foremost on product development, but it can be used for any kind of change that benefits from planning or a "dry run".  For example, imagine you work for a business who has decided to swap out one of your payroll or device management vendors.  You will probably need to plan and execute changes to a number of complicated onboarding/offboarding processes.
-
 
 #### Drafting process
 
