@@ -17,12 +17,6 @@ type APIEndpoint struct {
 	NormalizedPath string `json:"-"`
 }
 
-// AuthzType implements authz.AuthzTyper so the Rego policy can match on
-// object.type == "api_endpoint".
-func (e APIEndpoint) AuthzType() string {
-	return "api_endpoint"
-}
-
 var validHTTPMethods = map[string]struct{}{
 	http.MethodGet:    {},
 	http.MethodPost:   {},

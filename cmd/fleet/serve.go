@@ -2202,7 +2202,7 @@ func validateAPIEndpoints(h http.Handler, endpoints []fleet.APIEndpoint) error {
 		return fmt.Errorf("expected *mux.Router, got %T", h)
 	}
 
-	registered := make(map[string]string) // path -> method
+	registered := make(map[string]struct{}) // "METHOD normalized_path" -> present
 	_ = r.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		tpl, err := route.GetPathTemplate()
 		if err != nil {
@@ -2216,22 +2216,15 @@ func validateAPIEndpoints(h http.Handler, endpoints []fleet.APIEndpoint) error {
 			versionSegmentRe.ReplaceAllString(tpl, "/_version_/"),
 		)
 		for _, m := range meths {
-			registered[normalized] = m
+			registered[strings.ToUpper(m)+" "+normalized] = struct{}{}
 		}
 		return nil
 	})
 
 	var missing []string
 	for _, e := range endpoints {
-		var seen bool
-		for p, m := range registered {
-			if strings.EqualFold(m, e.Method) &&
-				strings.EqualFold(p, e.NormalizedPath) {
-				seen = true
-				break
-			}
-		}
-		if !seen {
+		key := e.Method + " " + e.NormalizedPath // Method is already uppercased by Normalize()
+		if _, ok := registered[key]; !ok {
 			missing = append(missing, e.Method+" "+e.Path)
 		}
 	}

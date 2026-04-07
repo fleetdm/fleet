@@ -2979,13 +2979,12 @@ CREATE TABLE `user_api_endpoints` (
   `user_id` int unsigned NOT NULL,
   `path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `method` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `is_allowed` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `created_by_id` int unsigned DEFAULT NULL,
+  `author_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`user_id`,`path`,`method`),
-  KEY `created_by_id` (`created_by_id`),
+  KEY `author_id` (`author_id`),
   CONSTRAINT `user_api_endpoints_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `user_api_endpoints_ibfk_2` FOREIGN KEY (`created_by_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  CONSTRAINT `user_api_endpoints_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
