@@ -45,9 +45,17 @@ jobs:
 
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
 
-          # Get the diff
+          # Get the diff. Use FIRST_COMMIT^ as the base when possible;
+          # fall back to diffing against the empty tree if the commit has no
+          # parent (root commit) or is HEAD itself.
           FIRST_COMMIT=$(git log --since="$SINCE_DATE" --reverse --pretty=format:'%H' -- $HANDBOOK_PATHS | head -1)
-          DIFF=$(git diff "${FIRST_COMMIT}^..HEAD" -- $HANDBOOK_PATHS 2>/dev/null || git diff "${FIRST_COMMIT}..HEAD" -- $HANDBOOK_PATHS)
+          EMPTY_TREE=$(git hash-object -t tree /dev/null)
+          if git rev-parse "${FIRST_COMMIT}^" >/dev/null 2>&1; then
+            DIFF_BASE="${FIRST_COMMIT}^"
+          else
+            DIFF_BASE="$EMPTY_TREE"
+          fi
+          DIFF=$(git diff "${DIFF_BASE}..HEAD" -- $HANDBOOK_PATHS)
 
           # Truncate diff to ~80K chars to stay within model context limits
           DIFF=$(echo "$DIFF" | head -c 80000)
