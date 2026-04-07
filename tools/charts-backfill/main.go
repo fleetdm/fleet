@@ -50,7 +50,7 @@ func main() {
 			log.Fatalf("invalid start-date %q: %v", *startDate, err)
 		}
 	} else {
-		start = time.Now().AddDate(0, 0, -*days)
+		start = time.Now().AddDate(0, 0, -(*days - 1))
 	}
 
 	// Determine host IDs.
@@ -128,7 +128,7 @@ func generateBitmap(dataset string) uint32 {
 	switch dataset {
 	case "uptime":
 		// Uptime: 80-95% of hours have the bit set (host is online most of the time).
-		return randomBitmapWithDensity(0.80, 0.95)
+		return randomBitmapWithDensity(0.75, 0.95)
 	case "policy":
 		// Policy failure: only 5-20% of hosts fail, and failures are sparse across hours.
 		// First decide if this host fails at all.
