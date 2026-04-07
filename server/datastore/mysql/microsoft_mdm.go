@@ -1053,7 +1053,8 @@ SELECT
 		ELSE ''
 	END AS status,
 	COALESCE(client_error, '') as detail,
-	hd.bitlocker_protection_status
+	hd.bitlocker_protection_status,
+	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
@@ -1076,6 +1077,7 @@ WHERE
 		Status           fleet.DiskEncryptionStatus `db:"status"`
 		Detail           string                     `db:"detail"`
 		ProtectionStatus *int32                     `db:"bitlocker_protection_status"`
+		TpmPinSet        bool                       `db:"tpm_pin_set"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
 		if err != sql.ErrNoRows {
@@ -1094,11 +1096,19 @@ WHERE
 		dest.Status = fleet.DiskEncryptionFailed
 	}
 
-	// When action_required is due to protection being off (not a PIN issue),
-	// provide a meaningful detail message for the admin.
-	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" &&
-		dest.ProtectionStatus != nil && *dest.ProtectionStatus == 0 {
-		dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
+	// Build a meaningful detail message for action_required when there's no client error.
+	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
+		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == 0
+		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
+
+		switch {
+		case protectionOff && pinMissing:
+			dest.Detail = "BitLocker protection is off and a required startup PIN is not set. The disk is encrypted but the TPM protector is not active, and a BitLocker PIN must be configured."
+		case protectionOff:
+			dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
+		case pinMissing:
+			dest.Detail = "A required BitLocker startup PIN is not set. The disk is encrypted but a PIN must be configured for compliance."
+		}
 	}
 
 	return &fleet.HostMDMDiskEncryption{
