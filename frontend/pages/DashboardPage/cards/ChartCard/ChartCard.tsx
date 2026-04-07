@@ -1,14 +1,5 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "react-query";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { format, parseISO } from "date-fns";
 import { SingleValue } from "react-select-5";
 
@@ -26,6 +17,9 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import Icon from "components/Icon";
 
 import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
+import LineChartViz from "./LineChartViz";
+import CheckerboardViz from "./CheckerboardViz";
+import { IDataSet, IFormattedDataPoint } from "./types";
 
 const baseClass = "chart-card";
 
@@ -36,29 +30,31 @@ const DAYS_OPTIONS: CustomOptionType[] = [
   { label: "Last 30 days", value: "30" },
 ];
 
-interface IDataSet {
-  name: string;
-  label: string;
-  isPercentage: boolean;
-}
-
 const DATASETS: IDataSet[] = [
-  { name: "uptime", label: "Check-in activity", isPercentage: true },
-  { name: "policy", label: "Policy compliance", isPercentage: true },
-  { name: "cve", label: "Vulnerabilities", isPercentage: false },
+  {
+    name: "uptime",
+    label: "Check-in activity",
+    isPercentage: true,
+    defaultChartType: "checkerboard",
+  },
+  {
+    name: "policy",
+    label: "Policy compliance",
+    isPercentage: true,
+    defaultChartType: "line",
+  },
+  {
+    name: "cve",
+    label: "Vulnerabilities",
+    isPercentage: false,
+    defaultChartType: "line",
+  },
 ];
 
 const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
   label: ds.label,
   value: ds.name,
 }));
-
-interface IFormattedDataPoint {
-  timestamp: string;
-  label: string;
-  value: number;
-  percentage: number;
-}
 
 const getDataset = (name: string): IDataSet =>
   DATASETS.find((ds) => ds.name === name) || DATASETS[0];
@@ -72,6 +68,8 @@ const ChartCard = (): JSX.Element => {
     labelIDs: [],
     platforms: [],
   });
+
+  const currentDataset = getDataset(selectedMetric);
 
   const queryParams: IChartRequestParams = useMemo(
     () => ({
@@ -116,49 +114,6 @@ const ChartCard = (): JSX.Element => {
     });
   }, [chartData, selectedDays]);
 
-  const currentDataset = getDataset(selectedMetric);
-
-  const renderTooltip = useCallback(
-    (props: any) => {
-      const { active, payload } = props;
-      if (!active || !payload?.length) return null;
-      const data = payload[0].payload as IFormattedDataPoint;
-      return (
-        <div className={`${baseClass}__tooltip`}>
-          <div className={`${baseClass}__tooltip-label`}>{data.label}</div>
-          <div className={`${baseClass}__tooltip-value`}>
-            {currentDataset.isPercentage
-              ? `${data.percentage}% (${data.value.toLocaleString()} hosts)`
-              : `${data.value.toLocaleString()} hosts`}
-          </div>
-        </div>
-      );
-    },
-    [currentDataset]
-  );
-
-  const formatXAxis = useCallback(
-    (timestamp: string) => {
-      try {
-        const date = parseISO(timestamp);
-        return selectedDays === 1 ? format(date, "ha") : format(date, "MMM d");
-      } catch {
-        return "";
-      }
-    },
-    [selectedDays]
-  );
-
-  const formatYAxisTick = (val: number): string => {
-    if (currentDataset.isPercentage) {
-      return `${val}%`;
-    }
-    if (val >= 1000) {
-      return `${(val / 1000).toFixed(1)}k`;
-    }
-    return String(val);
-  };
-
   const renderChart = () => {
     if (isFetching) {
       return <Spinner includeContainer={false} verticalPadding="small" />;
@@ -174,36 +129,19 @@ const ChartCard = (): JSX.Element => {
       );
     }
 
-    const tickInterval = Math.max(1, Math.floor(formattedData.length / 8));
+    const vizProps = {
+      data: formattedData,
+      selectedDays,
+      isPercentage: currentDataset.isPercentage,
+    };
 
-    return (
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={formattedData}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis
-            dataKey="timestamp"
-            tickFormatter={formatXAxis}
-            interval={tickInterval}
-            tick={{ fontSize: 12 }}
-          />
-          <YAxis
-            tick={{ fontSize: 12 }}
-            width={50}
-            domain={currentDataset.isPercentage ? [0, 100] : undefined}
-            tickFormatter={formatYAxisTick}
-          />
-          <Tooltip content={renderTooltip} />
-          <Line
-            type="monotone"
-            dataKey={currentDataset.isPercentage ? "percentage" : "value"}
-            stroke="#6A67CE"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    );
+    switch (currentDataset.defaultChartType) {
+      case "checkerboard":
+        return <CheckerboardViz {...vizProps} />;
+      case "line":
+      default:
+        return <LineChartViz {...vizProps} />;
+    }
   };
 
   return (
