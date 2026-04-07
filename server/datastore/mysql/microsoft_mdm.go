@@ -1076,7 +1076,7 @@ WHERE
 	var dest struct {
 		Status           fleet.DiskEncryptionStatus `db:"status"`
 		Detail           string                     `db:"detail"`
-		ProtectionStatus *int32                     `db:"bitlocker_protection_status"`
+		ProtectionStatus *int                       `db:"bitlocker_protection_status"`
 		TpmPinSet        bool                       `db:"tpm_pin_set"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {

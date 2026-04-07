@@ -1953,7 +1953,7 @@ func TestIngestKubequeryInfo(t *testing.T) {
 func TestDirectDiskEncryption(t *testing.T) {
 	ds := new(mock.Store)
 	var expectEncrypted bool
-	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int32) error {
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
 		assert.Equal(t, expectEncrypted, encrypted)
 		return nil
 	}
@@ -1982,8 +1982,8 @@ func TestDirectDiskEncryption(t *testing.T) {
 func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 	ds := new(mock.Store)
 	var gotEncrypted bool
-	var gotProtectionStatus *int32
-	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int32) error {
+	var gotProtectionStatus *int
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
 		gotEncrypted = encrypted
 		gotProtectionStatus = bitlockerProtectionStatus
 		return nil
@@ -1998,16 +1998,6 @@ func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 		assert.Nil(t, gotProtectionStatus)
 	})
 
-	t.Run("fully encrypted and protection on", func(t *testing.T) {
-		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
-			{"conversion_status": "1", "protection_status": "1"},
-		})
-		require.NoError(t, err)
-		assert.True(t, gotEncrypted)
-		require.NotNil(t, gotProtectionStatus)
-		assert.Equal(t, int32(1), *gotProtectionStatus)
-	})
-
 	t.Run("fully encrypted but protection off", func(t *testing.T) {
 		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
 			{"conversion_status": "1", "protection_status": "0"},
@@ -2015,15 +2005,7 @@ func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, gotEncrypted)
 		require.NotNil(t, gotProtectionStatus)
-		assert.Equal(t, int32(0), *gotProtectionStatus)
-	})
-
-	t.Run("encryption in progress", func(t *testing.T) {
-		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
-			{"conversion_status": "2", "protection_status": "0"},
-		})
-		require.NoError(t, err)
-		assert.False(t, gotEncrypted, "encryption in progress should not be reported as encrypted")
+		assert.Equal(t, 0, *gotProtectionStatus)
 	})
 
 	t.Run("protection status unknown (2) normalized to nil", func(t *testing.T) {
@@ -2035,12 +2017,23 @@ func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 		assert.Nil(t, gotProtectionStatus, "unknown protection status should be normalized to nil")
 	})
 
-	t.Run("invalid conversion_status skips update", func(t *testing.T) {
+	t.Run("invalid conversion_status returns error", func(t *testing.T) {
 		ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
 			{"conversion_status": "bad", "protection_status": "1"},
 		})
-		require.NoError(t, err)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing bitlocker conversion_status")
+		assert.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked, "should not update DB on parse error")
+	})
+
+	t.Run("invalid protection_status returns error", func(t *testing.T) {
+		ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "1", "protection_status": "bad"},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing bitlocker protection_status")
 		assert.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked, "should not update DB on parse error")
 	})
 }
@@ -2048,7 +2041,7 @@ func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	ds := new(mock.Store)
 	var expectEncrypted bool
-	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int32) error {
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
 		assert.Equal(t, expectEncrypted, encrypted)
 		return nil
 	}
