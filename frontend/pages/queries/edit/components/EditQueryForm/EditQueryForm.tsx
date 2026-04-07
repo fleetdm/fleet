@@ -194,7 +194,7 @@ const EditQueryForm = ({
     currentTeam,
   } = useContext(AppContext);
 
-  const savedQueryMode = !!queryIdForEdit;
+  const isExistingQuery = !!queryIdForEdit;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
@@ -379,7 +379,7 @@ const EditQueryForm = ({
   const handleSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (savedQueryMode && !lastEditedQueryName) {
+    if (isExistingQuery && !lastEditedQueryName) {
       return setErrors({
         ...errors,
         name: "Report name must be present",
@@ -392,7 +392,7 @@ const EditQueryForm = ({
     const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
 
     if (canSave) {
-      if (!savedQueryMode) {
+      if (!isExistingQuery) {
         platformSelector.setSelectedPlatforms(
           platformCompatibility.getCompatiblePlatforms()
         );
@@ -451,7 +451,7 @@ const EditQueryForm = ({
   };
 
   const renderName = () => {
-    if (savedQueryMode) {
+    if (isExistingQuery) {
       return (
         <GitOpsModeTooltipWrapper
           position="right"
@@ -478,7 +478,7 @@ const EditQueryForm = ({
   };
 
   const renderDescription = () => {
-    if (savedQueryMode) {
+    if (isExistingQuery) {
       return (
         <GitOpsModeTooltipWrapper
           position="right"
@@ -507,7 +507,7 @@ const EditQueryForm = ({
   const renderQueryTeam = () => {
     if (isFreeTier || !currentTeamName) return null;
 
-    if (savedQueryMode) {
+    if (isExistingQuery) {
       return hasSavePermissions ? (
         <p>
           Editing report for <strong>{currentTeamName}</strong>.
@@ -560,7 +560,7 @@ const EditQueryForm = ({
           label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           readOnly={
-            (!isObserverPlus && !isAnyTeamObserverPlus) || savedQueryMode
+            (!isObserverPlus && !isAnyTeamObserverPlus) || isExistingQuery
           }
           labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
@@ -649,7 +649,7 @@ const EditQueryForm = ({
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
-      (savedQueryMode && !platformSelector.isAnyPlatformSelected) ||
+      (isExistingQuery && !platformSelector.isAnyPlatformSelected) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
           return value;
@@ -658,7 +658,7 @@ const EditQueryForm = ({
     return (
       <>
         <form className={baseClass} autoComplete="off">
-          {savedQueryMode ? (
+          {isExistingQuery ? (
             <div className={`${baseClass}__page-header`}>
               <h1 className={`${baseClass}__page-title`}>Edit report</h1>
               {currentTeam && (
@@ -670,10 +670,10 @@ const EditQueryForm = ({
           ) : (
             <div className={`${baseClass}__title-bar`}>{renderName()}</div>
           )}
-          {savedQueryMode && renderName()}
+          {isExistingQuery && renderName()}
           {renderDescription()}
 
-          {savedQueryMode && (
+          {isExistingQuery && (
             <div
               // including `form` class here keeps the children fields subject to the global form
               // children styles
@@ -750,7 +750,7 @@ const EditQueryForm = ({
               >
                 Observers can run
               </Checkbox>
-              {savedQueryMode && platformSelector.render()}
+              {isExistingQuery && platformSelector.render()}
               {isPremiumTier && (
                 <TargetLabelSelector
                   selectedTargetType={selectedTargetType}
@@ -783,10 +783,10 @@ const EditQueryForm = ({
               confirmChanges ? toggleConfirmSaveChangesModal : handleSaveQuery
             }
             wrapEnabled
-            focus={!savedQueryMode}
+            focus={!isExistingQuery}
           />
           {renderPlatformCompatibility()}
-          {savedQueryMode && (
+          {isExistingQuery && (
             <>
               <RevealButton
                 isShowing={showAdvancedOptions}
@@ -830,7 +830,7 @@ const EditQueryForm = ({
           <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
             {hasSavePermissions && (
               <>
-                {savedQueryMode && (
+                {isExistingQuery && (
                   <GitOpsModeTooltipWrapper
                     renderChildren={(disableChildren) => (
                       <Button
