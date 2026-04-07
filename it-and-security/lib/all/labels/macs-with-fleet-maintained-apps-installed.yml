@@ -43,3 +43,8 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop';
   label_membership_type: dynamic
   platform: darwin
+- name: Macs with Firefox installed
+  description: macOS hosts with Firefox installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';
+  label_membership_type: dynamic
+  platform: darwin
