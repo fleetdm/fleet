@@ -11,7 +11,7 @@ func init() {
 
 func Up_20260407185144(tx *sql.Tx) error {
 	// Add variables_updated_at to host_mdm_apple_declarations to track when
-	// variables were last updated for verification logic.
+	// variables last changed so declaration tokens can be regenerated/updated.
 	_, err := tx.Exec(`ALTER TABLE host_mdm_apple_declarations ADD COLUMN variables_updated_at DATETIME(6) DEFAULT NULL`)
 	if err != nil {
 		return fmt.Errorf("adding variables_updated_at to host_mdm_apple_declarations: %w", err)
