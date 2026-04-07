@@ -28256,3 +28256,26 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 	require.Empty(t, listPolResp.Policies)
 }
+
+func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	// unauthenticated request is rejected
+	s.DoRawNoAuth("GET", "/api/latest/fleet/rest_api", nil, http.StatusUnauthorized)
+
+	// global admin can list API endpoints
+	var resp listAPIEndpointsResponse
+	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.ApiEndpoints)
+	require.NotNil(t, resp.Meta)
+	require.Positive(t, resp.Count)
+	require.NoError(t, resp.Err)
+
+	// pagination works: request page 0 with per_page=1
+	var pagedResp listAPIEndpointsResponse
+	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &pagedResp, "per_page", "1", "page", "0")
+	require.Len(t, pagedResp.ApiEndpoints, 1)
+	require.True(t, pagedResp.Meta.HasNextResults)
+	require.False(t, pagedResp.Meta.HasPreviousResults)
+}

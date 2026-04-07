@@ -7587,6 +7587,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "missing or invalid license")
+
+	// list API endpoints requires premium license
+	var listAPIEndpointsResp listAPIEndpointsResponse
+	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusPaymentRequired, &listAPIEndpointsResp)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {

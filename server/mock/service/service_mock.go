@@ -876,6 +876,8 @@ type ListSecretVariablesFunc func(ctx context.Context, opts fleet.ListOptions) (
 
 type DeleteSecretVariableFunc func(ctx context.Context, id uint) error
 
+type ListAPIEndpointsFunc func(ctx context.Context, opts fleet.ListOptions) (endpoints []fleet.APIEndpoint, meta *fleet.PaginationMetadata, count int, err error)
+
 type ScimDetailsFunc func(ctx context.Context) (fleet.ScimDetails, error)
 
 type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, tenantID string) (adminConsentURL string, err error)
@@ -2192,6 +2194,9 @@ type Service struct {
 
 	DeleteSecretVariableFunc        DeleteSecretVariableFunc
 	DeleteSecretVariableFuncInvoked bool
+
+	ListAPIEndpointsFunc        ListAPIEndpointsFunc
+	ListAPIEndpointsFuncInvoked bool
 
 	ScimDetailsFunc        ScimDetailsFunc
 	ScimDetailsFuncInvoked bool
@@ -5238,6 +5243,13 @@ func (s *Service) DeleteSecretVariable(ctx context.Context, id uint) error {
 	s.DeleteSecretVariableFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSecretVariableFunc(ctx, id)
+}
+
+func (s *Service) ListAPIEndpoints(ctx context.Context, opts fleet.ListOptions) (endpoints []fleet.APIEndpoint, meta *fleet.PaginationMetadata, count int, err error) {
+	s.mu.Lock()
+	s.ListAPIEndpointsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAPIEndpointsFunc(ctx, opts)
 }
 
 func (s *Service) ScimDetails(ctx context.Context) (fleet.ScimDetails, error) {

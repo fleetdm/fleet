@@ -1859,6 +1859,8 @@ type MDMWindowsUpdateEnrolledDeviceCredentialsFunc func(ctx context.Context, dev
 
 type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context, deviceId string) error
 
+type ListAPIEndpointsFunc func(ctx context.Context, opts fleet.ListOptions) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error)
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -4613,6 +4615,9 @@ type DataStore struct {
 
 	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc        MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc
 	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked bool
+
+	ListAPIEndpointsFunc        ListAPIEndpointsFunc
+	ListAPIEndpointsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -11041,4 +11046,11 @@ func (s *DataStore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.C
 	s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc(ctx, deviceId)
+}
+
+func (s *DataStore) ListAPIEndpoints(ctx context.Context, opts fleet.ListOptions) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {
+	s.mu.Lock()
+	s.ListAPIEndpointsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAPIEndpointsFunc(ctx, opts)
 }

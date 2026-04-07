@@ -1,111 +1,41 @@
 package service
 
 import (
-	_ "embed"
-	"errors"
-	"fmt"
-	"net/http"
-	"regexp"
-	"strings"
+	"context"
 
-	"github.com/gorilla/mux"
-	"gopkg.in/yaml.v2"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-//go:embed api_endpoints.yml
-var apiEndpointsYAML []byte
+//////////////////////////////////////////////////////////////////////////////////
+// List API endpoints
+//////////////////////////////////////////////////////////////////////////////////
 
-var apiEndpoints = mustParseAPIEndpoints()
-
-// APIEndpoint represents an API endpoint that we can attach permissions to.
-type APIEndpoint struct {
-	Method     string `yaml:"method"`
-	Path       string `yaml:"path"`
-	Name       string `yaml:"name"`
-	Deprecated bool   `yaml:"deprecated"`
+type listAPIEndpointsRequest struct {
+	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
-var validHTTPMethods = map[string]struct{}{
-	http.MethodGet:    {},
-	http.MethodPost:   {},
-	http.MethodPut:    {},
-	http.MethodPatch:  {},
-	http.MethodDelete: {},
+type listAPIEndpointsResponse struct {
+	ApiEndpoints []fleet.APIEndpoint       `json:"api_endpoints"`
+	Meta         *fleet.PaginationMetadata `json:"meta"`
+	Count        int                       `json:"count"`
+	Err          error                     `json:"error,omitempty"`
 }
 
-func (e APIEndpoint) validate() error {
-	if strings.TrimSpace(e.Name) == "" {
-		return errors.New("name is required")
-	}
-	if _, ok := validHTTPMethods[strings.ToUpper(e.Method)]; !ok {
-		return fmt.Errorf("invalid HTTP method %q", e.Method)
-	}
-	if strings.TrimSpace(e.Path) == "" {
-		return errors.New("path is required")
-	}
-	return nil
+func (r listAPIEndpointsResponse) Error() error { return r.Err }
+
+func listAPIEndpointsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listAPIEndpointsRequest)
+	endpoints, meta, count, err := svc.ListAPIEndpoints(ctx, req.ListOptions)
+	return listAPIEndpointsResponse{
+		ApiEndpoints: endpoints,
+		Meta:         meta,
+		Count:        count,
+		Err:          err,
+	}, nil
 }
 
-func mustParseAPIEndpoints() []APIEndpoint {
-	var routes []APIEndpoint
-	if err := yaml.Unmarshal(apiEndpointsYAML, &routes); err != nil {
-		panic(fmt.Sprintf("api_endpoints.yml: failed to parse: %v", err))
-	}
-	for i, r := range routes {
-		if err := r.validate(); err != nil {
-			panic(fmt.Sprintf("api_endpoints.yml: entry %d: %v", i, err))
-		}
-		// Normalise method to upper-case so callers don't have to.
-		routes[i].Method = strings.ToUpper(r.Method)
-	}
-	return routes
-}
-
-// GetAPIEndpoints returns all routes defined in api_endpoints.yml.
-func GetAPIEndpoints() []APIEndpoint {
-	return apiEndpoints
-}
-
-// versionSegmentRe matches the gorilla/mux version segment that attachFleetAPIRoutes
-// inserts in place of /_version_/ (e.g. /{fleetversion:(?:v1|2022-04|latest)}/).
-var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
-
-// ValidateAPIEndpoints checks that every route declared in api_endpoints.yml is
-// registered in h.
-func ValidateAPIEndpoints(h http.Handler) error {
-	r, ok := h.(*mux.Router)
-	if !ok {
-		return fmt.Errorf("expected *mux.Router, got %T", h)
-	}
-
-	registered := make(map[string]struct{})
-	_ = r.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		tpl, err := route.GetPathTemplate()
-		if err != nil {
-			return nil
-		}
-		meths, err := route.GetMethods()
-		if err != nil || len(meths) == 0 {
-			return nil
-		}
-		normalized := versionSegmentRe.ReplaceAllString(tpl, "/_version_/")
-		for _, m := range meths {
-			registered[m+":"+normalized] = struct{}{}
-		}
-		return nil
-	})
-
-	var missing []string
-	for _, route := range GetAPIEndpoints() {
-		key := route.Method + ":" + route.Path
-		if _, ok := registered[key]; !ok {
-			missing = append(missing, route.Method+" "+route.Path)
-		}
-	}
-
-	if len(missing) > 0 {
-		return fmt.Errorf("the following API endpoints are missing: %v", missing)
-	}
-
-	return nil
+func (svc *Service) ListAPIEndpoints(ctx context.Context, opts fleet.ListOptions) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {
+	// skipauth: No authorization check, this is a premium feature only
+	svc.authz.SkipAuthorization(ctx)
+	return nil, nil, 0, fleet.ErrMissingLicense
 }
