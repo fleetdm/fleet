@@ -28254,5 +28254,5 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	// Verify the patch policy was deleted.
 	listPolResp = listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
-	require.Len(t, listPolResp.Policies, 0)
+	require.Empty(t, listPolResp.Policies)
 }
