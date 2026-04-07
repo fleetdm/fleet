@@ -78,7 +78,7 @@ const ChartFilterModal = ({
 
   return (
     <Modal title="Chart filters" onExit={onCancel} className={baseClass}>
-      <div className={`${baseClass}__form`}>
+      <form onSubmit={handleApply}>
         <Dropdown
           label="Labels"
           name="labels"
@@ -113,22 +113,15 @@ const ChartFilterModal = ({
           searchable={false}
           clearable
         />
-      </div>
-      <div className={`${baseClass}__btn-wrap`}>
-        {hasFilters && (
-          <Button variant="text-link" onClick={handleClear}>
-            Clear filters
+        <div className="modal-cta-wrap">
+          <Button variant="default" type="submit">
+            Apply
           </Button>
-        )}
-        <div className={`${baseClass}__btn-actions`}>
           <Button variant="inverse" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="default" onClick={handleApply}>
-            Apply
-          </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 };

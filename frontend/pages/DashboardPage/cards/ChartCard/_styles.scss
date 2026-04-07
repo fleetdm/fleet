@@ -23,24 +23,21 @@
       display: none;
     }
 
-    // Make it look like a heading when idle
+    // Override inline styles from DropdownWrapper to make it look like a heading.
+    // !important is needed because react-select applies inline styles via the
+    // styles prop which always beat class-based selectors.
     .react-select__control {
-      background-color: transparent;
-      border-color: transparent;
-      box-shadow: none;
+      background-color: transparent !important;
+      border-color: transparent !important;
+      box-shadow: none !important;
       padding: 0;
       min-height: auto;
-
-      &:hover {
-        border-color: $ui-fleet-black-10;
-        background-color: $core-fleet-white;
-      }
     }
 
     // When menu is open, show the border
     .react-select__control--menu-is-open {
-      border-color: $ui-fleet-black-10;
-      background-color: $core-fleet-white;
+      border-color: $ui-fleet-black-10 !important;
+      background-color: $core-fleet-white !important;
     }
 
     .react-select__single-value {
