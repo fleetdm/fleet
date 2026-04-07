@@ -40,6 +40,7 @@ type MDMAppleCommandIssuer interface {
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
