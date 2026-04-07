@@ -36,11 +36,22 @@ const DAYS_OPTIONS: CustomOptionType[] = [
   { label: "Last 30 days", value: "30" },
 ];
 
-const CHART_TYPE_OPTIONS: CustomOptionType[] = [
-  { label: "Check-in activity", value: "uptime" },
-  { label: "Policy compliance", value: "policy", isDisabled: true },
-  { label: "Vulnerabilities", value: "cve", isDisabled: true },
+interface IDataSet {
+  name: string;
+  label: string;
+  isPercentage: boolean;
+}
+
+const DATASETS: IDataSet[] = [
+  { name: "uptime", label: "Check-in activity", isPercentage: true },
+  { name: "policy", label: "Policy compliance", isPercentage: true },
+  { name: "cve", label: "Vulnerabilities", isPercentage: false },
 ];
+
+const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
+  label: ds.label,
+  value: ds.name,
+}));
 
 interface IFormattedDataPoint {
   timestamp: string;
@@ -48,6 +59,9 @@ interface IFormattedDataPoint {
   value: number;
   percentage: number;
 }
+
+const getDataset = (name: string): IDataSet =>
+  DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
 const ChartCard = (): JSX.Element => {
   const [selectedDays, setSelectedDays] = useState(7);
@@ -102,19 +116,26 @@ const ChartCard = (): JSX.Element => {
     });
   }, [chartData, selectedDays]);
 
-  const renderTooltip = useCallback((props: any) => {
-    const { active, payload } = props;
-    if (!active || !payload?.length) return null;
-    const data = payload[0].payload as IFormattedDataPoint;
-    return (
-      <div className={`${baseClass}__tooltip`}>
-        <div className={`${baseClass}__tooltip-label`}>{data.label}</div>
-        <div className={`${baseClass}__tooltip-value`}>
-          {data.value.toLocaleString()} hosts ({data.percentage}%)
+  const currentDataset = getDataset(selectedMetric);
+
+  const renderTooltip = useCallback(
+    (props: any) => {
+      const { active, payload } = props;
+      if (!active || !payload?.length) return null;
+      const data = payload[0].payload as IFormattedDataPoint;
+      return (
+        <div className={`${baseClass}__tooltip`}>
+          <div className={`${baseClass}__tooltip-label`}>{data.label}</div>
+          <div className={`${baseClass}__tooltip-value`}>
+            {currentDataset.isPercentage
+              ? `${data.percentage}% (${data.value.toLocaleString()} hosts)`
+              : `${data.value.toLocaleString()} hosts`}
+          </div>
         </div>
-      </div>
-    );
-  }, []);
+      );
+    },
+    [currentDataset]
+  );
 
   const formatXAxis = useCallback(
     (timestamp: string) => {
@@ -158,14 +179,19 @@ const ChartCard = (): JSX.Element => {
           <YAxis
             tick={{ fontSize: 12 }}
             width={50}
+            domain={currentDataset.isPercentage ? [0, 100] : undefined}
             tickFormatter={(val: number) =>
-              val >= 1000 ? `${(val / 1000).toFixed(1)}k` : String(val)
+              currentDataset.isPercentage
+                ? `${val}%`
+                : val >= 1000
+                ? `${(val / 1000).toFixed(1)}k`
+                : String(val)
             }
           />
           <Tooltip content={renderTooltip} />
           <Line
             type="monotone"
-            dataKey="value"
+            dataKey={currentDataset.isPercentage ? "percentage" : "value"}
             stroke="#6A67CE"
             strokeWidth={2}
             dot={false}
@@ -194,15 +220,15 @@ const ChartCard = (): JSX.Element => {
         </div>
         <div className={`${baseClass}__header-right`}>
           <DropdownWrapper
-            name="chart-type"
+            name="dataset"
             value={selectedMetric}
-            options={CHART_TYPE_OPTIONS}
+            options={DATASET_OPTIONS}
             onChange={(option: SingleValue<CustomOptionType>) => {
               if (option) {
                 setSelectedMetric(option.value);
               }
             }}
-            className={`${baseClass}__chart-type-dropdown`}
+            className={`${baseClass}__dataset-dropdown`}
           />
           <button
             type="button"
