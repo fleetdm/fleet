@@ -149,7 +149,7 @@ To see the end user experience on iOS/iPadOS, check out the [iOS video](https://
 
 For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
 
-Retries only happen for custom packages and Fleet-maintained apps. For App Store (VPP) apps, the MDM command to install the app is sent once and either succeeds or fails.
+Retries only happen for custom packages and Fleet-maintained apps. For App Store (VPP) apps, VPP app installs are automatically attempted up to 4 times (1 initial attempt + 3 retries).
 
 #### Stop setup on failed software installs
 
