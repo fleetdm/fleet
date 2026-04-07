@@ -1788,7 +1788,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// fetch host last seen at and last enrolled at times, currently only supported for
 				// Apple platforms
-				mdmLastEnrollment, mdmLastCheckedIn, mdmHardwareAttested, err = svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+				details, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+				if details != nil {
+					mdmLastCheckedIn = details.LastMDMSeenTime
+					mdmLastEnrollment = details.LastMDMEnrollmentTime
+					mdmHardwareAttested = details.HardwareAttested
+				}
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
