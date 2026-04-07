@@ -231,7 +231,7 @@ const SoftwareTable = ({
       orderDirection,
       orderKey,
       // Do not reset page as it creates a race condition with TableContainer's useDeepEffect
-      // Rely on TableContainer's prevPageIndex to reset to 0 when detects additonalQueries changed
+      // Rely on TableContainer's prevPageIndex to reset to 0 when it detects additionalQueries changed
       page: currentPage,
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       ...buildSoftwareFilterQueryParams(value),
