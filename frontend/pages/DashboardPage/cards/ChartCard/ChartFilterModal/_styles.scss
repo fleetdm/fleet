@@ -1,0 +1,20 @@
+.chart-filter-modal {
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    margin-bottom: $pad-xlarge;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__btn-actions {
+    display: flex;
+    gap: $pad-small;
+    margin-left: auto;
+  }
+}
