@@ -221,6 +221,79 @@ func TestSetupExperienceAuth(t *testing.T) {
 	}
 }
 
+func TestIsAllSetupExperienceSoftwareRequired(t *testing.T) {
+	ds := new(mock.Store)
+
+	teamID := uint(1)
+	// Use different values for macOS vs Windows to ensure the correct field is read for each platform.
+	appCfg := &fleet.AppConfig{}
+	appCfg.MDM.MacOSSetup.RequireAllSoftware = true
+	appCfg.MDM.MacOSSetup.RequireAllSoftwareWindows = false
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{
+			ID:   tid,
+			Name: "team",
+			Config: fleet.TeamConfigLite{
+				MDM: fleet.TeamMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						RequireAllSoftware:        false,
+						RequireAllSoftwareWindows: true,
+					},
+				},
+			},
+		}, nil
+	}
+
+	tests := []struct {
+		name     string
+		host     *fleet.Host
+		expected bool
+	}{
+		{
+			name:     "macOS host, no team, reads macOS global config (true)",
+			host:     &fleet.Host{Platform: "darwin"},
+			expected: true,
+		},
+		{
+			name:     "macOS host, with team, reads macOS team config (false)",
+			host:     &fleet.Host{Platform: "darwin", TeamID: &teamID},
+			expected: false,
+		},
+		{
+			name:     "windows host, no team, reads Windows global config (false)",
+			host:     &fleet.Host{Platform: "windows"},
+			expected: false,
+		},
+		{
+			name:     "windows host, with team, reads Windows team config (true)",
+			host:     &fleet.Host{Platform: "windows", TeamID: &teamID},
+			expected: true,
+		},
+		{
+			name:     "linux host returns false",
+			host:     &fleet.Host{Platform: "ubuntu"},
+			expected: false,
+		},
+		{
+			name:     "ios host returns false",
+			host:     &fleet.Host{Platform: "ios"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := isAllSetupExperienceSoftwareRequired(t.Context(), ds, tt.host)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestMaybeUpdateSetupExperience(t *testing.T) {
 	ds := new(mock.Store)
 	// _, ctx := newTestService(t, ds, nil, nil, nil)

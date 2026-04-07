@@ -1,0 +1,121 @@
+name: Sync Maintained Apps Outputs to R2
+
+# Synchronizes ee/maintained-apps/outputs folder to Cloudflare R2 bucket using AWS CLI.
+# Triggers on commits to main that modify files in the outputs directory, or manually via workflow_dispatch.
+
+on:
+  push:
+    branches: [main]
+    paths: ["ee/maintained-apps/outputs/**"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview sync without uploading to R2'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  R2_BUCKET: "maintained-apps"
+
+  AWS_ACCESS_KEY_ID: ${{ secrets.R2_MAINTAINED_APPS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_MAINTAINED_APPS_ACCESS_KEY_SECRET }}
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+
+  AWS_MAX_ATTEMPTS: "10"
+  AWS_RETRY_MODE: standard
+
+  # Dry-run mode: enabled via input OR automatically for non-main branches
+  DRY_RUN: ${{ github.event.inputs.dry_run == 'true' || github.ref != 'refs/heads/main' }}
+
+jobs:
+  sync-to-r2:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Repository
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Verify Source Directory Exists
+        run: |
+          if [ ! -d "./ee/maintained-apps/outputs" ]; then
+            echo "ERROR: Source directory ./ee/maintained-apps/outputs not found!" >&2
+            exit 1
+          fi
+          FILE_COUNT=$(find ./ee/maintained-apps/outputs -type f | wc -l)
+          echo "Found $FILE_COUNT files to sync"
+
+      - name: Sync to R2 Bucket (${{ env.DRY_RUN == 'true' && 'DRY RUN' || 'LIVE' }})
+        run: |
+          set -euo pipefail
+
+          echo "Syncing ee/maintained-apps/outputs → s3://${{ env.R2_BUCKET }}"
+          echo "Endpoint: ${R2_ENDPOINT}"
+          echo "AWS_MAX_ATTEMPTS: ${AWS_MAX_ATTEMPTS}"
+          echo "DRY_RUN: ${DRY_RUN}"
+
+          # Build sync command
+          SYNC_ARGS=(--delete)
+          if [ "${DRY_RUN}" = "true" ]; then
+            SYNC_ARGS+=(--dryrun)
+            echo "🔍 DRY RUN MODE - No files will be uploaded"
+          fi
+
+          aws s3 sync "${SYNC_ARGS[@]}" \
+            ./ee/maintained-apps/outputs \
+            s3://${{ env.R2_BUCKET }}/manifests \
+            --endpoint-url="${R2_ENDPOINT}" || {
+            EXIT_CODE=$?
+            echo "❌ Sync failed with exit code: $EXIT_CODE" >&2
+            exit $EXIT_CODE
+          }
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "✅ Dry run completed - review output above for files that would be synced"
+          else
+            echo "✅ Sync completed successfully!"
+          fi
+
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": ":rotating_light: R2 Sync Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "fields": [
+                    {"type": "mrkdwn", "text": "*Workflow:* ${{ github.workflow }}"},
+                    {"type": "mrkdwn", "text": "*Commit:* `${{ github.sha }}`"}
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Failed to sync `ee/maintained-apps/outputs` to R2 bucket\n\nView logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

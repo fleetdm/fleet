@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -525,6 +526,7 @@ type MDMAppleSetupPayload struct {
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
 	ManualAgentInstall          *bool `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          *bool `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   *bool `json:"require_all_software_windows"`
 	LockEndUserInfo             *bool `json:"lock_end_user_info"`
 }
 
@@ -674,6 +676,13 @@ type SCEPIdentityAssociation struct {
 	// EnrollmentType is nano_enrollment.type and should be examined to determine
 	// the proper enrollment profile.
 	EnrollmentType string `db:"type"`
+}
+
+type DeviceInfoForACMERenewal struct {
+	HostUUID       string `db:"host_uuid"`
+	HardwareSerial string `db:"hardware_serial"`
+	HardwareModel  string `db:"hardware_model"`
+	OSVersion      string `db:"os_version"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -1037,6 +1046,66 @@ type MDMAppleMachineInfo struct {
 	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
 	UDID                        string `plist:"UDID"`
 	Version                     string `plist:"VERSION"`
+}
+
+// macProductRe matches a macOS model identifier such as "MacBookPro18,3", capturing the
+// alphabetic family prefix (group 1) and the numeric major version (group 2).
+var macProductRe = regexp.MustCompile(`^([A-Za-z]+)(\d+),\d+$`)
+
+// appleSiliconMajorThreshold maps each traditional Mac product family to the first major
+// version number that corresponds to an Apple Silicon model. Any major version equal to or
+// greater than the threshold is Apple Silicon; lower versions are x86.
+var appleSiliconMajorThreshold = map[string]int{
+	// MacBookAir10,1 was the first Apple Silicon MacBook Air (M1, Late 2020).
+	"MacBookAir": 10,
+	// MacBookPro17,1 was the first Apple Silicon MacBook Pro (M1, Late 2020).
+	"MacBookPro": 17,
+	// Macmini9,1 was the first Apple Silicon Mac mini (M1, Late 2020).
+	"Macmini": 9,
+	// iMac21,1 was the first Apple Silicon iMac (M1, Early 2021).
+	"iMac": 21,
+}
+
+// IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
+// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
+// devices like AppleTV will return an error.
+func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
+	if strings.HasPrefix(modelIdentifier, "iPhone") ||
+		strings.HasPrefix(modelIdentifier, "iPod") ||
+		strings.HasPrefix(modelIdentifier, "iPad") {
+		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
+		// error; however, other non-Mac Apple devices like AppleTV will return an error
+		return false, nil
+	}
+
+	matches := macProductRe.FindStringSubmatch(modelIdentifier)
+	if matches == nil {
+		return false, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
+	}
+
+	family := matches[1]
+	major, _ := strconv.Atoi(matches[2])
+
+	// Model identifiers starting with "Mac" immediately followed by a digit (e.g. "Mac13,1")
+	// represent the unified naming scheme Apple adopted for Apple Silicon products such as the
+	// Mac Studio and the M2/M3/M4-era Mac Pro. All such identifiers are Apple Silicon.
+	if family == "Mac" {
+		return true, nil
+	}
+
+	// MacBook (no suffix), iMacPro, and MacPro were all discontinued before Apple Silicon
+	// was introduced; every model in these families is x86.
+	switch family {
+	case "MacBook", "iMacPro", "MacPro":
+		return false, nil
+	}
+
+	threshold, ok := appleSiliconMajorThreshold[family]
+	if !ok {
+		return false, fmt.Errorf("unrecognized Mac product family in identifier: %q", modelIdentifier)
+	}
+
+	return major >= threshold, nil
 }
 
 // MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account

@@ -57,6 +57,8 @@ If you're gifting a company-owned macOS host or you want to prevent the host fro
 
 For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). However, it is possible to use the [doWipe command via the API](https://fleetdm.com/docs/rest-api/rest-api#parameters57).
 
+For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [default fallback behavior documented by Apple](https://developer.apple.com/documentation/devicemanagement/erasedevicecommand/command-data.dictionary#:~:text=devices%20always%20obliterate.-,Default,-%3A%20If%20EACS%20preflight).
+
 ## Unlock a host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to unlock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.

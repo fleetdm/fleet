@@ -1,1 +1,0 @@
-* Prevented a 500 error on the host details page when an MDM command reference in `host_mdm_actions` pointed to a non-existent command (orphan reference).

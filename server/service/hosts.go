@@ -280,8 +280,27 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		if id == nil {
 			id = req.Opts.SoftwareIDFilter
 		}
-		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
-		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software in that case
+
+		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
+		switch {
+		case err == nil:
+			software = sw
+
+		case fleet.IsNotFound(err):
+			// Look for lite summary data as admin
+			systemCtx := viewer.NewSystemContext(ctx)
+			swLite, errLite := svc.SoftwareLiteByID(systemCtx, *id)
+			if errLite != nil && !fleet.IsNotFound(errLite) {
+				return listHostsResponse{Err: errLite}, nil
+			}
+			if errLite == nil {
+				software = &fleet.Software{
+					ID:      *id,
+					Name:    swLite.Name,
+					Version: swLite.Version,
+				}
+			}
+		default:
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -1666,6 +1685,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
+	var mdmHardwareAttested bool
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -1768,7 +1788,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// fetch host last seen at and last enrolled at times, currently only supported for
 				// Apple platforms
-				mdmLastEnrollment, mdmLastCheckedIn, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+				mdmLastEnrollment, mdmLastCheckedIn, mdmHardwareAttested, err = svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
@@ -1840,15 +1860,16 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
 	return &fleet.HostDetail{
-		Host:                      *host,
-		Labels:                    labels,
-		Packs:                     packs,
-		Batteries:                 &bats,
-		MaintenanceWindow:         nextMw,
-		EndUsers:                  endUsers,
-		LastMDMEnrolledAt:         mdmLastEnrollment,
-		LastMDMCheckedInAt:        mdmLastCheckedIn,
-		ConditionalAccessBypassed: conditionalAccessBypassed,
+		Host:                          *host,
+		Labels:                        labels,
+		Packs:                         packs,
+		Batteries:                     &bats,
+		MaintenanceWindow:             nextMw,
+		EndUsers:                      endUsers,
+		LastMDMEnrolledAt:             mdmLastEnrollment,
+		LastMDMCheckedInAt:            mdmLastCheckedIn,
+		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
+		ConditionalAccessBypassed:     conditionalAccessBypassed,
 	}, nil
 }
 

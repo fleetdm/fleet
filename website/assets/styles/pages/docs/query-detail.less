@@ -356,12 +356,18 @@
       background: #F9FAFC;
       border-radius: 0px 0px 4px 4px;
       .ps, .sh {
+        color: #ff5850;
         .hljs-keyword,
         .hljs-selector-tag,
         .hljs-name {
-          color: #AE6DDF;
+          color: #515774;
         }
-
+        .hljs-built_in {
+          color: #4271ae;
+        }
+        .hljs-variable {
+          color: #c82829;
+        }
         .hljs-symbol,
         .hljs-attribute,
         .hljs-function-keyword,
@@ -375,7 +381,6 @@
         .hljs-selector-attr,
         .hljs-selector-pseudo,
         .hljs-addition,
-        .hljs-variable,
         .hljs-template-variable {
           color: #4fd061;
         }
@@ -399,11 +404,15 @@
         font-weight: 400;
         line-height: 150%;
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-          color: #AE6DDF;
+          color: #515774;
         }
         [purpose='line-break']:not(:first-of-type)::before {
           content: '\a';
         }
+        .hljs-operator {
+          color: #3e999f;
+        }
+
         .hljs-attr { // For table and column names
           .hljs-keyword {
             color: #FFF;

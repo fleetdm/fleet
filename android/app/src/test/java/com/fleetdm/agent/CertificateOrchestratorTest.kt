@@ -1291,4 +1291,116 @@ class CertificateOrchestratorTest {
         assertEquals(CertificateStatus.INSTALLED, getStoredCertificates()[1]?.status)
         assertEquals(CertificateStatus.REMOVED_UNREPORTED, getStoredCertificates()[2]?.status)
     }
+
+    @Test
+    fun `enrollCertificate marks locally failed when server template status is failed`() = runTest {
+        val certificateId = 42
+        val uuid = "test-uuid"
+
+        // Arrange: configure API to return a template with status "failed"
+        fakeApiClient.getCertificateTemplateHandler = { certId ->
+            Result.success(
+                CertificateTemplateResult(
+                    template = TestCertificateTemplateFactory.create(
+                        id = certId,
+                        name = "cert-failed",
+                        status = "failed",
+                    ),
+                    scepUrl = TestCertificateTemplateFactory.DEFAULT_SCEP_URL,
+                ),
+            )
+        }
+
+        // Act
+        val result = orchestrator.enrollCertificate(context, certificateId, uuid, mockInstaller)
+
+        // Assert: returns PermanentlyFailed
+        assertTrue(
+            "Expected PermanentlyFailed but got: $result",
+            result is CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed,
+        )
+
+        // Assert: local state is FAILED so future runs skip this certificate
+        val stored = getStoredCertificates()
+        assertEquals(CertificateStatus.FAILED, stored[certificateId]?.status)
+        assertEquals(uuid, stored[certificateId]?.uuid)
+
+        // Assert: no SCEP enrollment was attempted
+        assertNull("SCEP client should not have been called", mockScepClient.capturedConfig)
+
+        // Assert: no status update sent to server (server already knows it failed)
+        assertTrue("No status update should be sent", fakeApiClient.updateStatusCalls.isEmpty())
+    }
+
+    @Test
+    fun `non-retryable SCEP failure immediately marks FAILED and reports to server`() = runTest {
+        val certificateId = 50
+        val uuid = "test-uuid"
+
+        // Arrange: SCEP enrollment will throw ScepEnrollmentException (non-retryable)
+        mockScepClient.shouldThrowEnrollmentException = true
+        fakeApiClient.getCertificateTemplateHandler = { certId ->
+            Result.success(
+                CertificateTemplateResult(
+                    template = TestCertificateTemplateFactory.create(id = certId, name = "cert-nonretry", status = "delivered"),
+                    scepUrl = TestCertificateTemplateFactory.DEFAULT_SCEP_URL,
+                ),
+            )
+        }
+
+        // Act
+        val result = orchestrator.enrollCertificate(context, certificateId, uuid, mockInstaller)
+
+        // Assert: returns Failure (non-retryable)
+        assertTrue("Expected Failure but got: $result", result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        assertFalse((result as CertificateEnrollmentHandler.EnrollmentResult.Failure).isRetryable)
+
+        // Assert: immediately marked FAILED locally (no retry attempts)
+        val stored = getStoredCertificates()
+        assertEquals(CertificateStatus.FAILED, stored[certificateId]?.status)
+        assertEquals(uuid, stored[certificateId]?.uuid)
+        assertEquals(0, stored[certificateId]?.retries)
+
+        // Assert: reported FAILED to server exactly once
+        assertEquals(1, fakeApiClient.updateStatusCalls.size)
+        assertEquals(UpdateCertificateStatusStatus.FAILED, fakeApiClient.updateStatusCalls[0].status)
+    }
+
+    @Test
+    fun `retryable SCEP failure increments retries and does not report until max retries`() = runTest {
+        val certificateId = 51
+        val uuid = "test-uuid"
+
+        // Arrange: SCEP enrollment will throw ScepNetworkException (retryable)
+        mockScepClient.shouldThrowNetworkException = true
+        fakeApiClient.getCertificateTemplateHandler = { certId ->
+            Result.success(
+                CertificateTemplateResult(
+                    template = TestCertificateTemplateFactory.create(id = certId, name = "cert-retry", status = "delivered"),
+                    scepUrl = TestCertificateTemplateFactory.DEFAULT_SCEP_URL,
+                ),
+            )
+        }
+
+        // Act: first attempt
+        orchestrator.enrollCertificate(context, certificateId, uuid, mockInstaller)
+
+        // Assert: status is RETRY, not FAILED
+        var stored = getStoredCertificates()
+        assertEquals(CertificateStatus.RETRY, stored[certificateId]?.status)
+        assertEquals(1, stored[certificateId]?.retries)
+        assertEquals(uuid, stored[certificateId]?.uuid)
+        assertTrue("Should not report FAILED yet", fakeApiClient.updateStatusCalls.isEmpty())
+
+        // Act: exhaust remaining retries
+        repeat(MAX_CERT_INSTALL_RETRIES - 1) {
+            orchestrator.enrollCertificate(context, certificateId, uuid, mockInstaller)
+        }
+
+        // Assert: now FAILED and reported to server exactly once
+        stored = getStoredCertificates()
+        assertEquals(CertificateStatus.FAILED, stored[certificateId]?.status)
+        assertEquals(1, fakeApiClient.updateStatusCalls.size)
+        assertEquals(UpdateCertificateStatusStatus.FAILED, fakeApiClient.updateStatusCalls[0].status)
+    }
 }
