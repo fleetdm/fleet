@@ -84,15 +84,19 @@ func main() {
 		var batch []string
 		var args []any
 
-		for _, hostID := range hostIDs {
-			for _, entityID := range entityIDs {
-				bitmap := generateBitmap(*dataset)
-				if bitmap == 0 {
+		for _, entityID := range entityIDs {
+			// Pre-compute bitmaps for all hosts for this day+entity.
+			// The density determines what fraction of hosts are active,
+			// not what fraction of hours each host has set.
+			bitmaps := generateDayBitmaps(*dataset, hostIDs)
+
+			for i, hostID := range hostIDs {
+				if bitmaps[i] == 0 {
 					continue // sparse storage: skip all-zero rows
 				}
 
 				batch = append(batch, "(?, ?, ?, ?, ?)")
-				args = append(args, hostID, *dataset, entityID, dateStr, bitmap)
+				args = append(args, hostID, *dataset, entityID, dateStr, bitmaps[i])
 
 				if len(batch) >= batchSize {
 					if err := insertBatch(db, batch, args); err != nil {
@@ -122,43 +126,38 @@ func main() {
 	log.Printf("done: %d rows inserted/updated in %.1fs", totalRows, time.Since(startTime).Seconds())
 }
 
-// generateBitmap returns a random 24-bit bitmap with a realistic distribution
-// based on the dataset type.
-func generateBitmap(dataset string) uint32 {
+// generateDayBitmaps generates bitmaps for all hosts for a single day. The density
+// controls what fraction of hosts are active for each hour, so e.g. 80% uptime means
+// ~80% of hosts have the bit set for any given hour.
+func generateDayBitmaps(dataset string, hostIDs []uint) []uint32 {
+	bitmaps := make([]uint32, len(hostIDs))
+
+	// Per-hour density: what fraction of hosts should have bit set this hour.
+	var minDensity, maxDensity float64
 	switch dataset {
 	case "uptime":
-		// Uptime: 80-95% of hours have the bit set (host is online most of the time).
-		return randomBitmapWithDensity(0.75, 0.95)
+		minDensity, maxDensity = 0.0, 1.0
 	case "policy":
-		// Policy failure: only 5-20% of hosts fail, and failures are sparse across hours.
-		// First decide if this host fails at all.
-		if rand.Float64() > 0.15 {
-			return 0 // host is compliant — no row needed
-		}
-		return randomBitmapWithDensity(0.3, 0.7)
+		minDensity, maxDensity = 0.05, 0.20
 	case "cve":
-		// CVE vulnerability: ~10-30% of hosts are vulnerable, persistent across hours.
-		if rand.Float64() > 0.25 {
-			return 0
-		}
-		return randomBitmapWithDensity(0.5, 0.9)
+		minDensity, maxDensity = 0.10, 0.30
 	default:
-		// Generic: moderate density.
-		return randomBitmapWithDensity(0.4, 0.8)
+		minDensity, maxDensity = 0.40, 0.80
 	}
-}
 
-// randomBitmapWithDensity returns a 24-bit bitmap where each bit is set with a probability
-// uniformly sampled between minDensity and maxDensity.
-func randomBitmapWithDensity(minDensity, maxDensity float64) uint32 {
-	density := minDensity + rand.Float64()*(maxDensity-minDensity)
-	var bitmap uint32
+	// For each hour, pick a density in the range and select exactly that
+	// many hosts to have the bit set.
+	n := len(hostIDs)
 	for hour := range 24 {
-		if rand.Float64() < density {
-			bitmap |= 1 << hour
+		density := minDensity + rand.Float64()*(maxDensity-minDensity)
+		fmt.Printf("  hour %02d: density=%.2f%%\n", hour, density*100)
+		count := int(float64(n) * density)
+		for _, idx := range rand.Perm(n)[:count] {
+			bitmaps[idx] |= 1 << hour
 		}
 	}
-	return bitmap
+
+	return bitmaps
 }
 
 func insertBatch(db *sql.DB, valueClauses []string, args []any) error {
