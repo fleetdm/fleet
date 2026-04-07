@@ -433,7 +433,12 @@ module.exports = {
                     // ignore content inside of <code> elements.
                     return codeBlock;
                   } else {
-                    return `<bubble type="${bubbleContent}" class="colors"></bubble>`;
+                    let sanitizedType = bubbleContent.trim().replace(/["'`]/g, '');
+                    if (!sanitizedType) {
+                      return match; // ignore bubbles with no text
+                    } else {
+                      return `<bubble type="${sanitizedType}" class="colors"></bubble>`;
+                    }
                   }
                 }
               );// « Replace ((bubble))s (outside of code blocks) with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
