@@ -108,7 +108,6 @@ controls:
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
-  - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/update-1password.yml
@@ -141,11 +140,6 @@ reports:
 software:
   packages:
     # macOS apps
-    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
-      self_service: true
-      display_name: "Mozilla Firefox"
-      categories:
-        - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
@@ -269,6 +263,10 @@ software:
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       setup_experience: true
+      categories:
+        - Browsers
+    - slug: firefox/darwin # Mozilla Firefox for macOS
+      self_service: true
       categories:
         - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
