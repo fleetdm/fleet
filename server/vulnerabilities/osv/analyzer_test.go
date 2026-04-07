@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -475,7 +476,25 @@ func TestMatchSoftwareToOSV(t *testing.T) {
 				},
 			},
 			expected: []fleet.SoftwareVulnerability{
-				{SoftwareID: 1, CVE: "CVE-2024-5555"},
+				{SoftwareID: 1, CVE: "CVE-2024-5555", ResolvedInVersion: ptr.String("2.4.50")},
+			},
+		},
+		{
+			name: "Range-based vulnerability matching with multiple fixed versions",
+			software: []fleet.Software{
+				{ID: 1, Name: "apache2", Version: "2.4.41"},
+			},
+			artifact: &OSVArtifact{
+				Vulnerabilities: map[string][]OSVVulnerability{
+					"apache2": {
+						{CVE: "CVE-2024-5555", Introduced: "2.4.0", Fixed: "2.4.50"},
+						{CVE: "CVE-2024-6666", Introduced: "2.4.10", Fixed: "2.4.48"},
+					},
+				},
+			},
+			expected: []fleet.SoftwareVulnerability{
+				{SoftwareID: 1, CVE: "CVE-2024-5555", ResolvedInVersion: ptr.String("2.4.50")},
+				{SoftwareID: 1, CVE: "CVE-2024-6666", ResolvedInVersion: ptr.String("2.4.48")},
 			},
 		},
 		{
