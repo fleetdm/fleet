@@ -131,7 +131,10 @@ const SoftwareTable = ({
         fleet_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
-        page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        page:
+          changedParam === "pageIndex" || changedParam === "" // Changed param is "" on initial render, so we want to use the page index from the url query for bookmarkability
+            ? newTableQuery.pageIndex
+            : 0,
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       // Only include these filters when not on “All teams”
