@@ -230,7 +230,9 @@ const SoftwareTable = ({
       teamId,
       orderDirection,
       orderKey,
-      page: 0, // resets page index
+      // Do not reset page as it creates a race condition with TableContainer's useDeepEffect
+      // Rely on TableContainer's prevPageIndex to reset to 0 when it detects additionalQueries changed
+      page: currentPage,
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       ...buildSoftwareFilterQueryParams(value),
     };
