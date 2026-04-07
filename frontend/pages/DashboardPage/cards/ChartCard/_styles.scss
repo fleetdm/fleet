@@ -18,14 +18,43 @@
   }
 
   &__days-dropdown {
-    .dropdown-wrapper__label {
+    // Hide the form field label
+    .form-field__label {
       display: none;
     }
 
-    .Select-value-label,
-    .dropdown-wrapper__single-value {
-      font-size: $small;
+    // Make it look like a heading when idle
+    .react-select__control {
+      background-color: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      padding: 0;
+      min-height: auto;
+
+      &:hover {
+        border-color: $ui-fleet-black-10;
+        background-color: $core-fleet-white;
+      }
+    }
+
+    // When menu is open, show the border
+    .react-select__control--menu-is-open {
+      border-color: $ui-fleet-black-10;
+      background-color: $core-fleet-white;
+    }
+
+    .react-select__single-value {
+      font-size: 18px;
       font-weight: $bold;
+      color: $core-fleet-black;
+    }
+
+    .react-select__indicator-separator {
+      display: none;
+    }
+
+    .react-select__value-container {
+      padding: 4px 0 4px 8px;
     }
   }
 
