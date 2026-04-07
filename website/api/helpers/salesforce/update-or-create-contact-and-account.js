@@ -229,6 +229,16 @@ module.exports = {
         pm: 'Paid media (PM)',
         cs: 'Content syndication (CS)',
         em: 'Email marketing (EM)',
+        // "Event" sources:
+        mc: 'Major conference (MC)',
+        rc: 'Regional conference (RC)',
+        le: 'Local event/meetup (LE)',
+        ec: 'Executive community (EC)',
+        fe: 'Field/sales event (FE)',
+        pe: 'Partner event (PE)',
+        se: 'Speaking engagement (SE)',
+        wh: 'Webinar hosted (WH)',
+        ws: 'Webinar sponsored (WS)',
       };
 
       attributionDetails.gclid = marketingAttributionCookie.gclid;
@@ -241,6 +251,10 @@ module.exports = {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
         attributionDetails.campaign = marketingAttributionCookie.campaign;
         attributionDetails.sourceChannel = 'Digital';
+      } else if(['mc', 'rc', 'le', 'ec', 'fe', 'pe', 'se', 'wh', 'ws'].includes(lowerCaseMediumValue)) {
+        // If the medium is set to an "Event" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
+        attributionDetails.campaign = marketingAttributionCookie.campaign;
+        attributionDetails.sourceChannel = 'Event';
       } else {
         // If no medium was provided via utm parameter, set the source channel to "Organic".
         attributionDetails.sourceChannel = 'Organic';
