@@ -288,12 +288,12 @@ software:
       setup_experience: true
       categories:
         - Communication
-    # - slug: zoom/darwin # Zoom for macOS
-    #   self_service: true
-    #   setup_experience: true
-    #   categories:
-    #     - Communication
-    #     - Productivity
+    - slug: zoom/darwin # Zoom for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
+        - Productivity
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
       setup_experience: true
@@ -332,13 +332,13 @@ software:
         - Browsers
       labels_include_any:
         - "x86-based Windows hosts"
-    # - slug: zoom/windows # Zoom for Windows (x86)
-    #   self_service: true
-    #   setup_experience: true
-    #   categories:
-    #     - Communication
-    #   labels_include_any:
-    #     - "x86-based Windows hosts"
+    - slug: zoom/windows # Zoom for Windows (x86)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
       self_service: true
       categories:
