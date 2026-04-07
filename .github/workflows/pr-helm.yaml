@@ -38,7 +38,9 @@ jobs:
     - name: create temp dir
       run: mkdir -p helm-temp
     - name: helm dependency build
-      run: helm dependency build charts/fleet
+      run: |
+        helm repo add valkey https://valkey.io/valkey-helm/
+        helm dependency build charts/fleet
     - name: helm template -- default values
       run: |
         helm template \
