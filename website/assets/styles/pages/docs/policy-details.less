@@ -253,7 +253,7 @@
         font-weight: 400;
         line-height: 150%;
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-          color: #AE6DDF;
+          color: #515774;
         }
         [purpose='line-break']:not(:first-of-type)::before {
           content: '\a';
@@ -273,6 +273,9 @@
           span {
             padding: 0;
           }
+        }
+        .hljs-operator {
+          color: #3e999f;
         }
         .hljs-number {
           color: #f5871f;
@@ -378,9 +381,14 @@
       .hljs-keyword,
       .hljs-selector-tag,
       .hljs-name {
-        color: #AE6DDF;
+        color: #515774;
       }
-
+      .hljs-tag {
+        color: #4271ae;
+        .hljs-name {
+          color: #c82829;
+        }
+      }
       .hljs-symbol,
       .hljs-attribute,
       .hljs-function-keyword,
@@ -457,7 +465,7 @@
 
       &.sql {
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-          color: #AE6DDF;
+          color: #515774;
         }
         .hljs-attr { // For table and column names
           .hljs-keyword {
