@@ -62,7 +62,7 @@ Follow the steps below to connect your Android hosts to enterprise Wi-Fi:
 | `Identity` | Usually the user's email. |
 | `DomainSuffixMatch` | Domain suffix used to verify the RADIUS server's identity. The host checks that the server certificate's SAN DNS name (or CN if no SAN is present) ends with this suffix. |
 | `ClientCertKeyPairAlias` | Name of the certificate you added in Fleet under **Controls > OS settings > Certificates**. |
-| `X509` | Base64-encoded content of the root CA certificate that signed both server and client certificates. Exclude header and footer (`-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`). |
+| `X509` | Base64-encoded content of the root CA certificate that signed the server certificate. Exclude header and footer (`-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`). |
 
 ## See status
 

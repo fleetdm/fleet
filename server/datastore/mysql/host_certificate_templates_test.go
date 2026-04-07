@@ -867,6 +867,14 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivering, *r.Status)
 	}
 
+	// GetCertificateTemplateStatusesByNameForHosts should return delivering for both (non-terminal -> withhold ONC profiles)
+	allCertStatuses, err := ds.GetCertificateTemplateStatusesByNameForHosts(ctx, []string{"android-host"})
+	require.NoError(t, err)
+	certStatuses := allCertStatuses["android-host"]
+	require.Len(t, certStatuses, 2)
+	require.Equal(t, fleet.CertificateTemplateDelivering, certStatuses[setup.template.Name])
+	require.Equal(t, fleet.CertificateTemplateDelivering, certStatuses["Test Cert 2"])
+
 	// Step 4: Transition to delivered (challenges are created on-demand)
 	err = ds.TransitionCertificateTemplatesToDelivered(ctx, "android-host", []uint{setup.template.ID, templateTwo.ID})
 	require.NoError(t, err)
@@ -880,6 +888,14 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, *r.Status)
 		require.Nil(t, r.FleetChallenge) // Challenge not created yet
 	}
+
+	// GetCertificateTemplateStatusesByNameForHosts should return delivered for both (still non-terminal)
+	allCertStatuses, err = ds.GetCertificateTemplateStatusesByNameForHosts(ctx, []string{"android-host"})
+	require.NoError(t, err)
+	certStatuses = allCertStatuses["android-host"]
+	require.Len(t, certStatuses, 2)
+	require.Equal(t, fleet.CertificateTemplateDelivered, certStatuses[setup.template.Name])
+	require.Equal(t, fleet.CertificateTemplateDelivered, certStatuses["Test Cert 2"])
 
 	// Step 5: Create challenges on-demand (simulating device fetch)
 	challenge1, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, "android-host", setup.template.ID)
@@ -904,6 +920,27 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 			require.Equal(t, challenge2, *r.FleetChallenge)
 		}
 	}
+
+	// Step 6: Transition first cert to verified, leave second as delivered.
+	// This tests that GetCertificateTemplateStatusesByNameForHosts returns mixed statuses
+	// and only includes install records.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateVerified, "android-host", setup.template.ID)
+		return err
+	})
+	allCertStatuses, err = ds.GetCertificateTemplateStatusesByNameForHosts(ctx, []string{"android-host"})
+	require.NoError(t, err)
+	certStatuses = allCertStatuses["android-host"]
+	require.Len(t, certStatuses, 2)
+	require.Equal(t, fleet.CertificateTemplateVerified, certStatuses[setup.template.Name])
+	require.Equal(t, fleet.CertificateTemplateDelivered, certStatuses["Test Cert 2"])
+
+	// Nonexistent host returns empty map
+	allCertStatuses, err = ds.GetCertificateTemplateStatusesByNameForHosts(ctx, []string{"no-such-host"})
+	require.NoError(t, err)
+	require.Empty(t, allCertStatuses)
 
 	// Test revert scenario: Create new pending records, transition to delivering, then revert
 	createEnrolledAndroidHost(t, ctx, ds, "revert-test-host", &setup.team.ID)

@@ -1333,6 +1333,10 @@ type Service interface {
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
 
+	// ClearPasscode is a method that clears the passcode on a host, primarily mobile devices.
+	// Not script based, only MDM based.
+	ClearPasscode(ctx context.Context, hostID uint) (*CommandEnqueueResult, error)
+
 	// RotateRecoveryLockPassword rotates the recovery lock password for a macOS host.
 	// This is only available for Apple Silicon Macs that are MDM-enrolled and have
 	// an existing recovery lock password.
