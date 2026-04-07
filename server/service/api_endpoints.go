@@ -33,8 +33,6 @@ var validHTTPMethods = map[string]struct{}{
 	http.MethodDelete: {},
 }
 
-// validate checks that all required fields are present and well-formed.
-// It returns an error describing the first violation found.
 func (e APIEndpoint) validate() error {
 	if strings.TrimSpace(e.Name) == "" {
 		return errors.New("name is required")
@@ -48,7 +46,6 @@ func (e APIEndpoint) validate() error {
 	return nil
 }
 
-// mustParseAPIEndpoints parses and validates api_endpoints.yml.
 func mustParseAPIEndpoints() []APIEndpoint {
 	var routes []APIEndpoint
 	if err := yaml.Unmarshal(apiEndpointsYAML, &routes); err != nil {
@@ -74,14 +71,11 @@ func GetAPIEndpoints() []APIEndpoint {
 var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
 
 // ValidateAPIEndpoints checks that every route declared in api_endpoints.yml is
-// registered in h. It returns (true, nil) on success, or (false, <missing routes>)
-// when one or more routes are absent.
-//
-// It panics if h is not a *mux.Router
-func ValidateAPIEndpoints(h http.Handler) (bool, []string) {
+// registered in h.
+func ValidateAPIEndpoints(h http.Handler) error {
 	r, ok := h.(*mux.Router)
 	if !ok {
-		panic(fmt.Sprintf("ValidateAPIEndpoints: expected *mux.Router, got %T", h))
+		return fmt.Errorf("expected *mux.Router, got %T", h)
 	}
 
 	registered := make(map[string]struct{})
@@ -109,5 +103,9 @@ func ValidateAPIEndpoints(h http.Handler) (bool, []string) {
 		}
 	}
 
-	return len(missing) == 0, missing
+	if len(missing) > 0 {
+		return fmt.Errorf("the following API endpoints are missing: %v", missing)
+	}
+
+	return nil
 }

@@ -81,64 +81,46 @@ func TestValidateAPIEndpoints(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		handler     http.Handler
-		wantOK      bool
-		wantMissing []string
-		wantPanic   string
+		name    string
+		handler http.Handler
+		wantErr string
 	}{
 		{
 			name:    "all routes present",
 			handler: routerWithRoutes(allRoutes),
-			wantOK:  true,
 		},
 		{
 			name:    "no routes registered",
 			handler: mux.NewRouter(),
-			wantOK:  false,
-			wantMissing: func() []string {
-				var s []string
-				for _, r := range allRoutes {
-					s = append(s, r.Method+" "+r.Path)
-				}
-				return s
-			}(),
+			wantErr: "the following API endpoints are missing",
 		},
 		{
-			name:      "non-mux handler panics",
-			handler:   http.NewServeMux(),
-			wantPanic: "ValidateAPIEndpoints: expected *mux.Router, got *http.ServeMux",
+			name:    "non-mux handler returns error",
+			handler: http.NewServeMux(),
+			wantErr: "expected *mux.Router, got *http.ServeMux",
 		},
 	}
 
 	if len(allRoutes) >= 2 {
 		last := allRoutes[len(allRoutes)-1]
 		tests = append(tests, struct {
-			name        string
-			handler     http.Handler
-			wantOK      bool
-			wantMissing []string
-			wantPanic   string
+			name    string
+			handler http.Handler
+			wantErr string
 		}{
-			name:        "last route missing",
-			handler:     routerWithRoutes(allRoutes[:len(allRoutes)-1]),
-			wantOK:      false,
-			wantMissing: []string{last.Method + " " + last.Path},
+			name:    "last route missing",
+			handler: routerWithRoutes(allRoutes[:len(allRoutes)-1]),
+			wantErr: last.Method + " " + last.Path,
 		})
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.wantPanic != "" {
-				require.PanicsWithValue(t, tt.wantPanic, func() { ValidateAPIEndpoints(tt.handler) })
-				return
-			}
-			ok, missing := ValidateAPIEndpoints(tt.handler)
-			require.Equal(t, tt.wantOK, ok)
-			if tt.wantMissing != nil {
-				require.Equal(t, tt.wantMissing, missing)
+			err := ValidateAPIEndpoints(tt.handler)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
 			} else {
-				require.Empty(t, missing)
+				require.ErrorContains(t, err, tt.wantErr)
 			}
 		})
 	}
