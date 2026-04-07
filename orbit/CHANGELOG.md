@@ -1,6 +1,5 @@
 ## Orbit 1.54.0 (Apr 07, 2026)
 
-
 * Fixed orbit crash loop when `updates-metadata.json` has incorrect file permissions by self-healing via `chmod` instead of fatally erroring.
 
 * Improved initial loading state of macOS setup experience when displaying web view UI.
