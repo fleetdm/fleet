@@ -25,6 +25,8 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
 
+import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
+
 const baseClass = "chart-card";
 
 const DAYS_OPTIONS: CustomOptionType[] = [
@@ -51,13 +53,24 @@ const ChartCard = (): JSX.Element => {
   const [selectedDays, setSelectedDays] = useState(7);
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [filterParams, setFilterParams] = useState<IChartRequestParams>({});
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [chartFilters, setChartFilters] = useState<IChartFilterState>({
+    labelIDs: [],
+    platforms: [],
+  });
 
   const queryParams: IChartRequestParams = useMemo(
     () => ({
       ...filterParams,
       days: selectedDays,
+      label_ids: chartFilters.labelIDs.length
+        ? chartFilters.labelIDs.join(",")
+        : undefined,
+      platforms: chartFilters.platforms.length
+        ? chartFilters.platforms.join(",")
+        : undefined,
     }),
-    [filterParams, selectedDays]
+    [filterParams, selectedDays, chartFilters]
   );
 
   const { data: chartData, isFetching, error } = useQuery<
@@ -107,9 +120,7 @@ const ChartCard = (): JSX.Element => {
     (timestamp: string) => {
       try {
         const date = parseISO(timestamp);
-        return selectedDays === 1
-          ? format(date, "ha")
-          : format(date, "MMM d");
+        return selectedDays === 1 ? format(date, "ha") : format(date, "MMM d");
       } catch {
         return "";
       }
@@ -132,10 +143,7 @@ const ChartCard = (): JSX.Element => {
       );
     }
 
-    const tickInterval = Math.max(
-      1,
-      Math.floor(formattedData.length / 8)
-    );
+    const tickInterval = Math.max(1, Math.floor(formattedData.length / 8));
 
     return (
       <ResponsiveContainer width="100%" height={280}>
@@ -199,15 +207,23 @@ const ChartCard = (): JSX.Element => {
           <button
             type="button"
             className={`${baseClass}__settings-btn`}
-            onClick={() => {
-              // TODO: open filter modal
-            }}
+            onClick={() => setShowFilterModal(true)}
           >
             <Icon name="settings" />
           </button>
         </div>
       </div>
       <div className={`${baseClass}__chart-container`}>{renderChart()}</div>
+      {showFilterModal && (
+        <ChartFilterModal
+          filters={chartFilters}
+          onApply={(newFilters) => {
+            setChartFilters(newFilters);
+            setShowFilterModal(false);
+          }}
+          onCancel={() => setShowFilterModal(false)}
+        />
+      )}
     </div>
   );
 };
