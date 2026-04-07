@@ -80,6 +80,7 @@ controls:
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
+    lock_end_user_info: false
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
     deadline:
