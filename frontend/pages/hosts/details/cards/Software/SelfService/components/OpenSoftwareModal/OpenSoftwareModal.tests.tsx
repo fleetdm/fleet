@@ -53,7 +53,7 @@ describe("OpenSoftwareModal", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("calls onExit when Done button is clicked", async () => {
+  it("calls onExit when Close button is clicked", async () => {
     const onExitMock = jest.fn();
     const { user } = renderWithSetup(
       <OpenSoftwareModal

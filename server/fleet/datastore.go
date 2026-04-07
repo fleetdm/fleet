@@ -1430,6 +1430,9 @@ type Datastore interface {
 	// information if a matching row for the host exists.
 	MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
+	// ClearHostEnrolledFromMigration clears the enrolled from migration status of a host
+	ClearHostEnrolledFromMigration(ctx context.Context, hostUUID string) error
+
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
 	// specified team (or no team if teamID is nil).
@@ -1466,7 +1469,7 @@ type Datastore interface {
 
 	// GetNanoMDMEnrollmentDetails returns the time of the most recent enrollment, the most recent
 	// MDM protocol seen time, and whether the enrollment is hardware attested for the host with the given UUID
-	GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error)
+	GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*NanoMDMEnrollmentDetails, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -2796,6 +2799,10 @@ type Datastore interface {
 	// RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry, increments
 	// retry_count, preserves the error detail, and clears challenge/cert fields.
 	RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
+	// GetCertificateTemplateStatusesByNameForHosts returns cert template statuses
+	// keyed by host UUID and template name for all given hosts in a single query.
+	// Only install records are considered; pending-remove rows are excluded.
+	GetCertificateTemplateStatusesByNameForHosts(ctx context.Context, hostUUIDs []string) (map[string]map[string]CertificateTemplateStatus, error)
 	// BulkInsertHostCertificateTemplates inserts multiple host_certificate_templates records.
 	BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []HostCertificateTemplate) error
 	// DeleteHostCertificateTemplates deletes specific host_certificate_templates records

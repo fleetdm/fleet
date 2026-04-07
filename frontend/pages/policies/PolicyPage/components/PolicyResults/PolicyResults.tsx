@@ -243,7 +243,7 @@ const PolicyResults = ({
         }
         numHostsRespondedErrors={uiHostCounts.failed}
         isFinished={isQueryFinished}
-        onClickDone={onQueryDone}
+        onClickClose={onQueryDone}
         onClickRunAgain={onRunQuery}
         onClickStop={onStopQuery}
         resultsType="policy"

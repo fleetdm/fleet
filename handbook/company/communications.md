@@ -289,6 +289,11 @@ We have specific channels for various topics, but we also have more general chan
 | `#random`                   | Be random.
 
 
+### Converting a private Slack channel to public
+
+Slack does not allow regular members or channel creators to convert a private channel to public. To convert a private channel to public, invite `@Pepper` (Andrea Pepper), the [IT support administrator](https://fleetdm.com/handbook/it#team), to the channel and she will convert it.
+
+
 ## AI usage guidelines
 
 We encourage everyone to use AI tools to work more efficiently, think more creatively, and free yourself from repetitive, low-value tasks so you can spend more time on work that's interesting, complex, and uniquely human. These guidelines exist not to restrict how you use AI, but to make sure we're using it responsibly and in a way that protects our customers, our teammates, and the quality of our work.
@@ -631,7 +636,7 @@ When Fleeties relocate, there are vendors that need to be notified of the change
 
 ## Tools and equipment
 
-Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
+Fleet provides laptops and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
 
 
 ### Requesting new equipment
@@ -817,7 +822,7 @@ During their first week at Fleet, every new team member schedules a contributor 
 - Talking about Google Calendar. Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
 - A quick tour of the Google Drive folder. Does their access look correct? Give access to executed documents on the shared drive as needed. Show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.
 - Make sure you know how to share a Google Doc in the folder for all Fleeties to see and access.
-- Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
+- Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program). (Note: AEs complete their shadow program with the [SVP Global Sales](https://fleetdm.com/handbook/sales#team) instead of the CEO.)
 
 <!--
 ### Onboarding retrospective

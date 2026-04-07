@@ -40,6 +40,7 @@ type MDMAppleCommandIssuer interface {
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -526,6 +527,7 @@ type MDMAppleSetupPayload struct {
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
 	ManualAgentInstall          *bool `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          *bool `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   *bool `json:"require_all_software_windows"`
 	LockEndUserInfo             *bool `json:"lock_end_user_info"`
 }
 

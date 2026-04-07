@@ -989,6 +989,8 @@ type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Hos
 
 type MDMResetEnrollmentFunc func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
+type ClearHostEnrolledFromMigrationFunc func(ctx context.Context, hostUUID string) error
+
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uint) ([]string, error)
@@ -1005,7 +1007,7 @@ type GetNanoMDMUserEnrollmentUsernameAndUUIDFunc func(ctx context.Context, devic
 
 type UpdateNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID string, userUUID string, username string) error
 
-type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error)
+type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1814,6 +1816,8 @@ type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string
 type GetHostCertificateTemplateRecordFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error)
 
 type RetryHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
+
+type GetCertificateTemplateStatusesByNameForHostsFunc func(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error)
 
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
@@ -3305,6 +3309,9 @@ type DataStore struct {
 	MDMResetEnrollmentFunc        MDMResetEnrollmentFunc
 	MDMResetEnrollmentFuncInvoked bool
 
+	ClearHostEnrolledFromMigrationFunc        ClearHostEnrolledFromMigrationFunc
+	ClearHostEnrolledFromMigrationFuncInvoked bool
+
 	ListMDMAppleDEPSerialsInTeamFunc        ListMDMAppleDEPSerialsInTeamFunc
 	ListMDMAppleDEPSerialsInTeamFuncInvoked bool
 
@@ -4543,6 +4550,9 @@ type DataStore struct {
 
 	RetryHostCertificateTemplateFunc        RetryHostCertificateTemplateFunc
 	RetryHostCertificateTemplateFuncInvoked bool
+
+	GetCertificateTemplateStatusesByNameForHostsFunc        GetCertificateTemplateStatusesByNameForHostsFunc
+	GetCertificateTemplateStatusesByNameForHostsFuncInvoked bool
 
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
 	BulkInsertHostCertificateTemplatesFuncInvoked bool
@@ -7988,6 +7998,13 @@ func (s *DataStore) MDMResetEnrollment(ctx context.Context, hostUUID string, sce
 	return s.MDMResetEnrollmentFunc(ctx, hostUUID, scepRenewalInProgress)
 }
 
+func (s *DataStore) ClearHostEnrolledFromMigration(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ClearHostEnrolledFromMigrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostEnrolledFromMigrationFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
 	s.mu.Lock()
 	s.ListMDMAppleDEPSerialsInTeamFuncInvoked = true
@@ -8044,7 +8061,7 @@ func (s *DataStore) UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, dev
 	return s.UpdateNanoMDMUserEnrollmentUsernameFunc(ctx, deviceID, userUUID, username)
 }
 
-func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
+func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 	s.mu.Lock()
 	s.GetNanoMDMEnrollmentDetailsFuncInvoked = true
 	s.mu.Unlock()
@@ -10877,6 +10894,13 @@ func (s *DataStore) RetryHostCertificateTemplate(ctx context.Context, hostUUID s
 	s.RetryHostCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.RetryHostCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID, detail)
+}
+
+func (s *DataStore) GetCertificateTemplateStatusesByNameForHosts(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateStatusesByNameForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateStatusesByNameForHostsFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {

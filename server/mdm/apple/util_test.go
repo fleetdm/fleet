@@ -46,6 +46,56 @@ func TestGenerateRandomPin(t *testing.T) {
 	}
 }
 
+func TestIsProfileNotFoundError(t *testing.T) {
+	cases := []struct {
+		name     string
+		chain    []mdm.ErrorChain
+		expected bool
+	}{
+		{
+			name:     "empty chain",
+			chain:    nil,
+			expected: false,
+		},
+		{
+			name: "MDMClientError 89 - profile not found",
+			chain: []mdm.ErrorChain{
+				{ErrorCode: 89, ErrorDomain: "MDMClientError", USEnglishDescription: "Profile with identifier 'com.example' not found."},
+			},
+			expected: true,
+		},
+		{
+			name: "different MDMClientError code",
+			chain: []mdm.ErrorChain{
+				{ErrorCode: 90, ErrorDomain: "MDMClientError", USEnglishDescription: "Some other error"},
+			},
+			expected: false,
+		},
+		{
+			name: "different error domain with code 89",
+			chain: []mdm.ErrorChain{
+				{ErrorCode: 89, ErrorDomain: "SomeOtherDomain", USEnglishDescription: "Some error"},
+			},
+			expected: false,
+		},
+		{
+			name: "profile not found in chain with other errors",
+			chain: []mdm.ErrorChain{
+				{ErrorCode: 100, ErrorDomain: "SomeOtherDomain", USEnglishDescription: "First error"},
+				{ErrorCode: 89, ErrorDomain: "MDMClientError", USEnglishDescription: "Profile with identifier 'com.example' not found."},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsProfileNotFoundError(tt.chain)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestIsRecoveryLockPasswordMismatchError(t *testing.T) {
 	cases := []struct {
 		name     string
