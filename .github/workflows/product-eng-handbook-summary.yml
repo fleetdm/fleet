@@ -169,9 +169,28 @@ jobs:
 
           SUMMARY=$(cat /tmp/summary.txt)
 
-          # Build Slack Block Kit payload with jq for safe JSON escaping
+          # Slack section.text.mrkdwn has a 3000 char limit. Split into
+          # multiple section blocks if the summary exceeds it.
+          MAX_BLOCK_LEN=2900 # leave margin for safety
+
+          # Build Slack Block Kit payload with jq for safe JSON escaping.
+          # jq splits the summary into <=MAX_BLOCK_LEN chunks on line boundaries
+          # and emits a section block for each chunk.
           jq -n --arg since "$SINCE_DATE" --arg summary "$SUMMARY" \
-            '{
+            --argjson max_len "$MAX_BLOCK_LEN" \
+            '
+            # Split summary into chunks that fit in a single section block
+            def chunk_text($max):
+              if length <= $max then [.]
+              else
+                # Find last newline before $max to split on a line boundary
+                (.[:$max] | ltrimstr("") | rindex("\n")) as $split_at |
+                (if $split_at == null or $split_at == 0 then $max else $split_at end) as $pos |
+                [.[:$pos]] + (.[($pos + 1):] | chunk_text($max))
+              end;
+
+            ($summary | chunk_text($max_len)) as $chunks |
+            {
               "blocks": [
                 {
                   "type": "header",
@@ -192,12 +211,13 @@ jobs:
                 },
                 {
                   "type": "divider"
-                },
-                {
+                }
+              ] + [
+                $chunks[] | {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": $summary
+                    "text": .
                   }
                 }
               ]
