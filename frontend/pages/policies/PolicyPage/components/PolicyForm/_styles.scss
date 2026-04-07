@@ -18,7 +18,9 @@
   }
 
   &__page-header {
-    margin-bottom: $pad-small;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
   }
 
   &__page-title {
@@ -30,7 +32,7 @@
   &__page-subtitle {
     font-size: $x-small;
     color: $ui-fleet-black-75;
-    margin: $pad-xsmall 0 0;
+    margin: 0;
   }
 
   &__title-bar {

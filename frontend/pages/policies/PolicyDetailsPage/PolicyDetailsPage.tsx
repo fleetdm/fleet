@@ -231,7 +231,7 @@ const PolicyDetailsPage = ({
           <div className={`${baseClass}__platform-list`}>
             {platforms.map((platform) => (
               <span key={platform} className={`${baseClass}__platform-item`}>
-                <Icon name={platform} color="ui-fleet-black-50" />
+                <Icon name={platform} color="ui-fleet-black-75" />
                 {PLATFORM_DISPLAY_NAMES[platform] || platform}
               </span>
             ))}
@@ -289,7 +289,7 @@ const PolicyDetailsPage = ({
         {!isLoading && !apiError && (
           <>
             <div className={`${baseClass}__title-bar`}>
-              <div className="name-description">
+              <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__policy-name`}>
                   {lastEditedQueryName}
                   {storedPolicy?.critical && (
@@ -306,6 +306,10 @@ const PolicyDetailsPage = ({
                     </TooltipWrapper>
                   )}
                 </h1>
+                <PageDescription
+                  className={`${baseClass}__policy-description`}
+                  content={lastEditedQueryDescription}
+                />
               </div>
               <div className={`${baseClass}__action-button-container`}>
                 <Button
@@ -352,10 +356,6 @@ const PolicyDetailsPage = ({
                 )}
               </div>
             </div>
-            <PageDescription
-              className={`${baseClass}__policy-description`}
-              content={lastEditedQueryDescription}
-            />
             {lastEditedQueryResolution && (
               <div className={`${baseClass}__resolve-section`}>
                 <p className={`${baseClass}__resolve-title`}>
