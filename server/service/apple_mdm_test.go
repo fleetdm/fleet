@@ -2069,6 +2069,18 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 		},
+		{
+			status:      "Error",
+			requestType: "RemoveProfile",
+			errors: []mdm.ErrorChain{
+				{ErrorCode: 89, ErrorDomain: "MDMClientError", USEnglishDescription: "Profile with identifier 'com.example' not found."},
+			},
+			want: &fleet.HostMDMAppleProfile{
+				Status:        &fleet.MDMDeliveryVerifying,
+				Detail:        "",
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
 	}
 
 	for i, c := range cases {
