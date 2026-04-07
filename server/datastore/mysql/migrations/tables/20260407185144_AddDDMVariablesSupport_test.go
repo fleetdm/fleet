@@ -10,8 +10,8 @@ import (
 func TestUp_20260407185144(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// Create prerequisite data: a team, an Apple config profile, a Windows
-	// config profile, an Apple declaration, and a fleet variable.
+	// Create prerequisite data: an Apple config profile, a Windows config
+	// profile, an Apple declaration, and a fleet variable.
 	varID := execNoErrLastID(t, db, `INSERT INTO fleet_variables (name) VALUES ('test_var')`)
 
 	appleProfileUUID := "apple-profile-uuid-001"
