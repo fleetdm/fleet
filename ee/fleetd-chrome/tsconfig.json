@@ -9,9 +9,10 @@
         "outDir": "dist/js",
         "rootDir": "src",
         "sourceMap": true,
+        "skipLibCheck": true,
         "strict": false,
         "target": "es2015",
-        "types": ["chrome"]
+        "types": ["chrome", "jest", "node"]
     },
     "exclude": [
         "node_modules",
