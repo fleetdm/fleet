@@ -103,6 +103,32 @@ When merging a pull request from a community contributor:
 - Share the merged PR with the team in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 
+### AI code review
+
+Fleet uses AI code review tools to supplement human review on pull requests. Three options are available:
+
+1. **GitHub Copilot**: Automatically reviews every PR for contributors with a Copilot seat. No action needed.
+2. **CodeRabbit**: Available for free as an open source project. To request a review, add a comment on the PR: `@coderabbitai full review`.
+3. **Claude**: A more thorough review that takes about 30 minutes and costs $20–$25 per review. Claude often finds issues the other AI reviews miss. Use this option judiciously given the cost.
+
+
+### AI coding tools
+
+Fleet uses AI coding tools like [Kilo Code](https://kilocode.ai) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to help contributors make changes to the codebase.
+
+Engineers are expected to use Claude Code as part of their daily workflow, whether in the terminal, their IDE, or via Claude Cowork.
+
+The right tool depends on the type of change:
+
+- **GitOps YAML changes**: Kilo Code works great for making changes to Fleet's GitOps configuration files. IT uses this regularly.
+- **Typo fixes and color values**: Kilo Code is fine for small, single-line changes like fixing typos in the product or updating specific color values.
+- **Multiline code changes to the product**: Use Claude Code locally instead of Kilo Code. Run the code locally, confirm the change works, and open a PR from your GitHub account. This ensures:
+  1. The same expectation applies to everyone: if you submit a PR to the product's code, you've run it locally and confirmed it works.
+  2. The commit is attributed to your GitHub user account, not a bot.
+
+> [Ownership](https://fleetdm.com/handbook/company#ownership) is one of Fleet's key values. When a bot opens a PR on your behalf, it's easier to feel detached from the change. Everyone should take ownership of code they contribute, especially when it's AI-generated.
+
+
 ### Close a stale community issue
 
 If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.

@@ -322,7 +322,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-	productCode = strings.Split(productCode, ".")[0]
+	if input.InstallerType == installerTypeMSIX && productCode == "" {
+		productCode = selectedInstaller.PackageFamilyName
+	}
+	if input.InstallerType == installerTypeMSI && productCode != "" {
+		productCode = strings.Split(productCode, ".")[0]
+	}
 
 	if upgradeCode != "" {
 		out.UpgradeCode = upgradeCode
@@ -467,6 +472,7 @@ type installer struct {
 	InstallModes           []string                 `yaml:"InstallModes,omitempty"`
 	InstallerSwitches      installerSwitches        `yaml:"InstallerSwitches,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
+	PackageFamilyName      string                   `yaml:"PackageFamilyName"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	InstallerLocale        string                   `yaml:"InstallerLocale"`
 }
