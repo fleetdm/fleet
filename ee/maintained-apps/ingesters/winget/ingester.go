@@ -16,6 +16,7 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/google/go-github/v37/github"
@@ -321,7 +322,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-	productCode = strings.Split(productCode, ".")[0]
+	if input.InstallerType == installerTypeMSIX && productCode == "" {
+		productCode = selectedInstaller.PackageFamilyName
+	}
+	if input.InstallerType == installerTypeMSI && productCode != "" {
+		productCode = strings.Split(productCode, ".")[0]
+	}
 
 	if upgradeCode != "" {
 		out.UpgradeCode = upgradeCode
@@ -365,6 +371,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.Frozen = input.Frozen
 
 	external_refs.EnrichManifest(&out)
+
+	// create patch policy
+	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "windows",
+		Version:     out.Version,
+		ExistsQuery: out.Queries.Exists,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+	}
 
 	return &out, nil
 }
@@ -433,6 +449,7 @@ type inputApp struct {
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
+	PatchPolicyPath   string   `json:"patch_policy_path"`
 }
 
 type installerManifest struct {
@@ -455,6 +472,7 @@ type installer struct {
 	InstallModes           []string                 `yaml:"InstallModes,omitempty"`
 	InstallerSwitches      installerSwitches        `yaml:"InstallerSwitches,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
+	PackageFamilyName      string                   `yaml:"PackageFamilyName"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	InstallerLocale        string                   `yaml:"InstallerLocale"`
 }

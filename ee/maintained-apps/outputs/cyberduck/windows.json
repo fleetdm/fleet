@@ -3,7 +3,8 @@
     {
       "version": "9.4.1.44384",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH' AND version_compare(version, '9.4.1.44384') < 0);"
       },
       "installer_url": "https://update.cyberduck.io//Cyberduck-Installer-9.4.1.44384.msi",
       "install_script_ref": "8959087b",

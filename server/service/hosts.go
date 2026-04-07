@@ -280,8 +280,27 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		if id == nil {
 			id = req.Opts.SoftwareIDFilter
 		}
-		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
-		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software in that case
+
+		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
+		switch {
+		case err == nil:
+			software = sw
+
+		case fleet.IsNotFound(err):
+			// Look for lite summary data as admin
+			systemCtx := viewer.NewSystemContext(ctx)
+			swLite, errLite := svc.SoftwareLiteByID(systemCtx, *id)
+			if errLite != nil && !fleet.IsNotFound(errLite) {
+				return listHostsResponse{Err: errLite}, nil
+			}
+			if errLite == nil {
+				software = &fleet.Software{
+					ID:      *id,
+					Name:    swLite.Name,
+					Version: swLite.Version,
+				}
+			}
+		default:
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -1666,6 +1685,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
+	var mdmHardwareAttested bool
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -1768,7 +1788,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// fetch host last seen at and last enrolled at times, currently only supported for
 				// Apple platforms
-				mdmLastEnrollment, mdmLastCheckedIn, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+				mdmLastEnrollment, mdmLastCheckedIn, mdmHardwareAttested, err = svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
@@ -1840,15 +1860,16 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
 	return &fleet.HostDetail{
-		Host:                      *host,
-		Labels:                    labels,
-		Packs:                     packs,
-		Batteries:                 &bats,
-		MaintenanceWindow:         nextMw,
-		EndUsers:                  endUsers,
-		LastMDMEnrolledAt:         mdmLastEnrollment,
-		LastMDMCheckedInAt:        mdmLastCheckedIn,
-		ConditionalAccessBypassed: conditionalAccessBypassed,
+		Host:                          *host,
+		Labels:                        labels,
+		Packs:                         packs,
+		Batteries:                     &bats,
+		MaintenanceWindow:             nextMw,
+		EndUsers:                      endUsers,
+		LastMDMEnrolledAt:             mdmLastEnrollment,
+		LastMDMCheckedInAt:            mdmLastCheckedIn,
+		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
+		ConditionalAccessBypassed:     conditionalAccessBypassed,
 	}, nil
 }
 
@@ -2048,7 +2069,7 @@ func (svc *Service) ListHostReports(
 		opts.ListOptions.OrderDirection = fleet.OrderDescending
 	}
 
-	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, opts, maxQueryReportRows)
+	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
 	}
@@ -3735,19 +3756,15 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// When accessed via "My device", we default to only showing inventory (excluding software available for install
-	// but not in inventory), unless we're asked to filter to self-service software only.
-	//
-	// Otherwise (e.g. host software UI within Fleet's admin interface), the default is to show both installed and
-	// available-for-install software, to maintain existing API behavior. This behavior can be explicitly overridden
-	// if needed (see opts.IncludeAvailableForInstallExplicitlySet).
+	// Default to only showing inventory (excluding software available for install but not in
+	// inventory). Callers can explicitly set include_available_for_install=true to also see
+	// library items. See #41631.
 	var includeAvailableForInstall bool
 
 	var host *fleet.Host
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
-		includeAvailableForInstall = true
 
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, nil, err
@@ -3906,8 +3923,9 @@ type getHostRecoveryLockPasswordRequest struct {
 }
 
 type recoveryLockPasswordPayload struct {
-	Password  string    `json:"password"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Password     string     `json:"password"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty"`
 }
 
 type getHostRecoveryLockPasswordResponse struct {
@@ -3927,8 +3945,9 @@ func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc f
 	return getHostRecoveryLockPasswordResponse{
 		HostID: req.ID,
 		RecoveryLockPassword: &recoveryLockPasswordPayload{
-			Password:  password.Password,
-			UpdatedAt: password.UpdatedAt,
+			Password:     password.Password,
+			UpdatedAt:    password.UpdatedAt,
+			AutoRotateAt: password.AutoRotateAt,
 		},
 	}, nil
 }
@@ -3970,6 +3989,8 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
 	}
 
+	// Create activity first. If this fails, we return an error before scheduling
+	// rotation, ensuring we don't rotate passwords that were never returned to the user.
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
@@ -3980,6 +4001,14 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
 	}
+
+	// Schedule auto-rotation by marking the password as viewed.
+	// This sets auto_rotate_at to 1 hour from now.
+	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+	password.AutoRotateAt = &rotateAt
 
 	return password, nil
 }

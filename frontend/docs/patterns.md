@@ -215,6 +215,7 @@ React.FormEvent<HTMLFormElement>` argument and, critically:
 handler's logic.
   - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
+- Disable the form's submit button when the form is in an invalid state. Redundancy with the submit handler returning `null` is good.
 
 ### Data validation
 

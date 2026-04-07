@@ -41,6 +41,7 @@ spec:
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
+    apple_require_hardware_attestation: false
     windows_entra_tenant_ids: null
     macos_migration:
       enable: false
@@ -73,6 +74,7 @@ spec:
       macos_setup_assistant:
       manual_agent_install:
       require_all_software_macos: false
+      require_all_software_windows: false
       script:
       software:
     setup_experience:
@@ -83,6 +85,7 @@ spec:
       apple_setup_assistant:
       macos_manual_agent_install:
       require_all_software_macos: false
+      require_all_software_windows: false
       macos_script:
       software:
     windows_settings:
@@ -193,6 +196,7 @@ spec:
     databases_path: ""
     disable_data_sync: false
     disable_win_os_vulnerabilities: false
+    osv_for_vulnerabilities: true
     periodicity: 0s
     recent_vulnerability_max_age: 0s
   vulnerability_settings:

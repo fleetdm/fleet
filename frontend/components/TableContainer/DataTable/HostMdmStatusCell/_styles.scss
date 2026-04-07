@@ -3,8 +3,5 @@
   flex-direction: row;
   text-wrap: nowrap;
   gap: $pad-small;
-
-  .tooltip__tooltip-text {
-    text-wrap: wrap;
-  }
+  align-items: center;
 }

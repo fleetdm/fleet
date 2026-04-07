@@ -85,7 +85,6 @@ reports:
   - path: ./lib/all/reports/collect-operating-system-information.yml
   - path: ./lib/all/reports/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/reports/detect-apns-certificate.yml
-  - path: ./lib/macos/reports/collect-macos-compatibility-data.yml
   - path: ./lib/macos/reports/collect-xprotect-reports.yml
 controls:
   enable_disk_encryption: true
@@ -111,6 +110,8 @@ labels:
   - path: ./lib/all/labels/team-g-software.yml
   - path: ./lib/all/labels/nudge-test-devices.yml
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
+  - path: ./lib/all/labels/macs-with-fleet-maintained-apps-installed.yml
+  - path: ./lib/all/labels/windows-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/department-information-technology.yml
   - path: ./lib/all/labels/department-sales.yml
   - path: ./lib/all/labels/department-marketing.yml

@@ -29,7 +29,24 @@ The Finance department maintains the documentation of [Fleet's existing trademar
 
 ## Responsibilities
 
-The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well as the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+
+### Monthly and quarterly budget-to-actuals review with CEO’s direct reports
+
+Finance will prepare monthly and quarterly budget-to-actuals files for review with the CEO's direct reports: 
+1. Finance to close the prior month's books within the first 10 business days.
+2. Generate the monthly and quarterly budget-to-actuals (“BVA”) report, including variance analysis.
+3. Identify and flag significant variances in the comments section of the file. 
+4. Aggregate the monthly data for quarterly and year-to-date review. 
+5. Save a copy of the BVA file in the shared drive with the department leaders.
+	- [R&D](https://drive.google.com/drive/folders/1BcsTdDWTvljeYW197dTW3GhGyghVzNpB)
+	- [Sales](https://drive.google.com/drive/folders/1WEsk7IArPUPvC2JXMVpZupL6EE8XlgrS)
+	- [CS](https://drive.google.com/drive/folders/114KsxfOTPGdSQSf8psXEYkJHM-OveBs7)
+	- [Marketing](https://drive.google.com/drive/folders/1XX2O5qZ2_V6PAn-UBXthRJar3P2vk7n9)
+	- [Corporate](https://drive.google.com/drive/folders/14mYIcuaFNkjNMxdLEcmPxs90blfFlb0L)
+6. Department leaders review their section of the report, focusing on flagged variances.
+7. Finance reforecasts the remainder of the year using department inputs and updated assumptions
+8. Finance to schedule meetings with department leaders if further review is needed, and vice versa. 
 
 
 ### Prepare for OCV meeting
@@ -459,7 +476,7 @@ Using this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF
 4. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
 5. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
 6. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
-7. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
+7. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form calculator as the source of truth, if needed, adjust the values in the table to be correct.
 8. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to [Deal Desk](https://fleetdm.com/handbook/finance#team) with concerns.
 9. `@`-mention the requestor in the thread to request changes or provide approval.
 

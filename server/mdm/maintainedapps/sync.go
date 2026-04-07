@@ -29,7 +29,7 @@ type AppsList struct {
 	Apps    []appListing `json:"apps"`
 }
 
-const fmaOutputsBase = "https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/maintained-apps/outputs"
+const fmaOutputsBase = "https://maintained-apps.fleetdm.com/manifests"
 
 // Refresh fetches the latest information about maintained apps from FMA's
 // apps list on GitHub and updates the Fleet database with the new information.
@@ -159,6 +159,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 		app.AutomaticInstallQuery = cached.AutomaticInstallQuery
 		app.Categories = cached.Categories
 		app.UpgradeCode = cached.UpgradeCode
+		app.PatchQuery = cached.PatchQuery
 		return app, nil
 	}
 
@@ -211,6 +212,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
 	app.Categories = manifest.Versions[0].DefaultCategories
 	app.UpgradeCode = manifest.Versions[0].UpgradeCode
+	app.PatchQuery = manifest.Versions[0].Queries.Patched
 
 	return app, nil
 }

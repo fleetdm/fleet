@@ -1,5 +1,6 @@
 controls:
   android_enabled_and_configured: true
+  apple_require_hardware_attestation: false
   enable_disk_encryption: true
   enable_recovery_lock_password: false
   enable_turn_on_windows_mdm_manually: false
@@ -52,6 +53,18 @@ policies:
   platform: linux,windows
   resolution: Do a team thing
   type: patch
+  webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with VPP app automation
+  install_software:
+    app_store_id: "1234567890"
+  name: Team VPP policy
+  platform: darwin
+  query: SELECT * FROM team_policy WHERE id = 3
+  resolution: Install the app
+  type: dynamic
   webhooks_and_tickets_enabled: true
 settings:
   webhook_settings:

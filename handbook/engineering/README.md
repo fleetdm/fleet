@@ -103,6 +103,32 @@ When merging a pull request from a community contributor:
 - Share the merged PR with the team in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 
+### AI code review
+
+Fleet uses AI code review tools to supplement human review on pull requests. Three options are available:
+
+1. **GitHub Copilot**: Automatically reviews every PR for contributors with a Copilot seat. No action needed.
+2. **CodeRabbit**: Available for free as an open source project. To request a review, add a comment on the PR: `@coderabbitai full review`.
+3. **Claude**: A more thorough review that takes about 30 minutes and costs $20–$25 per review. Claude often finds issues the other AI reviews miss. Use this option judiciously given the cost.
+
+
+### AI coding tools
+
+Fleet uses AI coding tools like [Kilo Code](https://kilocode.ai) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to help contributors make changes to the codebase.
+
+Engineers are expected to use Claude Code as part of their daily workflow, whether in the terminal, their IDE, or via Claude Cowork.
+
+The right tool depends on the type of change:
+
+- **GitOps YAML changes**: Kilo Code works great for making changes to Fleet's GitOps configuration files. IT uses this regularly.
+- **Typo fixes and color values**: Kilo Code is fine for small, single-line changes like fixing typos in the product or updating specific color values.
+- **Multiline code changes to the product**: Use Claude Code locally instead of Kilo Code. Run the code locally, confirm the change works, and open a PR from your GitHub account. This ensures:
+  1. The same expectation applies to everyone: if you submit a PR to the product's code, you've run it locally and confirmed it works.
+  2. The commit is attributed to your GitHub user account, not a bot.
+
+> [Ownership](https://fleetdm.com/handbook/company#ownership) is one of Fleet's key values. When a bot opens a PR on your behalf, it's easier to feel detached from the change. Everyone should take ownership of code they contribute, especially when it's AI-generated.
+
+
 ### Close a stale community issue
 
 If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
@@ -185,7 +211,7 @@ For each issue:
 1. Add yourself as an assignee when you start QA. If other work comes up that prevents you from completing the QA process, remove yourself as an assignee to ensure someone else picks the issue up.
 2. Validate the changes, either via the test plan (for stories) or by reproducing the bug on an older version and the fix in the current version (for bugs).
 3. Document QA steps performed and outcome in a comment on the story (not subtask) or bug.
-4. If changes are needed to make QA pass, either create an unreleased bug (if changes required are small relative to the size of the original bug or story, e.g. a missed edge case) or move the issue (and relevant subtasks, if there are any) back to `In progress` (if changes required are significant relative to the sisze of the ticket, e.g. if an item listed in the test plan fails). Mention in the relevant product group's Slack channel when you take either of these actions to ensure QA failures are addressed quickly (e.g. the product group's tech lead may need to assign an unreleased bug fix to an engineer other than the developer(s) on the original bug or story).
+4. If changes are needed to make QA pass, either create an unreleased bug (if changes required are small relative to the size of the original bug or story, e.g. a missed edge case) or move the issue (and relevant subtasks, if there are any) back to `In progress` (if changes required are significant relative to the size of the ticket, e.g. if an item listed in the test plan fails). Mention in the relevant product group's Slack channel when you take either of these actions to ensure QA failures are addressed quickly (e.g. the product group's tech lead may need to assign an unreleased bug fix to an engineer other than the developer(s) on the original bug or story).
 5. Once QA passes, move the issue to `Ready for release`.
 
 ### Create a release candidate
@@ -269,7 +295,7 @@ We track these in a shared [Google Doc](https://docs.google.com/document/d/1jr8w
 - Existing tests to update
 
 Once coverage is agreed on, Fleet QA submits the request via [QA Wolf’s Coverage Request form](https://app.qawolf.com/fleet/coverage-requests). The most recent sprints are prioritized first.
-This workflow lets QA Wolf focus on test implementation while Fleet QA stays accountable for identifying clear, high-value test needs
+This workflow lets QA Wolf focus on test implementation while Fleet QA stays accountable for identifying clear, high-value test needs.
 
 
 ### Prepare Fleet release
@@ -278,8 +304,21 @@ See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/b
 
 ### Prepare fleetd agent release
 
-See [Fleet's TUF release documentation](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
+#### macOS, Windows, Linux
 
+Fleetd for macOS, Windows and Linux is an agent composed of several components. The latest released versions in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
+For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
+
+#### Android
+
+Our Android app is managed through Google Play. Follow the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
+
+#### ChromeOS
+
+The Chrome extension is released via [Google Admin](https://admin.google.com).
+For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
+For production releases, follow the [Chrome extension
+README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 ### Deploy a new release to dogfood
 
@@ -340,7 +379,7 @@ Some of our code does not go through a scheduled release process and is released
 In these cases there are two differences in our pull request process:
 
 - QA is done before merging the code change to the main branch.
-- Tickets are not moved to "Ready for release". Bug are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
+- Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
 
 
 ### Notify stakeholders when a user story is pushed to the next release
@@ -671,7 +710,13 @@ If the action fails, please complete the following steps:
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
+### Enable merge commits to allow large features branches with multiple contributors to retain git history
 
+1. A github admin must go to Settings -> General -> Enable the `allow merge commits` checkbox near the bottom
+2. A github admin must go to the branch settings for main and uncheck `require linear history`
+3. Merge in the PR with the merge dropdown option 'Create a merge commit'
+4. A github admin must re-enable the branch `require linear history`
+5. A github admin must disable the `allow merge commits`
 
 ## Rituals
 

@@ -89,6 +89,26 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
+	// Validate install/post-install/uninstall script contents for non-script
+	// packages. Script packages (.sh/.ps1) are already validated in
+	// addScriptPackageMetadata.
+	if !fleet.IsScriptPackage(payload.Extension) {
+		for _, scriptVal := range []struct {
+			name    string
+			content string
+		}{
+			{"install script", payload.InstallScript},
+			{"post-install script", payload.PostInstallScript},
+			{"uninstall script", payload.UninstallScript},
+		} {
+			if err := fleet.ValidateSoftwareInstallerScript(scriptVal.content, payload.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", scriptVal.name, err.Error()),
+				}
+			}
+		}
+	}
+
 	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
 		switch {
 		//
@@ -518,12 +538,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.InstallScript = nil
 		} else {
 			installScript := file.Dos2UnixNewlines(*payload.InstallScript)
-			if installScript == "" {
-				installScript = file.GetInstallScript(existingInstaller.Extension)
-			}
+			installScript = getInstallScript(existingInstaller.Extension, existingInstaller.PackageIDs(), installScript)
 			if installScript == "" {
 				return nil, &fleet.BadRequestError{
 					Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+				}
+			}
+
+			if err := fleet.ValidateSoftwareInstallerScript(installScript, existingInstaller.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. install script validation failed: %s", err.Error()),
 				}
 			}
 
@@ -540,6 +564,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.PostInstallScript = &emptyScript
 		} else {
 			postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
+
+			if err := fleet.ValidateSoftwareInstallerScript(postInstallScript, existingInstaller.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. post-install script validation failed: %s", err.Error()),
+				}
+			}
+
 			if postInstallScript != existingInstaller.PostInstallScript {
 				dirty["PostInstallScript"] = true
 			}
@@ -562,6 +593,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if uninstallScript == "" {
 				return nil, &fleet.BadRequestError{
 					Message: fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+				}
+			}
+
+			if err := fleet.ValidateSoftwareInstallerScript(uninstallScript, existingInstaller.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. uninstall script validation failed: %s", err.Error()),
 				}
 			}
 
@@ -923,7 +960,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
 		// it will not return the row we just deleted.
 		if meta.TitleID != nil {
-			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID, false)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
 			}
@@ -1825,9 +1862,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
 	}
 
-	if payload.InstallScript == "" {
-		payload.InstallScript = file.GetInstallScript(meta.Extension)
-	}
+	payload.InstallScript = getInstallScript(meta.Extension, meta.PackageIDs, payload.InstallScript)
 
 	// Software edits validate non-empty scripts later, so set failOnBlankScript to false
 	if payload.InstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
@@ -1901,7 +1936,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 
 	scriptContents := string(scriptBytes)
 
-	if err := fleet.ValidateHostScriptContents(scriptContents, false); err != nil {
+	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return &fleet.BadRequestError{
 			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
 			InternalErr: ctxerr.Wrap(ctx, err, "validating script contents"),
@@ -2126,13 +2161,20 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	return requestUUID, nil
 }
 
+var (
+	errNonMajorVersion      = errors.New("only the major version can be specified with a caret (^), without including minor and patch versions. For example, \"^32\".")
+	errMajorVersionNotFound = errors.New("specified major version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
+)
+
 func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
 	slug := payload.Slug
 	if slug == nil || *slug == "" {
 		return nil
 	}
 
-	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
+	// convert nil teamID to 0 to get correct titleID
+	tmID := ptr.ValOrZero(teamID)
+	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, &tmID)
 	if err != nil {
 		// Return user-friendly message for generic not found error
 		if fleet.IsNotFound(err) {
@@ -2144,9 +2186,61 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		}
 		return err
 	}
+
+	majorVersionString, usesCaret := strings.CutPrefix(payload.RollbackVersion, "^")
+	if usesCaret {
+		if len(majorVersionString) == 0 {
+			return ctxerr.Wrap(ctx, errors.New("no version number provided"), "reading Fleet-maintained app pinned version")
+		}
+		if parts := strings.Split(payload.RollbackVersion, "."); len(parts) > 1 {
+			return fleet.NewUserMessageError(errNonMajorVersion, http.StatusBadRequest)
+		}
+		// unset rollback version to avoid getting a cached installer
+		payload.RollbackVersion = ""
+	}
+
 	_, err = maintained_apps.Hydrate(ctx, app, payload.RollbackVersion, teamID, svc.ds)
 	if err != nil {
 		return err
+	}
+
+	if usesCaret {
+		downloadedSemVer, err := fleet.VersionToSemverVersion(app.Version)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "extracting semver version")
+		}
+
+		majorVersion, err := fleet.VersionToSemverVersion(majorVersionString)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "extracting pinnged major version")
+		}
+
+		if downloadedSemVer.Major() != majorVersion.Major() {
+			// We cannot use the FMA we just got the manifest for since it is on a different major
+			// version, so we try to find the latest cached version and use that instead.
+			if app.TitleID == nil {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
+			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID, true)
+			if err != nil {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
+
+			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
+			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.
+			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, versions[0].Version)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting software installer")
+			}
+
+			app.Version = installer.Version
+			app.InstallerURL = installer.InstallerURL
+			app.SHA256 = installer.SHA256
+			app.InstallScript = installer.InstallScript
+			app.UninstallScript = installer.UninstallScript
+			app.Categories = installer.Categories
+			app.PatchQuery = installer.PatchQuery
+		}
 	}
 
 	payload.URL = app.InstallerURL
@@ -2164,6 +2258,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	if len(payload.Categories) == 0 {
 		payload.Categories = app.Categories
 	}
+	payload.MaintainedApp.PatchQuery = app.PatchQuery
 
 	return nil
 }
@@ -2600,6 +2695,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
+				installer.PatchQuery = p.MaintainedApp.PatchQuery
 			}
 
 			var ext string
@@ -2627,9 +2723,7 @@ func (svc *Service) softwareBatchUpload(
 
 			case installer.Extension != "exe":
 				// custom scripts only for exe installers and non-script packages
-				if installer.InstallScript == "" {
-					installer.InstallScript = file.GetInstallScript(installer.Extension)
-				}
+				installer.InstallScript = getInstallScript(installer.Extension, installer.PackageIDs, installer.InstallScript)
 
 				if installer.UninstallScript == "" {
 					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
@@ -2649,6 +2743,24 @@ func (svc *Service) softwareBatchUpload(
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 			if err := preProcessUninstallScript(installer); err != nil {
 				return fmt.Errorf("processing uninstall script: %w", err)
+			}
+
+			// Validate install/post-install/uninstall script contents for
+			// non-script packages. Script packages are already validated in
+			// addScriptPackageMetadata.
+			if !fleet.IsScriptPackage(installer.Extension) {
+				for _, sv := range []struct {
+					name    string
+					content string
+				}{
+					{"install script", installer.InstallScript},
+					{"post-install script", installer.PostInstallScript},
+					{"uninstall script", installer.UninstallScript},
+				} {
+					if err := fleet.ValidateSoftwareInstallerScript(sv.content, installer.Platform); err != nil {
+						return fmt.Errorf("Couldn't edit software. %s validation failed: %s", sv.name, err.Error())
+					}
+				}
 			}
 
 			// if filename was empty, try to extract it from the URL with the
@@ -3174,4 +3286,16 @@ func activitySoftwareLabelsFromSoftwareScopeLabels(includeAnyScopeLabels, exclud
 		})
 	}
 	return includeAny, excludeAny, includeAll
+}
+
+// getInstallScript returns the install script for a software installer,
+// using a special script for fleetd packages to handle macOS in-band upgrades.
+func getInstallScript(extension string, packageIDs []string, currentScript string) string {
+	if extension == "pkg" && file.IsFleetdPkg(packageIDs) {
+		return file.InstallPkgFleetdScript
+	}
+	if currentScript != "" {
+		return currentScript
+	}
+	return file.GetInstallScript(extension)
 }
