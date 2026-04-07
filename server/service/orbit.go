@@ -934,13 +934,6 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 				}
 
-				// Suppress activity for policy automation retires
-				if hsr.AttemptNumber != nil {
-					scriptFailed := hsr.ExitCode == nil || *hsr.ExitCode != 0
-					if scriptFailed && *hsr.AttemptNumber < fleet.MaxPolicyAutomationRetries {
-						shouldCreateActivity = false
-					}
-				}
 			}
 
 			if shouldCreateActivity {
@@ -956,6 +949,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 						Async:               !hsr.SyncRequest,
 						PolicyID:            hsr.PolicyID,
 						PolicyName:          policyName,
+						AttemptNumber:       hsr.AttemptNumber,
 						FromSetupExperience: fromSetupExperience,
 					},
 				); err != nil {
@@ -1386,12 +1380,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					}
 				}
 
-				// Only create activity on final
-				if hsi.AttemptNumber != nil {
-					if *hsi.AttemptNumber < fleet.MaxPolicyAutomationRetries {
-						shouldCreateActivity = false
-					}
-				}
 			}
 		}
 
@@ -1437,6 +1425,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					SelfService:         hsi.SelfService,
 					PolicyID:            hsi.PolicyID,
 					PolicyName:          policyName,
+					AttemptNumber:       hsi.AttemptNumber,
 					FromSetupExperience: fromSetupExperience,
 				},
 			); err != nil {
