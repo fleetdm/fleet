@@ -1330,11 +1330,6 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 		return err
 	})
 
-	// Simulate what the service layer does when a cert reaches terminal state:
-	// invalidate withheld profiles so the reconciler re-evaluates them.
-	err = ds.RequeueWithheldONCProfilesForHost(ctx, host.UUID)
-	require.NoError(t, err)
-
 	client.EnterprisesPoliciesPatchFuncInvoked = false
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
@@ -1395,9 +1390,6 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 		)
 		return err
 	})
-	err = ds.RequeueWithheldONCProfilesForHost(ctx, host.UUID)
-	require.NoError(t, err)
-
 	err = reconciler.ReconcileProfiles(ctx)
 	require.NoError(t, err)
 

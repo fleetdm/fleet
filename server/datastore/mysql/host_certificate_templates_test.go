@@ -1115,30 +1115,8 @@ func testSetHostCertificateTemplatesToPendingRemove(t *testing.T, ds *Datastore)
 		)
 		require.NoError(t, err)
 
-		// Insert a withheld ONC profile for host-delivered to verify it gets requeued
-		// when the cert template is removed.
-		withheldStatus := fleet.MDMDeliveryPending
-		err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{{
-			HostUUID:      "host-delivered",
-			ProfileUUID:   "prof-onc-wifi",
-			ProfileName:   "onc-wifi",
-			Status:        &withheldStatus,
-			OperationType: fleet.MDMOperationTypeInstall,
-			Detail:        fleet.ONCProfileWithheldDetailPrefix + ` "wifi-cert" to be installed on the host before applying this profile.`,
-		}})
-		require.NoError(t, err)
-
 		err = ds.SetHostCertificateTemplatesToPendingRemove(ctx, setup.template.ID)
 		require.NoError(t, err)
-
-		// Verify the withheld ONC profile was requeued (status set to NULL).
-		// We query raw SQL here because GetHostMDMAndroidProfiles coalesces NULL to 'pending'.
-		var oncStatus *string
-		err = ds.writer(ctx).GetContext(ctx, &oncStatus,
-			"SELECT status FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_uuid = ?",
-			"host-delivered", "prof-onc-wifi")
-		require.NoError(t, err)
-		require.Nil(t, oncStatus, "withheld ONC profile should have status reset to NULL")
 
 		// Verify the pending row was deleted
 		var count int

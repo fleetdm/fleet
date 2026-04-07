@@ -1819,8 +1819,6 @@ type RetryHostCertificateTemplateFunc func(ctx context.Context, hostUUID string,
 
 type GetCertificateTemplateStatusesByNameForHostsFunc func(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error)
 
-type RequeueWithheldONCProfilesForHostFunc func(ctx context.Context, hostUUID string) error
-
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
@@ -4555,9 +4553,6 @@ type DataStore struct {
 
 	GetCertificateTemplateStatusesByNameForHostsFunc        GetCertificateTemplateStatusesByNameForHostsFunc
 	GetCertificateTemplateStatusesByNameForHostsFuncInvoked bool
-
-	RequeueWithheldONCProfilesForHostFunc        RequeueWithheldONCProfilesForHostFunc
-	RequeueWithheldONCProfilesForHostFuncInvoked bool
 
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
 	BulkInsertHostCertificateTemplatesFuncInvoked bool
@@ -10906,13 +10901,6 @@ func (s *DataStore) GetCertificateTemplateStatusesByNameForHosts(ctx context.Con
 	s.GetCertificateTemplateStatusesByNameForHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplateStatusesByNameForHostsFunc(ctx, hostUUIDs)
-}
-
-func (s *DataStore) RequeueWithheldONCProfilesForHost(ctx context.Context, hostUUID string) error {
-	s.mu.Lock()
-	s.RequeueWithheldONCProfilesForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.RequeueWithheldONCProfilesForHostFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
