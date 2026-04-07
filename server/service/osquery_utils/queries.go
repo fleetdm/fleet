@@ -799,15 +799,18 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_windows": {
-		// Bitlocker is an optional component on Windows Server and
-		// isn't guaranteed to be installed. If we try to query the
-		// bitlocker_info table when the bitlocker component isn't
-		// present, the query will crash and fail to report back to
-		// the server. Before querying bitlocke_info, we check if it's
-		// either:
-		// 1. both an optional component, and installed.
-		// OR
-		// 2. not optional, meaning it's built into the OS
+		// BitLocker is an optional component on Windows Server and
+		// isn't guaranteed to be installed. We use bl_available to
+		// gate the bitlocker_info access: if BitLocker isn't installed,
+		// bl_available returns 0 rows and the CROSS JOIN ensures
+		// bitlocker_info is never scanned. This is safe on Windows
+		// Server without BitLocker (verified on Server 2022 with
+		// osquery 5.22.1 -- osquery returns empty results with a
+		// WMI warning but does not crash).
+		//
+		// bl_available returns a row when BitLocker is either:
+		// 1. not listed as an optional feature (built into the OS), OR
+		// 2. listed as an optional feature and installed (state = 1)
 		//
 		// Returns protection_status and conversion_status so the server
 		// can distinguish "encrypted + protected" from "encrypted + unprotected".

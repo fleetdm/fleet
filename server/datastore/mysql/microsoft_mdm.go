@@ -882,7 +882,7 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
 		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
 		whereProtectionOn     = `(hd.bitlocker_protection_status IS NULL OR hd.bitlocker_protection_status IN (1, 2))`
-		whereProtectionOff    = `(hd.bitlocker_protection_status IS NOT NULL AND hd.bitlocker_protection_status = 0)`
+		whereProtectionOff    = `(hd.bitlocker_protection_status = 0)`
 	)
 
 	whereBitLockerPINSet := `TRUE`
@@ -925,12 +925,12 @@ AND ` + whereBitLockerPINSet
 		// Action required when:
 		// 1. We _would_ be in verified/verifying but PIN is required and not set, OR
 		// 2. Disk is encrypted and key is escrowed but BitLocker protection is off
-		//    (e.g., TPM protector not active due to auto-unlock on secondary drives)
+		//    (e.g., suspended for a BIOS update, or a TPM configuration issue)
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
-AND (NOT ` + whereBitLockerPINSet + ` OR ` + whereProtectionOff + `)`
+AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + `))`
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
@@ -1955,6 +1955,8 @@ SELECT
             'failed'
         WHEN 'bitlocker_pending' THEN
             'pending'
+        WHEN 'bitlocker_action_required' THEN
+            'pending'
         ELSE
             'verifying'
         END)
@@ -1963,6 +1965,8 @@ SELECT
         WHEN 'bitlocker_failed' THEN
             'failed'
         WHEN 'bitlocker_pending' THEN
+            'pending'
+        WHEN 'bitlocker_action_required' THEN
             'pending'
         WHEN 'bitlocker_verifying' THEN
             'verifying'

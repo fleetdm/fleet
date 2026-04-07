@@ -233,7 +233,8 @@ func (v *Volume) deleteKeyProtector(protectorID string) error {
 	resultRaw, err := oleutil.CallMethod(v.handle, "DeleteKeyProtector", protectorID)
 	if err != nil {
 		return fmt.Errorf("deleteKeyProtector(%s, %s): %w", v.letter, protectorID, err)
-	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+	}
+	if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return fmt.Errorf("deleteKeyProtector(%s, %s): %w", v.letter, protectorID, encryptErrHandler(val))
 	}
 	return nil
@@ -250,17 +251,18 @@ const (
 func (v *Volume) getKeyProtectorIDs(protectorType int32) ([]string, error) {
 	var protectorIDs ole.VARIANT
 	_ = ole.VariantInit(&protectorIDs)
+	defer ole.VariantClear(&protectorIDs)
 
 	resultRaw, err := oleutil.CallMethod(v.handle, "GetKeyProtectors", protectorType, &protectorIDs)
 	if err != nil {
 		return nil, fmt.Errorf("getKeyProtectors(%s, %d): %w", v.letter, protectorType, err)
-	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+	}
+	if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return nil, fmt.Errorf("getKeyProtectors(%s, %d): %w", v.letter, protectorType, encryptErrHandler(val))
 	}
 
-	// The WMI method returns a VARIANT containing a SAFEARRAY of BSTRs.
-	// Extract strings from the VARIANT value directly -- the go-ole library
-	// converts VT_ARRAY|VT_BSTR variants to []string via .Value().
+	// The WMI method returns a VARIANT containing a SAFEARRAY of BSTRs (Basic Strings).
+	// Extract strings from the VARIANT value directly. The go-ole library converts VT_ARRAY|VT_BSTR variants to []string via .Value().
 	val := protectorIDs.Value()
 	if val == nil {
 		return nil, nil
@@ -556,7 +558,7 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 	// Remove old recovery key protectors so previously compromised keys are invalidated.
 	for _, oldID := range oldProtectorIDs {
 		if err := vol.deleteKeyProtector(oldID); err != nil {
-			log.Debug().Err(err).Str("protector_id", oldID).Msg("could not delete old recovery key protector, continuing")
+			log.Warn().Err(err).Str("protector_id", oldID).Msg("could not delete old recovery key protector, continuing")
 		}
 	}
 
@@ -570,22 +572,6 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 	}
 
 	return newRecoveryKey, nil
-}
-
-func decryptVolumeOnCOMThread(targetVolume string) error {
-	// Connect to the volume
-	vol, err := bitlockerConnect(targetVolume)
-	if err != nil {
-		return fmt.Errorf("connecting to the volume: %w", err)
-	}
-	defer vol.bitlockerClose()
-
-	// Start decryption
-	if err := vol.decrypt(); err != nil {
-		return fmt.Errorf("starting decryption: %w", err)
-	}
-
-	return nil
 }
 
 func getEncryptionStatusOnCOMThread() ([]VolumeStatus, error) {

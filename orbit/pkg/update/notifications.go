@@ -516,27 +516,27 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 		return
 	}
 
-	// If the disk is already encrypted, rotate the recovery key instead of
-	// decrypting and re-encrypting. This adds a new Fleet-managed recovery key
-	// protector, removes old ones, and escrows the new key. The disk is never
-	// decrypted, which avoids the FVE_E_AUTOUNLOCK_ENABLED loop (#40809) and
-	// matches how Intune/Workspace ONE handle pre-encrypted disks.
-	if encryptionStatus != nil &&
-		encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
-
-		// If a previous rotation succeeded but escrow failed, retry the
-		// escrow with the cached key instead of rotating again.
-		if w.pendingRecoveryKey != "" {
-			log.Debug().Msg("retrying escrow of previously rotated recovery key")
-			if serverErr := w.updateFleetServer(w.pendingRecoveryKey, nil); serverErr != nil {
-				log.Error().Err(serverErr).Msg("failed to escrow cached recovery key to Fleet Server")
-				return
-			}
-			w.pendingRecoveryKey = ""
-			w.lastRun = time.Now()
+	// If a previous rotation succeeded but escrow failed, retry the
+	// escrow with the cached key instead of rotating again. This check
+	// runs before the encryptionStatus guard so it retries even when
+	// WMI status is transiently unavailable.
+	if w.pendingRecoveryKey != "" {
+		log.Debug().Msg("retrying escrow of previously rotated recovery key")
+		if serverErr := w.updateFleetServer(w.pendingRecoveryKey, nil); serverErr != nil {
+			log.Error().Err(serverErr).Msg("failed to escrow cached recovery key to Fleet Server")
 			return
 		}
+		w.pendingRecoveryKey = ""
+		w.lastRun = time.Now()
+		return
+	}
 
+	// If the disk is already encrypted, rotate the recovery key instead of
+	// decrypting and re-encrypting. This adds a new Fleet-managed recovery key
+	// protector, removes old ones, and escrows the new key. This matches how other MDMs
+	// handle pre-encrypted disks.
+	if encryptionStatus != nil &&
+		encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
 		log.Debug().Msg("disk is already encrypted, rotating recovery key")
 
 		recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
@@ -576,6 +576,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 		return
 	}
 
+	w.pendingRecoveryKey = ""
 	w.lastRun = time.Now()
 }
 
