@@ -28226,9 +28226,9 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
 	// Create a patch policy for 1password/darwin.
-	applyResp := applyPolicySpecsResponse{}
+	applyResp := fleet.ApplyPolicySpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/policies",
-		applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{{
+		fleet.ApplyPolicySpecsRequest{Specs: []*fleet.PolicySpec{{
 			Name:                   "1password patch policy",
 			Team:                   team.Name,
 			Type:                   fleet.PolicyTypePatch,
@@ -28238,8 +28238,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	)
 
 	// Verify the patch policy exists.
-	listPolResp := listTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+	listPolResp := fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 	require.Len(t, listPolResp.Policies, 1)
 	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
 
@@ -28252,7 +28252,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
 	// Verify the patch policy was deleted.
-	listPolResp = listTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+	listPolResp = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 	require.Empty(t, listPolResp.Policies)
 }
