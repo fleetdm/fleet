@@ -2973,11 +2973,12 @@ CREATE TABLE `upcoming_activities` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_api_endpoints` (
   `user_id` int unsigned NOT NULL,
-  `endpoint_hash` binary(32) NOT NULL,
+  `path` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `method` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_allowed` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `created_by_id` int unsigned DEFAULT NULL,
-  PRIMARY KEY (`user_id`,`endpoint_hash`),
+  PRIMARY KEY (`user_id`,`path`,`method`),
   KEY `created_by_id` (`created_by_id`),
   CONSTRAINT `user_api_endpoints_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `user_api_endpoints_ibfk_2` FOREIGN KEY (`created_by_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
