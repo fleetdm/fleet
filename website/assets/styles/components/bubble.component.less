@@ -1,0 +1,40 @@
+
+/**
+ * <bubble>
+ *
+ * App-wide styles for our bubbles.
+ */
+
+ [parasails-component='bubble'] {
+  span {
+    color: white;
+    display: inline-block;
+    padding-left: 10px;
+    padding-right: 10px;
+    height: 20px;
+    line-height: 20px;
+    vertical-align: middle;
+    border-radius: 15px;
+    font-size: 11px;
+    background-color: #0e6471;
+    border-color: darken( #0e6471, 10% );
+
+    // If the bubble represents a guaranteed type, make the border
+    // smooth and consistent, representing the secure future it will have
+    // with him.
+    border-style: none;
+
+    // if the bubble represents an uncertain type, make the bubble hollow
+    // to remind us that we're all missing something
+    &.uncertain {
+      // opacity: 0.8;
+      border-width: 1px;
+      // border-width: 3px;
+      // border-style: dotted;
+      border-style: solid;
+      font-style: italic;
+      background-color: white!important;
+      color: #222;
+    }
+  }
+}
