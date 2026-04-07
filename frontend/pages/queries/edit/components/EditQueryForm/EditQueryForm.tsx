@@ -9,7 +9,7 @@ import { InjectedRouter } from "react-router";
 import { Location } from "history";
 import { useQuery } from "react-query";
 
-import { noop, size } from "lodash";
+import { size } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 import { Ace } from "ace-builds";
 
@@ -491,9 +491,7 @@ const EditQueryForm = ({
               value={lastEditedQueryDescription}
               type="textarea"
               helpText="What information does your report reveal? (Optional)"
-              onChange={(value: string) =>
-                setLastEditedQueryDescription(value)
-              }
+              onChange={(value: string) => setLastEditedQueryDescription(value)}
               disabled={disableChildren}
             />
           )}
@@ -576,6 +574,7 @@ const EditQueryForm = ({
         isAnyTeamObserverPlus) && (
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
           <TooltipWrapper
+            className="live-query-button-tooltip"
             tipContent="Live reports are disabled in organization settings"
             disableTooltip={!disabledLiveQuery}
             position="top"
@@ -669,9 +668,7 @@ const EditQueryForm = ({
               )}
             </div>
           ) : (
-            <div className={`${baseClass}__title-bar`}>
-              {renderName()}
-            </div>
+            <div className={`${baseClass}__title-bar`}>{renderName()}</div>
           )}
           {savedQueryMode && renderName()}
           {renderDescription()}
@@ -868,6 +865,7 @@ const EditQueryForm = ({
               </>
             )}
             <TooltipWrapper
+              className="live-query-button-tooltip"
               tipContent="Live reports are disabled in organization settings"
               disableTooltip={!disabledLiveQuery}
               position="top"

@@ -259,10 +259,18 @@ const QueryEditor = ({
     );
   };
 
+  const backPath = policyIdForEdit
+    ? getPathWithQueryParams(PATHS.POLICY_DETAILS(policyIdForEdit), {
+        team_id: teamIdForApi,
+      })
+    : backToPoliciesPath();
+
+  const backText = policyIdForEdit ? "Back to policy" : "Back to policies";
+
   return (
     <div className={`${baseClass}__form`}>
       <div className={`${baseClass}__header-links`}>
-        <BackButton text="Back to policies" path={backToPoliciesPath()} />
+        <BackButton text={backText} path={backPath} />
       </div>
       <PolicyForm
         onCreatePolicy={onCreatePolicy}
@@ -284,6 +292,17 @@ const QueryEditor = ({
         onClickAutofillResolution={onClickAutofillResolution}
         resetAiAutofillData={() => setPolicyAutofillData(null)}
         currentAutomatedPolicies={currentAutomatedPolicies || []}
+        onCancel={
+          policyIdForEdit
+            ? () =>
+                router.push(
+                  getPathWithQueryParams(
+                    PATHS.POLICY_DETAILS(policyIdForEdit),
+                    { team_id: teamIdForApi }
+                  )
+                )
+            : undefined
+        }
       />
     </div>
   );

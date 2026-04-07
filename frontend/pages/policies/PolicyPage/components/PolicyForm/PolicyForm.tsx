@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "react-query";
 
 import { Ace } from "ace-builds";
 import { useDebouncedCallback } from "use-debounce";
-import { noop, size } from "lodash";
+import { size } from "lodash";
 
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
@@ -74,6 +74,7 @@ interface IPolicyFormProps {
   onClickAutofillResolution: () => Promise<void>;
   resetAiAutofillData: () => void;
   currentAutomatedPolicies: number[];
+  onCancel?: () => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -108,6 +109,7 @@ const PolicyForm = ({
   onClickAutofillResolution,
   resetAiAutofillData,
   currentAutomatedPolicies,
+  onCancel,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
@@ -759,8 +761,8 @@ const PolicyForm = ({
           {renderPlatformCompatibility()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
-            {isEditMode && (
-              <Button variant="inverse" onClick={noop}>
+            {isEditMode && onCancel && (
+              <Button variant="inverse" onClick={onCancel}>
                 Cancel
               </Button>
             )}

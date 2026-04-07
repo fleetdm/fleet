@@ -1,0 +1,49 @@
+.policy-details-page {
+  @include vertical-page-layout;
+
+  &__title-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: $pad-medium;
+  }
+
+  &__action-button-container {
+    display: flex;
+    justify-content: flex-end;
+    min-width: max-content;
+    gap: $pad-medium;
+  }
+
+  &__policy-name {
+    margin-top: 0;
+    font-size: $large;
+  }
+
+  &__resolve-section {
+    font-size: $x-small;
+  }
+
+  &__resolve-title {
+    margin: 0 0 $pad-xsmall;
+  }
+
+  &__resolve-text {
+    margin: 0;
+  }
+
+  &__author {
+    dd {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+  }
+
+  &__platforms {
+    dd {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+  }
+}
