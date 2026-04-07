@@ -354,7 +354,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			})
 
-			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true, nil))
 			checkExpected(t, nil, hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 				fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
@@ -454,7 +454,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		// ensure hosts[0] is set to verified for the rest of the tests
 		_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true))
 		require.NoError(t, err)
-		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true, nil))
 		checkExpected(t, nil, hostIDsByDEStatus{
 			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 			fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
@@ -650,7 +650,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			// simulate targetHost previously reported encrypted for disk encryption detail query
 			// results
-			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true))
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, nil))
 			// manualy update host_disks for targetHost to encrypted and ensure updated_at
 			// timestamp is in the past
 			updateHostDisks(t, targetHost.ID, true, time.Now().Add(-3*time.Hour))
@@ -667,7 +667,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			})
 
 			// simulate targetHost reporting detail query results for disk encryption
-			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true))
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, nil))
 			// status for targetHost now verified because SetOrUpdateHostDisksEncryption always sets host_disks.updated_at
 			// to the current timestamp even if the `encrypted` value hasn't changed
 			checkExpected(t, nil, hostIDsByDEStatus{
@@ -880,7 +880,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				// all hosts are pending because no profiles and disk encryption is enabled
 				checkExpected(t, nil, expected)
 
-				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true, nil))
 				_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true))
 				require.NoError(t, err)
 				// simulate bitlocker verifying status by ensuring host_disks updated at timestamp is before host_disk_encryption_key
@@ -939,7 +939,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				// status is still pending because hosts_disks hasn't been updated yet
 				checkExpected(t, nil, expected)
 
-				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true, nil))
 				// status for hosts[0] now verified because bitlocker status is verified and host[0] has
 				// no profiles
 				checkExpected(t, nil, hostIDsByProfileStatus{
@@ -986,7 +986,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				})
 
 				// simulate host already has encrypted disks
-				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true, nil))
 				// manualy update host_disks for hosts[0] to encrypted and ensure updated_at
 				// timestamp is in the past
 				updateHostDisks(t, hosts[0].ID, true, time.Now().Add(-2*time.Hour))
@@ -999,7 +999,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 					fleet.MDMDeliveryPending:   []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 				})
 
-				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true, nil))
 				// status for hosts[0] now verified because SetOrUpdateHostDisksEncryption always sets host_disks.updated_at
 				// to the current timestamp even if the `encrypted` value hasn't changed
 				checkExpected(t, nil, hostIDsByProfileStatus{

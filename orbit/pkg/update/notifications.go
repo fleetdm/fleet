@@ -432,6 +432,10 @@ type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err er
 // It returns an error if the process fails.
 type execDecryptVolumeFunc func(volumeID string) error
 
+// execRotateRecoveryKeyFunc rotates the recovery key on an already-encrypted volume.
+// It adds a new recovery key protector, removes old ones, and returns the new key.
+type execRotateRecoveryKeyFunc func(volumeID string) (string, error)
+
 type windowsMDMBitlockerConfigReceiver struct {
 	// Frequency is the minimum amount of time that must pass between two
 	// executions of the windows MDM enrollment attempt.
@@ -454,6 +458,9 @@ type windowsMDMBitlockerConfigReceiver struct {
 
 	// execDecryptVolumeFn handles volume decryption. Set by the middleware from the COMWorker, or overridden in tests.
 	execDecryptVolumeFn execDecryptVolumeFunc
+
+	// execRotateRecoveryKeyFn rotates the recovery key on an already-encrypted volume.
+	execRotateRecoveryKeyFn execRotateRecoveryKeyFunc
 }
 
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
@@ -467,6 +474,7 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 		execEncryptVolumeFn:       comWorker.EncryptVolume,
 		execGetEncryptionStatusFn: comWorker.GetEncryptionStatus,
 		execDecryptVolumeFn:       comWorker.DecryptVolume,
+		execRotateRecoveryKeyFn:   comWorker.RotateRecoveryKey,
 	}
 }
 
@@ -513,26 +521,30 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 		return
 	}
 
-	// if the disk is encrypted, try to decrypt it first.
+	// If the disk is already encrypted, rotate the recovery key instead of
+	// decrypting and re-encrypting. This adds a new Fleet-managed recovery key
+	// protector, removes old ones, and escrows the new key. The disk is never
+	// decrypted, which avoids the FVE_E_AUTOUNLOCK_ENABLED loop (#40809) and
+	// matches how Intune/Workspace ONE handle pre-encrypted disks.
 	if encryptionStatus != nil &&
 		encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
-		log.Debug().Msg("disk was previously encrypted. Attempting to decrypt it")
+		log.Debug().Msg("disk is already encrypted, rotating recovery key")
 
-		if err := w.decryptVolume(targetVolume); err != nil {
-			log.Error().Err(err).Msg("decryption failed")
-
+		recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
+		if err != nil {
+			log.Error().Err(err).Msg("recovery key rotation failed")
 			if serverErr := w.updateFleetServer("", err); serverErr != nil {
-				log.Error().Err(serverErr).Msg("failed to send decryption failure to Fleet Server")
-				return
+				log.Error().Err(serverErr).Msg("failed to send key rotation failure to Fleet Server")
 			}
+			return
 		}
 
-		// return regardless of the operation output.
-		//
-		// the decryption process takes an unknown amount of time (depending on
-		// factors outside of our control) and the next tick will be a noop if the
-		// disk is not ready to be encrypted yet (due to the
-		// w.bitLockerActionInProgress check above)
+		if serverErr := w.updateFleetServer(recoveryKey, nil); serverErr != nil {
+			log.Error().Err(serverErr).Msg("failed to send rotated recovery key to Fleet Server")
+			return
+		}
+
+		w.lastRun = time.Now()
 		return
 	}
 
