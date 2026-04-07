@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mysql
+description: A minimal MySQL chart using the official Docker image
+version: 1.0.0
+appVersion: "8.4"
+type: application

@@ -37,6 +37,8 @@ jobs:
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
     - name: create temp dir
       run: mkdir -p helm-temp
+    - name: helm dependency build
+      run: helm dependency build charts/fleet
     - name: helm template -- default values
       run: |
         helm template \
