@@ -226,7 +226,7 @@ func (ds *Datastore) RequeueWithheldONCProfilesForHost(ctx context.Context, host
 		WHERE host_uuid = ? AND status = ? AND detail LIKE ?`,
 		hostUUID, fleet.MDMDeliveryPending, fleet.ONCProfileWithheldDetailPrefix+"%",
 	)
-	return ctxerr.Wrap(ctx, err, "requeue pending android profiles for host")
+	return ctxerr.Wrap(ctx, err, "requeue withheld ONC profiles for host")
 }
 
 // RetryHostCertificateTemplate resets a failed certificate to pending for automatic retry,
@@ -618,11 +618,27 @@ func (ds *Datastore) RevertStaleCertificateTemplates(
 // For a given certificate template ID, it deletes any rows with status in (pending, failed)
 // and operation_type=install, then updates rows with operation_type=install to pending remove.
 // Rows already in remove state are left unchanged (idempotent).
+//
+// Also requeues any withheld ONC profiles for affected hosts within the same transaction,
+// so the reconciler releases them on its next cycle.
 func (ds *Datastore) SetHostCertificateTemplatesToPendingRemove(
 	ctx context.Context,
 	certificateTemplateID uint,
 ) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Requeue withheld ONC profiles for all hosts with this cert template.
+		// Must run before deleting host_certificate_templates rows since the
+		// subquery needs them to find affected hosts.
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE host_mdm_android_profiles SET status = NULL
+			WHERE host_uuid IN (
+				SELECT host_uuid FROM host_certificate_templates WHERE certificate_template_id = ?
+			) AND status = ? AND detail LIKE ?`,
+			certificateTemplateID, fleet.MDMDeliveryPending, fleet.ONCProfileWithheldDetailPrefix+"%",
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "requeue withheld ONC profiles for cert template removal")
+		}
+
 		// Delete rows with status in (pending, failed) and operation_type=install
 		// These certificates were never successfully installed on the device
 		deleteStmt := fmt.Sprintf(`

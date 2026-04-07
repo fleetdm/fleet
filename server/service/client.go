@@ -2463,18 +2463,22 @@ func (c *Client) DoGitOps(
 		}
 	}
 
-	err = c.doGitOpsPolicies(incoming, teamSoftwareInstallers, teamVPPApps, teamScripts, logFn, dryRun)
-	if err != nil {
-		return nil, err
-	}
-
-	// Apply Android certificates if present
+	// Apply Android certificates before policies so that certificate templates
+	// exist on the server before the profile reconciler's next cron cycle. This
+	// prevents a race where the cron fires after profiles are uploaded (by
+	// ApplyGroup above) but before cert templates exist, which would cause ONC
+	// profiles to be sent without waiting for the cert.
 	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
 	if err != nil {
 		var gitOpsErr *gitOpsValidationError
 		if errors.As(err, &gitOpsErr) {
 			return nil, gitOpsErr.WithFileContext(baseDir, filename)
 		}
+		return nil, err
+	}
+
+	err = c.doGitOpsPolicies(incoming, teamSoftwareInstallers, teamVPPApps, teamScripts, logFn, dryRun)
+	if err != nil {
 		return nil, err
 	}
 
