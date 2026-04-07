@@ -33,11 +33,12 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap';
   label_membership_type: dynamic
   platform: darwin
-- name: Macs with Zoom installed
-  description: macOS hosts with Zoom installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';
-  label_membership_type: dynamic
-  platform: darwin
+# Used by macOS Zoom patch policy when re-enabled (see patch-fleet-maintained-apps.yml).
+# - name: Macs with Zoom installed
+#   description: macOS hosts with Zoom installed
+#   query: SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';
+#   label_membership_type: dynamic
+#   platform: darwin
 - name: Macs with Okta Verify installed
   description: macOS hosts with Okta Verify installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.okta.mobile';
