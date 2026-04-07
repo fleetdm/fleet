@@ -21,8 +21,8 @@ import (
 // ovalDef mirrors the parsed OVAL JSON structure enough to extract package names and EVR states.
 type ovalDef struct {
 	RpmInfoTests map[string]struct {
-		Objects  []string `json:"Objects"`
-		States   []struct {
+		Objects []string `json:"Objects"`
+		States  []struct {
 			Evr  string `json:"Evr,omitempty"`
 			Arch string `json:"Arch,omitempty"`
 		} `json:"States"`
