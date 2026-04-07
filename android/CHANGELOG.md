@@ -1,4 +1,4 @@
-## Android agent 1.4.0 (Apr 03, 2026)
+## Android agent 1.4.0 (Apr 07, 2026)
 
 * Make certificate list scrollable
 * Fixed background DNS resolution failures.
@@ -7,6 +7,8 @@
 * Fixed duplicate FAILED status reports.
 * Treat HTTP 404 on certificate status updates as signal that the template has been deleted server-side.
 * Include SCEP `failInfo` details in enrollment failure messages instead of a generic error.
+* Wait for CERT_INSTALL delegation to be available before attempting certificate enrollment, preventing permanent failures after fresh MDM enrollment.
+* Improved certificate installation failure messages to include delegation status and certificate alias.
 
 ## Android agent 1.3.0 (Feb 27, 2026)
 
