@@ -100,12 +100,12 @@ func LoadFixture(fixturePath string, t require.TestingT) *VulnFixture {
 	return &fixture
 }
 
-// LoadSoftwareFromFixture creates a host and populates it with software from a VulnFixture.
-func LoadSoftwareFromFixture(
+// createHostWithSoftware creates a host in the database and populates it with the given software.
+func createHostWithSoftware(
 	ds *mysql.Datastore,
 	platformStr string,
 	ver fleet.OSVersion,
-	fixture *VulnFixture,
+	software []fleet.Software,
 	t require.TestingT,
 ) *fleet.Host {
 	osqueryHostID, err := server.GenerateRandomText(10)
@@ -127,15 +127,6 @@ func LoadSoftwareFromFixture(
 	})
 	require.NoError(t, err)
 
-	var software []fleet.Software
-	for _, fi := range fixture.Software() {
-		software = append(software, fleet.Software{
-			Name:    fi.Name,
-			Version: fi.Version,
-			Release: fi.Release,
-			Arch:    fi.Arch,
-		})
-	}
 	_, err = ds.UpdateHostSoftware(ctx, h.ID, software)
 	require.NoError(t, err)
 
@@ -150,6 +141,31 @@ func LoadSoftwareFromFixture(
 	require.NoError(t, err)
 
 	return h
+}
+
+// fixturesToSoftware converts SoftwareFixtures to fleet.Software.
+func fixturesToSoftware(fixtures []SoftwareFixture) []fleet.Software {
+	software := make([]fleet.Software, len(fixtures))
+	for i, fi := range fixtures {
+		software[i] = fleet.Software{
+			Name:    fi.Name,
+			Version: fi.Version,
+			Release: fi.Release,
+			Arch:    fi.Arch,
+		}
+	}
+	return software
+}
+
+// LoadSoftwareFromFixture creates a host and populates it with software from a VulnFixture.
+func LoadSoftwareFromFixture(
+	ds *mysql.Datastore,
+	platformStr string,
+	ver fleet.OSVersion,
+	fixture *VulnFixture,
+	t require.TestingT,
+) *fleet.Host {
+	return createHostWithSoftware(ds, platformStr, ver, fixturesToSoftware(fixture.Software()), t)
 }
 
 // RunAndAssert loads software from a VulnFixture, runs the scanner, and asserts that
@@ -228,8 +244,7 @@ func ExtractBzip2(src, dst string, t require.TestingT) {
 	require.NoError(t, err)
 }
 
-// LoadSoftware creates a host in the database and populates it with software from a JSON fixture file.
-// The fixture file must be located at <vulnPath>/<platformStr>-software.json.
+// LoadSoftware creates a host from a JSON fixture file at <vulnPath>/<platformStr>-software.json.
 func LoadSoftware(
 	ds *mysql.Datastore,
 	platformStr string,
@@ -237,55 +252,12 @@ func LoadSoftware(
 	vulnPath string,
 	t require.TestingT,
 ) *fleet.Host {
-	osqueryHostID, err := server.GenerateRandomText(10)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	h, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        platformStr,
-		NodeKey:         ptr.String(platformStr),
-		UUID:            platformStr,
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		OsqueryHostID:   &osqueryHostID,
-		Platform:        ver.Platform,
-		OSVersion:       ver.Name,
-	})
-	require.NoError(t, err)
-
 	var fixtures []SoftwareFixture
 	contents, err := os.ReadFile(filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", platformStr)))
 	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(contents, &fixtures))
 
-	err = json.Unmarshal(contents, &fixtures)
-	require.NoError(t, err)
-
-	var software []fleet.Software
-	for _, fi := range fixtures {
-		software = append(software, fleet.Software{
-			Name:    fi.Name,
-			Version: fi.Version,
-			Release: fi.Release,
-			Arch:    fi.Arch,
-		})
-	}
-	_, err = ds.UpdateHostSoftware(ctx, h.ID, software)
-	require.NoError(t, err)
-
-	err = ds.LoadHostSoftware(ctx, h, false)
-	require.NoError(t, err)
-
-	var cpes []fleet.SoftwareCPE
-	for _, s := range h.Software {
-		cpes = append(cpes, fleet.SoftwareCPE{SoftwareID: s.ID, CPE: fmt.Sprintf("%s-%s", s.Name, s.Version)})
-	}
-	_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
-	require.NoError(t, err)
-
-	return h
+	return createHostWithSoftware(ds, platformStr, ver, fixturesToSoftware(fixtures), t)
 }
 
 // loadExpectedCVEs reads expected CVEs from a CSV fixture file.
