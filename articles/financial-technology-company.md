@@ -23,11 +23,6 @@ The team prioritized GitOps workflows and API compatibility to align with their 
 - **MDM proxy:** They developed an MDM proxy to replicate Salt proxy minion workflows, enabling true configuration-as-code.  
 - **Security pipeline:** Integrating Fleet with their SIEM via a Firehose pipeline enhanced threat detection and compliance monitoring.
 
-## About Fleet
-
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="Financial technology company manages 15,000 devices with GitOps">
 <meta name="authorFullName" value="Irena Reedy">

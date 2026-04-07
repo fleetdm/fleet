@@ -122,9 +122,7 @@ module.exports = {
       }
     })
     .tolerate((err)=>{
-      if(err.statusCode === 401) {// Only log a warning for authentication errors related to the generated token for this request.
-        sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
-      }
+      sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
       return err;
     });
 

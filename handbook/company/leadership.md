@@ -196,7 +196,6 @@ In addition to [core team members](https://fleetdm.com/handbook/company/leadersh
 
 Consultants:
 - do NOT receive company-issued laptops
-- do NOT receive Yubikeys
 - do NOT get a "Hiring" issue created for them
 - do NOT get a company email address, nor everyone's calendars, nor the shared drive _(with occasional exceptions)_
 - do NOT go through training using the contributor onboarding issue.
@@ -227,7 +226,7 @@ Fleet asks US-based hourly contributors to track hours in Gusto, and contributor
 
 Core team members:
 - are hired for an existing [open position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position)
-- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
+- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop
 - must be onboarded (complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template)
 - must be offboarded
 - get an email address

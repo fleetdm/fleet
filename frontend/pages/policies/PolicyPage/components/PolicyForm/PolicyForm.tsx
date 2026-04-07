@@ -4,11 +4,9 @@ import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import { Ace } from "ace-builds";
-import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
 import classnames from "classnames";
-import { COLORS } from "styles/var/colors";
 
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
@@ -179,6 +177,7 @@ const PolicyForm = ({
     isOnGlobalTeam,
     isPremiumTier,
     config,
+    isFreeTier,
   } = useContext(AppContext);
 
   const { data: { labels } = { labels: [] } } = useQuery<
@@ -243,7 +242,7 @@ const PolicyForm = ({
   const isExistingPolicy = !!policyIdForEdit;
 
   const isNewTemplatePolicy =
-    !policyIdForEdit &&
+    !isExistingPolicy &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   useEffect(() => {
@@ -604,7 +603,9 @@ const PolicyForm = ({
                 />
                 <Icon
                   name="pencil"
-                  className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+                  className={`${baseClass}__edit-icon ${
+                    isEditingDescription ? `${baseClass}__edit-icon--hide` : ""
+                  }`}
                   size="small-medium"
                   color="core-fleet-green"
                 />
@@ -652,7 +653,9 @@ const PolicyForm = ({
                   />
                   <Icon
                     name="pencil"
-                    className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
+                    className={`${baseClass}__edit-icon ${
+                      isEditingResolution ? `${baseClass}__edit-icon--hide` : ""
+                    }`}
                     size="small-medium"
                     color="core-fleet-green"
                   />
@@ -705,6 +708,28 @@ const PolicyForm = ({
     );
   };
 
+  const renderPolicyFleetName = () => {
+    if (isFreeTier || !currentTeam?.name) return null;
+
+    if (isExistingPolicy) {
+      return hasSavePermissions ? (
+        <p>
+          Editing policy for <strong>{currentTeam?.name}</strong>.
+        </p>
+      ) : (
+        <p>
+          Viewing policy for <strong>{currentTeam?.name}</strong>.
+        </p>
+      );
+    }
+
+    return (
+      <p>
+        Creating a new policy for <strong>{currentTeam?.name}</strong>.
+      </p>
+    );
+  };
+
   // Non-editable form used for:
   // - Team observers and team observer+ viewing any of their team's policies and any inherited policies
   // - Team admins and team maintainers viewing any inherited policy
@@ -720,16 +745,23 @@ const PolicyForm = ({
         </h1>
         {renderAuthor()}
       </div>
-      <PageDescription
-        className={`${baseClass}__policy-description no-hover`}
-        content={lastEditedQueryDescription}
-      />
-      <p className="resolve-title">
-        <strong>Resolve:</strong>
-      </p>
-      <p className={`${baseClass}__policy-resolution no-hover`}>
-        {lastEditedQueryResolution}
-      </p>
+      {renderPolicyFleetName()}
+      {lastEditedQueryDescription && (
+        <PageDescription
+          className={`${baseClass}__policy-description no-hover`}
+          content={lastEditedQueryDescription}
+        />
+      )}
+      {lastEditedQueryResolution && (
+        <>
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <p className={`${baseClass}__policy-resolution no-hover`}>
+            {lastEditedQueryResolution}
+          </p>
+        </>
+      )}
       <RevealButton
         isShowing={showQueryEditor}
         className={baseClass}
@@ -786,6 +818,7 @@ const PolicyForm = ({
             <div className={`${baseClass}__policy-name`}>{renderName()}</div>
             {isExistingPolicy && renderAuthor()}
           </div>
+          {renderPolicyFleetName()}
           {renderDescription()}
           {renderResolution()}
           <SQLEditor
@@ -853,16 +886,22 @@ const PolicyForm = ({
             {hasSavePermissions && (
               <GitOpsModeTooltipWrapper
                 renderChildren={(disableChildren) => (
-                  // TODO - update to use TooltipWrapper
-                  <>
-                    <span
-                      className={`${baseClass}__button-wrap--tooltip`}
-                      data-tip
-                      data-for="save-policy-button"
-                      data-tip-disable={
-                        !isExistingPolicy || isAnyPlatformSelected
-                      }
-                    >
+                  <TooltipWrapper
+                    tipContent={
+                      <>
+                        Select the platforms this
+                        <br />
+                        policy will be checked on
+                        <br />
+                        to save or run the policy.
+                      </>
+                    }
+                    tooltipClass={`${baseClass}__button-wrap--tooltip`}
+                    position="top"
+                    disableTooltip={!isExistingPolicy || isAnyPlatformSelected}
+                    underline={false}
+                  >
+                    <span className={`${baseClass}__button-wrap--tooltip`}>
                       <Button
                         onClick={promptSavePolicy()}
                         disabled={disableSaveFormErrors || disableChildren}
@@ -872,63 +911,47 @@ const PolicyForm = ({
                         Save
                       </Button>
                     </span>
-                    <ReactTooltip
-                      className={`${baseClass}__button-wrap--tooltip`}
-                      place="bottom"
-                      effect="solid"
-                      id="save-policy-button"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                    >
-                      Select the platforms this
-                      <br />
-                      policy will be checked on
-                      <br />
-                      to save or run the policy.
-                    </ReactTooltip>
-                  </>
+                  </TooltipWrapper>
                 )}
               />
             )}
-            {/* TODO - update to use TooltipWrapper */}
-            <span
-              className={`${baseClass}__button-wrap--tooltip`}
-              data-tip
-              data-for="run-policy-button"
-              data-tip-disable={
+            <TooltipWrapper
+              tipContent={
+                disabledLiveQuery ? (
+                  <>
+                    Live reports are disabled <br />
+                    in organization settings.
+                  </>
+                ) : (
+                  <>
+                    Select the platforms this <br />
+                    policy will be checked on <br />
+                    to save or run the policy.
+                  </>
+                )
+              }
+              disableTooltip={
                 (!isExistingPolicy || isAnyPlatformSelected) &&
                 !disabledLiveQuery
               }
+              underline={false}
+              showArrow
+              position="top"
             >
-              <Button
-                onClick={goToSelectTargets}
-                disabled={
-                  isAddingAutomation ||
-                  (isExistingPolicy && !isAnyPlatformSelected) ||
-                  disabledLiveQuery
-                }
-                variant="inverse"
-              >
-                Run <Icon name="run" />
-              </Button>
-            </span>
-            <ReactTooltip
-              className={`${baseClass}__button-wrap--tooltip`}
-              place="bottom"
-              effect="solid"
-              id="run-policy-button"
-              backgroundColor={COLORS["tooltip-bg"]}
-              data-html
-            >
-              {disabledLiveQuery ? (
-                <>Live reports are disabled in organization settings</>
-              ) : (
-                <>
-                  Select the platforms this <br />
-                  policy will be checked on <br />
-                  to save or run the policy.
-                </>
-              )}
-            </ReactTooltip>
+              <span className={`${baseClass}__button-wrap--tooltip`}>
+                <Button
+                  onClick={goToSelectTargets}
+                  disabled={
+                    isAddingAutomation ||
+                    (isExistingPolicy && !isAnyPlatformSelected) ||
+                    disabledLiveQuery
+                  }
+                  variant="inverse"
+                >
+                  Run <Icon name="run" />
+                </Button>
+              </span>
+            </TooltipWrapper>
           </div>
         </form>
         {isSaveNewPolicyModalOpen && (
@@ -956,7 +979,7 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
-  const isInheritedPolicy = !!policyIdForEdit && storedPolicy?.team_id === null;
+  const isInheritedPolicy = isExistingPolicy && storedPolicy?.team_id === null;
 
   const noEditPermissions =
     isTeamObserver ||

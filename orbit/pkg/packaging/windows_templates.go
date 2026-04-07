@@ -580,7 +580,8 @@ function Force-Remove-Orbit {
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
 
       # Filter for osquery entries
-      $properties = Get-ItemProperty -LiteralPath $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery")}
+      $entryPath = $_.PSPath
+      $properties = try { Get-ItemProperty -LiteralPath $entryPath -ErrorAction "SilentlyContinue" | Where-Object {($_.DisplayName -eq "Fleet osquery")} } catch { Write-Host "Skipping invalid registry entry at ${entryPath}: $_"; $null }
       if ($properties) {
 
         #Remove Registry Entries
@@ -622,7 +623,8 @@ function Force-Remove-Osquery {
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
 
       # Filter for osquery entries
-      $properties = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "osquery")}
+      $entryPath = $_.PSPath
+      $properties = try { Get-ItemProperty -LiteralPath $entryPath -ErrorAction "SilentlyContinue" | Where-Object {($_.DisplayName -eq "osquery")} } catch { Write-Host "Skipping invalid registry entry at ${entryPath}: $_"; $null }
       if ($properties) {
 
         #Remove files from osquery location

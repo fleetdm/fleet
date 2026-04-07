@@ -17,6 +17,7 @@ import Button from "components/buttons/Button/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import CustomLink from "components/CustomLink";
 
 import {
   IFormDataIdp,
@@ -143,9 +144,8 @@ const EndUserAuthSection = ({
           to require end users to authenticate.
         </p>
         <div
-          className={`form ${
-            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-          }`}
+          className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+            }`}
         >
           <InputField
             label="Identity provider name"

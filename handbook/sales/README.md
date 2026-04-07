@@ -21,6 +21,11 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
+## Sales forecast
+
+To maintain an accurate picture of our performance and make sure our weekly forecast calls are as productive as possible, every Account Executive (AE) is required to update the AE weekly sales forecast spreadsheet (CONFIDENTIAL DOC - see agenda in calendar event) by **Thursday, 5:00 PM PT**. This data enables leadership to identify risks early and provide the support needed to close deals. Data is reviewed Friday mornings during the weekly **"☕️ Forecast call"**.
+
+
 ## Responsibilities
 
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.

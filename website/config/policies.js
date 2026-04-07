@@ -75,4 +75,6 @@ module.exports.policies = {
   'deliver-gitops-workshop-request': true,
   'view-infrastructure-as-code': true,
   'deliver-whitepaper-download-request': true,
+  'deliver-partner-registration-submission': true,
+  'view-partners': true,
 };

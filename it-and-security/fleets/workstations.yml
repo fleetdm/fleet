@@ -5,10 +5,6 @@ settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids:
-        - 38244 # Linux - Sufficient disk space available
-        - 38230 # macOS - Sufficient disk space available
-        - 38239 # Windows - Sufficient disk space available
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -112,7 +108,6 @@ controls:
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
-  - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/update-1password.yml
@@ -121,19 +116,16 @@ policies:
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-nudge.yml
-  - path: ../lib/macos/policies/update-claude.yml
-  - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/macos/policies/battery-health-check.yml
   # Windows policies
-  - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
-  - path: ../lib/windows/policies/update-claude.yml
-  - path: ../lib/windows/policies/update-slack.yml
+  - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
@@ -148,11 +140,6 @@ reports:
 software:
   packages:
     # macOS apps
-    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
-      self_service: true
-      display_name: "Mozilla Firefox"
-      categories:
-        - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
@@ -278,6 +265,10 @@ software:
       setup_experience: true
       categories:
         - Browsers
+    - slug: firefox/darwin # Mozilla Firefox for macOS
+      self_service: true
+      categories:
+        - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -336,7 +327,6 @@ software:
         - Productivity
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
-      display_name: "Mozilla Firefox"
       categories:
         - Browsers
       labels_include_any:

@@ -11,11 +11,13 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,6 +111,16 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	newUnlockActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeUnlockedHost{}.ActivityName(),
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "host_platform": %q}`, host.ID, host.DisplayName(), host.FleetPlatform()), 0)
 	require.NotEqual(t, unlockActID, newUnlockActID)
+
+	// simulate passage of time: backdate unlock_ref so that CleanAppleMDMLock's
+	// 5-minute guard doesn't block the upcoming Idle from clearing the lock state.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
+			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')
+			WHERE h.uuid = ?`, mysql.MDMLockCleanupMinutes+1), host.UUID)
+		return err
+	})
 
 	// as soon as the host sends an Idle MDM request, it is marked as unlocked
 	cmd, err = mdmClient.Idle()
@@ -239,8 +251,27 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	}))
 	s.setSkipWorkerJobs(t)
 
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", devices[0].SerialNumber)
 	iPadOSHost, iPadOSMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ipados", devices[1].SerialNumber)
+
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	// empty the command queue for both hosts
+	cmd, err := iosMDMClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = iosMDMClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	cmd, err = iPadOSMDMClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = iPadOSMDMClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
 
 	// We fake set installed_from_dep to emulate the devices was enrolled with DEP.
 	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
@@ -302,7 +333,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// Run device location handler
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 
 			// refresh the host's status, it is now locked
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
@@ -365,7 +396,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// Run device location handler
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 
 			// Get host data
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
