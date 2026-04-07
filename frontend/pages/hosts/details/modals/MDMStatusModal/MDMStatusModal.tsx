@@ -457,7 +457,7 @@ const MDMStatusModal = ({
     <ModalFooter
       primaryButtons={
         <Button type="button" onClick={onExit}>
-          Done
+          Close
         </Button>
       }
     />
