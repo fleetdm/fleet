@@ -598,26 +598,23 @@ const modifyOptions = (
     }
   }
 
+  const clearPasscodeOption = options.find(
+    (option) => option.value === "clearPasscode"
+  );
   if (
+    clearPasscodeOption &&
     ["locked", "locking", "unlocking", "locating"].includes(hostMdmDeviceStatus)
   ) {
-    const clearPasscodeOption = options.find(
-      (option) => option.value === "clearPasscode"
-    );
-    if (clearPasscodeOption) {
-      clearPasscodeOption.disabled = true;
-      clearPasscodeOption.tooltipContent =
-        "Clear passcode is unavailable while host is in Lost Mode.";
-    }
-  } else if (["wiped", "wiping"].includes(hostMdmDeviceStatus)) {
-    const clearPasscodeOption = options.find(
-      (option) => option.value === "clearPasscode"
-    );
-    if (clearPasscodeOption) {
-      clearPasscodeOption.disabled = true;
-      clearPasscodeOption.tooltipContent =
-        "Clear passcode is unavailable while host is pending wipe.";
-    }
+    clearPasscodeOption.disabled = true;
+    clearPasscodeOption.tooltipContent =
+      "Clear passcode is unavailable while host is in Lost Mode.";
+  } else if (
+    clearPasscodeOption &&
+    ["wiped", "wiping"].includes(hostMdmDeviceStatus)
+  ) {
+    clearPasscodeOption.disabled = true;
+    clearPasscodeOption.tooltipContent =
+      "Clear passcode is unavailable while host is pending wipe.";
   }
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);

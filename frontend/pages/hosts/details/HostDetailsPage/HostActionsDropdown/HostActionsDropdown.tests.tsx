@@ -1943,46 +1943,49 @@ describe("Host Actions Dropdown", () => {
       });
     });
 
-    it("is disabled with tooltip when pending wipe", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            isPremiumTier: true,
-            isMacMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
+    it.each<HostMdmDeviceStatusUIState>(["wiping", "wiped"])(
+      "is disabled with tooltip when pending wipe",
+      async (status) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isGlobalAdmin: true,
+              isPremiumTier: true,
+              isMacMdmEnabledAndConfigured: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
-      });
+        });
 
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="ios"
-          hostMdmEnrollmentStatus="On (company-owned)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="wiping"
-          hostScriptsEnabled
-        />
-      );
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="ios"
+            hostMdmEnrollmentStatus="On (company-owned)"
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus={status}
+            hostScriptsEnabled
+          />
+        );
 
-      await user.click(screen.getByText("Actions"));
+        await user.click(screen.getByText("Actions"));
 
-      const option = screen.getByText("Clear passcode");
-      expect(option).toBeInTheDocument();
-      expect(option).toHaveAttribute("aria-disabled", "true");
+        const option = screen.getByText("Clear passcode");
+        expect(option).toBeInTheDocument();
+        expect(option).toHaveAttribute("aria-disabled", "true");
 
-      await user.hover(option);
+        await user.hover(option);
 
-      await waitFor(() => {
-        expect(
-          screen.getByText(
-            /Clear passcode is unavailable while host is pending wipe./i
-          )
-        ).toBeInTheDocument();
-      });
-    });
+        await waitFor(() => {
+          expect(
+            screen.getByText(
+              /Clear passcode is unavailable while host is pending wipe./i
+            )
+          ).toBeInTheDocument();
+        });
+      }
+    );
   });
 });
