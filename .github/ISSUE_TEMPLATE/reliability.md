@@ -2,7 +2,7 @@
 name: 🔧 Reliability
 about: Report a scaling, performance, or reliability issue, including post-mortem action items.
 title: ''
-labels: 'reliability'
+labels: 'reliability,:product'
 assignees: ''
 
 ---
