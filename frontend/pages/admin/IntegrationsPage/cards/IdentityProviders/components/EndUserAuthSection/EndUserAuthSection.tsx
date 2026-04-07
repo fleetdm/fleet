@@ -79,7 +79,7 @@ const EndUserAuthSection = ({
         setFormErrors(newErrors);
       }
     },
-    [formData, setFormData, formErrors, setDirty],
+    [formData, setFormData, formErrors, setDirty]
   );
 
   const onBlur = useCallback(() => {
@@ -119,14 +119,14 @@ const EndUserAuthSection = ({
         if (ae.status === 422) {
           renderFlash(
             "error",
-            `Couldn't update: ${expandErrorReasonRequired(err)}.`,
+            `Couldn't update: ${expandErrorReasonRequired(err)}.`
           );
           return;
         }
         renderFlash("error", "Couldn't update. Please try again.");
       }
     },
-    [formData, setFormData, renderFlash, setDirty],
+    [formData, setFormData, renderFlash, setDirty]
   );
 
   const renderContent = () => {
