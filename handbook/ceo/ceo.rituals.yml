@@ -75,6 +75,6 @@
 - task: "Connect with GitOps workshop attendees"
   startedOn: "2025-04-07"
   frequency: "Weekly"
-  description: "Check for GitOps workshops that occurred during the week, pull the attendee list from Eventbrite, and send blank connect requests from the CEO to each attendee."
+  description: "Check for GitOps workshops that occurred during the week, pull the attendee list from Eventbrite, and send blank connect requests from the CEO to each attendee so they have an open line for communication for feedback and ideas."
   moreInfoUrl:
   dri: "SFriendLee"
