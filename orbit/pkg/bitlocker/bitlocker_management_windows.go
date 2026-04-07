@@ -137,20 +137,6 @@ func (v *Volume) encrypt(method EncryptionMethod, flags EncryptionFlag) error {
 	return nil
 }
 
-// decrypt encrypts the volume
-// Example: vol.decrypt()
-// https://learn.microsoft.com/en-us/windows/win32/secprov/decrypt-win32-encryptablevolume
-func (v *Volume) decrypt() error {
-	resultRaw, err := oleutil.CallMethod(v.handle, "Decrypt")
-	if err != nil {
-		return fmt.Errorf("decrypt(%s): %w", v.letter, err)
-	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("decrypt(%s): %w", v.letter, encryptErrHandler(val))
-	}
-
-	return nil
-}
-
 // prepareVolume prepares a new Bitlocker Volume. This should be called BEFORE any key protectors are added.
 // Example: vol.prepareVolume(bitlocker.VolumeTypeDefault, bitlocker.EncryptionTypeHardware)
 // https://docs.microsoft.com/en-us/windows/win32/secprov/preparevolume-win32-encryptablevolume
@@ -251,7 +237,7 @@ const (
 func (v *Volume) getKeyProtectorIDs(protectorType int32) ([]string, error) {
 	var protectorIDs ole.VARIANT
 	_ = ole.VariantInit(&protectorIDs)
-	defer ole.VariantClear(&protectorIDs)
+	defer ole.VariantClear(&protectorIDs) //nolint:errcheck
 
 	resultRaw, err := oleutil.CallMethod(v.handle, "GetKeyProtectors", protectorType, &protectorIDs)
 	if err != nil {
