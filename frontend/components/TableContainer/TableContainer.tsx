@@ -122,6 +122,7 @@ interface ITableContainerProps<T = any> {
   onClearSelection?: () => void;
   /** don't show the Clear selection button and selected item count when items are selected */
   suppressHeaderActions?: boolean;
+  getRowId?: (row: any, index: number) => string;
 }
 
 const baseClass = "table-container";
@@ -184,6 +185,7 @@ const TableContainer = <T,>({
   persistSelectedRows,
   onClearSelection = noop,
   suppressHeaderActions,
+  getRowId,
 }: ITableContainerProps<T>) => {
   const isControlledSearchQuery = controlledSearchQuery !== undefined;
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
@@ -578,6 +580,7 @@ const TableContainer = <T,>({
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
                 suppressHeaderActions={suppressHeaderActions}
+                getRowId={getRowId}
                 persistSelectedRows={persistSelectedRows}
                 hideFooter={hideFooter}
               />

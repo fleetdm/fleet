@@ -210,16 +210,42 @@ To monitor and respond to LinkedIn comments:
 
 After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
-1. Download the sprint demo recording.
-2. Fix audio levels - because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels:
+1. **Download the sprint demo recording**
+
+   This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
+   
+3. **Review and scrub the recording**
+
+   The Content Specialist reviews the original recording and will remove/edit any issues, including:
+   - Mentions of customer names or sensitive information  
+   - Long pauses or dead air  
+   - The opening ritual or internal-only discussion  
+   - Any unclear or unnecessary segments
+   - Make sure the video has a clean start and a clear ending.
+   
+4. **Share with Technical Marketing**
+
+   After scrubbing, the Content Specialist shares the project file with the Technical Marketer.
+
+5. **Edit audio and visuals**
+
+   The Technical Marketer adjusts sound and visual quality as needed.
+
+   Ensure audio is clear and visuals are easy to follow.
+
+   Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels:
   - Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor. (need to revisit this. No longer a free option)
   - Apply "Auto Level Volume" (under the "Audio" section) to even out the volume levels across all presenters.
   - Export and download the processed video.
-3. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
-4. Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
-5. Add a brief description highlighting the new features.
-6. Add the new video to the "Releases" playlist.
 
+6. **Upload the video to Youtube**
+   Follow the steps to [upload the video to YouTube](#upload-to-youtube).
+
+   Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+
+   Add a brief description highlighting the new features.
+
+   Add the new video to the "Releases" playlist.
 
 ### Upload to YouTube
 

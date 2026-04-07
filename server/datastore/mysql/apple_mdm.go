@@ -5060,6 +5060,18 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 	})
 }
 
+func (ds *Datastore) ClearHostEnrolledFromMigration(ctx context.Context, hostUUID string) error {
+	const stmt = `
+UPDATE nano_enrollments
+SET enrolled_from_migration = 0
+WHERE id = ? AND enabled = 1 AND enrolled_from_migration = 1`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting enrolled_from_migration value")
+	}
+	return nil
+}
+
 // MDMLockCleanupMinutes is the minimum number of minutes that must have elapsed
 // since unlock_ref was set before CleanAppleMDMLock will clear the lock state.
 // This prevents the trailing Idle check-in (sent by the device right after
