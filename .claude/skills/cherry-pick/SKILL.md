@@ -20,18 +20,28 @@ Usage: `/cherry-pick <PR_NUMBER> [RC_BRANCH]`
 
 ## Step 2: Identify the RC branch
 
-If an RC branch was provided as the second argument, use it. Otherwise, auto-detect the most recent one:
+If an RC branch was provided as the second argument, use it (but still confirm with the user before proceeding).
+
+Otherwise, auto-detect by listing both minor and patch RC branches:
 
 ```
-git for-each-ref 'refs/remotes/origin/rc-minor-fleet-v*' --format='%(refname:strip=3)' | grep -E '^rc-minor-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1
+git for-each-ref 'refs/remotes/origin/rc-minor-fleet-v*' 'refs/remotes/origin/rc-patch-fleet-v*' --format='%(refname:strip=3)' | grep -E '^rc-(minor|patch)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V
 ```
 
-This returns branch names like `rc-minor-fleet-v4.84.0` (without the `remotes/origin/` prefix) and selects the highest version reliably.
+From the results, suggest the most recent `rc-minor-fleet-v*` branch as the default. If patch branches also exist, mention them as alternatives. **Always ask the user to confirm the target RC branch before proceeding.**
 
 ## Step 3: Get the merge commit and GitHub username
 
-1. Use `gh pr view <PR_NUMBER> --json mergeCommit,title,number` to get the merge commit SHA and PR title. If the PR is not yet merged, tell the user and stop.
-2. Get the GitHub username: `gh api user --jq .login`
+1. Get the PR title:
+   ```
+   gh pr view <PR_NUMBER> --json title --jq .title
+   ```
+2. Get the merge commit SHA:
+   ```
+   gh pr view <PR_NUMBER> --json mergeCommit --jq .mergeCommit.oid
+   ```
+   If this returns `null` or an empty value, the PR is not yet merged. Tell the user and stop.
+3. Get the GitHub username: `gh api user --jq .login`
 
 ## Step 4: Cherry-pick onto a new branch
 
