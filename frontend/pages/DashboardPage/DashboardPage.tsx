@@ -78,6 +78,7 @@ import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import ChartCard from "./cards/ChartCard";
+import { HostsEnrolledCard } from "./cards/HostsEnrolledCard";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
@@ -921,9 +922,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             )}
           </>
         </div>
-        <div className={`${baseClass}__host-sections`}>
+        <div className={`${baseClass}__charts-row`}>
           <Card paddingSize="xlarge" borderRadiusSize="large">
             <ChartCard />
+          </Card>
+          <Card paddingSize="xlarge" borderRadiusSize="large">
+            <HostsEnrolledCard />
           </Card>
         </div>
         {renderCards()}
