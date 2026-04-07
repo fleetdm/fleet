@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   models: read
+  pull-requests: read
 
 defaults:
   run:
@@ -55,6 +56,52 @@ jobs:
           echo "$COMMITS" > /tmp/commits.txt
           echo "$DIFF" > /tmp/diff.txt
 
+      - name: Collect PR context
+        if: steps.diffs.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          HANDBOOK_PATHS="handbook/engineering/ handbook/product-design/"
+          SINCE_DATE="${{ steps.diffs.outputs.since_date }}"
+
+          # Get unique merge commit SHAs for handbook changes
+          COMMIT_SHAS=$(git log --since="$SINCE_DATE" --pretty=format:'%H' -- $HANDBOOK_PATHS | sort -u)
+
+          echo "PR_CONTEXT:" > /tmp/pr_context.txt
+
+          # Track PRs we've already processed to avoid duplicates
+          declare -A SEEN_PRS
+
+          for SHA in $COMMIT_SHAS; do
+            # Find the PR that introduced this commit
+            PR_JSON=$(gh api "repos/${GH_REPO}/commits/${SHA}/pulls" \
+              --jq '.[0] | {number, title, html_url, body}' 2>/dev/null || echo "")
+
+            if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
+              continue
+            fi
+
+            PR_NUM=$(echo "$PR_JSON" | jq -r '.number')
+
+            # Skip if we already processed this PR
+            if [ -n "${SEEN_PRS[$PR_NUM]:-}" ]; then
+              continue
+            fi
+            SEEN_PRS[$PR_NUM]=1
+
+            PR_TITLE=$(echo "$PR_JSON" | jq -r '.title')
+            PR_URL=$(echo "$PR_JSON" | jq -r '.html_url')
+            # Truncate PR body to 500 chars to keep context manageable
+            PR_BODY=$(echo "$PR_JSON" | jq -r '.body // ""' | head -c 500)
+
+            echo "" >> /tmp/pr_context.txt
+            echo "---" >> /tmp/pr_context.txt
+            echo "PR #${PR_NUM}: ${PR_TITLE}" >> /tmp/pr_context.txt
+            echo "URL: ${PR_URL}" >> /tmp/pr_context.txt
+            echo "Description: ${PR_BODY}" >> /tmp/pr_context.txt
+          done
+
       - name: Summarize with AI
         if: steps.diffs.outputs.has_changes == 'true'
         env:
@@ -63,21 +110,26 @@ jobs:
         run: |
           COMMITS=$(cat /tmp/commits.txt)
           DIFF=$(cat /tmp/diff.txt)
+          PR_CONTEXT=$(cat /tmp/pr_context.txt)
 
           # Build the prompt
           PROMPT="You are summarizing changes to a company handbook for a Slack post.
 
-          Below are the commits and diffs made to the Product Design and Engineering sections of the Fleet handbook in the past week (since ${SINCE_DATE}).
+          Below are the commits, associated pull requests, and diffs made to the Product Design and Engineering sections of the Fleet handbook in the past week (since ${SINCE_DATE}).
 
           COMMITS:
           ${COMMITS}
+
+          PULL REQUESTS (with descriptions for additional context):
+          ${PR_CONTEXT}
 
           DIFF:
           ${DIFF}
 
           Write a concise, well-organized summary suitable for posting in Slack. Format it using Slack mrkdwn syntax (use *bold* not **bold**, use • for bullets).
           Group changes by section (Engineering vs Product Design) if both have changes.
-          Focus on WHAT changed and WHY it matters — skip trivial whitespace or formatting-only changes.
+          Focus on WHAT changed and WHY it matters — use the PR descriptions for context on the intent behind changes. Skip trivial whitespace or formatting-only changes.
+          For each significant change, include a link to the relevant PR using Slack link syntax: <URL|PR #123>.
           Keep it under 3000 characters. Do not include a greeting or sign-off."
 
           # Call GitHub Models API (OpenAI-compatible endpoint, no extra secrets needed)
