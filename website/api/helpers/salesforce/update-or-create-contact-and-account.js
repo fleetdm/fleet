@@ -234,11 +234,11 @@ module.exports = {
         rc: 'Regional conference (RC)',
         le: 'Local event/meetup (LE)',
         ec: 'Executive community (EC)',
-        fe: 'Field event/workshop (FE)',
+        fe: 'Field/sales event (FE)',
         pe: 'Partner event (PE)',
         se: 'Speaking engagement (SE)',
-        wh: 'Fleet hosted webinar (WH)',
-        ws: 'Sponsored webinar (WS)',
+        wh: 'Webinar hosted (WH)',
+        ws: 'Webinar sponsored (WS)',
       };
 
       attributionDetails.gclid = marketingAttributionCookie.gclid;
