@@ -191,6 +191,7 @@ jobs:
 
             ($summary | chunk_text($max_len)) as $chunks |
             {
+              "text": ("Product & Engineering handbook weekly summary (since " + $since + ")"),
               "blocks": [
                 {
                   "type": "header",
@@ -236,6 +237,7 @@ jobs:
           fi
 
           jq -n '{
+            "text": "Product & Engineering handbook weekly summary — no changes this week.",
             "blocks": [
               {
                 "type": "header",
