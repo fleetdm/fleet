@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.7.0",
+      "version": "6.8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy' AND version_compare(bundle_short_version, '6.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy' AND version_compare(bundle_short_version, '6.8.0') < 0);"
       },
-      "installer_url": "https://download.proxyman.com/60700/Proxyman_6.7.0.dmg",
+      "installer_url": "https://download.proxyman.com/60800/Proxyman_6.8.0.dmg",
       "install_script_ref": "c068b6b3",
       "uninstall_script_ref": "75784e88",
-      "sha256": "976f278eff9ca4f465e5ab9b96801c73427f20286efacff62402deef1dd4413c",
+      "sha256": "7b6440f810b6f6c297b6a46d3c90e9833c5b57f6b6138bc616b20b38cfff9661",
       "default_categories": [
         "Developer tools"
       ]

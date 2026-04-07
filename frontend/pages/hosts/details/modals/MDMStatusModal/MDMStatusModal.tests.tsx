@@ -293,7 +293,7 @@ describe("MDMStatusModal - component", () => {
     });
   });
 
-  it("calls onExit when Done is clicked", async () => {
+  it("calls onExit when Close is clicked", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
       mockDepAssignmentResponse
     );
@@ -310,7 +310,7 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
     expect(onExit).toHaveBeenCalled();
   });
 });

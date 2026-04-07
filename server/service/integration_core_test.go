@@ -559,7 +559,7 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 
 	var policyIDs []uint
 	for _, policy := range testPolicies {
-		var resp globalPolicyResponse
+		var resp fleet.GlobalPolicyResponse
 		s.DoJSON("POST", "/api/latest/fleet/policies", policy, http.StatusOK, &resp)
 		policyIDs = append(policyIDs, resp.Policy.PolicyData.ID)
 	}
@@ -575,8 +575,8 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &prevActivities)
 	require.GreaterOrEqual(t, len(prevActivities.Activities), 2)
 
-	var deletePoliciesResp deleteGlobalPoliciesResponse
-	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deleteGlobalPoliciesRequest{policyIDs}, http.StatusOK, &deletePoliciesResp)
+	var deletePoliciesResp fleet.DeleteGlobalPoliciesResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{IDs: policyIDs}, http.StatusOK, &deletePoliciesResp)
 	require.Equal(t, len(policyIDs), len(deletePoliciesResp.Deleted))
 
 	newActivities := listActivitiesResponse{}
@@ -1176,11 +1176,11 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	require.NoError(t, err)
 
 	// create a global policy
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		QueryID:    &qr.ID,
 		Resolution: "some global resolution",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	assert.Equal(t, qr.Name, gpResp.Policy.Name)
@@ -1190,7 +1190,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	assert.Equal(t, "some global resolution", *gpResp.Policy.Resolution)
 
 	// list global policies
-	policiesResponse := listGlobalPoliciesResponse{}
+	policiesResponse := fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, qr.Name, policiesResponse.Policies[0].Name)
@@ -1198,12 +1198,12 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	assert.Equal(t, qr.Description, policiesResponse.Policies[0].Description)
 
 	// invalid order_key returns 422
-	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusUnprocessableEntity, &listGlobalPoliciesResponse{}, "order_key", "invalid")
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusUnprocessableEntity, &fleet.ListGlobalPoliciesResponse{}, "order_key", "invalid")
 
 	// Get an unexistent policy
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", 9999), nil, http.StatusNotFound)
 
-	singlePolicyResponse := getPolicyByIDResponse{}
+	singlePolicyResponse := fleet.GetPolicyByIDResponse{}
 	singlePolicyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policiesResponse.Policies[0].ID)
 	s.DoJSON("GET", singlePolicyURL, nil, http.StatusOK, &singlePolicyResponse)
 	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.Name)
@@ -1232,31 +1232,31 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	require.Len(t, listHostsResp.Hosts, 1)
 
 	// count global policies
-	cGPRes := countGlobalPoliciesResponse{}
+	cGPRes := fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes)
 	assert.Equal(t, 1, cGPRes.Count)
 
 	// count global policies with matching search query
-	cGPRes = countGlobalPoliciesResponse{}
+	cGPRes = fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", "estQue")
 	assert.Equal(t, 1, cGPRes.Count)
 
 	// count global policies with matching search query containing leading/trailing whitespace
-	cGPRes = countGlobalPoliciesResponse{}
+	cGPRes = fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", " estQue    ")
 	assert.Equal(t, 1, cGPRes.Count)
 
 	// count global policies with non-matching search query
-	cGPRes = countGlobalPoliciesResponse{}
+	cGPRes = fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", "Query4")
 	assert.Equal(t, 0, cGPRes.Count)
 
 	// delete the policy
-	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
-	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	deletePolicyParams := fleet.DeleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := fleet.DeleteGlobalPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
-	policiesResponse = listGlobalPoliciesResponse{}
+	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
 }
@@ -2835,22 +2835,22 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	})
 	require.NoError(t, err)
 	// Cannot set both QueryID and Query.
-	gpParams0 := globalPolicyRequest{
+	gpParams0 := fleet.GlobalPolicyRequest{
 		QueryID: &qr.ID,
 		Query:   "select * from osquery;",
 	}
-	gpResp0 := globalPolicyResponse{}
+	gpResp0 := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams0, http.StatusBadRequest, &gpResp0)
 	require.Nil(t, gpResp0.Policy)
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		Name:        "TestQuery3",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
 		Platform:    "darwin",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NotEmpty(t, gpResp.Policy.ID)
@@ -2870,7 +2870,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		"description": "Some description updated",
 		"resolution": "some global resolution updated"
 	}`), http.StatusOK)
-	var mgpResp modifyGlobalPolicyResponse
+	var mgpResp fleet.ModifyGlobalPolicyResponse
 	responseBody, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 	err = json.Unmarshal(responseBody, &mgpResp)
@@ -2886,8 +2886,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
 	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
 
-	ggpResp := getPolicyByIDResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &ggpResp)
+	ggpResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &ggpResp)
 	require.NotNil(t, ggpResp.Policy)
 	assert.Equal(t, "TestQuery4", ggpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", ggpResp.Policy.Query)
@@ -2898,7 +2898,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
 	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
 
-	policiesResponse := listGlobalPoliciesResponse{}
+	policiesResponse := fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, "TestQuery4", policiesResponse.Policies[0].Name)
@@ -2963,7 +2963,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	policiesResponse = listGlobalPoliciesResponse{}
+	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, "TestQuery4", policiesResponse.Policies[0].Name)
@@ -3035,11 +3035,11 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
-	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	deletePolicyParams := fleet.DeleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := fleet.DeleteGlobalPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
-	policiesResponse = listGlobalPoliciesResponse{}
+	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
 }
@@ -3073,14 +3073,14 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	require.NoError(t, err)
 
 	tpName := "TestPolicy3"
-	tpParams := teamPolicyRequest{
+	tpParams := fleet.TeamPolicyRequest{
 		Name:        tpName,
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
 		Platform:    "darwin",
 	}
-	tpResp := teamPolicyResponse{}
+	tpResp := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
@@ -3101,7 +3101,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 		"description": "Some description updated",
 		"resolution": "some team resolution updated"
 	}`, tpNameNew)), http.StatusOK)
-	var mtpResp modifyGlobalPolicyResponse
+	var mtpResp fleet.ModifyGlobalPolicyResponse
 	responseBody, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 	err = json.Unmarshal(responseBody, &mtpResp)
@@ -3115,8 +3115,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "some team resolution updated", *mtpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", mtpResp.Policy.Platform)
 
-	gtpResp := getPolicyByIDResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &gtpResp)
+	gtpResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &gtpResp)
 	require.NotNil(t, gtpResp.Policy)
 	assert.Equal(t, tpNameNew, gtpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", gtpResp.Policy.Query)
@@ -3125,7 +3125,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "some team resolution updated", *gtpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", gtpResp.Policy.Platform)
 
-	policiesResponse := listTeamPoliciesResponse{}
+	policiesResponse := fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, tpNameNew, policiesResponse.Policies[0].Name)
@@ -3137,22 +3137,22 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	require.Len(t, policiesResponse.InheritedPolicies, 0)
 
 	// test team policy count endpoint
-	tpCountResp := countTeamPoliciesResponse{}
+	tpCountResp := fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp)
 	assert.Equal(t, 1, tpCountResp.Count)
 	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
-	tpCountResp = countTeamPoliciesResponse{}
+	tpCountResp = fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", tpNameNew)
 	assert.Equal(t, 1, tpCountResp.Count)
 	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
-	tpCountResp = countTeamPoliciesResponse{}
+	tpCountResp = fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " "+tpNameNew+" ")
 	assert.Equal(t, 1, tpCountResp.Count)
 	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
-	tpCountResp = countTeamPoliciesResponse{}
+	tpCountResp = fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " nomatch")
 	assert.Equal(t, 0, tpCountResp.Count)
 	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
@@ -3177,11 +3177,11 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 1)
 
-	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
-	deletePolicyResp := deleteTeamPoliciesResponse{}
+	deletePolicyParams := fleet.DeleteTeamPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := fleet.DeleteTeamPoliciesResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team1.ID), deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
-	policiesResponse = listTeamPoliciesResponse{}
+	policiesResponse = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
 }
@@ -3196,24 +3196,24 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	})
 	require.NoError(t, err)
 
-	tpParams := teamPolicyRequest{
+	tpParams := fleet.TeamPolicyRequest{
 		Name:        "TestQuery3-Team",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
 	}
-	tpResp := teamPolicyResponse{}
+	tpResp := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	teamPolicyID := tpResp.Policy.ID
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		Name:        "TestQuery3-Global",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NotEmpty(t, gpResp.Policy.ID)
@@ -3260,48 +3260,48 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
-			tpReq := teamPolicyRequest{
+			tpReq := fleet.TeamPolicyRequest{
 				QueryID:  tc.queryID,
 				Name:     tc.name,
 				Query:    tc.query,
 				Platform: tc.platforms,
 			}
-			tpResp := teamPolicyResponse{}
+			tpResp := fleet.TeamPolicyResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpReq, http.StatusBadRequest, &tpResp)
 			require.Nil(t, tpResp.Policy)
 
 			testUpdate := tc.queryID == nil
 
 			if testUpdate {
-				tpReq := modifyTeamPolicyRequest{
+				tpReq := fleet.ModifyTeamPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 						Name:  ptr.String(tc.name),
 						Query: ptr.String(tc.query),
 					},
 				}
-				tpResp := modifyTeamPolicyResponse{}
+				tpResp := fleet.ModifyTeamPolicyResponse{}
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, teamPolicyID), tpReq, http.StatusBadRequest, &tpResp)
 				require.Nil(t, tpResp.Policy)
 			}
 
-			gpReq := globalPolicyRequest{
+			gpReq := fleet.GlobalPolicyRequest{
 				QueryID:  tc.queryID,
 				Name:     tc.name,
 				Query:    tc.query,
 				Platform: tc.platforms,
 			}
-			gpResp := globalPolicyResponse{}
+			gpResp := fleet.GlobalPolicyResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/policies", gpReq, http.StatusBadRequest, &gpResp)
 			require.Nil(t, tpResp.Policy)
 
 			if testUpdate {
-				gpReq := modifyGlobalPolicyRequest{
+				gpReq := fleet.ModifyGlobalPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 						Name:  ptr.String(tc.name),
 						Query: ptr.String(tc.query),
 					},
 				}
-				gpResp := modifyGlobalPolicyResponse{}
+				gpResp := fleet.ModifyGlobalPolicyResponse{}
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), gpReq, http.StatusBadRequest, &gpResp)
 				require.Nil(t, tpResp.Policy)
 			}
@@ -3356,24 +3356,24 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		Name:        "HostDetailsPolicies",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NotEmpty(t, gpResp.Policy.ID)
 
-	tpParams := teamPolicyRequest{
+	tpParams := fleet.TeamPolicyRequest{
 		Name:        "HostDetailsPolicies-Team",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
 	}
-	tpResp := teamPolicyResponse{}
+	tpResp := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
@@ -5409,11 +5409,11 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	)
 	require.NoError(t, err)
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		QueryID:    &qr.ID,
 		Resolution: "some global resolution",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NoError(
@@ -5905,11 +5905,11 @@ func (s *integrationTestSuite) TestUsers() {
 func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	t := s.T()
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		Name:  "policy1",
 		Query: "select 41;",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
@@ -5932,8 +5932,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	require.Equal(t, 1*time.Hour, config.WebhookSettings.Interval.Duration)
 	require.Equal(t, 1000, config.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
-	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{gpResp.Policy.ID}}
-	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	deletePolicyParams := fleet.DeleteGlobalPoliciesRequest{IDs: []uint{gpResp.Policy.ID}}
+	deletePolicyResp := fleet.DeleteGlobalPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
 	config = s.getConfig()
@@ -7652,11 +7652,11 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	})
 	require.NoError(t, err)
 
-	gpParams0 := globalPolicyRequest{
+	gpParams0 := fleet.GlobalPolicyRequest{
 		Name:  "global policy",
 		Query: "select * from osquery;",
 	}
-	gpResp0 := globalPolicyResponse{}
+	gpResp0 := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams0, http.StatusOK, &gpResp0)
 	require.NotNil(t, gpResp0.Policy)
 
@@ -7683,7 +7683,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 		s.token = oldToken
 	})
 
-	policiesResponse := listGlobalPoliciesResponse{}
+	policiesResponse := fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, "global policy", policiesResponse.Policies[0].Name)
@@ -7693,12 +7693,12 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	t := s.T()
 
-	teamPoliciesResponse := listTeamPoliciesResponse{}
+	teamPoliciesResponse := fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
 	require.Len(t, teamPoliciesResponse.Policies, 0)
 
-	deleteTeamPoliciesResponse := deleteTeamPoliciesResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), deleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResponse)
+	deleteTeamPoliciesResp := fleet.DeleteTeamPoliciesResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), fleet.DeleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResp)
 }
 
 func (s *integrationTestSuite) TestSessionInfo() {
@@ -14344,7 +14344,7 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 		},
 	)
 
-	req := autofillPoliciesRequest{
+	req := fleet.AutofillPoliciesRequest{
 		SQL: "  ", // empty
 	}
 	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/ok"
@@ -14354,14 +14354,14 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 
 	// good request
 	req.SQL = "select 1"
-	var res autofillPoliciesResponse
+	var res fleet.AutofillPoliciesResponse
 	s.DoJSON("POST", "/api/latest/fleet/autofill/policy", req, http.StatusOK, &res)
 	assert.Equal(t, "description", res.Description)
 	assert.Equal(t, "resolution", res.Resolution)
 
 	// good request with weird characters
 	req.SQL = `select * from " with ' and "" \"`
-	res = autofillPoliciesResponse{}
+	res = fleet.AutofillPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/autofill/policy", req, http.StatusOK, &res)
 	assert.Equal(t, "description", res.Description)
 	assert.Equal(t, "resolution", res.Resolution)
