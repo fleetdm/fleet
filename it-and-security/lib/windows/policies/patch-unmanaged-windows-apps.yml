@@ -1,0 +1,248 @@
+- name: Windows - 010 Editor up to date
+  description: The host may have an outdated version of 010 Editor, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using 010 Editor's built-in update functionality. You can also uninstall 010 Editor if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: 010-editor/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with 010 Editor installed
+- name: Windows - 8x8 Work up to date
+  description: The host may have an outdated version of 8x8 Work, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using 8x8 Work's built-in update functionality. You can also uninstall 8x8 Work if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: 8x8-work/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with 8x8 Work installed
+- name: Windows - Asana up to date
+  description: The host may have an outdated version of Asana, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Asana's built-in update functionality. You can also uninstall Asana if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: asana/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Asana installed
+- name: Windows - Blender up to date
+  description: The host may have an outdated version of Blender, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Blender's built-in update functionality. You can also uninstall Blender if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: blender/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Blender installed
+- name: Windows - Box Drive up to date
+  description: The host may have an outdated version of Box Drive, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Box Drive's built-in update functionality. You can also uninstall Box Drive if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: box-drive/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Box Drive installed
+- name: Windows - Cloudflare WARP up to date
+  description: The host may have an outdated version of Cloudflare WARP, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Cloudflare WARP's built-in update functionality. You can also uninstall Cloudflare WARP if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: cloudflare-warp/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Cloudflare WARP installed
+- name: Windows - Cursor up to date
+  description: The host may have an outdated version of Cursor, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Cursor's built-in update functionality. You can also uninstall Cursor if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: cursor/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Cursor installed
+- name: Windows - Cyberduck up to date
+  description: The host may have an outdated version of Cyberduck, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Cyberduck's built-in update functionality. You can also uninstall Cyberduck if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: cyberduck/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Cyberduck installed
+- name: Windows - Discord up to date
+  description: The host may have an outdated version of Discord, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Discord's built-in update functionality. You can also uninstall Discord if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: discord/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Discord installed
+- name: Windows - Docker Desktop up to date
+  description: The host may have an outdated version of Docker Desktop, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Docker Desktop's built-in update functionality. You can also uninstall Docker Desktop if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: docker/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Docker Desktop installed
+- name: Windows - Figma up to date
+  description: The host may have an outdated version of Figma, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Figma's built-in update functionality. You can also uninstall Figma if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: figma/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Figma installed
+- name: Windows - GIMP up to date
+  description: The host may have an outdated version of GIMP, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using GIMP's built-in update functionality. You can also uninstall GIMP if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: gimp/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with GIMP installed
+- name: Windows - GitHub Desktop up to date
+  description: The host may have an outdated version of GitHub Desktop, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using GitHub Desktop's built-in update functionality. You can also uninstall GitHub Desktop if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: github-desktop/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with GitHub Desktop installed
+- name: Windows - Google Drive up to date
+  description: The host may have an outdated version of Google Drive, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Google Drive's built-in update functionality. You can also uninstall Google Drive if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: google-drive/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Google Drive installed
+- name: Windows - Inkscape up to date
+  description: The host may have an outdated version of Inkscape, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Inkscape's built-in update functionality. You can also uninstall Inkscape if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: inkscape/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Inkscape installed
+- name: Windows - KeePassXC up to date
+  description: The host may have an outdated version of KeePassXC, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using KeePassXC's built-in update functionality. You can also uninstall KeePassXC if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: keepassxc/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with KeePassXC installed
+- name: Windows - Krita up to date
+  description: The host may have an outdated version of Krita, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Krita's built-in update functionality. You can also uninstall Krita if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: krita/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Krita installed
+- name: Windows - Microsoft Edge up to date
+  description: The host may have an outdated version of Microsoft Edge, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Microsoft Edge's built-in update functionality. You can also uninstall Microsoft Edge if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: microsoft-edge/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Microsoft Edge installed
+- name: Windows - Notion up to date
+  description: The host may have an outdated version of Notion, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Notion's built-in update functionality. You can also uninstall Notion if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: notion/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Notion installed
+- name: Windows - OBS up to date
+  description: The host may have an outdated version of OBS, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using OBS's built-in update functionality. You can also uninstall OBS if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: obs/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with OBS installed
+- name: Windows - Ollama up to date
+  description: The host may have an outdated version of Ollama, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Ollama's built-in update functionality. You can also uninstall Ollama if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: ollama/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Ollama installed
+- name: Windows - Postman up to date
+  description: The host may have an outdated version of Postman, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Postman's built-in update functionality. You can also uninstall Postman if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: postman/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Postman installed
+- name: Windows - Sourcetree up to date
+  description: The host may have an outdated version of Sourcetree, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Sourcetree's built-in update functionality. You can also uninstall Sourcetree if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: sourcetree/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Sourcetree installed
+- name: Windows - Spotify up to date
+  description: The host may have an outdated version of Spotify, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Spotify's built-in update functionality. You can also uninstall Spotify if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: spotify/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Spotify installed
+- name: Windows - Steam up to date
+  description: The host may have an outdated version of Steam, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Steam's built-in update functionality. You can also uninstall Steam if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: steam/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Steam installed
+- name: Windows - Sublime Text up to date
+  description: The host may have an outdated version of Sublime Text, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Sublime Text's built-in update functionality. You can also uninstall Sublime Text if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: sublime-text/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Sublime Text installed
+- name: Windows - Tailscale up to date
+  description: The host may have an outdated version of Tailscale, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Tailscale's built-in update functionality. You can also uninstall Tailscale if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: tailscale/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Tailscale installed
+- name: Windows - Telegram up to date
+  description: The host may have an outdated version of Telegram, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Telegram's built-in update functionality. You can also uninstall Telegram if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: telegram/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Telegram installed
+- name: Windows - Webex up to date
+  description: The host may have an outdated version of Webex, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Webex's built-in update functionality. You can also uninstall Webex if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: webex/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Webex installed
+- name: Windows - Wireshark up to date
+  description: The host may have an outdated version of Wireshark, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Wireshark's built-in update functionality. You can also uninstall Wireshark if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: wireshark/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Wireshark installed
+- name: Windows - Yubico Authenticator up to date
+  description: The host may have an outdated version of Yubico Authenticator, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Yubico Authenticator's built-in update functionality. You can also uninstall Yubico Authenticator if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: yubico-authenticator/windows
+  install_software: false
+  labels_include_any:
+    - x86 Windows hosts with Yubico Authenticator installed

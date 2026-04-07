@@ -1,0 +1,450 @@
+- name: Macs with Adobe Creative Cloud installed
+  description: macOS hosts with Adobe Creative Cloud installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Android Studio installed
+  description: macOS hosts with Android Studio installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Apparency installed
+  description: macOS hosts with Apparency installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Apparency';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Arc installed
+  description: macOS hosts with Arc installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Archaeology installed
+  description: macOS hosts with Archaeology installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Archaeology';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with BBEdit installed
+  description: macOS hosts with BBEdit installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with BetterDisplay installed
+  description: macOS hosts with BetterDisplay installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'pro.betterdisplay.BetterDisplay';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Beyond Compare installed
+  description: macOS hosts with Beyond Compare installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.scootersoftware.BeyondCompare';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Bruno installed
+  description: macOS hosts with Bruno installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.usebruno.app';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with CLion installed
+  description: macOS hosts with CLion installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Canva installed
+  description: macOS hosts with Canva installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Charles installed
+  description: macOS hosts with Charles installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with ChatGPT Atlas installed
+  description: macOS hosts with ChatGPT Atlas installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.atlas';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with CleanShot X installed
+  description: macOS hosts with CleanShot X installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Company Portal installed
+  description: macOS hosts with Company Portal installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Connect Fonts installed
+  description: macOS hosts with Connect Fonts installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.extensis.SuitcaseFusion';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with DB Browser for SQLite installed
+  description: macOS hosts with DB Browser for SQLite installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.sqlitebrowser.sqlitebrowser';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Dash installed
+  description: macOS hosts with Dash installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.kapeli.dashdoc';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with DataGrip installed
+  description: macOS hosts with DataGrip installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.datagrip';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with DeepL installed
+  description: macOS hosts with DeepL installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.linguee.DeepLCopyTranslator';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Dropbox installed
+  description: macOS hosts with Dropbox installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.getdropbox.dropbox';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Elgato Control Center installed
+  description: macOS hosts with Elgato Control Center installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.corsair.ControlCenter';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Evernote installed
+  description: macOS hosts with Evernote installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.evernote.Evernote';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Ghostty installed
+  description: macOS hosts with Ghostty installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.mitchellh.ghostty';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with GitHub Desktop installed
+  description: macOS hosts with GitHub Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with GoLand installed
+  description: macOS hosts with GoLand installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.goland';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Grammarly Desktop installed
+  description: macOS hosts with Grammarly Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.grammarly.ProjectLlama';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Granola installed
+  description: macOS hosts with Granola installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.granola.app';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Insomnia installed
+  description: macOS hosts with Insomnia installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with JetBrains Toolbox installed
+  description: macOS hosts with JetBrains Toolbox installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Keka installed
+  description: macOS hosts with Keka installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with LibreOffice installed
+  description: macOS hosts with LibreOffice installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'org.libreoffice.script';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Linear installed
+  description: macOS hosts with Linear installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Logi Options+ installed
+  description: macOS hosts with Logi Options+ installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.optionsplus';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Loom installed
+  description: macOS hosts with Loom installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.loom.desktop';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with LuLu installed
+  description: macOS hosts with LuLu installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.lulu.app';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Maccy installed
+  description: macOS hosts with Maccy installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'org.p0deje.Maccy';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Microsoft Excel installed
+  description: macOS hosts with Microsoft Excel installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Microsoft OneNote installed
+  description: macOS hosts with Microsoft OneNote installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.onenote.mac';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Microsoft Outlook installed
+  description: macOS hosts with Microsoft Outlook installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Outlook';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Microsoft PowerPoint installed
+  description: macOS hosts with Microsoft PowerPoint installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Powerpoint';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Microsoft Word installed
+  description: macOS hosts with Microsoft Word installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Word';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Nextcloud installed
+  description: macOS hosts with Nextcloud installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.nextcloud.desktopclient';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with NordVPN installed
+  description: macOS hosts with NordVPN installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordvpn.macos';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Notion Calendar installed
+  description: macOS hosts with Notion Calendar installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Nova installed
+  description: macOS hosts with Nova installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.panic.Nova';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Obsidian installed
+  description: macOS hosts with Obsidian installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with OmniGraffle installed
+  description: macOS hosts with OmniGraffle installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniGraffle7';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with OneDrive installed
+  description: macOS hosts with OneDrive installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.OneDrive';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Opera installed
+  description: macOS hosts with Opera installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with OrbStack installed
+  description: macOS hosts with OrbStack installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kdrag0n.MacVirt';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Parallels Desktop installed
+  description: macOS hosts with Parallels Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with PhpStorm installed
+  description: macOS hosts with PhpStorm installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.PhpStorm';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Podman Desktop installed
+  description: macOS hosts with Podman Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Pritunl installed
+  description: macOS hosts with Pritunl installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.pritunl';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Privileges installed
+  description: macOS hosts with Privileges installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'corp.sap.privileges';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with ProtonVPN installed
+  description: macOS hosts with ProtonVPN installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonvpn.mac';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Proxifier installed
+  description: macOS hosts with Proxifier installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.initex.proxifier.v3.macos';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Proxyman installed
+  description: macOS hosts with Proxyman installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Rancher Desktop installed
+  description: macOS hosts with Rancher Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'io.rancherdesktop.app';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with RapidAPI installed
+  description: macOS hosts with RapidAPI installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Raycast installed
+  description: macOS hosts with Raycast installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.raycast.macos';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Rectangle installed
+  description: macOS hosts with Rectangle installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Royal TSX installed
+  description: macOS hosts with Royal TSX installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemonmojo.RoyalTSX.App';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Sequel Ace installed
+  description: macOS hosts with Sequel Ace installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequelace.SequelAce';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Signal installed
+  description: macOS hosts with Signal installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'org.whispersystems.signal-desktop';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Stats installed
+  description: macOS hosts with Stats installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Sublime Merge installed
+  description: macOS hosts with Sublime Merge installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.sublimemerge';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Surfshark installed
+  description: macOS hosts with Surfshark installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.surfshark.vpnclient.macos.direct';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Suspicious Package installed
+  description: macOS hosts with Suspicious Package installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackage';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with TablePlus installed
+  description: macOS hosts with TablePlus installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with TextExpander installed
+  description: macOS hosts with TextExpander installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.smileonmymac.textexpander';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with The Unarchiver installed
+  description: macOS hosts with The Unarchiver installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'cx.c3.theunarchiver';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Thunderbird installed
+  description: macOS hosts with Thunderbird installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Todoist installed
+  description: macOS hosts with Todoist installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.todoist.mac.Todoist';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Transmit installed
+  description: macOS hosts with Transmit installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.panic.Transmit';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Tunnelblick installed
+  description: macOS hosts with Tunnelblick installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'net.tunnelblick.tunnelblick';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with UTM installed
+  description: macOS hosts with UTM installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.utmapp.UTM';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with VNC Viewer installed
+  description: macOS hosts with VNC Viewer installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.realvnc.vncviewer';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with VirtualBox installed
+  description: macOS hosts with VirtualBox installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Warp installed
+  description: macOS hosts with Warp installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with WebStorm installed
+  description: macOS hosts with WebStorm installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with WhatsApp installed
+  description: macOS hosts with WhatsApp installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Windows App installed
+  description: macOS hosts with Windows App installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.rdc.macos';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Windsurf installed
+  description: macOS hosts with Windsurf installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Yubikey Manager installed
+  description: macOS hosts with Yubikey Manager installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.ykman';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Zed installed
+  description: macOS hosts with Zed installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with balenaEtcher installed
+  description: macOS hosts with balenaEtcher installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with iMazing Profile Editor installed
+  description: macOS hosts with iMazing Profile Editor installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.DigiDNA.iMazingProfileEditorMac';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with iTerm2 installed
+  description: macOS hosts with iTerm2 installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2';
+  label_membership_type: dynamic
+  platform: darwin

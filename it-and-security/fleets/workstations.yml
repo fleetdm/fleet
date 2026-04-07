@@ -117,7 +117,8 @@ policies:
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-nudge.yml
-  - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
+  - path: ../lib/macos/policies/patch-managed-macos-apps.yml
+  - path: ../lib/macos/policies/patch-unmanaged-macos-apps.yml
   - path: ../lib/macos/policies/battery-health-check.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
@@ -126,7 +127,8 @@ policies:
   - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
-  - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
+  - path: ../lib/windows/policies/patch-managed-windows-apps.yml
+  - path: ../lib/windows/policies/patch-unmanaged-windows-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
@@ -265,7 +267,7 @@ software:
       categories:
         - Productivity
   fleet_maintained_apps:
-    # macOS apps
+    # ---- Managed macOS apps ----
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       setup_experience: true
@@ -312,7 +314,7 @@ software:
       setup_experience: true
       categories:
         - Productivity
-    # Windows apps
+    # ---- Managed Windows apps ----
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true
@@ -348,3 +350,489 @@ software:
       self_service: true
       categories:
         - Developer tools
+    # ---- Patch management macOS apps ----
+    - slug: adobe-creative-cloud/darwin # Adobe Creative Cloud
+      self_service: true
+      labels_include_any:
+        - "Macs with Adobe Creative Cloud installed"
+    - slug: android-studio/darwin # Android Studio
+      self_service: true
+      labels_include_any:
+        - "Macs with Android Studio installed"
+    - slug: apparency/darwin # Apparency
+      self_service: true
+      labels_include_any:
+        - "Macs with Apparency installed"
+    - slug: arc/darwin # Arc
+      self_service: true
+      labels_include_any:
+        - "Macs with Arc installed"
+    - slug: archaeology/darwin # Archaeology
+      self_service: true
+      labels_include_any:
+        - "Macs with Archaeology installed"
+    - slug: bbedit/darwin # BBEdit
+      self_service: true
+      labels_include_any:
+        - "Macs with BBEdit installed"
+    - slug: betterdisplay/darwin # BetterDisplay
+      self_service: true
+      labels_include_any:
+        - "Macs with BetterDisplay installed"
+    - slug: beyond-compare/darwin # Beyond Compare
+      self_service: true
+      labels_include_any:
+        - "Macs with Beyond Compare installed"
+    - slug: bruno/darwin # Bruno
+      self_service: true
+      labels_include_any:
+        - "Macs with Bruno installed"
+    - slug: clion/darwin # CLion
+      self_service: true
+      labels_include_any:
+        - "Macs with CLion installed"
+    - slug: canva/darwin # Canva
+      self_service: true
+      labels_include_any:
+        - "Macs with Canva installed"
+    - slug: charles/darwin # Charles
+      self_service: true
+      labels_include_any:
+        - "Macs with Charles installed"
+    - slug: chatgpt-atlas/darwin # ChatGPT Atlas
+      self_service: true
+      labels_include_any:
+        - "Macs with ChatGPT Atlas installed"
+    - slug: cleanshot/darwin # CleanShot X
+      self_service: true
+      labels_include_any:
+        - "Macs with CleanShot X installed"
+    - slug: intune-company-portal/darwin # Company Portal
+      self_service: true
+      labels_include_any:
+        - "Macs with Company Portal installed"
+    - slug: connect-fonts/darwin # Connect Fonts
+      self_service: true
+      labels_include_any:
+        - "Macs with Connect Fonts installed"
+    - slug: db-browser-for-sqlite/darwin # DB Browser for SQLite
+      self_service: true
+      labels_include_any:
+        - "Macs with DB Browser for SQLite installed"
+    - slug: dash/darwin # Dash
+      self_service: true
+      labels_include_any:
+        - "Macs with Dash installed"
+    - slug: datagrip/darwin # DataGrip
+      self_service: true
+      labels_include_any:
+        - "Macs with DataGrip installed"
+    - slug: deepl/darwin # DeepL
+      self_service: true
+      labels_include_any:
+        - "Macs with DeepL installed"
+    - slug: dropbox/darwin # Dropbox
+      self_service: true
+      labels_include_any:
+        - "Macs with Dropbox installed"
+    - slug: elgato-control-center/darwin # Elgato Control Center
+      self_service: true
+      labels_include_any:
+        - "Macs with Elgato Control Center installed"
+    - slug: evernote/darwin # Evernote
+      self_service: true
+      labels_include_any:
+        - "Macs with Evernote installed"
+    - slug: ghostty/darwin # Ghostty
+      self_service: true
+      labels_include_any:
+        - "Macs with Ghostty installed"
+    - slug: github/darwin # GitHub Desktop
+      self_service: true
+      labels_include_any:
+        - "Macs with GitHub Desktop installed"
+    - slug: goland/darwin # GoLand
+      self_service: true
+      labels_include_any:
+        - "Macs with GoLand installed"
+    - slug: grammarly-desktop/darwin # Grammarly Desktop
+      self_service: true
+      labels_include_any:
+        - "Macs with Grammarly Desktop installed"
+    - slug: granola/darwin # Granola
+      self_service: true
+      labels_include_any:
+        - "Macs with Granola installed"
+    - slug: insomnia/darwin # Insomnia
+      self_service: true
+      labels_include_any:
+        - "Macs with Insomnia installed"
+    - slug: jetbrains-toolbox/darwin # JetBrains Toolbox
+      self_service: true
+      labels_include_any:
+        - "Macs with JetBrains Toolbox installed"
+    - slug: keka/darwin # Keka
+      self_service: true
+      labels_include_any:
+        - "Macs with Keka installed"
+    - slug: libreoffice/darwin # LibreOffice
+      self_service: true
+      labels_include_any:
+        - "Macs with LibreOffice installed"
+    - slug: linear-linear/darwin # Linear
+      self_service: true
+      labels_include_any:
+        - "Macs with Linear installed"
+    - slug: logi-options+/darwin # Logi Options+
+      self_service: true
+      labels_include_any:
+        - "Macs with Logi Options+ installed"
+    - slug: loom/darwin # Loom
+      self_service: true
+      labels_include_any:
+        - "Macs with Loom installed"
+    - slug: lulu/darwin # LuLu
+      self_service: true
+      labels_include_any:
+        - "Macs with LuLu installed"
+    - slug: maccy/darwin # Maccy
+      self_service: true
+      labels_include_any:
+        - "Macs with Maccy installed"
+    - slug: microsoft-excel/darwin # Microsoft Excel
+      self_service: true
+      labels_include_any:
+        - "Macs with Microsoft Excel installed"
+    - slug: microsoft-onenote/darwin # Microsoft OneNote
+      self_service: true
+      labels_include_any:
+        - "Macs with Microsoft OneNote installed"
+    - slug: microsoft-outlook/darwin # Microsoft Outlook
+      self_service: true
+      labels_include_any:
+        - "Macs with Microsoft Outlook installed"
+    - slug: microsoft-powerpoint/darwin # Microsoft PowerPoint
+      self_service: true
+      labels_include_any:
+        - "Macs with Microsoft PowerPoint installed"
+    - slug: microsoft-word/darwin # Microsoft Word
+      self_service: true
+      labels_include_any:
+        - "Macs with Microsoft Word installed"
+    - slug: nextcloud/darwin # Nextcloud
+      self_service: true
+      labels_include_any:
+        - "Macs with Nextcloud installed"
+    - slug: nordvpn/darwin # NordVPN
+      self_service: true
+      labels_include_any:
+        - "Macs with NordVPN installed"
+    - slug: notion-calendar/darwin # Notion Calendar
+      self_service: true
+      labels_include_any:
+        - "Macs with Notion Calendar installed"
+    - slug: nova/darwin # Nova
+      self_service: true
+      labels_include_any:
+        - "Macs with Nova installed"
+    - slug: obsidian/darwin # Obsidian
+      self_service: true
+      labels_include_any:
+        - "Macs with Obsidian installed"
+    - slug: omnigraffle/darwin # OmniGraffle
+      self_service: true
+      labels_include_any:
+        - "Macs with OmniGraffle installed"
+    - slug: onedrive/darwin # OneDrive
+      self_service: true
+      labels_include_any:
+        - "Macs with OneDrive installed"
+    - slug: opera/darwin # Opera
+      self_service: true
+      labels_include_any:
+        - "Macs with Opera installed"
+    - slug: orbstack/darwin # OrbStack
+      self_service: true
+      labels_include_any:
+        - "Macs with OrbStack installed"
+    - slug: parallels/darwin # Parallels Desktop
+      self_service: true
+      labels_include_any:
+        - "Macs with Parallels Desktop installed"
+    - slug: phpstorm/darwin # PhpStorm
+      self_service: true
+      labels_include_any:
+        - "Macs with PhpStorm installed"
+    - slug: podman-desktop/darwin # Podman Desktop
+      self_service: true
+      labels_include_any:
+        - "Macs with Podman Desktop installed"
+    - slug: pritunl/darwin # Pritunl
+      self_service: true
+      labels_include_any:
+        - "Macs with Pritunl installed"
+    - slug: privileges/darwin # Privileges
+      self_service: true
+      labels_include_any:
+        - "Macs with Privileges installed"
+    - slug: protonvpn/darwin # ProtonVPN
+      self_service: true
+      labels_include_any:
+        - "Macs with ProtonVPN installed"
+    - slug: proxifier/darwin # Proxifier
+      self_service: true
+      labels_include_any:
+        - "Macs with Proxifier installed"
+    - slug: proxyman/darwin # Proxyman
+      self_service: true
+      labels_include_any:
+        - "Macs with Proxyman installed"
+    - slug: rancher/darwin # Rancher Desktop
+      self_service: true
+      labels_include_any:
+        - "Macs with Rancher Desktop installed"
+    - slug: rapidapi/darwin # RapidAPI
+      self_service: true
+      labels_include_any:
+        - "Macs with RapidAPI installed"
+    - slug: raycast/darwin # Raycast
+      self_service: true
+      labels_include_any:
+        - "Macs with Raycast installed"
+    - slug: rectangle/darwin # Rectangle
+      self_service: true
+      labels_include_any:
+        - "Macs with Rectangle installed"
+    - slug: royal-tsx/darwin # Royal TSX
+      self_service: true
+      labels_include_any:
+        - "Macs with Royal TSX installed"
+    - slug: sequel-ace/darwin # Sequel Ace
+      self_service: true
+      labels_include_any:
+        - "Macs with Sequel Ace installed"
+    - slug: signal/darwin # Signal
+      self_service: true
+      labels_include_any:
+        - "Macs with Signal installed"
+    - slug: stats/darwin # Stats
+      self_service: true
+      labels_include_any:
+        - "Macs with Stats installed"
+    - slug: sublime-merge/darwin # Sublime Merge
+      self_service: true
+      labels_include_any:
+        - "Macs with Sublime Merge installed"
+    - slug: surfshark/darwin # Surfshark
+      self_service: true
+      labels_include_any:
+        - "Macs with Surfshark installed"
+    - slug: suspicious-package/darwin # Suspicious Package
+      self_service: true
+      labels_include_any:
+        - "Macs with Suspicious Package installed"
+    - slug: tableplus/darwin # TablePlus
+      self_service: true
+      labels_include_any:
+        - "Macs with TablePlus installed"
+    - slug: textexpander/darwin # TextExpander
+      self_service: true
+      labels_include_any:
+        - "Macs with TextExpander installed"
+    - slug: the-unarchiver/darwin # The Unarchiver
+      self_service: true
+      labels_include_any:
+        - "Macs with The Unarchiver installed"
+    - slug: thunderbird/darwin # Thunderbird
+      self_service: true
+      labels_include_any:
+        - "Macs with Thunderbird installed"
+    - slug: todoist-app/darwin # Todoist
+      self_service: true
+      labels_include_any:
+        - "Macs with Todoist installed"
+    - slug: transmit/darwin # Transmit
+      self_service: true
+      labels_include_any:
+        - "Macs with Transmit installed"
+    - slug: tunnelblick/darwin # Tunnelblick
+      self_service: true
+      labels_include_any:
+        - "Macs with Tunnelblick installed"
+    - slug: utm/darwin # UTM
+      self_service: true
+      labels_include_any:
+        - "Macs with UTM installed"
+    - slug: vnc-viewer/darwin # VNC Viewer
+      self_service: true
+      labels_include_any:
+        - "Macs with VNC Viewer installed"
+    - slug: virtualbox/darwin # VirtualBox
+      self_service: true
+      labels_include_any:
+        - "Macs with VirtualBox installed"
+    - slug: warp/darwin # Warp
+      self_service: true
+      labels_include_any:
+        - "Macs with Warp installed"
+    - slug: webstorm/darwin # WebStorm
+      self_service: true
+      labels_include_any:
+        - "Macs with WebStorm installed"
+    - slug: whatsapp/darwin # WhatsApp
+      self_service: true
+      labels_include_any:
+        - "Macs with WhatsApp installed"
+    - slug: windows-app/darwin # Windows App
+      self_service: true
+      labels_include_any:
+        - "Macs with Windows App installed"
+    - slug: windsurf/darwin # Windsurf
+      self_service: true
+      labels_include_any:
+        - "Macs with Windsurf installed"
+    - slug: yubico-yubikey-manager/darwin # Yubikey Manager
+      self_service: true
+      labels_include_any:
+        - "Macs with Yubikey Manager installed"
+    - slug: zed/darwin # Zed
+      self_service: true
+      labels_include_any:
+        - "Macs with Zed installed"
+    - slug: balenaetcher/darwin # balenaEtcher
+      self_service: true
+      labels_include_any:
+        - "Macs with balenaEtcher installed"
+    - slug: imazing-profile-editor/darwin # iMazing Profile Editor
+      self_service: true
+      labels_include_any:
+        - "Macs with iMazing Profile Editor installed"
+    - slug: iterm2/darwin # iTerm2
+      self_service: true
+      labels_include_any:
+        - "Macs with iTerm2 installed"
+    # ---- Patch management Windows apps ----
+    - slug: 010-editor/windows # 010 Editor
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with 010 Editor installed"
+    - slug: 8x8-work/windows # 8x8 Work
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with 8x8 Work installed"
+    - slug: asana/windows # Asana
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Asana installed"
+    - slug: blender/windows # Blender
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Blender installed"
+    - slug: box-drive/windows # Box Drive
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Box Drive installed"
+    - slug: cloudflare-warp/windows # Cloudflare WARP
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Cloudflare WARP installed"
+    - slug: cursor/windows # Cursor
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Cursor installed"
+    - slug: cyberduck/windows # Cyberduck
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Cyberduck installed"
+    - slug: discord/windows # Discord
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Discord installed"
+    - slug: docker/windows # Docker Desktop
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Docker Desktop installed"
+    - slug: figma/windows # Figma
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Figma installed"
+    - slug: gimp/windows # GIMP
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with GIMP installed"
+    - slug: github-desktop/windows # GitHub Desktop
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with GitHub Desktop installed"
+    - slug: google-drive/windows # Google Drive
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Google Drive installed"
+    - slug: inkscape/windows # Inkscape
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Inkscape installed"
+    - slug: keepassxc/windows # KeePassXC
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with KeePassXC installed"
+    - slug: krita/windows # Krita
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Krita installed"
+    - slug: microsoft-edge/windows # Microsoft Edge
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Microsoft Edge installed"
+    - slug: notion/windows # Notion
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Notion installed"
+    - slug: obs/windows # OBS
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with OBS installed"
+    - slug: ollama/windows # Ollama
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Ollama installed"
+    - slug: postman/windows # Postman
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Postman installed"
+    - slug: sourcetree/windows # Sourcetree
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Sourcetree installed"
+    - slug: spotify/windows # Spotify
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Spotify installed"
+    - slug: steam/windows # Steam
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Steam installed"
+    - slug: sublime-text/windows # Sublime Text
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Sublime Text installed"
+    - slug: tailscale/windows # Tailscale
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Tailscale installed"
+    - slug: telegram/windows # Telegram
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Telegram installed"
+    - slug: webex/windows # Webex
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Webex installed"
+    - slug: wireshark/windows # Wireshark
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Wireshark installed"
+    - slug: yubico-authenticator/windows # Yubico Authenticator
+      self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Yubico Authenticator installed"
