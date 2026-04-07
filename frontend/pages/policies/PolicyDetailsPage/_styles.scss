@@ -17,6 +17,13 @@
   &__policy-name {
     margin-top: 0;
     font-size: $large;
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    .critical-policy-icon {
+      flex-shrink: 0;
+    }
   }
 
   &__resolve-section {
@@ -39,11 +46,38 @@
     }
   }
 
-  &__platforms {
-    dd {
-      display: flex;
-      align-items: center;
-      gap: $pad-small;
-    }
+  &__platform-list {
+    display: flex;
+    align-items: center;
+    gap: $pad-small; // 8px
+  }
+
+  &__platform-item {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall; // 4px
+  }
+
+  &__labels-section {
+    font-size: $x-small;
+  }
+
+  &__labels-title {
+    font-weight: $bold;
+    margin: 0 0 $pad-xsmall;
+  }
+
+  &__labels-help-text {
+    margin: 0 0 $pad-small;
+    font-weight: $regular;
+  }
+
+  &__labels-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-small;
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 }

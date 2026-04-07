@@ -8,6 +8,7 @@ export type ButtonVariant =
   | "default"
   | "alert"
   | "pill"
+  | "grey-pill"
   | "text-link" // Underlines on hover
   | "text-link-dark" // underline on hover, dark text
   | "brand-inverse-icon" // Green icon with text, no underline on hover
@@ -146,7 +147,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant === "inverse" ||
       variant === "brand-inverse-icon" ||
       variant === "text-icon" ||
-      variant === "pill";
+      variant === "pill" ||
+      variant === "grey-pill";
 
     return (
       <button

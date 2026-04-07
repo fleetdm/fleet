@@ -6,6 +6,9 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
+import { ILabelPolicy } from "interfaces/label";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
 import globalPoliciesAPI from "services/entities/global_policies";
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
@@ -19,6 +22,7 @@ import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
 import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 
@@ -115,7 +119,12 @@ const PolicyDetailsPage = ({
       setLastEditedQueryLabelsExcludeAny(
         returnedPolicy.labels_exclude_any || []
       );
-      setPolicyTeamId(returnedPolicy.team_id ?? undefined);
+      const deNulledTeamId = returnedPolicy.team_id ?? undefined;
+      setPolicyTeamId(
+        deNulledTeamId === API_ALL_TEAMS_ID
+          ? APP_CONTEXT_ALL_TEAMS_ID
+          : deNulledTeamId
+      );
     },
     onError: (error) => handlePageError(error),
   });
@@ -169,15 +178,63 @@ const PolicyDetailsPage = ({
     const platforms = lastEditedQueryPlatform
       .split(",")
       .map((p) => p.trim())
-      .filter(Boolean);
+      .filter((p): p is Platform => p in PLATFORM_DISPLAY_NAMES);
     if (platforms.length === 0) return null;
 
     return (
       <DataSet
         className={`${baseClass}__platforms`}
         title="Platforms"
-        value={platforms.join(", ")}
+        value={
+          <div className={`${baseClass}__platform-list`}>
+            {platforms.map((platform) => (
+              <span key={platform} className={`${baseClass}__platform-item`}>
+                <Icon name={platform} color="ui-fleet-black-50" />
+                {PLATFORM_DISPLAY_NAMES[platform] || platform}
+              </span>
+            ))}
+          </div>
+        }
       />
+    );
+  };
+
+  const onLabelClick = (label: ILabelPolicy) => {
+    router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
+  };
+
+  const renderLabels = (): JSX.Element | null => {
+    const includeAny = storedPolicy?.labels_include_any;
+    const excludeAny = storedPolicy?.labels_exclude_any;
+
+    if (!includeAny?.length && !excludeAny?.length) return null;
+
+    const isInclude = !!includeAny?.length;
+    const labels = isInclude ? includeAny : excludeAny;
+
+    return (
+      <div className={`${baseClass}__labels-section`}>
+        <dt className={`${baseClass}__labels-title`}>Labels</dt>
+        <dd>
+          <p className={`${baseClass}__labels-help-text`}>
+            Policy will target hosts that{" "}
+            <b>{isInclude ? "have any" : "exclude any"}</b> of these labels:
+          </p>
+          <ul className={`${baseClass}__labels-list`}>
+            {labels?.map((label) => (
+              <li key={label.id}>
+                <Button
+                  onClick={() => onLabelClick(label)}
+                  variant="grey-pill"
+                  className={`${baseClass}__label-pill`}
+                >
+                  {label.name}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </dd>
+      </div>
     );
   };
 
@@ -193,6 +250,19 @@ const PolicyDetailsPage = ({
               <div className="name-description">
                 <h1 className={`${baseClass}__policy-name`}>
                   {lastEditedQueryName}
+                  {storedPolicy?.critical && (
+                    <TooltipWrapper
+                      tipContent="This policy has been marked as critical."
+                      showArrow
+                      underline={false}
+                    >
+                      <Icon
+                        className="critical-policy-icon"
+                        name="policy"
+                        color="ui-fleet-black-50"
+                      />
+                    </TooltipWrapper>
+                  )}
                 </h1>
               </div>
               <div className={`${baseClass}__action-button-container`}>
@@ -260,6 +330,7 @@ const PolicyDetailsPage = ({
               />
             )}
             {renderPlatforms()}
+            {renderLabels()}
           </>
         )}
       </>
