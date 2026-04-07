@@ -167,7 +167,8 @@ Your local settings override project settings, so you can always customize witho
 │   ├── new-endpoint/          #   /new-endpoint
 │   ├── new-migration/         #   /new-migration
 │   ├── bump-migration/        #   /bump-migration <filename>
-│   └── spec-story/            #   /spec-story <issue#>
+│   ├── spec-story/            #   /spec-story <issue#>
+│   └── cherry-pick/           #   /cherry-pick <PR#> [RC_BRANCH]
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -196,6 +197,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/bump-migration` | `/bump-migration YYYYMMDDHHMMSS_Name.go` | Bumps a migration's timestamp to current time when it conflicts with a migration already merged to main. Renames files and updates function names in both migration and test files. |
 | `/spec-story` | `/spec-story 12345` | Breaks down a GitHub story into implementable sub-issues: maps codebase impact, decomposes into atomic tasks per layer (migration/datastore/service/API/frontend), and writes specs with acceptance criteria and a dependency graph. Requires `gh`. |
 | `/lint` | `/lint` or `/lint go` | Runs the appropriate linters (golangci-lint, eslint, prettier) on recently changed files. Accepts `go`, `frontend`, or a file path to narrow scope. |
+| `/cherry-pick` | `/cherry-pick 43082` or `/cherry-pick 43082 rc-minor-fleet-v4.83.0` | Cherry-picks a merged PR into an RC branch. Auto-detects the latest `rc-minor-fleet-v*` or `rc-patch-fleet-v*` branch, or accepts an explicit target. Handles squash-merged and merge commits. Requires `gh`. |
 
 ### Using `/project` for workstream context
 
