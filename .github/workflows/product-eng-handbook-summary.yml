@@ -162,6 +162,11 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL }}
           SINCE_DATE: ${{ steps.diffs.outputs.since_date }}
         run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::error::TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL secret is not set or is empty. Add it in repo Settings → Secrets → Actions."
+            exit 1
+          fi
+
           SUMMARY=$(cat /tmp/summary.txt)
 
           # Build Slack Block Kit payload with jq for safe JSON escaping
@@ -205,6 +210,11 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL }}
         run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::error::TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL secret is not set or is empty. Add it in repo Settings → Secrets → Actions."
+            exit 1
+          fi
+
           jq -n '{
             "blocks": [
               {
