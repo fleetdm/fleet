@@ -441,6 +441,11 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// tracks last time a disk encryption has successfully run
 	lastRun time.Time
 
+	// pendingRecoveryKey holds a rotated recovery key that was not yet
+	// successfully escrowed to Fleet. On subsequent ticks, orbit retries
+	// the escrow without rotating again, avoiding orphan protectors.
+	pendingRecoveryKey string
+
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
 
@@ -518,6 +523,20 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 	// matches how Intune/Workspace ONE handle pre-encrypted disks.
 	if encryptionStatus != nil &&
 		encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
+
+		// If a previous rotation succeeded but escrow failed, retry the
+		// escrow with the cached key instead of rotating again.
+		if w.pendingRecoveryKey != "" {
+			log.Debug().Msg("retrying escrow of previously rotated recovery key")
+			if serverErr := w.updateFleetServer(w.pendingRecoveryKey, nil); serverErr != nil {
+				log.Error().Err(serverErr).Msg("failed to escrow cached recovery key to Fleet Server")
+				return
+			}
+			w.pendingRecoveryKey = ""
+			w.lastRun = time.Now()
+			return
+		}
+
 		log.Debug().Msg("disk is already encrypted, rotating recovery key")
 
 		recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
@@ -529,14 +548,12 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 			return
 		}
 
-		// Set lastRun after successful rotation to rate-limit retries.
-		// This prevents generating new protectors every tick if the
-		// server escrow fails due to transient network issues.
-		w.lastRun = time.Now()
-
 		if serverErr := w.updateFleetServer(recoveryKey, nil); serverErr != nil {
-			log.Error().Err(serverErr).Msg("failed to send rotated recovery key to Fleet Server")
+			log.Error().Err(serverErr).Msg("failed to escrow rotated recovery key to Fleet Server, will retry")
+			w.pendingRecoveryKey = recoveryKey
+			return
 		}
+		w.lastRun = time.Now()
 		return
 	}
 
