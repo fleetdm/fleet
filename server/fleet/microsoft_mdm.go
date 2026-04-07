@@ -820,6 +820,17 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 /// MDMWindowsEnrolledDevice type
 /// Contains the information of the enrolled Windows host
 
+// WindowsMDMEnrollType represents how a Windows device enrolled in MDM.
+type WindowsMDMEnrollType int
+
+const (
+	// WindowsMDMEnrollTypeProgrammatic is enrollment via fleetd/orbit using an orbit node key.
+	WindowsMDMEnrollTypeProgrammatic WindowsMDMEnrollType = iota
+	// WindowsMDMEnrollTypeAutomatic is enrollment via Azure JWT or WSTEP STS auth token (Autopilot, Entra join,
+	// Settings app).
+	WindowsMDMEnrollTypeAutomatic
+)
+
 // WindowsMDMAwaitingConfiguration represents the state of a Windows device's setup experience.
 type WindowsMDMAwaitingConfiguration uint
 
