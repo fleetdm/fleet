@@ -98,10 +98,8 @@ const perfColumnConfigs: Column<ICampaignPerformanceStats>[] = [
       <PerformanceImpactCell
         value={{
           indicator: cellProps.cell.value,
-          id: cellProps.row.original.host_id,
         }}
         isHostSpecific
-        customIdPrefix="live-perf"
       />
     ),
   },
