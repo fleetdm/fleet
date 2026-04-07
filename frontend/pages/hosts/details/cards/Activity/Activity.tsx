@@ -33,7 +33,7 @@ const UpcomingTooltip = () => {
       tipContent={
         <>
           Software and scripts always run in order. Each waits until the
-          previous one runs successfully or fails.
+          previous one runs successfully or fails 3 times.
         </>
       }
       className={`${baseClass}__upcoming-tooltip`}
