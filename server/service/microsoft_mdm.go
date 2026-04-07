@@ -990,6 +990,9 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			if err != nil {
 				return "", "", 0, fmt.Errorf("host data cannot be found %v", err)
 			}
+			if host == nil {
+				return "", "", 0, errors.New("host not found for orbit node key")
+			}
 
 			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
