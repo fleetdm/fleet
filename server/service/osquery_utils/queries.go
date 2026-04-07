@@ -818,7 +818,8 @@ var extraDetailQueries = map[string]DetailQuery{
 			OR EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
 	)
 	SELECT bi.protection_status, bi.conversion_status
-	FROM bitlocker_info bi, bl_available
+	FROM bl_available
+	CROSS JOIN bitlocker_info bi
 	WHERE bi.drive_letter = 'C:'`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryptionWindows,
@@ -2649,14 +2650,27 @@ func directIngestDiskEncryptionWindows(ctx context.Context, logger *slog.Logger,
 	row := rows[0]
 
 	// conversion_status: 0=decrypted, 1=encrypted, 2=encrypting, 3=decrypting, 4/5=paused
-	conversionStatus, _ := strconv.ParseInt(row["conversion_status"], 10, 32)
+	conversionStatus, err := strconv.ParseInt(row["conversion_status"], 10, 32)
+	if err != nil {
+		logger.WarnContext(ctx, "failed to parse bitlocker conversion_status, skipping", "value", row["conversion_status"], "err", err)
+		return nil
+	}
 	encrypted := conversionStatus == 1
 
 	// protection_status: 0=off, 1=on, 2=unknown
-	protectionStatusVal, _ := strconv.ParseInt(row["protection_status"], 10, 32)
-	protectionStatus := int32(protectionStatusVal)
+	// Normalize 2 (unknown) to nil so downstream status logic treats it
+	// the same as hosts that haven't reported yet.
+	var protectionStatus *int32
+	protectionStatusVal, err := strconv.ParseInt(row["protection_status"], 10, 32)
+	if err != nil {
+		logger.WarnContext(ctx, "failed to parse bitlocker protection_status, treating as unknown", "value", row["protection_status"], "err", err)
+	} else if protectionStatusVal == 0 || protectionStatusVal == 1 {
+		ps := int32(protectionStatusVal)
+		protectionStatus = &ps
+	}
+	// protectionStatusVal == 2 (unknown) or any other value: leave protectionStatus as nil
 
-	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, &protectionStatus)
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, protectionStatus)
 }
 
 // directIngestDiskEncryptionKeyFileDarwin ingests the FileVault key from the `filevault_prk`

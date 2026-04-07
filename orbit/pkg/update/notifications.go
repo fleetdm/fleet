@@ -426,12 +426,6 @@ type execEncryptVolumeFunc func(volumeID string) (recoveryKey string, err error)
 // encryption status of a volume, and an error if the operation fails.
 type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err error)
 
-// execDecryptVolumeFunc handles the decryption of a volume identified by its
-// string identifier (e.g., "C:")
-//
-// It returns an error if the process fails.
-type execDecryptVolumeFunc func(volumeID string) error
-
 // execRotateRecoveryKeyFunc rotates the recovery key on an already-encrypted volume.
 // It adds a new recovery key protector, removes old ones, and returns the new key.
 type execRotateRecoveryKeyFunc func(volumeID string) (string, error)
@@ -456,9 +450,6 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// execGetEncryptionStatusFn retrieves encryption status. Set by the middleware from the COMWorker, or overridden in tests.
 	execGetEncryptionStatusFn execGetEncryptionStatusFunc
 
-	// execDecryptVolumeFn handles volume decryption. Set by the middleware from the COMWorker, or overridden in tests.
-	execDecryptVolumeFn execDecryptVolumeFunc
-
 	// execRotateRecoveryKeyFn rotates the recovery key on an already-encrypted volume.
 	execRotateRecoveryKeyFn execRotateRecoveryKeyFunc
 }
@@ -473,7 +464,6 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 		EncryptionResult:          encryptionResult,
 		execEncryptVolumeFn:       comWorker.EncryptVolume,
 		execGetEncryptionStatusFn: comWorker.GetEncryptionStatus,
-		execDecryptVolumeFn:       comWorker.DecryptVolume,
 		execRotateRecoveryKeyFn:   comWorker.RotateRecoveryKey,
 	}
 }
@@ -539,12 +529,14 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 			return
 		}
 
+		// Set lastRun after successful rotation to rate-limit retries.
+		// This prevents generating new protectors every tick if the
+		// server escrow fails due to transient network issues.
+		w.lastRun = time.Now()
+
 		if serverErr := w.updateFleetServer(recoveryKey, nil); serverErr != nil {
 			log.Error().Err(serverErr).Msg("failed to send rotated recovery key to Fleet Server")
-			return
 		}
-
-		w.lastRun = time.Now()
 		return
 	}
 
@@ -608,10 +600,6 @@ func (w *windowsMDMBitlockerConfigReceiver) performEncryption(volume string) (st
 	}
 
 	return recoveryKey, nil
-}
-
-func (w *windowsMDMBitlockerConfigReceiver) decryptVolume(targetVolume string) error {
-	return w.execDecryptVolumeFn(targetVolume)
 }
 
 // isMisreportedDecryptionError checks whether the given error is a potentially

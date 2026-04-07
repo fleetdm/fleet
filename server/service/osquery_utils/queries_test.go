@@ -1979,6 +1979,72 @@ func TestDirectDiskEncryption(t *testing.T) {
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 }
 
+func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
+	ds := new(mock.Store)
+	var gotEncrypted bool
+	var gotProtectionStatus *int32
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int32) error {
+		gotEncrypted = encrypted
+		gotProtectionStatus = bitlockerProtectionStatus
+		return nil
+	}
+
+	host := fleet.Host{ID: 1}
+
+	t.Run("no rows = not encrypted", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{})
+		require.NoError(t, err)
+		assert.False(t, gotEncrypted)
+		assert.Nil(t, gotProtectionStatus)
+	})
+
+	t.Run("fully encrypted and protection on", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "1", "protection_status": "1"},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, int32(1), *gotProtectionStatus)
+	})
+
+	t.Run("fully encrypted but protection off", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "1", "protection_status": "0"},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, int32(0), *gotProtectionStatus)
+	})
+
+	t.Run("encryption in progress", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "2", "protection_status": "0"},
+		})
+		require.NoError(t, err)
+		assert.False(t, gotEncrypted, "encryption in progress should not be reported as encrypted")
+	})
+
+	t.Run("protection status unknown (2) normalized to nil", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "1", "protection_status": "2"},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		assert.Nil(t, gotProtectionStatus, "unknown protection status should be normalized to nil")
+	})
+
+	t.Run("invalid conversion_status skips update", func(t *testing.T) {
+		ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "bad", "protection_status": "1"},
+		})
+		require.NoError(t, err)
+		assert.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked, "should not update DB on parse error")
+	})
+}
+
 func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	ds := new(mock.Store)
 	var expectEncrypted bool

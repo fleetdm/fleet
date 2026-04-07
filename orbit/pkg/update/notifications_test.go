@@ -577,10 +577,8 @@ func TestBitlockerOperations(t *testing.T) {
 	var (
 		shouldEncrypt          = true
 		shouldFailEncryption   = false
-		shouldFailDecryption   = false
 		shouldFailServerUpdate = false
 		encryptFnCalled        = false
-		decryptFnCalled        = false
 	)
 
 	testConfig := &fleet.OrbitConfig{
@@ -617,14 +615,6 @@ func TestBitlockerOperations(t *testing.T) {
 
 				return "123456", nil
 			},
-			execDecryptVolumeFn: func(string) error {
-				decryptFnCalled = true
-				if shouldFailDecryption {
-					return errors.New("error decrypting")
-				}
-
-				return nil
-			},
 			execRotateRecoveryKeyFn: func(string) (string, error) {
 				rotateKeyFnCalled = true
 				if shouldFailKeyRotation {
@@ -635,11 +625,9 @@ func TestBitlockerOperations(t *testing.T) {
 		}
 		shouldEncrypt = true
 		shouldFailEncryption = false
-		shouldFailDecryption = false
 		shouldFailKeyRotation = false
 		shouldFailServerUpdate = false
 		encryptFnCalled = false
-		decryptFnCalled = false
 		rotateKeyFnCalled = false
 		clientMock.SetOrUpdateDiskEncryptionKeyInvoked = false
 		logBuf.Reset()
@@ -649,7 +637,6 @@ func TestBitlockerOperations(t *testing.T) {
 		setupTest()
 		shouldEncrypt = true
 		shouldFailEncryption = false
-		shouldFailDecryption = false
 		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err) // the dummy receiver never returns an error
 	})
@@ -661,7 +648,6 @@ func TestBitlockerOperations(t *testing.T) {
 		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err) // the dummy receiver never returns an error
 		require.True(t, encryptFnCalled, "encryption function should have been called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("bitlocker encryption returns an error", func(t *testing.T) {
@@ -671,7 +657,6 @@ func TestBitlockerOperations(t *testing.T) {
 		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err) // the dummy receiver never returns an error
 		require.True(t, encryptFnCalled, "encryption function should have been called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("encryption skipped based on various current statuses", func(t *testing.T) {
@@ -694,7 +679,6 @@ func TestBitlockerOperations(t *testing.T) {
 				require.NoError(t, err)
 				require.Contains(t, logBuf.String(), "skipping encryption as the disk is not available")
 				require.False(t, encryptFnCalled, "encryption function should not be called")
-				require.False(t, decryptFnCalled, "decryption function should not be called")
 				logBuf.Reset() // Reset the log buffer for the next iteration
 			})
 		}
@@ -714,7 +698,6 @@ func TestBitlockerOperations(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, logBuf.String(), "disk encryption failed due to previous unsuccessful attempt, user action required")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("rotates recovery key if disk already encrypted", func(t *testing.T) {
@@ -729,7 +712,6 @@ func TestBitlockerOperations(t *testing.T) {
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "should escrow the rotated key")
 		require.True(t, rotateKeyFnCalled, "rotate key function should have been called")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("reports to the server if key rotation fails", func(t *testing.T) {
@@ -747,7 +729,6 @@ func TestBitlockerOperations(t *testing.T) {
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, rotateKeyFnCalled, "rotate key function should have been called")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("encryption skipped if last run too recent", func(t *testing.T) {
@@ -759,7 +740,6 @@ func TestBitlockerOperations(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, logBuf.String(), "skipped encryption process, last run was too recent")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("successful fleet server update", func(t *testing.T) {
@@ -774,7 +754,6 @@ func TestBitlockerOperations(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, encryptFnCalled, "encryption function should have been called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("failed fleet server update", func(t *testing.T) {
@@ -791,6 +770,5 @@ func TestBitlockerOperations(t *testing.T) {
 		require.Contains(t, logBuf.String(), "failed to send encryption result to Fleet Server")
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, encryptFnCalled, "encryption function should have been called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 }
