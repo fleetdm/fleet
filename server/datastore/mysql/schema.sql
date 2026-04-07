@@ -2973,8 +2973,8 @@ CREATE TABLE `upcoming_activities` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_api_endpoints` (
   `user_id` int unsigned NOT NULL,
-  `path` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `method` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `method` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_allowed` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `created_by_id` int unsigned DEFAULT NULL,

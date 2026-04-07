@@ -14,8 +14,8 @@ func Up_20260406114157(tx *sql.Tx) error {
 			CREATE TABLE user_api_endpoints (
 				user_id INT UNSIGNED NOT NULL,
 
-				path VARCHAR(255) NOT NULL,
-				method VARCHAR(10) NOT NULL,
+				path VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+				method VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 
 				is_allowed BOOLEAN DEFAULT TRUE NOT NULL,
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
