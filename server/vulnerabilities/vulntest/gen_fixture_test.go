@@ -85,14 +85,14 @@ func extractVulnerablePackages(defPath string, t *testing.T) map[string]string {
 func makeVulnerableVersion(fixedEVR string) (version, release string) {
 	// Strip epoch: "0:7.76.1-26.el9_3.3" → "7.76.1-26.el9_3.3"
 	evr := fixedEVR
-	if idx := strings.Index(evr, ":"); idx >= 0 {
-		evr = evr[idx+1:]
+	if _, after, ok := strings.Cut(evr, ":"); ok {
+		evr = after
 	}
 
 	// Split version-release: "7.76.1-26.el9_3.3" → "7.76.1", "26.el9_3.3"
-	if idx := strings.Index(evr, "-"); idx >= 0 {
-		version = evr[:idx]
-		release = evr[idx+1:]
+	if ver, rel, ok := strings.Cut(evr, "-"); ok {
+		version = ver
+		release = rel
 
 		// Decrement the first numeric component of release to make it older
 		// "26.el9_3.3" → "25.el9_3.3"
