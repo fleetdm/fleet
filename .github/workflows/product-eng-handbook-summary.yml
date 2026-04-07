@@ -68,7 +68,7 @@ jobs:
         if: steps.diffs.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: fleetdm/fleet
+          GH_REPO: ${{ github.repository }}
         run: |
           HANDBOOK_PATHS="handbook/engineering/ handbook/product-design/"
           SINCE_DATE="${{ steps.diffs.outputs.since_date }}"
