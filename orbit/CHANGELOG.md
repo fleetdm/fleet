@@ -6,11 +6,11 @@
 
 * Fixed an issue where the automatic migration preview would show when the device was not MDM-enrolled and not enrolled via DEP.
 
-* Fix a case where `app_sso_platform` does not return any data if Platform SSO is configured but the user has not yet completed registration.
+* Fixed a case where `app_sso_platform` does not return any data if Platform SSO is configured but the user has not yet completed registration.
 
-* Add `registration_completed` and `login_type` columns to `app_sso_platform` table.
+* Added `registration_completed` and `login_type` columns to `app_sso_platform` table.
 
-* Updated script validation to support python interpreters on macOS and Linux
+* Updated script validation to support python interpreters on macOS and Linux.
 
 * Added a new `disk_space` fleetd table for macOS that reports accurate available disk space including purgeable storage.
 
@@ -20,7 +20,7 @@
 
 * Fixed a bug where the fleetd `executable_hashes` table failed to compute hashes for app bundles with emoji characters in their names.
 
-* Updated go to 1.26.1
+* Updated go to 1.26.1.
 
 * Added `go_binaries` table to detect Go binaries installed via `go install` in user directories.
 
