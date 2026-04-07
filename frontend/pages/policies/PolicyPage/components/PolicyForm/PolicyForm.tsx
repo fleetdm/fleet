@@ -411,30 +411,6 @@ const PolicyForm = ({
     }
   };
 
-  const renderAuthor = (): JSX.Element | null => {
-    return storedPolicy ? (
-      <DataSet
-        className={`${baseClass}__author`}
-        title="Author"
-        value={
-          <>
-            <Avatar
-              user={addGravatarUrlToResource({
-                email: storedPolicy.author_email,
-              })}
-              size="xsmall"
-            />
-            <span>
-              {storedPolicy.author_name === currentUser?.name
-                ? "You"
-                : storedPolicy.author_name}
-            </span>
-          </>
-        }
-      />
-    ) : null;
-  };
-
   const renderLabelComponent = (): JSX.Element | null => {
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
@@ -605,14 +581,11 @@ const PolicyForm = ({
   // - Global technicians and team technicians viewing any team's policies and any inherited policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
-      <div className={`${baseClass}__title-bar`}>
-        <h1
-          className={`${baseClass}__policy-name ${baseClass}__policy-name--no-hover`}
-        >
-          {lastEditedQueryName}
-        </h1>
-        {renderAuthor()}
-      </div>
+      <h1
+        className={`${baseClass}__policy-name ${baseClass}__policy-name--no-hover`}
+      >
+        {lastEditedQueryName}
+      </h1>
       {renderPolicyFleetName()}
       {lastEditedQueryDescription && (
         <PageDescription
@@ -685,18 +658,18 @@ const PolicyForm = ({
           {isEditMode ? (
             <div className={`${baseClass}__page-header`}>
               <h1 className={`${baseClass}__page-title`}>Edit policy</h1>
-              {currentTeam && (
-                <p className={`${baseClass}__page-subtitle`}>
-                  Editing policy for {currentTeam.name}.
-                </p>
-              )}
+              {renderPolicyFleetName()}
             </div>
           ) : (
             <div className={`${baseClass}__title-bar`}>
-              <div className={`${baseClass}__policy-name`}>{renderName()}</div>
+              <div className={`${baseClass}__policy-name-fleet-name`}>
+                {renderName()}
+                {renderPolicyFleetName()}
+              </div>
             </div>
           )}
           {isEditMode && renderName()}
+
           {renderDescription()}
           {renderResolution()}
           {isEditMode && !isPatchPolicy && platformSelector.render()}

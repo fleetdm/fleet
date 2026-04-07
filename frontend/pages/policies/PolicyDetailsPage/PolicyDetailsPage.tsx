@@ -197,7 +197,7 @@ const PolicyDetailsPage = ({
         className={`${baseClass}__author`}
         title="Author"
         value={
-          <>
+          <div className={`${baseClass}__author-info`}>
             <Avatar
               user={addGravatarUrlToResource({
                 email: storedPolicy.author_email,
@@ -209,7 +209,7 @@ const PolicyDetailsPage = ({
                 ? "You"
                 : storedPolicy.author_name}
             </span>
-          </>
+          </div>
         }
       />
     );
@@ -255,28 +255,31 @@ const PolicyDetailsPage = ({
     const labels = isInclude ? includeAny : excludeAny;
 
     return (
-      <div className={`${baseClass}__labels-section`}>
-        <dt className={`${baseClass}__labels-title`}>Labels</dt>
-        <dd>
-          <p className={`${baseClass}__labels-help-text`}>
-            Policy will target hosts that{" "}
-            <b>{isInclude ? "have any" : "exclude any"}</b> of these labels:
-          </p>
-          <ul className={`${baseClass}__labels-list`}>
-            {labels?.map((label) => (
-              <li key={label.id}>
-                <Button
-                  onClick={() => onLabelClick(label)}
-                  variant="grey-pill"
-                  className={`${baseClass}__label-pill`}
-                >
-                  {label.name}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </dd>
-      </div>
+      <DataSet
+        className={`${baseClass}__labels`}
+        title="Labels"
+        value={
+          <div className={`${baseClass}__labels-section`}>
+            <p>
+              Policy will target hosts that{" "}
+              <b>{isInclude ? "have any" : "exclude any"}</b> of these labels:
+            </p>
+            <ul className={`${baseClass}__labels-list`}>
+              {labels?.map((label: ILabelPolicy) => (
+                <li key={label.id}>
+                  <Button
+                    onClick={() => onLabelClick(label)}
+                    variant="grey-pill"
+                    className={`${baseClass}__label-pill`}
+                  >
+                    {label.name}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        }
+      />
     );
   };
 
@@ -357,14 +360,11 @@ const PolicyDetailsPage = ({
               </div>
             </div>
             {lastEditedQueryResolution && (
-              <div className={`${baseClass}__resolve-section`}>
-                <p className={`${baseClass}__resolve-title`}>
-                  <strong>Resolve</strong>
-                </p>
-                <p className={`${baseClass}__resolve-text`}>
-                  {lastEditedQueryResolution}
-                </p>
-              </div>
+              <DataSet
+                className={`${baseClass}__resolve`}
+                title="Resolve"
+                value={lastEditedQueryResolution}
+              />
             )}
             {renderAuthor()}
             {currentTeam && (

@@ -403,30 +403,6 @@ const EditQueryForm = ({
     }
   };
 
-  const renderAuthor = (): JSX.Element | null => {
-    return storedQuery ? (
-      <DataSet
-        className={`${baseClass}__author`}
-        title="Author"
-        value={
-          <>
-            <Avatar
-              user={addGravatarUrlToResource({
-                email: storedQuery.author_email,
-              })}
-              size="xsmall"
-            />
-            <span>
-              {storedQuery.author_name === currentUser?.name
-                ? "You"
-                : storedQuery.author_name}
-            </span>
-          </>
-        }
-      />
-    ) : null;
-  };
-
   const renderLabelComponent = (): JSX.Element | null => {
     if (!showOpenSchemaActionText) {
       return null;
@@ -533,12 +509,9 @@ const EditQueryForm = ({
   // Observers and observer+ of existing query
   const renderNonEditableForm = (
     <form className={`${baseClass}`}>
-      <div className={`${baseClass}__title-bar`}>
-        <h1 className={`${baseClass}__query-name no-hover`}>
-          {lastEditedQueryName}
-        </h1>
-        {renderAuthor()}
-      </div>
+      <h1 className={`${baseClass}__query-name no-hover`}>
+        {lastEditedQueryName}
+      </h1>
       {renderQueryTeam()}
       <PageDescription
         className={`${baseClass}__query-description no-hover`}
@@ -661,14 +634,13 @@ const EditQueryForm = ({
           {isExistingQuery ? (
             <div className={`${baseClass}__page-header`}>
               <h1 className={`${baseClass}__page-title`}>Edit report</h1>
-              {currentTeam && (
-                <p className={`${baseClass}__page-subtitle`}>
-                  Editing report for {currentTeam.name}.
-                </p>
-              )}
+              {renderQueryTeam()}
             </div>
           ) : (
-            <div className={`${baseClass}__title-bar`}>{renderName()}</div>
+            <div className={`${baseClass}__query-name-fleet-name`}>
+              {renderName()}
+              {renderQueryTeam()}
+            </div>
           )}
           {isExistingQuery && renderName()}
           {renderDescription()}

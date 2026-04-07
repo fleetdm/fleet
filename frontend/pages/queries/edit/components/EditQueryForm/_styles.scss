@@ -24,20 +24,14 @@
     margin: 0;
   }
 
-  &__title-bar {
+  &__query-name-fleet-name {
     display: flex;
-    justify-content: space-between;
-    gap: 1.5rem;
-  }
-  .form-field {
-    margin-bottom: 0px;
+    flex-direction: column;
+    gap: $pad-small;
   }
 
-  .input-field,
-  .input-field__text-area {
-    min-height: auto;
-    line-height: normal;
-    white-space: normal;
+  .form-field {
+    margin-bottom: 0px;
   }
 
   .input-field__textarea {

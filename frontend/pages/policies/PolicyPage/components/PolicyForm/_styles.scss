@@ -52,15 +52,8 @@
     }
   }
 
-  .input-field,
-  .input-field__text-area {
-    min-height: auto;
-    white-space: normal;
-  }
-
   .input-field__textarea {
     min-width: 100%;
-    resize: vertical;
   }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
@@ -79,7 +72,7 @@
     height: 18px;
   }
 
-  &__policy-name,
+  &__policy-name-fleet-name,
   &__description,
   &__resolution {
     .button--text-icon {
@@ -88,11 +81,10 @@
     }
   }
 
-  &__policy-name {
-    &--new {
-      font-size: $large;
-      margin: 0;
-    }
+  &__policy-name-fleet-name {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
   }
 
   &__autofill-label {
