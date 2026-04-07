@@ -132,6 +132,7 @@ For all in-person or virtual events, sponsored or hosted.
 | Executive community (Evanta, etc.) | EC | 2026\_01-EC-evanta\_ciso\_summit |
 | Field event / sales event (hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
 | Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent\_booth |
+| Speaking engagement | SE | 2026_06-SE-macadmins\_keynote |
 | Webinar (hosted) | WH | 2026\_02-WH-fleet\_v5\_launch |
 | Webinar (sponsored) | WS | 2026\_03-WS-darkreading\_webinar |
 
