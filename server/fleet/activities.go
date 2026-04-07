@@ -877,7 +877,6 @@ type ActivityTypeRanScript struct {
 	Async               bool    `json:"async"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
-	AttemptNumber       *int    `json:"attempt_number,omitempty"`
 	FromSetupExperience bool    `json:"-"`
 }
 
@@ -1087,7 +1086,6 @@ type ActivityTypeInstalledSoftware struct {
 	Source              *string `json:"source,omitempty"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
-	AttemptNumber       *int    `json:"attempt_number,omitempty"`
 	FromSetupExperience bool    `json:"-"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 }
