@@ -224,7 +224,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <>{renderContent()}</>
         </div>
       </>
-      {showAddAbmModal && (
+      {!showAddAbmModal && (
         <AddAbmModal
           onAdded={onAdded}
           onCancel={() => setShowAddAbmModal(false)}
