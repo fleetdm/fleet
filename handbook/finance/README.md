@@ -553,6 +553,11 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
     - Select "Edit", under "User and Profile Assignments" move the new user's name from "Available" to "Selected", scroll all the way down and click save.
 
 
+### Update GTM ops placard
+
+Each quarter, the GTM ops placard must be updated to reflect current goals (including churn & contraction targets from the operating model) and thermometer guidelines. Sam Pfluger and Tina Ong meet live for 30 minutes to complete this update, ensuring all reps, CSMs, and fleeties see accurate data before the new quarter begins.
+
+
 ## Rituals
 
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).
