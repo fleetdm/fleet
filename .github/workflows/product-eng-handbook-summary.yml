@@ -68,7 +68,7 @@ jobs:
           HANDBOOK_PATHS="handbook/engineering/ handbook/product-design/"
           SINCE_DATE="${{ steps.diffs.outputs.since_date }}"
 
-          # Get unique merge commit SHAs for handbook changes
+          # Get unique commit SHAs for handbook changes
           COMMIT_SHAS=$(git log --since="$SINCE_DATE" --pretty=format:'%H' -- $HANDBOOK_PATHS | sort -u)
 
           echo "PR_CONTEXT:" > /tmp/pr_context.txt
