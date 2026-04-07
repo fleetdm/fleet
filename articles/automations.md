@@ -27,7 +27,7 @@ To learn how to use Fleet's maintenance windows, head to this [article](https://
 
 ### Software and scripts
 
-Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) retry up to 3 times by default. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) are attempted up to 3 total times. For software, each time the policy runs and fails, Fleet triggers the install again. For scripts, Fleet retries when the script exits with a non-zero exit code (i.e., the script execution fails); if the script exits successfully (exit code 0), no retry occurs. If the host passes the policy, the retry count resets.
 
 ### Webhooks and tickets
 
