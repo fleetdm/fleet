@@ -14127,7 +14127,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	defer manifestServer.Close()
 	mockTransport = &mockRoundTripper{
 		mockServer:  manifestServer.URL,
-		origBaseURL: "https://maintained-apps.fleetdm.com",
+		origBaseURL: "https://raw.githubusercontent.com",
 		next:        http.DefaultTransport,
 	}
 	http.DefaultTransport = mockTransport
@@ -20632,7 +20632,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	mockTransport := &mockRoundTripper{
 		mockServer:  manifestServer.URL,
-		origBaseURL: "https://maintained-apps.fleetdm.com",
+		origBaseURL: "https://raw.githubusercontent.com",
 		next:        http.DefaultTransport,
 	}
 	http.DefaultTransport = mockTransport
