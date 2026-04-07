@@ -19,21 +19,9 @@ import kotlinx.coroutines.sync.Mutex
 class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        // Skip if another enrollment is already running (periodic + one-time work are tracked separately)
-        if (!enrollmentMutex.tryLock()) {
-            Log.d(TAG, "Skipping enrollment, another run is already in progress")
-            return Result.success()
-        }
-        return try {
-            doEnrollment()
-        } finally {
-            enrollmentMutex.unlock()
-        }
-    }
-
-    private suspend fun doEnrollment(): Result {
-        // Gate on CERT_INSTALL delegation. After a fresh MDM enrollment, the delegated scope may not be available
-        // immediately. Retrying here (before any SCEP work) avoids consuming single-use SCEP challenges.
+        // Gate on CERT_INSTALL delegation before acquiring the mutex. After a fresh MDM enrollment, the delegated
+        // scope may not be available immediately. Checking here (before any SCEP work) avoids consuming single-use
+        // SCEP challenges. This is a read-only check that doesn't need mutual exclusion.
         val attempt = runAttemptCount + 1
         val dpm = applicationContext.getSystemService(DevicePolicyManager::class.java)
         val scopes = dpm?.getDelegatedScopes(null, applicationContext.packageName) ?: emptyList()
@@ -46,9 +34,21 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             return Result.retry()
         }
 
+        // Skip if another enrollment is already running (periodic + one-time work are tracked separately)
+        if (!enrollmentMutex.tryLock()) {
+            Log.d(TAG, "Skipping enrollment, another run is already in progress")
+            return Result.success()
+        }
         return try {
             Log.d(TAG, "Starting certificate enrollment worker (attempt $attempt)")
+            doEnrollment()
+        } finally {
+            enrollmentMutex.unlock()
+        }
+    }
 
+    private suspend fun doEnrollment(): Result {
+        return try {
             // Get orchestrator from Application
             val orchestrator = AgentApplication.getCertificateOrchestrator(applicationContext)
 
