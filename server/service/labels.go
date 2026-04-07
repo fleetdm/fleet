@@ -365,7 +365,7 @@ func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc flee
 	req := request.(*fleet.ListHostsInLabelRequest)
 	hosts, err := svc.ListHostsInLabel(ctx, req.ID, req.ListOptions)
 	if err != nil {
-		return fleet.ListLabelsResponse{Err: err}, nil
+		return listHostsResponse{Err: err}, nil
 	}
 
 	var mdmSolution *fleet.MDMSolution
