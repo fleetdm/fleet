@@ -63,17 +63,14 @@
   install_software: false
   labels_include_any:
     - Macs with Slack installed
-# Zoom patch policy: disabled until FMA installer resolves in gitops (sql no rows).
-# Uncomment together with "Macs with Zoom installed" label in
-# lib/all/labels/macs-with-fleet-maintained-apps-installed.yml
-# - name: macOS - Zoom up to date
-#   description: The host may have an outdated version of Zoom, potentially risking security vulnerabilities or compatibility issues.
-#   resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality. You can also delete Zoom if you are no longer using it."
-#   type: patch
-#   fleet_maintained_app_slug: zoom/darwin
-#   install_software: false
-#   labels_include_any:
-#     - Macs with Zoom installed
+- name: macOS - Zoom up to date
+  description: The host may have an outdated version of Zoom, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality. You can also delete Zoom if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: zoom/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Zoom installed
 - name: macOS - Okta Verify up to date
   description: The host may have an outdated version of Okta Verify, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Okta Verify's built-in update functionality. You can also delete Okta Verify if you are no longer using it."

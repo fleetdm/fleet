@@ -39,10 +39,12 @@ import (
 )
 
 // testSAMLIDPBaseURL is the SAML IDP base URL, read from FLEET_SAML_IDP_HTTP_PORT (defaults to http://localhost:9080).
-var testSAMLIDPBaseURL = getTestSAMLIDPBaseURL()
-var testSAMLIDPMetadataURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/metadata.php"
-var testSAMLIDPSSOURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SSOService.php"
-var testSAMLIDPSLOURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SingleLogoutService.php"
+var (
+	testSAMLIDPBaseURL     = getTestSAMLIDPBaseURL()
+	testSAMLIDPMetadataURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/metadata.php"
+	testSAMLIDPSSOURL      = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SSOService.php"
+	testSAMLIDPSLOURL      = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SingleLogoutService.php"
+)
 
 func getTestSAMLIDPBaseURL() string {
 	if port := os.Getenv("FLEET_SAML_IDP_HTTP_PORT"); port != "" {
@@ -639,6 +641,27 @@ func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint,
 	}
 	if fleetInitiated != nil {
 		assert.Equal(t, *fleetInitiated, act.FleetInitiated)
+	}
+	return act.ID
+}
+
+func (ts *withServer) lastHostActivityMatches(hostID uint, name, details string, id uint) uint {
+	t := ts.s.T()
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.NotEmpty(t, listActivities.Activities)
+
+	act := listActivities.Activities[0]
+
+	if name != "" {
+		assert.Equal(t, name, act.Type)
+	}
+	if details != "" {
+		require.NotNil(t, act.Details)
+		assert.JSONEq(t, details, string(*act.Details))
+	}
+	if id > 0 {
+		assert.Equal(t, id, act.ID)
 	}
 	return act.ID
 }
