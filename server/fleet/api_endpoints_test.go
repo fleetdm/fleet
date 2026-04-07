@@ -51,7 +51,7 @@ func TestNormalizePathPlaceholders(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			require.Equal(t, tt.want, normalizePathPlaceholders(tt.path))
+			require.Equal(t, tt.want, NormalizePathPlaceholders(tt.path))
 		})
 	}
 }
