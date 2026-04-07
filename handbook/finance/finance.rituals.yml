@@ -189,11 +189,11 @@
   frequency: "Quarterly"
   description: "Prepare slide deck for the next board meeting."
   dri: "rfoo2015"
-- task: "Update GTM ops placard"
+- task: "Update Salesforce placards"
   startedOn: "2026-07-15"
   frequency: "Quarterly"
-  description: "Sam Pfluger and Tina Ong meet live (30 min) to update the GTM ops placard and thermometer guidelines using numbers from the operating model, ensuring all reps, CSMs, and fleeties see accurate data before the new quarter begins."
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#update-gtm-ops-placard"
+  description: "Sam Pfluger and Tina Ong meet to update the Salesforce placards and thermometer guidelines using numbers from the operating model, ensuring all reps, CSMs, and fleeties see accurate data before the new quarter begins."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#update-salesforce-placards"
   dri: "sampfluger88"
   autoIssue:
     labels: [":help-gtm-ops"]
