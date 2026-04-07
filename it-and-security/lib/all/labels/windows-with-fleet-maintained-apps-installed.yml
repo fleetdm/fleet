@@ -18,11 +18,12 @@
   query: SELECT 1 FROM programs WHERE name = 'Google Chrome' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
-- name: x86 Windows hosts with Zoom installed
-  description: x86 Windows hosts with Zoom installed
-  query: SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
+# Used by Windows Zoom patch policy when re-enabled (see patch-fleet-maintained-apps.yml).
+# - name: x86 Windows hosts with Zoom installed
+#   description: x86 Windows hosts with Zoom installed
+#   query: SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+#   label_membership_type: dynamic
+#   platform: windows
 - name: Windows hosts with Brave Browser installed
   description: Windows hosts with Brave Browser installed
   query: SELECT 1 FROM programs WHERE name = 'Brave';
