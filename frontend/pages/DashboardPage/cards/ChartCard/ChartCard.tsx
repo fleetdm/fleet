@@ -149,6 +149,16 @@ const ChartCard = (): JSX.Element => {
     [selectedDays]
   );
 
+  const formatYAxisTick = (val: number): string => {
+    if (currentDataset.isPercentage) {
+      return `${val}%`;
+    }
+    if (val >= 1000) {
+      return `${(val / 1000).toFixed(1)}k`;
+    }
+    return String(val);
+  };
+
   const renderChart = () => {
     if (isFetching) {
       return <Spinner includeContainer={false} verticalPadding="small" />;
@@ -180,13 +190,7 @@ const ChartCard = (): JSX.Element => {
             tick={{ fontSize: 12 }}
             width={50}
             domain={currentDataset.isPercentage ? [0, 100] : undefined}
-            tickFormatter={(val: number) =>
-              currentDataset.isPercentage
-                ? `${val}%`
-                : val >= 1000
-                ? `${(val / 1000).toFixed(1)}k`
-                : String(val)
-            }
+            tickFormatter={formatYAxisTick}
           />
           <Tooltip content={renderTooltip} />
           <Line
