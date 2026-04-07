@@ -35,10 +35,6 @@ type ovalDef struct {
 func extractVulnerablePackages(defPath string, t *testing.T) map[string]string {
 	t.Helper()
 
-	f, err := os.Open(defPath)
-	require.NoError(t, err)
-	defer f.Close()
-
 	var def ovalDef
 
 	// Decompress bzip2 inline
