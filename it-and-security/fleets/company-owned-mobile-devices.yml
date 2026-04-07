@@ -48,6 +48,15 @@ software:
       auto_update_window_end: "05:00"
       categories:
         - "Communication"
+    - app_store_id: "6473753684" # Claude
+      display_name: "Claude"
+      self_service: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "842842640" # Google Docs
       display_name: "Google Docs"
       self_service: true
@@ -104,6 +113,15 @@ software:
       auto_update_window_end: "05:00"
       categories:
         - "Communication"
+    - app_store_id: "6473753684" # Claude
+      display_name: "Claude"
+      self_service: true
+      platform: ipados
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "842842640" # Google Docs
       display_name: "Google Docs"
       self_service: true
@@ -142,6 +160,10 @@ software:
       display_name: "Slack"
       self_service: true
       setup_experience: true
+    - app_store_id: "com.anthropic.claude" # Claude
+      platform: android
+      display_name: "Claude"
+      self_service: true
     - app_store_id: "com.onepassword.android" # 1Password
       platform: android
       display_name: "1Password"
