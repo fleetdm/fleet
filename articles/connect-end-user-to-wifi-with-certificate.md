@@ -6,6 +6,8 @@ Fleet can help your end users connect to third-party tools like Wi-Fi or VPN by 
 
 Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts before expiration. Learn more in the [Renewal section](#renewal).
 
+To deploy certificates on a self-hosted Fleet instance, you'll need to configure a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+
 Currently, these are supported platforms for each certificate authority:
 - **Okta**: macOS, iOS, and iPadOS
 - **DigiCert**: macOS, iOS, and iPadOS

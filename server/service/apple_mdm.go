@@ -3590,6 +3590,11 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	enqueueSetupExperienceItems := false
 
 	if m.AwaitingConfiguration {
+		// We are sure that the device is going through a new enrollment here, so we want to
+		// remove the enrolled from migration flag as it is no longer true.
+		if err := svc.ds.ClearHostEnrolledFromMigration(r.Context, r.ID); err != nil {
+			return ctxerr.Wrap(r.Context, err, "resetting enrolled from migration flag", "host_uuid", r.ID)
+		}
 		// Note that Setup Experience is only skipped for macOS during DEP migration. iOS and iPadOS will still get VPP apps
 		if info.MigrationInProgress && info.Platform == "darwin" {
 			svc.logger.InfoContext(r.Context, "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)

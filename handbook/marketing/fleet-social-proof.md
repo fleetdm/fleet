@@ -41,13 +41,16 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Global SaaS company modernizes device management with Fleet](https://fleetdm.com/case-study/global-saas-company) | ✓ | ✓ | ✓ | 2026‑03‑03 |
 | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | ✓ | ✓ | ✓ | 2024‑12‑20 |
 | [How a global workforce management company achieved compliance and clarity with Fleet](https://fleetdm.com/case-study/global-workforce-management-company) | ✓ | ✓ | ✓ | 2024‑12‑17 |
-| [Global social media platform migrates to Fleet](https://fleetdm.com/case-study/global-social-media-platform) | ✓ | ✓ | ✓ | 2024‑12‑16 |
 | [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | ✓ | ✓ | ✓ | 2024‑06‑01 |
 | [Design platform company adopts GitOps device management with Fleet](https://fleetdm.com/case-study/design-platform) | ✓ |  | ✓ | 2026‑04‑01 |
 | [Data platform company cuts $5–6M in hardware costs with API-driven device management](https://fleetdm.com/case-study/data-platform-company) | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [DevOps platform company consolidates endpoint management with Fleet](https://fleetdm.com/case-study/devops-platform) | ✓ | ✓ | ✓ | 2026‑04‑01 |
-| [Observability platform company consolidates device management with Fleet](https://fleetdm.com/case-study/observability-platform) | ✓ | ✓ | ✓ | 2026‑04‑01 |
+| [Observability platform company consolidates device management with Fleet](https://fleetdm.com/case-study/observability-platform-company) | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [Consumer electronics company simplifies cross-platform management with Fleet](https://fleetdm.com/case-study/consumer-electronics) | ✓ | ✓ | ✓ | 2026‑04‑01 |
+| [Technology platform](https://fleetdm.com/case-study/technology-platform) | Technology | ✓ |  |  | 2026‑03‑14 |
+| [Global technology platform](https://fleetdm.com/case-study/global-technology-platform) | Technology | ✓ | ✓ | ✓ | 2026‑03‑03 |
+| [Cloud infrastructure company]((https://fleetdm.com/case-study/cloud-infrastructure-company) | Cloud computing and infrastructure |  |  | ✓ | 2026‑03‑31 |
+
 
 ### Anonymous stories — security, IT services, healthcare & other
 
@@ -82,9 +85,21 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [IT services company builds zero-touch workflows with Fleet](https://fleetdm.com/case-study/it-service-company) | IT / MSP | ✓ |  |  | 2026‑03‑21 |
 | [National research lab scales host visibility with Fleet](https://fleetdm.com/case-study/national-research-lab) | Research / HPC |  |  | ✓ | 2026‑03‑14 |
 | [Cybersecurity company improves endpoint visibility with Fleet](https://fleetdm.com/case-study/cybersecurity-company) | Security | ✓ | ✓ | ✓ | 2026‑03‑14 |
-| [Computational research company unifies endpoint management with Fleet](https://fleetdm.com/case-study/computational-research) | Research / HPC | ✓ | ✓ | ✓ | 2026‑04‑01 |
+| [Computational research company unifies endpoint management with Fleet](https://fleetdm.com/case-study/computational-research-company) | Research / HPC | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [Open-source technology company scales endpoint management with Fleet](https://fleetdm.com/case-study/open-source-technology) | Open Source / Software | ✓ | ✓ | ✓ | 2026‑04‑01 |
-| [Digital asset security company strengthens Linux compliance with Fleet](https://fleetdm.com/case-study/digital-asset) | Crypto / Digital Assets |  |  | ✓ | 2026‑04‑01 |
+| [Digital asset security company strengthens Linux compliance with Fleet](https://fleetdm.com/case-study/digital-asset-security) | Crypto / Digital Assets |  |  | ✓ | 2026‑04‑01 |
+| [Cybersecurity company](https://fleetdm.com/case-study/cybersecurity-company-1) | Cybersecurity and security |  |  | ✓ | 2026‑03‑14 |
+| [Financial data company](https://fleetdm.com/case-study/financial-data-company) | Financial data and media | ✓ | ✓ | ✓ | 2026‑03‑04 |
+| [Financial technology company](https://fleetdm.com/case-study/fintech-company-strengthens-infrastructure-visibility) | Financial and payroll services | ✓ | ✓ |  | 2026‑03‑14 |
+| [Financial technology company](https://fleetdm.com/case-study/fintech-company) | Financial and gaming payments infrastructure | ✓ | ✓ | ✓ | 2026‑03‑14 |
+| [Gaming platform](https://fleetdm.com/case-study/gaming-platform) | Gaming and technology | ✓ | ✓ | ✓ | 2026‑03‑04 |
+| [Global entertainment company](https://fleetdm.com/case-study/global-entertainment-company) | Technology and interactive entertainment | ✓ | ✓ | ✓ | 2026‑03‑14 |
+| [Identity platform](https://fleetdm.com/case-study/identity-platform) | Technology |  |  | ✓ | 2026‑03‑14 |
+| [Identity security company](https://fleetdm.com/case-study/identity-security-company) | Cybersecurity | ✓ | ✓ |  | 2026‑03‑14 |
+| [Medical research institution](https://fleetdm.com/case-study/medical-research-institution) | Higher education | ✓ | ✓ | ✓ | 2026‑03‑14 |
+| [National research organization](https://fleetdm.com/case-study/national-research-organization) | Research and technology | ✓ |  | ✓ | 2026‑03‑14 |
+| [Online marketplace](https://fleetdm.com/case-study/online-marketplace) | Oneline marketplace | ✓ | ✓ | ✓ | 2026‑03‑14 |
+
 
 ### Fleet customer testimonials
 
@@ -95,14 +110,14 @@ Champion stories and case studies showing real customers achieving real outcomes
 | # | Company | Industry | Name | Title | Quote |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Foursquare | Technology & Geospatial Intelligence | Mike Meyer | Senior Manager, Corporate Engineer | "One of the easiest, quickest, smoothest migrations I've ever done." |
-| 2 | NVIDIA | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy." |
+| 2 | Leading GPU manufacturer| Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy." |
 | 3 | Stripe | Financial Software | Scott MacVicar | Head of Developer Infrastructure & Corporate Technology | "We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment." |
 | 4 | Reddit | Internet Content & Social Media | Nick Fohs | Systems and Infrastructure Manager | "Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners." |
 | 5 | Stripe | Financial Software | Wes Whetstone | Staff CPE at Stripe | "Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy." |
 | 6 | Stripe | Financial Software | Erik Gomez | Former Staff Client Platform Engineer | "Exciting. This is a team that listens to feedback." |
 | 7 | Robinhood | Financial Software | Matt Carr | CPE Manager | "I'm a huge fan of Fleet and their approach to GitOps." |
 | 8 | — (Community) | — | Nico Waisman | Former CISO of Lyft | "Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet." |
-| 9 | NVIDIA | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback." |
+| 9 | Leading GPU manufacturer | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback." |
 | 10 | — (Community) | — | Dan Grzelak | Former Security Chief of Staff | "I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work." |
 | 11 | Flock Safety | Public Safety Technology | Eric Tan | CIO & CSO | "This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf." |
 | 12 | ConductorOne | Identity Governance & Access Management | Chayce O'Neal | Head of IT | "Fleet is incredibly easy to deploy and perfect for lean IT teams. It's everything we need in a device management platform, simple, efficient, and powerful." |

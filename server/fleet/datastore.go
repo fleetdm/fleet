@@ -1092,7 +1092,10 @@ type Datastore interface {
 
 	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
 	// Even if `results` is empty, the host's `policy_updated_at` will be updated.
-	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
+	// If newlyPassingPolicyIDs is non-nil, it contains the IDs of policies that flipped from failing to passing
+	// and is used directly instead of calling FlippingPoliciesForHost internally. This allows callers that have
+	// already computed flipping policies to avoid a redundant database query.
+	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
@@ -1426,6 +1429,9 @@ type Datastore interface {
 	// MDMResetEnrollment resets all tables with enrollment-related
 	// information if a matching row for the host exists.
 	MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
+
+	// ClearHostEnrolledFromMigration clears the enrolled from migration status of a host
+	ClearHostEnrolledFromMigration(ctx context.Context, hostUUID string) error
 
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
@@ -2210,8 +2216,9 @@ type Datastore interface {
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
-	// fleet-maintained app for the given title and team.
-	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]FleetMaintainedVersion, error)
+	// fleet-maintained app for the given title and team. If byVersion is true
+	// the versions will be sorted by the version string.
+	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team.
@@ -2401,7 +2408,7 @@ type Datastore interface {
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
 
 	// ListSetupExperienceResultsByHostUUID lists the setup experience results for a host by its UUID.
-	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
+	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*SetupExperienceStatusResult, error)
 
 	// UpdateSetupExperienceStatusResult updates the given setup experience status result.
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error

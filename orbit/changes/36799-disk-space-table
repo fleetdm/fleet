@@ -1,1 +1,0 @@
-- Added a new `disk_space` fleetd table for macOS that reports accurate available disk space including purgeable storage.
