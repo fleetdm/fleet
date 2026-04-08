@@ -45,8 +45,16 @@ type CertManager interface {
 	// NewSTSAuthToken returns an STS auth token for the given UPN claim.
 	NewSTSAuthToken(upn string) (string, error)
 
+	// NewSTSAuthTokenWithDeviceID returns an STS auth token for the given UPN and
+	// Windows MDM device ID claims. Used to pass end-user authentication context
+	// to the orbit installer so the user is not prompted twice.
+	NewSTSAuthTokenWithDeviceID(upn string, deviceID string) (string, error)
+
 	// GetSTSAuthTokenUPNClaim validates the given token and returns the UPN claim
 	GetSTSAuthTokenUPNClaim(token string) (string, error)
+
+	// GetSTSAuthTokenClaims validates the given token and returns the UPN and device ID claims.
+	GetSTSAuthTokenClaims(token string) (upn string, deviceID string, err error)
 
 	// TODO: implement other methods as needed:
 	// - verify certificate-device association
@@ -62,7 +70,8 @@ type CertStore interface {
 }
 
 type STSClaims struct {
-	UPN string `json:"upn"`
+	UPN      string `json:"upn"`
+	DeviceID string `json:"device_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -186,8 +195,8 @@ func (m *manager) NewSTSAuthToken(upn string) (string, error) {
 
 	// Create claims with upn field populated
 	claims := STSClaims{
-		upn,
-		jwt.RegisteredClaims{
+		UPN: upn,
+		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
@@ -203,6 +212,71 @@ func (m *manager) NewSTSAuthToken(upn string) (string, error) {
 	}
 
 	return signedToken, nil
+}
+
+// NewSTSAuthTokenWithDeviceID returns an STS auth token for the given UPN and Windows MDM device ID claims.
+func (m *manager) NewSTSAuthTokenWithDeviceID(upn string, deviceID string) (string, error) {
+	if m == nil {
+		return "", errors.New("windows mdm identity keypair was not configured")
+	}
+
+	if m.identityCert == nil || m.identityPrivateKey == nil {
+		return "", errors.New("invalid identity certificate or private key")
+	}
+
+	if len(upn) == 0 {
+		return "", errors.New("invalid upn field")
+	}
+
+	claims := STSClaims{
+		UPN:      upn,
+		DeviceID: deviceID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Subject:   "STSAuthToken",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS256"), claims)
+	signedToken, err := token.SignedString(m.identityPrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign STS token: %w", err)
+	}
+
+	return signedToken, nil
+}
+
+// GetSTSAuthTokenClaims validates the given token and returns the UPN and device ID claims.
+func (m *manager) GetSTSAuthTokenClaims(tokenStr string) (string, string, error) {
+	if m == nil {
+		return "", "", errors.New("windows mdm identity keypair was not configured")
+	}
+
+	if m.identityCert == nil || m.identityPrivateKey == nil {
+		return "", "", errors.New("invalid identity certificate or private key")
+	}
+
+	if len(tokenStr) == 0 {
+		return "", "", errors.New("invalid STS token")
+	}
+
+	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (any, error) {
+		return m.identityCert.PublicKey, nil
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("there was an error parsing the STS token claims: %w", err)
+	}
+
+	if claims, ok := token.Claims.(*STSClaims); ok && token.Valid {
+		if len(claims.UPN) == 0 {
+			return "", "", errors.New("issue with UPN token claim")
+		}
+		return claims.UPN, claims.DeviceID, nil
+	}
+
+	return "", "", errors.New("issue with STS token validation")
 }
 
 // GetSTSAuthToken validates the given token and returns the UPN claim
