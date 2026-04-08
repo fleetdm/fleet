@@ -1117,6 +1117,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	chartSvc.RegisterDataset(&service.UptimeDataset{})
 	svc.SetChartService(chartSvc)
 
+	if err := cronSchedules.StartCronSchedule(
+		func() (fleet.CronSchedule, error) {
+			return newChartDataCollectionSchedule(ctx, instanceID, ds, chartSvc, logger)
+		},
+	); err != nil {
+		initFatal(err, "failed to register chart_data_collection schedule")
+	}
+
 	// Perform a cleanup of cron_stats outside of the cronSchedules because the
 	// schedule package uses cron_stats entries to decide whether a schedule will
 	// run or not (see https://github.com/fleetdm/fleet/issues/9486).

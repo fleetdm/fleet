@@ -162,6 +162,40 @@ func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *f
 	return count, nil
 }
 
+// collectChartDataIntervalMinutes is the lookback window for determining which hosts
+// have recently checked in. Should match the cron schedule cadence.
+const collectChartDataIntervalMinutes = 10
+
+func (ds *Datastore) CollectUptimeChartData(ctx context.Context, now time.Time) error {
+	utc := now.UTC()
+	hour := utc.Hour()
+	dateStr := utc.Format("2006-01-02")
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO host_hourly_data (host_id, dataset, entity_id, chart_date, hours_bitmap)
+		SELECT h.id, 'uptime', 0, ?, (1 << ?)
+		FROM hosts h
+			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
+			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
+				AND ne.type IN ('Device', 'User Enrollment (Device)')
+		WHERE COALESCE(
+			GREATEST(
+				COALESCE(hst.seen_time, ne.last_seen_at),
+				COALESCE(ne.last_seen_at, hst.seen_time)
+			),
+			NULLIF(h.detail_updated_at, '2000-01-01 00:00:00'),
+			h.created_at
+		) >= NOW() - INTERVAL %d MINUTE
+		ON DUPLICATE KEY UPDATE hours_bitmap = hours_bitmap | VALUES(hours_bitmap)`,
+		collectChartDataIntervalMinutes)
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, dateStr, hour)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "collect uptime chart data")
+	}
+	return nil
+}
+
 func (ds *Datastore) CleanupHostHourlyData(ctx context.Context, days int) error {
 	_, err := ds.writer(ctx).ExecContext(ctx,
 		`DELETE FROM host_hourly_data WHERE chart_date < CURDATE() - INTERVAL ? DAY`, days)

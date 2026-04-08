@@ -2878,6 +2878,9 @@ type Datastore interface {
 	// CountHostsForChartFilter returns the total number of hosts matching the chart host filters.
 	CountHostsForChartFilter(ctx context.Context, hostFilter *ChartHostFilter) (int, error)
 
+	// CollectUptimeChartData bulk-inserts uptime bitmap data for all recently seen hosts.
+	CollectUptimeChartData(ctx context.Context, now time.Time) error
+
 	// CleanupHostHourlyData deletes rows older than the specified number of days.
 	CleanupHostHourlyData(ctx context.Context, days int) error
 

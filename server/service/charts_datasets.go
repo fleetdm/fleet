@@ -12,9 +12,8 @@ type UptimeDataset struct{}
 
 func (u *UptimeDataset) Name() string { return "uptime" }
 
-func (u *UptimeDataset) Collect(_ context.Context, _ fleet.Datastore, _ time.Time) error {
-	// No-op: uptime data is collected inline via RecordUptime on host check-in.
-	return nil
+func (u *UptimeDataset) Collect(ctx context.Context, ds fleet.Datastore, now time.Time) error {
+	return ds.CollectUptimeChartData(ctx, now)
 }
 
 func (u *UptimeDataset) ResolveFilters(_ context.Context, _ fleet.Datastore, _ map[string]string) ([]uint, error) {
