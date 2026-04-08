@@ -2,6 +2,9 @@ package worker
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -11,7 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/pbkdf2"
+
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -19,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/micromdm/plist"
 )
 
 // Name of the Apple MDM job as registered in the worker. Note that although it
@@ -895,6 +902,7 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 `, fullName, ssoAccount.Username, lockPrimaryAccountInfo)
 	}
 
+	passwordHash := "blabllablab"
 	managedAccountPayload := fmt.Sprintf(`
       <key>AutoSetupAdminAccount</key>
       <dict>
@@ -905,7 +913,7 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 		<key>shortName</key>
 		<string>%s</string>
       </dict>
-	  `, "TODO(JK): passwordHash", "_fleetadmin")
+`, passwordHash, "_fleetadmin")
 
 	var payload string
 	if managedAccountEnabled {
@@ -937,4 +945,45 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 	}
 
 	return cmdUUID, nil
+}
+
+const (
+	adminPasswordSaltSize   = 32
+	adminPasswordIterations = 20000
+)
+
+func (a *AppleMDM) createManagedAccountPassword(ctx context.Context) (string, string, error) {
+
+	// Part 1: Actually create the password
+	// Part 2: Create SALTED-SHA512-PBKDF2 data
+	// Part 3: Encrypt password with server private key using EncrptAESGCM? or ds.apple_mdm.encrypt()?
+	// Maybe we need to send the plaintext password to ds.StoreAccountPassword or somethign and use encrypt there
+
+	// TODO(JK): Placeholder, need password generator
+	plaintext, err := apple_mdm.GenerateRandomPin(6)
+	if err != nil {
+		return "", "", ctxerr.Wrap(ctx, err, "generating random PIN for EraseDevice")
+	}
+
+	salt := make([]byte, adminPasswordSaltSize)
+	_, err = rand.Read(salt)
+	if err != nil {
+		return "", "", ctxerr.Wrap(ctx, err, "generating salt")
+	}
+
+	entropy := pbkdf2.Key([]byte(plaintext), salt, adminPasswordIterations, 128, sha512.New)
+
+	type passwordPList struct {
+		Entropy    []byte `plist:"entropy"`
+		Salt       []byte `plist:"salt"`
+		Iterations int    `plist:"iterations"`
+	}
+	body, err := plist.Marshal(passwordPList{Entropy: entropy, Salt: salt, Iterations: adminPasswordIterations})
+	if err != nil {
+		return "", "", ctxerr.Wrap(ctx, err, "marshalling plist")
+	}
+
+	bodyBase64 := base64.StdEncoding.EncodeToString(body)
+
+	return "plaintext", "password hash", nil
 }

@@ -325,7 +325,8 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 }
 
 func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string,
-	payload string, uuid string,
+	payload string,
+	uuid string,
 ) error {
 	// 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 	// <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -347,9 +348,6 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 	//     <string>%s</string>
 	//   </dict>
 	// </plist>`, fullName, userName, lockPrimaryAccountInfo, uuid)
-
-	// Maybe add payload as a type in mdm/apple/
-
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -364,7 +362,6 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <string>%s</string>
   </dict>
 </plist>`, payload, uuid)
-
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
