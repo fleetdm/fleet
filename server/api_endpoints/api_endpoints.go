@@ -1,7 +1,6 @@
-package mysql
+package api_endpoints
 
 import (
-	"context"
 	_ "embed"
 	"fmt"
 	"strings"
@@ -16,7 +15,7 @@ var apiEndpointsYAML []byte
 var apiEndpoints = mustGetAPIEndpoints()
 
 func mustGetAPIEndpoints() []fleet.APIEndpoint {
-	var endpoints []fleet.APIEndpoint
+	endpoints := make([]fleet.APIEndpoint, 0)
 
 	if err := yaml.Unmarshal(apiEndpointsYAML, &endpoints); err != nil {
 		panic(fmt.Errorf("failed to parse: %w", err))
@@ -33,7 +32,7 @@ func mustGetAPIEndpoints() []fleet.APIEndpoint {
 	return endpoints
 }
 
-func (ds *Datastore) ListAPIEndpoints(_ context.Context, opts fleet.ListOptions) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {
+func List(opts fleet.ListOptions) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {
 	query := strings.ToLower(strings.TrimSpace(opts.MatchQuery))
 
 	if query == "" {
@@ -41,7 +40,7 @@ func (ds *Datastore) ListAPIEndpoints(_ context.Context, opts fleet.ListOptions)
 	}
 
 	normalizedQuery := fleet.NormalizePathPlaceholders(query)
-	var filtered []fleet.APIEndpoint
+	filtered := make([]fleet.APIEndpoint, 0)
 	for _, e := range apiEndpoints {
 		if !strings.Contains(strings.ToLower(e.DisplayName), query) &&
 			!strings.Contains(strings.ToLower(e.NormalizedPath), normalizedQuery) {

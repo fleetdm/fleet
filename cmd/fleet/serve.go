@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1484,7 +1485,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
 
-		apiEndpoints, _, _, endpointsErr := ds.ListAPIEndpoints(ctx, fleet.ListOptions{})
+		apiEndpoints, _, _, endpointsErr := apiendpoints.List(fleet.ListOptions{})
 		if endpointsErr != nil {
 			panic(fmt.Sprintf("failed to load API endpoints: %v", endpointsErr))
 		}
