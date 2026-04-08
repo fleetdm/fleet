@@ -93,6 +93,9 @@ func main() {
 		runWithPermanentError(permanentError)
 	}
 
+	resetControlCenter()
+	promptMenuBarAccess()
+
 	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
 	if identifierPath == "" {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
