@@ -94,7 +94,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
 		http.StatusUnprocessableEntity,
 	)
-	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. \"com.valid.app.id\" isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
+	s.Contains(extractServerErrorText(r.Body), "Couldn't add software. \"com.valid.app.id\" isn't available in Apple Business or Play Store. Please purchase a license in Apple Business or find the app in Play Store and try again.")
 
 	// Valid application ID format, but app isn't found: should fail
 	// Update mock to return a 404
@@ -137,7 +137,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid", Platform: fleet.MacOSPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. \"com.valid\" isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. \"com.valid\" isn't available in Apple Business or Play Store. Please purchase a license in Apple Business or find the app in Play Store and try again.")
 
 	// Add Android app
 	s.DoJSON(
