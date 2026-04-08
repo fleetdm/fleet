@@ -1486,10 +1486,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 		apiEndpoints, _, _, endpointsErr := ds.ListAPIEndpoints(ctx, fleet.ListOptions{})
 		if endpointsErr != nil {
-			panic(fmt.Sprintf("failed to load api_endpoints.yml: %v", endpointsErr))
+			panic(fmt.Sprintf("failed to load API endpoints: %v", endpointsErr))
 		}
 		if err := validateAPIEndpoints(apiHandler, apiEndpoints); err != nil {
-			panic(fmt.Sprintf("invalid api_endpoints.yml: %v", err))
+			panic(fmt.Sprintf("invalid API endpoints: %v", err))
 		}
 
 		if serveCSP {
