@@ -2873,7 +2873,8 @@ type Datastore interface {
 
 	// GetChartData queries the host_hourly_data table for a given dataset and date range,
 	// filtered by host IDs and optional entity IDs, aggregating bitmap data into time-bucketed counts.
-	GetChartData(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsampleTo2h bool) ([]ChartDataPoint, error)
+	// downsample groups hours into N-hour blocks (0 = hourly, 2/4/8 = N-hour blocks).
+	GetChartData(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]ChartDataPoint, error)
 
 	// CountHostsForChartFilter returns the total number of hosts matching the chart host filters.
 	CountHostsForChartFilter(ctx context.Context, hostFilter *ChartHostFilter) (int, error)
