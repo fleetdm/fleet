@@ -17,7 +17,6 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -253,8 +252,20 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	}
 
 	if ssoEnabled || managedAdminAccountEnabled {
-		cmdUUID, _ := a.sendAccountConfigurationCommand(ctx, &args, ssoAccount, lockPrimaryAccountInfo, ssoEnabled, managedAdminAccountEnabled)
+		// TODO(JK): NOTE: no particular reason to not generate password here other than
+		// it would add two if statements in here. But if we want to make an AdminAccount struct
+		// we can do that here
+		cmdUUID, password, err := a.sendAccountConfigurationCommand(ctx, &args, ssoAccount, lockPrimaryAccountInfo, ssoEnabled, managedAdminAccountEnabled)
+		if err != nil {
+			return err
+		}
 		awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
+		if managedAdminAccountEnabled {
+			err := a.Datastore.SaveManagedLocalAccount(ctx, args.HostUUID, password, cmdUUID)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// proceed to release the device if it is not a macos, as those are released
@@ -866,6 +877,8 @@ func QueueAppleMDMJob(
 	return nil
 }
 
+// sendAccountConfigurationCommand sends an AccountConfiguration command for an sso and/or
+// a breakglass admin account. It returns the breakglass account's password if created.
 func (a *AppleMDM) sendAccountConfigurationCommand(
 	ctx context.Context,
 	args *appleMDMArgs,
@@ -873,7 +886,7 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 	lockPrimaryAccountInfo bool,
 	ssoEnabled bool,
 	managedAccountEnabled bool,
-) (string, error) {
+) (string, string, error) {
 
 	// we can keep the base command as is
 	// if managed account is disabled, check sso
@@ -884,14 +897,16 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 	// 			and send the AutoSetupAdminAccounts payload
 
 	// call a.Commander.AccountConfiguration() here?
-	var ssoAccountPayload string
+	var ssoAccountPayload, managedAccountPayload string
+	var password, passwordHash string
 
 	if ssoEnabled {
 		fullName, err := a.getIdPDisplayName(ctx, ssoAccount, *args)
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "getting idp account display name")
+			return "", "", ctxerr.Wrap(ctx, err, "getting idp account display name")
 		}
 
+		// TODO(JK): use plist.Marshal() instead?
 		ssoAccountPayload = fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
       <string>%s</string>
@@ -902,18 +917,26 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 `, fullName, ssoAccount.Username, lockPrimaryAccountInfo)
 	}
 
-	passwordHash := "blabllablab"
-	managedAccountPayload := fmt.Sprintf(`
+	if managedAccountEnabled {
+		var err error
+		password, passwordHash, err = a.createManagedAccountPassword(ctx)
+		if err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "creating managed account password")
+		}
+
+		// TODO(JK): use plist.Marshal() instead?
+		managedAccountPayload = fmt.Sprintf(`
       <key>AutoSetupAdminAccount</key>
       <dict>
-		<key>hidden</key>
-		<true/>
-		<key>passwordHash</key>
-		<data>%s</data>
-		<key>shortName</key>
-		<string>%s</string>
-      </dict>
-`, passwordHash, "_fleetadmin")
+        <key>hidden</key>
+        <true/>
+        <key>passwordHash</key>
+        <data>%s</data>
+        <key>shortName</key>
+        <string>%s</string>
+     </dict>
+`, passwordHash, adminAccountName)
+	}
 
 	var payload string
 	if managedAccountEnabled {
@@ -926,64 +949,56 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 		if ssoEnabled {
 			payload = ssoAccountPayload
 		} else {
-			return "", ctxerr.New(ctx, "unreachable")
+			// unreachable - at least one of ssoEnabled or managedAccountEnabled should be true
+			return "", "", ctxerr.New(ctx, "unreachable")
 		}
-		// unreachable - at least one of ssoEnabled or managedAccountEnabled should be true
 	}
 
 	if ssoEnabled {
 		a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
 	}
 	cmdUUID := uuid.New().String()
-	if err := a.Commander.AccountConfiguration(
-		ctx,
-		[]string{args.HostUUID},
-		payload,
-		cmdUUID,
-	); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
+	if err := a.Commander.AccountConfiguration(ctx, []string{args.HostUUID}, payload, cmdUUID); err != nil {
+		return "", "", ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 	}
 
-	return cmdUUID, nil
+	return cmdUUID, password, nil
 }
 
 const (
-	adminPasswordSaltSize   = 32
-	adminPasswordIterations = 20000
+	passwordSaltSize   = 32
+	passwordKeyLen     = 128
+	passwordIterations = 20000
+	adminAccountName   = "_fleetadmin"
 )
 
+// createManagedAccountPassword creates a password to use for a breakglass admin account. It
+// returns the plaintext password and the passwordHash disctionary to use in [AutoSetupAdminAccounts][1]
+// encoded in base64. See [PasswordHash][2] for a more detailed description.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary/autosetupadminaccountitem
+// [2]: https://developer.apple.com/documentation/devicemanagement/passwordhash/salted-sha512-pbkdf2-data.dictionary
 func (a *AppleMDM) createManagedAccountPassword(ctx context.Context) (string, string, error) {
+	plaintext := apple_mdm.GenerateRecoveryLockPassword()
 
-	// Part 1: Actually create the password
-	// Part 2: Create SALTED-SHA512-PBKDF2 data
-	// Part 3: Encrypt password with server private key using EncrptAESGCM? or ds.apple_mdm.encrypt()?
-	// Maybe we need to send the plaintext password to ds.StoreAccountPassword or somethign and use encrypt there
-
-	// TODO(JK): Placeholder, need password generator
-	plaintext, err := apple_mdm.GenerateRandomPin(6)
-	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "generating random PIN for EraseDevice")
-	}
-
-	salt := make([]byte, adminPasswordSaltSize)
-	_, err = rand.Read(salt)
+	salt := make([]byte, passwordSaltSize)
+	_, err := rand.Read(salt)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "generating salt")
 	}
 
-	entropy := pbkdf2.Key([]byte(plaintext), salt, adminPasswordIterations, 128, sha512.New)
+	entropy := pbkdf2.Key([]byte(plaintext), salt, passwordIterations, passwordKeyLen, sha512.New)
 
 	type passwordPList struct {
 		Entropy    []byte `plist:"entropy"`
 		Salt       []byte `plist:"salt"`
 		Iterations int    `plist:"iterations"`
 	}
-	body, err := plist.Marshal(passwordPList{Entropy: entropy, Salt: salt, Iterations: adminPasswordIterations})
+	body, err := plist.Marshal(passwordPList{Entropy: entropy, Salt: salt, Iterations: passwordIterations})
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "marshalling plist")
 	}
-
 	bodyBase64 := base64.StdEncoding.EncodeToString(body)
 
-	return "plaintext", "password hash", nil
+	return plaintext, bodyBase64, nil
 }

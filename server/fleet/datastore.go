@@ -1183,6 +1183,11 @@ type Datastore interface {
 	// host UUID and command UUID.
 	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *Host, cmdUUID string) (HostMDMProfileRetryCount, error)
 
+	// TODO(JK): just temporary to have less errors show up
+	GetManagedLocalAccountByCommandUUID(ctx context.Context, cmdUUID string) (*Host, error)
+	SetHostManagedLocalAccountStatus(ctx context.Context, cmdUUID string, status MDMDeliveryStatus) error
+	SaveManagedLocalAccount(ctx context.Context, hostUUID, password, cmdUUID string) error
+
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(
 		ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,

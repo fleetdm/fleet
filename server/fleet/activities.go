@@ -1869,3 +1869,13 @@ func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 func (a ActivityTypeClearedPasscode) HostOnly() bool {
 	return true
 }
+
+// TODO(JK): Remove once we get this from feature branch
+type ActivityTypeCreatedManagedLocalAccount struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeCreatedManagedLocalAccount) ActivityName() string {
+	return "created_managed_local_account"
+}
