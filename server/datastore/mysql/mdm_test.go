@@ -9398,6 +9398,8 @@ func forceSetAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID stri
 func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	SetTestABMAssets(t, ds, "fleet")
+
 	// Create and enroll a macOS host
 	macH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "test-host-cmd-name",
