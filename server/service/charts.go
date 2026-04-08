@@ -29,7 +29,7 @@ func (cs *chartServiceImpl) RegisterDataset(ds fleet.ChartDataset) {
 }
 
 func (cs *chartServiceImpl) RecordUptime(ctx context.Context, hostID uint, timestamp time.Time) error {
-	return cs.ds.RecordHostHourlyData(ctx, hostID, "uptime", 0, timestamp, timestamp.Hour())
+	return cs.ds.RecordHostHourlyData(ctx, hostID, "uptime", 0, timestamp)
 }
 
 func (cs *chartServiceImpl) GetChartData(ctx context.Context, metric string, opts fleet.ChartRequestOpts) (*fleet.ChartResponse, error) {
@@ -53,7 +53,8 @@ func (cs *chartServiceImpl) GetChartData(ctx context.Context, metric string, opt
 	// Calculate date range.
 	now := time.Now().UTC()
 	endDate := now
-	startDate := now.AddDate(0, 0, -opts.Days)
+	startDate := now.AddDate(0, 0, -(opts.Days - 1))
+	fmt.Printf("Getting chart data for metric=%s, days=%d, start=%s, end=%s, entityIDs=%v\n", metric, opts.Days, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), entityIDs)
 
 	// Build host filter.
 	var hostFilter *fleet.ChartHostFilter
@@ -66,7 +67,7 @@ func (cs *chartServiceImpl) GetChartData(ctx context.Context, metric string, opt
 		}
 	}
 
-	downsample := opts.Days == 30
+	downsample := opts.Days == 30 && !opts.NoSample
 
 	data, err := cs.ds.GetChartData(ctx, metric, startDate, endDate, hostFilter, entityIDs, dataset.HasEntityDimension(), downsample)
 	if err != nil {
@@ -117,6 +118,7 @@ type getChartDataRequest struct {
 	LabelIDs       string `query:"label_ids,optional"`
 	Platforms      string `query:"platforms,optional"`
 	IncludeHostIDs string `query:"include_host_ids,optional"`
+	NoSample       bool   `query:"no_sample,optional"`
 	ExcludeHostIDs string `query:"exclude_host_ids,optional"`
 }
 
@@ -141,6 +143,7 @@ func getChartDataEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Platforms:      parseStringList(req.Platforms),
 		IncludeHostIDs: parseUintList(req.IncludeHostIDs),
 		ExcludeHostIDs: parseUintList(req.ExcludeHostIDs),
+		NoSample:       req.NoSample,
 		DatasetFilters: map[string]string{},
 	}
 

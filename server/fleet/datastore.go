@@ -2867,8 +2867,9 @@ type Datastore interface {
 	// Chart data (host_hourly_data bitmap storage)
 
 	// RecordHostHourlyData sets a bit in the host_hourly_data bitmap for the given host, dataset,
-	// entity, and hour. Uses INSERT ... ON DUPLICATE KEY UPDATE to atomically OR the bit.
-	RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, date time.Time, hour int) error
+	// and entity. The timestamp is converted to UTC to derive the date and hour.
+	// Uses INSERT ... ON DUPLICATE KEY UPDATE to atomically OR the bit.
+	RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, timestamp time.Time) error
 
 	// GetChartData queries the host_hourly_data table for a given dataset and date range,
 	// filtered by host IDs and optional entity IDs, aggregating bitmap data into time-bucketed counts.
