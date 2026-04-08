@@ -17,7 +17,7 @@ import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
-import OSSettingsErrorCell from "./OSSettingsErrorCell";
+import OSSettingsResendCell from "./OSSettingsResendCell";
 
 import {
   generateLinuxDiskEncryptionSetting,
@@ -85,12 +85,13 @@ const generateTableConfig = (
             profileName={cellProps.row.original.name}
             hostPlatform={cellProps.row.original.platform}
             profileUUID={cellProps.row.original.profile_uuid}
+            profile={cellProps.row.original}
           />
         );
       },
     },
     {
-      Header: "Details",
+      Header: "",
       disableSortBy: true,
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => {
@@ -109,7 +110,7 @@ const generateTableConfig = (
           REC_LOCK_SYNTHETIC_PROFILE_UUID;
 
         return (
-          <OSSettingsErrorCell
+          <OSSettingsResendCell
             canResendProfiles={
               canResendProfiles &&
               (isWindowsProfile ||

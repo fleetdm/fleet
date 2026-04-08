@@ -64,7 +64,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     verifying: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
     acknowledged: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
     pending: {
-      statusText: "Enforcing (pending)",
+      statusText: "Enforcing",
       iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
@@ -74,7 +74,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
             "when the host comes online.",
     },
     action_required: {
-      statusText: "Action required (pending)",
+      statusText: "Action required",
       iconName: "pending-outline",
       tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
     },
@@ -86,7 +86,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   },
   remove: {
     pending: {
-      statusText: "Removing enforcement (pending)",
+      statusText: "Removing enforcement",
       iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
