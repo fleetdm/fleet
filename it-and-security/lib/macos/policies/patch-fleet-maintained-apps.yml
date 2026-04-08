@@ -30,6 +30,15 @@
   install_software: false
   labels_include_any:
     - Macs with Microsoft Edge installed
+- name: macOS - Firefox up to date
+  description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
+  resolution: Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details.
+  type: patch
+  fleet_maintained_app_slug: firefox/darwin
+  install_software: false
+  calendar_events_enabled: true
+  labels_include_any:
+    - Macs with Firefox installed
 - name: macOS - Visual Studio Code up to date
   description: The host may have an outdated version of Visual Studio Code, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Visual Studio Code's built-in update functionality. You can also delete Visual Studio Code if you are no longer using it."
@@ -54,6 +63,15 @@
   install_software: false
   labels_include_any:
     - Macs with Slack installed
+# Zoom patch policy disabled until Zoom FMA is present in Fleet.
+# - name: macOS - Zoom up to date
+#   description: The host may have an outdated version of Zoom, potentially risking security vulnerabilities or compatibility issues.
+#   resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality. You can also delete Zoom if you are no longer using it."
+#   type: patch
+#   fleet_maintained_app_slug: zoom/darwin
+#   install_software: false
+#   labels_include_any:
+#     - Macs with Zoom installed
 - name: macOS - Okta Verify up to date
   description: The host may have an outdated version of Okta Verify, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Okta Verify's built-in update functionality. You can also delete Okta Verify if you are no longer using it."

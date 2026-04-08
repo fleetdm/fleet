@@ -69,9 +69,10 @@
   &__policy-description-wrapper,
   &__policy-resolution-wrapper {
     display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
+    align-items: flex-start;
+    gap: $pad-small;
     width: fit-content;
+
     &:not(&--editing) {
       &:hover {
         cursor: pointer;
@@ -87,32 +88,35 @@
   }
 
   &__policy-name-wrapper {
+    line-height: $line-height-large;
+
     .no-value {
       min-width: 112px;
     }
   }
 
-  &__policy-description-wrapper {
-    .no-value {
-      min-width: 106px;
-    }
-    .edit-icon {
-      position: relative;
-      top: 0;
-    }
-  }
-  &__policy-resolution-wrapper {
-    .no-value {
-      min-width: 106px;
-    }
-  }
   &__edit-icon {
     opacity: 1;
     transition: opacity 0.2s;
     margin-left: 0;
+    /** Designed to be aligned with first line of text, not center of multiple
+    lines of text, without this, the icon will vertically center on multiline */
     align-self: initial;
+    height: 42px; // 24px font-size * 1.75 line height
+    align-items: center; // Centers the icon in the height area
+
     &--hide {
       opacity: 0;
+    }
+  }
+
+  &__policy-description-wrapper,
+  &__policy-resolution-wrapper {
+    .no-value {
+      min-width: 106px;
+    }
+    .policy-form__edit-icon {
+      height: 21px; // 14px font-size * 1.5 line height
     }
   }
 

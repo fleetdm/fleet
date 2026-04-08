@@ -1483,6 +1483,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
 
+		if err := service.ValidateAPIEndpoints(apiHandler); err != nil {
+			panic(fmt.Sprintf("invalid api_endpoints.yml: %v", err))
+		}
+
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
 			apiHandler = endpointer.BrowserSecurityHeadersHandler(serveCSP, apiHandler)

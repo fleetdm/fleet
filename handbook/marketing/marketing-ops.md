@@ -132,6 +132,7 @@ For all in-person or virtual events, sponsored or hosted.
 | Executive community (Evanta, etc.) | EC | 2026\_01-EC-evanta\_ciso\_summit |
 | Field event / sales event (hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
 | Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent\_booth |
+| Speaking engagement | SE | 2026_06-SE-macadmins\_keynote |
 | Webinar (hosted) | WH | 2026\_02-WH-fleet\_v5\_launch |
 | Webinar (sponsored) | WS | 2026\_03-WS-darkreading\_webinar |
 
@@ -359,7 +360,7 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Meeting Requested:** The prospect has booked a meeting
 
 ## Contact source (Lead source)
-At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  Historically, we've had the field *Contact source*, which effecively told us what form or activity a person did.  This is good data, and works alongside the overall attribution framework.
+At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  Historically, we've had the field *Contact source*, which effectively told us what form or activity a person did.  This is good data, and works alongside the overall attribution framework.
 
 Here are the values for the contact source:
 
