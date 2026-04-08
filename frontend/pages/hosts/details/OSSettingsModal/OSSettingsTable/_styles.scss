@@ -6,14 +6,17 @@
     &__wrapper {
       width: initial;
     }
+    &__table {
+      table-layout: fixed;
+    }
     th.detail__header {
       border-left: none;
+      width: 120px;
     }
-    tbody td.detail__cell {
-      // Shrink the action column to the minimum width needed for the button
-      width: 1%;
-      white-space: nowrap;
+    th.status__header {
+      width: 200px;
     }
+    // Name column absorbs remaining space and truncates with ellipsis.
     tbody td.name__cell {
       overflow: hidden;
       text-overflow: ellipsis;
