@@ -273,6 +273,8 @@ const QueryEditor = ({
         <BackButton text={backText} path={backPath} />
       </div>
       <PolicyForm
+        router={router}
+        teamIdForApi={teamIdForApi}
         onCreatePolicy={onCreatePolicy}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
@@ -298,7 +300,7 @@ const QueryEditor = ({
                 router.push(
                   getPathWithQueryParams(
                     PATHS.POLICY_DETAILS(policyIdForEdit),
-                    { team_id: teamIdForApi }
+                    { fleet_id: teamIdForApi }
                   )
                 )
             : undefined
