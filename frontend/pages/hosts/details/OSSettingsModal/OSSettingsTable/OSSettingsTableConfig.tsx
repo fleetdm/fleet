@@ -91,7 +91,7 @@ const generateTableConfig = (
       },
     },
     {
-      Header: "",
+      Header: <span className="sr-only">Actions</span>,
       disableSortBy: true,
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => {

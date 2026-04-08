@@ -7,7 +7,7 @@ import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
 import OSSettingsResendCell from "./OSSettingsResendCell";
 
-const noop = () => new Promise<void>(() => undefined);
+const noop = () => Promise.resolve();
 
 describe("OSSettingsResendCell", () => {
   it("renders a resend button when canResendProfiles is true and profile is failed", () => {

@@ -17,7 +17,7 @@ const baseClass = "os-settings-resend-cell";
 
 interface IResendButtonProps {
   isResending: boolean;
-  onClick: (evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>) => void;
+  onClick: (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
 }
 
 const ResendButton = ({ isResending, onClick }: IResendButtonProps) => {
