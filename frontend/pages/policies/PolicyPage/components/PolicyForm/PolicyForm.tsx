@@ -54,7 +54,7 @@ const baseClass = "policy-form";
 
 interface IPolicyFormProps {
   router: InjectedRouter;
-  teamIdForApi: number | null;
+  teamIdForApi?: number;
   policyIdForEdit: number | null;
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
