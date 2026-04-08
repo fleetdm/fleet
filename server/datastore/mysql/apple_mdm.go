@@ -5836,14 +5836,15 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 ) (updatedDB bool, err error) {
 	baseStmt := `
 	  INSERT INTO host_mdm_apple_declarations
-	    (host_uuid, status, operation_type, token, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name)
+	    (host_uuid, status, operation_type, token, secrets_updated_at, variables_updated_at, declaration_uuid, declaration_identifier, declaration_name)
 	  VALUES
 	    %s
 	  ON DUPLICATE KEY UPDATE
 	    status = VALUES(status),
 	    operation_type = VALUES(operation_type),
 	    token = VALUES(token),
-	    secrets_updated_at = VALUES(secrets_updated_at)
+	    secrets_updated_at = VALUES(secrets_updated_at),
+	    variables_updated_at = COALESCE(VALUES(variables_updated_at), variables_updated_at)
 	  `
 
 	profilesToInsert := make(map[string]*fleet.MDMAppleHostDeclaration)
@@ -5859,6 +5860,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 				COALESCE(detail, '') AS detail,
 				token,
 				secrets_updated_at,
+				variables_updated_at,
 				declaration_uuid,
 				declaration_identifier,
 				declaration_name
@@ -5912,18 +5914,19 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 
 	generateValueArgs := func(d *fleet.MDMAppleHostDeclaration) (string, []any) {
 		profilesToInsert[fmt.Sprintf("%s\n%s", d.HostUUID, d.DeclarationUUID)] = &fleet.MDMAppleHostDeclaration{
-			HostUUID:         d.HostUUID,
-			DeclarationUUID:  d.DeclarationUUID,
-			Name:             d.Name,
-			Identifier:       d.Identifier,
-			Status:           status,
-			OperationType:    d.OperationType,
-			Detail:           d.Detail,
-			Token:            d.Token,
-			SecretsUpdatedAt: d.SecretsUpdatedAt,
+			HostUUID:           d.HostUUID,
+			DeclarationUUID:    d.DeclarationUUID,
+			Name:               d.Name,
+			Identifier:         d.Identifier,
+			Status:             status,
+			OperationType:      d.OperationType,
+			Detail:             d.Detail,
+			Token:              d.Token,
+			SecretsUpdatedAt:   d.SecretsUpdatedAt,
+			VariablesUpdatedAt: d.VariablesUpdatedAt,
 		}
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{d.HostUUID, status, d.OperationType, d.Token, d.SecretsUpdatedAt, d.DeclarationUUID, d.Identifier, d.Name}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{d.HostUUID, status, d.OperationType, d.Token, d.SecretsUpdatedAt, d.VariablesUpdatedAt, d.DeclarationUUID, d.Identifier, d.Name}
 		return valuePart, args
 	}
 
@@ -6053,7 +6056,60 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
+
+	// For declarations that use Fleet variables and are being installed, set
+	// VariablesUpdatedAt so the host row tracks when variable values were last
+	// computed. This allows re-delivery when variable values change.
+	if err := setVariablesUpdatedAtForDeclarations(ctx, tx, decls); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting variables_updated_at for declarations")
+	}
+
 	return decls, nil
+}
+
+// setVariablesUpdatedAtForDeclarations looks up which declarations have Fleet
+// variables and sets VariablesUpdatedAt on the install entries.
+func setVariablesUpdatedAtForDeclarations(ctx context.Context, tx sqlx.ExtContext, decls []*fleet.MDMAppleHostDeclaration) error {
+	var installDeclUUIDs []string
+	for _, d := range decls {
+		if d.OperationType == fleet.MDMOperationTypeInstall {
+			installDeclUUIDs = append(installDeclUUIDs, d.DeclarationUUID)
+		}
+	}
+	if len(installDeclUUIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(
+		`SELECT DISTINCT apple_declaration_uuid FROM mdm_configuration_profile_variables WHERE apple_declaration_uuid IN (?)`,
+		installDeclUUIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In declaration variables lookup")
+	}
+
+	var declsWithVars []string
+	if err := sqlx.SelectContext(ctx, tx, &declsWithVars, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting declarations with variables")
+	}
+
+	if len(declsWithVars) == 0 {
+		return nil
+	}
+
+	hasVars := make(map[string]struct{}, len(declsWithVars))
+	for _, uuid := range declsWithVars {
+		hasVars[uuid] = struct{}{}
+	}
+
+	// Give a few minutes leeway to account for clock skew (same as profiles)
+	now := time.Now().UTC().Add(-3 * time.Minute)
+	for _, d := range decls {
+		if _, ok := hasVars[d.DeclarationUUID]; ok && d.OperationType == fleet.MDMOperationTypeInstall {
+			d.VariablesUpdatedAt = &now
+		}
+	}
+	return nil
 }
 
 // MDMAppleStoreDDMStatusReport updates the status of the host's declarations.
@@ -6122,9 +6178,9 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "updating host declarations")
 }
 
-func (ds *Datastore) SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
-	stmt := `UPDATE host_mdm_apple_declarations SET status = ?, detail = ? WHERE host_uuid = ? AND declaration_uuid = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, status, detail, hostUUID, declarationUUID)
+func (ds *Datastore) SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *fleet.MDMDeliveryStatus, detail string, variablesUpdatedAt *time.Time) error {
+	stmt := `UPDATE host_mdm_apple_declarations SET status = ?, detail = ?, variables_updated_at = COALESCE(?, variables_updated_at) WHERE host_uuid = ? AND declaration_uuid = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, status, detail, variablesUpdatedAt, hostUUID, declarationUUID)
 	return ctxerr.Wrap(ctx, err, "set host declaration status")
 }
 

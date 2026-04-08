@@ -813,11 +813,16 @@ type MDMAppleHostDeclaration struct {
 
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+
+	// VariablesUpdatedAt tracks when the Fleet variable values for this host
+	// were last computed. Non-null only for declarations that use Fleet variables.
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
 	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
+	varsEqual := p.VariablesUpdatedAt == nil && other.VariablesUpdatedAt == nil || p.VariablesUpdatedAt != nil && other.VariablesUpdatedAt != nil && p.VariablesUpdatedAt.Equal(*other.VariablesUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -826,7 +831,8 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.Token == other.Token &&
-		secretsEqual
+		secretsEqual &&
+		varsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {

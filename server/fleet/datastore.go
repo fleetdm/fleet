@@ -1765,8 +1765,9 @@ type Datastore interface {
 	// pending removal.
 	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*MDMAppleHostDeclaration) error
 	// SetHostMDMAppleDeclarationStatus updates the status and detail of a
-	// single declaration for a host.
-	SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *MDMDeliveryStatus, detail string) error
+	// single declaration for a host. If variablesUpdatedAt is non-nil, it also
+	// sets the variables_updated_at timestamp.
+	SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *MDMDeliveryStatus, detail string, variablesUpdatedAt *time.Time) error
 	// MDMAppleSetPendingDeclarationsAs updates all ("pending", "install")
 	// declarations for a host to be ("verifying", status), where status is
 	// the provided value.
