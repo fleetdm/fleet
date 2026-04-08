@@ -86,7 +86,11 @@ func (p *Provider) do(ctx context.Context, pushInfo *mdm.Push) *push.Response {
 	var goAwayErr http2.GoAwayError
 	if errors.As(err, &goAwayErr) {
 		body := strings.NewReader(goAwayErr.DebugData)
-		return &push.Response{Err: newError(body, r.StatusCode)}
+		statusCode := 0
+		if r != nil {
+			statusCode = r.StatusCode
+		}
+		return &push.Response{Err: newError(body, statusCode)}
 	} else if err != nil {
 		return &push.Response{Err: err}
 	}
