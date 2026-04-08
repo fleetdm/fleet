@@ -7956,7 +7956,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 // has SoftwareTitleID set to ptr.Uint(0) (as the GitOps client does for all
 // team policies to "unset" the installer field).
 func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	user1 := test.NewUser(t, ds, "StatsUser1", "statsuser1@example.com", true)
 	user2 := test.NewUser(t, ds, "StatsUser2", "statsuser2@example.com", true)
