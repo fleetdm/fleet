@@ -522,6 +522,8 @@ In brief, this means that as a Fleet team member, you may:
 - Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
 - For purchases ≥ $1,000 in amount, please make sure there is a receipt/invoice in the transaction details. Brex sometimes does not automatically append those details to the transactions. 
 
+All team members have a $2,000 monthly Brex spending limit regardless of department.
+
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/finance/spending-company-money/).
 
 
@@ -553,7 +555,7 @@ When attending a conference or traveling for Fleet, keep the following in mind:
 - **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
 - **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
 - **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
-- **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/finance#contact-us) by providing the following information:
+- **Credit card limit increases:** The $2,000 monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/finance#contact-us) by providing the following information:
   - The start and end dates for your trip.
   - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
   - The [price of your hotel or Airbnb](https://fleetdm.com/handbook/company/communications#lodging) per night

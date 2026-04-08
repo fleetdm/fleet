@@ -372,7 +372,7 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 
 ## Plan a Fleetie get-together
 
-When several Fleeties are in the same geographic location, Fleet will sponsor a one-time or recurring in-person Fleetie get together. It is up to the Fleeties in each area to organize and plan their own events. The cost should not exceed $25 per attendee, and does not require pre-approval unless the cost exceeds your Brex limit.
+When several Fleeties are in the same geographic location, Fleet will sponsor a one-time or recurring in-person Fleetie get together. It is up to the Fleeties in each area to organize and plan their own events. The cost should not exceed $25 per attendee, and does not require pre-approval unless the cost exceeds your $2,000 monthly Brex limit.
 
 
 ## Request a team offsite
