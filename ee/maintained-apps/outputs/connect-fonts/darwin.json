@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "28.0.4",
+      "version": "28.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.extensis.SuitcaseFusion';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.extensis.SuitcaseFusion' AND version_compare(bundle_short_version, '28.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.extensis.SuitcaseFusion' AND version_compare(bundle_short_version, '28.1.0') < 0);"
       },
-      "installer_url": "https://bin.extensis.com/ConnectFonts-M-28-0-4.dmg",
+      "installer_url": "https://bin.extensis.com/ConnectFonts-M-28-1-0.dmg",
       "install_script_ref": "e2e807f7",
       "uninstall_script_ref": "879ff30b",
-      "sha256": "95261f31179279d3c583de6f92d7acc43ed1fa078f8db86f99bb173539aace63",
+      "sha256": "4dc2d84f8a4f4d1236a618cd4751dbbd9ecdbc7f72d9756c4b48ce7e0d269173",
       "default_categories": [
         "Productivity"
       ]
