@@ -447,7 +447,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
-		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
@@ -2021,12 +2021,14 @@ func batchSetProfileVariableAssociationsDB(
 		return false, nil
 	}
 
-	var platformPrefix string
+	var columnName string
 	switch platform {
 	case "darwin":
-		platformPrefix = "apple"
+		columnName = "apple_profile_uuid"
 	case "windows":
-		platformPrefix = "windows"
+		columnName = "windows_profile_uuid"
+	case "apple_declaration":
+		columnName = "apple_declaration_uuid"
 	case "android":
 		return false, nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
 	default:
@@ -2045,7 +2047,7 @@ func batchSetProfileVariableAssociationsDB(
 	}
 
 	// delete variables associated with those profiles
-	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s_profile_uuid IN (?)`, platformPrefix)
+	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s IN (?)`, columnName)
 	clearVarsForProfilesStmt, args, err := sqlx.In(clearVarsForProfilesStmt, profileUUIDsToDelete)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete variables for profiles")
@@ -2112,13 +2114,13 @@ func batchSetProfileVariableAssociationsDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		stmt := fmt.Sprintf(`
 			INSERT INTO mdm_configuration_profile_variables (
-				%s_profile_uuid,
+				%s,
 				fleet_variable_id
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
 				fleet_variable_id = VALUES(fleet_variable_id)
-		`, platformPrefix, strings.TrimSuffix(valuePart, ","))
+		`, columnName, strings.TrimSuffix(valuePart, ","))
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		return err

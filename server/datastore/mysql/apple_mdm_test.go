@@ -410,7 +410,7 @@ func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	testDecl := declForTest("D1", "D1", "{}")
-	dbDecl, err := ds.NewMDMAppleDeclaration(ctx, testDecl)
+	dbDecl, err := ds.NewMDMAppleDeclaration(ctx, testDecl, nil)
 	require.NoError(t, err)
 
 	// delete for a non-existing team does nothing
@@ -5966,7 +5966,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Identifier: "decl-1",
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-1"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
 	require.NoError(t, err)
@@ -6005,7 +6005,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Identifier: "decl-2",
 		Name:       "decl-2",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-2"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
 	require.NoError(t, err)
@@ -6043,7 +6043,7 @@ func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
 			Identifier: fmt.Sprintf("decl-%d", i),
 			Name:       fmt.Sprintf("decl-%d", i),
 			RawJSON:    json.RawMessage(fmt.Sprintf(`{"Identifier": "decl-%d"}`, i)),
-		})
+		}, nil)
 		require.NoError(t, err)
 	}
 
@@ -6094,7 +6094,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1",
 		Name:       "d1",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// try to create same name, different identifier fails
@@ -6102,7 +6102,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1b",
 		Name:       "d1",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1b"}`),
-	})
+	}, nil)
 	require.Error(t, err)
 	var existsErr *existsError
 	require.ErrorAs(t, err, &existsErr)
@@ -6112,7 +6112,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1",
 		Name:       "d1b",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	})
+	}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
@@ -6122,7 +6122,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:       "d1",
 		TeamID:     &tm1.ID,
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.NotEqual(t, d1.DeclarationUUID, d1tm1.DeclarationUUID)
 
@@ -6136,7 +6136,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:             "d1",
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 	require.NotEqual(t, d1.DeclarationUUID, d1tm1.DeclarationUUID)
@@ -6152,7 +6152,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:             "d1",
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l2.Name, LabelID: l2.ID}},
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 
@@ -6168,7 +6168,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		TeamID:           &tm1.ID,
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, d1tm1B.DeclarationUUID, d1tm1.DeclarationUUID)
 
@@ -6197,7 +6197,7 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 		Identifier: "decl-1",
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-1"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	host, err := ds.NewHost(ctx, &fleet.Host{

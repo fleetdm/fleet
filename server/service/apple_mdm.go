@@ -907,7 +907,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
 	}
-	_ = declVars // will be used in a follow-up for persistence
+
+	varNames := make([]fleet.FleetVarName, 0, len(declVars))
+	for _, v := range declVars {
+		varNames = append(varNames, fleet.FleetVarName(v))
+	}
 
 	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
 	rawDecl, err := fleet.GetRawDeclarationValues([]byte(dataWithSecrets))
@@ -935,7 +939,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		d.LabelsIncludeAll = validatedLabels
 	}
 
-	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
 	if err != nil {
 		return nil, err
 	}
