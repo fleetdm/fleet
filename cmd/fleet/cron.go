@@ -15,6 +15,7 @@ import (
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -1124,6 +1125,7 @@ func newCleanupsAndAggregationSchedule(
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
 	acmeSvc acme_api.Service,
+	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1376,7 +1378,7 @@ func newCleanupsAndAggregationSchedule(
 			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
 		}),
 		schedule.WithJob("cleanup_host_hourly_data", func(ctx context.Context) error {
-			return ds.CleanupHostHourlyData(ctx, 30)
+			return chartSvc.CleanupData(ctx, 30)
 		}),
 	)
 
@@ -1387,7 +1389,7 @@ func newChartDataCollectionSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	chartSvc fleet.ChartService,
+	chartSvc chart_api.Service,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (

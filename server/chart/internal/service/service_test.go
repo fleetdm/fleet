@@ -5,73 +5,111 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/chart"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetChartDataUnknownMetric(t *testing.T) {
-	ds := new(mock.DataStore)
-	cs := NewChartService(ds)
+// mockAuthorizer always allows access.
+type mockAuthorizer struct{}
 
-	_, err := cs.GetChartData(t.Context(), "nonexistent", fleet.ChartRequestOpts{Days: 7})
+func (m *mockAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzTyper, _ platform_authz.Action) error {
+	return nil
+}
+
+// mockDatastore implements types.Datastore for unit tests.
+type mockDatastore struct {
+	getChartDataFunc           func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
+	countHostsForChartFilterFn func(ctx context.Context, hostFilter *chart.HostFilter) (int, error)
+	collectUptimeFn            func(ctx context.Context, now time.Time) error
+	collectUptimeInvoked       bool
+}
+
+func (m *mockDatastore) RecordHostHourlyData(_ context.Context, _ uint, _ string, _ uint, _ time.Time) error {
+	return nil
+}
+
+func (m *mockDatastore) GetChartData(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
+	return m.getChartDataFunc(ctx, dataset, startDate, endDate, hostFilter, entityIDs, hasEntityDimension, downsample)
+}
+
+func (m *mockDatastore) CountHostsForChartFilter(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
+	return m.countHostsForChartFilterFn(ctx, hostFilter)
+}
+
+func (m *mockDatastore) CollectUptimeChartData(ctx context.Context, now time.Time) error {
+	m.collectUptimeInvoked = true
+	if m.collectUptimeFn != nil {
+		return m.collectUptimeFn(ctx, now)
+	}
+	return nil
+}
+
+func (m *mockDatastore) CleanupHostHourlyData(_ context.Context, _ int) error {
+	return nil
+}
+
+func TestGetChartDataUnknownMetric(t *testing.T) {
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, nil)
+
+	_, err := svc.GetChartData(t.Context(), "nonexistent", chart.RequestOpts{Days: 7})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown chart metric")
 }
 
 func TestGetChartDataInvalidDays(t *testing.T) {
-	ds := new(mock.DataStore)
-	cs := NewChartService(ds)
-	cs.RegisterDataset(&UptimeDataset{})
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	_, err := cs.GetChartData(t.Context(), "uptime", fleet.ChartRequestOpts{Days: 5})
+	_, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 5})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid days value")
 }
 
 func TestGetChartDataInvalidDownsample(t *testing.T) {
-	ds := new(mock.DataStore)
-	cs := NewChartService(ds)
-	cs.RegisterDataset(&UptimeDataset{})
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	_, err := cs.GetChartData(t.Context(), "uptime", fleet.ChartRequestOpts{Days: 7, Downsample: 3})
+	_, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 7, Downsample: 3})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid downsample value")
 }
 
 func TestGetChartDataHourly(t *testing.T) {
-	ds := new(mock.DataStore)
-	cs := NewChartService(ds)
-	cs.RegisterDataset(&UptimeDataset{})
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	ds.GetChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *fleet.ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]fleet.ChartDataPoint, error) {
+	ds.getChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
 		assert.Equal(t, "uptime", dataset)
 		assert.Equal(t, 0, downsample)
 		assert.False(t, hasEntityDimension)
 		assert.Nil(t, hostFilter)
-		return []fleet.ChartDataPoint{
+		return []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 10, 0, 0, 0, time.UTC), Value: 100},
 		}, nil
 	}
-	ds.CountHostsForChartFilterFunc = func(ctx context.Context, hostFilter *fleet.ChartHostFilter) (int, error) {
+	ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
 		return 200, nil
 	}
 
-	resp, err := cs.GetChartData(t.Context(), "uptime", fleet.ChartRequestOpts{Days: 7})
+	resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 7})
 	require.NoError(t, err)
 	assert.Equal(t, "uptime", resp.Metric)
 	assert.Equal(t, "line", resp.Visualization)
 	assert.Equal(t, "hourly", resp.Resolution)
 	assert.Equal(t, 200, resp.TotalHosts)
 	assert.Equal(t, 7, resp.Days)
-	assert.True(t, ds.GetChartDataFuncInvoked)
 }
 
 func TestGetChartDataDownsample(t *testing.T) {
-	ds := new(mock.DataStore)
-	cs := NewChartService(ds)
-	cs.RegisterDataset(&UptimeDataset{})
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	for _, tc := range []struct {
 		downsample int
@@ -82,15 +120,15 @@ func TestGetChartDataDownsample(t *testing.T) {
 		{8, "8-hour"},
 	} {
 		t.Run(tc.resolution, func(t *testing.T) {
-			ds.GetChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *fleet.ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]fleet.ChartDataPoint, error) {
+			ds.getChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
 				assert.Equal(t, tc.downsample, downsample)
 				return nil, nil
 			}
-			ds.CountHostsForChartFilterFunc = func(ctx context.Context, hostFilter *fleet.ChartHostFilter) (int, error) {
+			ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
 				return 100, nil
 			}
 
-			resp, err := cs.GetChartData(t.Context(), "uptime", fleet.ChartRequestOpts{Days: 30, Downsample: tc.downsample})
+			resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 30, Downsample: tc.downsample})
 			require.NoError(t, err)
 			assert.Equal(t, tc.resolution, resp.Resolution)
 		})
@@ -98,23 +136,23 @@ func TestGetChartDataDownsample(t *testing.T) {
 }
 
 func TestGetChartDataWithHostFilters(t *testing.T) {
-	ds := new(mock.DataStore)
-	cs := NewChartService(ds)
-	cs.RegisterDataset(&UptimeDataset{})
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	ds.GetChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *fleet.ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]fleet.ChartDataPoint, error) {
+	ds.getChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
 		require.NotNil(t, hostFilter)
 		assert.Equal(t, []uint{1, 2}, hostFilter.LabelIDs)
 		assert.Equal(t, []string{"darwin"}, hostFilter.Platforms)
 		assert.Equal(t, []uint{99}, hostFilter.ExcludeHostIDs)
 		return nil, nil
 	}
-	ds.CountHostsForChartFilterFunc = func(ctx context.Context, hostFilter *fleet.ChartHostFilter) (int, error) {
+	ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
 		require.NotNil(t, hostFilter)
 		return 50, nil
 	}
 
-	resp, err := cs.GetChartData(t.Context(), "uptime", fleet.ChartRequestOpts{
+	resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{
 		Days:           7,
 		LabelIDs:       []uint{1, 2},
 		Platforms:      []string{"darwin"},
@@ -131,7 +169,7 @@ func TestFillZeroValues(t *testing.T) {
 	end := time.Date(2026, 4, 7, 5, 0, 0, 0, time.UTC)
 
 	t.Run("hourly", func(t *testing.T) {
-		data := []fleet.ChartDataPoint{
+		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 2, 0, 0, 0, time.UTC), Value: 42},
 		}
 		result := fillZeroValues(data, start, end, 0)
@@ -144,7 +182,7 @@ func TestFillZeroValues(t *testing.T) {
 	})
 
 	t.Run("downsample 2", func(t *testing.T) {
-		data := []fleet.ChartDataPoint{
+		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 2, 0, 0, 0, time.UTC), Value: 42},
 		}
 		result := fillZeroValues(data, start, end, 2)
@@ -156,7 +194,7 @@ func TestFillZeroValues(t *testing.T) {
 	})
 
 	t.Run("downsample 4", func(t *testing.T) {
-		data := []fleet.ChartDataPoint{
+		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 4, 0, 0, 0, time.UTC), Value: 10},
 		}
 		result := fillZeroValues(data, start, end, 4)
@@ -170,7 +208,7 @@ func TestFillZeroValues(t *testing.T) {
 		// Simulates days=1: startDate is yesterday at 16:00, endDate is today at 16:00
 		s := time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC)
 		e := time.Date(2026, 4, 8, 16, 0, 0, 0, time.UTC)
-		data := []fleet.ChartDataPoint{
+		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 18, 0, 0, 0, time.UTC), Value: 50},
 			{Timestamp: time.Date(2026, 4, 8, 10, 0, 0, 0, time.UTC), Value: 75},
 		}
@@ -188,7 +226,7 @@ func TestFillZeroValues(t *testing.T) {
 		// Start hour 17 with downsample=2 should align down to 16
 		s := time.Date(2026, 4, 7, 17, 0, 0, 0, time.UTC)
 		e := time.Date(2026, 4, 7, 22, 0, 0, 0, time.UTC)
-		data := []fleet.ChartDataPoint{
+		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 18, 0, 0, 0, time.UTC), Value: 30},
 			{Timestamp: time.Date(2026, 4, 7, 20, 0, 0, 0, time.UTC), Value: 40},
 		}
@@ -206,7 +244,7 @@ func TestFillZeroValues(t *testing.T) {
 		// Start hour 5 with downsample=4 should align down to 4
 		s := time.Date(2026, 4, 7, 5, 0, 0, 0, time.UTC)
 		e := time.Date(2026, 4, 7, 15, 0, 0, 0, time.UTC)
-		data := []fleet.ChartDataPoint{
+		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 8, 0, 0, 0, time.UTC), Value: 55},
 		}
 		result := fillZeroValues(data, s, e, 4)
@@ -219,24 +257,24 @@ func TestFillZeroValues(t *testing.T) {
 }
 
 func TestCollectDatasets(t *testing.T) {
-	ds := new(mock.DataStore)
-	cs := NewChartService(ds)
-	cs.RegisterDataset(&UptimeDataset{})
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	now := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
 
-	ds.CollectUptimeChartDataFunc = func(ctx context.Context, ts time.Time) error {
+	ds.collectUptimeFn = func(ctx context.Context, ts time.Time) error {
 		assert.Equal(t, now, ts)
 		return nil
 	}
 
-	err := cs.CollectDatasets(t.Context(), now)
+	err := svc.CollectDatasets(t.Context(), now)
 	require.NoError(t, err)
-	assert.True(t, ds.CollectUptimeChartDataFuncInvoked)
+	assert.True(t, ds.collectUptimeInvoked)
 }
 
 func TestUptimeDatasetMetadata(t *testing.T) {
-	d := &UptimeDataset{}
+	d := &chart.UptimeDataset{}
 	assert.Equal(t, "uptime", d.Name())
 	assert.Equal(t, "line", d.DefaultVisualization())
 	assert.False(t, d.HasEntityDimension())

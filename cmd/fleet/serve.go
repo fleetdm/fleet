@@ -43,6 +43,9 @@ import (
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/chart"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
+	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
@@ -1112,10 +1115,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the ACME service module into the main service
 	svc.SetACMEService(acmeSvc)
 
-	// Bootstrap chart service module
-	chartSvc := service.NewChartService(ds)
-	chartSvc.RegisterDataset(&service.UptimeDataset{})
-	svc.SetChartService(chartSvc)
+	// Bootstrap chart bounded context
+	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
 
 	if err := cronSchedules.StartCronSchedule(
 		func() (fleet.CronSchedule, error) {
@@ -1184,7 +1185,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			return newCleanupsAndAggregationSchedule(
-				ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc,
+				ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
 			)
 		},
 	); err != nil {
@@ -1495,7 +1496,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
+			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
 		if err := apiendpoints.Init(apiHandler); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
@@ -1933,6 +1934,22 @@ func createACMEServiceModule(ds fleet.Datastore, dbConns *common_mysql.DBConnect
 	acmeSvc, acmeRoutesFn := acme_bootstrap.New(dbConns, redisPool, providers, logger)
 	acmeRoutes := acmeRoutesFn(log.Logged)
 	return acmeSvc, acmeRoutes
+}
+
+func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Service, logger *slog.Logger) (chart_api.Service, endpointer.HandlerRoutesFunc) {
+	legacyAuthorizer, err := authz.NewAuthorizer()
+	if err != nil {
+		initFatal(err, "initializing chart authorizer")
+	}
+	chartAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
+	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, logger)
+	chartSvc.RegisterDataset(&chart.UptimeDataset{})
+	// Create auth middleware for chart bounded context
+	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return auth.AuthenticatedUser(svc, next)
+	}
+	chartRoutes := chartRoutesFn(chartAuthMiddleware)
+	return chartSvc, chartRoutes
 }
 
 func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
