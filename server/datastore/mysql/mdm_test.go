@@ -9403,8 +9403,8 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	// Create and enroll a macOS host
 	macH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "test-host-cmd-name",
-		OsqueryHostID:  ptr.String("osquery-macos-cmd-name"),
-		NodeKey:        ptr.String("node-key-macos-cmd-name"),
+		OsqueryHostID:  new("osquery-macos-cmd-name"),
+		NodeKey:        new("node-key-macos-cmd-name"),
 		UUID:           uuid.NewString(),
 		Platform:       "darwin",
 		HardwareSerial: "CMDNAME123",
