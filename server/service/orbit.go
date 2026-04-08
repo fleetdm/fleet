@@ -93,6 +93,12 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 // installer, links the user's IdP account to the host, and returns the UPN and
 // device ID for use in post-enrollment steps.
 func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string, euaToken string) (upn string, deviceID string, err error) {
+	if svc.wstepCertManager == nil {
+		// Windows MDM is not configured on this server so the token cannot be validated.
+		// Fall back to prompting the user for authentication.
+		return "", "", fleet.NewOrbitIDPAuthRequiredError()
+	}
+
 	upn, deviceID, tokenErr := svc.wstepCertManager.GetSTSAuthTokenClaims(euaToken)
 	if tokenErr != nil {
 		svc.logger.WarnContext(ctx, "EUA token validation failed, falling back to end user auth prompt",
@@ -102,12 +108,12 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 
 	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			svc.logger.WarnContext(ctx, "EUA token device_id not found in windows mdm enrollments, falling back to end user auth prompt",
+				"device_id", deviceID, "host_uuid", hostUUID)
+			return "", "", fleet.NewOrbitIDPAuthRequiredError()
+		}
 		return "", "", ctxerr.Wrap(ctx, err, "getting windows mdm enrollment for EUA token")
-	}
-	if device == nil {
-		svc.logger.WarnContext(ctx, "EUA token device_id not found in windows mdm enrollments, falling back to end user auth prompt",
-			"device_id", deviceID, "host_uuid", hostUUID)
-		return "", "", fleet.NewOrbitIDPAuthRequiredError()
 	}
 
 	if device.HostUUID == "" {
@@ -127,6 +133,9 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 			acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 			if err != nil {
 				return "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
+			}
+			if acct == nil {
+				return "", "", ctxerr.New(ctx, "mdm idp account not found after insert for EUA token")
 			}
 		}
 
@@ -284,24 +293,28 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	}
 
 	if euaDeviceID != "" {
-		if _, err := svc.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, euaDeviceID); err != nil {
+		updated, err := svc.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, euaDeviceID)
+		if err != nil {
 			svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment to orbit host via EUA token",
 				"err", err, "host_uuid", host.UUID, "device_id", euaDeviceID)
 		}
 
-		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, euaUPN, euaUPN)
-		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-			svc.logger.ErrorContext(ctx, "failed to find SCIM user for EUA token enrollment",
-				"err", err, "host_id", host.ID)
-		} else if err == nil && scimUser != nil {
-			if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
-				svc.logger.ErrorContext(ctx, "failed to set SCIM user mapping for EUA token enrollment",
+		if updated {
+			scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, euaUPN, euaUPN)
+			//nolint:gocritic // ignore ifElseChain
+			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+				svc.logger.ErrorContext(ctx, "failed to find SCIM user for EUA token enrollment",
 					"err", err, "host_id", host.ID)
-			}
-		} else {
-			if err := svc.ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
-				svc.logger.ErrorContext(ctx, "failed to delete SCIM user mapping for EUA token enrollment",
-					"err", err, "host_id", host.ID)
+			} else if err == nil && scimUser != nil {
+				if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to set SCIM user mapping for EUA token enrollment",
+						"err", err, "host_id", host.ID)
+				}
+			} else {
+				if err := svc.ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
+					svc.logger.ErrorContext(ctx, "failed to delete SCIM user mapping for EUA token enrollment",
+						"err", err, "host_id", host.ID)
+				}
 			}
 		}
 	}
