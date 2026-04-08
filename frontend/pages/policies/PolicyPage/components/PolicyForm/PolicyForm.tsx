@@ -463,20 +463,14 @@ const PolicyForm = ({
   const renderName = () => {
     if (isEditMode) {
       return (
-        <GitOpsModeTooltipWrapper
-          position="right"
-          tipOffset={16}
-          renderChildren={(disableChildren) => (
-            <InputField
-              name="policy-name"
-              label="Name"
-              placeholder="Add name here"
-              value={lastEditedQueryName}
-              error={errors && errors.name}
-              onChange={(value: string) => setLastEditedQueryName(value)}
-              disabled={disableChildren}
-            />
-          )}
+        <InputField
+          name="policy-name"
+          label="Name"
+          placeholder="Add name here"
+          value={lastEditedQueryName}
+          error={errors && errors.name}
+          onChange={(value: string) => setLastEditedQueryName(value)}
+          disabled={gitOpsModeEnabled}
         />
       );
     }
@@ -493,21 +487,15 @@ const PolicyForm = ({
   const renderDescription = () => {
     if (isEditMode) {
       return (
-        <GitOpsModeTooltipWrapper
-          position="right"
-          tipOffset={16}
-          renderChildren={(disableChildren) => (
-            <InputField
-              name="policy-description"
-              label="Description"
-              placeholder="Add description here."
-              value={lastEditedQueryDescription}
-              type="textarea"
-              helpText="How does this policy's failure put the organization at risk?"
-              onChange={(value: string) => setLastEditedQueryDescription(value)}
-              disabled={disableChildren}
-            />
-          )}
+        <InputField
+          name="policy-description"
+          label="Description"
+          placeholder="Add description here."
+          value={lastEditedQueryDescription}
+          type="textarea"
+          helpText="How does this policy's failure put the organization at risk?"
+          onChange={(value: string) => setLastEditedQueryDescription(value)}
+          disabled={gitOpsModeEnabled}
         />
       );
     }
@@ -518,21 +506,15 @@ const PolicyForm = ({
   const renderResolution = () => {
     if (isEditMode) {
       return (
-        <GitOpsModeTooltipWrapper
-          position="right"
-          tipOffset={16}
-          renderChildren={(disableChildren) => (
-            <InputField
-              name="policy-resolution"
-              label="Resolution"
-              placeholder="Add resolution here."
-              value={lastEditedQueryResolution}
-              type="textarea"
-              helpText="If this policy fails, what should the end user expect?"
-              onChange={(value: string) => setLastEditedQueryResolution(value)}
-              disabled={disableChildren}
-            />
-          )}
+        <InputField
+          name="policy-resolution"
+          label="Resolution"
+          placeholder="Add resolution here."
+          value={lastEditedQueryResolution}
+          type="textarea"
+          helpText="If this policy fails, what should the end user expect?"
+          onChange={(value: string) => setLastEditedQueryResolution(value)}
+          disabled={gitOpsModeEnabled}
         />
       );
     }
@@ -621,7 +603,6 @@ const PolicyForm = ({
             </div>
           )}
           {isEditMode && renderName()}
-
           {renderDescription()}
           {renderResolution()}
           {isEditMode && !isPatchPolicy && platformSelector.render()}
@@ -642,6 +623,7 @@ const PolicyForm = ({
                   <b>have any</b> of these labels:
                 </span>
               }
+              disableOptions={gitOpsModeEnabled}
               suppressTitle
             />
           )}

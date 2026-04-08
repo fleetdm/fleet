@@ -429,23 +429,17 @@ const EditQueryForm = ({
   const renderName = () => {
     if (isExistingQuery) {
       return (
-        <GitOpsModeTooltipWrapper
-          position="right"
-          tipOffset={16}
-          renderChildren={(disableChildren) => (
-            <InputField
-              name="query-name"
-              label="Name"
-              placeholder="Add name"
-              value={lastEditedQueryName}
-              error={errors && errors.name}
-              onChange={(value: string) => setLastEditedQueryName(value)}
-              onBlur={() => {
-                setLastEditedQueryName(lastEditedQueryName.trim());
-              }}
-              disabled={disableChildren}
-            />
-          )}
+        <InputField
+          name="query-name"
+          label="Name"
+          placeholder="Add name"
+          value={lastEditedQueryName}
+          error={errors && errors.name}
+          onChange={(value: string) => setLastEditedQueryName(value)}
+          onBlur={() => {
+            setLastEditedQueryName(lastEditedQueryName.trim());
+          }}
+          disabled={gitOpsModeEnabled}
         />
       );
     }
@@ -456,21 +450,15 @@ const EditQueryForm = ({
   const renderDescription = () => {
     if (isExistingQuery) {
       return (
-        <GitOpsModeTooltipWrapper
-          position="right"
-          tipOffset={16}
-          renderChildren={(disableChildren) => (
-            <InputField
-              name="query-description"
-              label="Description"
-              placeholder="Add description"
-              value={lastEditedQueryDescription}
-              type="textarea"
-              helpText="What information does your report reveal? (Optional)"
-              onChange={(value: string) => setLastEditedQueryDescription(value)}
-              disabled={disableChildren}
-            />
-          )}
+        <InputField
+          name="query-description"
+          label="Description"
+          placeholder="Add description"
+          value={lastEditedQueryDescription}
+          type="textarea"
+          helpText="What information does your report reveal? (Optional)"
+          onChange={(value: string) => setLastEditedQueryDescription(value)}
+          disabled={gitOpsModeEnabled}
         />
       );
     }
