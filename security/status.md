@@ -172,6 +172,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 16:44:57
 
+### [CVE-2026-34875](https://nvd.nist.gov/vuln/detail/CVE-2026-34875)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use Mbed TLS. The libmbedcrypto16 package is an unused transitive dependency in the container image.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libmbedcrypto16`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-08 12:06:49
+
+### [CVE-2026-34873](https://nvd.nist.gov/vuln/detail/CVE-2026-34873)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use Mbed TLS. The libmbedcrypto16 package is an unused transitive dependency in the container image.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libmbedcrypto16`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-08 12:06:46
+
 ### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -227,6 +243,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
 - **Justification:** `component_not_present`
 - **Timestamp:** 2026-01-30 09:25:41
+
+### [CVE-2026-0968](https://nvd.nist.gov/vuln/detail/CVE-2026-0968)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use libssh. The libssh-4 package is an unused transitive dependency in the container image.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-08 12:06:51
 
 ### [CVE-2025-69419](https://nvd.nist.gov/vuln/detail/CVE-2025-69419)
 - **Author:** @lucasmrod
