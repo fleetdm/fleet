@@ -137,7 +137,7 @@ export default {
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
 
-  // Apple Business Manager (ABM) endpoints
+  // Apple Business (AB) endpoints
   MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
   MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
   MDM_ABM_TOKEN_RENEW: (id: number) =>
