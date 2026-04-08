@@ -386,7 +386,7 @@ This will automatically be added to the `:help-customers` project board, with th
 
 ### Responsibilities when out of office
 
-CSMs and CSAs who are unable to attend their designated customer calls should find backup coverage for their respective function or request a reschedule with the customer.
+CSMs and CSAs who are unable to attend their designated customer calls should find backup coverage for their respective function or request a reschedule with the customer. If a CSM is having another CSM cover their call, they are responsible for preparing an agenda in advance of the meeting.
 
 
 ## Rituals
