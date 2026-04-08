@@ -9416,7 +9416,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 
 	// Test 1: InstallProfile with a name
 	cmdUUID1 := uuid.New().String()
-	mc := mobileconfig.Mobileconfig([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	mc := mobileconfig.Mobileconfig(fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -9433,7 +9433,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
     <key>PayloadVersion</key>
     <integer>1</integer>
 </dict>
-</plist>`, uuid.New().String())))
+</plist>`, uuid.New().String()))
 	err = commander.InstallProfile(ctx, []string{macH.UUID}, mc, cmdUUID1, "Test Profile Name")
 	require.NoError(t, err)
 

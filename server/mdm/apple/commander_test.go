@@ -749,7 +749,7 @@ func TestMDMAppleCommanderPassesCommandName(t *testing.T) {
 		err := cmdr.InstallProfile(ctx, hostUUIDs, mc, cmdUUID, "")
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
-		require.Equal(t, "", gotName)
+		require.Empty(t, gotName)
 	})
 
 	t.Run("RemoveProfile with a name", func(t *testing.T) {
@@ -792,7 +792,7 @@ func TestMDMAppleCommanderPassesCommandName(t *testing.T) {
 		err := cmdr.EnqueueCommand(ctx, hostUUIDs, rawCmd)
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
-		require.Equal(t, "", gotName)
+		require.Empty(t, gotName)
 	})
 
 	t.Run("EnqueueCommandInstallProfileWithSecrets with a name", func(t *testing.T) {
