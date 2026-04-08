@@ -568,6 +568,9 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 
 	if serverErr := w.updateFleetServer(recoveryKey, encryptionErr); serverErr != nil {
 		log.Error().Err(serverErr).Msg("failed to send encryption result to Fleet Server")
+		if encryptionErr == nil && recoveryKey != "" {
+			w.pendingRecoveryKey = recoveryKey
+		}
 		return
 	}
 
