@@ -114,12 +114,4 @@ labels:
   - path: ./lib/all/labels/windows-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/patch-management-macos-apps-installed.yml
   - path: ./lib/all/labels/patch-management-windows-apps-installed.yml
-  - path: ./lib/all/labels/department-information-technology.yml
-  - path: ./lib/all/labels/department-sales.yml
-  - path: ./lib/all/labels/department-marketing.yml
-  - path: ./lib/all/labels/department-engineering.yml
-  - path: ./lib/all/labels/department-people.yml
-  - path: ./lib/all/labels/department-finance.yml
-  - path: ./lib/all/labels/department-product-design.yml
-  - path: ./lib/all/labels/department-executive.yml
-  - path: ./lib/all/labels/department-customer-success.yml
+  - path: ./lib/all/labels/departments.yml

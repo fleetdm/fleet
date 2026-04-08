@@ -40,6 +40,7 @@ type MDMAppleCommandIssuer interface {
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -158,7 +159,7 @@ func (m MDMAppleDevice) AuthzType() string {
 	return "mdm_apple_device"
 }
 
-// MDMAppleDEPDevice represents an Apple device in Apple Business Manager (ABM).
+// MDMAppleDEPDevice represents an Apple device in Apple Business (AB).
 type MDMAppleDEPDevice struct {
 	godep.Device
 }
@@ -540,10 +541,10 @@ type HostDEPAssignment struct {
 	// HostID is the id of the host in Fleet.
 	HostID uint `db:"host_id" json:"-"`
 	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
-	// server in Apple Busines Manager (ABM).
+	// server in Apple Busines Manager (AB).
 	AddedAt time.Time `db:"added_at" json:"added_at"`
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
-	// MDM server in Apple Busines Manager (ABM).
+	// MDM server in Apple Busines Manager (AB).
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
 	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id"`

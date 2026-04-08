@@ -1,0 +1,62 @@
+- name: "Department: Information Technology"
+  description: Hosts belonging to members of the Information Technology department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Information Technology
+
+- name: "Department: Sales"
+  description: Hosts belonging to members of the Sales department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Sales
+
+- name: "Department: Marketing"
+  description: Hosts belonging to members of the Marketing department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Marketing
+
+- name: "Department: Engineering"
+  description: Hosts belonging to members of the Engineering department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Engineering
+
+- name: "Department: People"
+  description: Hosts belonging to members of the People department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: People
+
+- name: "Department: Finance"
+  description: Hosts belonging to members of the Finance department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Finance
+
+- name: "Department: Product Design"
+  description: Hosts belonging to members of the Product Design department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Product Design
+
+- name: "Department: Executive"
+  description: Hosts belonging to members of the Executive department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Executive
+
+- name: "Department: Customer Success"
+  description: Hosts belonging to members of the Customer Success department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Customer Success

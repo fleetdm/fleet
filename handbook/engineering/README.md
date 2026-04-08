@@ -176,6 +176,7 @@ The incident on-call engineer is responsible for:
 - Knowing [the incident on-call rotation](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer).
 - Completing the [incident.io on-call engineer onboarding steps](https://help.incident.io/articles/3472064049-get-started-as-an-on-call-responder) sent via email when invited to incident.io.
 - Confirming incident pages push through Do Not Disturb.
+- Assuming the incident lead in incident.io.
 - Performing the [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities).
 
 
@@ -199,7 +200,7 @@ Incident notifications are sent 24/7/365 via incident.io, triggered by creating 
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
 
-> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. 
+> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. See [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities) for details.
 
 
 ### Participate in QA Day
@@ -614,6 +615,24 @@ Once you have the above follow these steps:
 ### Check production dependencies of fleetdm.com
 
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this [manual process](https://www.loom.com/share/153613cc1c5347478d3a9545e438cc97?sid=5102dafc-7e27-43cb-8c62-70c8789e5559) can be replaced with Dependabot.
+
+
+### Triage and address vulnerabilities in the `website/` code base
+
+When Dependabot or code scanning surfaces critical or high-severity vulnerabilities in the `/website` directory:
+
+1. **Filter out development-only dependencies** — Dismiss any alerts for packages that are only used during development and never ship to production. When dismissing, include a message with proof, e.g.:
+   > devdep, unused in prod. Proof:
+   > https://github.com/fleetdm/fleet/blob/3a6ecb5a11fdbdf290faf7fdd7ffa6b29335892f/website/package-lock.json#L10798 _(link to the relevant line)_
+
+2. **Assess real-world applicability** — Some vulnerabilities only apply under specific conditions (e.g., a path-to-regex vulnerability that only triggers with 3+ dynamic path params, which fleetdm.com doesn't use). Note these for upstream fixes but deprioritize if not exploitable in our setup.
+
+3. **Address real vulnerabilities** — For confirmed production-impacting vulnerabilities:
+   - Identify the root cause (e.g., a transitive dependency using a `~` semver range instead of `^`).
+   - Publish patch releases of affected upstream packages (e.g., `@sailshq/router`, `sails-hook-organics`) as needed.
+   - Regenerate the lockfile in `fleetdm/fleet:website` after upstream fixes are published.
+
+4. **Reference video walkthrough** — For a detailed walkthrough of this process, see [this confidential video](https://drive.google.com/file/d/17JF1jtEjVc7wkeXYA-2GIJbh9GDPWJEc/view?usp=sharing) (accessible to fleeties only).
 
 
 ### Respond to a 5xx error on fleetdm.com

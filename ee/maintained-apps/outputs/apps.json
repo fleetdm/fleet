@@ -824,7 +824,7 @@
       "name": "GPG Suite",
       "slug": "gpg-suite/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.gpgtools.gpgkeychain",
+      "unique_identifier": "org.gpgtools.updater",
       "description": "GPG Suite is a collection of tools to protect your emails and files."
     },
     {

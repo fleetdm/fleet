@@ -80,6 +80,7 @@ controls:
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
+    lock_end_user_info: false
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
     deadline:
@@ -108,7 +109,6 @@ controls:
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
-  - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/update-1password.yml
@@ -143,11 +143,6 @@ reports:
 software:
   packages:
     # macOS apps
-    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
-      self_service: true
-      display_name: "Mozilla Firefox"
-      categories:
-        - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
@@ -157,12 +152,6 @@ software:
       self_service: true
       categories:
         - Security
-    - path: ../lib/macos/software/zoom.yml # Zoom for macOS
-      self_service: true
-      setup_experience: true
-      categories:
-        - Productivity
-        - Communication
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
@@ -232,13 +221,6 @@ software:
     #    - Communication
     #  labels_include_any:
     #    - "ARM-based Windows hosts"
-    - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
-      self_service: true
-      setup_experience: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "x86-based Windows hosts"
     # Commenting out until #25407 is implemented
     # - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     #   self_service: true
@@ -273,6 +255,10 @@ software:
       setup_experience: true
       categories:
         - Browsers
+    - slug: firefox/darwin # Mozilla Firefox for macOS
+      self_service: true
+      categories:
+        - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -304,6 +290,12 @@ software:
       setup_experience: true
       categories:
         - Communication
+    - slug: zoom/darwin # Zoom for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
+        - Productivity
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
       setup_experience: true
@@ -340,6 +332,13 @@ software:
       setup_experience: true
       categories:
         - Browsers
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: zoom/windows # Zoom for Windows (x86)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
