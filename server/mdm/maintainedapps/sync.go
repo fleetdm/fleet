@@ -212,7 +212,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
 	app.Categories = manifest.Versions[0].DefaultCategories
 	app.UpgradeCode = manifest.Versions[0].UpgradeCode
-	app.PatchQuery = manifest.Versions[0].Queries.Patch
+	app.PatchQuery = manifest.Versions[0].Queries.Patched
 
 	return app, nil
 }

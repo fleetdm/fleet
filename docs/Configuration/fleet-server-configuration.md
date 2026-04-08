@@ -644,6 +644,21 @@ The max request body size, in a human readable format (size + unit), for endpoin
     default_max_request_body_size: 2MiB
   ```
 
+### server_endpoint_request_size_overrides
+
+Per-endpoint max request body size overrides using human-readable sizes (e.g. 50MiB). The highest value between default_max_request_body_size and a matching override is used.
+
+- Default value: None
+- Environment variable: `FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES`
+- Environment variable format: `[{"endpoint": "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", "max_request_size": "50MiB"}]`
+- Config file format:
+  ```yaml
+  server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
+      max_request_size: "50MiB"
+  ```
+
 ### server_tls
 
 Whether or not the server should be served over TLS.
@@ -864,7 +879,7 @@ How long an SSO authentication process can take between initiation and callback.
 
 > Note: Once logged in, `session_duration` determines how long a user stays logged into Fleet.
 
-- Default value: `5m` (5 minutes)
+- Default value: `15m` (15 minutes)
 - Environment variable: `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD`
 - Config file format:
   ```yaml
@@ -1297,7 +1312,9 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ### osquery_max_log_write_body_size
 
-Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+> `osquery_max_log_write_body_size` config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. Please use the new `server_endpoint_request_size_overrides` for more granular control.
+
+Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
 
 - Default value: `10MiB`
 - Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
@@ -1309,7 +1326,9 @@ Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase 
 
 ### osquery_max_distributed_write_body_size
 
-Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+> `osquery_max_distributed_write_body_size` config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. Please use the new `server_endpoint_request_size_overrides` for more granular control.
+
+Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
 
 - Default value: `5MiB`
 - Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
@@ -3336,6 +3355,24 @@ The best practice is to set this to 3x the number of new employees (end users) t
   ```yaml
   mdm:
     sso_rate_limit_per_minute: 200
+  ```
+
+### mdm.certificate_profiles_limit
+
+If you're using Fleet to [deploy certificates](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) from a third-party certificate authority (CA), this is the maximum number of Apple (macOS, iOS, iPadOS), certificate configuration profiles Fleet installs (`InstallProfile` command) every 30 seconds. Each install also requests a certificate from your CA, so this limit also caps CA requests to the same number per 30 seconds.
+
+The profile reconciler runs approximately every 30 seconds. The best practice is to set this at a level that is half or less the number that can be handled by your certificate authority in one minute. If a profile for instance is uploaded that references a SCEP server which can handle 100 transactions per minute, best practice would be to set this to 50 or less. Lower values will mean that a profile potentially takes longer to be sent to all hosts targeted by it, with a tradeoff that it will result in lower Certificate Authority load.
+
+For a team with 10,000 hosts targeted by a newly-uploaded profile containing Certificate Authority variables, a setting of 100 would mean that it would take 100 runs of the profile reconciler, or, at least 50 minutes, for all 10,000 certificate profiles to be sent.
+
+Currently this limit only applies to the Apple profile reconciler. Windows and Android support will be added soon. Additionally, newly enrolling ADE hosts do not count toward and are not affected by this limit, so as not to delay onboarding.
+
+- Default value: 100
+- Environment variable: `FLEET_MDM_CERTIFICATE_PROFILES_LIMIT`
+- Config file format:
+  ```yaml
+  mdm:
+    certificate_profiles_limit: 50
   ```
 
 ### mdm.apple_vpp_app_metadata_api_bearer_token

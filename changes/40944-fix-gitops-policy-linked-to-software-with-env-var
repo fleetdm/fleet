@@ -1,1 +1,0 @@
-- Fixed a bug where a policy that links a software to install fails to apply when that software package uses an environment variable in its yaml definition.

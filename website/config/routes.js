@@ -469,7 +469,7 @@ module.exports.routes = {
   },
 
   'GET /customers': {
-    action: 'view-testimonials',
+    action: 'view-customers',
     locals: {
       pageTitleForMeta: 'What people are saying',
       pageDescriptionForMeta: 'See what people are saying about Fleet.',
@@ -913,7 +913,7 @@ module.exports.routes = {
   'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
   'GET /announcements/financial-technology-company': '/case-study/financial-technology-company',
   'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
-  'GET /announcements/global-social-media-platform-switches-to-fleet': '/case-study/global-social-media-platform',
+
   'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
   'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
   'GET /announcements/interactive-entertainment-company-adopts-fleet-for-mdm': '/case-study/interactive-entertainment-company',
@@ -1139,7 +1139,7 @@ module.exports.routes = {
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/setup-experience',
   'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
-  'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/install-wine.sh',
+  'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/assets/scripts/install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
   'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
   'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',
@@ -1234,6 +1234,7 @@ module.exports.routes = {
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
+  'GET /learn-more-about/android-web-apps-chrome-required': 'https://fleetdm.com/guides/install-app-store-apps#install-android-web-app-web-clip',
   'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',

@@ -255,7 +255,8 @@ const ManageHostsPage = ({
   // ========= queryParams
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const macSettingsStatus = queryParams?.macos_settings;
+  const macSettingsStatus =
+    queryParams?.apple_settings ?? queryParams?.macos_settings;
   const softwareId =
     queryParams?.software_id !== undefined
       ? parseInt(queryParams.software_id, 10)
@@ -302,7 +303,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.bootstrap_package;
+    queryParams?.macos_bootstrap_package ?? queryParams?.bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
@@ -314,7 +315,7 @@ const ManageHostsPage = ({
     (scriptBatchExecutionId ? "ran" : undefined);
   const depProfileError = queryParams?.dep_profile_error;
   /** URL converts to lowercase but API and UI requires uppercase */
-  const depAssignProfileResponse = queryParams?.dep_assign_profile_response.toUpperCase();
+  const depAssignProfileResponse = queryParams?.dep_assign_profile_response?.toUpperCase();
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -836,7 +837,7 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, bootstrap_package: newStatus },
+        queryParams: { ...queryParams, macos_bootstrap_package: newStatus },
       })
     );
   };
@@ -896,7 +897,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          macos_settings: newMacSettingsStatus,
+          apple_settings: newMacSettingsStatus,
           page: 0, // resets page index
         },
       })
@@ -1054,7 +1055,7 @@ const ManageHostsPage = ({
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;
       } else if (macSettingsStatus) {
-        newQueryParams.macos_settings = macSettingsStatus;
+        newQueryParams.apple_settings = macSettingsStatus;
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
       } else if (softwareVersionId) {
@@ -1096,7 +1097,7 @@ const ManageHostsPage = ({
         // Premium feature only
         newQueryParams[PARAMS.DISK_ENCRYPTION] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
-        newQueryParams.bootstrap_package = bootstrapPackageStatus;
+        newQueryParams.macos_bootstrap_package = bootstrapPackageStatus;
       } else if (configProfileStatus && configProfileUUID) {
         newQueryParams.profile_status = configProfileStatus;
         newQueryParams.profile_uuid = configProfileUUID;

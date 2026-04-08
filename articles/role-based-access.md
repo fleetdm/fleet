@@ -99,6 +99,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                         |          |            |            |            | ✅    |         |
 | Connect Android Enterprise                                                                                                                 |          |            |            |            | ✅    |         |
 | View disk encryption key for macOS, Windows, and Linux hosts                                                                               | ✅       | ✅         | ✅         | ✅        | ✅    |         |
+| View Recovery Lock password for macOS hosts                                                                                                | ✅       | ✅         | ✅         | ✅        | ✅    |         |
+| Rotate Recovery Lock password for macOS hosts                                                                                              |          |            |            | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                  |          |            |            |            | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            |            | ✅         | ✅    | ✅      |
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                            |          |            | ✅         | ✅         | ✅    | ✅      |
@@ -109,6 +111,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                     |          |            |            | ✅         | ✅    | ✅      |
 | Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*           |          |            |            |            | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                                                |          |            |            |            | ✅    | ✅      |
+| View certificate authorities (CA)\*                                                                                                        |          |            |            | ✅         | ✅    | ✅      |
+| View certificate authority secrets (CA)\*                                                                                                  |          |            |            |            | ✅    | ✅      |
 | Request certificates (CA)\*                                                                                                                |          |            |            |            | ✅    | ✅      |
 | Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅         | ✅    |         |
 | Schedule scripts on hosts                                                                                                                  |          |            |            | ✅         | ✅    |         |
@@ -182,6 +186,8 @@ Users with access to multiple fleets can be assigned different roles for each fl
 | Edit agent options                                                                                                               |               |                |                 |                 | ✅         | ✅          |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                |                 | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| View Recovery Lock password for macOS hosts                                                                                      | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| Rotate Recovery Lock password for macOS hosts                                                                                    |               |                |                 | ✅              | ✅         |             |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                        |               |                |                 |                 | ✅         | ✅          |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                |                 | ✅              | ✅         | ✅          |
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                  |               |                | ✅              | ✅              | ✅         | ✅          |
@@ -196,6 +202,7 @@ Users with access to multiple fleets can be assigned different roles for each fl
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                |                 | ✅              | ✅         |             |
 | Turn off MDM for specific hosts                                                                                                  |               |                |                 | ✅              | ✅         |             |
+| View certificate authorities (CA)                                                                                                |               |                |                 | ✅              | ✅         | ✅          |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)

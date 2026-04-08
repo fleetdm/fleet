@@ -57,7 +57,7 @@ module.exports.policies = {
   'view-deals': true,
   'deliver-deal-registration-submission': true,
   'get-est-device-certificate': true,
-  'view-testimonials': true,
+  'view-customers': true,
   'view-meetups': true,
   'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,

@@ -299,6 +299,10 @@ const OSSettingsErrorCell = ({
         profile.certificate_template_id !== undefined
       ) {
         await resendCertificateRequest(profile.certificate_template_id);
+        renderFlash(
+          "success",
+          "Successfully sent request to resend certificate."
+        );
         onProfileResent();
       } else if (!isAndroidCertificate) {
         await resendRequest(profile.profile_uuid);
