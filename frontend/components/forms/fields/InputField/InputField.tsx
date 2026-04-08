@@ -22,6 +22,11 @@ export interface IInputFieldProps {
   inputWrapperClass?: string;
   inputOptions?: React.InputHTMLAttributes<HTMLInputElement>;
   name?: string;
+  /**
+   * Receives the field value (string) by default, or { name, value } when
+   * parseTarget is true. See IInputFieldParseTarget and InputFieldOnChange
+   * in interfaces/form_field.ts for caller-side typing helpers.
+   */
   onChange?: (value: any) => void;
   onBlur?: (
     evt: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -37,9 +42,9 @@ export interface IInputFieldProps {
   parseTarget?: boolean;
   tooltip?: React.ReactNode;
   labelTooltipPosition?: PlacesType;
-  label?: any[] | JSX.Element | string | null;
+  label?: React.ReactNode;
   labelClassName?: string;
-  helpText?: string | string[] | JSX.Element;
+  helpText?: React.ReactNode;
   /** Use in conjunction with type "password" and enableCopy to see eye icon to view */
   enableShowSecret?: boolean;
   enableCopy?: boolean;
