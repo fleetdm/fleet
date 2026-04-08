@@ -177,59 +177,44 @@ jobs:
 
           SUMMARY=$(cat /tmp/summary.txt)
 
-          # Slack section.text.mrkdwn has a 3000 char limit. Split into
-          # multiple section blocks if the summary exceeds it.
-          MAX_BLOCK_LEN=2900 # leave margin for safety
-
-          # Build Slack Block Kit payload with jq for safe JSON escaping.
-          # jq splits the summary into <=MAX_BLOCK_LEN chunks on line boundaries
-          # and emits a section block for each chunk.
-          jq -n --arg since "$SINCE_DATE" --arg summary "$SUMMARY" \
-            --argjson max_len "$MAX_BLOCK_LEN" \
-            '
-            # Split summary into chunks that fit in a single section block
-            def chunk_text($max):
-              if length <= $max then [.]
+          # Slack section.text.mrkdwn has a 3000 char limit. Split the
+          # summary into chunks on line boundaries in bash, then build
+          # a section block per chunk via jq.
+          MAX_LEN=2900
+          CHUNKS=()
+          CURRENT=""
+          while IFS= read -r LINE || [ -n "$LINE" ]; do
+            if [ $(( ${#CURRENT} + ${#LINE} + 1 )) -gt "$MAX_LEN" ] && [ -n "$CURRENT" ]; then
+              CHUNKS+=("$CURRENT")
+              CURRENT="$LINE"
+            else
+              if [ -n "$CURRENT" ]; then
+                CURRENT="${CURRENT}
+${LINE}"
               else
-                # Find last newline before $max to split on a line boundary
-                (.[:$max] | ltrimstr("") | rindex("\n")) as $split_at |
-                (if $split_at == null or $split_at == 0 then $max else $split_at end) as $pos |
-                [.[:$pos]] + (.[($pos + 1):] | chunk_text($max))
-              end;
+                CURRENT="$LINE"
+              fi
+            fi
+          done <<< "$SUMMARY"
+          [ -n "$CURRENT" ] && CHUNKS+=("$CURRENT")
 
-            ($summary | chunk_text($max_len)) as $chunks |
-            {
-              "text": ("Product & Engineering handbook weekly summary (since " + $since + ")"),
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "📋 Product & Engineering Handbook Weekly Summary",
-                    "emoji": true
-                  }
-                },
-                {
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": ("Changes since " + $since)
-                    }
-                  ]
-                },
-                {
-                  "type": "divider"
-                }
-              ] + [
-                $chunks[] | {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": .
-                  }
-                }
-              ]
+          # Build a JSON array of chunks, preserving newlines within each chunk
+          CHUNKS_JSON=$(jq -n '$ARGS.positional' --args -- "${CHUNKS[@]}")
+
+          # Build Slack Block Kit payload
+          FALLBACK="Product & Engineering handbook weekly summary (since ${SINCE_DATE})"
+          jq -n --arg fallback "$FALLBACK" --arg since "$SINCE_DATE" --argjson chunks "$CHUNKS_JSON" \
+            '{
+              "text": $fallback,
+              "blocks": (
+                [
+                  {"type": "header", "text": {"type": "plain_text", "text": "📋 Product & Engineering Handbook Weekly Summary", "emoji": true}},
+                  {"type": "context", "elements": [{"type": "mrkdwn", "text": ("Changes since " + $since)}]},
+                  {"type": "divider"}
+                ] + [
+                  $chunks[] | {"type": "section", "text": {"type": "mrkdwn", "text": .}}
+                ]
+              )
             }' | curl -sf -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d @-
