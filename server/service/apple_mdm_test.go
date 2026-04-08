@@ -6313,6 +6313,92 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	}
 }
 
+func TestValidateDeclarationFleetVariables(t *testing.T) {
+	t.Parallel()
+
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+
+	// helper to create a simple DDM declaration JSON with a value field
+	makeDecl := func(value string) string {
+		return fmt.Sprintf(`{"Type": "com.apple.configuration.management.test", "Identifier": "com.example.test", "Payload": {"Value": %q}}`, value)
+	}
+
+	t.Run("no variables, free license", func(t *testing.T) {
+		vars, err := validateDeclarationFleetVariables(makeDecl("static-value"), freeLic)
+		require.NoError(t, err)
+		require.Nil(t, vars)
+	})
+
+	t.Run("supported variable with premium license", func(t *testing.T) {
+		vars, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_HOST_HARDWARE_SERIAL"), premiumLic)
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST_HARDWARE_SERIAL"}, vars)
+	})
+
+	t.Run("supported variable with braces", func(t *testing.T) {
+		vars, err := validateDeclarationFleetVariables(makeDecl("${FLEET_VAR_HOST_UUID}"), premiumLic)
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST_UUID"}, vars)
+	})
+
+	t.Run("multiple supported variables", func(t *testing.T) {
+		contents := `{"Type": "com.apple.configuration.test", "Identifier": "test", "Payload": {"serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`
+		vars, err := validateDeclarationFleetVariables(contents, premiumLic)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"HOST_HARDWARE_SERIAL", "HOST_END_USER_IDP_USERNAME"}, vars)
+	})
+
+	t.Run("all supported variables", func(t *testing.T) {
+		contents := `{"Type": "com.apple.configuration.test", "Identifier": "test", "Payload": {
+			"a": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			"b": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+			"c": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART",
+			"d": "$FLEET_VAR_HOST_END_USER_IDP_GROUPS",
+			"e": "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT",
+			"f": "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME",
+			"g": "$FLEET_VAR_HOST_UUID",
+			"h": "$FLEET_VAR_HOST_PLATFORM"
+		}}`
+		vars, err := validateDeclarationFleetVariables(contents, premiumLic)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{
+			"HOST_HARDWARE_SERIAL", "HOST_END_USER_IDP_USERNAME",
+			"HOST_END_USER_IDP_USERNAME_LOCAL_PART", "HOST_END_USER_IDP_GROUPS",
+			"HOST_END_USER_IDP_DEPARTMENT", "HOST_END_USER_IDP_FULL_NAME",
+			"HOST_UUID", "HOST_PLATFORM",
+		}, vars)
+	})
+
+	t.Run("supported variable without premium license", func(t *testing.T) {
+		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_HOST_HARDWARE_SERIAL"), freeLic)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("supported variable with nil license", func(t *testing.T) {
+		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_HOST_UUID"), nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("unsupported variable NDES_SCEP_CHALLENGE", func(t *testing.T) {
+		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_NDES_SCEP_CHALLENGE"), premiumLic)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in DDM declarations")
+	})
+
+	t.Run("unsupported variable DIGICERT", func(t *testing.T) {
+		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_DIGICERT_DATA_myCA"), premiumLic)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_DIGICERT_DATA_myCA is not supported in DDM declarations")
+	})
+
+	t.Run("unsupported variable HOST_END_USER_EMAIL_IDP", func(t *testing.T) {
+		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"), premiumLic)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP is not supported in DDM declarations")
+	})
+}
+
 //go:embed testdata/profiles/digicert-validation.mobileconfig
 var digiCertValidationMobileconfig string
 

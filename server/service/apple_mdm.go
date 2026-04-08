@@ -74,6 +74,19 @@ var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
 }
 
+// fleetVarsSupportedInDDMDeclarations is the list of Fleet variables
+// supported in Apple DDM declarations.
+var fleetVarsSupportedInDDMDeclarations = []fleet.FleetVarName{
+	fleet.FleetVarHostHardwareSerial,
+	fleet.FleetVarHostEndUserIDPUsername,
+	fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+	fleet.FleetVarHostEndUserIDPGroups,
+	fleet.FleetVarHostEndUserIDPDepartment,
+	fleet.FleetVarHostEndUserIDPFullname,
+	fleet.FleetVarHostUUID,
+	fleet.FleetVarHostPlatform,
+}
+
 type getMDMAppleCommandResultsRequest struct {
 	CommandUUID string `query:"command_uuid,optional"`
 }
@@ -879,13 +892,23 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, err
 	}
 
+	// Get license for variable validation
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
+	}
+
+	// Validate Fleet variables (also rejects secrets). Must run on original
+	// data (pre-secret-expansion) so secrets are still detectable.
+	declVars, err := validateDeclarationFleetVariables(string(data), lic)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
+	}
+	_ = declVars // will be used in a follow-up for persistence
+
 	dataWithSecrets, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
 	if err != nil {
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
-	}
-
-	if err := validateDeclarationFleetVariables(dataWithSecrets); err != nil {
-		return nil, err
 	}
 
 	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
@@ -944,11 +967,27 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	return decl, nil
 }
 
-func validateDeclarationFleetVariables(contents string) error {
-	if variables.Contains(contents) {
-		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in DDM profiles"}
+func validateDeclarationFleetVariables(contents string, lic *fleet.LicenseInfo) ([]string, error) {
+	fleetVars := variables.Find(contents)
+	if len(fleetVars) == 0 {
+		return nil, nil
 	}
-	return nil
+
+	// Check premium license
+	if lic == nil || !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	// Validate against allowed list
+	for _, fleetVar := range fleetVars {
+		if !slices.Contains(fleetVarsSupportedInDDMDeclarations, fleet.FleetVarName(fleetVar)) {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in DDM declarations.", fleetVar),
+			}
+		}
+	}
+
+	return fleetVars, nil
 }
 
 func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string, teamID uint) (map[string]fleet.ConfigurationProfileLabel, error) {

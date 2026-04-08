@@ -2302,9 +2302,12 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		}
 	}
 	for _, p := range appleDecls {
-		err = validateDeclarationFleetVariables(string(p.RawJSON))
+		declVars, err := validateDeclarationFleetVariables(string(p.RawJSON), lic)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
+		}
+		if len(declVars) > 0 {
+			profileVarsByProfIdentifier[p.Identifier] = declVars
 		}
 	}
 	return profileVarsByProfIdentifier, nil
