@@ -623,7 +623,7 @@ When Dependabot or code scanning surfaces critical or high-severity vulnerabilit
 
 1. **Filter out development-only dependencies** — Dismiss any alerts for packages that are only used during development and never ship to production. When dismissing, include a message with proof, e.g.:
    > devdep, unused in prod. Proof:
-   > https://github.com/fleetdm/fleet/blob/main/website/package-lock.json#L10798 _(link to the relevant line)_
+   > https://github.com/fleetdm/fleet/blob/3a6ecb5a11fdbdf290faf7fdd7ffa6b29335892f/website/package-lock.json#L10798 _(link to the relevant line)_
 
 2. **Check low-severity alerts too** — Low severity can still matter if the vulnerable package is a production dependency. Reopen any previously dismissed low-severity alerts that impact production deps.
 
