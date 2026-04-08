@@ -429,8 +429,12 @@ describe("EditQueryForm - component", () => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeChecked();
-        expect(screen.getByLabelText("Fun")).toBeChecked();
-        expect(screen.getByLabelText("Fresh")).not.toBeChecked();
+        expect(
+          screen.getByRole("checkbox", { name: "Fun" })
+        ).toBeChecked();
+        expect(
+          screen.getByRole("checkbox", { name: "Fresh" })
+        ).not.toBeChecked();
         expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
       });
     });
@@ -449,9 +453,11 @@ describe("EditQueryForm - component", () => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeChecked();
-        funButton = screen.getByLabelText("Fun");
+        funButton = screen.getByRole("checkbox", { name: "Fun" });
         expect(funButton).toBeChecked();
-        expect(screen.getByLabelText("Fresh")).not.toBeChecked();
+        expect(
+          screen.getByRole("checkbox", { name: "Fresh" })
+        ).not.toBeChecked();
         saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
       });
