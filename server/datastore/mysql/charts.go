@@ -49,59 +49,54 @@ func (ds *Datastore) GetChartData(
 		entityArgs = append(entityArgs, entityIDs)
 	}
 
-	// Choose aggregation function.
-	countExpr := "COUNT(*)"
-	if hasEntityDimension {
-		countExpr = "COUNT(DISTINCT hd.host_id)"
+	// Build per-hour SUM/COUNT expressions instead of a CTE cross join.
+	// For non-entity datasets: SUM((bitmap >> h) & 1)
+	// For entity datasets: COUNT(DISTINCT CASE WHEN bit set THEN host_id END)
+	var hours []int
+	var selectExprs []string
+
+	step := 1
+	maxHour := 23
+	if downsampleTo2h {
+		step = 2
+		maxHour = 22
+	}
+
+	for h := 0; h <= maxHour; h += step {
+		hours = append(hours, h)
+		if downsampleTo2h {
+			// 2-hour blocks: either hour in the pair has a bit set.
+			if hasEntityDimension {
+				selectExprs = append(selectExprs, fmt.Sprintf(
+					"COUNT(DISTINCT CASE WHEN (hd.hours_bitmap >> %d) & 3 > 0 THEN hd.host_id END) AS h%d", h, h))
+			} else {
+				selectExprs = append(selectExprs, fmt.Sprintf(
+					"SUM(CASE WHEN (hd.hours_bitmap >> %d) & 3 > 0 THEN 1 ELSE 0 END) AS h%d", h, h))
+			}
+		} else {
+			if hasEntityDimension {
+				selectExprs = append(selectExprs, fmt.Sprintf(
+					"COUNT(DISTINCT CASE WHEN (hd.hours_bitmap >> %d) & 1 = 1 THEN hd.host_id END) AS h%d", h, h))
+			} else {
+				selectExprs = append(selectExprs, fmt.Sprintf(
+					"SUM((hd.hours_bitmap >> %d) & 1) AS h%d", h, h))
+			}
+		}
 	}
 
 	startStr := startDate.Format("2006-01-02")
 	endStr := endDate.Format("2006-01-02")
 
-	var query string
-	if downsampleTo2h {
-		// 2-hour blocks: check if either hour in the pair has a bit set.
-		// hour_num goes 0,2,4,...,22 — we check (bitmap >> hour_num) & 3 > 0.
-		query = fmt.Sprintf(`
-			WITH RECURSIVE hour_numbers AS (
-				SELECT 0 AS hour_num
-				UNION ALL
-				SELECT hour_num + 2 FROM hour_numbers WHERE hour_num < 22
-			)
-			SELECT
-				hd.chart_date,
-				hn.hour_num,
-				%s AS value
-			FROM host_hourly_data hd
-			CROSS JOIN hour_numbers hn
-			WHERE hd.dataset = ?
-				AND hd.chart_date BETWEEN ? AND ?
-				AND ((hd.hours_bitmap >> hn.hour_num) & 3) > 0
-				%s
-				%s
-			GROUP BY hd.chart_date, hn.hour_num
-			ORDER BY hd.chart_date, hn.hour_num`, countExpr, entityClause, hostSubquery)
-	} else {
-		query = fmt.Sprintf(`
-			WITH RECURSIVE hour_numbers AS (
-				SELECT 0 AS hour_num
-				UNION ALL
-				SELECT hour_num + 1 FROM hour_numbers WHERE hour_num < 23
-			)
-			SELECT
-				hd.chart_date,
-				hn.hour_num,
-				%s AS value
-			FROM host_hourly_data hd
-			CROSS JOIN hour_numbers hn
-			WHERE hd.dataset = ?
-				AND hd.chart_date BETWEEN ? AND ?
-				AND ((hd.hours_bitmap >> hn.hour_num) & 1) = 1
-				%s
-				%s
-			GROUP BY hd.chart_date, hn.hour_num
-			ORDER BY hd.chart_date, hn.hour_num`, countExpr, entityClause, hostSubquery)
-	}
+	query := fmt.Sprintf(`
+		SELECT hd.chart_date, %s
+		FROM host_hourly_data hd
+		WHERE hd.dataset = ?
+			AND hd.chart_date BETWEEN ? AND ?
+			%s
+			%s
+		GROUP BY hd.chart_date
+		ORDER BY hd.chart_date`,
+		strings.Join(selectExprs, ", "), entityClause, hostSubquery)
 
 	var args []any
 	args = append(args, dataset, startStr, endStr)
@@ -110,30 +105,39 @@ func (ds *Datastore) GetChartData(
 
 	// Expand sqlx.In placeholders.
 	query, args, err := sqlx.In(query, args...)
-	fmt.Printf("Expanded query: %s\nWith args: %v\n", query, args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "expand chart data query args")
 	}
 	query = ds.reader(ctx).Rebind(query)
 
-	type row struct {
-		ChartDate time.Time `db:"chart_date"`
-		HourNum   int       `db:"hour_num"`
-		Value     int       `db:"value"`
-	}
-
-	var rows []row
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+	dbRows, err := ds.reader(ctx).QueryContext(ctx, query, args...)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get chart data")
 	}
+	defer dbRows.Close()
 
-	results := make([]fleet.ChartDataPoint, 0, len(rows))
-	for _, r := range rows {
-		ts := time.Date(r.ChartDate.Year(), r.ChartDate.Month(), r.ChartDate.Day(), r.HourNum, 0, 0, 0, time.UTC)
-		results = append(results, fleet.ChartDataPoint{
-			Timestamp: ts,
-			Value:     r.Value,
-		})
+	var results []fleet.ChartDataPoint
+	for dbRows.Next() {
+		var chartDate time.Time
+		hourVals := make([]int, len(hours))
+		scanArgs := make([]any, len(hours)+1)
+		scanArgs[0] = &chartDate
+		for i := range hours {
+			scanArgs[i+1] = &hourVals[i]
+		}
+		if err := dbRows.Scan(scanArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "scan chart data row")
+		}
+		for i, h := range hours {
+			ts := time.Date(chartDate.Year(), chartDate.Month(), chartDate.Day(), h, 0, 0, 0, time.UTC)
+			results = append(results, fleet.ChartDataPoint{
+				Timestamp: ts,
+				Value:     hourVals[i],
+			})
+		}
+	}
+	if err := dbRows.Err(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "iterate chart data rows")
 	}
 
 	return results, nil
