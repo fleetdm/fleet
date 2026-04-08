@@ -83,6 +83,14 @@ security set-key-partition-list -S apple-tool:,apple:,productsign: -s -k "$KEYCH
 security find-identity -vv
 rm installer_certificate.p12
 
+# Extract the installer signing identity from the keychain
+PACKAGE_SIGNING_IDENTITY=$(security find-identity -v build.keychain | grep "Developer ID Installer" | head -1 | awk '{print $2}')
+if [[ -z "$PACKAGE_SIGNING_IDENTITY" ]]; then
+    echo "Error: No Developer ID Installer identity found in keychain"
+    exit 1
+fi
+echo "Using package signing identity: $PACKAGE_SIGNING_IDENTITY"
+
 # Create package structure
 echo "Creating package structure..."
 mkdir -p pkgroot/usr/local/bin
@@ -100,9 +108,8 @@ pkgbuild \
 
 # Sign the package
 echo "Signing .pkg..."
-PACKAGE_SIGNING_IDENTITY_SHA1="${PACKAGE_SIGNING_IDENTITY_SHA1:-D52080FD1F0941DE31346F06DA0F08AED6FACBBF}"
 PACKAGE_NAME="fleetctl_v${VERSION}_mac.pkg"
-productsign --sign "$PACKAGE_SIGNING_IDENTITY_SHA1" \
+productsign --sign "$PACKAGE_SIGNING_IDENTITY" \
     fleetctl_unsigned.pkg \
     "$PACKAGE_NAME"
 

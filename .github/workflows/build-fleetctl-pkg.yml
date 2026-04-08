@@ -156,6 +156,7 @@ jobs:
           ./fleetctl --version
 
       - name: Import application signing keys (for binary)
+        id: import_app_cert
         env:
           APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
           APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
@@ -170,11 +171,18 @@ jobs:
           security find-identity -vv
           rm app_certificate.p12
 
+          # Extract the signing identity SHA1 from the imported certificate
+          IDENTITY=$(security find-identity -v build.keychain | grep "Developer ID Application" | head -1 | awk '{print $2}')
+          if [[ -z "$IDENTITY" ]]; then
+            echo "Error: No Developer ID Application identity found in keychain"
+            exit 1
+          fi
+          echo "codesign_identity=$IDENTITY" >> "$GITHUB_OUTPUT"
+
       - name: Sign fleetctl binary
         run: |
           # Sign the binary with Developer ID Application certificate
-          CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-51049B247B25B3119FAE7E9C0CC4375A43E47237}"
-          codesign --sign "$CODESIGN_IDENTITY" \
+          codesign --sign "${{ steps.import_app_cert.outputs.codesign_identity }}" \
             --options runtime \
             --timestamp \
             --force \
