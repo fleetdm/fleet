@@ -37,22 +37,23 @@ func (ds *Datastore) ListAPIEndpoints(_ context.Context, opts fleet.ListOptions)
 	query := strings.ToLower(strings.TrimSpace(opts.MatchQuery))
 
 	if query == "" {
-		return ds.paginateAPIEndpoints(apiEndpoints, opts)
+		return paginateAPIEndpoints(apiEndpoints, opts)
 	}
 
+	normalizedQuery := fleet.NormalizePathPlaceholders(query)
 	var filtered []fleet.APIEndpoint
 	for _, e := range apiEndpoints {
 		if !strings.Contains(strings.ToLower(e.DisplayName), query) &&
-			!strings.Contains(strings.ToLower(e.NormalizedPath), fleet.NormalizePathPlaceholders(query)) {
+			!strings.Contains(strings.ToLower(e.NormalizedPath), normalizedQuery) {
 			continue
 		}
 		filtered = append(filtered, e)
 	}
 
-	return ds.paginateAPIEndpoints(filtered, opts)
+	return paginateAPIEndpoints(filtered, opts)
 }
 
-func (ds *Datastore) paginateAPIEndpoints(
+func paginateAPIEndpoints(
 	rows []fleet.APIEndpoint,
 	opts fleet.ListOptions,
 ) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {

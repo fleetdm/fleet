@@ -15,7 +15,7 @@ type listAPIEndpointsRequest struct {
 }
 
 type listAPIEndpointsResponse struct {
-	ApiEndpoints []fleet.APIEndpoint       `json:"api_endpoints"`
+	APIEndpoints []fleet.APIEndpoint       `json:"api_endpoints"`
 	Meta         *fleet.PaginationMetadata `json:"meta"`
 	Count        int                       `json:"count"`
 	Err          error                     `json:"error,omitempty"`
@@ -27,7 +27,7 @@ func listAPIEndpointsEndpoint(ctx context.Context, request any, svc fleet.Servic
 	req := request.(*listAPIEndpointsRequest)
 	endpoints, meta, count, err := svc.ListAPIEndpoints(ctx, req.ListOptions)
 	return listAPIEndpointsResponse{
-		ApiEndpoints: endpoints,
+		APIEndpoints: endpoints,
 		Meta:         meta,
 		Count:        count,
 		Err:          err,

@@ -28267,7 +28267,7 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 	// global admin can list API endpoints
 	var resp listAPIEndpointsResponse
 	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &resp)
-	require.NotEmpty(t, resp.ApiEndpoints)
+	require.NotEmpty(t, resp.APIEndpoints)
 	require.NotNil(t, resp.Meta)
 	require.Positive(t, resp.Count)
 	require.NoError(t, resp.Err)
@@ -28275,7 +28275,7 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 	// pagination works: request page 0 with per_page=1
 	var pagedResp listAPIEndpointsResponse
 	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &pagedResp, "per_page", "1", "page", "0")
-	require.Len(t, pagedResp.ApiEndpoints, 1)
+	require.Len(t, pagedResp.APIEndpoints, 1)
 	require.True(t, pagedResp.Meta.HasNextResults)
 	require.False(t, pagedResp.Meta.HasPreviousResults)
 }
