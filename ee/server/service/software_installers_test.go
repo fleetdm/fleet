@@ -1050,7 +1050,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 			name:        "If-None-Match sent, server returns 304",
 			ifNoneMatch: etag,
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, etag, r.Header.Get("If-None-Match"))
+				assert.Equal(t, etag, r.Header.Get("If-None-Match"))
 				w.WriteHeader(http.StatusNotModified)
 			},
 			expectStatus:  304,
@@ -1060,7 +1060,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 			name:        "If-None-Match sent, server returns 200 (ETag changed)",
 			ifNoneMatch: `"old-etag"`,
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, `"old-etag"`, r.Header.Get("If-None-Match"))
+				assert.Equal(t, `"old-etag"`, r.Header.Get("If-None-Match"))
 				w.Header().Set("ETag", etag)
 				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
 				_, _ = w.Write(content)
@@ -1090,7 +1090,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 			name:        "If-None-Match with weak ETag",
 			ifNoneMatch: `W/` + etag,
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, `W/`+etag, r.Header.Get("If-None-Match"))
+				assert.Equal(t, `W/`+etag, r.Header.Get("If-None-Match"))
 				w.WriteHeader(http.StatusNotModified)
 			},
 			expectStatus:  304,
@@ -1100,7 +1100,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 			name:        "If-None-Match with S3 multipart ETag",
 			ifNoneMatch: `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`,
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`, r.Header.Get("If-None-Match"))
+				assert.Equal(t, `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`, r.Header.Get("If-None-Match"))
 				w.WriteHeader(http.StatusNotModified)
 			},
 			expectStatus:  304,
@@ -1136,7 +1136,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 			if tt.expectErr {
 				// Fleet's downloadURLFn returns error for 4xx/5xx
 				require.NoError(t, err) // HTTP client doesn't error on 4xx/5xx
-				assert.True(t, resp.StatusCode >= 400)
+				assert.GreaterOrEqual(t, resp.StatusCode, 400)
 				resp.Body.Close()
 				return
 			}

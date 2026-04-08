@@ -2120,25 +2120,6 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				)
 			}
 		}
-		if payload.Cache {
-			switch {
-			case payload.URL == "":
-				return "", fleet.NewInvalidArgumentError(
-					"software.cache",
-					"Couldn't edit software. The 'cache' option requires a 'url' field.",
-				)
-			case payload.SHA256 != "":
-				return "", fleet.NewInvalidArgumentError(
-					"software.cache",
-					"Couldn't edit software. The 'cache' option cannot be used with 'hash_sha256' (hash-pinned packages are already cached by hash).",
-				)
-			case !strings.HasPrefix(payload.URL, "http://") && !strings.HasPrefix(payload.URL, "https://"):
-				return "", fleet.NewInvalidArgumentError(
-					"software.cache",
-					"Couldn't edit software. The 'cache' option requires an http:// or https:// URL.",
-				)
-			}
-		}
 		if !dryRun {
 			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 			if err != nil {
@@ -2504,7 +2485,7 @@ func (svc *Service) softwareBatchUpload(
 				Categories:         p.Categories,
 				DisplayName:        p.DisplayName,
 				RollbackVersion:    p.RollbackVersion,
-				Cache:              p.Cache,
+				AlwaysDownload:     p.AlwaysDownload,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2658,18 +2639,18 @@ func (svc *Service) softwareBatchUpload(
 					installer.UninstallScript = ""
 					installer.PreInstallQuery = ""
 				} else {
-					// Layer 2: Conditional GET (opt-in via cache: true).
+					// Layer 2: Conditional GET (default behavior, disabled by always_download: true).
 					// Look up existing installer by URL for its ETag, only when
 					// we're about to download (avoids wasted DB queries).
 					var existingForCache *fleet.ExistingSoftwareInstaller
 					var ifNoneMatch string
-					if p.Cache && p.SHA256 == "" && p.URL != "" {
+					if !p.AlwaysDownload && p.SHA256 == "" && p.URL != "" {
 						existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, tmID, p.URL)
 						if lookupErr != nil {
-							svc.logger.WarnContext(ctx, "cache lookup failed, will download normally", "url", p.URL, "err", lookupErr)
+							svc.logger.WarnContext(ctx, "conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
 						} else if existing != nil && existing.StorageID != "" &&
 							existing.HTTPETag != nil && *existing.HTTPETag != "" &&
-							existing.Extension != "ipa" && // skip cache for .ipa (multi-platform extraInstallers)
+							existing.Extension != "ipa" && // skip conditional download for .ipa (multi-platform extraInstallers)
 							validETag(*existing.HTTPETag) { // re-validate before use as defense-in-depth
 							existingForCache = existing
 							ifNoneMatch = *existing.HTTPETag
@@ -2681,8 +2662,8 @@ func (svc *Service) softwareBatchUpload(
 						return err
 					}
 
-					// Handle 304 Not Modified (cache: true with matching ETag).
-					// TRUST ASSUMPTION: cache: true is an explicit user opt-in that trusts
+					// Handle 304 Not Modified (conditional download with matching ETag).
+					// TRUST ASSUMPTION: conditional download is the default behavior that trusts
 					// the origin server's ETag as a content fingerprint. The 304 fast-path
 					// skips all post-download processing (metadata extraction, script field
 					// clearing, etc.). The cached installer's metadata is reused as-is.
@@ -2724,18 +2705,18 @@ func (svc *Service) softwareBatchUpload(
 					installer.Filename = filename
 
 					// Capture ETag from download response for future conditional requests.
-					// Only store when cache is enabled to avoid unnecessary DB writes.
-					if p.Cache {
+					// Only store when conditional downloads are enabled (the default).
+					if !p.AlwaysDownload {
 						if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
 							installer.HTTPETag = &etag
 						} else {
-							svc.logger.WarnContext(ctx, "cache enabled but no usable ETag from server", "url", p.URL, "etag", resp.Header.Get("ETag"))
+							svc.logger.WarnContext(ctx, "no usable ETag from server for conditional download", "url", p.URL, "etag", resp.Header.Get("ETag"))
 						}
 					}
 
-					// #4: When cache is disabled, clear any stale ETag from a previous
-					// cache-enabled run so it won't be reused if cache is re-enabled later.
-					if !p.Cache {
+					// When always_download is enabled, clear any stale ETag from a previous
+					// run so it won't be reused if always_download is later disabled.
+					if p.AlwaysDownload {
 						installer.HTTPETag = nil
 					}
 

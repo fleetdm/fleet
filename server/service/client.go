@@ -1304,7 +1304,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			DisplayName:        si.DisplayName,
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
-			Cache:              si.Cache,
+			AlwaysDownload:     si.AlwaysDownload,
 		}
 
 		if si.Slug != nil {

@@ -626,8 +626,8 @@ type SoftwareInstallerPayload struct {
 
 	IconPath string `json:"-"`
 	IconHash string `json:"-"`
-	// Cache enables conditional HTTP downloads using ETag headers.
-	Cache bool `json:"cache"`
+	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
+	AlwaysDownload bool `json:"always_download"`
 }
 
 type HostLockWipeStatus struct {
