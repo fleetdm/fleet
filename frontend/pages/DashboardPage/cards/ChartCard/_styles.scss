@@ -112,3 +112,71 @@
     font-weight: $bold;
   }
 }
+
+.checkerboard-viz {
+  width: 100%;
+  &__legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: $pad-small;
+    font-size: $xx-small;
+    color: $ui-fleet-black-50;
+  }
+
+  &__legend-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+  }
+
+  &__legend-label {
+    margin: 0 4px;
+
+    &:first-child {
+      margin-left: 0;
+    }
+
+    &:last-child {
+      margin-right: 0;
+    }
+  }
+
+  // Color levels for cells (SVG fill) and legend swatches (background-color)
+  &__cell {
+    stroke: #ffffff;
+    stroke-width: 1px;
+
+    &--level-0 {
+      fill: #ebedf0;
+      background-color: #ebedf0;
+    }
+  
+    &--level-1 {
+      fill: #c6e48b;
+      background-color: #c6e48b;
+    }
+  
+    &--level-2 {
+      fill: #7bc96f;
+      background-color: #7bc96f;
+    }
+  
+    &--level-3 {
+      fill: #449d44;
+      background-color: #449d44;
+    }
+  
+    &--level-4 {
+      fill: #2a6e2a;
+      background-color: #2a6e2a;
+    }
+  
+    &--level-5 {
+      fill: #196127;
+      background-color: #196127;
+    }
+  }
+  }

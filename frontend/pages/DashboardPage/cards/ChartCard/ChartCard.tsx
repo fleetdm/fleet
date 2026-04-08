@@ -60,7 +60,7 @@ const getDataset = (name: string): IDataSet =>
   DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
 const ChartCard = (): JSX.Element => {
-  const [selectedDays, setSelectedDays] = useState(7);
+  const [selectedDays, setSelectedDays] = useState(30);
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [filterParams, setFilterParams] = useState<IChartRequestParams>({});
   const [showFilterModal, setShowFilterModal] = useState(false);
