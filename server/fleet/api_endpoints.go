@@ -79,6 +79,11 @@ func (e APIEndpoint) validate() error {
 	return nil
 }
 
+// AuthzType implements authz.AuthzTyper.
+func (e *APIEndpoint) AuthzType() string {
+	return "api_endpoint"
+}
+
 // Fingerprint returns a string that uniquely identifies an API endpoint
 func (e APIEndpoint) Fingerprint() string {
 	return fmt.Sprintf("|%s|%s|", e.Method, e.NormalizedPath)

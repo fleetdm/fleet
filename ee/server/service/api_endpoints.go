@@ -9,7 +9,7 @@ import (
 )
 
 func (svc *Service) ListAPIEndpoints(ctx context.Context, opts fleet.ListOptions) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.APIEndpoint{}, fleet.ActionRead); err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "authorize list API endpoints")
 	}
 

@@ -28264,8 +28264,8 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 	// unauthenticated request is rejected
 	s.DoRawNoAuth("GET", "/api/latest/fleet/rest_api", nil, http.StatusUnauthorized)
 
-	// non-admin roles are forbidden (endpoint requires ActionWrite on User)
-	for _, role := range []string{fleet.RoleObserver, fleet.RoleObserverPlus, fleet.RoleMaintainer, fleet.RoleGitOps} {
+	// non-admin global roles are forbidden
+	for _, role := range []string{fleet.RoleObserver, fleet.RoleObserverPlus, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleTechnician} {
 		u := &fleet.User{
 			Name:       "test " + role,
 			Email:      role + "-api-endpoints@example.com",
@@ -28277,6 +28277,34 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 		s.token = s.getTestToken(u.Email, test.GoodPassword)
 		s.Do("GET", "/api/latest/fleet/rest_api", nil, http.StatusForbidden)
 	}
+
+	// non-admin team roles are forbidden
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "api-endpoints-test-team"})
+	require.NoError(t, err)
+	for _, role := range []string{fleet.RoleObserver, fleet.RoleObserverPlus, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleTechnician} {
+		u := &fleet.User{
+			Name:  "team " + role,
+			Email: "team-" + role + "-api-endpoints@example.com",
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team.ID}, Role: role}},
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(context.Background(), u)
+		require.NoError(t, err)
+		s.token = s.getTestToken(u.Email, test.GoodPassword)
+		s.Do("GET", "/api/latest/fleet/rest_api", nil, http.StatusForbidden)
+	}
+
+	// team admin is allowed
+	teamAdmin := &fleet.User{
+		Name:  "team admin",
+		Email: "team-admin-api-endpoints@example.com",
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), teamAdmin)
+	require.NoError(t, err)
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+	s.Do("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK)
 
 	// restore admin token
 	s.token = s.getTestAdminToken()
