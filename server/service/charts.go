@@ -39,8 +39,8 @@ func (cs *chartServiceImpl) GetChartData(ctx context.Context, metric string, opt
 	}
 
 	// Validate days preset.
-	validDays := map[int]bool{1: true, 7: true, 14: true, 30: true}
-	if !validDays[opts.Days] {
+	validDays := map[int]struct{}{1: {}, 7: {}, 14: {}, 30: {}}
+	if _, ok := validDays[opts.Days]; !ok {
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be 1, 7, 14, or 30)", opts.Days)}
 	}
 
@@ -129,7 +129,7 @@ type getChartDataResponse struct {
 
 func (r getChartDataResponse) Error() error { return r.Err }
 
-func getChartDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getChartDataEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getChartDataRequest)
 
 	days := req.Days
