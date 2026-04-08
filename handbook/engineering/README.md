@@ -617,6 +617,26 @@ Once you have the above follow these steps:
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this [manual process](https://www.loom.com/share/153613cc1c5347478d3a9545e438cc97?sid=5102dafc-7e27-43cb-8c62-70c8789e5559) can be replaced with Dependabot.
 
 
+### Triage and address vulnerabilities in the `website/` code base
+
+When Dependabot or code scanning surfaces critical or high-severity vulnerabilities in the `/website` directory:
+
+1. **Filter out development-only dependencies** — Dismiss any alerts for packages that are only used during development and never ship to production. When dismissing, include a message with proof, e.g.:
+   > devdep, unused in prod. Proof:
+   > https://github.com/fleetdm/fleet/blob/main/website/package-lock.json#L10798 _(link to the relevant line)_
+
+2. **Check low-severity alerts too** — Low severity can still matter if the vulnerable package is a production dependency. Reopen any previously dismissed low-severity alerts that impact production deps.
+
+3. **Assess real-world applicability** — Some vulnerabilities only apply under specific conditions (e.g., a path-to-regex vulnerability that only triggers with 3+ dynamic path params, which fleetdm.com doesn't use). Note these for upstream fixes but deprioritize if not exploitable in our setup.
+
+4. **Address real vulnerabilities** — For confirmed production-impacting vulnerabilities:
+   - Identify the root cause (e.g., a transitive dependency using a `~` semver range instead of `^`).
+   - Publish patch releases of affected upstream packages (e.g., `@sailshq/router`, `sails-hook-organics`) as needed.
+   - Regenerate the lockfile in `fleetdm/fleet:website` after upstream fixes are published.
+
+5. **Reference video walkthrough** — For a detailed walkthrough of this process, see [this confidential video](https://drive.google.com/file/d/17JF1jtEjVc7wkeXYA-2GIJbh9GDPWJEc/view?usp=sharing) (accessible to fleeties only).
+
+
 ### Respond to a 5xx error on fleetdm.com
 
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
