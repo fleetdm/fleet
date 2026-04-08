@@ -257,10 +257,10 @@ func TestValidGitOpsYaml(t *testing.T) {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
 					assert.True(t, ok, "server_settings not found")
-					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]interface{})["server_url"])
-					assert.EqualValues(t, 2000, serverSettings.(map[string]interface{})["query_report_cap"])
+					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]any)["server_url"])
+					assert.EqualValues(t, 2000, serverSettings.(map[string]any)["report_cap"])
 					assert.Contains(t, gitops.OrgSettings, "org_info")
-					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]interface{})
+					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]any)
 					assert.True(t, ok)
 					assert.Equal(t, "Fleet Device Management", orgInfo["org_name"])
 					assert.Contains(t, gitops.OrgSettings, "smtp_settings")
@@ -328,6 +328,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_entra_tenant_ids not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
+				_, ok = gitops.Controls.AppleRequireHardwareAttestation.(bool)
+				assert.True(t, ok, "apple_require_hardware_attestation not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
 				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_LENGTH"])
@@ -1207,7 +1209,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
@@ -1219,7 +1221,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must have only one of package_path or app_store_id")
+	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, hash_sha256 or fleet_maintained_app_slug")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
@@ -2958,9 +2960,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_settings")
-		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.macos_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
@@ -2987,9 +2989,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.apple_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
@@ -3016,9 +3018,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.windows_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
@@ -3045,9 +3047,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.android_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
@@ -3071,9 +3073,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "setup_experience")
-		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.macos_setup' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_bootstrap_package", func(t *testing.T) {
@@ -3096,9 +3098,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_bootstrap_package")
-		require.Contains(t, err.Error(), "`bootstrap_package` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.bootstrap_package' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_enable_release_device_manually", func(t *testing.T) {
@@ -3121,9 +3123,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_enable_release_device_manually")
-		require.Contains(t, err.Error(), "`enable_release_device_manually` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.enable_release_device_manually' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_script", func(t *testing.T) {
@@ -3146,9 +3148,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_script")
-		require.Contains(t, err.Error(), "`script` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.script' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_manual_agent_install", func(t *testing.T) {
@@ -3171,9 +3173,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_manual_agent_install")
-		require.Contains(t, err.Error(), "`manual_agent_install` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.manual_agent_install' (deprecated)")
 	})
 
 	t.Run("duplicate_keys_external_file", func(t *testing.T) {
@@ -3204,7 +3206,7 @@ org_settings:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_settings")
 		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
 	})
@@ -3373,9 +3375,9 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware, // no package_path, app_store_id, or hash_sha256
 			},
 		}
-		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id or a hash_sha256`)
+		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug`)
 	})
 
 	t.Run("unknown key in package_path file", func(t *testing.T) {
@@ -3396,11 +3398,83 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 			},
 		}
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
-		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil)
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
 		var unknownErr *ParseUnknownKeyError
 		require.ErrorAs(t, errs[0], &unknownErr)
 		assert.Equal(t, "bad_field", unknownErr.Field)
+	})
+	t.Run("fleet_maintained_app_slug valid", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+	})
+
+	t.Run("fleet_maintained_app_slug not in FMAs", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "notreal/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "bad fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), `fleet_maintained_app_slug "notreal/darwin" not found`)
+	})
+
+	t.Run("fleet_maintained_app_slug with other fields errors", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{
+			FleetMaintainedAppSlug: "zoom/darwin",
+			HashSHA256:             "abc123",
+		}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "conflicting policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "install_software must have only one of")
+	})
+
+	t.Run("fleet_maintained_app_slug on global policy errors", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "global fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
 	})
 }
 

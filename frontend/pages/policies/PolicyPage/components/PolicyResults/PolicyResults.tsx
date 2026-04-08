@@ -181,7 +181,7 @@ const PolicyResults = ({
 
     return (
       <div className={`${baseClass}__results-table-container`}>
-        <InfoBanner color="grey">
+        <InfoBanner>
           Hosts that responded with results are marked <strong>Pass</strong>.
           Hosts that responded with no results are marked <strong>Fail</strong>.
         </InfoBanner>
@@ -243,7 +243,7 @@ const PolicyResults = ({
         }
         numHostsRespondedErrors={uiHostCounts.failed}
         isFinished={isQueryFinished}
-        onClickDone={onQueryDone}
+        onClickClose={onQueryDone}
         onClickRunAgain={onRunQuery}
         onClickStop={onStopQuery}
         resultsType="policy"

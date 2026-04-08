@@ -339,11 +339,21 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
   "Search name, user email, hostname, UUID, serial number, or private IP address";
 
-export const HOSTS_SEARCH_BOX_TOOLTIP =
-  "Search hosts by name, user email, hostname, UUID, serial number, or private IP address";
+export const HOSTS_SEARCH_BOX_TOOLTIP = (
+  <>
+    Search hosts by name, user email, hostname,
+    <br />
+    UUID, serial number, or private IP address.
+  </>
+);
 
-export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
-  'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
+export const VULNERABILITIES_SEARCH_BOX_TOOLTIP = (
+  <>
+    To search for an exact CVE, surround the string
+    <br />
+    in double quotes (e.g. &quot;CVE-2024-1234&quot;).
+  </>
+);
 
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<
@@ -369,9 +379,8 @@ export const MDM_STATUS_TOOLTIP: Record<
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
-      Hosts ordered via Apple Business Manager <br /> (ABM). These will
-      automatically enroll to Fleet <br /> and turn on MDM when they&apos;re
-      unboxed.
+      Hosts ordered via Apple Business <br /> (AB). These will automatically
+      enroll to Fleet <br /> and turn on MDM when they&apos;re unboxed.
     </span>
   ),
 };
@@ -447,6 +456,8 @@ export const HOST_VITALS_DATA = [
   "cpu_type",
   "os_version",
   "timezone",
+  "mdm_enrollment_hardware_attested",
+  "primary_mac",
 ];
 
 export const HOST_OSQUERY_DATA = [

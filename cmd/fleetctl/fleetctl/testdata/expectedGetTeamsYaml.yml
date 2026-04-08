@@ -46,6 +46,7 @@ spec:
         apple_setup_assistant:
         macos_manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         macos_script:
         software:
     scripts: null
@@ -98,6 +99,7 @@ spec:
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         script:
         software:
     scripts: null
@@ -157,6 +159,7 @@ spec:
         apple_setup_assistant:
         macos_manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         macos_script:
         software:
     scripts: null
@@ -210,6 +213,7 @@ spec:
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         script:
         software:
     scripts: null

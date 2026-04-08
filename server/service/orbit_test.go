@@ -924,7 +924,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	opts.RunReplication("software_installers", "software_titles")
 
 	// Mark policy as failing for the host
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 	opts.RunReplication("policy_membership")
 

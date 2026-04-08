@@ -24,13 +24,9 @@ Learn more about automatically installing software [the Automatically install so
 * Click the **Add software** button in the top right corner.
 * Select the **Custom package** tab.
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, and `.ps1` files are supported.
-* If you check the **Automatic install** box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist. 
-
-> **Note:** Automatic install is not supported for script-only packages (`.sh` and `.ps1` files).
-* To allow users to install the software from Fleet Desktop, check the **Self-service** checkbox.
 * To customize installer behavior, click on **Advanced options**.
 
-> After the initial package upload, all options, except for automatic install, can be modified. This includes the self-service setting, pre-install query, scripts, and the software package file. However, if the installer package needs to be replaced, the new package must be of the same file type (such as .pkg, .msi, .exe, .deb, .rpm, or .ipa) and for the same software as the original. Files in .dmg or .zip formats cannot be edited or uploaded for replacement. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
+> After the initial package upload, all options can be modified by editing the software. This includes self-service, targets, advanced options (pre-install query, scripts), and the software package file. However, if the installer package needs to be replaced, the new package must be of the same file type (such as .pkg, .msi, .exe, .deb, .rpm, or .ipa) and for the same software as the original. Files in .dmg or .zip formats cannot be edited or uploaded for replacement. To enable automatic installs, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
 ### Package metadata extraction
 
@@ -105,6 +101,8 @@ Once the package is installed, Fleet will automatically refetch the host's vital
 
 > .ipa apps on iOS/iPadOS will be uninstalled when the host is unenrolled from MDM.
 
+> Software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. IT admins can see error messages for all attempts in the **Host details > Activity** card.
+
 ## Edit the package
 
 * Navigate to the **Software** page, choose a fleet, and select the software you want to edit.
@@ -149,6 +147,6 @@ Please refer to the documentation for [managing software with GitOps](https://fl
 <meta name="authorFullName" value="Roberto Dip">
 <meta name="authorGitHubUsername" value="roperzh">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-05-05">
+<meta name="publishedOn" value="2026-03-26">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-security-agents-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through adding and editing software packages in Fleet.">

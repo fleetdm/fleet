@@ -608,12 +608,20 @@ func filterNotExecuted(results map[uint]*bool) map[uint]bool {
 	return filtered
 }
 
-func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
+func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error {
 	// Identify policies that flipped failing -> passing for this host using current incoming results.
 	// We compute this before updating policy_membership so we compare against the previous state.
-	_, newPassing, err := ds.FlippingPoliciesForHost(ctx, host.ID, results)
-	if err != nil {
-		return err
+	// When newlyPassingPolicyIDs is non-nil, the caller has already computed flipping policies
+	// (e.g. SubmitDistributedQueryResults computes it once for all consumers) so we reuse that result.
+	var newPassing []uint
+	if newlyPassingPolicyIDs != nil {
+		newPassing = newlyPassingPolicyIDs
+	} else {
+		var err error
+		_, newPassing, err = ds.FlippingPoliciesForHost(ctx, host.ID, results)
+		if err != nil {
+			return err
+		}
 	}
 	if len(newPassing) > 0 {
 		slices.Sort(newPassing)
@@ -645,7 +653,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	// semantically equivalent, even though here it processes a single host and
 	// in async mode it processes a batch of hosts).
 
-	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if len(results) > 0 {
 			query := fmt.Sprintf(
 				`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
@@ -1009,46 +1017,37 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		// won't be receiving any policies targeted for specific platforms.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
+	// Uses a LEFT JOIN on an aggregated subquery over policy_labels + label_membership
+	// instead of correlated EXISTS/NOT EXISTS subqueries. This evaluates the label
+	// scoping once for all policies rather than re-evaluating per policy row.
 	const stmt = `
 		SELECT p.id, p.query
 		FROM policies p
+		LEFT JOIN (
+			SELECT pl.policy_id,
+				-- 1 if this policy has any include labels
+				MAX(CASE WHEN pl.exclude = 0 THEN 1 ELSE 0 END) AS has_include_labels,
+				-- 1 if this host is a member of at least one include label
+				MAX(CASE WHEN pl.exclude = 0 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_include,
+				-- 1 if this host is a member of at least one exclude label
+				MAX(CASE WHEN pl.exclude = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_exclude
+			FROM policy_labels pl
+			LEFT JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = ?
+			GROUP BY pl.policy_id
+		) pl_agg ON pl_agg.policy_id = p.id
 		WHERE
-			-- team_id == NULL are global policies that apply to all hosts
-			-- team_id == 0 are policies that apply to hosts in "No team"
-			-- team_id > 0 are policies that apply to hosts in teams
-			(team_id IS NULL OR team_id = COALESCE(?, 0)) AND
-			(platforms = '' OR FIND_IN_SET(?, platforms)) AND
-			(
-				-- Policy has no include labels
-				NOT EXISTS (
-					SELECT 1
-					FROM policy_labels pl
-					WHERE pl.policy_id = p.id
-					AND pl.exclude = 0
-				)
-				-- Policy is included in the include_any list
-				OR EXISTS (
-					SELECT 1
-					FROM policy_labels pl
-					INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
-					WHERE pl.policy_id = p.id
-					AND pl.exclude = 0
-				)
-			)
-			-- Policy is not included in the exclude_any list
-			AND NOT EXISTS (
-				SELECT 1
-				FROM policy_labels pl
-				INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
-				WHERE pl.policy_id = p.id
-				AND pl.exclude = 1
-			)
+			(p.team_id IS NULL OR p.team_id = COALESCE(?, 0)) AND
+			(p.platforms = '' OR FIND_IN_SET(?, p.platforms)) AND
+			-- Policy has no include labels, or host is in at least one
+			(COALESCE(pl_agg.has_include_labels, 0) = 0 OR pl_agg.host_in_include = 1) AND
+			-- Host is not in any exclude label
+			COALESCE(pl_agg.host_in_exclude, 0) = 0
 `
 	var rows []struct {
 		ID    string `db:"id"`
 		Query string `db:"query"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, host.TeamID, host.FleetPlatform(), host.ID, host.ID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, host.ID, host.TeamID, host.FleetPlatform()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting policies for host")
 	}
 	results := make(map[string]string)
@@ -1472,6 +1471,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				}
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
+
+				if spec.Type == "" {
+					spec.Type = fleet.PolicyTypeDynamic
+				}
 
 				// generate new up-to-date patch policy
 				if spec.Type == fleet.PolicyTypePatch {

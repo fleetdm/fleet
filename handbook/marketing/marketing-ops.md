@@ -132,6 +132,7 @@ For all in-person or virtual events, sponsored or hosted.
 | Executive community (Evanta, etc.) | EC | 2026\_01-EC-evanta\_ciso\_summit |
 | Field event / sales event (hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
 | Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent\_booth |
+| Speaking engagement | SE | 2026_06-SE-macadmins\_keynote |
 | Webinar (hosted) | WH | 2026\_02-WH-fleet\_v5\_launch |
 | Webinar (sponsored) | WS | 2026\_03-WS-darkreading\_webinar |
 
@@ -357,6 +358,45 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Interacted:** We chatted and learned about the prospect
 - **Engaged:** We chatted long enough to offer a meeting 
 - **Meeting Requested:** The prospect has booked a meeting
+
+## Contact source (Lead source)
+At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  Historically, we've had the field *Contact source*, which effectively told us what form or activity a person did.  This is good data, and works alongside the overall attribution framework.
+
+Here are the values for the contact source:
+
+
+| **Contact Source Value** | **Category** | **Status** | **Definition** |
+| :---- | :---- | :---- | :---- |
+| Website \- Sign up | Website | Existing | Contact created an account/signed up for the Fleet platform. |
+| Website \- Contact forms \- Demo | Website | Existing | Contact requested a standard demo via the website. |
+| Website \- Contact forms \- Demo \- ICP | Website | Existing | Contact requested a demo and was routed/flagged as an Ideal Customer Profile. |
+| Website \- Contact forms | Website | Existing | Contact submitted a general inquiry via the website. |
+| Website \- Gated document | Website | NEW | Contact filled out a form to download a whitepaper, report, or guide. |
+| Website \- Newsletter | Website | Existing | Contact explicitly subscribed to the Fleet blog or newsletter. |
+| Website \- Swag request | Website | Existing | Contact filled out a form specifically to request Fleet merchandise. |
+| Website \- GitOps | Website | Existing | Contact converted via a specific GitOps-related form or landing page flow. |
+| Website \- Chat | Website | Existing | Contact engaged and provided their email via the website chatbot. |
+| Website \- Partner sign up | Website | NEW | Contact submitted a form to apply for or join the Fleet partner program. |
+| Webinar | Events | NEW | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). Note: The specific host/campaign is captured in the 3-tier attribution. |
+| Event | Events | Existing | Contact was scanned, uploaded, or registered from a live physical or virtual event. |
+| LinkedIn \- Native lead form | Third-Party | NEW | Contact submitted their info directly inside LinkedIn via a Document Ad or Lead Gen form. |
+| Content syndication | Third-Party | NEW | Contact info was acquired via a 3rd-party vendor promoting Fleet's content. |
+| Partner \- Deal registration | Third-Party | NEW | Contact was formally registered as a lead by an authorized partner/reseller. |
+| GitHub \- Stared fleetdm/fleet | Community | Existing | Contact starred the Fleet repository. |
+| GitHub \- Forked fleetdm/fleet | Community | Existing | Contact forked the Fleet repository. |
+| GitHub \- Contributed to fleetdm/fleet | Community | Existing | Contact made a code/documentation contribution to the Fleet repository. |
+| LinkedIn \- Liked the LinkedIn company page | Social | Existing | Contact followed or liked the official Fleet LinkedIn page. |
+| LinkedIn \- Reaction | Social | Existing | Contact reacted (like, celebrate, etc.) to a Fleet post. |
+| LinkedIn \- Comment | Social | Existing | Contact commented on a Fleet post. |
+| LinkedIn \- Share | Social | Existing | Contact shared a Fleet post. |
+| Prospecting \- AE | Outbound | Existing | Contact was sourced directly via outbound efforts by an Account Executive. |
+| Prospecting \- Specialist | Outbound | Existing | Contact was sourced directly via outbound efforts by a Sales Specialist. |
+| Prospecting \- Meeting service | Outbound | Existing | Contact was sourced/booked via an outsourced meeting-setting agency. |
+| Dripify \- AE | Outbound | Existing | Contact was sourced via Dripify automation by an AE. |
+| Dripify \- Specialist | Outbound | Existing | Contact was sourced via Dripify automation by a Specialist. |
+| Attended a call with Fleet | Outbound | Existing | Contact was added to the system after attending a calendar invite/call with the team. |
+
+
 
 ## 📧 Contact marketability & compliance
 
