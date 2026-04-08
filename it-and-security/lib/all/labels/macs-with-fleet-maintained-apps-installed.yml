@@ -53,3 +53,8 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';
   label_membership_type: dynamic
   platform: darwin
+- name: Macs with Nudge installed
+  description: macOS hosts with Nudge installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.macadmins.Nudge';
+  label_membership_type: dynamic
+  platform: darwin
