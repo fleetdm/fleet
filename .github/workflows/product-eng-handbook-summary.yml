@@ -189,8 +189,7 @@ jobs:
               CURRENT="$LINE"
             else
               if [ -n "$CURRENT" ]; then
-                CURRENT="${CURRENT}
-${LINE}"
+                CURRENT="${CURRENT}"$'\n'"${LINE}"
               else
                 CURRENT="$LINE"
               fi
