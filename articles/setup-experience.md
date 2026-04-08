@@ -185,7 +185,9 @@ To replace the Fleet logo with your organization's logo:
  
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
-> The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after the setup experience software/script. They aren't installed/run in any particular order.
+> Setup experience software, script packages, and VPP apps are installed in alphabetic order, sorting by display name if one is set, falling back to the app, package, or script name. The setup experience script, if provided, runs after setup experience software is installed. Each piece of software is queued for installation one at a time, with the next item queued after the previous one either succeeds or fails. This means that setup experience software installs will _not_ show up in a host's upcoming activity list until previous setup experience steps are done.
+
+> Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after the setup experience software/script. They aren't installed/run in any particular order.
 
 ### Exiting the setup experience
 
@@ -285,6 +287,6 @@ Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to show end
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-07-03">
+<meta name="publishedOn" value="2026-04-15">
 <meta name="articleTitle" value="Setup experience">
 <meta name="description" value="Customize the out-of-the-box macOS, Windows, Linux, iOS, iPadOS, and Android setup">
