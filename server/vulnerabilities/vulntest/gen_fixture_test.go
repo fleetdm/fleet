@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/vulntest"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +66,7 @@ func extractVulnerablePackages(defPath string, t *testing.T) map[string]string {
 				}
 
 				existing, ok := packages[obj]
-				if !ok || fixedVer < existing { // lexicographic works well enough for oldest
+				if !ok || utils.Rpmvercmp(fixedVer, existing) < 0 {
 					packages[obj] = fixedVer
 				}
 			}
