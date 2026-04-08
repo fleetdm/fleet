@@ -1227,7 +1227,7 @@ type HostMDMCommand struct {
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
 // profile identified by its UUID.
 type MDMProfileUUIDFleetVariables struct {
-	// ProfileUUID is the UUID of the profile.
+	// ProfileUUID is the UUID of the profile or declaration.
 	ProfileUUID string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
