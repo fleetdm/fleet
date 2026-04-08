@@ -88,7 +88,7 @@ The clear passcode activity will be logged in the host's activity feed.
 You can also clear the passcode using the [REST API](https://fleetdm.com/docs/rest-api/rest-api#clear-iosipados-host-passcode):
 
 ```shell
-POST /api/v1/fleet/hosts/:id/passcode
+POST /api/v1/fleet/hosts/:id/clear_passcode
 ```
 
 ## Lock and wipe using `fleetctl`
