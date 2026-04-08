@@ -8,10 +8,18 @@ Fleet 4.83.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
+- YAML validation for extraneous keys
 - macOS Recovery Lock passwords
 - Patch policies for Fleet-maintained apps
 - Lock end user info during macOS setup
-- YAML validation for extraneous keys
+
+### YAML validation for extraneous keys
+
+Fleet now returns a clear error when a YAML file contains an unrecognized or misspelled key. Previously, Fleet silently ignored unknown keys, which could cause configurations to take effect without the intended settings applied. This is especially useful for catching typos and errors in AI-generated GitOps PRs early, before a misconfiguration silently takes effect.
+
+Heads up that after upgrading, you may encounter new errors from previously ignored misspelled or misplaced keys. Feel free to [reach out to Fleet](https://fleetdm.com/support) if you need a hand.
+
+GitHub issue: [#40496](https://github.com/fleetdm/fleet/issues/40496)
 
 ### macOS Recovery Lock passwords
 
@@ -34,12 +42,6 @@ Fleet now lets IT admins control whether end users can edit their macOS local ac
 To configure, head to **Controls > Setup experience** and expand the new **Advanced options** section. The **Lock end user info** option is only available when end user authentication is turned on. This setting is also supported via GitOps using the `controls.setup_experience.lock_end_user_info` key.
 
 GitHub issue: [#38669](https://github.com/fleetdm/fleet/issues/38669)
-
-### YAML validation for extraneous keys
-
-Fleet now returns a clear error when a YAML file contains an unrecognized or misspelled key. Previously, Fleet silently ignored unknown keys, which could cause configurations to take effect without the intended settings applied. This is especially useful for catching typos and errors in AI-generated GitOps PRs early, before a misconfiguration silently takes effect.
-
-GitHub issue: [#40496](https://github.com/fleetdm/fleet/issues/40496)
 
 ## Changes
 
