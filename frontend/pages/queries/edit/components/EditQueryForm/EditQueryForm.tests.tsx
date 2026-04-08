@@ -429,9 +429,7 @@ describe("EditQueryForm - component", () => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeChecked();
-        expect(
-          screen.getByRole("checkbox", { name: "Fun" })
-        ).toBeChecked();
+        expect(screen.getByRole("checkbox", { name: "Fun" })).toBeChecked();
         expect(
           screen.getByRole("checkbox", { name: "Fresh" })
         ).not.toBeChecked();
