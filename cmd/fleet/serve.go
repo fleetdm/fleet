@@ -2192,17 +2192,13 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 }
 
-// versionSegmentRe matches the gorilla/mux version segment that attachFleetAPIRoutes
-// inserts in place of /_version_/ (e.g. /{fleetversion:(?:v1|2022-04|latest)}/).
-var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
-
 func validateAPIEndpoints(h http.Handler, endpoints []fleet.APIEndpoint) error {
 	r, ok := h.(*mux.Router)
 	if !ok {
 		return fmt.Errorf("expected *mux.Router, got %T", h)
 	}
 
-	registered := make(map[string]struct{}) // "METHOD normalized_path" -> present
+	registered := make(map[string]struct{})
 	_ = r.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		tpl, err := route.GetPathTemplate()
 		if err != nil {
@@ -2212,19 +2208,17 @@ func validateAPIEndpoints(h http.Handler, endpoints []fleet.APIEndpoint) error {
 		if err != nil || len(meths) == 0 {
 			return nil
 		}
-		normalized := fleet.NormalizePathPlaceholders(
-			versionSegmentRe.ReplaceAllString(tpl, "/_version_/"),
-		)
+		name := route.GetName()
 		for _, m := range meths {
-			registered[strings.ToUpper(m)+" "+normalized] = struct{}{}
+			val := fleet.NewAPIEndpointFromTpl(m, tpl, name)
+			registered[val.Fingerprint()] = struct{}{}
 		}
 		return nil
 	})
 
 	var missing []string
 	for _, e := range endpoints {
-		key := e.Method + " " + e.NormalizedPath // Method is already uppercased by Normalize()
-		if _, ok := registered[key]; !ok {
+		if _, ok := registered[e.Fingerprint()]; !ok {
 			missing = append(missing, e.Method+" "+e.Path)
 		}
 	}

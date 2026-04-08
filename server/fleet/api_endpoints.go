@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -25,6 +26,24 @@ var validHTTPMethods = map[string]struct{}{
 	http.MethodDelete: {},
 }
 
+// versionSegmentRe matches the gorilla/mux version segment that attachFleetAPIRoutes
+// inserts in place of /_version_/ (e.g. /{fleetversion:(?:v1|2022-04|latest)}/).
+var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
+
+// NewAPIEndpointFromTpl creates a new APIEndpoint from the provided params.
+// tpl is meant to be a route template as usually defined in the mux router.
+func NewAPIEndpointFromTpl(method string, tpl string, name string) APIEndpoint {
+	// TODO: We might need to some more processing on tpl, depending on the
+	// final format of api_endpoints.yml
+	val := APIEndpoint{
+		Method:      method,
+		Path:        versionSegmentRe.ReplaceAllString(tpl, "/_version_/"),
+		DisplayName: name,
+	}
+	val.normalize()
+	return val
+}
+
 // NormalizePathPlaceholders replaces each variable path segment with a
 // numbered placeholder. It handles both the colon-prefix style used in YAML
 // (e.g. /:id) and the brace style used by gorilla/mux (e.g. /{id:[0-9]+}).
@@ -42,7 +61,7 @@ func NormalizePathPlaceholders(path string) string {
 }
 
 // Normalize uppercases the method and computes NormalizedPath.
-func (e *APIEndpoint) Normalize() {
+func (e *APIEndpoint) normalize() {
 	e.Method = strings.ToUpper(e.Method)
 	e.NormalizedPath = NormalizePathPlaceholders(e.Path)
 }
@@ -62,7 +81,7 @@ func (e APIEndpoint) validate() error {
 
 // Fingerprint returns a string that uniquely identifies an API endpoint
 func (e APIEndpoint) Fingerprint() string {
-	return fmt.Sprintf("%s:%s", e.Method, e.NormalizedPath)
+	return fmt.Sprintf("|%s|%s|", e.Method, e.NormalizedPath)
 }
 
 func (e *APIEndpoint) UnmarshalJSON(data []byte) error {
@@ -75,6 +94,6 @@ func (e *APIEndpoint) UnmarshalJSON(data []byte) error {
 	}
 
 	*e = APIEndpoint(alias)
-	e.Normalize()
+	e.normalize()
 	return e.validate()
 }

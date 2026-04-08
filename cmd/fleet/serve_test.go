@@ -1326,13 +1326,9 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 
 func TestValidateAPIEndpoints(t *testing.T) {
 	allEndpoints := []fleet.APIEndpoint{
-		{Method: "GET", Path: "/api/_version_/fleet/hosts"},
-		{Method: "POST", Path: "/api/_version_/fleet/hosts/:id/refetch"},
+		fleet.NewAPIEndpointFromTpl("GET", "/api/_version_/fleet/hosts", "route 1"),
+		fleet.NewAPIEndpointFromTpl("POST", "/api/_version_/fleet/hosts/:id/refetch", "route 2"),
 	}
-	for i := range allEndpoints {
-		allEndpoints[i].Normalize()
-	}
-
 	routerWithEndpoints := func(endpoints []fleet.APIEndpoint) *mux.Router {
 		r := mux.NewRouter()
 		for _, e := range endpoints {
