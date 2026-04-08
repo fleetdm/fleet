@@ -69,17 +69,23 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
       	<key>Subject</key>
       	<array>
         	<array>
-          	<array>
-            	<string>O</string>
-            	<string>Fleet</string>
-          	</array>
-        	</array>
+          		<array>
+            		<string>O</string>
+            		<string>Fleet</string>
+          		</array>
+			</array>
         	<array>
-          	<array>
-            	<string>CN</string>
-            	<string>%ComputerName% managementAttestation %HardwareUUID%</string>
-          	</array>
-        	</array>
+          		<array>
+            		<string>CN</string>
+            		<string>%ComputerName% managementAttestation %HardwareUUID%</string>
+          		</array>
+			</array>
+        	<array>
+				<array>
+					<string>OU</string>
+					<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+				</array>
+			</array>
       	</array>
     	</dict>
     	<key>PayloadIdentifier</key>
