@@ -1,6 +1,6 @@
 # MDM commands
 
-MDM commands can be sent to macOS, iOS / iPadOS and Windows hosts managed in Fleet using the following general steps:
+MDM commands can be sent to macOS, iOS / iPadOS, Windows, and Android hosts managed in Fleet using the following general steps:
 
 1. Create a payload that functions as the MDM command.
 2. Choose a target host, or, a set of target hosts on which to run the MDM command.
