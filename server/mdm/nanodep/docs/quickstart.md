@@ -4,8 +4,8 @@ A guide to getting NanoDEP up and running quickly. For more in-depth documentati
 
 ## Requirements
 
-* An Apple Business Manager (ABM), Apple School Manager (ASM), or Business Essentials (BE) login account with at least Device Management permissions/abilities.
-* Devices already present in your ABM/ASM/BE system to assign.
+* An Apple Business (AB), Apple School Manager (ASM), or Business Essentials (BE) login account with at least Device Management permissions/abilities.
+* Devices already present in your AB/ASM/BE system to assign.
 * For the [tools](../tools) you'll need `curl`, `jq`, and of course a shell script interpreter.
 * Outbound internet access to talk to Apple's DEP APIs.
 
@@ -40,7 +40,7 @@ Note here the "DEP name" of `mdmserver1` is arbitrary and can be anything you li
 
 ### Generate and retrieve the DEP token public key
 
-The ABM/ASM/BE portal uses a public key to encrypt the OAuth1 tokens. To generate a new keypair and retrieve the public key (in an X.509 Certificate):
+The AB/ASM/BE portal uses a public key to encrypt the OAuth1 tokens. To generate a new keypair and retrieve the public key (in an X.509 Certificate):
 
 ```bash
 $ ./tools/cfg-get-cert.sh > $DEP_NAME.pem
@@ -48,7 +48,7 @@ $ ./tools/cfg-get-cert.sh > $DEP_NAME.pem
 
 Note this should create a new file called "mdmserver1.pem" (or whatever you set `$DEP_NAME` to, above).
 
-### Upload the public key to ABM/ASM/BE
+### Upload the public key to AB/ASM/BE
 
 Login to https://business.apple.com/ or https://school.apple.com/ in a browser then navigate to the list of MDM servers. As of July 2022 this is done by navigating to the lower-left menu by clicking on your login name and selecting "Preferences." Under the separator there's a list titled "Your MDM Servers."
 
@@ -56,7 +56,7 @@ Create a new MDM server by clicking the "+" or "Add" button by the list header. 
 
 ### Download Token
 
-Next, we'll want to download the token. From within the ABM/ASM/BE portal navigate to your newly created (or modified) MDM server. As of July 2022 there's a top menu for the MDM server which contains a button/link to "Download Token." Click this to download the token which should download a file with the extension ".p7m" and named after the MDM server you created: this downloaded token is the encrypted OAuth tokens for DEP access.
+Next, we'll want to download the token. From within the AB/ASM/BE portal navigate to your newly created (or modified) MDM server. As of July 2022 there's a top menu for the MDM server which contains a button/link to "Download Token." Click this to download the token which should download a file with the extension ".p7m" and named after the MDM server you created: this downloaded token is the encrypted OAuth tokens for DEP access.
 
 ### Decrypt tokens
 
@@ -93,7 +93,7 @@ Otherwise: congratulations! The token exchanged was successful and you can use t
 
 ### Assign a device in the portal
 
-Now that we've verified API connectivity using your DEP server you need to assign a device in the ABM/ASM/BE portal. To do so login to the portal and navigate to the "Devices" section. Select (or search for) the device you want to use with DEP by settings its MDM server. As of July, 2022 there is a link/button in the top navigation of a device called "Edit MDM Server" — clicking this brings up a dialog to either assign or un-assign the device. When assigning a drop-menu appears of the setup MDM servers. We'll want to select our newly created server "mdmserver1" then click the "Continue" button. The device should then be assigned to your MDM server and available for a DEP profile to be assigned to it.
+Now that we've verified API connectivity using your DEP server you need to assign a device in the AB/ASM/BE portal. To do so login to the portal and navigate to the "Devices" section. Select (or search for) the device you want to use with DEP by settings its MDM server. As of July, 2022 there is a link/button in the top navigation of a device called "Edit MDM Server" — clicking this brings up a dialog to either assign or un-assign the device. When assigning a drop-menu appears of the setup MDM servers. We'll want to select our newly created server "mdmserver1" then click the "Continue" button. The device should then be assigned to your MDM server and available for a DEP profile to be assigned to it.
 
 ### Define a DEP Profile and assign a device
 

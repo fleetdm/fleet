@@ -323,8 +323,9 @@ INSERT INTO software_installers (
 	fleet_maintained_app_id,
  	url,
  	upgrade_code,
- 	is_active
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?)`
+ 	is_active,
+	patch_query
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -348,6 +349,7 @@ INSERT INTO software_installers (
 			payload.URL,
 			payload.UpgradeCode,
 			true,
+			payload.PatchQuery,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -551,6 +553,14 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
+
+		// Update the software title name if this is a Windows FMA with an upgrade code. We already update
+		// software titles with macOS FMA names on FMA catalog sync, so we only do Windows here.
+		if payload.FleetMaintainedAppID != nil {
+			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
+			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
+		}
+
 		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
 		if err != nil {
 			return 0, err
@@ -1009,7 +1019,8 @@ SELECT
   si.self_service,
   si.url,
   COALESCE(st.name, '') AS software_title,
-  COALESCE(st.bundle_identifier, '') AS bundle_identifier
+  COALESCE(st.bundle_identifier, '') AS bundle_identifier,
+  si.patch_query
   %s
 FROM
   software_installers si
@@ -2101,6 +2112,14 @@ WHERE
   team_id = ?
 `
 
+	const deleteAllPatchPolicies = `
+DELETE FROM
+	policies
+WHERE
+	team_id = ? AND
+	type = 'patch'
+`
+
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
@@ -2245,6 +2264,14 @@ WHERE
   )
 `
 
+	const deletePatchPoliciesWithInstallersNotInList = `
+DELETE FROM
+	policies
+WHERE
+	team_id = ? AND
+	patch_software_title_id NOT IN (?)
+`
+
 	const countInstallDuringSetupNotInList = `
 SELECT
   COUNT(*)
@@ -2304,11 +2331,12 @@ INSERT INTO software_installers (
 	install_during_setup,
 	fleet_maintained_app_id,
 	is_active,
-	http_etag
+	http_etag,
+	patch_query
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?,
-  ?
+  ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2328,7 +2356,8 @@ ON DUPLICATE KEY UPDATE
   url = VALUES(url),
   install_during_setup = COALESCE(?, install_during_setup),
   is_active = VALUES(is_active),
-  http_etag = VALUES(http_etag)
+  http_etag = VALUES(http_etag),
+  patch_query = VALUES(patch_query)
 `
 
 	const updateInstaller = `
@@ -2340,7 +2369,8 @@ SET
 	install_script_content_id = ?,
 	uninstall_script_content_id = ?,
 	post_install_script_content_id = ?,
-	pre_install_query = ?
+	pre_install_query = ?,
+	patch_query = ?
 WHERE id = ?
 `
 
@@ -2475,6 +2505,10 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
 
+			if _, err := tx.ExecContext(ctx, deleteAllPatchPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all obsolete patch policies")
+			}
+
 			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
 			}
@@ -2573,6 +2607,14 @@ WHERE
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+		}
+
+		stmt, args, err = sqlx.In(deletePatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete patch policies")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete patch policies")
 		}
 
 		// check if any in the list are install_during_setup, fail if there is one
@@ -2764,6 +2806,7 @@ WHERE
 				installer.FleetMaintainedAppID,
 				isActive,
 				installer.HTTPETag,
+				installer.PatchQuery,
 				installer.InstallDuringSetup, // ON DUPLICATE KEY
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
@@ -2793,6 +2836,7 @@ WHERE
 					uninstallScriptID,
 					postInstallScriptID,
 					installer.PreInstallQuery,
+					installer.PatchQuery,
 					existingID,
 				}
 				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {
@@ -2872,7 +2916,7 @@ WHERE
 				// Evict old FMA versions beyond the max per title per team.
 				// Always keep the active installer; fill remaining slots with
 				// the most recent versions, evict everything else.
-				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
+				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}
@@ -3524,7 +3568,7 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.storage_id = ? %s
+	si.storage_id = ? AND si.is_active = 1 %s
 
 UNION ALL
 

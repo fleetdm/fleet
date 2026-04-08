@@ -156,7 +156,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			mdmDevice := enrollAppleDevice(t, device)
 
 			// Run worker to start device release (NOTE: Should not release yet)
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			speedUpQueuedAppleMdmJob(t)
 
 			// Get install enterprise application command and acknowledge it
@@ -175,9 +175,9 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 				},
 			})
 
-			s.runWorker() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
+			s.awaitRunAppleMDMWorkerSchedule() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
 
-			s.runWorker() // release device
+			s.awaitRunAppleMDMWorkerSchedule() // release device
 			// Since moving profile installation to POSTDepEnrollment worker, we can now release the device immediately, as we only wait for sending.
 			// Verify device was released
 			expectDeviceConfiguredSent(t, true)
@@ -202,7 +202,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			mdmDevice := enrollAppleDevice(t, device)
 
 			// Run worker to start device release (NOTE: Should not release yet)
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 			speedUpQueuedAppleMdmJob(t)
 
 			expectMDMCommandsOfType(t, mdmDevice, []mdmCommandOfType{
@@ -220,7 +220,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 				},
 			})
 
-			s.runWorker() // Run after post dep enrollment to release device.
+			s.awaitRunAppleMDMWorkerSchedule() // Run after post dep enrollment to release device.
 
 			// Verify device was not released yet
 			expectDeviceConfiguredSent(t, true)

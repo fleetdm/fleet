@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -477,6 +478,65 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.Empty(t, payload.InstallScript)
 	assert.Empty(t, payload.UninstallScript)
 	assert.False(t, payload.FleetMaintained)
+
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+			TitleID:          new(uint(1)),
+		}, nil
+	}
+
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "26.0.0"}}, nil
+	}
+
+	ds.GetCachedFMAInstallerMetadataFunc = func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+		}, nil
+	}
+
+	versionPinValidationTests := []struct {
+		name    string
+		version string
+		wantErr string
+	}{
+		{
+			name:    "valid",
+			version: "^26",
+		},
+		{
+			name:    "no version",
+			version: "^",
+			wantErr: "no version number provided",
+		},
+		{
+			name:    "invalid version",
+			version: "^26.0",
+			wantErr: errNonMajorVersion.Error(),
+		},
+	}
+
+	for _, vt := range versionPinValidationTests {
+		t.Run(vt.name, func(t *testing.T) {
+			payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin"), RollbackVersion: vt.version}
+			err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+			if vt.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, vt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestGetInHouseAppManifest(t *testing.T) {
@@ -750,6 +810,67 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		}
 
 		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+}
+
+func TestAddScriptPackageMetadataLargeScript(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	svc := newTestService(t, nil)
+
+	t.Run("large shell script within saved limit", func(t *testing.T) {
+		t.Parallel()
+		// Generate a script larger than UnsavedScriptMaxRuneLen (10K) but within
+		// SavedScriptMaxRuneLen (500K). Script packages are persisted via GitOps
+		// and should use the saved script limit.
+		scriptContents := "#!/bin/bash\n" + strings.Repeat("echo 'line'\n", 1000)
+		require.Greater(t, len(scriptContents), fleet.UnsavedScriptMaxRuneLen)
+		require.Less(t, len(scriptContents), fleet.SavedScriptMaxRuneLen)
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "large-install.sh",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+
+	t.Run("large powershell script within saved limit", func(t *testing.T) {
+		t.Parallel()
+		scriptContents := strings.Repeat("Write-Host 'line'\r\n", 1000)
+		require.Greater(t, len(scriptContents), fleet.UnsavedScriptMaxRuneLen)
+		require.Less(t, len(scriptContents), fleet.SavedScriptMaxRuneLen)
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "large-install.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
 		require.NoError(t, err)
 		require.Equal(t, scriptContents, payload.InstallScript)
 	})
@@ -1061,6 +1182,80 @@ func TestValidETag(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tt.valid, validETag(tt.input))
+		})
+	}
+}
+
+func TestGetInstallScript(t *testing.T) {
+	t.Parallel()
+
+	defaultPkgScript := file.GetInstallScript("pkg")
+	defaultDebScript := file.GetInstallScript("deb")
+	fleetdScript := file.InstallPkgFleetdScript
+	customScript := "#!/bin/sh\necho custom"
+
+	tests := []struct {
+		name       string
+		extension  string
+		packageIDs []string
+		current    string
+		expected   string
+	}{
+		{
+			name:       "fleetd pkg returns fleetd script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    "",
+			expected:   fleetdScript,
+		},
+		{
+			name:       "fleetd pkg overrides default script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    defaultPkgScript,
+			expected:   fleetdScript,
+		},
+		{
+			name:       "fleetd pkg overrides custom script",
+			extension:  "pkg",
+			packageIDs: []string{"com.fleetdm.orbit.base.pkg"},
+			current:    customScript,
+			expected:   fleetdScript,
+		},
+		{
+			name:       "non-fleetd pkg returns default script",
+			extension:  "pkg",
+			packageIDs: []string{"com.example.app"},
+			current:    "",
+			expected:   defaultPkgScript,
+		},
+		{
+			name:       "non-fleetd pkg preserves custom script",
+			extension:  "pkg",
+			packageIDs: []string{"com.example.app"},
+			current:    customScript,
+			expected:   customScript,
+		},
+		{
+			name:       "deb returns default script",
+			extension:  "deb",
+			packageIDs: []string{"some-package"},
+			current:    "",
+			expected:   defaultDebScript,
+		},
+		{
+			name:       "deb preserves custom script",
+			extension:  "deb",
+			packageIDs: []string{"some-package"},
+			current:    customScript,
+			expected:   customScript,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getInstallScript(tt.extension, tt.packageIDs, tt.current)
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }

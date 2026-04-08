@@ -17,10 +17,13 @@ import (
 	"github.com/smallstep/pkcs7"
 )
 
-// MaxProfileRetries is the maximum times an install profile command may be
-// retried, after which marked as failed and no further attempts will be made
-// to install the profile.
-const MaxProfileRetries = 1
+// MaxAppleProfileRetries is the maximum number of times an Apple install profile command may be retried after the
+// initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
+const MaxAppleProfileRetries = 3
+
+// MaxWindowsProfileRetries is the maximum number of times a Windows install profile command may be retried after the
+// initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
+const MaxWindowsProfileRetries = 1
 
 // DecryptBase64CMS decrypts a base64 encoded pkcs7-encrypted value using the
 // provided certificate and private key.

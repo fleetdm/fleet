@@ -138,6 +138,8 @@ type SoftwareInstaller struct {
 
 	// PatchPolicy is present for Fleet maintained apps with an associated patch policy
 	PatchPolicy *PatchPolicyData `json:"patch_policy"`
+	// PatchQuery is the query to use for creating a patch policy
+	PatchQuery string `json:"-" db:"patch_query"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -546,6 +548,7 @@ type UploadSoftwareInstallerPayload struct {
 	// HTTPETag stores the ETag from the last download response, used for
 	// conditional GET requests when Cache is true.
 	HTTPETag *string
+	PatchQuery                  string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {

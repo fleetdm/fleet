@@ -45,16 +45,20 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 	installTargets, removeTargets map[string]*fleet.CmdTarget,
 	hostProfilesToInstallMap map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
+	profileContents map[string]mobileconfig.Mobileconfig,
 ) (*EnqueueResult, error) {
-	// Grab the contents of all the profiles we need to install
-	profileUUIDs := make([]string, 0, len(installTargets))
-	for pUUID := range installTargets {
-		profileUUIDs = append(profileUUIDs, pUUID)
-	}
+	// Grab the contents of all the profiles we need to install, if not already provided.
+	if profileContents == nil {
+		profileUUIDs := make([]string, 0, len(installTargets))
+		for pUUID := range installTargets {
+			profileUUIDs = append(profileUUIDs, pUUID)
+		}
 
-	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get profile contents")
+		var err error
+		profileContents, err = ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get profile contents")
+		}
 	}
 
 	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)

@@ -1108,7 +1108,7 @@ INSERT INTO setup_experience_status_results (
 		}
 		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
 
-		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
 		require.NoError(t, err)
 		require.Len(t, results, len(expectedAppInstalls))
 		for _, result := range results {
@@ -1279,7 +1279,7 @@ INSERT INTO setup_experience_status_results (
 		}
 		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
 
-		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
 		require.NoError(t, err)
 		require.Len(t, results, len(expectedAppInstalls))
 		for _, result := range results {

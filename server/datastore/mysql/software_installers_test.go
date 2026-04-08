@@ -1751,7 +1751,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	_, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", host1.UUID, *host1.TeamID)
 	require.NoError(t, err)
 
-	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
@@ -1801,7 +1801,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	})
 	require.NoError(t, err)
 
-	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
@@ -1846,7 +1846,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 
 	require.NoError(t, err)
 
-	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
@@ -1918,7 +1918,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	})
 	require.NoError(t, err)
 
-	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID, team.ID)
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
@@ -2497,6 +2497,7 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 		{Name: "Existing Title", Version: "v0.0.2", Source: "apps", BundleIdentifier: "existing.title"},
 		{Name: "Existing Title", Version: "0.0.3", Source: "apps", BundleIdentifier: "existing.title"},
 		{Name: "Existing Title Without Bundle", Version: "0.0.3", Source: "apps"},
+		{Name: "FMA Old Name", Version: "1.0", Source: "apps", BundleIdentifier: "com.fma"},
 	}
 	software3 := []fleet.Software{
 		{Name: "Win Title 1", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("")},
@@ -2504,6 +2505,7 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 		{Name: "Win Title 3", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("")},
 		{Name: "Win Title 4", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("12345")},
 		{Name: "Win Title 5", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("ABCDEF")},
+		{Name: "Win Title 6", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("GHIJKL")},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
@@ -2592,7 +2594,18 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			expectedSource: "ios_apps",
 		},
 		{
-			name: "installer: no upgrade code,  existing title: same name, no upgrade code",
+			name: "don't rename macos FMA titles",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:                "FMA New Name",
+				Source:               "apps",
+				BundleIdentifier:     "com.fma",
+				FleetMaintainedAppID: ptr.Uint(2),
+			},
+			expectedName:   "FMA Old Name",
+			expectedSource: "apps",
+		},
+		{
+			name: "installer: no upgrade code, existing title: same name, no upgrade code",
 			payload: &fleet.UploadSoftwareInstallerPayload{
 				Title:  "Win Title 1",
 				Source: "programs",
@@ -2602,7 +2615,7 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			expectedUpgradeCode: ptr.String(""),
 		},
 		{
-			name: "installer: no upgrade code,  existing title: same name, has upgrade code",
+			name: "installer: no upgrade code, existing title: same name, has upgrade code",
 			payload: &fleet.UploadSoftwareInstallerPayload{
 				Title:  "Win Title 2",
 				Source: "programs",
@@ -2643,6 +2656,18 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			expectedName:        "Win Title 5",
 			expectedSource:      "programs",
 			expectedUpgradeCode: ptr.String("ABCDEF"),
+		},
+		{
+			name: "installer: has upgrade code and FMA, existing title: different name, same upgrade code",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:                "New Name",
+				Source:               "programs",
+				UpgradeCode:          "GHIJKL",
+				FleetMaintainedAppID: ptr.Uint(1), // FMAs should overwrite name for upgrade code
+			},
+			expectedName:        "New Name",
+			expectedSource:      "programs",
+			expectedUpgradeCode: ptr.String("GHIJKL"),
 		},
 	}
 
@@ -3451,6 +3476,32 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 		foundPlatforms = append(foundPlatforms, inst.Platform)
 	}
 	require.ElementsMatch(t, []string{"ios", "ipados"}, foundPlatforms)
+
+	// Simulate the scenario from issue #42260: an FMA version update creates
+	// a second row with the same storage_id but different version and is_active = 0.
+	// GetTeamsWithInstallerByHash must only return the active row.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
+				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids, patch_query)
+			SELECT team_id, global_or_team_id, storage_id, filename, extension, 'old_version', platform, title_id,
+				install_script_content_id, uninstall_script_content_id, 0, url, package_ids, patch_query
+			FROM software_installers WHERE id = ?
+		`, installer1NoTeam)
+		return err
+	})
+
+	// Should still return only the active installer per team, not the inactive duplicate
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash1, "https://example.com/1")
+	require.NoError(t, err)
+	require.Len(t, installers, 2) // No team + Team 1, each with 1 active installer
+
+	require.Len(t, installers[0], 1)
+	require.Equal(t, installer1NoTeam, installers[0][0].InstallerID)
+
+	require.Len(t, installers[1], 1)
+	require.Equal(t, installer1Team1, installers[1][0].InstallerID)
 }
 
 func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {

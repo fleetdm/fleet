@@ -42,6 +42,7 @@ spec:
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
+    apple_require_hardware_attestation: false
     macos_migration:
       enable: false
       mode: ""
@@ -64,6 +65,7 @@ spec:
       macos_setup_assistant: %s
       manual_agent_install: null
       require_all_software_macos: false
+      require_all_software_windows: false
       enable_release_device_manually: false
       script: null
       software: null
@@ -74,6 +76,7 @@ spec:
       apple_setup_assistant: %s
       macos_manual_agent_install: null
       require_all_software_macos: false
+      require_all_software_windows: false
       apple_enable_release_device_manually: false
       macos_script: null
       software: null
@@ -166,3 +169,7 @@ spec:
   gitops:
     gitops_mode_enabled: false
     repository_url: ""
+    exceptions:
+      labels: false
+      software: false
+      secrets: false

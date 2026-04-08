@@ -7,8 +7,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import { INDESFormValidation, validateFormData } from "./helpers";
 
-const baseClass = "ndes-form";
-
 export interface INDESFormData {
   scepURL: string;
   adminURL: string;

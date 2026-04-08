@@ -57,7 +57,7 @@ module.exports.routes = {
   },
 
   'GET /queries': {
-    action: 'view-query-library',
+    action: 'docs/view-query-library',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'Queries',
@@ -66,21 +66,21 @@ module.exports.routes = {
   },
 
   'GET /queries/:slug': {
-    action: 'view-query-detail',// Meta title and description set in view action
+    action: 'docs/view-query-detail',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
   },
 
   'GET /vitals/:slug': {
-    action: 'view-vital-details',// Meta title and description set in view action
+    action: 'docs/view-vital-details',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
   },
 
   'GET /policies': {
-    action: 'view-policy-library',
+    action: 'docs/view-policy-library',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'Policies',
@@ -88,14 +88,14 @@ module.exports.routes = {
     }
   },
   'GET /policies/:slug': {
-    action: 'view-policy-details',// Meta title and description set in view action
+    action: 'docs/view-policy-details',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
   },
 
   'GET /scripts': {
-    action: 'view-scripts',
+    action: 'docs/view-script-library',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'Scripts',
@@ -104,7 +104,7 @@ module.exports.routes = {
   },
 
   'GET /scripts/:slug': {
-    action: 'view-script-details',
+    action: 'docs/view-script-details',
     locals: {// Meta title set in view action
       currentSection: 'more',
       pageDescriptionForMeta: 'A collection of scripts you can run on your devices.'
@@ -112,7 +112,7 @@ module.exports.routes = {
   },
 
   'GET /mdm-commands': {
-    action: 'view-mdm-commands',
+    action: 'docs/view-mdm-commands',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'MDM commands',
@@ -121,7 +121,7 @@ module.exports.routes = {
   },
 
   'GET /mdm-commands/:slug': {
-    action: 'view-command-details',
+    action: 'docs/view-command-details',
     locals: {// Meta title set in view action
       currentSection: 'more',
       pageDescriptionForMeta: 'A collection of commands you can send to devices.'
@@ -375,7 +375,7 @@ module.exports.routes = {
   },
 
   'GET /tables/:tableName': {
-    action: 'view-osquery-table-details',// Meta title and description set in view action
+    action: 'docs/view-osquery-table-details',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
     }
@@ -459,17 +459,8 @@ module.exports.routes = {
     }
   },
 
-  'GET /deals': {
-    action: 'view-deals',
-    locals: {
-      pageTitleForMeta: 'Deal registration',
-      pageDescriptionForMeta: 'Register an opportunity with a potential customer.',
-      hideFooterLinks: true,
-    }
-  },
-
   'GET /customers': {
-    action: 'view-testimonials',
+    action: 'view-customers',
     locals: {
       pageTitleForMeta: 'What people are saying',
       pageDescriptionForMeta: 'See what people are saying about Fleet.',
@@ -478,7 +469,7 @@ module.exports.routes = {
   },
 
   'GET /software-catalog': {
-    action: 'view-app-library',
+    action: 'docs/view-app-library',
     locals: {
       pageTitleForMeta: 'Software',
       pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
@@ -486,7 +477,7 @@ module.exports.routes = {
   },
 
   'GET /software-catalog/:appIdentifier': {
-    action: 'view-app-details',// Meta title and description set in view action
+    action: 'docs/view-app-details',// Meta title and description set in view action
   },
 
   'GET /meetups': {
@@ -506,7 +497,7 @@ module.exports.routes = {
   },
 
   'GET /os-settings': {
-    action: 'view-os-settings',
+    action: 'docs/view-os-settings',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'OS settings',
@@ -615,6 +606,23 @@ module.exports.routes = {
     action: 'articles/view-articles',
     locals: {
       currentSection: 'more',
+    }
+  },
+
+  'GET /jamf-alternative': {
+    action: 'landing-pages/view-jamf-alternative',
+    locals: {
+      currentSection: 'platform',
+      pageTitleForMeta: 'Replace Jamf with confidence',
+      pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
+    }
+  },
+
+  'GET /partners': {
+    action: 'view-partners',
+    locals: {
+      pageTitleForMeta: 'Partners',
+      pageDescriptionForMeta: 'Join Fleet’s partner program. Sell, integrate, and deliver device management with open APIs, flexible deployment, and support from the Fleet team.'
     }
   },
 
@@ -815,6 +823,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
   'GET /guides/how-to-uninstall-osquery': (req, res) => { return res.redirect(301, '/guides/how-to-uninstall-fleetd'); },
   'GET /guides/sysadmin-diaries-lost-device': (req, res) => { return res.redirect(301, '/guides/lock-wipe-hosts'); },
+  'GET /guides/teams': (req, res) => { return res.redirect(301, '/guides/fleets'); },
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
@@ -912,7 +921,7 @@ module.exports.routes = {
   'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
   'GET /announcements/financial-technology-company': '/case-study/financial-technology-company',
   'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
-  'GET /announcements/global-social-media-platform-switches-to-fleet': '/case-study/global-social-media-platform',
+
   'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
   'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
   'GET /announcements/interactive-entertainment-company-adopts-fleet-for-mdm': '/case-study/interactive-entertainment-company',
@@ -1104,6 +1113,8 @@ module.exports.routes = {
   'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
   'GET /announcements/foursquare-quickly-migrates-to-fleet': '/case-study/foursquare',
 
+  'GET /deals': '/partners#deals',
+
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
   'GET /it': '/observability?utm_content=eo-it',
@@ -1138,7 +1149,7 @@ module.exports.routes = {
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/setup-experience',
   'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
-  'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/install-wine.sh',
+  'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/assets/scripts/install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
   'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
   'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',
@@ -1152,6 +1163,7 @@ module.exports.routes = {
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#turn-on-apple-mdm',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/abm-issues': '/guides/apple-mdm-setup#troubleshooting',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
   'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
@@ -1233,6 +1245,8 @@ module.exports.routes = {
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
+  'GET /learn-more-about/android-web-apps-chrome-required': 'https://fleetdm.com/guides/install-app-store-apps#install-android-web-app-web-clip',
+  'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
 
@@ -1338,7 +1352,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
-
+  'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗

@@ -34,6 +34,10 @@
     padding: 0 $pad-large;
     height: 40px;
     border-top: 1px solid $ui-fleet-black-10;
+
+    &:first-child {
+      border-top: none;
+    }
   }
 
   &__row-graphic {

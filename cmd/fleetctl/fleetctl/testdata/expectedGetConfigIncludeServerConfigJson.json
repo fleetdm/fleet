@@ -91,6 +91,7 @@
       },
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
+      "apple_require_hardware_attestation": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -111,7 +112,8 @@
         "script": null,
         "software": null,
         "manual_agent_install": null,
-        "require_all_software_macos": false
+        "require_all_software_macos": false,
+        "require_all_software_windows": false
       },
       "setup_experience": {
         "macos_bootstrap_package": null,
@@ -122,7 +124,8 @@
         "macos_script": null,
         "software": null,
         "macos_manual_agent_install": null,
-        "require_all_software_macos": false
+        "require_all_software_macos": false,
+        "require_all_software_windows": false
       },
       "windows_settings": {
         "custom_settings": null,
@@ -205,7 +208,8 @@
       "current_instance_checks": "",
       "disable_data_sync": false,
       "recent_vulnerability_max_age": "0s",
-      "disable_win_os_vulnerabilities": false
+      "disable_win_os_vulnerabilities": false,
+      "osv_for_vulnerabilities": true
     },
     "license": {
       "tier": "free",
@@ -257,7 +261,12 @@
     },
     "gitops": {
       "gitops_mode_enabled": false,
-      "repository_url": ""
+      "repository_url": "",
+      "exceptions": {
+        "labels": false,
+        "software": false,
+        "secrets": false
+      }
     }
   }
 }
