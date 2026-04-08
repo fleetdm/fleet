@@ -324,19 +324,38 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
-func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string, lockPrimaryAccountInfo bool) error {
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string,
+	payload string, uuid string,
+) error {
+	// 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	// <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+	// <plist version="1.0">
+	//   <dict>
+	//     <key>Command</key>
+	//     <dict>
+	//       <key>PrimaryAccountFullName</key>
+	//       <string>%s</string>
+	//       <key>PrimaryAccountUserName</key>
+	//       <string>%s</string>
+	//       <key>LockPrimaryAccountInfo</key>
+	//       <%t />
+	//       <key>RequestType</key>
+	//       <string>AccountConfiguration</string>
+	//     </dict>
+	//
+	//     <key>CommandUUID</key>
+	//     <string>%s</string>
+	//   </dict>
+	// </plist>`, fullName, userName, lockPrimaryAccountInfo, uuid)
+
+	// Maybe add payload as a type in mdm/apple/
+
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>Command</key>
-    <dict>
-      <key>PrimaryAccountFullName</key>
-      <string>%s</string>
-      <key>PrimaryAccountUserName</key>
-      <string>%s</string>
-      <key>LockPrimaryAccountInfo</key>
-      <%t />
+    <dict>%s
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
@@ -344,7 +363,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullName, userName, lockPrimaryAccountInfo, uuid)
+</plist>`, payload, uuid)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
