@@ -69,11 +69,12 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
       	<key>Subject</key>
       	<array>
         	<array>
-          		<array>
-            		<string>O</string>
-            		<string>Fleet</string>
-          		</array>
-			</array>
+        	<array>
+          	<array>
+            	<string>O</string>
+            	<string>Fleet</string>
+          	</array>
+        	</array>
         	<array>
           		<array>
             		<string>CN</string>
