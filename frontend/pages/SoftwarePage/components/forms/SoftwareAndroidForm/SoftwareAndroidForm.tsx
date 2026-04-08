@@ -7,7 +7,6 @@ import { IAppStoreApp } from "interfaces/software";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";

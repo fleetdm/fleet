@@ -15,7 +15,6 @@ import configAPI from "services/entities/config";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";

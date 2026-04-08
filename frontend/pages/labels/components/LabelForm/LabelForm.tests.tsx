@@ -3,7 +3,6 @@ import { renderWithSetup } from "test/test-utils";
 import { screen, render } from "@testing-library/react";
 import { noop } from "lodash";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 import LabelForm from "./LabelForm";

@@ -1,7 +1,6 @@
 import { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
 
-// @ts-ignore
 import InputField from ".";
 
 import "../../../../index.scss";
