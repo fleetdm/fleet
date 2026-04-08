@@ -7,6 +7,7 @@ import { addHours, differenceInMinutes } from "date-fns";
 import { internationalTimeFormat } from "utilities/helpers";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
+  INITIAL_FLEET_DATE,
   LEARN_MORE_ABOUT_BASE_LINK,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
@@ -371,9 +372,13 @@ const MDMStatusModal = ({
           </>
         ),
         // Follow current pattern of international time format for dates in UI
-        status: internationalTimeFormat(
-          new Date(depAssignmentData.dep_device?.profile_assign_time)
-        ),
+        status:
+          !depAssignmentData.dep_device?.profile_assign_time ||
+          depAssignmentData.dep_device.profile_assign_time < INITIAL_FLEET_DATE
+            ? "Never"
+            : internationalTimeFormat(
+                new Date(depAssignmentData.dep_device.profile_assign_time)
+              ),
       },
       {
         id: "profile-pushed",
@@ -387,8 +392,9 @@ const MDMStatusModal = ({
         ),
         // Follow current pattern of international time format for dates in UI
         status:
-          depAssignmentData.dep_device.profile_push_time === ""
-            ? DEFAULT_EMPTY_CELL_VALUE
+          !depAssignmentData.dep_device.profile_push_time ||
+          depAssignmentData.dep_device.profile_push_time < INITIAL_FLEET_DATE
+            ? "Never"
             : internationalTimeFormat(
                 new Date(depAssignmentData.dep_device.profile_push_time)
               ),
