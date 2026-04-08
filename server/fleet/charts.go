@@ -67,8 +67,9 @@ type ChartResponse struct {
 
 // ChartRequestOpts captures the parsed query parameters for a chart request.
 type ChartRequestOpts struct {
-	Days           int
-	NoSample       bool
+	Days int
+	// Downsample groups hours into N-hour blocks (valid: 0, 2, 4, 8). 0 means hourly.
+	Downsample     int
 	LabelIDs       []uint
 	Platforms      []string
 	IncludeHostIDs []uint

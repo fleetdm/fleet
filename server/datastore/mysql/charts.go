@@ -36,7 +36,7 @@ func (ds *Datastore) GetChartData(
 	hostFilter *fleet.ChartHostFilter,
 	entityIDs []uint,
 	hasEntityDimension bool,
-	downsampleTo2h bool,
+	downsample int,
 ) ([]fleet.ChartDataPoint, error) {
 	// Build the host filter subquery.
 	hostSubquery, hostArgs := buildHostFilterSubquery(hostFilter)
@@ -50,28 +50,26 @@ func (ds *Datastore) GetChartData(
 	}
 
 	// Build per-hour SUM/COUNT expressions instead of a CTE cross join.
-	// For non-entity datasets: SUM((bitmap >> h) & 1)
-	// For entity datasets: COUNT(DISTINCT CASE WHEN bit set THEN host_id END)
+	// For non-entity datasets: SUM((bitmap >> h) & mask)
+	// For entity datasets: COUNT(DISTINCT CASE WHEN masked bits set THEN host_id END)
+	step := 1
+	if downsample > 0 {
+		step = downsample
+	}
+	// Bitmask covers `step` consecutive bits: e.g. step=1 → 0x1, step=2 → 0x3, step=4 → 0xF, step=8 → 0xFF.
+	mask := (1 << step) - 1
+
 	var hours []int
 	var selectExprs []string
-
-	step := 1
-	maxHour := 23
-	if downsampleTo2h {
-		step = 2
-		maxHour = 22
-	}
-
-	for h := 0; h <= maxHour; h += step {
+	for h := 0; h+step <= 24; h += step {
 		hours = append(hours, h)
-		if downsampleTo2h {
-			// 2-hour blocks: either hour in the pair has a bit set.
+		if downsample > 0 {
 			if hasEntityDimension {
 				selectExprs = append(selectExprs, fmt.Sprintf(
-					"COUNT(DISTINCT CASE WHEN (hd.hours_bitmap >> %d) & 3 > 0 THEN hd.host_id END) AS h%d", h, h))
+					"COUNT(DISTINCT CASE WHEN (hd.hours_bitmap >> %d) & %d > 0 THEN hd.host_id END) AS h%d", h, mask, h))
 			} else {
 				selectExprs = append(selectExprs, fmt.Sprintf(
-					"SUM(CASE WHEN (hd.hours_bitmap >> %d) & 3 > 0 THEN 1 ELSE 0 END) AS h%d", h, h))
+					"SUM(CASE WHEN (hd.hours_bitmap >> %d) & %d > 0 THEN 1 ELSE 0 END) AS h%d", h, mask, h))
 			}
 		} else {
 			if hasEntityDimension {
