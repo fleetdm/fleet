@@ -75,6 +75,7 @@
     margin-bottom: $pad-medium;
   }
 
+  // Same styling as .form-field__help-text TODO: consider consolidating
   &__help-text {
     font-size: $x-small;
     font-weight: $regular;
@@ -83,8 +84,8 @@
     color: $core-fleet-blue;
 
     code {
-      color: $core-vibrant-blue;
-      background-color: $ui-gray;
+      color: $ui-fleet-black-50;
+      background-color: $core-fleet-white;
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
