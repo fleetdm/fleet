@@ -286,6 +286,15 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
+- industryName: Fully-managed for employee-issued Android
+  description: Enroll and managed company-owned Android devices.
+  documentationUrl: https://fleetdm.com/guides/android-mdm-setup
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
 - industryName: Account-based user enrollment for iOS/iPadOS
   description: Manage work data on personally-owned (BYOD) iPhones and iPads using a user’s managed Apple Account, without accessing personal apps or data.
   documentationUrl: https://github.com/fleetdm/fleet/issues/27390
