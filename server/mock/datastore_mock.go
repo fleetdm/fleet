@@ -1861,6 +1861,8 @@ type GetChartDataFunc func(ctx context.Context, dataset string, startDate time.T
 
 type CountHostsForChartFilterFunc func(ctx context.Context, hostFilter *fleet.ChartHostFilter) (int, error)
 
+type CollectUptimeChartDataFunc func(ctx context.Context, now time.Time) error
+
 type CleanupHostHourlyDataFunc func(ctx context.Context, days int) error
 
 type GetWindowsMDMCommandsForResendingFunc func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error)
@@ -4632,6 +4634,9 @@ type DataStore struct {
 
 	CountHostsForChartFilterFunc        CountHostsForChartFilterFunc
 	CountHostsForChartFilterFuncInvoked bool
+
+	CollectUptimeChartDataFunc        CollectUptimeChartDataFunc
+	CollectUptimeChartDataFuncInvoked bool
 
 	CleanupHostHourlyDataFunc        CleanupHostHourlyDataFunc
 	CleanupHostHourlyDataFuncInvoked bool
@@ -11088,6 +11093,13 @@ func (s *DataStore) CountHostsForChartFilter(ctx context.Context, hostFilter *fl
 	s.CountHostsForChartFilterFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountHostsForChartFilterFunc(ctx, hostFilter)
+}
+
+func (s *DataStore) CollectUptimeChartData(ctx context.Context, now time.Time) error {
+	s.mu.Lock()
+	s.CollectUptimeChartDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.CollectUptimeChartDataFunc(ctx, now)
 }
 
 func (s *DataStore) CleanupHostHourlyData(ctx context.Context, days int) error {
