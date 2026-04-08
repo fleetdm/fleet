@@ -46,6 +46,7 @@ func TestPolicies(t *testing.T) {
 		{"PoliciesByID", testPoliciesByID},
 		{"TeamPolicyTransfer", testTeamPolicyTransfer},
 		{"ApplyPolicySpec", testApplyPolicySpec},
+		{"ApplyPolicySpecDefaultType", testApplyPolicySpecDefaultType},
 		{"ApplyPolicySpecWithQueryPlatformChanges", testApplyPolicySpecWithQueryPlatformChanges},
 		{"Save", testPoliciesSave},
 		{"DelUser", testPoliciesDelUser},
@@ -2013,6 +2014,26 @@ func updatePolicyFailureCountsForHosts(ctx context.Context, ds *Datastore, hosts
 	}
 
 	return hosts, nil
+}
+
+func testApplyPolicySpecDefaultType(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
+	ctx := context.Background()
+
+	// Apply a policy spec with an empty Type (simulates omitting "type" from JSON).
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:  "no-type-policy",
+			Query: "SELECT 1;",
+			Type:  "", // omitted
+		},
+	}))
+
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, "no-type-policy", policies[0].Name)
+	assert.Equal(t, fleet.PolicyTypeDynamic, policies[0].Type)
 }
 
 func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {

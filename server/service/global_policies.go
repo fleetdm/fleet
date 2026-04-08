@@ -564,6 +564,16 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 	// After the authorization check, check the policy fields.
 	for _, policy := range policies {
+		if policy.Type == "" {
+			policy.Type = fleet.PolicyTypeDynamic
+		}
+
+		if policy.Team == "" && policy.ConditionalAccessEnabled {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForConditionalAccess),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
