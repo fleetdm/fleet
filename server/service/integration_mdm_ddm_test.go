@@ -1302,6 +1302,317 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 	})
 }
 
+func (s *integrationMDMTestSuite) TestAppleDDMFleetVariables() {
+	t := s.T()
+	ctx := t.Context()
+
+	// === Setup ===
+
+	// Create two MDM-enrolled hosts
+	host1, mdmDevice1 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	_, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// Create a team and transfer host1 into it; host2 stays global (control)
+	team := &fleet.Team{Name: t.Name() + "team1"}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host1.ID}}, http.StatusOK)
+
+	// Helper: read declaration from DB by name
+	getDeclaration := func(t *testing.T, name string) fleet.MDMAppleDeclaration {
+		stmt := `
+SELECT
+	declaration_uuid,
+	team_id,
+	identifier,
+	name,
+	raw_json,
+	HEX(token) as token,
+	created_at,
+	uploaded_at
+FROM mdm_apple_declarations
+WHERE name = ?`
+
+		var decl fleet.MDMAppleDeclaration
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &decl, stmt, name)
+		})
+		return decl
+	}
+
+	// Helper: read variables_updated_at for a host/declaration pair
+	getHostDeclVarsUpdatedAt := func(t *testing.T, hostUUID, declUUID string) *time.Time {
+		var result []time.Time
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &result,
+				`SELECT variables_updated_at FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ? AND variables_updated_at IS NOT NULL`,
+				hostUUID, declUUID)
+		})
+		if len(result) == 0 {
+			return nil
+		}
+		return &result[0]
+	}
+
+	checkNoCommands := func(d *mdmtest.TestAppleMDMClient) {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+	}
+
+	checkDDMSync := func(d *mdmtest.TestAppleMDMClient) {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+		cmd, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+		_, err = d.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+	}
+
+	checkDeclarationItemsResp := func(t *testing.T, r fleet.MDMAppleDDMDeclarationItemsResponse, expectedDeclTok string,
+		expectedDeclsByToken map[string]fleet.MDMAppleDeclaration,
+	) {
+		require.Equal(t, expectedDeclTok, r.DeclarationsToken)
+		require.NotEmpty(t, r.Declarations.Activations)
+		require.Empty(t, r.Declarations.Assets)
+		require.Empty(t, r.Declarations.Management)
+		require.Len(t, r.Declarations.Configurations, len(expectedDeclsByToken))
+		for _, m := range r.Declarations.Configurations {
+			d, ok := expectedDeclsByToken[m.ServerToken]
+			require.True(t, ok, "server token %x not found for %s", m.ServerToken, m.Identifier)
+			require.Equal(t, d.Identifier, m.Identifier)
+		}
+	}
+
+	teamIDStr := fmt.Sprintf("%d", team.ID)
+
+	// Declaration payloads
+	declWithUUID := []byte(`{
+	"Type": "com.apple.configuration.management.test",
+	"Payload": {"Echo": "$FLEET_VAR_HOST_UUID"},
+	"Identifier": "com.fleet.var.uuid"
+}`)
+	declWithSerial := []byte(`{
+	"Type": "com.apple.configuration.management.test",
+	"Payload": {"Echo": "$FLEET_VAR_HOST_HARDWARE_SERIAL"},
+	"Identifier": "com.fleet.var.serial"
+}`)
+	declPlain := []byte(`{
+	"Type": "com.apple.configuration.management.test",
+	"Payload": {"Echo": "static-value"},
+	"Identifier": "com.fleet.plain"
+}`)
+
+	// === Phase 1: Failing upload (unsupported variable) ===
+
+	badDecl := []byte(`{
+	"Type": "com.apple.configuration.management.test",
+	"Payload": {"Echo": "$FLEET_VAR_NDES_SCEP_CHALLENGE"},
+	"Identifier": "com.fleet.bad"
+}`)
+	badReq := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "BadDecl.json", Contents: badDecl},
+	}}
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", badReq, http.StatusBadRequest,
+		"team_id", teamIDStr)
+
+	// === Phase 2: Upload declarations with and without variables ===
+
+	profilesReq := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "VarUUID.json", Contents: declWithUUID},
+		{Name: "VarSerial.json", Contents: declWithSerial},
+		{Name: "Plain.json", Contents: declPlain},
+	}}
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
+		"team_id", teamIDStr)
+
+	// Verify raw JSON stored as-is (variables not expanded in storage)
+	dbDeclUUID := getDeclaration(t, "VarUUID.json")
+	assert.Contains(t, string(dbDeclUUID.RawJSON), "$FLEET_VAR_HOST_UUID")
+	dbDeclSerial := getDeclaration(t, "VarSerial.json")
+	assert.Contains(t, string(dbDeclSerial.RawJSON), "$FLEET_VAR_HOST_HARDWARE_SERIAL")
+	dbDeclPlain := getDeclaration(t, "Plain.json")
+	assert.Contains(t, string(dbDeclPlain.RawJSON), "static-value")
+
+	declsByToken := map[string]fleet.MDMAppleDeclaration{
+		dbDeclUUID.Token:   {Identifier: "com.fleet.var.uuid"},
+		dbDeclSerial.Token: {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token:  {Identifier: "com.fleet.plain"},
+	}
+
+	// === Phase 3: First sync — verify variable substitution ===
+
+	s.awaitTriggerProfileSchedule(t)
+
+	checkDDMSync(mdmDevice1)
+	checkNoCommands(mdmDevice2)
+
+	// Host1 fetches tokens
+	r, err := mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens := parseTokensResp(t, r)
+	initialDeclToken := tokens.SyncTokens.DeclarationsToken
+	require.NotEmpty(t, initialDeclToken)
+
+	// Host1 fetches declaration items
+	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	itemsResp := parseDeclarationItemsResp(t, r)
+	checkDeclarationItemsResp(t, itemsResp, initialDeclToken, declsByToken)
+
+	// Fetch individual declarations and verify substitution
+	var gotParsed fleet.MDMAppleDDMDeclarationResponse
+
+	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.uuid")
+	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
+	assert.Contains(t, string(gotParsed.Payload), host1.UUID)
+	assert.NotContains(t, string(gotParsed.Payload), "$FLEET_VAR")
+
+	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.serial")
+	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
+	assert.Contains(t, string(gotParsed.Payload), host1.HardwareSerial)
+	assert.NotContains(t, string(gotParsed.Payload), "$FLEET_VAR")
+
+	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.plain")
+	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
+	assert.Contains(t, string(gotParsed.Payload), "static-value")
+
+	// Verify variables_updated_at: set for variable decls, nil for plain
+	varsUpdatedUUID := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
+	require.NotNil(t, varsUpdatedUUID)
+	varsUpdatedSerial := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, varsUpdatedSerial)
+	varsUpdatedPlain := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclPlain.DeclarationUUID)
+	require.Nil(t, varsUpdatedPlain)
+
+	// === Phase 4: No resend when unrelated declaration added ===
+
+	newDecl := []byte(`{
+	"Type": "com.apple.configuration.management.test",
+	"Payload": {"Echo": "new-stuff"},
+	"Identifier": "com.fleet.new"
+}`)
+	profilesReqWithNew := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "VarUUID.json", Contents: declWithUUID},
+		{Name: "VarSerial.json", Contents: declWithSerial},
+		{Name: "Plain.json", Contents: declPlain},
+		{Name: "NewDecl.json", Contents: newDecl},
+	}}
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqWithNew, http.StatusNoContent,
+		"team_id", teamIDStr)
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// Host1 gets DDM sync (declaration set changed), host2 nothing
+	checkDDMSync(mdmDevice1)
+	checkNoCommands(mdmDevice2)
+
+	// variables_updated_at did NOT change for existing variable declarations
+	varsUpdatedUUIDAfterAdd := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
+	require.NotNil(t, varsUpdatedUUIDAfterAdd)
+	assert.Equal(t, *varsUpdatedUUID, *varsUpdatedUUIDAfterAdd)
+	varsUpdatedSerialAfterAdd := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, varsUpdatedSerialAfterAdd)
+	assert.Equal(t, *varsUpdatedSerial, *varsUpdatedSerialAfterAdd)
+
+	// === Phase 5: No resend when unrelated declaration deleted ===
+
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
+		"team_id", teamIDStr)
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// Host1 gets DDM sync (declaration set changed), host2 nothing
+	checkDDMSync(mdmDevice1)
+	checkNoCommands(mdmDevice2)
+
+	// variables_updated_at still unchanged
+	varsUpdatedUUIDAfterDel := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
+	require.NotNil(t, varsUpdatedUUIDAfterDel)
+	assert.Equal(t, *varsUpdatedUUID, *varsUpdatedUUIDAfterDel)
+	varsUpdatedSerialAfterDel := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, varsUpdatedSerialAfterDel)
+	assert.Equal(t, *varsUpdatedSerial, *varsUpdatedSerialAfterDel)
+
+	// Save token for later comparison
+	r, err = mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	tokenAfterStable := tokens.SyncTokens.DeclarationsToken
+
+	// === Phase 6: No resend on no-op GitOps batch upload ===
+
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
+		"team_id", teamIDStr)
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// No commands for either host — nothing changed
+	checkNoCommands(mdmDevice1)
+	checkNoCommands(mdmDevice2)
+
+	// Token unchanged
+	r, err = mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	assert.Equal(t, tokenAfterStable, tokens.SyncTokens.DeclarationsToken)
+
+	// === Phase 7: Resend when variable values change ===
+
+	// Simulate variable value change: set status = NULL on variable declarations.
+	// This is the same operation triggerResendProfilesUsingVariables performs.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_mdm_apple_declarations SET status = NULL
+			 WHERE host_uuid = ? AND declaration_uuid IN (?, ?)`,
+			host1.UUID, dbDeclUUID.DeclarationUUID, dbDeclSerial.DeclarationUUID,
+		)
+		return err
+	})
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// Host1 gets DDM sync, host2 nothing
+	checkDDMSync(mdmDevice1)
+	checkNoCommands(mdmDevice2)
+
+	// variables_updated_at for variable declarations was updated (newer)
+	varsUpdatedUUIDAfterChange := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
+	require.NotNil(t, varsUpdatedUUIDAfterChange)
+	assert.True(t, varsUpdatedUUIDAfterChange.After(*varsUpdatedUUID),
+		"variables_updated_at should be newer after variable change, got %v vs original %v", varsUpdatedUUIDAfterChange, varsUpdatedUUID)
+	varsUpdatedSerialAfterChange := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, varsUpdatedSerialAfterChange)
+	assert.True(t, varsUpdatedSerialAfterChange.After(*varsUpdatedSerial),
+		"variables_updated_at should be newer after variable change, got %v vs original %v", varsUpdatedSerialAfterChange, varsUpdatedSerial)
+
+	// Plain declaration's variables_updated_at is still nil
+	varsUpdatedPlainAfterChange := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclPlain.DeclarationUUID)
+	require.Nil(t, varsUpdatedPlainAfterChange)
+
+	// Token changed
+	r, err = mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	assert.NotEqual(t, tokenAfterStable, tokens.SyncTokens.DeclarationsToken)
+
+	// Variables still substituted correctly
+	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.uuid")
+	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
+	assert.Contains(t, string(gotParsed.Payload), host1.UUID)
+}
+
 func declarationForTest(identifier string) []byte {
 	return []byte(fmt.Sprintf(`
 {
