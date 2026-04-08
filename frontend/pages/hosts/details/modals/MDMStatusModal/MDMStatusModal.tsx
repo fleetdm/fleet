@@ -349,8 +349,8 @@ const MDMStatusModal = ({
         tooltip: (
           <>
             Migration or new Mac setup won&apos;t work. Details are not
-            accessible from Apple Business Manager (ABM). Verify the host is
-            assigned to your MDM server and Fleet has access permissions.
+            accessible from Apple Business (AB). Verify the host is assigned to
+            your MDM server and Fleet has access permissions.
           </>
         ),
       },
@@ -367,7 +367,7 @@ const MDMStatusModal = ({
           <>
             The last time Apple reported a profile was assigned
             <br />
-            to this host in Apple Business Manager.
+            to this host in Apple Business.
           </>
         ),
         // Follow current pattern of international time format for dates in UI
@@ -440,8 +440,7 @@ const MDMStatusModal = ({
           <b>Profile assignment</b>
         </p>
         <p>
-          Details about automatic enrollment profile from Apple Business
-          Manager.{" "}
+          Details about automatic enrollment profile from Apple Business.{" "}
           <CustomLink
             text="Learn more"
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-issues`}
