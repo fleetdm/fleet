@@ -217,13 +217,21 @@ func RunAndAssert(
 		name := softwareIDToName[v.SoftwareID]
 		actualByPackage[name] = append(actualByPackage[name], v.CVE)
 	}
+	expectedPackages := make(map[string]struct{})
 	for _, expected := range fixture.Vulnerabilities {
+		expectedPackages[expected.Software.Name] = struct{}{}
 		if len(expected.CVEs) == 0 {
 			continue
 		}
 		assert.ElementsMatch(t, actualByPackage[expected.Software.Name], expected.CVEs,
 			"CVE mismatch for package %s (%s-%s)",
 			expected.Software.Name, expected.Software.Version, expected.Software.Release)
+	}
+	for pkg, cves := range actualByPackage {
+		if _, ok := expectedPackages[pkg]; !ok {
+			assert.Failf(t, "unexpected package with vulnerabilities",
+				"package %q has CVEs %v but is not in the fixture", pkg, cves)
+		}
 	}
 
 	require.NoError(t, ds.DeleteHost(ctx, h.ID))
