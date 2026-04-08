@@ -11,7 +11,6 @@ import commandApi, {
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 import Modal from "components/Modal";
@@ -147,11 +146,10 @@ const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
+          value={result.payload}
           readOnly
           enableCopy
-        >
-          {result.payload}
-        </InputField>
+        />
       )}
       {!!result.result && (
         <InputField
@@ -161,11 +159,10 @@ const ModalContent = ({
               Response from <b>{result.hostname}</b>:
             </>
           }
+          value={result.result}
           readOnly
           enableCopy
-        >
-          {result.result}
-        </InputField>
+        />
       )}
     </div>
   );

@@ -9464,6 +9464,19 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(ctx, q, &storedName2, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID2)
 	})
 	require.False(t, storedName2.Valid)
+
+	// Verify name is null in the API
+	// Verify ListMDMCommands also exposes nil Name for unnamed commands
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+
+	gotByUUID := make(map[string]*fleet.MDMCommand, len(cmds))
+	for _, c := range cmds {
+		gotByUUID[c.CommandUUID] = c
+	}
+	require.Equal(t, "Test Profile Name", *gotByUUID[cmdUUID1].Name)
+	require.Nil(t, gotByUUID[cmdUUID2].Name)
 }
 
 func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {

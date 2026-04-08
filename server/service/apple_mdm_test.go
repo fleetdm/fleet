@@ -5144,6 +5144,8 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 							require.Equal(t, "fl33t ACME enrollment", cmd.Name)
 						case "hostUUID-scep":
 							require.Equal(t, "fl33t enrollment", cmd.Name)
+						default:
+							require.Failf(t, "Unexpected host UUID", "Unexpected host UUID: %s", hostUUID)
 						}
 						enqueuedHostUUIDs[hostUUID] = true
 					}
