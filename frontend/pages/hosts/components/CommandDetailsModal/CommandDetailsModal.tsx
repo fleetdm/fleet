@@ -11,6 +11,7 @@ import commandApi, {
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
 
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 import Modal from "components/Modal";
