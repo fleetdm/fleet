@@ -419,7 +419,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
 - **Products:**: `wix`,`pkg:deb/debian/libpng16-16t64`
 - **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-08 11:01:10
+- **Timestamp:** 2026-04-08 11:43:22
 
 ### [CVE-2026-33416](https://nvd.nist.gov/vuln/detail/CVE-2026-33416)
 - **Author:** @lucasmrod
