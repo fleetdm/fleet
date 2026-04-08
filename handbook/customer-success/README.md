@@ -384,6 +384,11 @@ If assistance is needed for research or solutioning by a CSA, create an issue us
 This will automatically be added to the `:help-customers` project board, with the status of `New requests`. During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
 
 
+### Responsibilities when out of office
+
+CSMs and CSAs who are unable to attend their designated customer calls should find backup coverage for their respective function or request a reschedule with the customer.
+
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>
