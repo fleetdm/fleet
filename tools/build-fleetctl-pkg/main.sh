@@ -19,17 +19,28 @@ check_env_var "APPLE_USERNAME"
 check_env_var "APPLE_PASSWORD"
 check_env_var "APPLE_TEAM_ID"
 check_env_var "KEYCHAIN_PASSWORD"
-check_env_var "GITHUB_TOKEN"
-check_env_var "GITHUB_REPOSITORY"
-check_env_var "GITHUB_REF"
 
-# Get version from tag (remove 'fleet-' prefix if present)
-TAG_NAME="${GITHUB_REF#refs/tags/}"
-if [[ "$TAG_NAME" == fleet-* ]]; then
-    VERSION="${TAG_NAME#fleet-}"
+# Determine version: prefer VERSION env var, fall back to GITHUB_REF tag
+if [[ -n "$VERSION" ]]; then
+    echo "Using VERSION from environment: $VERSION"
+elif [[ -n "$GITHUB_REF" ]]; then
+    TAG_NAME="${GITHUB_REF#refs/tags/}"
+    if [[ "$TAG_NAME" == fleet-* ]]; then
+        VERSION="${TAG_NAME#fleet-}"
+    else
+        echo "Error: VERSION not set and GITHUB_REF is not a fleet tag: $GITHUB_REF"
+        exit 1
+    fi
 else
-    echo "Error: GITHUB_REF is not a tag: $GITHUB_REF"
+    echo "Error: VERSION or GITHUB_REF must be set"
     exit 1
+fi
+
+# Upload is enabled by default; set SKIP_UPLOAD=true to skip
+if [[ "$SKIP_UPLOAD" != "true" ]]; then
+    check_env_var "GITHUB_TOKEN"
+    check_env_var "GITHUB_REPOSITORY"
+    check_env_var "GITHUB_REF"
 fi
 
 # Find the signed universal binary (created by goreleaser)
@@ -163,8 +174,11 @@ mv "$PACKAGE_NAME" "dist/$PACKAGE_NAME"
 
 echo "✓ Package created successfully: dist/$PACKAGE_NAME"
 
-# If GITHUB_TOKEN is set and we're in a GitHub Actions environment, upload to release
-if [[ -n "$GITHUB_TOKEN" ]] && [[ -n "$GITHUB_REPOSITORY" ]] && command -v gh &> /dev/null; then
+# Upload to release unless skipped
+if [[ "$SKIP_UPLOAD" == "true" ]]; then
+    echo "Skipping release upload (SKIP_UPLOAD=true)"
+elif [[ -n "$GITHUB_TOKEN" ]] && [[ -n "$GITHUB_REPOSITORY" ]] && command -v gh &> /dev/null; then
+    TAG_NAME="${GITHUB_REF#refs/tags/}"
     echo "Uploading package to release $TAG_NAME..."
     
     # Wait for release to exist (goreleaser creates it as draft)
