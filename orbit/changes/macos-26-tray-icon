@@ -1,0 +1,1 @@
+* Fixed Fleet Desktop tray icon not appearing on macOS 26 (Tahoe) by restarting ControlCenter before creating the status bar item and prompting the user to enable it in System Settings on first run.
