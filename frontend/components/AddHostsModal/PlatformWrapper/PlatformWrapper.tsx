@@ -275,7 +275,7 @@ const PlatformWrapper = ({
           hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
           <code>--type=rpm</code>. For Arch Linux, use{" "}
           <code>--type=pkg.tar.zst</code>. For ARM, use{" "}
-          <code>--arch=arm64</code>
+          <code>--arch=arm64</code>.
         </>
       );
     } else if (packageType === "msi") {
