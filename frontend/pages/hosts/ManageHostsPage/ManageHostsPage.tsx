@@ -127,6 +127,7 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
+import CustomLink from "components/CustomLink";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -1934,8 +1935,13 @@ const ManageHostsPage = ({
         >
           <div>
             <span>
-              You have no enroll secrets. Manage enroll secrets to enroll hosts
-              to <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
+              You have no enroll secrets.{" "}
+              <CustomLink
+                customClickHandler={() => setShowEnrollSecretModal(true)}
+                text="Manage enroll secrets"
+              />{" "}
+              to enroll hosts to{" "}
+              <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>
         </InfoBanner>
