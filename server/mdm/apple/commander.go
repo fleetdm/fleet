@@ -500,6 +500,33 @@ func (svc *MDMAppleCommander) DeviceLocation(ctx context.Context, hostUUIDs []st
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
+func (svc *MDMAppleCommander) ClearPasscode(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ClearPasscode</string>
+		<key>UnlockToken</key>
+		<data>%s</data>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, "$"+fleet.HostSecretPrefix+fleet.HostSecretMDMUnlockToken, cmdUUID)
+
+	// We skip EnqueueCommand here, to avoid decoding the command as <data> is binary, which fails to decode with placeholder.
+	cmd := &mdm.Command{
+		CommandUUID: cmdUUID,
+		Raw:         []byte(raw),
+	}
+	cmd.Command.RequestType = fleet.AppleMDMCommandTypeClearPasscode
+
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, "")
+}
+
 // EnqueueCommand takes care of enqueuing the commands and sending push
 // notifications to the devices.
 //

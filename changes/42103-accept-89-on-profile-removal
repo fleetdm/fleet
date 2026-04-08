@@ -1,0 +1,1 @@
+* Fixed an issue, where Fleet would not remove the host OS setting entry if a RemoveProfile command failed with error code 89 (Profile not found on device).

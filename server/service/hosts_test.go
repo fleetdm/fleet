@@ -152,8 +152,8 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
@@ -465,8 +465,12 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 
 	ts1 := time.Now().Add(-1 * time.Hour).UTC()
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return &ts1, &ts2, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{
+			LastMDMEnrollmentTime: &ts1,
+			LastMDMSeenTime:       &ts2,
+			HardwareAttested:      false,
+		}, nil
 	}
 
 	cases := []struct {
@@ -556,8 +560,8 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
@@ -798,8 +802,8 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{}, nil
@@ -2865,8 +2869,8 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
@@ -3009,8 +3013,8 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
@@ -3204,8 +3208,8 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 		return true, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 
 	cases := []struct {
