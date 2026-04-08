@@ -1,7 +1,9 @@
 name: Product & Engineering Handbook Weekly Summary
 
 on:
-  workflow_dispatch: # Manual trigger only for now; add schedule later
+  schedule:
+    - cron: '0 13 * * 1' # Every Monday at 8am EST (1pm UTC)
+  workflow_dispatch:
 
 permissions:
   contents: read
