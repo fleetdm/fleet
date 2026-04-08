@@ -99,6 +99,50 @@ func TestSTSTokenSigningAndVerification(t *testing.T) {
 	require.ErrorContains(t, err, "invalid upn field")
 }
 
+func TestSTSTokenWithDeviceID(t *testing.T) {
+	var store CertStore
+	cm, err := NewCertManager(store, testCert, testKey)
+	require.NoError(t, err)
+
+	upn := "user@example.com"
+	deviceID := "test-device-id-123"
+
+	// Generate token with device ID
+	token, err := cm.NewSTSAuthTokenWithDeviceID(upn, deviceID)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	// Validate and extract both claims
+	gotUPN, gotDeviceID, err := cm.GetSTSAuthTokenClaims(token)
+	require.NoError(t, err)
+	require.Equal(t, upn, gotUPN)
+	require.Equal(t, deviceID, gotDeviceID)
+
+	// Empty UPN is rejected
+	_, err = cm.NewSTSAuthTokenWithDeviceID("", deviceID)
+	require.ErrorContains(t, err, "invalid upn field")
+
+	// Empty device ID is allowed (optional claim)
+	token, err = cm.NewSTSAuthTokenWithDeviceID(upn, "")
+	require.NoError(t, err)
+	gotUPN, gotDeviceID, err = cm.GetSTSAuthTokenClaims(token)
+	require.NoError(t, err)
+	require.Equal(t, upn, gotUPN)
+	require.Empty(t, gotDeviceID)
+
+	// Token signed by NewSTSAuthToken (no device_id) is also valid via GetSTSAuthTokenClaims
+	oldToken, err := cm.NewSTSAuthToken(upn)
+	require.NoError(t, err)
+	gotUPN, gotDeviceID, err = cm.GetSTSAuthTokenClaims(oldToken)
+	require.NoError(t, err)
+	require.Equal(t, upn, gotUPN)
+	require.Empty(t, gotDeviceID)
+
+	// Tampered token is rejected
+	_, _, err = cm.GetSTSAuthTokenClaims(token + "tampered")
+	require.Error(t, err)
+}
+
 func TestCertFingerprintHexStr(t *testing.T) {
 	cases := []struct {
 		name string
