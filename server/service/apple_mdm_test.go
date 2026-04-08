@@ -842,6 +842,16 @@ func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
 	assert.ErrorContains(t, err, "profiles[1]")
 }
 
+func TestNewMDMAppleDeclarationFreeLicenseTeam(t *testing.T) {
+	svc, ctx, _, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	b := declBytesForTest("D1", "d1content")
+
+	_, err := svc.NewMDMAppleDeclaration(ctx, 1, b, nil, "name", fleet.LabelsIncludeAll)
+	assert.ErrorIs(t, err, fleet.ErrMissingLicense)
+}
+
 func TestNewMDMAppleDeclaration(t *testing.T) {
 	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
