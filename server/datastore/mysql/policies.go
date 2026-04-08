@@ -1472,6 +1472,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
 
+				if spec.Type == "" {
+					spec.Type = fleet.PolicyTypeDynamic
+				}
+
 				// generate new up-to-date patch policy
 				if spec.Type == fleet.PolicyTypePatch {
 					installer, err := ds.getPatchPolicyInstaller(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
