@@ -1847,7 +1847,7 @@ type GetOrCreateFleetChallengeForCertificateTemplateFunc func(ctx context.Contex
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
-type RecordHostHourlyDataFunc func(ctx context.Context, hostID uint, dataset string, entityID uint, date time.Time, hour int) error
+type RecordHostHourlyDataFunc func(ctx context.Context, hostID uint, dataset string, entityID uint, timestamp time.Time) error
 
 type GetChartDataFunc func(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *fleet.ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsampleTo2h bool) ([]fleet.ChartDataPoint, error)
 
@@ -11021,11 +11021,11 @@ func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
 	return s.GetCurrentTimeFunc(ctx)
 }
 
-func (s *DataStore) RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, date time.Time, hour int) error {
+func (s *DataStore) RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, timestamp time.Time) error {
 	s.mu.Lock()
 	s.RecordHostHourlyDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.RecordHostHourlyDataFunc(ctx, hostID, dataset, entityID, date, hour)
+	return s.RecordHostHourlyDataFunc(ctx, hostID, dataset, entityID, timestamp)
 }
 
 func (s *DataStore) GetChartData(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *fleet.ChartHostFilter, entityIDs []uint, hasEntityDimension bool, downsampleTo2h bool) ([]fleet.ChartDataPoint, error) {
