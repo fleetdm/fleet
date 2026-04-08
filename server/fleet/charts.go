@@ -68,6 +68,7 @@ type ChartResponse struct {
 // ChartRequestOpts captures the parsed query parameters for a chart request.
 type ChartRequestOpts struct {
 	Days           int
+	NoSample       bool
 	LabelIDs       []uint
 	Platforms      []string
 	IncludeHostIDs []uint

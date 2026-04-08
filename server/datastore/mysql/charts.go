@@ -11,13 +11,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, date time.Time, hour int) error {
+func (ds *Datastore) RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, timestamp time.Time) error {
+	utc := timestamp.UTC()
+	dateOnly := utc.Format("2006-01-02")
+	hour := utc.Hour()
+
 	stmt := `
 		INSERT INTO host_hourly_data (host_id, dataset, entity_id, chart_date, hours_bitmap)
 		VALUES (?, ?, ?, ?, (1 << ?))
 		ON DUPLICATE KEY UPDATE hours_bitmap = hours_bitmap | (1 << ?)`
 
-	dateOnly := date.Format("2006-01-02")
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, dataset, entityID, dateOnly, hour, hour)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "record host hourly data")
@@ -107,6 +110,7 @@ func (ds *Datastore) GetChartData(
 
 	// Expand sqlx.In placeholders.
 	query, args, err := sqlx.In(query, args...)
+	fmt.Printf("Expanded query: %s\nWith args: %v\n", query, args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "expand chart data query args")
 	}
