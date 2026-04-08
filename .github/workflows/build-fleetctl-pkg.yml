@@ -149,7 +149,7 @@ jobs:
           # Verify binary works and show version
           ./fleetctl --version
 
-      - name: Import application signing keys and sign binary
+      - name: Import application signing keys (for binary)
         env:
           APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
           APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
@@ -161,8 +161,12 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security import app_certificate.p12 -k build.keychain -P "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security find-identity -vv
           rm app_certificate.p12
 
+      - name: Sign fleetctl binary
+        run: |
+          # Sign the binary with Developer ID Application certificate
           CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-51049B247B25B3119FAE7E9C0CC4375A43E47237}"
           codesign --sign "$CODESIGN_IDENTITY" \
             --options runtime \
@@ -171,6 +175,7 @@ jobs:
             --verbose \
             fleetctl
 
+          # Verify the signature
           codesign --verify --verbose fleetctl
           codesign --display --verbose fleetctl
 
