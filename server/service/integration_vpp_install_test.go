@@ -1588,8 +1588,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Create a label
-	clr := createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr := fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:    "foo",
 			HostIDs: []uint{iosHost.ID},
@@ -1875,8 +1875,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	require.Len(t, listPastResp.Activities, 1)
 
 	// update the app to have a label condition
-	clr := createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr := fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{Name: "L1", HostIDs: []uint{}},
 	}, http.StatusOK, &clr)
 

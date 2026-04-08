@@ -927,14 +927,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	team2LabelID := team2Label.ID
 
 	// Get the team label via API
-	var getResp getLabelResponse
+	var getResp fleet.GetLabelResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1LabelID), nil, http.StatusOK, &getResp)
 	require.Equal(t, team1LabelID, getResp.Label.ID)
 	require.NotNil(t, getResp.Label.TeamID)
 	require.Equal(t, team1.ID, *getResp.Label.TeamID)
 
 	// List labels should include team labels for admin
-	var listResp listLabelsResponse
+	var listResp fleet.ListLabelsResponse
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
 	foundTeamLabel := false
 	foundTeam2Label := false
@@ -954,7 +954,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.True(t, foundTeam2Label, "team 2 label should be in list")
 
 	// Filter to specific team
-	listResp = listLabelsResponse{}
+	listResp = fleet.ListLabelsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(team1.ID))
 	foundTeamLabel = false
 	for _, lbl := range listResp.Labels {
@@ -969,14 +969,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.True(t, foundTeamLabel, "team1 label should be in filtered list")
 
 	// Filter to global only (team_id=0) should not include team labels
-	listResp = listLabelsResponse{}
+	listResp = fleet.ListLabelsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "team_id", "0")
 	for _, lbl := range listResp.Labels {
 		require.Nil(t, lbl.TeamID, "global-only filter should not return team labels")
 	}
 
 	// Modify team label
-	var modResp modifyLabelResponse
+	var modResp fleet.ModifyLabelResponse
 	newName := t.Name() + "_team1_label_modified"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", team1LabelID), &fleet.ModifyLabelPayload{
 		Name: &newName,
@@ -984,7 +984,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.Equal(t, newName, modResp.Label.Name)
 
 	// Delete team labels
-	var delResp deleteLabelResponse
+	var delResp fleet.DeleteLabelResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team1LabelID), nil, http.StatusOK, &delResp)
 
 	// Verify it's deleted
@@ -1000,9 +1000,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 
 	// Apply a team label spec
 	teamLabelName := strings.ReplaceAll(t.Name(), "/", "_") + "_team1_label"
-	var applyResp applyLabelSpecsResponse
+	var applyResp fleet.ApplyLabelSpecsResponse
 	// make sure we fail loudly when we spec the request wrong
-	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
 			{
 				Name:                teamLabelName,
@@ -1014,7 +1014,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 		},
 	}, http.StatusUnprocessableEntity, &applyResp)
 
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/spec/labels?team_id=%d", team1.ID), applyLabelSpecsRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/spec/labels?team_id=%d", team1.ID), fleet.ApplyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
 			{
 				Name:                teamLabelName,
@@ -1026,7 +1026,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	}, http.StatusOK, &applyResp)
 
 	// List label specs should include team label for admin
-	var specsResp getLabelSpecsResponse
+	var specsResp fleet.GetLabelSpecsResponse
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp)
 	foundTeamLabel = false
 
@@ -1040,7 +1040,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.True(t, foundTeamLabel, "team label spec should be in list")
 
 	// Get the specific team label spec
-	var getSpecResp getLabelSpecResponse
+	var getSpecResp fleet.GetLabelSpecResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(teamLabelName)), nil, http.StatusOK, &getSpecResp)
 	require.Equal(t, teamLabelName, getSpecResp.Spec.Name)
 	require.NotNil(t, getSpecResp.Spec.TeamID)
@@ -1139,8 +1139,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 
 	// Team admin can add their team's label to their team's host
 	// First remove the label added by admin
-	var removeLabelsFromHostResp removeLabelsFromHostResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[0].ID), removeLabelsFromHostRequest{
+	var removeLabelsFromHostResp fleet.RemoveLabelsFromHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[0].ID), fleet.RemoveLabelsFromHostRequest{
 		Labels: []string{teamManualLabel.Name},
 	}, http.StatusOK, &removeLabelsFromHostResp)
 
@@ -1152,7 +1152,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.Contains(t, team1HostLabels, teamManualLabel.Name)
 
 	// Team admin can remove their team's label from their team's host
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[0].ID), removeLabelsFromHostRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHosts[0].ID), fleet.RemoveLabelsFromHostRequest{
 		Labels: []string{teamManualLabel.Name},
 	}, http.StatusOK, &removeLabelsFromHostResp)
 	team1HostLabels = getHostLabels(teamHosts[0])
@@ -6862,8 +6862,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &addHostsToTeamResponse{})
 
 	// Attempt to create a label, should allow.
-	clr := createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr := fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:  "foo",
 			Query: "SELECT 1;",
@@ -6871,20 +6871,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &clr)
 
 	// Attempt to modify a label, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), modifyLabelRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), fleet.ModifyLabelRequest{
 		ModifyLabelPayload: fleet.ModifyLabelPayload{
 			Name: ptr.String("foo2"),
 		},
-	}, http.StatusOK, &modifyLabelResponse{})
+	}, http.StatusOK, &fleet.ModifyLabelResponse{})
 
 	// Attempt to get a label, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), getLabelRequest{}, http.StatusOK, &getLabelResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), fleet.GetLabelRequest{}, http.StatusOK, &fleet.GetLabelResponse{})
 
 	// Attempt to list all labels, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/labels", listLabelsRequest{}, http.StatusOK, &listLabelsResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/labels", fleet.ListLabelsRequest{}, http.StatusOK, &fleet.ListLabelsResponse{})
 
 	// Attempt to delete a label, should allow.
-	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", deleteLabelRequest{}, http.StatusOK, &deleteLabelResponse{})
+	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", fleet.DeleteLabelRequest{}, http.StatusOK, &fleet.DeleteLabelResponse{})
 
 	// Attempt to list all software, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusForbidden, &listSoftwareVersionsResponse{})
@@ -6918,8 +6918,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", h1.ID), addLabelsToHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusOK, &addLabelsToHostResp)
-	var removeLabelsFromHostResp removeLabelsFromHostResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", h1.ID), removeLabelsFromHostRequest{
+	var removeLabelsFromHostResp fleet.RemoveLabelsFromHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", h1.ID), fleet.RemoveLabelsFromHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusOK, &removeLabelsFromHostResp)
 
@@ -7299,7 +7299,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), addLabelsToHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusOK, &addLabelsToHostResp)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), removeLabelsFromHostRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), fleet.RemoveLabelsFromHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusOK, &removeLabelsFromHostResp)
 
@@ -7307,7 +7307,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), addLabelsToHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusForbidden, &addLabelsToHostResp)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), removeLabelsFromHostRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), fleet.RemoveLabelsFromHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusForbidden, &removeLabelsFromHostResp)
 
@@ -11917,8 +11917,8 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	}
 
 	// create a manual label with hosts across no team, team1 and team2
-	var createLbl createLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	var createLbl fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:  "manual1",
 			Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID, hosts[3].UUID},
@@ -11930,7 +11930,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	require.NotZero(t, lblM1)
 
 	// create a dynamic label always returns a count of 0 (no members yet)
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:  "dynamic1",
 			Query: "select 1",
@@ -11951,7 +11951,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	require.NoError(t, err)
 
 	// create another dynamic label which will stay empty
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:  "dynamic2",
 			Query: "select 2",
@@ -11990,11 +11990,11 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 		t.Run(c.desc, func(t *testing.T) {
 			s.setTokenForTest(t, *c.u.Email, *c.u.Password)
 
-			var getLbl getLabelResponse
+			var getLbl fleet.GetLabelResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), nil, http.StatusOK, &getLbl)
 			require.Equal(t, c.want, getLbl.Label.Count)
 
-			var listLbls listLabelsResponse
+			var listLbls fleet.ListLabelsResponse
 			s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listLbls)
 			var found bool
 			for _, lbl := range listLbls.Labels {
@@ -12008,18 +12008,18 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 
 			// create and update label and just not possible for non-global users
 			if c.u != adminUserPayload && (*c.u.Teams)[0].Role != fleet.RoleMaintainer && (*c.u.Teams)[0].Role != fleet.RoleAdmin {
-				s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+				s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 					LabelPayload: fleet.LabelPayload{
 						Name:  "will fail",
 						Query: "select 3",
 					},
 				}, http.StatusForbidden, &createLbl)
 
-				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), modifyLabelRequest{
+				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), fleet.ModifyLabelRequest{
 					ModifyLabelPayload: fleet.ModifyLabelPayload{
 						Name: ptr.String("will fail"),
 					},
-				}, http.StatusForbidden, &modifyLabelResponse{})
+				}, http.StatusForbidden, &fleet.ModifyLabelResponse{})
 			}
 		})
 	}
@@ -12214,14 +12214,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NotEmpty(t, installerID)
 
 	// create some labels
-	var labelResp createLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 		Name:  "label1",
 		Hosts: []string{host.Hostname},
 	}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
-	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 		Name:  "label2",
 		Hosts: []string{host.Hostname},
 	}}, http.StatusOK, &labelResp)
@@ -12495,22 +12495,22 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 	t.Run("upload no team software installer", func(t *testing.T) {
 		// status is reflected in list hosts responses and counts when filtering by software title and status
 		// create a label to test also the counts per label with the software install status filter
-		var labelResp createLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		var labelResp fleet.CreateLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 			Name:  t.Name(),
 			Query: "select 1",
 		}}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
 		lblA := labelResp.Label
 
-		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 			Name:  "label_b" + t.Name(),
 			Query: "select 1",
 		}}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
 		lblB := labelResp.Label
 
-		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 			Name:  "label_c" + t.Name(),
 			Query: "select 1",
 		}}, http.StatusOK, &labelResp)
@@ -12709,8 +12709,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 	t.Run("upload no team software installer with labels_include_all", func(t *testing.T) {
 		// create a label to use for include_all scoping
-		var labelResp createLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		var labelResp fleet.CreateLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 			Name:  t.Name(),
 			Query: "select 1",
 		}}, http.StatusOK, &labelResp)
@@ -13135,8 +13135,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 	})
 
 	t.Run("patch software installer categories", func(t *testing.T) {
-		var labelResp createLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		var labelResp fleet.CreateLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 			Name:  t.Name(),
 			Query: "select 1",
 		}}, http.StatusOK, &labelResp)
@@ -15026,8 +15026,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 
 	// status is reflected in list hosts responses and counts when filtering by software title and status
 	// create a label to test also the counts per label with the software install status filter
-	var labelResp createLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 		Name:  "test",
 		Hosts: []string{h.Hostname, h2.Hostname, h3.Hostname, h4.Hostname},
 	}}, http.StatusOK, &labelResp)
@@ -15353,8 +15353,8 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	createDeviceTokenForHost(t, s.ds, host2.ID, token2)
 
 	// Create a label and assign it to the host
-	var labelResp createLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 		Name:  t.Name(),
 		Query: "select 1",
 	}}, http.StatusOK, &labelResp)
@@ -18667,21 +18667,21 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	host.OrbitNodeKey = &orbitKey
 
 	// Create a few labels
-	var newLabelResp createLabelResponse
+	var newLabelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:  uuid.NewString(),
 		Query: "SELECT 1",
 	}, http.StatusOK, &newLabelResp)
 	lbl1 := newLabelResp.Label
 
-	newLabelResp = createLabelResponse{}
+	newLabelResp = fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:  uuid.NewString(),
 		Query: "SELECT 2",
 	}, http.StatusOK, &newLabelResp)
 	lbl2 := newLabelResp.Label
 
-	newLabelResp = createLabelResponse{}
+	newLabelResp = fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:  uuid.NewString(),
 		Query: "SELECT 3",
@@ -19018,21 +19018,21 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	host.OrbitNodeKey = &orbitKey
 
 	// Create a few labels
-	var newLabelResp createLabelResponse
+	var newLabelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:  uuid.NewString(),
 		Query: "SELECT 1",
 	}, http.StatusOK, &newLabelResp)
 	lbl1 := newLabelResp.Label
 
-	newLabelResp = createLabelResponse{}
+	newLabelResp = fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:  uuid.NewString(),
 		Query: "SELECT 2",
 	}, http.StatusOK, &newLabelResp)
 	lbl2 := newLabelResp.Label
 
-	newLabelResp = createLabelResponse{}
+	newLabelResp = fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:  uuid.NewString(),
 		Query: "SELECT 3",
@@ -20547,7 +20547,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// ===========================================================================================
 
 	// Add some labels
-	var newLabelResp createLabelResponse
+	var newLabelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:     t.Name() + "1",
 		Platform: "darwin",
@@ -20863,7 +20863,7 @@ func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
 	t := s.T()
 
 	// create a couple labels
-	var newLabelResp createLabelResponse
+	var newLabelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:     "TestDeleteLabels1",
 		Platform: "darwin",
@@ -20893,7 +20893,7 @@ func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
 	require.Contains(t, errMsg, "foreign key constraint on labels: TestDeleteLabels1")
 
 	// try to delete a label that does not exist by id and name
-	var delLabelResp deleteLabelByIDResponse
+	var delLabelResp fleet.DeleteLabelByIDResponse
 	s.DoJSON("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl1+1000), nil, http.StatusNotFound, &delLabelResp)
 	s.DoJSON("DELETE", "/api/v1/fleet/labels/no-such-label", nil, http.StatusNotFound, &delLabelResp)
 
@@ -20960,15 +20960,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	require.NotEmpty(t, installerID)
 
 	// create some labels and assign them to the host
-	var labelResp createLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 		Name:  "label1",
 		Hosts: []string{host.Hostname},
 	}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 	lbl1 := labelResp.Label
 
-	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 		Name:  "label2",
 		Query: "SELECT 1",
 	}}, http.StatusOK, &labelResp)
@@ -25739,8 +25739,8 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		}, http.StatusOK, &createTeamResp)
 		require.NotZero(t, createTeamResp.Team.ID)
 
-		var labelResp createLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		var labelResp fleet.CreateLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
 			Name:  "iha_label",
 			Query: "select 1",
 		}}, http.StatusOK, &labelResp)
