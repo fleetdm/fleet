@@ -2157,6 +2157,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return err
 	}
 
+	// TODO(mna): is there a risk of collision here, identifiers being the same in Apple profiles+declarations+Windows?
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
 		varNames := make([]fleet.FleetVarName, 0, len(variables))

@@ -6122,6 +6122,12 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "updating host declarations")
 }
 
+func (ds *Datastore) SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
+	stmt := `UPDATE host_mdm_apple_declarations SET status = ?, detail = ? WHERE host_uuid = ? AND declaration_uuid = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, status, detail, hostUUID, declarationUUID)
+	return ctxerr.Wrap(ctx, err, "set host declaration status")
+}
+
 func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
 	stmt := `
   UPDATE host_mdm_apple_declarations
