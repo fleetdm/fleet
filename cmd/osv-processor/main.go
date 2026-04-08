@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -595,7 +596,7 @@ func runRHEL(cfg Config) error {
 	// Delta generation is not supported for RHEL — the data source is a full GCS zip
 	// download with no git-based change tracking. Fail fast if callers pass delta flags.
 	if cfg.ChangedFilesToday != "" || cfg.ChangedFilesYesterday != "" {
-		return fmt.Errorf("--changed-files-today and --changed-files-yesterday are not supported with --platform rhel (no git-based change tracking for GCS data)")
+		return errors.New("--changed-files-today and --changed-files-yesterday are not supported with --platform rhel (no git-based change tracking for GCS data)")
 	}
 
 	if err := os.MkdirAll(cfg.OutputDir, 0o755); err != nil {
