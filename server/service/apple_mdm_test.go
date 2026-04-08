@@ -740,11 +740,11 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)
-			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll)
+			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, mcBytes, nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz list profiles (no team)
@@ -807,7 +807,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
 
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 	require.NoError(t, err)
 	require.Equal(t, "Foo", cp.Name)
 	assert.Equal(t, identifier, cp.Identifier)
@@ -815,12 +815,12 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 
 	// Unsupported Fleet variable
 	mcBytes = mcBytesForTest("Foo", identifier, "UUID${FLEET_VAR_BOZO}")
-	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll)
+	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 	assert.ErrorContains(t, err, "Fleet variable")
 
 	// Test profile with FLEET_SECRET in PayloadDisplayName
 	mcBytes = mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
-	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll)
+	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 }
 
@@ -869,12 +869,12 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 
 	// Unsupported Fleet variable
 	b := declBytesForTest("D1", "d1content $FLEET_VAR_BOZO")
-	_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll)
+	_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
 	assert.ErrorContains(t, err, "Fleet variable")
 
 	// decl type missing actual type
 	b = declarationForTestWithType("D1", "com.apple.configuration")
-	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll)
+	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
 	assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) are supported")
 
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -887,7 +887,7 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 
 	// Good declaration
 	b = declBytesForTest("D1", "d1content")
-	d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll)
+	d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, d)
 }
@@ -951,7 +951,7 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 			"Type": "com.apple.configuration.management.status-subscriptions",
 			"Identifier": "test-status-sub"
 		}`)
-		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "status subscription type")
 	})
@@ -976,7 +976,7 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 			"Type": "com.apple.configuration.management.status-subscriptions",
 			"Identifier": "test-status-sub"
 		}`)
-		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, d)
 	})
@@ -994,7 +994,7 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 			"Type": "com.example.invalid",
 			"Identifier": "test-invalid"
 		}`)
-		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "Only configuration declarations")
 	})
@@ -1019,7 +1019,7 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 			"Type": "com.example.invalid",
 			"Identifier": "test-invalid"
 		}`)
-		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, d)
 	})
@@ -1036,7 +1036,7 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
 			"Identifier": "test-os-update"
 		}`)
-		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "OS updates settings")
 	})
@@ -1060,7 +1060,7 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
 			"Identifier": "test-os-update"
 		}`)
-		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, d)
 	})

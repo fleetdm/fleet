@@ -101,6 +101,8 @@ export const getCustomTarget = (
 };
 
 // Used in EditSoftwareModal and PackageForm
+// When both include and exclude labels exist, this returns only the include labels
+// for the primary label selection. Use generateSelectedExcludeLabels for the exclude set.
 export const generateSelectedLabels = (
   softwareInstaller: ISoftwarePackage | IAppStoreApp
 ) => {
@@ -113,6 +115,7 @@ export const generateSelectedLabels = (
     return {};
   }
 
+  // When both include and exclude exist, return only include labels
   let customTypeKey:
     | "labels_include_any"
     | "labels_include_all"
@@ -127,6 +130,30 @@ export const generateSelectedLabels = (
 
   return (
     softwareInstaller[customTypeKey]?.reduce<Record<string, boolean>>(
+      (acc, label) => {
+        acc[label.name] = true;
+        return acc;
+      },
+      {}
+    ) ?? {}
+  );
+};
+
+// Returns exclude labels when combined with an include scope.
+// Only populated when both include_any/include_all AND exclude_any are present.
+export const generateSelectedExcludeLabels = (
+  softwareInstaller: ISoftwarePackage | IAppStoreApp
+): Record<string, boolean> => {
+  if (!softwareInstaller) return {};
+
+  // Only return exclude labels when there's also an include scope
+  const hasInclude =
+    softwareInstaller.labels_include_any ||
+    softwareInstaller.labels_include_all;
+  if (!hasInclude || !softwareInstaller.labels_exclude_any) return {};
+
+  return (
+    softwareInstaller.labels_exclude_any.reduce<Record<string, boolean>>(
       (acc, label) => {
         acc[label.name] = true;
         return acc;

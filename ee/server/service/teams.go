@@ -1866,17 +1866,23 @@ func (svc *Service) editTeamFromSpec(
 
 func validateTeamCustomSettings(invalid *fleet.InvalidArgumentError, prefix string, customSettings []fleet.MDMProfileSpec) {
 	for i, prof := range customSettings {
-		count := 0
-		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0, len(prof.LabelsExcludeAny) > 0} {
-			if b {
-				count++
-			}
-		}
-		if count > 1 {
+		hasLabels := len(prof.Labels) > 0
+		hasInclAll := len(prof.LabelsIncludeAll) > 0
+		hasInclAny := len(prof.LabelsIncludeAny) > 0
+		hasExclAny := len(prof.LabelsExcludeAny) > 0
+
+		// Allow combining an include scope with exclude_any, but disallow
+		// include_any + include_all and deprecated labels + anything else.
+		if hasLabels && (hasInclAll || hasInclAny || hasExclAny) {
 			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
-				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Deprecated "labels" field cannot be combined with other label fields.`, prefix))
 		}
-		if len(prof.Labels) > 0 {
+		if hasInclAll && hasInclAny {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. "labels_include_all" and "labels_include_any" cannot be combined.`, prefix))
+		}
+		_ = hasExclAny // exclude_any can be combined with either include scope
+		if hasLabels {
 			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
 			customSettings[i].Labels = nil
 		}

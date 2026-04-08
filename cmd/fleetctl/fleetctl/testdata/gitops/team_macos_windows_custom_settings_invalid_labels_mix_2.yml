@@ -22,7 +22,7 @@ controls:
       - path: ./lib/windows-screenlock.xml
         labels_include_any:
           - A
-        labels_exclude_any:
+        labels_include_all:
           - C
 policies:
 queries:

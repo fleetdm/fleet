@@ -1,0 +1,1 @@
+* Allowed combining `labels_include_any` (or `labels_include_all`) with `labels_exclude_any` when scoping policies, software installers, VPP apps, fleet-maintained apps, in-house apps, and MDM configuration profiles. For example, deploy software to all hosts labeled "Engineering" except those labeled "g-mdm".

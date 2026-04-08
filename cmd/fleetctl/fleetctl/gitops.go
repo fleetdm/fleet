@@ -827,22 +827,20 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
-				err := fmt.Errorf("MDM profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", setting.Path)
+
+				if len(setting.LabelsIncludeAny) > 0 && len(setting.LabelsIncludeAll) > 0 {
+					return nil, fmt.Errorf("MDM profile '%s': \"labels_include_any\" and \"labels_include_all\" cannot be combined.", setting.Path)
+				}
 
 				if len(setting.LabelsIncludeAny) > 0 {
 					labels = setting.LabelsIncludeAny
 				}
 				if len(setting.LabelsIncludeAll) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
 					labels = setting.LabelsIncludeAll
 				}
+				// Exclude labels can be combined with include labels
 				if len(setting.LabelsExcludeAny) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
-					labels = setting.LabelsExcludeAny
+					updateLabelUsage(setting.LabelsExcludeAny, setting.Path, "MDM Profile", result)
 				}
 
 				updateLabelUsage(labels, setting.Path, "MDM Profile", result)
@@ -852,64 +850,31 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 
 	// Get software package installer label usage
 	for _, softwarePackage := range config.Software.Packages {
-		var labels []string
-		if len(softwarePackage.LabelsIncludeAny) > 0 {
-			labels = softwarePackage.LabelsIncludeAny
+		if len(softwarePackage.LabelsIncludeAny) > 0 && len(softwarePackage.LabelsIncludeAll) > 0 {
+			return nil, fmt.Errorf("Software package '%s': \"labels_include_any\" and \"labels_include_all\" cannot be combined.", softwarePackage.URL)
 		}
-		if len(softwarePackage.LabelsExcludeAny) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
-			}
-			labels = softwarePackage.LabelsExcludeAny
-		}
-		if len(softwarePackage.LabelsIncludeAll) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
-			}
-			labels = softwarePackage.LabelsIncludeAll
-		}
-		updateLabelUsage(labels, softwarePackage.URL, "Software Package", result)
+		updateLabelUsage(softwarePackage.LabelsIncludeAny, softwarePackage.URL, "Software Package", result)
+		updateLabelUsage(softwarePackage.LabelsExcludeAny, softwarePackage.URL, "Software Package", result)
+		updateLabelUsage(softwarePackage.LabelsIncludeAll, softwarePackage.URL, "Software Package", result)
 	}
 
 	// Get app store app installer label usage
 	for _, vppApp := range config.Software.AppStoreApps {
-		var labels []string
-		if len(vppApp.LabelsIncludeAny) > 0 {
-			labels = vppApp.LabelsIncludeAny
+		if len(vppApp.LabelsIncludeAny) > 0 && len(vppApp.LabelsIncludeAll) > 0 {
+			return nil, fmt.Errorf("App Store App '%s': \"labels_include_any\" and \"labels_include_all\" cannot be combined.", vppApp.AppStoreID)
 		}
-		if len(vppApp.LabelsExcludeAny) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
-			}
-			labels = vppApp.LabelsExcludeAny
-		}
-		if len(vppApp.LabelsIncludeAll) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
-			}
-			labels = vppApp.LabelsIncludeAll
-		}
-		updateLabelUsage(labels, vppApp.AppStoreID, "App Store App", result)
+		updateLabelUsage(vppApp.LabelsIncludeAny, vppApp.AppStoreID, "App Store App", result)
+		updateLabelUsage(vppApp.LabelsExcludeAny, vppApp.AppStoreID, "App Store App", result)
+		updateLabelUsage(vppApp.LabelsIncludeAll, vppApp.AppStoreID, "App Store App", result)
 	}
 
 	for _, maintainedApp := range config.Software.FleetMaintainedApps {
-		var labels []string
-		if len(maintainedApp.LabelsIncludeAny) > 0 {
-			labels = maintainedApp.LabelsIncludeAny
+		if len(maintainedApp.LabelsIncludeAny) > 0 && len(maintainedApp.LabelsIncludeAll) > 0 {
+			return nil, fmt.Errorf("Fleet Maintained App '%s': \"labels_include_any\" and \"labels_include_all\" cannot be combined.", maintainedApp.Slug)
 		}
-		if len(maintainedApp.LabelsExcludeAny) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
-			}
-			labels = maintainedApp.LabelsExcludeAny
-		}
-		if len(maintainedApp.LabelsIncludeAll) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
-			}
-			labels = maintainedApp.LabelsIncludeAll
-		}
-		updateLabelUsage(labels, maintainedApp.Slug, "Fleet Maintained App", result)
+		updateLabelUsage(maintainedApp.LabelsIncludeAny, maintainedApp.Slug, "Fleet Maintained App", result)
+		updateLabelUsage(maintainedApp.LabelsExcludeAny, maintainedApp.Slug, "Fleet Maintained App", result)
+		updateLabelUsage(maintainedApp.LabelsIncludeAll, maintainedApp.Slug, "Fleet Maintained App", result)
 	}
 
 	// Get query label usage
@@ -919,17 +884,9 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 
 	// Get policy label usage
 	for _, policy := range config.Policies {
-		var labels []string
-		if len(policy.LabelsIncludeAny) > 0 {
-			labels = policy.LabelsIncludeAny
-		}
-		if len(policy.LabelsExcludeAny) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", policy.Name)
-			}
-			labels = policy.LabelsExcludeAny
-		}
-		updateLabelUsage(labels, policy.Name, "Policy", result)
+		// Policies support combining include_any + exclude_any
+		updateLabelUsage(policy.LabelsIncludeAny, policy.Name, "Policy", result)
+		updateLabelUsage(policy.LabelsExcludeAny, policy.Name, "Policy", result)
 	}
 
 	return result, nil

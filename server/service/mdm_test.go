@@ -1383,11 +1383,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1485,7 +1485,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll, nil)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -2829,7 +2829,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll)
+			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.NewMDMAndroidConfigProfileFuncInvoked)

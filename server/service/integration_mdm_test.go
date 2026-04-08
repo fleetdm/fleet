@@ -13541,20 +13541,20 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			LatestVersion:    "1.0.0",
 		}
 
-		// Attempt to add an app with both types of labels. Should fail
+		// Attempt to add an app with both include_any and include_all labels. Should fail
 		var addAppResp addAppStoreAppResponse
 		addAppReq := &addAppStoreAppRequest{
 			TeamID:           &team.ID,
 			AppStoreID:       includeAnyApp.AdamID,
 			SelfService:      true,
 			LabelsIncludeAny: []string{l1.Name},
-			LabelsExcludeAny: []string{l2.Name},
+			LabelsIncludeAll: []string{l2.Name},
 		}
 		res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included`)
+		require.Contains(t, extractServerErrorText(res.Body), `"labels_include_all" and "labels_include_any" cannot be combined.`)
 
 		// Now add it for real
-		addAppReq.LabelsExcludeAny = []string{}
+		addAppReq.LabelsIncludeAll = []string{}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
 		titleID := getSoftwareTitleIDFromApp(&includeAnyApp)
 		require.Equal(t, titleID, addAppResp.TitleID, "addAppResp should contain the correct software title ID")
@@ -13635,14 +13635,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		// Attempt to update a non-existent app. Should fail.
 		s.Do("PATCH", "/api/latest/fleet/software/titles/9999/app_store_app", updateAppReq, http.StatusNotFound)
 
-		// Attempt to update with both types of labels. Should fail.
+		// Attempt to update with both include_any and include_all labels. Should fail.
 		updateAppReq.LabelsIncludeAny = []string{l1.Name}
-		updateAppReq.LabelsExcludeAny = []string{l1.Name}
+		updateAppReq.LabelsIncludeAll = []string{l1.Name}
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
+		require.Contains(t, extractServerErrorText(res.Body), `"labels_include_all" and "labels_include_any" cannot be combined.`)
 
 		// Attempt to update with a non-existent label. Should fail.
-		updateAppReq.LabelsExcludeAny = []string{}
+		updateAppReq.LabelsIncludeAll = []string{}
 		updateAppReq.LabelsIncludeAny = []string{"404_notfound"}
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusBadRequest)
 		require.Contains(t, extractServerErrorText(res.Body), `Couldn't update. Label "404_notfound" doesn't exist. Please remove the label from the software.`)

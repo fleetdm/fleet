@@ -20,7 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
-func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode, excludeLabels []string) (*fleet.MDMWindowsConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -78,6 +78,15 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	default:
 		// default include all
 		cp.LabelsIncludeAll = labelMap
+	}
+
+	// Handle combined include + exclude labels
+	if len(excludeLabels) > 0 {
+		excludeLabelMap, err := svc.validateProfileLabels(ctx, &teamID, excludeLabels)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating exclude labels")
+		}
+		cp.LabelsExcludeAny = excludeLabelMap
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {

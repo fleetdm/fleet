@@ -113,7 +113,6 @@ var (
 	errPolicyEmptyQuery                              = errors.New("policy query cannot be empty")
 	errPolicyIDAndQuerySet                           = errors.New("both fields \"queryID\" and \"query\" cannot be set")
 	errPolicyInvalidPlatform                         = errors.New("invalid policy platform")
-	errPolicyConflictingLabels                       = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
 	errPolicyPatchAndQuerySet                        = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
 	errPolicyPatchAndPlatformSet                     = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
 	errPolicyPatchNoTitleID                          = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
@@ -143,9 +142,6 @@ func (p PolicyPayload) Verify() error {
 		if p.PatchSoftwareTitleID == nil {
 			return errPolicyPatchNoTitleID
 		}
-		if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
-			return errPolicyConflictingLabels
-		}
 		return nil
 	}
 
@@ -168,9 +164,6 @@ func (p PolicyPayload) Verify() error {
 		return err
 	}
 
-	if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
-		return errPolicyConflictingLabels
-	}
 	return nil
 }
 

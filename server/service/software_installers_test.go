@@ -306,13 +306,24 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				"",
 			},
 			{
-				"include and exclude labels",
+				"include_any and exclude_any labels combined",
 				[]string{"foo"},
 				[]string{"bar"},
 				nil,
+				map[string]fleet.LabelIdent{
+					"foo": {LabelID: 1, LabelName: "foo"},
+				},
+				fleet.LabelScopeIncludeAny,
+				"",
+			},
+			{
+				"include_any and include_all conflict",
+				[]string{"foo"},
+				nil,
+				[]string{"bar"},
 				nil,
 				"",
-				`Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`,
+				`"labels_include_all" and "labels_include_any" cannot be combined.`,
 			},
 			{
 				"non-existent label",
@@ -367,6 +378,35 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				}
 			})
 		}
+
+		// Test combined include+exclude: verify ExcludeByName is populated
+		t.Run("combined include_any + exclude_any populates ExcludeByName", func(t *testing.T) {
+			got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, []string{"foo"}, []string{"bar"}, nil)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, fleet.LabelScopeIncludeAny, got.LabelScope)
+			require.Equal(t, map[string]fleet.LabelIdent{
+				"foo": {LabelID: 1, LabelName: "foo"},
+			}, got.ByName)
+			require.Equal(t, map[string]fleet.LabelIdent{
+				"bar": {LabelID: 2, LabelName: "bar"},
+			}, got.ExcludeByName)
+		})
+
+		// Test combined include_all + exclude_any
+		t.Run("combined include_all + exclude_any populates ExcludeByName", func(t *testing.T) {
+			got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil, []string{"baz"}, []string{"foo", "bar"})
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, fleet.LabelScopeIncludeAll, got.LabelScope)
+			require.Equal(t, map[string]fleet.LabelIdent{
+				"foo": {LabelID: 1, LabelName: "foo"},
+				"bar": {LabelID: 2, LabelName: "bar"},
+			}, got.ByName)
+			require.Equal(t, map[string]fleet.LabelIdent{
+				"baz": {LabelID: 3, LabelName: "baz"},
+			}, got.ExcludeByName)
+		})
 	})
 
 	t.Run("validate update", func(t *testing.T) {

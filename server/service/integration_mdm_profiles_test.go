@@ -2139,9 +2139,10 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 		}
   }`), http.StatusUnprocessableEntity)
 	msg := extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `Deprecated "labels" field cannot be combined with other label fields.`)
 
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	// include_all + exclude_any is now allowed (combined scoping)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
 				"custom_settings": [
@@ -2149,11 +2150,10 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 				]
 			}
 		}
-  }`), http.StatusUnprocessableEntity)
-	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+  }`), http.StatusOK)
 
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	// include_any + exclude_any is now allowed (combined scoping)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
 				"custom_settings": [
@@ -2161,9 +2161,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 				]
 			}
 		}
-  }`), http.StatusUnprocessableEntity)
-	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+  }`), http.StatusOK)
 
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
@@ -2175,7 +2173,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 		}
   }`), http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `Deprecated "labels" field cannot be combined with other label fields.`)
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
@@ -2294,7 +2292,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	assert.Contains(t, errMsg, `Deprecated "labels" field cannot be combined with other label fields.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
@@ -3397,14 +3395,21 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAndroidProfile("android-profile-with-labels.json", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// profiles with invalid mix of labels
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "-bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	// profiles with invalid mix of labels: include_all + deprecated labels, include_all + include_any
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined`)
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `"labels_include_all" and "labels_include_any" cannot be combined.`)
+	// include_all + exclude_any is now VALID (combined scoping)
+	assertAppleDeclaration("apple-decl-with-incl-all-excl-any.json", "ident-decl-combined", 0, []string{"foo", "-bar"}, http.StatusOK, "")
+	// include_all + include_any is still INVALID
+	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `"labels_include_all" and "labels_include_any" cannot be combined.`)
+	// exclude_any + deprecated labels is still INVALID
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined`)
+	// exclude_any + include_any is now VALID (combined scoping)
+	assertWindowsProfile("win-profile-with-incl-any-excl-any.xml", "./Test", 0, []string{"-foo", "~bar"}, http.StatusOK, "")
+	// exclude_any + deprecated labels is still INVALID
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Deprecated "labels" field cannot be combined`)
+	// exclude_any + include_any is now VALID (combined scoping)
+	assertAndroidProfile("android-profile-with-incl-any-excl-any.json", 0, []string{"-foo", "~bar"}, http.StatusOK, "")
 
 	// profiles with valid labels
 	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"!foo"}, http.StatusOK, "")
@@ -4714,7 +4719,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 		}
 	`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	assert.Contains(t, errMsg, `Deprecated "labels" field cannot be combined with other label fields.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
@@ -4932,12 +4937,12 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the configuration profile.`)
 
-	// mix of labels fields
+	// mix of labels fields (deprecated "labels" with other label field)
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl2.Name}},
 	}}, http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `Deprecated "labels" field cannot be combined with other label fields.`)
 
 	// successful batch-set
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -5231,12 +5236,12 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the configuration profile.`)
 
-	// mix of labels fields
+	// mix of labels fields (include_all + include_any is still an error)
 	res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
-		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl2.Name}},
+		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name}, LabelsIncludeAny: []string{lbl2.Name}},
 	}}, http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `"labels_include_all" and "labels_include_any" cannot be combined.`)
 
 	// successful batch-set
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{

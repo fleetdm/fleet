@@ -1792,14 +1792,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
-		var count int
-		for _, set := range [][]string{item.LabelsExcludeAny, item.LabelsIncludeAny, item.LabelsIncludeAll} {
-			if len(set) > 0 {
-				count++
-			}
-		}
-		if count > 1 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
+		if len(item.LabelsIncludeAny) > 0 && len(item.LabelsIncludeAll) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`"labels_include_all" and "labels_include_any" cannot be combined for app store app %q`, item.AppStoreID))
 			continue
 		}
 
@@ -1819,14 +1813,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
-		var count int
-		for _, set := range [][]string{maintainedAppSpec.LabelsExcludeAny, maintainedAppSpec.LabelsIncludeAny, maintainedAppSpec.LabelsIncludeAll} {
-			if len(set) > 0 {
-				count++
-			}
-		}
-		if count > 1 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
+		if len(maintainedAppSpec.LabelsIncludeAny) > 0 && len(maintainedAppSpec.LabelsIncludeAll) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`"labels_include_all" and "labels_include_any" cannot be combined for fleet maintained app %q`, maintainedAppSpec.Slug))
 			continue
 		}
 
@@ -1952,14 +1940,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				}
 			}
 
-			var count int
-			for _, set := range [][]string{softwarePackageSpec.LabelsExcludeAny, softwarePackageSpec.LabelsIncludeAny, softwarePackageSpec.LabelsIncludeAll} {
-				if len(set) > 0 {
-					count++
-				}
-			}
-			if count > 1 {
-				multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
+			if len(softwarePackageSpec.LabelsIncludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAll) > 0 {
+				multiError = multierror.Append(multiError, fmt.Errorf(`"labels_include_all" and "labels_include_any" cannot be combined for software URL %q`, softwarePackageSpec.URL))
 				continue
 			}
 

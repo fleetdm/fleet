@@ -167,49 +167,60 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		WHERE name IN (?)
 	`
 
-	if len(policy.LabelsIncludeAny) > 0 && len(policy.LabelsExcludeAny) > 0 {
-		return ctxerr.New(ctx, "cannot have both labels_include_any and labels_exclude_any on a policy")
+	// Collect include and exclude label names separately
+	var includeNames []string
+	for _, label := range policy.LabelsIncludeAny {
+		includeNames = append(includeNames, label.LabelName)
 	}
-
-	var labelNames []string
-
-	exclude := false
-	if len(policy.LabelsExcludeAny) > 0 {
-		exclude = true
-		for _, label := range policy.LabelsExcludeAny {
-			labelNames = append(labelNames, label.LabelName)
-		}
-	} else {
-		for _, label := range policy.LabelsIncludeAny {
-			labelNames = append(labelNames, label.LabelName)
-		}
+	var excludeNames []string
+	for _, label := range policy.LabelsExcludeAny {
+		excludeNames = append(excludeNames, label.LabelName)
 	}
 
 	if _, err := tx.ExecContext(ctx, deleteLabelsStmt, policy.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting old policy labels")
 	}
 
-	if len(policy.LabelsIncludeAny) == 0 && len(policy.LabelsExcludeAny) == 0 {
+	if len(includeNames) == 0 && len(excludeNames) == 0 {
 		return nil
 	}
 
-	labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, labelNames)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "constructing policy label update query")
+	// Insert include labels (exclude=false)
+	if len(includeNames) > 0 {
+		labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, false, includeNames)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "constructing policy include label query")
+		}
+		res, err := tx.ExecContext(ctx, labelStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating policy include labels")
+		}
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting policy include labels rows affected")
+		}
+		if int(rowsAffected) < len(includeNames) {
+			return ctxerr.New(ctx, "some include labels not found")
+		}
 	}
 
-	res, err := tx.ExecContext(ctx, labelStmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating policy labels")
-	}
-
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing number of policy labels affected")
-	}
-
-	if rowsAffected != int64(len(labelNames)) {
-		return ctxerr.Errorf(ctx, "invalid label")
+	// Insert exclude labels (exclude=true)
+	if len(excludeNames) > 0 {
+		labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, true, excludeNames)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "constructing policy exclude label query")
+		}
+		res, err := tx.ExecContext(ctx, labelStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating policy exclude labels")
+		}
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting policy exclude labels rows affected")
+		}
+		if int(rowsAffected) < len(excludeNames) {
+			return ctxerr.New(ctx, "some exclude labels not found")
+		}
 	}
 
 	return nil

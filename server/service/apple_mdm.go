@@ -338,7 +338,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMConfigProfileResponse{Err: err}, nil
 	}
 	// providing an empty set of labels since this endpoint is only maintained for backwards compat
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, nil, fleet.LabelsIncludeAll)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, nil, fleet.LabelsIncludeAll, nil)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -347,7 +347,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode, excludeLabels []string) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -433,8 +433,15 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		cp.LabelsIncludeAny = labelMap
 	case fleet.LabelsExcludeAny:
 		cp.LabelsExcludeAny = labelMap
-	default:
-		// TODO what happens if mode is not set?s
+	}
+
+	// Handle combined include + exclude labels
+	if len(excludeLabels) > 0 {
+		excludeLabelMap, err := svc.validateProfileLabels(ctx, &teamID, excludeLabels)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating exclude labels")
+		}
+		cp.LabelsExcludeAny = excludeLabelMap
 	}
 
 	// Convert profile variable names to FleetVarName type
@@ -842,7 +849,7 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	return nil
 }
 
-func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode, excludeLabels []string) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -912,6 +919,15 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	default:
 		// default to include all
 		d.LabelsIncludeAll = validatedLabels
+	}
+
+	// Handle combined include + exclude labels
+	if len(excludeLabels) > 0 {
+		excludeValidated, err := svc.validateDeclarationLabels(ctx, excludeLabels, teamID)
+		if err != nil {
+			return nil, err
+		}
+		d.LabelsExcludeAny = excludeValidated
 	}
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)

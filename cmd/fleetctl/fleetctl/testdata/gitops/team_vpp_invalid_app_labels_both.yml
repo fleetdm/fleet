@@ -15,7 +15,7 @@ queries:
 software:
   app_store_apps:
     - app_store_id: "1"
-      labels_exclude_any: 
+      labels_include_all: 
         - "label 1"
       labels_include_any:
         - "label 2"
