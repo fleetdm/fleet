@@ -1740,13 +1740,14 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 	}
 
 	stmt := `
-		INSERT INTO host_dep_assignments (host_id, abm_token_id, mdm_migration_deadline)
+		INSERT INTO host_dep_assignments (host_id, abm_token_id, mdm_migration_deadline, hardware_serial)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
-		  added_at = CURRENT_TIMESTAMP,
-		  deleted_at = NULL,
-		  abm_token_id = VALUES(abm_token_id),
-		  mdm_migration_deadline = VALUES(mdm_migration_deadline)`
+			added_at = CURRENT_TIMESTAMP,
+			deleted_at = NULL,
+			abm_token_id = VALUES(abm_token_id),
+			mdm_migration_deadline = VALUES(mdm_migration_deadline),
+			hardware_serial = VALUES(hardware_serial)`
 
 	args := []interface{}{}
 	values := []string{}
@@ -1755,8 +1756,8 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 		if d, ok := migrationDeadlinesByHostID[host.ID]; ok {
 			deadline = &d
 		}
-		args = append(args, host.ID, abmTokenID, deadline)
-		values = append(values, "(?, ?, ?)")
+		args = append(args, host.ID, abmTokenID, deadline, host.HardwareSerial)
+		values = append(values, "(?, ?, ?, ?)")
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.Join(values, ",")), args...)
@@ -2026,7 +2027,9 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed,
+		       profile_uuid, assign_profile_response, response_updated_at
+		FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
@@ -2034,6 +2037,18 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments")
 	}
 	return &res, nil
+}
+
+func (ds *Datastore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+	var res []*fleet.HostDEPAssignment
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, `
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed
+		FROM host_dep_assignments hdep
+		WHERE hdep.hardware_serial = ? AND hdep.deleted_at IS NULL`, serial)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments by serial")
+	}
+	return res, nil
 }
 
 func (ds *Datastore) SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error {
@@ -3555,8 +3570,8 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 }
 
 // sqlCaseMDMAppleStatus returns a SQL snippet that can be used to determine the status of a host
-// based on the status of its profiles and declarations and filevault status. It should be used in
-// conjunction with sqlJoinMDMAppleProfilesStatus and sqlJoinMDMAppleDeclarationsStatus. It assumes the
+// based on the status of its profiles, declarations, filevault status, and recovery lock status. It should be used in
+// conjunction with sqlJoinMDMAppleProfilesStatus, sqlJoinMDMAppleDeclarationsStatus, and sqlJoinRecoveryLockStatus. It assumes the
 // hosts table to be aliased as 'h' and the host_disk_encryption_keys table to be aliased as 'hdek'.
 func sqlCaseMDMAppleStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
@@ -3570,10 +3585,12 @@ func sqlCaseMDMAppleStatus() string {
 	return `
 	CASE WHEN (prof_failed
 		OR decl_failed
-		OR fv_failed) THEN
+		OR fv_failed
+		OR rl_failed) THEN
 		` + failed + `
 	WHEN (prof_pending
 		OR decl_pending
+		OR rl_pending
 		-- special case for filevault, it's pending if the profile is
 		-- pending OR the profile is verified or verifying but we still
 		-- don't have an encryption key.
@@ -3584,6 +3601,7 @@ func sqlCaseMDMAppleStatus() string {
 		` + pending + `
 	WHEN (prof_verifying
 		OR decl_verifying
+		OR rl_verifying
 		-- special case when fv profile is verifying, and we already have an encryption key, in any state, we treat as verifying
 		OR(fv_verifying
 			AND hdek.base64_encrypted IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable = 1))
@@ -3593,6 +3611,7 @@ func sqlCaseMDMAppleStatus() string {
 		` + verifying + `
 	WHEN (prof_verified
 		OR decl_verified
+		OR rl_verified
 		OR(fv_verified
 			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable = 1)) THEN
 		` + verified + `
@@ -3634,6 +3653,36 @@ func sqlJoinMDMAppleProfilesStatus() string {
 			host_mdm_apple_profiles
 		GROUP BY
 			host_uuid) hmap ON h.uuid = hmap.host_uuid
+`
+}
+
+// sqlJoinRecoveryLockStatus returns a SQL snippet that can be used to join the host_recovery_key_passwords
+// table to the hosts table. For each host, it derives a boolean value for each status category.
+// The value will be 1 if the host has recovery lock in the given status. The snippet assumes the hosts
+// table to be aliased as 'h'. Recovery lock is only applicable to macOS hosts.
+func sqlJoinRecoveryLockStatus() string {
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+	)
+	return `
+	LEFT JOIN (
+		-- recovery lock statuses grouped by host uuid
+		-- NULL status is treated as pending (retry state after failed enqueue)
+		SELECT
+			host_uuid,
+			MAX(IF(status IS NULL OR status = ` + pending + `, 1, 0)) AS rl_pending,
+			MAX(IF(status = ` + failed + `, 1, 0)) AS rl_failed,
+			MAX(IF(status = ` + verifying + `, 1, 0)) AS rl_verifying,
+			MAX(IF(status = ` + verified + `, 1, 0)) AS rl_verified
+		FROM
+			host_recovery_key_passwords
+		WHERE
+			deleted = 0
+		GROUP BY
+			host_uuid) hrlp ON h.uuid = hrlp.host_uuid
 `
 }
 
@@ -3679,6 +3728,7 @@ FROM
 	hosts h
 	%s
 	%s
+	%s
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
 	platform IN('darwin', 'ios', 'ipados') AND %s
@@ -3690,7 +3740,7 @@ GROUP BY
 		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
 	}
 
-	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), teamFilter)
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), sqlJoinRecoveryLockStatus(), teamFilter)
 
 	var dest []struct {
 		Count  uint   `db:"count"`
@@ -4511,7 +4561,7 @@ func (ds *Datastore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *u
 
 	stmt := fmt.Sprintf(`
 SELECT
-	hardware_serial
+	h.hardware_serial
 FROM
 	hosts h
 	JOIN host_dep_assignments hda ON hda.host_id = h.id
@@ -4536,7 +4586,7 @@ func (ds *Datastore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostID
 
 	stmt := `
 SELECT
-	hardware_serial
+	h.hardware_serial
 FROM
 	hosts h
 	JOIN host_dep_assignments hda ON hda.host_id = h.id
@@ -4712,7 +4762,7 @@ SET
 	response_updated_at = CURRENT_TIMESTAMP,
 	retry_job_id = 0
 WHERE
-	hardware_serial IN (?)
+	hosts.hardware_serial IN (?)
 `, setABMTokenID)
 	var args []interface{}
 	var err error
@@ -4811,7 +4861,7 @@ func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (m
 	const stmt = `
 SELECT
 	COALESCE(team_id, 0) AS team_id,
-	hardware_serial
+	h.hardware_serial
 FROM
 	host_dep_assignments
 	JOIN hosts h ON h.id = host_id
@@ -4856,7 +4906,7 @@ JOIN
 SET
 	retry_job_id = ?
 WHERE
-	hardware_serial IN (?)`
+	hosts.hardware_serial IN (?)`
 
 	stmt, args, err := sqlx.In(stmt, jobID, serials)
 	if err != nil {
@@ -4921,6 +4971,9 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		}
 
 		// TODO: Add test coverage for scepRenewalInProgress branching logic.
+		// FIXME: When revisiting scep renewal paths, think about no clear indicator for new enrollment vs only SCEP renewal coming from Authenticate
+		// which is why we call this method, with a distinct false value in TokenUpdate, as that is only where we have a clear indicator
+		// on if it is an old device that was expected to renew but was wiped.
 		if scepRenewalInProgress {
 			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
 			// much more difficult to reason about the state of the host. We should try instead
@@ -4972,6 +5025,15 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting host_mdm_apple_bootstrap_packages")
 			}
+
+			_, err = tx.ExecContext(
+				ctx,
+				"UPDATE nano_enrollments SET hardware_attested = false WHERE id = ? AND enabled = 1",
+				hostUUID,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting hardware_attested")
+			}
 		}
 
 		// reset the enrolled_from_migration value. We only get to this
@@ -4983,7 +5045,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			hostUUID,
 		)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "setting enrolled_from_migration value")
+			return ctxerr.Wrap(ctx, err, "setting enrolled_from_migration")
 		}
 		_, err = tx.ExecContext(
 			ctx,
@@ -4998,17 +5060,37 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 	})
 }
 
-func (ds *Datastore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) ClearHostEnrolledFromMigration(ctx context.Context, hostUUID string) error {
 	const stmt = `
+UPDATE nano_enrollments
+SET enrolled_from_migration = 0
+WHERE id = ? AND enabled = 1 AND enrolled_from_migration = 1`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting enrolled_from_migration value")
+	}
+	return nil
+}
+
+// MDMLockCleanupMinutes is the minimum number of minutes that must have elapsed
+// since unlock_ref was set before CleanAppleMDMLock will clear the lock state.
+// This prevents the trailing Idle check-in (sent by the device right after
+// acknowledging the lock command) from prematurely clearing the lock state.
+const MDMLockCleanupMinutes = 5
+
+func (ds *Datastore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
+	stmt := fmt.Sprintf(`
 UPDATE host_mdm_actions hma
 JOIN hosts h ON hma.host_id = h.id
 SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
 WHERE h.uuid = ? AND (
-	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin')
+	(hma.unlock_ref IS NOT NULL AND hma.unlock_pin IS NOT NULL AND h.platform = 'darwin'
+		AND (STR_TO_DATE(hma.unlock_ref, '%%Y-%%m-%%d %%H:%%i:%%s') IS NULL
+			OR STR_TO_DATE(hma.unlock_ref, '%%Y-%%m-%%d %%H:%%i:%%s') <= UTC_TIMESTAMP() - INTERVAL %d MINUTE))
 	OR (hma.unlock_ref IS NOT NULL AND (h.platform = 'ios' OR h.platform = 'ipados'))
-)`
+)`, MDMLockCleanupMinutes)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up macOS lock")
@@ -6286,16 +6368,16 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 	err error,
 ) {
 	hostsStmt := `
-SELECT 
-	h.id as host_id, 
-	h.uuid as uuid, 
+SELECT
+	h.id as host_id,
+	h.uuid as uuid,
 	hmdm.installed_from_dep,
 	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
 FROM hosts h
 	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
 	INNER JOIN nano_enrollments ne ON ne.id = h.uuid
 	LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
-WHERE 
+WHERE
 	(h.platform = 'ios' OR h.platform = 'ipados')
 	AND TRIM(h.uuid) != ''
 	AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
@@ -6803,6 +6885,126 @@ WHERE (
 	return nil
 }
 
+func (ds *Datastore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+	// Step 1: Get up to 3 old command UUIDs from nano_enrollment_queue for this
+	// enrollment. The PK is (id, command_uuid) so filtering by id first is efficient,
+	// and the LIKE prefix on command_uuid narrows within that enrollment's entries.
+	// 3 may seem like too few but in load testing because of how often this runs it
+	// was found that larger numbers can cause too much contention
+	const selectOldCmds = `
+		SELECT command_uuid FROM nano_enrollment_queue
+		WHERE id = ?
+		  AND command_uuid LIKE ?
+		  AND command_uuid != ?
+		  AND created_at < NOW() - INTERVAL 30 DAY
+		LIMIT 3`
+
+	var oldCmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &oldCmdUUIDs, selectOldCmds, enrollmentID, commandUUIDPrefix+"%", currentCommandUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "select old nano refetch commands")
+	}
+	if len(oldCmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Step 2: From ncr, find which of those command UUIDs have been acknowledged or
+	// errored for this enrollment. The PK (id, command_uuid) makes this efficient
+	// since we provide both id and the command_uuid IN list.
+	selectAckQuery, args, err := sqlx.In(`
+		SELECT command_uuid FROM nano_command_results
+		WHERE id = ? AND command_uuid IN (?) AND status IN ('Acknowledged', 'Error')`,
+		enrollmentID, oldCmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for nano command results")
+	}
+
+	var ackCmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ackCmdUUIDs, selectAckQuery, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select acknowledged nano command results")
+	}
+	if len(ackCmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Step 3: Delete from neq and ncr in the same transaction, scoped to this enrollment. We may not
+	// need to delete in a transaction here but it's the easiest way to ensure we cleanup ncr and further
+	// we absolutely must ensure we don't delete from ncr before deleting from neq to avoid command resends
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		deleteNEQ, delArgs, err := sqlx.In(
+			`DELETE FROM nano_enrollment_queue WHERE id = ? AND command_uuid IN (?)`,
+			enrollmentID, ackCmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete neq query")
+		}
+		if _, err := tx.ExecContext(ctx, deleteNEQ, delArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale nano enrollment queue entries")
+		}
+
+		deleteNCR, delArgs, err := sqlx.In(
+			`DELETE FROM nano_command_results WHERE id = ? AND command_uuid IN (?)`,
+			enrollmentID, ackCmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete ncr query")
+		}
+		if _, err := tx.ExecContext(ctx, deleteNCR, delArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale nano command results entries")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) CleanupOrphanedNanoRefetchCommands(ctx context.Context) error {
+	// Find up to 100 old REFETCH- commands. Note I am doing this as two queries since nano_commands
+	// can be large and I want to make sure in the case of a large number of active commands there's
+	// not going to be a full table scan or something happening. This is a best effort deletion so it
+	// is OK if our sample deletes nothing
+	const selectStmt = `
+		SELECT command_uuid FROM nano_commands nc
+		WHERE nc.command_uuid LIKE 'REFETCH-%'
+		  AND nc.created_at < NOW() - INTERVAL 30 DAY
+		LIMIT 100`
+
+	var cmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "get mdm apple refetch commands")
+	}
+	if len(cmdUUIDs) == 0 {
+		return nil
+	}
+
+	// Delete those that don't have a corresponding entry in nano_enrollment_queue
+	selectOrphanedCommandsStmt := `
+	SELECT command_uuid FROM nano_commands nc
+	WHERE nc.command_uuid IN (?) AND NOT EXISTS (
+		SELECT 1 FROM nano_enrollment_queue neq
+		WHERE neq.command_uuid = nc.command_uuid AND neq.active = 1
+		LIMIT 1
+	)`
+	selectOrphanedCommandsStmt, args, err := sqlx.In(selectOrphanedCommandsStmt, cmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for orphaned refetch commands")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, selectOrphanedCommandsStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "get orphaned refetch commands")
+	}
+	if len(cmdUUIDs) == 0 {
+		return nil
+	}
+
+	deleteOrphanedCommandsStmt := `
+	DELETE FROM nano_commands
+	WHERE command_uuid IN (?)`
+	deleteOrphanedCommandsStmt, args, err = sqlx.In(deleteOrphanedCommandsStmt, cmdUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build IN query for deleting orphaned refetch commands")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedCommandsStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete orphaned refetch commands")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 	stmt := `
 SELECT
@@ -6812,7 +7014,7 @@ FROM
 JOIN
 	host_dep_assignments hdep ON h.id = host_id
 WHERE
-	hardware_serial = ? AND deleted_at IS NULL
+	h.hardware_serial = ? AND deleted_at IS NULL
 LIMIT 1`
 
 	var dest struct {
@@ -7005,30 +7207,27 @@ LIMIT ?
 	return res, nil
 }
 
-func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-	res := []struct {
-		LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
-		LastMDMSeenTime       *time.Time `db:"last_seen_at"`
-	}{}
+func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+	res := []*fleet.NanoMDMEnrollmentDetails{}
 	// We are specifically only looking at the singular device enrollment row and not the
 	// potentially many user enrollment rows that will exist for a given device. The device
 	// enrollment row is the only one that gets regularly updated with the last seen time. Along
 	// those same lines authenticate_at gets updated only at the authenticate step during the
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
 	query := `
-	SELECT nd.authenticate_at, ne.last_seen_at
+	SELECT nd.authenticate_at, ne.last_seen_at, ne.hardware_attested, nd.unlock_token
 	FROM nano_devices nd
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
 
 	if err == sql.ErrNoRows || len(res) == 0 {
-		return nil, nil, nil
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
+		return nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
 	}
-	return res[0].LastMDMEnrollmentTime, res[0].LastMDMSeenTime, nil
+	return res[0], nil
 }
 
 func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error {
@@ -7238,4 +7437,627 @@ func (ds *Datastore) DeleteHostLocationData(ctx context.Context, hostID uint) er
 	`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID)
 	return ctxerr.Wrap(ctx, err, "delete host location data")
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Apple MDM Recovery Lock Password
+
+func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+	if len(passwords) == 0 {
+		return nil
+	}
+
+	// Build values for bulk insert.
+	// Status is set to 'pending' immediately to prevent the host from being picked up
+	// again by the next cron run while the command is being enqueued. If enqueue fails,
+	// ClearRecoveryLockPendingStatus should be called to reset the status to NULL.
+	var args []any
+	for _, p := range passwords {
+		encrypted, err := encrypt([]byte(p.Password), ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
+		}
+		args = append(args, p.HostUUID, encrypted, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	}
+
+	stmt := `
+		INSERT INTO host_recovery_key_passwords (host_uuid, encrypted_password, status, operation_type)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE
+			encrypted_password = VALUES(encrypted_password),
+			status = VALUES(status),
+			operation_type = VALUES(operation_type),
+			error_message = NULL,
+			deleted = 0
+	`
+
+	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?),", len(passwords)), ",")
+	stmt = fmt.Sprintf(stmt, placeholders)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "storing recovery lock passwords")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+	const stmt = `SELECT encrypted_password, updated_at, auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+
+	var row struct {
+		EncryptedPassword []byte     `db:"encrypted_password"`
+		UpdatedAt         time.Time  `db:"updated_at"`
+		AutoRotateAt      *time.Time `db:"auto_rotate_at"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting recovery lock password")
+	}
+
+	decrypted, err := decrypt(row.EncryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
+	}
+
+	return &fleet.HostRecoveryLockPassword{
+		Password:     string(decrypted),
+		UpdatedAt:    row.UpdatedAt,
+		AutoRotateAt: row.AutoRotateAt,
+	}, nil
+}
+
+func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+	const stmt = `
+		SELECT
+			status,
+			operation_type,
+			COALESCE(error_message, '') AS detail,
+			encrypted_password IS NOT NULL AS password_available
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ? AND deleted = 0`
+
+	var row struct {
+		Status            *fleet.MDMDeliveryStatus `db:"status"`
+		OperationType     fleet.MDMOperationType   `db:"operation_type"`
+		Detail            string                   `db:"detail"`
+		PasswordAvailable bool                     `db:"password_available"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting recovery lock password status")
+	}
+
+	// Treat NULL status as pending (retry state after failed command enqueue)
+	status := row.Status
+	if status == nil {
+		status = &fleet.MDMDeliveryPending
+	}
+
+	result := &fleet.HostMDMRecoveryLockPassword{
+		Detail:            row.Detail,
+		PasswordAvailable: row.PasswordAvailable,
+	}
+	result.SetRawStatus(status, row.OperationType)
+	return result, nil
+}
+
+func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error) {
+	// Query hosts that:
+	// - Have enable_recovery_lock_password = true (from team config or appconfig for no-team hosts)
+	// - Are Apple Silicon (ARM CPU)
+	// - Are MDM enrolled (enabled = 1 and device enrollment type)
+	// - Have no recovery lock password record OR have a password with NULL status (command not yet enqueued)
+	// Note: hosts with status pending, verified, or failed are NOT included
+	// Note: hosts with operation_type='remove' are handled by RestoreRecoveryLockForReenabledHosts
+	const stmt = `
+		SELECT h.uuid
+		FROM hosts h
+		JOIN nano_enrollments ne ON ne.device_id = h.uuid
+		JOIN host_mdm hm ON hm.host_id = h.id
+		LEFT JOIN teams t ON t.id = h.team_id
+		CROSS JOIN app_config_json ac
+		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_uuid = h.uuid AND rkp.deleted = 0
+		WHERE h.platform = 'darwin'
+		  AND h.cpu_type LIKE '%arm%'
+		  AND ne.enabled = 1
+		  AND ne.type IN ('Device', 'User Enrollment (Device)')
+		  AND hm.enrolled = 1
+		  AND (
+		      -- Team hosts: check team config
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      OR
+		      -- No-team hosts: check appconfig
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		  )
+		  AND (rkp.host_uuid IS NULL OR rkp.status IS NULL)
+		LIMIT 500
+	`
+
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hosts for recovery lock action")
+	}
+
+	return hostUUIDs, nil
+}
+
+func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error) {
+	// When recovery lock feature is re-enabled for a host that was in "pending remove" state,
+	// we restore it to "verified install" state instead of trying to set a new password.
+	// This is because:
+	// 1. The device still has the old password (ClearRecoveryLock hasn't completed)
+	// 2. Setting a new password would fail (needs current password to change)
+	// 3. The existing password in our DB is still valid for the device
+	//
+	// This handles the edge case where:
+	// 1. Feature was disabled → host marked operation_type='remove'
+	// 2. ClearRecoveryLock command queued but not yet acknowledged
+	// 3. Feature re-enabled → we restore to verified instead of trying to set new password
+	//
+	// We only restore records in recoverable states (pending or NULL status).
+	// Records with status='failed' (e.g., password mismatch) are NOT restored because:
+	// - They represent terminal errors that require admin intervention
+	// - Restoring them would mask the real problem and clear diagnostic error_message
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords rkp
+		JOIN hosts h ON h.uuid = rkp.host_uuid
+		LEFT JOIN teams t ON t.id = h.team_id
+		CROSS JOIN app_config_json ac
+		SET rkp.operation_type = '%s',
+		    rkp.status = '%s',
+		    rkp.error_message = NULL
+		WHERE rkp.deleted = 0
+		  AND rkp.operation_type = '%s'
+		  AND (rkp.status = '%s' OR rkp.status IS NULL)
+		  AND (
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      OR
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		  )
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "restore recovery lock for re-enabled hosts")
+	}
+
+	return result.RowsAffected()
+}
+
+func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    error_message = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`, fleet.MDMDeliveryVerified)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set recovery lock verified")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    error_message = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`, fleet.MDMDeliveryFailed)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set recovery lock failed")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	// Reset status to NULL for hosts that failed to have their commands enqueued.
+	// This allows them to be picked up again on the next cron run.
+	// Only clears status if it's currently 'pending' to avoid overwriting other statuses.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = NULL
+		WHERE host_uuid IN (?)
+		  AND status = '%s'
+		  AND deleted = 0
+	`, fleet.MDMDeliveryPending)
+
+	query, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query for clear recovery lock pending status")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear recovery lock pending status")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error) {
+	// Query hosts that need recovery lock cleared where config has it disabled.
+	// This includes:
+	// 1. New clears: verified passwords (operation_type='install', status='verified')
+	// 2. Retries: previous clear attempt failed (operation_type='remove', status=NULL)
+	// Also applies the same enrollment/platform filters as GetHostsForRecoveryLockAction
+	// to ensure only hosts that can receive MDM commands are claimed.
+	selectStmt := fmt.Sprintf(`
+		SELECT rkp.host_uuid
+		FROM host_recovery_key_passwords rkp
+		JOIN hosts h ON h.uuid = rkp.host_uuid
+		JOIN nano_enrollments ne ON ne.device_id = h.uuid
+		JOIN host_mdm hm ON hm.host_id = h.id
+		LEFT JOIN teams t ON t.id = h.team_id
+		CROSS JOIN app_config_json ac
+		WHERE rkp.deleted = 0
+		  AND h.platform = 'darwin'
+		  AND h.cpu_type LIKE '%%arm%%'
+		  AND ne.enabled = 1
+		  AND ne.type IN ('Device', 'User Enrollment (Device)')
+		  AND hm.enrolled = 1
+		  AND (
+		      (rkp.operation_type = '%s' AND rkp.status = '%s')
+		      OR
+		      (rkp.operation_type = '%s' AND rkp.status IS NULL)
+		  )
+		  AND (
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = false)
+		      OR
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = false)
+		  )
+		LIMIT 500
+		FOR UPDATE
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
+
+	// Update all claimed hosts to remove/pending
+	updateStmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET operation_type = '%s', status = '%s'
+		WHERE host_uuid IN (?)
+	`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+
+	var hostUUIDs []string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, selectStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts for recovery lock clear")
+		}
+
+		if len(hostUUIDs) == 0 {
+			return nil
+		}
+
+		query, args, err := sqlx.In(updateStmt, hostUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build update query")
+		}
+
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark hosts pending for clear")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return hostUUIDs, nil
+}
+
+func (ds *Datastore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string) error {
+	stmt := fmt.Sprintf(`UPDATE host_recovery_key_passwords SET deleted = 1, status = '%s' WHERE host_uuid = ? AND deleted = 0`, fleet.MDMDeliveryVerified)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "soft delete host recovery lock password")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error) {
+	const stmt = `SELECT operation_type FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+
+	var opType fleet.MDMOperationType
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &opType, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return "", ctxerr.Wrap(ctx, err, "get recovery lock operation type")
+	}
+
+	return opType, nil
+}
+
+func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error {
+	encryptedPassword, err := encrypt([]byte(newPassword), ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt pending recovery lock password")
+	}
+
+	// Set the pending password and mark status as pending.
+	// Only allow rotation if:
+	// - Has an existing password (encrypted_password IS NOT NULL)
+	// - Operation type is 'install' (not removing the password)
+	// - Current status is 'verified' or 'failed' (not 'pending' or NULL)
+	// - No pending rotation already (pending_encrypted_password IS NULL)
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET pending_encrypted_password = ?,
+		    pending_error_message = NULL,
+		    status = '%s'
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND encrypted_password IS NOT NULL
+		  AND operation_type = '%s'
+		  AND status IN ('%s', '%s')
+		  AND pending_encrypted_password IS NULL
+	`, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, encryptedPassword, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "initiate recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		// Determine the specific reason for failure
+		var dest struct {
+			HasPassword   bool           `db:"has_password"`
+			HasPending    bool           `db:"has_pending"`
+			Status        sql.NullString `db:"status"`
+			OperationType sql.NullString `db:"operation_type"`
+		}
+		checkStmt := `
+			SELECT
+				encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
+				pending_encrypted_password IS NOT NULL AS has_pending,
+				status,
+				operation_type
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0
+		`
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, checkStmt, hostUUID); err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+					WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+			}
+			return ctxerr.Wrap(ctx, err, "check recovery lock rotation eligibility")
+		}
+
+		if dest.HasPending {
+			return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockRotationPending, fmt.Sprintf("host %s", hostUUID))
+		}
+
+		return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockNotEligible, fmt.Sprintf("host %s (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	// Move pending password to active and clear pending columns.
+	// Also clear auto_rotate_at since rotation is now complete.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET encrypted_password = pending_encrypted_password,
+		    pending_encrypted_password = NULL,
+		    pending_error_message = NULL,
+		    status = '%s',
+		    error_message = NULL,
+		    auto_rotate_at = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryVerified)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "complete recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error {
+	// Mark as failed but keep pending password for potential retry.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    pending_error_message = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryFailed)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fail recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	// Clear pending rotation (e.g., if command enqueue fails).
+	// Only affects rows that were modified by InitiateRecoveryLockRotation
+	// (status = pending AND has pending password).
+	// Restores status to previous state: 'failed' if error_message exists, otherwise 'verified'.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET pending_encrypted_password = NULL,
+		    pending_error_message = NULL,
+		    status = CASE WHEN error_message IS NOT NULL THEN '%s' ELSE '%s' END
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND status = '%s'
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified, fleet.MDMDeliveryPending)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear recovery lock rotation")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET operation_type = '%s', status = '%s', error_message = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset recovery lock for retry")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error) {
+	const stmt = `
+		SELECT
+			host_uuid,
+			encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
+			status,
+			operation_type,
+			pending_encrypted_password IS NOT NULL AS has_pending_rotation,
+			pending_error_message
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`
+
+	var row struct {
+		HostUUID            string  `db:"host_uuid"`
+		HasPassword         bool    `db:"has_password"`
+		Status              *string `db:"status"`
+		OperationType       string  `db:"operation_type"`
+		HasPendingRotation  bool    `db:"has_pending_rotation"`
+		PendingErrorMessage *string `db:"pending_error_message"`
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get recovery lock rotation status")
+	}
+
+	return &fleet.HostRecoveryLockRotationStatus{
+		HostUUID:            row.HostUUID,
+		HasPassword:         row.HasPassword,
+		Status:              row.Status,
+		OperationType:       row.OperationType,
+		HasPendingRotation:  row.HasPendingRotation,
+		PendingErrorMessage: row.PendingErrorMessage,
+	}, nil
+}
+
+func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error) {
+	const stmt = `
+		SELECT pending_encrypted_password IS NOT NULL
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`
+
+	var hasPending bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "has pending recovery lock rotation")
+	}
+
+	return hasPending, nil
+}
+
+func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
+	// Set auto_rotate_at to 1 hour from now when password is viewed.
+	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
+	rotateAt := time.Now().Add(1 * time.Hour)
+
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET auto_rotate_at = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND operation_type = '%s'
+	`, fleet.MDMOperationTypeInstall)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, rotateAt, hostUUID)
+	if err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return time.Time{}, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return rotateAt, nil
+}
+
+func (ds *Datastore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+	// Return hosts where:
+	// - auto_rotate_at is in the past (due for rotation)
+	// - status is verified (password is confirmed working)
+	// - no pending rotation (pending_encrypted_password IS NULL)
+	// - operation_type is install (not in remove state)
+	// - not deleted
+	// Join with hosts table to get host ID and display name for activity logging.
+	stmt := fmt.Sprintf(`
+		SELECT
+			hrkp.host_uuid,
+			h.id AS host_id,
+			COALESCE(NULLIF(h.computer_name, ''), h.hostname) AS display_name
+		FROM host_recovery_key_passwords hrkp
+		JOIN hosts h ON h.uuid = hrkp.host_uuid
+		WHERE hrkp.auto_rotate_at IS NOT NULL
+		  AND hrkp.auto_rotate_at <= NOW(6)
+		  AND hrkp.status = '%s'
+		  AND hrkp.pending_encrypted_password IS NULL
+		  AND hrkp.operation_type = '%s'
+		  AND hrkp.deleted = 0
+		LIMIT 100
+	`, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall)
+
+	var hosts []fleet.HostAutoRotationInfo
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hosts for auto rotation")
+	}
+
+	return hosts, nil
 }

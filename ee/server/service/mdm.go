@@ -219,17 +219,22 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
-	// If the user turned off end user auth and didn't specify lock_end_user_info, turn it off so it does not conflict
-	if didUpdateMacOSEndUserAuth && !ac.MDM.MacOSSetup.EnableEndUserAuthentication && payload.LockEndUserInfo == nil {
-		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
+	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
+		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(ac.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
 	if !ac.MDM.MacOSSetup.EnableEndUserAuthentication && ac.MDM.MacOSSetup.LockEndUserInfo.Value {
-		return fleet.NewUserMessageError(errors.New("Couldn’t enable lock_end_user_info when enable_end_user_authentication is disabled."), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New(`Couldn't edit. "enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`), http.StatusUnprocessableEntity)
 	}
 
 	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
 		ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
+		didUpdate = true
+	}
+
+	if payload.RequireAllSoftwareWindows != nil && ac.MDM.MacOSSetup.RequireAllSoftwareWindows != *payload.RequireAllSoftwareWindows {
+		ac.MDM.MacOSSetup.RequireAllSoftwareWindows = *payload.RequireAllSoftwareWindows
 		didUpdate = true
 	}
 
@@ -250,17 +255,17 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 			}
 			// Otherwise if we got a not found error, we can't enable manual agent install.
 			if *payload.ManualAgentInstall && err != nil {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."), http.StatusUnprocessableEntity)
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting setup experience information")
 			}
 			if sec.Installers != 0 || sec.VPP != 0 {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
 			}
 			if sec.Scripts != 0 {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
 			}
 			ac.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
 			didUpdate = true
@@ -311,12 +316,16 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return fleet.ErrMDMNotConfigured
 	}
 
+	if payload.RequireAllSoftwareWindows != nil && *payload.RequireAllSoftwareWindows && !ac.MDM.WindowsEnabledAndConfigured {
+		return fleet.ErrWindowsMDMNotConfigured
+	}
+
 	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
 		if ac.MDM.EndUserAuthentication.IsEmpty() {
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
 			// config are available
 			return fleet.NewInvalidArgumentError("enable_end_user_authentication",
-				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+				`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`)
 		}
 
 		hasCustomConfigurationWebURL, err := svc.HasCustomSetupAssistantConfigurationWebURL(ctx, payload.TeamID)
@@ -325,7 +334,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		}
 
 		if hasCustomConfigurationWebURL {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
 		}
 	}
 
@@ -1314,7 +1323,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	"Type": %q,
 	"Payload": {
 		"TargetOSVersion": %q,
-		"TargetLocalDateTime": "%sT19:00:00"
+		"TargetLocalDateTime": "%sT12:00:00"
 	}
 }`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
 
@@ -1638,4 +1647,86 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 		}, "validating ABM token")
 	}
 	return encryptedToken, decryptedToken, nil
+}
+
+func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	if fleet.IsApplePlatform(host.Platform) {
+		return svc.clearPasscodeApple(ctx, host, appCfg)
+	}
+
+	return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		Message: "Clearing passcode is only supported on Apple mobile platforms",
+	})
+}
+
+func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (*fleet.CommandEnqueueResult, error) {
+	if !appCfg.MDM.EnabledAndConfigured {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Apple MDM is not enabled and configured",
+		})
+	}
+
+	if !fleet.IsAppleMobilePlatform(host.Platform) {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Clearing passcode is only supported on Apple mobile platforms",
+		})
+	}
+
+	mdmData, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host MDM data")
+	}
+
+	if mdmData.IsPersonalEnrollment {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
+	nanoDetails, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get nanomdm enrollment details")
+	}
+
+	if nanoDetails == nil || nanoDetails.UnlockToken == nil {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
+	commandUUID := uuid.NewString()
+	if err := svc.mdmAppleCommander.ClearPasscode(ctx, []string{host.UUID}, commandUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "clearing passcode")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeClearedPasscode{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for cleared passcode")
+	}
+
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: commandUUID,
+		RequestType: fleet.AppleMDMCommandTypeClearPasscode,
+		Platform:    host.Platform,
+	}, nil
 }

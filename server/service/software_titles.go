@@ -203,11 +203,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 			// Populate FleetMaintainedVersions if this is an FMA
 			if meta != nil && meta.FleetMaintainedAppID != nil {
-				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id)
+				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 				}
 				meta.FleetMaintainedVersions = fmaVersions
+
+				// Populate PatchPolicy if there is one
+				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+				}
+				meta.PatchPolicy = patchPolicy
 			}
 		}
 

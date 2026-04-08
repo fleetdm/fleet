@@ -63,7 +63,7 @@ const BootstrapPackage = ({
     () =>
       mdmAPI.getSetupExperienceSoftware({
         platform: "macos",
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
     {
@@ -109,7 +109,7 @@ const BootstrapPackage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (data) => {
         setSelectedManualAgentInstall(
           getManualAgentInstallSetting(currentTeamId, undefined, data)
@@ -140,8 +140,8 @@ const BootstrapPackage = ({
     try {
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       await mdmAPI.updateSetupExperienceSettings({
-        team_id: currentTeamId,
-        manual_agent_install: false,
+        fleet_id: currentTeamId,
+        macos_manual_agent_install: false,
       });
       renderFlash("success", "Successfully deleted.");
     } catch {

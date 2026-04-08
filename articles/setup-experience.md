@@ -23,12 +23,12 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL. If this URL is set incorrectly, end users won't be able to enroll. On iOS hosts, they'll see a "This screen size is not supported yet" error message.
 
 2. In your new SAML app, set **Name ID** to email (required). Fleet will trim this email and use it
-   to populate and lock the macOS local account **Account Name**. For example, a
+   to populate the macOS local account **Account Name**. For example, a
    "johndoe@example.com" email will turn into a "johndoe" account name.
 
 > If the host is restarted during automatic enrollment (DEP), the macOS local account fields won't be populated with the user's IDP email and username.
 
-3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
+3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate the macOS local account **Full Name** with any of these.
 
 4. In Fleet, configure your IdP by heading to **Settings > Integrations > Single sign-on (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
 
@@ -40,7 +40,7 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 
 To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
-Currently, a custom EULA is only supported for macOS hosts.
+Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business Manager (ABM).
 
 ## Bootstrap package
 
@@ -127,7 +127,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 1. Head to the **Controls > Setup experience > Bootstrap package** page.
 
-2. Choose which team you want to add the bootstrap package to by selecting the desired team in the teams dropdown in the upper left corner.
+2. Choose which fleet you want to add the bootstrap package to by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
 3. Select **Upload** and choose your bootstrap package.
 
@@ -147,13 +147,11 @@ Add setup experience software:
 
 To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM)
 
-> Currently, if Android software is deleted from **Setup experience > Install software**, it still gets installed when Android hosts enroll. We'll improve this in [#36859](https://github.com/fleetdm/fleet/issues/36859).
-
 ### Retries
 
-For macOS, Windows, and Linux hosts, software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
+For macOS, Windows, and Linux hosts, custom packages and Fleet-maintained app installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
 
-Retries only happen for custom packages and Fleet-maintained apps. For App Store (VPP) apps, the MDM command to install the app is sent once and either succeeds or fails.
+For App Store (VPP) apps, VPP app installs are automatically attempted up to 4 times (1 initial attempt + 3 retries).
 
 #### Stop setup on failed software installs
 
@@ -199,6 +197,8 @@ The Fleet setup experience for macOS will exit if any of the following occurs:
 * All setup steps complete, including failed installs or script runs, with the "Cancel setup if software install fails" option _not_ enabled (see ["Blocking setup on failed software installs"](https://fleetdm.com/guides/macos-setup-experience#install-software)).
 * The user presses Command (⌘) + Shift + X at any time during the setup process.
 
+> If the end user is stuck, you can send the [DeviceConfigured](https://developer.apple.com/documentation/devicemanagement/device-configured-command) using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the user through.
+
 ## Setup Assistant
 
 When an end user unboxes their new Apple device, or starts up a freshly wiped device, they're presented with the Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
@@ -233,7 +233,7 @@ To customize the Setup Assistant, we will do the following steps:
 
 1. Head to the **Controls > Setup experience > Setup Assistant** page.
 
-2. Choose which team you want to add the profile to by selecting the desired team in the teams dropdown in the upper left corner.
+2. Choose which fleet you want to add the profile to by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
 3. Select **Add profile** and choose your profile package.
 
@@ -247,7 +247,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
   > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." See our [automatic enrollment guide](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager) for more information.
 
-3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
+3. Transfer this host to a test fleet by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the test fleet and select **Transfer**.
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
 

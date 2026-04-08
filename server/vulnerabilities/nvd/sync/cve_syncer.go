@@ -528,12 +528,26 @@ func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 		for configID := range item.CVE.Configurations {
 			for nodeID := range item.CVE.Configurations[configID].Nodes {
 				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
-					item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID].Criteria =
-						strings.ReplaceAll(
-							item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID].Criteria,
-							"docker_desktop",
-							"desktop",
-						)
+					item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID].Criteria = strings.ReplaceAll(
+						item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID].Criteria,
+						"docker_desktop",
+						"desktop",
+					)
+				}
+			}
+		}
+	}
+
+	// This corrects the resolved-in version to what Citrix actually reports it is
+	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2024-6286" {
+		for configID := range item.CVE.Configurations {
+			for nodeID := range item.CVE.Configurations[configID].Nodes {
+				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
+					match := &item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID]
+					if strings.Contains(match.Criteria, ":ltsr:") &&
+						match.VersionEndExcluding != nil && *match.VersionEndExcluding == "2203.1" {
+						match.VersionEndExcluding = ptr.String("2402")
+					}
 				}
 			}
 		}

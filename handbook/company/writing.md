@@ -58,6 +58,7 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
             - `podcasts` - Episodes of Fleet's podcast. Articles in this category are available at [fleetdm.com/podcasts](/podcasts)
             - `comparison` - Articles that present a comparison between Fleet and a competing product. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
             - `articles` - A catch-all category for articles and blog posts that do not fit into other categories. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
+            - `whitepaper` - Articles that offer a downloadable PDF that is gated behind the user filling out a form. Articles in this category are available at [fleetdm.com/whitepapers](/whitepapers)
     - `publishedOn`:  An ISO 8601 formatted date (YYYY-MM-DD) of the articles publish date. If the article is a guide, this value should be updated whenever a change to the guide is made.
 - Optional meta tags:
     - `articleImageUrl`: A relative link to a cover image for the article used for social share previews. If provided, the image needs to live in the /website/assets/images/articles folder. 
@@ -128,9 +129,8 @@ Case study articles use a separate article template that requires additional `<m
 
 Comparison articles use a separate article template that requires additional `<meta>` tags to populate content outside of the Markdown article.
 
-- Required `<meta>` tags:
-  - `articleSubtitle` - The text content of the smaller heading that is above the article's title on the comparison article template. Example: "How to choose the right MDM" 
-  - `introductionTextBlockOne` - The introduction paragraph for the comparison. This is a required meta tag because the introduction, article title, and article subtitle are displayed above the Markdown content of comparison articles.
+- Required `<meta>` tags: 
+  - `introductionTextBlockOne` - The introduction paragraph for the comparison. This is a required meta tag because the article title and introduction text is displayed above the Markdown content of comparison articles.
   - `articleSlugInCategory` - The URL slug of the comparison article after `fleetdm.com/compare`. i.e., If an article has a `articleSlugInCategory` value set to `jamf`, it will be available at `fleetdm.com/compare/jamf` .
 - Optional `<meta>` tags: 
   - `introductionTextBlockTwo` - A optional second introduction paragraph for the comparison. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
@@ -149,6 +149,33 @@ Comparison articles use a separate article template that requires additional `<m
 <meta name="articleSlugInCategory" value="jamf"> 
 <meta name="introductionTextBlockOne" value="Organizations managing Apple devices face a choice: pick one of a number of available Apple device management solutions, or, a solution with multi-platform capabilities."> 
 <meta name="introductionTextBlockTwo" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria."> 
+```
+
+
+### Whitepaper article meta tags
+
+Whitepaper articles use a separate article template that requires additional `<meta>` tags to populate content outside of the Markdown article.
+
+- Required `<meta>` tags:
+  - `whitepaperFilename`: The filename of the whitepaper PDF in the `website/assets/pdfs/` folder. Used to download the whitepaper after a user fills out the form on the whitepaper template page.
+  - `introductionTextBlockOne`: The introduction paragraph for the comparison. This is a required meta tag because the article title and introduction are displayed above the Markdown content of whitepaper articles.
+  - `articleImageUrl`: A relative link to a cover image for the whitepaper. The specified image is placed next to the article title on the whitepaper article template page.
+- Optional `<meta>` tags:
+  - `introductionTextBlockTwo` - A optional second introduction paragraph for the whitepaper. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
+
+**Example whitepaper article meta tag section**
+
+```
+<meta name="articleTitle" value="Modern endpoint management: Managing devices as code"> 
+<meta name="authorFullName" value="n/a">
+<meta name="authorGitHubUsername" value="fleet-release">
+<meta name="category" value="whitepaper">
+<meta name="publishedOn" value="2026-03-09">
+<meta name="description" value="Learn how modern IT teams manage devices as code using Infrastructure as Code and GitOps to scale device management and improve security.">
+<meta name="articleImageUrl" value="../website/assets/images/articles/modern-endpoint-management-managing-devices-as-code-cover-image-504x336@2x.png">
+<meta name="whitepaperFilename" value="fleet-modern-endpoint-device-management-managing-devices-as-code.pdf"> 
+<meta name="introductionTextBlockOne" value="Traditional device management does not scale. Teams still rely on manual updates, GUI tools, and scattered inventories."> 
+<meta name="introductionTextBlockTwo" value="Modern IT teams treat device management like software engineering. They define device state in code, review changes in Git, and deploy updates automatically.">
 ```
 
 
@@ -294,7 +321,7 @@ Fleet’s writing style is clear, simple, and welcoming. We use short sentences,
 
 We avoid "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)". For engineers, replace hype with real data. For business readers, translate it into clear outcomes such as time saved or return on investment. Links are better than long explanations, since they keep content short and point people to more detail when they need it.
 
-Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communications#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
+Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/writing#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
 
 When in doubt, simplify. Read your draft, cut unnecessary words, and make it shorter. If something feels confusing, rewrite until it feels obvious.
 

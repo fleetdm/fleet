@@ -7,7 +7,9 @@ assignees: ''
 
 ---
 
-**Fleet version**: <!-- Copy this from the "My account" page in the Fleet UI, or run `fleetctl --version` -->
+**Fleet versions** <!-- Copy this from the "My account" page in the Fleet UI, or run `fleetctl --version` -->
+  - *Discovered:* <!-- Fleet version where the issue was first observed -->
+  - *Reproduced:* <!-- Fleet version where the issue was successfully reproduced/confirmed -->
 
 **Web browser and operating system**: <!-- e.g. Chrome 88.0.4324 running on macOS -->
 

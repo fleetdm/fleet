@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import { AxiosError } from "axios";
@@ -24,6 +24,7 @@ import TurnOffAppleMdmModal from "./components/modals/TurnOffAppleMdmModal";
 export const baseClass = "apple-mdm-page";
 
 const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
+  const queryClient = useQueryClient();
   const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -68,13 +69,14 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
     toggleTurnOffMdmModal();
     try {
       await mdmAppleAPI.deleteApplePushCertificate();
+      await queryClient.invalidateQueries(["config"]);
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
       renderFlash("success", "MDM turned off successfully.");
     } catch (e) {
       renderFlash("error", "Couldn't turn off MDM. Please try again.");
       setIsUpdating(false);
     }
-  }, [renderFlash, router]);
+  }, [queryClient, renderFlash, router]);
 
   const onRenewCert = useCallback(() => {
     refetch();

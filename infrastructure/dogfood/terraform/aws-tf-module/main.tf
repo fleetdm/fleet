@@ -80,6 +80,8 @@ locals {
     # Webhook Results & Status Logging Destination
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
     FLEET_SERVER_GZIP_RESPONSES     = "true"
+    # https://github.com/fleetdm/fleet/issues/38366
+    FLEET_MDM_ALLOW_ALL_DECLARATIONS = "true"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path
@@ -142,16 +144,21 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.18.3"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.21.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
   }
   rds_config = {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
-    name                         = local.customer
-    engine_version               = "8.0.mysql_aurora.3.08.2"
-    snapshot_identifier          = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
+    name                         = "${local.customer}-1"
+    engine_version               = "8.0.mysql_aurora.3.10.3"
+    restore_to_point_in_time = {
+      source_cluster_identifier = local.customer
+      restore_to_time           = "2026-03-09T22:40:59Z"
+    }
+    # snapshot_identifier          = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
+
     db_parameters = {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
@@ -553,7 +560,7 @@ module "monitoring" {
     mysql_host                 = module.main.byo-vpc.rds.cluster_reader_endpoint
     mysql_database             = module.main.byo-vpc.rds.cluster_database_name
     mysql_user                 = module.main.byo-vpc.rds.cluster_master_username
-    mysql_password_secret_name = "${local.customer}-database-password"
+    mysql_password_secret_name = "${local.customer}-1-database-password"
     mysql_tls_config           = "true"
     rds_security_group_id      = module.main.byo-vpc.rds.security_group_id
     subnet_ids                 = module.main.vpc.private_subnets

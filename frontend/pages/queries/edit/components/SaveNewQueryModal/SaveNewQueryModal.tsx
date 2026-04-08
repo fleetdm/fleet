@@ -187,7 +187,7 @@ const SaveNewQueryModal = ({
         // from previous New query page
         query: queryValue,
         // from doubly previous ManageQueriesPage
-        team_id: apiTeamIdForQuery,
+        fleet_id: apiTeamIdForQuery,
         labels_include_any:
           selectedTargetType === "Custom"
             ? Object.entries(selectedLabels)
@@ -311,8 +311,8 @@ const SaveNewQueryModal = ({
         <RevealButton
           isShowing={showAdvancedOptions}
           className="advanced-options-toggle"
-          hideText="Hide advanced options"
-          showText="Show advanced options"
+          hideText="Advanced options"
+          showText="Advanced options"
           caretPosition="after"
           onClick={toggleAdvancedOptions}
         />

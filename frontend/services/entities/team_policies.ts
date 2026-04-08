@@ -11,6 +11,14 @@ import {
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { GlobalPoliciesAutomationType } from "./global_policies";
+
+export type AutomationType =
+  | "software"
+  | "scripts"
+  | "calendar"
+  | "conditional_access"
+  | "other";
 
 interface IPoliciesApiQueryParams {
   page?: number;
@@ -18,6 +26,7 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+  automationType?: AutomationType | GlobalPoliciesAutomationType;
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
@@ -30,7 +39,10 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId" | "mergeInherited"> {
+  extends Pick<
+    IPoliciesApiParams,
+    "query" | "teamId" | "mergeInherited" | "automationType"
+  > {
   scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
 }
 
@@ -38,6 +50,7 @@ export interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
   mergeInherited?: boolean;
+  automationType?: AutomationType;
 }
 
 const ORDER_KEY = "name";
@@ -67,6 +80,8 @@ export default {
       software_title_id,
       labels_include_any,
       labels_exclude_any,
+      type,
+      patch_software_title_id,
       // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
@@ -82,6 +97,8 @@ export default {
       software_title_id,
       labels_include_any,
       labels_exclude_any,
+      type,
+      patch_software_title_id,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -151,6 +168,7 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     mergeInherited,
+    automationType,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -161,6 +179,7 @@ export default {
       orderDirection: orderDir,
       query,
       mergeInherited,
+      automationType,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -172,15 +191,17 @@ export default {
     query,
     teamId,
     mergeInherited = true,
+    automationType,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId" | "mergeInherited"
+    "query" | "teamId" | "mergeInherited" | "automationType"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
     const queryParams = {
       query,
       mergeInherited,
+      automationType,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

@@ -192,7 +192,7 @@ const SelectTargets = ({
     ({ queryKey }) => {
       const { query_id, query, selected } = queryKey[0];
       return targetsAPI.search({
-        query_id: query_id || null,
+        report_id: query_id || null,
         query: query || "",
         excluded_host_ids: selected?.hosts || null,
       });
@@ -223,7 +223,10 @@ const SelectTargets = ({
     ],
     ({ queryKey }) => {
       const { query_id, selected } = queryKey[0];
-      return targetsAPI.count({ query_id, selected: selected || null });
+      return targetsAPI.count({
+        report_id: query_id,
+        selected: selected || null,
+      });
     },
     {
       enabled: !!selectedTargets.length,
@@ -543,6 +546,8 @@ const SelectTargets = ({
   const shouldDisableForObserver = (teamId: number): boolean => {
     if (isLivePolicy) return true;
     if (!isObserverCanRunQuery) return true;
+    // observer_can_run is scoped to the query's own team; plain observers cannot
+    // target teams other than the one the query belongs to.
     if (queryTeamId != null && queryTeamId !== teamId) return true;
     return false;
   };

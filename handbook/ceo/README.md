@@ -13,12 +13,11 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
-**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
-
+You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
 
 ## Responsibilities
 
-Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, human resources, legal counsel, signatures on all documents, and brand &amp; product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
+Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, product vision, signatures on many documents, and brand strategy.
 
 > **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
@@ -40,7 +39,7 @@ Time management for the CEO is essential.  The Executive Assistant processes the
   1. Double-book temporarily with a "UNCONFIRMED" calendar block so that the CEO ignores it and doesn't spend time trying to figure out what it is.
   2. Go to the organizer (or nearest fleetie who's not the CEO):
     - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
-    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Savannah before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Savannah before booking](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
 
@@ -79,14 +78,17 @@ To check for pending connect requests, perform the following steps:
 ### Add LinkedIn connections to CRM
 
 To add the most recent connections from Linkedin to our CRM, follow these steps:
-  1. Log into the CEO's LinkedIn (if you're not already) and click "My Network", then "Connections" and open each person's LinkedIn page in a new tab.
-  2. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
-  3. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
-  4. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
-  5. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
-  6. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
-  7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
-  8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
+  1. Log into the CEO's LinkedIn (if you're not already).
+  2. Click "My Network".
+  3. Click "Connections".
+  4. Open each person's LinkedIn page in a new tab.
+  5. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
+  6. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
+  7. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
+  8. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
+  9. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
+  10. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
+  11. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
 
 
 ### Connect with active community members
@@ -143,8 +145,11 @@ The CEO's calendar should reflect the following schedule for travel:
  - Location: Address to destination
  - Calendar event name if CEO is going home: Travel home
 - If the CEO is checking into a hotel, they need a time block to check-in,
+ - If the CEO will arrive to the hotel before their check-in time, call the hotel ahead of time to request early check-in. If early check-in is not available, schedule the check-in time block at the hotel's check-in time.
+ - If the hotel says early check-in is possible, but depends on the hotel's availability, have the CEO try to check-in. 
  - 30 minutes
  - Calendar event: Check-in at hotel
+ - Calednar event for CEO to try and check-in: Try to check-in
 
 
 ### Schedule CEO interview

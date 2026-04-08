@@ -24,7 +24,7 @@ func TestGetLatest(t *testing.T) {
 		_, err = w.Write(b)
 		require.NoError(t, err)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
 
 	// test the function
@@ -225,11 +225,8 @@ func TestRetries(t *testing.T) {
 		_, err := w.Write([]byte(`{"error": "bad request"}`))
 		require.NoError(t, err)
 	}))
-	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL)
-	t.Cleanup(func() {
-		srv.Close()
-		dev_mode.ClearOverride("FLEET_DEV_GDMF_URL")
-	})
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
 
 	latest, err := GetLatestOSVersion(fleet.MDMAppleMachineInfo{
 		OSVersion:                "14.4.1",

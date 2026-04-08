@@ -17,7 +17,7 @@ For example:
 
 * **Operating systems**: You can enforce OS updates with Declarative Device Management (DDM), Nudge, and Windows Update from one console.
 * **Automated enrollment**: Drop-ship devices to your end users with Apple Business Manager or Autopilot and let them set up their own accounts. No IT help is needed.
-* **Config management**: Manage settings with configuration profiles for Apple and device profiles for Windows. Use a canary team to test changes before they go live.
+* **Config management**: Manage settings with configuration profiles for Apple and device profiles for Windows. Use labels to test changes before they go live.
 * **App management**: Automatically keep applications and plugins secure and up-to-date. Install the software end users need or let them install it themselves via self-service.
 * **Scripts and events**: Easily manage and version control your custom script library. Execute shell and PowerShell scripts when computers drift from the baseline.
 * **Keep up with Apple**: Fleet's team and community stay current on the latest features and releases from all supported platform vendors, not just Apple.

@@ -1,12 +1,23 @@
 # Unlocking Linux productivity: securing apps and updating certificates
 
+### Links to article series:
+
+- Part 1: [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026)
+- Part 2: [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-linux-desktop-in-the-enterprise)
+- Part 3: [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux)
+- Part 4: Unlocking Linux productivity: securing apps and updating certificates
+- Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
+- Part 6: [Data and Endpoint Sovereignty: Owning Your Destiny](https://fleetdm.com/articles/data-and-endpoint-sovereignty-owning-your-destiny)
+
+-----
+
 Computers are not intrinsically productive or secure. Their value comes from trusted applications deployed on them and the certificates that underpin connectivity. With a hardened baseline and compliance policies in place, the next layer of enterprise Linux management addresses two challenges: fragmented software distribution and shrinking certificate lifetimes. Let's look at software inventory and patching, certificate lifecycle pressures, and practical approaches to managing both.
 
 ## The software distribution maze
 
 If you manage Linux workstations, you know there's no single package format or unified app store. Debian-based systems use `apt`, Red Hat-based systems use `dnf,` and SUSE uses Zypper. Then there's Flatpak, Snap, and AppImage on top. Compare this with macOS or Windows, where software distribution is more standardized. On Linux, there's no single ecosystem, so teams that support multiple Linux distributions must manage across all of them simultaneously.
 
-This fragmentation creates real challenges. Each package manager resolves dependencies differently. Each distribution maintains its own repositories with its own release schedules. When your team installs a library from a third-party PPA or compiles software from source, that package often falls outside any centralized tracking. A vulnerability in a shared library can affect dozens of applications, but only if you know which devices have it installed.
+This fragmentation creates real challenges. Each package manager resolves dependencies differently. Each distribution maintains its own repositories with its own release schedules. When your team installs a library from a third-party PPA or compiles software from source, that package often falls outside any centralized tracking. A vulnerability in a shared library can affect dozens of applications, increasing risk if you don't know which devices have it installed.
 
 ## The software chain of trust
 
@@ -50,11 +61,11 @@ Starting now with visibility into what's deployed and when it expires gives you 
 
 If you're evaluating ways to tighten Linux software and certificate hygiene, [try Fleet on Linux](https://fleetdm.com/) to see how inventory, targeted updates, and certificate-related scripting can fit into your existing workflows.
 
-The next article in this series will cover protecting the device itself: how remote lock and wipe for lost or stolen Linux workstations, peripheral and port governance, and local identity management (including the persistent "sudo problem") help bring Linux device security closer to what enterprises already expect from macOS and Windows.
+The [next article](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo) in this series will cover protecting the device itself: how remote lock and wipe for lost or stolen Linux workstations, peripheral and port governance, and local identity management (including the persistent "sudo problem") help bring Linux device security closer to what enterprises already expect from macOS and Windows.
 
 <meta name="articleTitle" value="Unlocking Linux productivity: securing apps and updating certificates">  
 <meta name="authorFullName" value="Ashish Kuthiala">  
 <meta name="authorGitHubUsername" value="akuthiala">  
 <meta name="category" value="articles">  
-<meta name="publishedOn" value="2026-03-05">  
-<meta name="description" value="Chapter 4 of Protecting Linux endpoints series">
+<meta name="publishedOn" value="2026-03-04">  
+<meta name="description" value="Part 4 of 6 in the 'Protecting Linux endpoints with modern device management' article series.">

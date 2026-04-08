@@ -45,6 +45,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Show Recovery Lock password",
+    value: "recoveryLockPassword",
+    disabled: false,
+  },
+  {
     label: "Turn off MDM",
     value: "mdmOff",
     disabled: false,
@@ -65,6 +70,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Clear passcode",
+    value: "clearPasscode",
+    disabled: false,
+  },
+  {
     label: "Delete",
     disabled: false,
     value: "delete",
@@ -73,6 +83,7 @@ const DEFAULT_OPTIONS = [
 
 interface IHostActionConfigOptions {
   hostPlatform: string;
+  hostCpuType: string;
   isPremiumTier: boolean;
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
@@ -94,6 +105,9 @@ interface IHostActionConfigOptions {
   scriptsGloballyDisabled: boolean | undefined;
   isPrimoMode: boolean;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
+  isRecoveryLockPasswordEnabled: boolean;
+  diskEncryptionProfileStatus: string | undefined;
+  recoveryLockPasswordAvailable: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -279,6 +293,67 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   return doesStoreEncryptionKey;
 };
 
+const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    hostPlatform,
+    hostCpuType,
+    isRecoveryLockPasswordEnabled,
+  } = config;
+  if (!isPremiumTier) {
+    return false;
+  }
+  if (hostPlatform !== "darwin") {
+    return false;
+  }
+  // permissive by default - only remove option if we know the host's cpu type and it is not arm64
+  if (hostCpuType !== "" && !hostCpuType.includes("arm64")) {
+    return false;
+  }
+  if (!isConnectedToFleetMdm) {
+    return false;
+  }
+  return isRecoveryLockPasswordEnabled;
+};
+
+const canClearPasscode = (config: IHostActionConfigOptions) => {
+  if (!config.isPremiumTier) {
+    return false;
+  }
+
+  if (!isIPadOrIPhone(config.hostPlatform)) {
+    return false;
+  }
+
+  if (!config.isEnrolledInMdm) {
+    return false;
+  }
+
+  if (!config.isConnectedToFleetMdm) {
+    return false;
+  }
+
+  if (!config.isMacMdmEnabledAndConfigured) {
+    return false;
+  }
+
+  if (
+    config.hostMdmEnrollmentStatus !== "On (company-owned)" &&
+    config.hostMdmEnrollmentStatus !== "On (automatic)" &&
+    config.hostMdmEnrollmentStatus !== "On (manual)"
+  ) {
+    return false;
+  }
+
+  return (
+    config.isGlobalAdmin ||
+    config.isGlobalMaintainer ||
+    config.isTeamAdmin ||
+    config.isTeamMaintainer
+  );
+};
+
 const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
@@ -315,6 +390,16 @@ const removeUnavailableOptions = (
 
   if (!canShowDiskEncryption(config)) {
     options = options.filter((option) => option.value !== "diskEncryption");
+  }
+
+  if (!canShowRecoveryLockPassword(config)) {
+    options = options.filter(
+      (option) => option.value !== "recoveryLockPassword"
+    );
+  }
+
+  if (!canClearPasscode(config)) {
+    options = options.filter((option) => option.value !== "clearPasscode");
   }
 
   if (!canTurnOffMdm(config)) {
@@ -402,6 +487,8 @@ const modifyOptions = (
     hostScriptsEnabled,
     hostPlatform,
     scriptsGloballyDisabled,
+    diskEncryptionProfileStatus,
+    recoveryLockPasswordAvailable,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -475,6 +562,59 @@ const modifyOptions = (
         )
       );
     }
+  }
+  if (
+    diskEncryptionProfileStatus === "pending" ||
+    diskEncryptionProfileStatus === "failed"
+  ) {
+    const diskEncOption = options.find(
+      (option) => option.value === "diskEncryption"
+    );
+    if (diskEncOption) {
+      diskEncOption.disabled = true;
+      diskEncOption.tooltipContent = (
+        <>
+          Disk encryption key is unavailable
+          <br />
+          while pending or has failed.
+        </>
+      );
+    }
+  }
+
+  if (!recoveryLockPasswordAvailable) {
+    const rlpOption = options.find(
+      (option) => option.value === "recoveryLockPassword"
+    );
+    if (rlpOption) {
+      rlpOption.disabled = true;
+      rlpOption.tooltipContent = (
+        <>
+          Recovery Lock password is unavailable
+          <br />
+          while pending or has failed.
+        </>
+      );
+    }
+  }
+
+  const clearPasscodeOption = options.find(
+    (option) => option.value === "clearPasscode"
+  );
+  if (
+    clearPasscodeOption &&
+    ["locked", "locking", "unlocking", "locating"].includes(hostMdmDeviceStatus)
+  ) {
+    clearPasscodeOption.disabled = true;
+    clearPasscodeOption.tooltipContent =
+      "Clear passcode is unavailable while host is in Lost Mode.";
+  } else if (
+    clearPasscodeOption &&
+    ["wiped", "wiping"].includes(hostMdmDeviceStatus)
+  ) {
+    clearPasscodeOption.disabled = true;
+    clearPasscodeOption.tooltipContent =
+      "Clear passcode is unavailable while host is pending wipe.";
   }
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);

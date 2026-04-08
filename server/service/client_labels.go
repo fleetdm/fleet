@@ -24,7 +24,7 @@ func (c *Client) ApplyLabels(
 			verb,
 			path,
 			&responseBody,
-			fmt.Sprintf("team_id=%d", *teamID),
+			fmt.Sprintf("fleet_id=%d", *teamID),
 		)
 	}
 	return c.authenticatedRequest(req, verb, path, &responseBody)
@@ -42,7 +42,7 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 func (c *Client) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/latest/fleet/spec/labels"
 	var responseBody getLabelSpecsResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("team_id=%d", teamID))
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("fleet_id=%d", teamID))
 	return responseBody.Specs, err
 }
 

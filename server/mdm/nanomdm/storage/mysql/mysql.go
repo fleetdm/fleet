@@ -158,6 +158,7 @@ UPDATE
     authenticate_at = CURRENT_TIMESTAMP;`,
 		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw,
 	)
+
 	return err
 }
 
@@ -221,12 +222,17 @@ func (s *MySQLStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) er
 	if err != nil {
 		return err
 	}
+	var certSerial int64
+	if r.Certificate != nil {
+		certSerial = r.Certificate.SerialNumber.Int64()
+	}
 	_, err = s.db.ExecContext(
 		r.Context, `
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally, hardware_attested)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)
+	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1,
+	 EXISTS(SELECT 1 FROM acme_orders WHERE issued_certificate_serial = ?))
 ON DUPLICATE KEY
 UPDATE
     device_id = VALUES(device_id),
@@ -237,7 +243,8 @@ UPDATE
     token_hex = VALUES(token_hex),
     enabled = 1,
     last_seen_at = CURRENT_TIMESTAMP,
-    token_update_tally = nano_enrollments.token_update_tally + 1;`,
+    token_update_tally = nano_enrollments.token_update_tally + 1,
+	hardware_attested = VALUES(hardware_attested);`,
 		r.ID,
 		deviceId,
 		nullEmptyString(userId),
@@ -245,6 +252,7 @@ UPDATE
 		msg.Topic,
 		msg.PushMagic,
 		msg.Token.String(),
+		certSerial,
 	)
 	return err
 }
@@ -347,4 +355,14 @@ func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
 func (s *MySQLStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
 	s.logger.ErrorContext(ctx, "MySQLStorage.ExpandEmbeddedSecrets not implemented")
 	return document, nil
+}
+
+func (s *MySQLStorage) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	s.logger.ErrorContext(ctx, "MySQLStorage.ExpandHostSecrets not implemented")
+	return document, nil
+}
+
+func (s *MySQLStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	s.logger.ErrorContext(ctx, "MySQLStorage.SetRecoveryLockFailed not implemented")
+	return nil
 }

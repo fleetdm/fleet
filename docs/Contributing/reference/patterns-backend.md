@@ -59,10 +59,10 @@ See [the migration test in PR #28601](https://github.com/fleetdm/fleet/pull/2860
 and [the test added in PR #30578](https://github.com/fleetdm/fleet/pull/30578/files#diff-124b43a1afae8960d4eb3765b2a5d5525c5ffba57c9b59ff78eb6cd222532e1c)
 for examples of multi-host automated testing added to validate P0 bugfixes.
 
-#### Multiple teams
+#### Multiple fleets
 
-Use multiple teams in your automated tests and manual QA. Make sure your code works as expected for the `No team` team, as well as for "All teams" (when relevant).
-For example, aggregate counts/stats should factor in teams when being calculated.
+Use multiple fleets in your automated tests and manual QA. Make sure your code works as expected for the "Unassigned" fleet, as well as for "All fleets" (when relevant).
+For example, aggregate counts/stats should factor in fleets when being calculated.
 
 #### Assert vs require
 
@@ -185,5 +185,5 @@ Common issues and gotchas:
 - Few integration tests. GitOps is a complex feature with an extensive state space because many settings interact. At the same time, setting
   up a test environment for GitOps is difficult. As we work on GitOps, we need to add more integration tests and develop testing utilities
   to make adding future integration tests easier.
-- GitOps admin can define settings in `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`. Create unit tests for all these cases
+- GitOps admin can define settings in `default.yml`, `fleets/fleet-name.yml`, or `fleets/unassigned.yml`. Create unit tests for all these cases
   for features that support them.

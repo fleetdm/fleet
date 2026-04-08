@@ -17,7 +17,7 @@ func (ds *Datastore) ListOperatingSystems(ctx context.Context) ([]fleet.Operatin
 
 func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]fleet.OperatingSystem, error) {
 	var os []fleet.OperatingSystem
-	if err := sqlx.SelectContext(ctx, tx, &os, `SELECT id, name, version, arch, kernel_version, platform, display_version, os_version_id FROM operating_systems`); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &os, `SELECT id, name, version, arch, kernel_version, platform, display_version, installation_type, os_version_id FROM operating_systems`); err != nil {
 		return nil, err
 	}
 	return os, nil
@@ -26,7 +26,7 @@ func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]flee
 func (ds *Datastore) ListOperatingSystemsForPlatform(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
 	var oses []fleet.OperatingSystem
 	sqlStatement := `
-		SELECT id, name, version, arch, kernel_version, platform, display_version, os_version_id
+		SELECT id, name, version, arch, kernel_version, platform, display_version, installation_type, os_version_id
 		FROM operating_systems
 		WHERE platform = ?
 	`
@@ -88,8 +88,8 @@ func newOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.
 		return nil, ctxerr.Wrap(ctx, err, "get operating system version ID")
 	}
 
-	stmt := "INSERT IGNORE INTO operating_systems (name, version, arch, kernel_version, platform, display_version, os_version_id) VALUES (?, ?, ?, ?, ?, ?, ?)"
-	if _, err := tx.ExecContext(ctx, stmt, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion, id); err != nil {
+	stmt := "INSERT IGNORE INTO operating_systems (name, version, arch, kernel_version, platform, display_version, installation_type, os_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+	if _, err := tx.ExecContext(ctx, stmt, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion, hostOS.InstallationType, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "insert new operating system")
 	}
 
@@ -144,8 +144,8 @@ func nextOSVersionID(ctx context.Context, tx sqlx.ExtContext) (uint, error) {
 // If found, it returns the record including the associated ID.
 func getOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.OperatingSystem) (*fleet.OperatingSystem, error) {
 	var os fleet.OperatingSystem
-	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ? AND display_version = ?"
-	if err := sqlx.GetContext(ctx, tx, &os, stmt, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion); err != nil {
+	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version, installation_type, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ? AND display_version = ? AND installation_type = ?"
+	if err := sqlx.GetContext(ctx, tx, &os, stmt, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion, hostOS.InstallationType); err != nil {
 		return nil, err
 	}
 	return &os, nil
@@ -159,8 +159,8 @@ func isHostOperatingSystemUpdateNeeded(ctx context.Context, qc sqlx.QueryerConte
 		ctx, qc, &resultPresent,
 		`SELECT 1 FROM host_operating_system hos
 				INNER JOIN operating_systems os ON hos.os_id = os.id
-				WHERE hos.host_id = ? AND os.name = ? AND os.version = ? AND os.arch = ? AND os.kernel_version = ? AND os.platform = ? AND os.display_version = ?`,
-		hostID, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion,
+				WHERE hos.host_id = ? AND os.name = ? AND os.version = ? AND os.arch = ? AND os.kernel_version = ? AND os.platform = ? AND os.display_version = ? AND os.installation_type = ?`,
+		hostID, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion, hostOS.InstallationType,
 	)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -201,7 +201,7 @@ func getIDHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID 
 // of the `host_operating_system` table.
 func getHostOperatingSystemDB(ctx context.Context, tx sqlx.QueryerContext, hostID uint) (*fleet.OperatingSystem, error) {
 	var os fleet.OperatingSystem
-	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version, os_version_id FROM operating_systems WHERE id = (SELECT os_id FROM host_operating_system WHERE host_id = ?)"
+	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version, installation_type, os_version_id FROM operating_systems WHERE id = (SELECT os_id FROM host_operating_system WHERE host_id = ?)"
 	if err := sqlx.GetContext(ctx, tx, &os, stmt, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host os")
 	}

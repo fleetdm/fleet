@@ -10,7 +10,7 @@ type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 
 export interface IModalProps {
   title: string | JSX.Element;
-  children: JSX.Element;
+  children: React.ReactNode;
   onExit: () => void;
   onEnter?: () => void;
   /**     medium 650px, large 800px, xlarge 850px, auto auto-width

@@ -23,9 +23,6 @@ Fleet’s open-source nature aligned with their organizational values, easing cu
 - **Automated reporting:** The team uses the API to programmatically track fleet-maintained app versions and patch compliance.  
 - **Unified ecosystem:** Streaming telemetry into Splunk and BigQuery allowed them to correlate endpoint events with broader infrastructure logs.   
 
-## About Fleet
-
-Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.
 
 <meta name="articleTitle" value="Open-source organization manages 1,556 devices with real-time compliance">
 <meta name="authorFullName" value="Irena Reedy">
@@ -34,3 +31,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="Open-source org manages 1,556 devices with equal Mac, Windows, and Linux support, real-time compliance, and unified threat visibility.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Open-source organization">

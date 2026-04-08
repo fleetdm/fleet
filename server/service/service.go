@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -49,7 +48,7 @@ type Service struct {
 
 	authz *authz.Authorizer
 
-	jitterMu *sync.Mutex
+	jitterMu *sync.RWMutex
 	jitterH  map[time.Duration]*jitterHashTable
 
 	geoIP fleet.GeoIP
@@ -73,9 +72,11 @@ type Service struct {
 
 	androidSvc android.Service
 
-	// activitySvc is the activity bounded context service for creating activities.
-	// When set, NewActivity delegates to this service instead of the legacy implementation.
-	activitySvc activity_api.NewActivityService
+	// activitySvc is the activity bounded context service for write operations.
+	activitySvc fleet.ActivityWriteService
+
+	// acmeSvc is the ACME service module for write operations.
+	acmeSvc fleet.ACMEWriteService
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -171,7 +172,7 @@ func NewService(
 		failingPolicySet:  failingPolicySet,
 		authz:             authorizer,
 		jitterH:           make(map[time.Duration]*jitterHashTable),
-		jitterMu:          new(sync.Mutex),
+		jitterMu:          new(sync.RWMutex),
 		geoIP:             geoIP,
 		enrollHostLimiter: enrollHostLimiter,
 		depStorage:        depStorage,
@@ -197,10 +198,16 @@ func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
 	return svc.mailService.SendEmail(ctx, mail)
 }
 
-// SetActivityService sets the activity bounded context service for creating activities.
+// SetActivityService sets the activity bounded context service for write operations.
 // This should be called after NewService to inject the activity service dependency.
-func (svc *Service) SetActivityService(activitySvc activity_api.NewActivityService) {
+func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	svc.activitySvc = activitySvc
+}
+
+// SetACMEService sets the ACME service module service for write operations.
+// This should be called after NewService to inject the ACME service dependency.
+func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
+	svc.acmeSvc = acmeSvc
 }
 
 type validationMiddleware struct {

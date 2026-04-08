@@ -1,8 +1,104 @@
-# **Event execution process**
+
+# Fleet events
+We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
+
+## How to propose an event:  
+It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confidential/issues/new?template=propose-an-event.md)**
+
+
+## Current events
+
+
+| QTR | Event name | Date | Location |
+| :---- | :---- | :---- | :---- |
+| Q1 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.kgy1oagh9dvl) | 2026-03-12 | Chicago |
+| Q1 | * **[Gartner Digital Workspace](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tvvzxp6efa6s)** | 2026-03-23 | San Diego |
+| Q2 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9bojminke8bt) | 2026-04-07 | Minneapolis |
+| Q2 | [HappyHour-Apple](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.2lh2oum4rxur) | 2026-04-TBD | Austin |
+| Q2 | * **[MACAd-UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.u1lwe72sguc3)** | 2026-04-21 | Brighton, UK |
+| Q2 | * **[Gartner Digital Workplace UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9h2x1faopsyk)** | 2026-04-28 | London |
+| Q2 | * **[MacAdmins Europe](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.qg7ymw2g9ui8)** | 2026-04-30 | Leiden, Netherlands |
+| Q2 | * **[MacDevOpsYVR](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka)** | 2026-06-25 | Montreal |
+| Q2 | * **[PSU MacAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.yibj67h9z2xz)** | 2026-07-07 | PennState |
+| Q3 | * **[JNUC 2026 Gurrilla](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** | 2026-09-23 | Kansas City |
+| Q4 | * **[MacSysAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** |2026-09-29 | Gothenburg, Sweden |
+
+
+## Event process
+There are three phases to running an event at FleetDM,
+- **Phase 1:** Propose, review and approve new events
+- **Phase 2:** Manage and and execute approved events
+- **Phase 3:** Event postgame
+
+
+#### Phase 1 Propose, review and approve new events
+**Objective:**  To ensure that the organization is aligned with the investment of time and resources to execute an event
+This process is managed through Fleet Issues and is summarized in a detailed tracking spreadsheet.
+
+See the section "Settle event strategy" below for the process.
+
+##### Settle event strategy (approve proposed events)
+
+Anyone at Fleet can propose a future event. Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
+
+The "Settle events strategy" meeting is held on the first Wednesday of every quarter to discuss and lock in all events (conferences, field/sales events, and GitOps workshops) for the next quarter.
+
+The [Marketing Campaign Manager](https://fleetdm.com/handbook/marketing#team) is the DRI for this meeting. 
+
+Once events have been settled for the upcoming quarter, Fleet does not make changes except in extreme circumstances.
+
+1. Add all upcoming proposed in issues using the template (Propose an event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
+2. Proposed events will include the following information:
+  - Event Priority (Scale 1 - 10) where 1 is a top priority
+  - Event Name
+  - Event Location
+  - Event DRI
+  - Event Dates
+  - Type of Event
+  - Theme
+  - Event Registration
+  - Who from Fleet will attend?
+  - Which talk proposal will Fleet submit?
+  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
+2. Attend the 30m quarterly event strategy meeting with the CMO, Head of Demand Generation, and Marketing Campaign Manager.
+  - During this meeting, Marketing will decide which events (conferences, field/sales events, and GitOps workshops) Fleet will execute in the **following quarter**.
+3. After the meeting, the Content Specialist will communicate the settled events by
+  - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
+  - Using the following template, post a message in the [#oooh-events Slack channel](https://fleetdm.slack.com/archives/C054TGK0H7X).
+
+4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
+
+#### Phase 2 Manage and and execute approved events
+**Objective** To efficiently plan, organize,track and complete the tasks in order to execute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
+
+Event execution needs to plan and track the detail decisions supporting:
+
+1. **All Event Logistics.** (Location, Venue, Start and End Date/Time, Event Website, Shipping, Staff schedules, costs, and more)
+2. **Speaking sessions:** (Location, time, talk metadata(title, abstract, etc), av requirements, and more)
+3. **Event Pre Promotion:** (landing page, blog, social, email, customers, prospects, etc)
+4. **Lead capture plans and process:** (scanning process, qualifying questions)
+5. **Booth:** Design, messaging, staffing hours and assignments, attire, swag, power, etc.)
+6. **Key vendor relationships:** (Event Organizer, booth builder, site logisitcs, scanning tech, av tech)
+
+This will be managed in a structure central document for each event so that attendees and organizers have a central place to find information and collaborate. 
+
+[Planning Doc/Tracking Template](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.uych0uenb12p#heading=h.qhf7mkrao68w0
+
+#### Phase 3 event postgame
+**Objective** To consistently wrap up an event, gather lessons learned, and ensure the organization follows through with our new relationships.  
+
+After the event there are three important activites that need to be completed.
+
+1. **Update CRM:** The CRM is our single source of truth about our relationships. So, it is critical that all the information from what happened at the event is promptly updated in the CRM.
+2. **Follow up:** When we make new friends and connections at an event, we must be prompt in follow through and connecting with them after the event. The CRM is the main way to prompt the right person at Fleet to reach back out and follow up.
+3. **Post Mortem:** Learn and improve from the previous event. (gather feedback, review lessons learned, and update processes and strategy)
+
+
+## **Event execution process**
 
 This page outlines the execution process for Fleet events. It builds upon our general event strategy and goals outlined in the [Fleet events](https://fleetdm.com/handbook/marketing#fleet-events) section of the handbook.
 
-## **Tools and single source of truth**
+### **Tools and single source of truth**
 
 To keep event planning organized, we separate event information from actionable tasks:
 
@@ -11,11 +107,11 @@ To keep event planning organized, we separate event information from actionable 
 
 All child tasks in GitHub (e.g., draft and finalize talk title/abstract, design booth, order swag, ship booth kit, promote event) should reference back to the event overview document.
 
-## **GitHub labels**
+### **GitHub labels**
 
 We use GitHub labels to organize the difference between overall event issues and detailed execution tasks, allowing us to filter and track between overview issues only, and specific events only.  The color coding will help us to visually tell the difference between events.  Note the specific event labels have 6 possible colors defined. These should get re-used, as events are completed.
 
-| Label | Color | Hex Code | Definition (When to use it) |
+| Label | Color | Hex code | Definition (when to use it) |
 | :---- | :---- | :---- | :---- |
 | **:mktg-event** | Orange | \#F97316 | The standard label for all events. |
 | **:mktg-event:tp** | Dark Rust | \#9A3412 | Indicates this issue is part of event execution in general. |
@@ -28,25 +124,28 @@ We use GitHub labels to organize the difference between overall event issues and
 | **:mktg-event:YYMM-eventname-city** | Salmon | \#FA8072 | 5th color custom lable for specific events |
 | **:mktg-event:YYMM-eventname-city** | Brick | \#B91C1C | 6th color custom lable for specific events |
 
-## **Event plans**
+
+
+### **Event plans**
 
 We utilize two general event plans, which act as templates depending on the scale and type of the event:
 
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
-2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
+2. **Workshop/Dinner:** Used for our GitOps workshop series (which often includes a post workshop dinner).
+3. **Meetups/Happy Hours** ...wip
 
-## **Execution process**
+### **Execution process**
 
 Once an event is approved, a Marketing directly responsible individual (DRI) is assigned. From there, the process is divided between the Marketing DRI and the Onsite DRI.
 
-### **Marketing DRI responsibilities**
+#### **Marketing DRI responsibilities**
 
 * Create the event overview planning doc.  
 * Create the parent and child execution issues in GitHub.  
 * Assign the execution issues to themselves or the Onsite DRI for parts of the plan. (In many cases, a workshop has been planned locally by the Account Executive; this is where specific issues would be assigned out).  
 * Ensure leads are uploaded and properly accounted for in Salesforce (SFDC) post-event.
 
-### **Onsite DRI responsibilities**
+#### **Onsite DRI responsibilities**
 
 * Manage the details of the facility.  
 * Set up and configure the booth, swag, and lead capture tools.  
@@ -55,15 +154,15 @@ Once an event is approved, a Marketing directly responsible individual (DRI) is 
 * Pack up the event kit and ship it back.  
 * Coordinate with the Marketing DRI to get leads uploaded and processed.
 
-## **Definition of done**
+### **Definition of done**
 
 An event's execution is not complete until the **Definition of Done** is met: the Event Overview Doc must be fully updated with post-event outcomes, notes, and final details.
 
-## **How to automate event creation**
+### **How to automate event creation**
 
 Since the tracking process uses github issues and subissues to track tasks, it can be tedious to create the structure for a new event. Here are the steps to automate the creation of the event execution issues in github.
 
-### Setup
+#### Setup
 We will use a local script that executes commands on the local GitHub command line interface (CLI).  In order to get started you need to have the GitHub CLI installed.
 
 1. **Install Homebrew.**  *Homebrew is a package installer and the simplest way to get the GitHub CLI installed.*.  
@@ -82,7 +181,7 @@ We will use a local script that executes commands on the local GitHub command li
 TODO - add a test set up section where a user has a simple issue script they test
 
 
-### Event Template Process and Script
+#### Event template process and script
 Creating a new event group is now simple.
 1. copy the script below and save as **NewEvent.sh**
 2. Edit the script.
@@ -113,8 +212,8 @@ here's the script
 ```bash
 #!/bin/bash
 # --- Event specifics / details - change this
-EVENT_SLUG="2606-MacDevOpsYVR-Montreal"
-PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka"
+EVENT_SLUG="2026_04-MC-Gartner_UK"
+PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9h2x1faopsyk"
 REQUEST_ISSUE = "#14599"
 
 # No need to change anything else to run the script
@@ -149,35 +248,14 @@ Master tracking issue for ${EVENT_SLUG}.
 EXECUTION for request $REQUEST_ISSUE
 
 ## Executive Snapshot & Key Decisions 
-
-Use this section for a quick overview. If someone only reads this part, they should understand the scope and scale of our presence. 
-
-| Category | Details |
-|---|---|
-| Event Name | [e.g., KubeCon NA 2026] |
-| Dates | [Start Date] to [End Date] |
-| Location | [City, State, Venue Name] |
-| Event Website | [Link to official site] |
-| Budget Estimate | [Total estimated cost] |
-| Primary Goal | [e.g., Lead Gen (500 scans), Brand Awareness, Recruiting] |
-| Booth Size | [e.g., 10x20, Island, Tabletop] |
-| Speaking Slot? (details below) | Yes or No |
-| Workshop? | Yes or No |
-| DRI | [Name of person responsible] |
-| Onsite DRI | [Name of person responsible] |
-| Planing Doc | $PLANNING_DOC_URL |
+- [ ] Update the working google doc for the ${EVENT_SLUG}
+See: Planing Doc: $PLANNING_DOC_URL 
 
 - [ ] Finalize sponsorship agreements
-- [ ] Assign issues/tasks
+- [ ] Assign child issues/tasks
 
-## Progress Tracker
-- [ ] 1. Speaking Session & Workshop Details
-- [ ] 2. Promotion & Marketing Plan
-- [ ] 3. Booth Strategy & Messaging
-- [ ] 4. Staffing & Travel Logistics
-- [ ] 5. Execution, Logistics & Swag
-- [ ] 6 Lead Capture & Follow-Up Strategy
-- [ ] 7. Post-Mortem & ROI Analysis
+## Progress Tracker - See SubIssues
+
 EOF
 )
 
@@ -278,11 +356,12 @@ BODY=$(cat << EOF
 **Description**
 Track all details, deadlines, and requirements for any speaking slots or workshops we are hosting before, during, or after the event.
 
-- [ ] Confirm speaking session details (Title, Speaker, Date/Time, Room)
-- [ ] Submit Abstract Link and AV Requirements
-- [ ] Confirm workshop hosting and timing
-- [ ] Update Workshop Planning Doc, Registration Link, and Capacity
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Confirm speaking session details (Title, Speaker, Date/Time, Room)
+- Submit Abstract Link and AV Requirements
+- Confirm workshop hosting and timing
+- Update Workshop Planning Doc, Registration Link, and Capacity
+
 EOF
 )
 create_sub_issue "1. Speaking Session & Workshop Details" "$BODY"
@@ -293,13 +372,11 @@ BODY=$(cat << EOF
 **Description**
 Manage how we are driving traffic to our booth, session, or workshop.
 
-- [ ] Schedule Pre-Event Email Blast 
-- [ ] Schedule LinkedIn and Twitter/X Posts
-- [ ] Create Speaker Promo Graphics and Blog Post 
-- [ ] Assign Customer Invites
-- [ ] Assign Live Social Coverage during event 
-- [ ] Schedule Event App Push Notification
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Schedule Pre-Event Email Blast 
+- Work w/ Social Media Manager to schedule LinkedIn and Twitter/X Posts
+- Create Speaker Promo Graphics and Blog Post 
+- Assign Live Social Coverage during event 
 EOF
 )
 create_sub_issue "2. Promotion & Marketing Plan" "$BODY"
@@ -308,13 +385,13 @@ create_sub_issue "2. Promotion & Marketing Plan" "$BODY"
 # --- Child 3 ---
 BODY=$(cat << EOF
 **Description**
-Define the core purpose, layout, and messaging for our physical footprint on the show floor.
+Define the booth details.
 
-- [ ] Document Booth Number and Exhibit Hall Hours 
-- [ ] Define Core Messaging/Theme 
-- [ ] List Key Demos 
-- [ ] Document Key Requirements (internet, scanners, monitors)
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Document Booth Number and Exhibit Hall Hours 
+- Define Core Messaging/Theme 
+- Define Digital Booth Content (Videos, Slides, Demos)
+- Document Key Requirements (internet, scanners, monitors)
 EOF
 )
 create_sub_issue "3. Booth Strategy & Messaging" "$BODY"
@@ -325,12 +402,12 @@ BODY=$(cat << EOF
 **Description**
 Manage who is going, where they are staying, and when they are working the booth.
 
-- [ ] Assign Staff Manager and Attire 
-- [ ] Select Suggested Hotel 
-- [ ] Set Arrival and Departure Requirements 
-- [ ] Complete Staff Assignments table 
-- [ ] Create Booth Staffing Schedule
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Assign Staff Manager and Attire 
+- Select Suggested Hotel 
+- Set Arrival and Departure Requirements 
+- Complete Staff Assignments table 
+- Create Booth Staffing Schedule
 EOF
 )
 create_sub_issue "4. Staffing & Travel Logistics" "$BODY"
@@ -341,12 +418,12 @@ BODY=$(cat << EOF
 **Description**
 This section is for the operations team to handle on-site setup, booth build, and shipping.
 
-- [ ] Track Shipping & Handling deadlines and tracking numbers 
-- [ ] Create Return Shipping Label 
-- [ ] Confirm Booth Vendor, Graphics Deadline, and Furniture/Electrical 
-- [ ] Order Premium Swag, General Swag, and Raffle/Contest items 
-- [ ] Complete Key Points of Contact table
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Track Shipping & Handling deadlines and tracking numbers 
+- Create Return Shipping Label 
+- Confirm Booth Vendor, Graphics Deadline, and Furniture/Electrical 
+- Order Premium Swag, General Swag, and Raffle/Contest items 
+- Complete Key Points of Contact table
 EOF
 )
 create_sub_issue "5. Execution, Logistics & Swag" "$BODY"
@@ -357,12 +434,13 @@ BODY=$(cat << EOF
 **Description**
 Crucial for ROI. Track how we capture data and what happens next.
 
-- [ ] Define Capture Mechanics, Method, and Device Rental 
-- [ ] Define Incentive to Scan 
-- [ ] Write Qualifying Questions for Booth Staff 
-- [ ] Assign Lead Upload Owner and SLA 
-- [ ] Define Follow Up Strategy and Nurture Sequence
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Define Capture Mechanics, Method, and Device Rental 
+- Define Incentive to Scan 
+- Write Qualifying Questions for Booth Staff 
+- Assign Lead Upload Owner and SLA 
+- Define Follow Up Strategy and Nurture Sequence
+
 EOF
 )
 create_sub_issue "6. Lead Capture & Follow-Up Strategy" "$BODY"
@@ -373,11 +451,11 @@ BODY=$(cat << EOF
 **Description**
 To be filled out within 1 week of event conclusion to analyze performance and ROI.
 
-- [ ] Record The Numbers (Leads, MQLs, Spend, CPL) 
-- [ ] Complete Retrospective (What went well/wrong) 
-- [ ] Document Competitor Intel 
-- [ ] Upload Photo Archive
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Record The Numbers (Leads, MQLs, Spend, CPL) 
+- Complete Retrospective (What went well/wrong) 
+- Document Competitor Intel 
+- Upload Photo Archive
 EOF
 )
 create_sub_issue "7. Post-Mortem & ROI Analysis" "$BODY"
@@ -388,7 +466,7 @@ echo "Done."
 
 ## How to automate workshop creation
 
-The workshop tracking process uses the same GitHub parent/child issue structure as conferences, but with a smaller, workshop-specific set of tasks. Use this script instead of the conference script when running a GitOps workshop (with or without a happy hour).
+The workshop tracking process uses the same GitHub parent/child issue structure as conferences, but with a smaller, workshop-specific set of tasks. Use this script instead of the conference script when running a GitOps workshop.
 
 > If you haven't set up the GitHub CLI yet, follow the **Setup** steps in the [How to automate event creation](#how-to-automate-event-creation) section above before continuing.
 
@@ -428,9 +506,9 @@ Here's the script:
 ```bash
 #!/bin/bash
 # --- Workshop specifics / details - change this
-WORKSHOP_SLUG="2606-GitOps-Workshop-Montreal"
-PLANNING_DOC_URL="https://docs.google.com/document/d/YOUR_PLANNING_DOC_ID/edit"
-REQUEST_ISSUE="#00000"
+WORKSHOP_SLUG="2606-GitOps-Workshop-Atlanta"
+PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.8is5oewuv3gg"
+REQUEST_ISSUE="#14488"
 
 # No need to change anything else to run the script
 
@@ -467,31 +545,14 @@ Master tracking issue for the GitOps Workshop: ${WORKSHOP_SLUG}.
 EXECUTION for request $REQUEST_ISSUE
 
 ## Executive Snapshot & Key Decisions
+- [ ] Update the working google doc for the ${EVENT_SLUG}
+See: Planing Doc: $PLANNING_DOC_URL 
 
-Use this section for a quick overview. If someone only reads this part, they should understand the scope and scale of our workshop.
+- [ ] Finalize sponsorship agreements
+- [ ] Assign child issues/tasks
 
-| Category | Details |
-|---|---|
-| Workshop Name | [e.g., GitOps Workshop — Atlanta] |
-| Date | [Date] |
-| Location | [City, Venue Name] |
-| Capacity | [Max Attendees] |
-| Lead Instructor | @[Name] |
-| Onsite DRI | @[Name] |
-| Marketing DRI | @[Name] |
-| Happy Hour? | Yes or No |
-| Planning Doc | $PLANNING_DOC_URL |
+## Progress Tracker - See SubIssues
 
-- [ ] Confirm workshop date and venue
-- [ ] Assign issues/tasks to DRIs
-
-## Progress Tracker
-- [ ] 1. Workshop Promotion & Registration Launch
-- [ ] 2. Venue Selection & Logistics
-- [ ] 3. Happy Hour Planning & Promotion
-- [ ] 4. Workshop Catering
-- [ ] 5. Travel & Staffing
-- [ ] 6. Post-Mortem & Follow-Up
 EOF
 
 PARENT_URL=$(gh issue create \
@@ -581,16 +642,18 @@ cat > "$BODY_FILE" << EOF
 **Description**
 Get the main workshop event live to start gathering leads.
 
-Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room isn't booked yet.
+Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room isn't booked yet- SEE TEMPLATE LINK BELOW
 
 **Who:** Marketing DRI
 
-- [ ] Create Workshop Landing Page on Eventbrite or Luma
-- [ ] Schedule Email Blast to target audience
-- [ ] Schedule LinkedIn and Twitter/X posts and request speaker graphics
-- [ ] Notify AEs and Partners to drive personal invites
-- [ ] Monitor registration — watch for waitlists or low attendance and adjust promo if needed
-- [ ] Update the $PLANNING_DOC_URL with "Promotion & Marketing Plan" details and registration link
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Create Workshop Landing Page on Eventbrite or Luma
+Link to [TEMPLATE in EventBrite](https://www.eventbrite.com/e/1985443830945?aff=oddtdtcreator)
+- Schedule Email Blast to target audience
+- Schedule LinkedIn and Twitter/X posts and request speaker graphics
+- Notify AEs and Partners to drive personal invites
+- Monitor registration — watch for waitlists or low attendance and adjust promo if needed
+- Update the $PLANNING_DOC_URL with "Promotion & Marketing Plan" details and registration link
 EOF
 create_sub_issue "1. Workshop Promotion & Registration Launch"
 
@@ -601,12 +664,12 @@ cat > "$BODY_FILE" << EOF
 Secure the physical space for the workshop. Once confirmed, notify attendees.
 
 **Who:** Onsite DRI
-
-- [ ] Secure venue — confirm availability for workshop date
-- [ ] Power audit — confirm every seat has access to power, or plan to bring extension cords
-- [ ] AV check — confirm projector/HDMI availability
-- [ ] Update Workshop Landing Page with the specific venue name and address
-- [ ] Update the $PLANNING_DOC_URL with "Venue Details" section
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Secure venue — confirm availability for workshop date
+- Power audit — confirm every seat has access to power, or plan to bring extension cords
+- AV check — confirm projector/HDMI availability
+- Update Workshop Landing Page with the specific venue name and address
+- Update the $PLANNING_DOC_URL with "Venue Details" section
 EOF
 create_sub_issue "2. Venue Selection & Logistics"
 
@@ -617,14 +680,12 @@ cat > "$BODY_FILE" << EOF
 Plan the post-workshop networking. This is treated as a separate event to allow for broader networking — invite people who couldn't make the workshop itself.
 
 **Who:** Onsite DRI
-
-- [ ] Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
-- [ ] Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
-- [ ] Create Happy Hour registration page on Eventbrite or Luma and promote separately
-- [ ] Schedule LinkedIn/Twitter posts promoting the Happy Hour
-- [ ] Update the $PLANNING_DOC_URL with "Post-Event Happy Hour" section including venue and registration link
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
+- Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
+- IF NEEDED: Create Dinner registration page on Eventbrite or Luma and promote separately
 EOF
-create_sub_issue "3. Happy Hour Planning & Promotion"
+create_sub_issue "3. Dinner Planning"
 
 
 # --- Child 4 ---
@@ -635,10 +696,10 @@ Finalize in-room food and drink orders.
 Wait to complete this until ~1 week before the event so you have an accurate headcount.
 
 **Who:** Onsite DRI
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Check registration count — confirm headcount from Registered and Waitlist to avoid over-ordering
+- Order food and drinks
 
-- [ ] Check registration count — confirm headcount from Registered and Waitlist to avoid over-ordering
-- [ ] Order food and drinks
-- [ ] Update the $PLANNING_DOC_URL with "Catering" section and order details
 EOF
 create_sub_issue "4. Workshop Catering"
 
@@ -649,11 +710,11 @@ cat > "$BODY_FILE" << EOF
 Ensure the instructor and support staff can get to the city and are prepared for the event.
 
 **Who:** Onsite DRI, Marketing DRI, Attendees
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Book flights for Lead Instructor and TA if traveling
+- Book hotel — ensure proximity to the venue
+- Confirm staffing assignments and attire
 
-- [ ] Book flights for Lead Instructor and TA if traveling
-- [ ] Book hotel — ensure proximity to the venue
-- [ ] Confirm staffing assignments and attire
-- [ ] Update the $PLANNING_DOC_URL with "Staff Travel" and "Logistics" sections
 EOF
 create_sub_issue "5. Travel & Staffing"
 
@@ -662,12 +723,12 @@ create_sub_issue "5. Travel & Staffing"
 cat > "$BODY_FILE" << EOF
 **Description**
 To be completed within 48 hours after the event. Close the loop on leads and technical feedback.
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Dinner
+- Log technical issues — document any WiFi drops or firewall blockers for future reference
+- CRM upload — upload attendee list to Salesforce/HubSpot
+- Send follow-up email with slides and repo links
 
-- [ ] Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Happy Hour
-- [ ] Log technical issues — document any WiFi drops or firewall blockers for future reference
-- [ ] CRM upload — upload attendee list to Salesforce/HubSpot
-- [ ] Send follow-up email with slides and repo links
-- [ ] Update the $PLANNING_DOC_URL with completed "Post-Mortem & Follow-Up" section
 EOF
 create_sub_issue "6. Post-Mortem & Follow-Up"
 
@@ -675,5 +736,6 @@ echo "Done."
 ```
 
 
+
 <meta name="maintainedBy" value="johnjeremiah">
-<meta name="title" value="🫧 Marketing Event Execution">
+<meta name="title" value="🫧 Marketing event execution">

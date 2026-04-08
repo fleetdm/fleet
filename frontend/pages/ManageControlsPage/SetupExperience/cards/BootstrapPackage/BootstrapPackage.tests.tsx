@@ -141,8 +141,8 @@ describe("BootstrapPackage", () => {
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
-    await screen.findByText("Show advanced options");
-    await user.click(screen.getByText("Show advanced options"));
+    await screen.findByText("Advanced options");
+    await user.click(screen.getByText("Advanced options"));
 
     expect(
       screen.getByLabelText("Install Fleet's agent (fleetd) manually")
@@ -172,8 +172,8 @@ describe("BootstrapPackage", () => {
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
-    await screen.findByText("Show advanced options");
-    await user.click(screen.getByText("Show advanced options"));
+    await screen.findByText("Advanced options");
+    await user.click(screen.getByText("Advanced options"));
 
     expect(
       screen.getByLabelText("Install Fleet's agent (fleetd) manually")
@@ -193,8 +193,8 @@ describe("BootstrapPackage", () => {
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
-    await screen.findByText("Show advanced options");
-    await user.click(screen.getByText("Show advanced options"));
+    await screen.findByText("Advanced options");
+    await user.click(screen.getByText("Advanced options"));
 
     expect(
       screen.getByLabelText("Install Fleet's agent (fleetd) manually")

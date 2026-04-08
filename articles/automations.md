@@ -1,8 +1,8 @@
 # Automations
 
-Fleet supports triggering automations across [activities](#activity-automations), [policies](#policy-automations), [queries](#query-automations), [vulnerabilities](#vulnerability-automations), and [host status](#host-status-automations).
+Fleet supports triggering automations across [activities](#activity-automations), [policies](#policy-automations), [reports](#report-automations), [vulnerabilities](#vulnerability-automations), and [host status](#host-status-automations).
 
-You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send query results to webhooks, create tickets, and reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
+You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send report results to webhooks, create tickets, and reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
 
 ## Activity automations
 
@@ -21,13 +21,13 @@ Automations are fired for scheduled policy runs. Running a live policy doesn't t
 ### Calendar
 
 You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
-windows), trigger or send query results to webhooks, or create tickets.
+windows), trigger or send report results to webhooks, or create tickets.
 
 To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
 
 ### Software and scripts
 
-Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) retry up to 3 times by default. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) are attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
 
 ### Webhooks and tickets
 
@@ -40,10 +40,10 @@ For webhooks, if a policy is newly failing on more than one host during the same
 For tickets, a single ticket is created per newly failed policy (i.e., multiple tickets are not
 created if a policy is newly failing on more than one host during the same period).
 
-## Query automations
+## Report automations
 
-Query automations let you send data gathered from macOS, Windows, and Linux hosts to a log
-destination. Data is sent according to a query's interval.
+Report automations let you send data gathered from macOS, Windows, and Linux hosts to a log
+destination. Data is sent according to a report's interval.
 
 ### Webhook
 
@@ -51,14 +51,14 @@ Results from scheduled queries can be written to an arbitrary external webhook o
 First, follow the [configuration docs](https://fleetdm.com/docs/deploying/configuration#webhook).
 Then in the UI:
 
-1. Navigate to the **Queries** page, select the relevant team, and click **Manage automations**
+1. Navigate to the **Queries** page, select the relevant fleet, and click **Manage automations**
 2. In the modal that opens, confirm that you see "Log destination: Webhook", and when you hover over
-   "Webhook", you see "Each time a query runs, the data is sent via webhook to:
+   "Webhook", you see "Each time a report runs, the data is sent via webhook to:
    [target_result_url]"
-3. Select the queries that you want to send data to this webhook
+3. Select the reports that you want to send data to this webhook
 4. Click **Save**
 
-Results from the selected scheduled queries will be sent to the configured results URL. *Not configurable per-query.*
+Results from the selected scheduled queries will be sent to the configured results URL. *Not configurable per-report.*
 
 ### Amazon Kinesis Data Firehose
 

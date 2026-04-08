@@ -87,55 +87,53 @@ const FleetAppDetailsModal = ({
 
   return (
     <Modal className={baseClass} title="Software details" onExit={onCancel}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <DataSet title="Name" value={name} />
-          <DataSet title="Version" value={versionElement} />
-          {slug && (
-            <DataSet
-              title={
-                <TooltipWrapper tipContent={SLUG_TOOLTIP_MESSAGE}>
-                  Fleet-maintained app slug
-                </TooltipWrapper>
-              }
-              value={
-                <>
-                  {slug}{" "}
-                  <div className={`${baseClass}__action-overlay`}>
-                    {copyMessage && (
-                      <div
-                        className={`${baseClass}__copy-message`}
-                      >{`${copyMessage} `}</div>
-                    )}
-                  </div>
-                  <Button
-                    variant="unstyled"
-                    className={`${baseClass}__copy-secret-icon`}
-                    onClick={onCopySlug}
-                  >
-                    <Icon name="copy" />
-                  </Button>
-                </>
-              }
-            />
-          )}
-          <DataSet title="Platform" value={PLATFORM_DISPLAY_NAMES[platform]} />
+      <div className={`${baseClass}__modal-content`}>
+        <DataSet title="Name" value={name} />
+        <DataSet title="Version" value={versionElement} />
+        {slug && (
+          <DataSet
+            title={
+              <TooltipWrapper tipContent={SLUG_TOOLTIP_MESSAGE}>
+                Fleet-maintained app slug
+              </TooltipWrapper>
+            }
+            value={
+              <>
+                {slug}{" "}
+                <div className={`${baseClass}__action-overlay`}>
+                  {copyMessage && (
+                    <div
+                      className={`${baseClass}__copy-message`}
+                    >{`${copyMessage} `}</div>
+                  )}
+                </div>
+                <Button
+                  variant="unstyled"
+                  className={`${baseClass}__copy-secret-icon`}
+                  onClick={onCopySlug}
+                >
+                  <Icon name="copy" />
+                </Button>
+              </>
+            }
+          />
+        )}
+        <DataSet title="Platform" value={PLATFORM_DISPLAY_NAMES[platform]} />
 
-          {url && (
-            <DataSet
-              title={
-                <TooltipWrapper tipContent={URL_TOOLTIP_MESSAGE}>
-                  URL
-                </TooltipWrapper>
-              }
-              value={<TooltipTruncatedText value={url} />}
-            />
-          )}
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
-      </>
+        {url && (
+          <DataSet
+            title={
+              <TooltipWrapper tipContent={URL_TOOLTIP_MESSAGE}>
+                URL
+              </TooltipWrapper>
+            }
+            value={<TooltipTruncatedText value={url} />}
+          />
+        )}
+      </div>
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Close</Button>
+      </div>
     </Modal>
   );
 };

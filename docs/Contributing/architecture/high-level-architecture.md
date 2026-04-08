@@ -22,8 +22,8 @@ At a high level, Fleet consists of:
    - **Raw API**: Direct API access for custom integrations
 
 4. **Storage**:
-   - **MySQL**: Primary database for storing configuration, device information, and query results
-   - **Redis**: Used for caching and managing live query results
+   - **MySQL**: Primary database for storing configuration, device information, and report results
+   - **Redis**: Used for caching and managing live report results
    - **S3/object storage**: Used for storing software installers and file carve results
 
 5. **External Services**:
@@ -105,12 +105,12 @@ graph LR;
 
 
 
-## The path of live query
+## The path of live report
 
-### 1 - Fleet User initiates the query
+### 1 - Fleet User initiates the report
 ```mermaid
 graph LR;
-    it_person[Fleet User<br>Starts a live query];
+    it_person[Fleet User<br>Starts a live report];
     api[API Client Frontend or Fleetctl];
 
     subgraph Cloud
@@ -146,12 +146,12 @@ graph LR;
 
 ```
 
-## The path of a scheduled query
+## The path of a scheduled report
 
-### 1 - Fleet User initiates the query
+### 1 - Fleet User initiates the report
 ```mermaid
 graph LR;
-    it_person[Fleet User<br>Creates a scheduled<br>for a team / global];
+    it_person[Fleet User<br>Creates a scheduled<br>for a fleet / global];
     api[API Client Frontend or Fleetctl];
 
     subgraph Cloud
@@ -161,9 +161,9 @@ graph LR;
 
     it_person --> api;
     api --> server;
-    server -- Query stored in DB--> db;
+    server -- Report stored in DB--> db;
 ```
-### 2 - Agent gets config file (with the scheduled query)
+### 2 - Agent gets config file (with the scheduled report)
 ```mermaid
 graph LR;
     agent[Osquery Agent];
@@ -174,14 +174,14 @@ graph LR;
     end
 
     agent -- request download config file --> server;
-    agent <-- teams and global cfg are merged --> server;
+    agent <-- fleets and global cfg are merged --> server;
     server -- ask for cfg file--> db;
 ```
 
 ### 3 - Agent returns results to be (optionally) logged
 ```mermaid
 graph LR;
-    agent[Osquery Agent<br>Runs query and sends results];
+    agent[Osquery Agent<br>Runs report and sends results];
 
     subgraph Cloud
         server(Server);
@@ -196,14 +196,14 @@ graph LR;
 ## Agent  config options
 1 - Config TLS refresh 
 (Typical period 10 secs) OSQuery pulls down a config file that includes instructions for Scheduled Queries. 
-If both GLOBAL and TEAM is configured, there will be a config merge done on the Server side. 
+If agent options for both global and a fleet is configured, there will be a config merge done on the Server side. 
 
 2 - Logger TLS
 (Typical period10 secs) Frequency of sending the results. (different than the frequency of running the queries)
 To be improved: Currently the config file gets downloaded every time even if no change was done.
 
 3 - Distributed (Typical interval 10 sec)
-(Typical period10 secs) OSQuery asks for any Live query to run.
+(Typical period10 secs) OSQuery asks for any live report to run.
 
 
 ## Vulnerability dashboard

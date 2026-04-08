@@ -1,7 +1,7 @@
 # Log destinations
 
 Log destinations can be used in Fleet to log:
-- Schedule query result logs
+- Schedule report result logs
 - Fleet [audit logs](https://fleetdm.com/docs/using-fleet/audit-logs)
 - Status logs from [osquery](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs)
 

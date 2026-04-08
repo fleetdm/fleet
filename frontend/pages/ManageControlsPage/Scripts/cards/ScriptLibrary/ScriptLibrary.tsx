@@ -67,13 +67,13 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     [
       {
         scope: "scripts",
-        team_id: teamId,
+        fleet_id: teamId,
         page: currentPage,
         per_page: SCRIPTS_PER_PAGE,
       },
     ],
-    ({ queryKey: [{ team_id, page, per_page }] }) =>
-      scriptAPI.getScripts({ team_id, page, per_page }),
+    ({ queryKey: [{ fleet_id, page, per_page }] }) =>
+      scriptAPI.getScripts({ fleet_id, page, per_page }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 3000,

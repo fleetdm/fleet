@@ -8,8 +8,8 @@ import { isMacOS, SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
 import { INotification } from "interfaces/notification";
 
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
@@ -90,7 +90,7 @@ const InstallSoftwareForm = ({
 }: IInstallSoftwareFormProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
     savedRequireAllSoftwareMacOS ?? false
   );
@@ -268,10 +268,7 @@ const InstallSoftwareForm = ({
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
             <Checkbox
-              disabled={
-                config?.gitops.gitops_mode_enabled ||
-                manualAgentInstallBlockingSoftware
-              }
+              disabled={gitOpsModeEnabled || manualAgentInstallBlockingSoftware}
               value={requireAllSoftwareMacOS}
               onChange={handleChangeRequireAll}
             >

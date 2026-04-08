@@ -9,7 +9,7 @@ flowchart TD
     end
 
     subgraph Fleet UI/GitOps
-        n1(["IT admin adds certificate to team/no team"]) --> n2["Cron job runs"]
+        n1(["IT admin adds certificate to fleet/unassigned"]) --> n2["Cron job runs"]
         n2 --> n3["Update managed config for each host"]
     end
     n3 --> start

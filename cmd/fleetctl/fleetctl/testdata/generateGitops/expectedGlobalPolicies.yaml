@@ -11,3 +11,5 @@
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 1
   resolution: Do a global thing
+  type: dynamic
+  webhooks_and_tickets_enabled: false

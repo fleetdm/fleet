@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var SoftwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?team_id=\d+`)
+var SoftwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?(?:team_id|fleet_id)=\d+`)
 
 const SoftwareTitleIconSignedURLExpiry = 6 * time.Hour
 
@@ -37,7 +37,7 @@ func (s *SoftwareTitleIcon) AuthzType() string {
 }
 
 func (s *SoftwareTitleIcon) IconUrl() string {
-	return fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", s.SoftwareTitleID, s.TeamID)
+	return fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", s.SoftwareTitleID, s.TeamID)
 }
 
 func (s *SoftwareTitleIcon) IconUrlWithDeviceToken(deviceToken string) string {
@@ -67,4 +67,5 @@ type DetailsForSoftwareIconActivity struct {
 	Platform            *InstallableDevicePlatform `json:"platform"`
 	LabelsIncludeAny    []ActivitySoftwareLabel    `db:"-"`
 	LabelsExcludeAny    []ActivitySoftwareLabel    `db:"-"`
+	LabelsIncludeAll    []ActivitySoftwareLabel    `db:"-"`
 }

@@ -70,6 +70,7 @@ const EnrollSecretModal = ({
               </div>
               <div className={`${baseClass}__add-secret`}>
                 <GitOpsModeTooltipWrapper
+                  entityType="secrets"
                   position="right"
                   tipOffset={8}
                   renderChildren={(disableChildren) => (
@@ -113,6 +114,7 @@ const EnrollSecretModal = ({
               }
               primaryButton={
                 <GitOpsModeTooltipWrapper
+                  entityType="secrets"
                   position="right"
                   tipOffset={8}
                   renderChildren={(disableChildren) => (
@@ -132,7 +134,7 @@ const EnrollSecretModal = ({
           </Card>
         )}
         <div className="modal-cta-wrap">
-          <Button onClick={onReturnToApp}>Done</Button>
+          <Button onClick={onReturnToApp}>Close</Button>
         </div>
       </div>
     </Modal>

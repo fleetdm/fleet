@@ -429,13 +429,18 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-6286"},
 			continuesToUpdate: true,
 		},
-		// FIXME: https://github.com/fleetdm/fleet/issues/31303
-		// "cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
-		// 	includedCVEs: []cve{
-		// 		{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
-		// 	},
-		// 	continuesToUpdate: true,
-		// },
+		"cpe:2.3:a:citrix:workspace:2203.1:*:*:*:ltsr:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:citrix:workspace:2311.1:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2403.1"},
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2024-4030"},
 			continuesToUpdate: true,
@@ -448,6 +453,19 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// 	},
 		// 	continuesToUpdate: true,
 		// },
+		// Ensure malformed ipswitch whatsup cpe is successfully matched to CVE
+		// See https://github.com/fleetdm/fleet/issues/32662.
+		"cpe:2.3:a:ipswitch:whatsup:2006:-:professional:premium:*:*:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2006-2351"},
+				{ID: "CVE-2006-2352"},
+				{ID: "CVE-2006-2353"},
+				{ID: "CVE-2006-2354"},
+				{ID: "CVE-2006-2355"},
+				{ID: "CVE-2006-2356"},
+				{ID: "CVE-2006-2357"},
+			},
+		},
 		// Tests the expandCPEAliases rule for virtualbox on macOS
 		"cpe:2.3:a:oracle:virtualbox:7.0.6:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
@@ -659,6 +677,17 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		"cpe:2.3:a:docker:desktop:4.39.0:*:*:*:*:windows:*:*": {
 			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
 			continuesToUpdate: true,
+		},
+		// #41586 - Admin By Request false positives on macOS/Linux
+		// These CVEs are Windows-only but NVD data uses target_sw=* so they would match any platform without our fix.
+		"cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{"CVE-2019-17201", "CVE-2019-17202"},
+		},
+		"cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2019-17201", resolvedInVersion: "6.2.0.0"},
+				{ID: "CVE-2019-17202", resolvedInVersion: "6.2.0.0"},
+			},
 		},
 	}
 
@@ -1242,6 +1271,14 @@ func TestExpandCPEAliases(t *testing.T) {
 	python3130RC1Alias.Version = "3.13.0rc1"
 	python3130RC1Alias.Update = ""
 
+	ipswitchWhatsup := &wfn.Attributes{
+		Vendor:  "ipswitch",
+		Product: "whatsup",
+		Version: "2006",
+	}
+	ipswitchWhatsupAlias := *ipswitchWhatsup
+	ipswitchWhatsupAlias.Product = "whatsup_professional"
+
 	pgadminMacOS := &wfn.Attributes{
 		Vendor:   "pgadmin",
 		Product:  "pgadmin",
@@ -1311,6 +1348,11 @@ func TestExpandCPEAliases(t *testing.T) {
 			name:            "pre-release python: 3.13.0 rc1",
 			cpeItem:         python3130RC1,
 			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
+		},
+		{
+			name:            "ipswitch whatsup alias",
+			cpeItem:         ipswitchWhatsup,
+			expectedAliases: []*wfn.Attributes{ipswitchWhatsup, &ipswitchWhatsupAlias},
 		},
 		{
 			name:    "pgadmin on macos",

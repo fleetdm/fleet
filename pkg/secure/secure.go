@@ -66,8 +66,10 @@ func checkPermPath(path string, perm os.FileMode) error {
 
 func checkPermFile(filePath string, perm os.FileMode) error {
 	if f, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) && f != nil && f.Mode() != perm {
-		return fmt.Errorf(
-			"File %s already exists with mode %o instead of the expected %o", filePath, f.Mode(), perm)
+		if chmodErr := os.Chmod(filePath, perm); chmodErr != nil {
+			return fmt.Errorf(
+				"file %s has mode %o instead of the expected %o and chmod failed: %w", filePath, f.Mode(), perm, chmodErr)
+		}
 	}
 	if err := checkPermPath(path.Dir(filePath), perm); err != nil {
 		return err

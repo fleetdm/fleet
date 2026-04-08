@@ -188,16 +188,15 @@ func (svc *Service) SearchTargets(ctx context.Context, matchQuery string, queryI
 		return nil, fleet.ErrNoContext
 	}
 
-	includeObserver := false
+	filter := fleet.TeamFilter{User: vc.User}
 	if queryID != nil {
 		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
-		includeObserver = query.ObserverCanRun
+		filter.IncludeObserver = query.ObserverCanRun
+		filter.ObserverTeamID = query.TeamID
 	}
-
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	results := &fleet.TargetSearchResults{}
 
@@ -233,16 +232,15 @@ func (svc *Service) CountHostsInTargets(ctx context.Context, queryID *uint, targ
 		return nil, fleet.ErrNoContext
 	}
 
-	includeObserver := false
+	filter := fleet.TeamFilter{User: vc.User}
 	if queryID != nil {
 		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
-		includeObserver = query.ObserverCanRun
+		filter.IncludeObserver = query.ObserverCanRun
+		filter.ObserverTeamID = query.TeamID
 	}
-
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	metrics, err := svc.ds.CountHostsInTargets(ctx, filter, targets, svc.clock.Now())
 	if err != nil {

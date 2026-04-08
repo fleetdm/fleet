@@ -156,12 +156,6 @@ const HostSoftwareLibraryTable = ({
     return <EmptySoftwareTable noSearchQuery={searchQuery === ""} />;
   }, [searchQuery]);
 
-  // Determines if a user should be able to filter or search in the table
-  const hasData = data && data.software.length > 0;
-  const hasQuery = searchQuery !== "";
-
-  const showFilterHeaders = hasData || hasQuery;
-
   if (isAndroid(platform)) {
     return (
       <EmptyTable
@@ -212,11 +206,11 @@ const HostSoftwareLibraryTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customControl={renderCustomControls}
         emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable={showFilterHeaders}
+        searchable
         manualSortBy
       />
     </div>

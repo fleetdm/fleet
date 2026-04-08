@@ -43,6 +43,9 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 			user.Active,
 		)
 		if err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("ScimUser", user.UserName), "insert scim user")
+			}
 			return ctxerr.Wrap(ctx, err, "insert scim user")
 		}
 
@@ -306,6 +309,9 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			user.ID,
 		)
 		if err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("ScimUser", user.UserName), "update scim user")
+			}
 			return ctxerr.Wrap(ctx, err, "update scim user")
 		}
 
@@ -605,19 +611,19 @@ func getScimUserGroups(ctx context.Context, q sqlx.QueryerContext, userID uint) 
 // validateScimUserFields checks if the user fields exceed the maximum allowed length
 func validateScimUserFields(user *fleet.ScimUser) error {
 	if user.ExternalID != nil && len(*user.ExternalID) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "external_id", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if len(user.UserName) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("user_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "user_name", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if user.GivenName != nil && len(*user.GivenName) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("given_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "given_name", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if user.FamilyName != nil && len(*user.FamilyName) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("family_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "family_name", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if user.Department != nil && len(*user.Department) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("department exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "department", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	return nil
 }
@@ -625,10 +631,10 @@ func validateScimUserFields(user *fleet.ScimUser) error {
 // validateScimGroupFields checks if the group fields exceed the maximum allowed length
 func validateScimGroupFields(group *fleet.ScimGroup) error {
 	if group.ExternalID != nil && len(*group.ExternalID) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "external_id", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if len(group.DisplayName) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("display_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "display_name", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	return nil
 }

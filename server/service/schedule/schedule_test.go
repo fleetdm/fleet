@@ -859,10 +859,23 @@ func TestTriggerPollPicksUpQueuedRecord(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// Wait for the poll goroutine to detect and process the queued record
+	// Wait for the poll goroutine to detect, process, and complete the queued record.
+	// We check the stats record status rather than jobsRun because the job function
+	// runs before the stats record is updated to "completed", creating a race.
 	require.Eventually(t, func() bool {
-		return jobsRun.Load() >= 1
-	}, 5*time.Second, 100*time.Millisecond, "expected poll goroutine to pick up queued trigger")
+		stats, err := statsStore.GetLatestCronStats(ctx, name)
+		if err != nil {
+			return false
+		}
+		for _, st := range stats {
+			if st.ID == queuedID && st.Status == fleet.CronStatsStatusCompleted {
+				return true
+			}
+		}
+		return false
+	}, 5*time.Second, 100*time.Millisecond, "expected poll goroutine to pick up queued trigger and complete it")
+
+	require.GreaterOrEqual(t, jobsRun.Load(), uint32(1))
 
 	// Verify the queued record was completed (not replaced by a new record)
 	stats, err := statsStore.GetLatestCronStats(ctx, name)

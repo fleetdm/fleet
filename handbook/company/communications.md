@@ -11,9 +11,9 @@ All team members should attend the "All hands" every month.  "All hands" meeting
 
 ### E-group 
 
-Every week, the "Executive" or "E-group", including the CEO, CTO, Head of Product Design, CRO, CFO, VP of Customer Success, will hold a 30-minute "¶ 🗣 Roundup (E-Group)" meeting to discuss the company's immediate needs and address any blockers.
+Every week, the "Executive" or "E-group", including the CEO, CTO, CFO, CMO, SVP Global Sales, SVP Customer Success, Head of Strategic Growth, Head of Product Design, Head of People, and Head of IT and Solutions Consulting, will hold a 2-hour E-group meeting to discuss the company's immediate needs, address any blockers, and review progress toward strategic short and long-term company goals.
 
-Every three weeks, the E-group will meet for a more in-depth discussion immediately following the "¶ 🗣 Roundup (E-Group)" meeting, regarding the achievement of strategic short and long-term company goals. This is the "¶ 🗣 E-Group review" meeting, typically held from 3-5pm CT.  If one of the department heads cannot attend this meeting, the Executive Assistant will reschedule the E-group review as close to the original time as possible, while verifying that all E-group members can attend. 
+If one of the department heads cannot attend this meeting, the Executive Assistant will reschedule the meeting as close to the original time as possible, while verifying that all E-group members can attend.
 
 The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit?tab=t.0)" agenda will be processed every week and used for all E-group meetings. 
 
@@ -289,6 +289,78 @@ We have specific channels for various topics, but we also have more general chan
 | `#random`                   | Be random.
 
 
+### Converting a private Slack channel to public
+
+Slack does not allow regular members or channel creators to convert a private channel to public. To convert a private channel to public, invite `@Pepper` (Andrea Pepper), the [IT support administrator](https://fleetdm.com/handbook/it#team), to the channel and she will convert it.
+
+
+## AI usage guidelines
+
+We encourage everyone to use AI tools to work more efficiently, think more creatively, and free yourself from repetitive, low-value tasks so you can spend more time on work that's interesting, complex, and uniquely human. These guidelines exist not to restrict how you use AI, but to make sure we're using it responsibly and in a way that protects our customers, our teammates, and the quality of our work.
+
+
+### Available AI tools
+
+You have access to the following tools and can use whatever combination best fits your work:
+
+- **Gemini:** included with your Google Workspace account.
+- **GitHub Copilot:** available by request through GitHub.
+- **Claude:** available to all Fleeties using their @fleetdm.com account.
+- **ChatGPT or other general-purpose assistants:** approval from your manager and expense via your Brex card.
+
+You're not limited to this list. If another tool would help you do your job better, use it. Expense it via Brex if there's a cost, and use the judgment in these guidelines to do so responsibly.
+
+
+### Integrated AI tools
+
+Gemini is natively integrated into Google Workspace and can be used with internal content within that environment. Claude is the AI tool we are integrating with Google Workspace and all other internal systems (e.g. Slack, Salesforce, etc.) Because these tools operate under our enterprise agreements and data protections, they are approved for use with internal data in accordance with the confidentiality guidelines below.
+
+No other AI tools are approved for integration with or direct access to internal systems at this time. You can still use other tools for general-purpose work, but they should not be connected to, granted access to, or used as a pipeline for internal systems, data stores, or company accounts beyond what is described above.
+
+> **Note:** When using tools other than Gemini, GitHub Copilot, and Claude with your @fleetdm.com account, your usage is considered personal or individual. Be mindful of this when inputting any company-related content into those tools.
+
+
+### You own the output
+
+AI is a tool. It is not a colleague, not a reviewer, and not someone you can hand off accountability to. When you use AI to produce work, that work is yours. You are responsible for its accuracy, quality, and appropriateness before it goes anywhere.
+
+In practice, this means:
+
+- **Code:** Review it before you ship it. AI-generated code can contain bugs, security issues, or logic errors that look correct at a glance. Test it. Read it. Understand it.
+- **Written content:** Verify facts and figures. AI tools can confidently state things that are wrong. If you are sending a communication or publishing content based on AI output, confirm anything factual before it goes out.
+- **Emails and communication:** Apply judgment to tone and substance. AI doesn't know your audience, your relationships, or the full context of a situation. An AI-drafted email may be technically fine but miss the mark entirely. Edit with intent.
+- **Analysis and summaries:** Check that they reflect the source. AI can hallucinate or oversimplify. If you are summarizing a document or producing a report, verify the output against the original.
+
+The bottom line: don't put your name on something you haven't actually reviewed. That applies to AI-generated work the same as anything else.
+
+
+### Protect customer and confidential information
+
+This is a hard rule: do not input confidential or private information into personal AI tools.
+
+Most consumer-facing AI tools (including free and personal-tier accounts) use your inputs to improve their models. Even when they don't, there's no guarantee your data stays private or secure. In systems that do not utilize managed enterprise accounts with appropriate data protections, treat these tools as if anything you type could be seen by others.
+
+What this means in practice:
+
+- No customer names, emails, device data, usage data, or anything else a customer has shared with us.
+- No internal credentials, API keys, tokens, or access information.
+- No unpublished financials, pricing details, or strategic plans that aren't public.
+- No personnel information like performance reviews, compensation, HR matters, etc.
+
+If you are unsure whether something counts as confidential, default to not including it. Paraphrase or describe the problem in general terms instead. You can usually get the help you need without sharing sensitive specifics.
+
+
+### When in doubt, ask
+
+These guidelines are meant to cover the common cases, not every possible scenario. If you are not sure whether a particular use is appropriate, or you're considering a tool or workflow that feels like it might be pushing against the spirit of these guidelines, just ask.
+
+There are no wrong questions here. We'd rather you check than skip a useful tool out of unnecessary caution or use one in a way that creates a problem we didn't anticipate.
+
+Reach out to your manager or drop a message in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) on Slack.
+
+These guidelines will evolve as AI tools and our use of them mature.
+
+
 ## Fleetdm.com
 
 Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a website request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-website&projects=&template=website-request.md&title=Website%20request%3A+__________________________) on the #g-website kanban board. 
@@ -390,7 +462,34 @@ To propose an event, complete the steps in the [Propose event issue](https://git
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 
 ## Social media 
-When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don’t necessarily represent your company or peers.
+When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don't necessarily represent your company or peers.
+
+
+### Create content for YouTube
+
+#### Recording standards
+- Record at 1920x1080, 30 fps. Save as `.mp4` (h.264/AAC) or `.mov`. Don't use `.webm`.
+- Add a few seconds of silence at the start and end of each recording.
+- Name files: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
+
+#### Best practices
+**Browser and terminal:**
+- Zoom in so text is legible at 1080p (most viewers watch smaller than full screen).
+- Use a clean browser profile. Close unnecessary tabs.
+
+**Desktop:**
+- Pause notifications. Close or minimize anything that might expose private data.
+- Hide desktop icons or confirm no filenames contain sensitive info.
+
+**Mouse:**
+- Move deliberately. Pause briefly on important UI elements and wait for results to load before moving on.
+
+**Privacy:**
+- Don't show public IPs, passwords, tokens, or credentials.
+- Don't show or say customer names, codenames, or real email addresses.
+
+**Playback:**
+- Don't enable closed captions during recording (they're added later if needed).
 
 
 ## Feedback
@@ -537,7 +636,7 @@ When Fleeties relocate, there are vendors that need to be notified of the change
 
 ## Tools and equipment
 
-Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
+Fleet provides laptops and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
 
 
 ### Requesting new equipment
@@ -723,7 +822,7 @@ During their first week at Fleet, every new team member schedules a contributor 
 - Talking about Google Calendar. Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
 - A quick tour of the Google Drive folder. Does their access look correct? Give access to executed documents on the shared drive as needed. Show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.
 - Make sure you know how to share a Google Doc in the folder for all Fleeties to see and access.
-- Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
+- Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program). (Note: AEs complete their shadow program with the [SVP Global Sales](https://fleetdm.com/handbook/sales#team) instead of the CEO.)
 
 <!--
 ### Onboarding retrospective

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/internal/testutils"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +22,7 @@ func TestCleanupExpiredActivities(t *testing.T) {
 		{"NothingToDelete", testCleanupExpiredActivitiesNoop},
 		{"DeletesExpiredNonHostActivities", testCleanupExpiredActivitiesBasic},
 		{"RespectsMaxCount", testCleanupExpiredActivitiesBatch},
+		{"CleanupHostActivities", testCleanupHostActivities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -41,7 +41,7 @@ func testCleanupExpiredActivitiesNoop(t *testing.T, env *testEnv) {
 
 	// Create a recent activity -should not be deleted.
 	userID := env.InsertUser(t, "user", "user@example.com")
-	env.InsertActivity(t, ptr.Uint(userID), "recent_activity", map[string]any{})
+	env.InsertActivity(t, &userID, "recent_activity", map[string]any{})
 
 	err = env.ds.CleanupExpiredActivities(ctx, 500, 1)
 	require.NoError(t, err)
@@ -61,12 +61,12 @@ func testCleanupExpiredActivitiesBasic(t *testing.T, env *testEnv) {
 
 	// Create activities with different states:
 	// 1. Expired, no host link → should be deleted
-	expiredNoHost := env.InsertActivityWithTime(t, ptr.Uint(userID), "expired_no_host", map[string]any{}, expiredTime)
+	expiredNoHost := env.InsertActivityWithTime(t, &userID, "expired_no_host", map[string]any{}, expiredTime)
 	// 2. Expired, linked to host → should be preserved
-	expiredWithHost := env.InsertActivityWithTime(t, ptr.Uint(userID), "expired_with_host", map[string]any{}, expiredTime)
+	expiredWithHost := env.InsertActivityWithTime(t, &userID, "expired_with_host", map[string]any{}, expiredTime)
 	env.InsertHostActivity(t, hostID, expiredWithHost)
 	// 3. Recent, no host link → should be preserved
-	recentNoHost := env.InsertActivityWithTime(t, ptr.Uint(userID), "recent_no_host", map[string]any{}, recentTime)
+	recentNoHost := env.InsertActivityWithTime(t, &userID, "recent_no_host", map[string]any{}, recentTime)
 
 	err := env.ds.CleanupExpiredActivities(ctx, 500, 1)
 	require.NoError(t, err)
@@ -83,11 +83,51 @@ func testCleanupExpiredActivitiesBasic(t *testing.T, env *testEnv) {
 	assert.Contains(t, activityIDs, expiredWithHost, "expired host-linked activity should be preserved")
 	assert.Contains(t, activityIDs, recentNoHost, "recent activity should be preserved")
 
-	// Verify host_activities link still exists for the preserved activity.
+	// Verify activity_host_past link still exists for the preserved activity.
 	var hostActivityCount int
-	err = env.DB.GetContext(ctx, &hostActivityCount, "SELECT COUNT(*) FROM host_activities WHERE activity_id = ?", expiredWithHost)
+	err = env.DB.GetContext(ctx, &hostActivityCount, "SELECT COUNT(*) FROM activity_host_past WHERE activity_id = ?", expiredWithHost)
 	require.NoError(t, err)
 	assert.Equal(t, 1, hostActivityCount)
+}
+
+func testCleanupHostActivities(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	userID := env.InsertUser(t, "user", "user@example.com")
+
+	hostA := env.InsertHost(t, "hostA.local", nil)
+	hostB := env.InsertHost(t, "hostB.local", nil)
+
+	actA := env.InsertActivity(t, &userID, "ran_script", map[string]any{})
+	actB := env.InsertActivity(t, &userID, "ran_script", map[string]any{})
+	env.InsertHostActivity(t, hostA, actA)
+	env.InsertHostActivity(t, hostB, actB)
+
+	// No-op for empty/nil slices; join table rows remain intact.
+	require.NoError(t, env.ds.CleanupHostActivities(ctx, []uint{}))
+	require.NoError(t, env.ds.CleanupHostActivities(ctx, nil))
+	var count int
+	err := env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM activity_host_past")
+	require.NoError(t, err)
+	assert.Equal(t, 2, count, "no-op should not remove any join table rows")
+
+	// Clean up only hostA.
+	err = env.ds.CleanupHostActivities(ctx, []uint{hostA})
+	require.NoError(t, err)
+
+	// hostA's join table row is gone.
+	err = env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?", hostA)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+
+	// hostB's join table row is still present.
+	err = env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?", hostB)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	// The activities themselves still exist (only the join table rows are removed).
+	activities, _, err := env.ds.ListActivities(ctx, listOpts())
+	require.NoError(t, err)
+	assert.Len(t, activities, 2)
 }
 
 func testCleanupExpiredActivitiesBatch(t *testing.T, env *testEnv) {
@@ -97,7 +137,7 @@ func testCleanupExpiredActivitiesBatch(t *testing.T, env *testEnv) {
 
 	// Create 10 expired activities (no host links).
 	for i := range 10 {
-		env.InsertActivityWithTime(t, ptr.Uint(userID), fmt.Sprintf("expired_%d", i), map[string]any{}, expiredTime)
+		env.InsertActivityWithTime(t, &userID, fmt.Sprintf("expired_%d", i), map[string]any{}, expiredTime)
 	}
 
 	// Cleanup with maxCount=3 -only 3 should be deleted per call.

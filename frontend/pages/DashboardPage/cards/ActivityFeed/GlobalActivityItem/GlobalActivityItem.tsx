@@ -77,7 +77,7 @@ const getProfileMessageSuffix = (
   return messageSuffix;
 };
 
-const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
+const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
   return teamName ? (
     <>
       {" "}
@@ -485,6 +485,33 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  viewedHostRecoveryLockPassword: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the Recovery Lock password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  setHostRecoveryLockPassword: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        set a Recovery Lock password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  rotatedHostRecoveryLockPassword: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        triggered rotation of the Recovery Lock password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -619,6 +646,15 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resentCertificate: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.certificate_name} certificate for host{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   addedCertificateAuthority: (name = "") => {
     return name ? (
       <>
@@ -710,12 +746,20 @@ const TAGGED_TEMPLATES = {
     );
   },
   enabledDiskEncryption: (activity: IActivity) => {
-    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <> enforced disk encryption for hosts {suffix}.</>;
   },
   disabledEncryption: (activity: IActivity) => {
-    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <>removed disk encryption enforcement for hosts {suffix}.</>;
+  },
+  enabledRecoveryLockPasswords: (activity: IActivity) => {
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
+    return <>enforced Recovery Lock passwords for hosts {suffix}.</>;
+  },
+  disabledRecoveryLockPasswords: (activity: IActivity) => {
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
+    return <>removed Recovery Lock password enforcement for hosts {suffix}.</>;
   },
   changedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(
@@ -1026,23 +1070,34 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedWindowsUpdates: (activity: IActivity) => {
+    const deadlineDays = activity.details?.deadline_days;
+    const gracePeriodDays = activity.details?.grace_period_days;
+    const isCleared = deadlineDays === undefined || deadlineDays === null;
+    const teamText = activity.details?.team_name ? (
+      <>
+        the <b>{activity.details.team_name}</b> fleet
+      </>
+    ) : (
+      `unassigned`
+    );
+
+    if (isCleared) {
+      return (
+        <>
+          {" "}
+          removed the Windows OS update options on hosts assigned to {teamText}.
+        </>
+      );
+    }
+
     return (
       <>
         {" "}
         updated the Windows OS update options (
         <b>
-          Deadline: {activity.details?.deadline_days} days / Grace period:{" "}
-          {activity.details?.grace_period_days} days
+          Deadline: {deadlineDays} days / Grace period: {gracePeriodDays} days
         </b>
-        ) on hosts assigned to{" "}
-        {activity.details?.team_name ? (
-          <>
-            the <b>{activity.details.team_name}</b> fleet
-          </>
-        ) : (
-          `unassigned`
-        )}
-        .
+        ) on hosts assigned to {teamText}.
       </>
     );
   },
@@ -1744,6 +1799,13 @@ const TAGGED_TEMPLATES = {
       <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
     );
   },
+  clearedPasscode: (activity: IActivity) => {
+    return (
+      <>
+        cleared the passcode on <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1826,6 +1888,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
+    case ActivityType.ViewedHostRecoveryLockPassword: {
+      return TAGGED_TEMPLATES.viewedHostRecoveryLockPassword(activity);
+    }
+    case ActivityType.SetHostRecoveryLockPassword: {
+      return TAGGED_TEMPLATES.setHostRecoveryLockPassword(activity);
+    }
+    case ActivityType.RotatedHostRecoveryLockPassword: {
+      return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
+    }
     case ActivityType.CreatedAppleOSProfile: {
       return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);
     }
@@ -1846,6 +1917,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedAndroidCertificate: {
       return TAGGED_TEMPLATES.editedAndroidCertificate(activity, isPremiumTier);
+    }
+    case ActivityType.ResentCertificate: {
+      return TAGGED_TEMPLATES.resentCertificate(activity);
     }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
@@ -1901,6 +1975,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledDiskEncryption:
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disabledEncryption(activity);
+    }
+    case ActivityType.EnabledRecoveryLockPasswords: {
+      return TAGGED_TEMPLATES.enabledRecoveryLockPasswords(activity);
+    }
+    case ActivityType.DisabledRecoveryLockPasswords: {
+      return TAGGED_TEMPLATES.disabledRecoveryLockPasswords(activity);
     }
     case ActivityType.AddedBootstrapPackage: {
       return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
@@ -2130,6 +2210,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMicrosoftEntraTenant: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.ClearedPasscode: {
+      return TAGGED_TEMPLATES.clearedPasscode(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

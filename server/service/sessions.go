@@ -120,6 +120,7 @@ type loginResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
 	AvailableTeams []*fleet.TeamSummary `json:"available_teams" renameto:"available_fleets"`
 	Token          string               `json:"token,omitempty"`
+	TokenExpiresAt *time.Time           `json:"token_expires_at,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
 
@@ -159,7 +160,20 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 			return loginResponse{Err: err}, nil
 		}
 	}
-	return loginResponse{user, availableTeams, session.Key, nil}, nil
+
+	// Calculate token expiration time if session duration is configured
+	var tokenExpiresAt *time.Time
+	if sessionDuration := svc.GetSessionDuration(ctx); sessionDuration > 0 {
+		expiresAt := time.Now().Add(sessionDuration).UTC()
+		tokenExpiresAt = &expiresAt
+	}
+
+	return loginResponse{
+		User:           user,
+		AvailableTeams: availableTeams,
+		Token:          session.Key,
+		TokenExpiresAt: tokenExpiresAt,
+	}, nil
 }
 
 var (
@@ -254,6 +268,10 @@ func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Sessio
 	return svc.ds.NewSession(ctx, userID, svc.config.Session.KeySize)
 }
 
+func (svc *Service) GetSessionDuration(ctx context.Context) time.Duration {
+	return svc.config.Session.Duration
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Session create (second step of MFA)
 ////////////////////////////////////////////////////////////////////////////////
@@ -281,7 +299,20 @@ func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			return loginResponse{Err: err}, nil
 		}
 	}
-	return loginResponse{user, availableTeams, session.Key, nil}, nil
+
+	// Calculate token expiration time if session duration is configured
+	var tokenExpiresAt *time.Time
+	if sessionDuration := svc.GetSessionDuration(ctx); sessionDuration > 0 {
+		expiresAt := time.Now().Add(sessionDuration).UTC()
+		tokenExpiresAt = &expiresAt
+	}
+
+	return loginResponse{
+		User:           user,
+		AvailableTeams: availableTeams,
+		Token:          session.Key,
+		TokenExpiresAt: tokenExpiresAt,
+	}, nil
 }
 
 func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Session, *fleet.User, error) {
@@ -573,6 +604,7 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 type callbackSSOResponse struct {
 	content string
 	token   string
+	expires time.Duration
 	Err     error `json:"error,omitempty"`
 }
 
@@ -584,12 +616,17 @@ func (r callbackSSOResponse) Html() string { return r.content }
 func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
 	if r.token != "" {
-		http.SetCookie(w, &http.Cookie{
-			Name:   "__Host-token",
-			Value:  r.token,
-			Path:   "/",
-			Secure: cookieSecure,
-		})
+		cookie := &http.Cookie{
+			Name:     "__Host-token",
+			Value:    r.token,
+			Path:     "/",
+			Secure:   cookieSecure,
+			SameSite: http.SameSiteLaxMode,
+		}
+		if r.expires > 0 {
+			cookie.Expires = time.Now().Add(r.expires).UTC()
+		}
+		http.SetCookie(w, cookie)
 	}
 }
 
@@ -643,6 +680,7 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		}
 		resp.content = writer.String()
 		resp.token = session.Token
+		resp.expires = svc.GetSessionDuration(ctx)
 		return resp, nil
 	}
 }

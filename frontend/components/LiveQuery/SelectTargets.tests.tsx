@@ -23,7 +23,7 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
   return HttpResponse.json({ labels: MOCK_LABELS });
 });
 
-const teamsHandler = http.get(baseUrl("/teams"), () => {
+const teamsHandler = http.get(baseUrl("/fleets"), () => {
   return HttpResponse.json({ teams: MOCK_TEAMS });
 });
 
@@ -111,7 +111,7 @@ describe("SelectTargets - team disabling", () => {
       });
     });
 
-    it("enables only the query's own team when observer_can_run is true", async () => {
+    it("enables only the query's team when observer_can_run is true", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -123,6 +123,7 @@ describe("SelectTargets - team disabling", () => {
         },
       });
 
+      // Query belongs to team 1; observer may only target that team.
       render(
         <SelectTargets
           {...defaultProps}
@@ -137,7 +138,7 @@ describe("SelectTargets - team disabling", () => {
       });
     });
 
-    it("disables observer teams targeting a different team than the query's team", async () => {
+    it("enables only the query's team when observer_can_run is true (query on team 2)", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -149,6 +150,7 @@ describe("SelectTargets - team disabling", () => {
         },
       });
 
+      // Query belongs to team 2; only team 2 should be enabled.
       render(
         <SelectTargets
           {...defaultProps}
@@ -158,9 +160,7 @@ describe("SelectTargets - team disabling", () => {
       );
 
       await waitFor(() => {
-        // Team Alpha is not the query's team, so disabled for observer
         expect(getTeamButton("Team Alpha")).toBeDisabled();
-        // Team Beta IS the query's team, so enabled
         expect(getTeamButton("Team Beta")).toBeEnabled();
       });
     });
@@ -275,8 +275,8 @@ describe("SelectTargets - team disabling", () => {
         },
       });
 
-      // Query belongs to team 1 (admin team), observer_can_run is true
-      // Team 2 (observer) should still be disabled because query belongs to team 1
+      // Query belongs to team 1 (admin team), observer_can_run is true.
+      // Team 2 (observer role) should be disabled — observer_can_run is scoped to the query's team.
       render(
         <SelectTargets
           {...defaultProps}
@@ -379,7 +379,7 @@ describe("SelectTargets - team disabling", () => {
       });
     });
 
-    it("enables only the query's own team when observer_can_run is true", async () => {
+    it("enables only the query's team when observer_can_run is true", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -391,6 +391,7 @@ describe("SelectTargets - team disabling", () => {
         },
       });
 
+      // Query belongs to team 1; global observer may only target that team.
       render(
         <SelectTargets
           {...defaultProps}

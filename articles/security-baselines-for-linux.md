@@ -7,7 +7,7 @@
 - Part 3: Security baselines for Linux: closing the gap on exemptions
 - Part 4: [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates)
 - Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
-- Part 6: [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source)
+- Part 6: [Data and Endpoint Sovereignty: Owning Your Destiny](https://fleetdm.com/articles/data-and-endpoint-sovereignty-owning-your-destiny)
 
 -----
 
@@ -68,6 +68,8 @@ For many organizations, security standards are not optional. They are mandatory 
 ## The new mandate
 
 The message is clear: if your enterprise leverages Linux workstations, they must be secured with the same rigor and established standards as your Macs and Windows devices. You do not need to re-invent security best practices. By adopting recognized security baselines like the readily available guidance offered by CIS Benchmarks for Red Hat, Ubuntu, Debian, and others you can immediately elevate your security posture. Implementing this strategy is the critical next step in ensuring that your most powerful workstations serve as a secure, foundational element of employee productivity, not a looming threat to enterprise security.
+
+The [next article](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates) in this series will cover application deployment and certificate management on Linux desktop.
 
 <meta name="articleTitle" value="Security baselines for Linux: closing the gap on exemptions">  
 <meta name="authorFullName" value="Ashish Kuthiala">  

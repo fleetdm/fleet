@@ -50,6 +50,8 @@ const EndUserAuthForm = ({
 
   const onToggleEndUserAuth = (newCheckVal: boolean) => {
     setEndUserAuthEnabled(newCheckVal);
+    // Sync lock end user info with EUA: enabling EUA enables it, disabling EUA disables it.
+    setLockEndUserInfo(newCheckVal);
   };
 
   const onChangeLockEndUserInfo = (newCheckVal: boolean) => {

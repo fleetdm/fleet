@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -368,6 +369,49 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	require.True(t, found)
 }
 
+func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
+	// POST /api/v1/fleet/queries with labels_include_any should fail with 402 on free tier
+	var createResp createQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:             ptr.String("test-labels-query"),
+		Query:            ptr.String("SELECT 1"),
+		LabelsIncludeAny: []string{"some-label"},
+	}, http.StatusPaymentRequired, &createResp)
+
+	// Create a query without labels_include_any to use for the PATCH test
+	var createOKResp createQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:  ptr.String("test-labels-query-for-patch"),
+		Query: ptr.String("SELECT 1"),
+	}, http.StatusOK, &createOKResp)
+	defer s.cleanupQuery(createOKResp.Query.ID)
+
+	// PATCH with labels_include_any should also fail with 402 on free tier
+	var modifyResp modifyQueryResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createOKResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAny: []string{"some-label"},
+	}, http.StatusPaymentRequired, &modifyResp)
+
+	// PATCH with an explicit empty labels_include_any (clearing labels) must also require premium
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createOKResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAny: []string{},
+	}, http.StatusPaymentRequired, &modifyResp)
+
+	// POST /api/latest/fleet/spec/queries with labels_include_any should fail with 402 on free tier
+	var applyResp applyQuerySpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: "test-labels-spec-query", Query: "SELECT 1", LabelsIncludeAny: []string{"some-label"}},
+		},
+	}, http.StatusPaymentRequired, &applyResp)
+
+	// POST /api/latest/fleet/spec/queries with an explicit empty labels_include_any must also require premium.
+	// We send raw JSON because QuerySpec.LabelsIncludeAny has omitempty, so a Go []string{} would be
+	// stripped during marshaling and never reach the server as a non-nil empty slice.
+	rawBody := []byte(`{"specs":[{"name":"test-labels-spec-query-empty","query":"SELECT 1","labels_include_any":[]}]}`)
+	s.DoRaw("POST", "/api/latest/fleet/spec/queries", rawBody, http.StatusPaymentRequired)
+}
+
 func (s *integrationTestSuite) TestCreatingAPIOnlyUserReturnsAPIToken() {
 	t := s.T()
 
@@ -515,7 +559,7 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 
 	var policyIDs []uint
 	for _, policy := range testPolicies {
-		var resp globalPolicyResponse
+		var resp fleet.GlobalPolicyResponse
 		s.DoJSON("POST", "/api/latest/fleet/policies", policy, http.StatusOK, &resp)
 		policyIDs = append(policyIDs, resp.Policy.PolicyData.ID)
 	}
@@ -531,8 +575,8 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &prevActivities)
 	require.GreaterOrEqual(t, len(prevActivities.Activities), 2)
 
-	var deletePoliciesResp deleteGlobalPoliciesResponse
-	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deleteGlobalPoliciesRequest{policyIDs}, http.StatusOK, &deletePoliciesResp)
+	var deletePoliciesResp fleet.DeleteGlobalPoliciesResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{IDs: policyIDs}, http.StatusOK, &deletePoliciesResp)
 	require.Equal(t, len(policyIDs), len(deletePoliciesResp.Deleted))
 
 	newActivities := listActivitiesResponse{}
@@ -1132,11 +1176,11 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	require.NoError(t, err)
 
 	// create a global policy
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		QueryID:    &qr.ID,
 		Resolution: "some global resolution",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	assert.Equal(t, qr.Name, gpResp.Policy.Name)
@@ -1146,7 +1190,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	assert.Equal(t, "some global resolution", *gpResp.Policy.Resolution)
 
 	// list global policies
-	policiesResponse := listGlobalPoliciesResponse{}
+	policiesResponse := fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, qr.Name, policiesResponse.Policies[0].Name)
@@ -1154,12 +1198,12 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	assert.Equal(t, qr.Description, policiesResponse.Policies[0].Description)
 
 	// invalid order_key returns 422
-	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusUnprocessableEntity, &listGlobalPoliciesResponse{}, "order_key", "invalid")
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusUnprocessableEntity, &fleet.ListGlobalPoliciesResponse{}, "order_key", "invalid")
 
 	// Get an unexistent policy
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", 9999), nil, http.StatusNotFound)
 
-	singlePolicyResponse := getPolicyByIDResponse{}
+	singlePolicyResponse := fleet.GetPolicyByIDResponse{}
 	singlePolicyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policiesResponse.Policies[0].ID)
 	s.DoJSON("GET", singlePolicyURL, nil, http.StatusOK, &singlePolicyResponse)
 	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.Name)
@@ -1179,8 +1223,8 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -1188,31 +1232,31 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	require.Len(t, listHostsResp.Hosts, 1)
 
 	// count global policies
-	cGPRes := countGlobalPoliciesResponse{}
+	cGPRes := fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes)
 	assert.Equal(t, 1, cGPRes.Count)
 
 	// count global policies with matching search query
-	cGPRes = countGlobalPoliciesResponse{}
+	cGPRes = fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", "estQue")
 	assert.Equal(t, 1, cGPRes.Count)
 
 	// count global policies with matching search query containing leading/trailing whitespace
-	cGPRes = countGlobalPoliciesResponse{}
+	cGPRes = fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", " estQue    ")
 	assert.Equal(t, 1, cGPRes.Count)
 
 	// count global policies with non-matching search query
-	cGPRes = countGlobalPoliciesResponse{}
+	cGPRes = fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", "Query4")
 	assert.Equal(t, 0, cGPRes.Count)
 
 	// delete the policy
-	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
-	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	deletePolicyParams := fleet.DeleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := fleet.DeleteGlobalPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
-	policiesResponse = listGlobalPoliciesResponse{}
+	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
 }
@@ -1800,7 +1844,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(
 		t,
-		s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: ptr.Bool(false)}, time.Now(), false),
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: new(false)}, time.Now(), false, nil),
 	)
 
 	resp = listHostsResponse{}
@@ -2065,7 +2109,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	for _, host := range hosts {
 		// All hosts pass the globalPolicy1
 		err := s.ds.RecordPolicyQueryExecutions(
-			context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(true)}, time.Now(), false,
+			context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil,
 		)
 		require.NoError(t, err)
 	}
@@ -2791,22 +2835,22 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	})
 	require.NoError(t, err)
 	// Cannot set both QueryID and Query.
-	gpParams0 := globalPolicyRequest{
+	gpParams0 := fleet.GlobalPolicyRequest{
 		QueryID: &qr.ID,
 		Query:   "select * from osquery;",
 	}
-	gpResp0 := globalPolicyResponse{}
+	gpResp0 := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams0, http.StatusBadRequest, &gpResp0)
 	require.Nil(t, gpResp0.Policy)
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		Name:        "TestQuery3",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
 		Platform:    "darwin",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NotEmpty(t, gpResp.Policy.ID)
@@ -2826,7 +2870,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		"description": "Some description updated",
 		"resolution": "some global resolution updated"
 	}`), http.StatusOK)
-	var mgpResp modifyGlobalPolicyResponse
+	var mgpResp fleet.ModifyGlobalPolicyResponse
 	responseBody, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 	err = json.Unmarshal(responseBody, &mgpResp)
@@ -2842,8 +2886,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
 	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
 
-	ggpResp := getPolicyByIDResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &ggpResp)
+	ggpResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &ggpResp)
 	require.NotNil(t, ggpResp.Policy)
 	assert.Equal(t, "TestQuery4", ggpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", ggpResp.Policy.Query)
@@ -2854,7 +2898,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
 	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
 
-	policiesResponse := listGlobalPoliciesResponse{}
+	policiesResponse := fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, "TestQuery4", policiesResponse.Policies[0].Name)
@@ -2883,8 +2927,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -2919,7 +2963,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	policiesResponse = listGlobalPoliciesResponse{}
+	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, "TestQuery4", policiesResponse.Policies[0].Name)
@@ -2934,12 +2978,12 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	// Record query executions
 	require.NoError(
 		t, s.ds.RecordPolicyQueryExecutions(
-			context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now(), false,
+			context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil,
 		),
 	)
 	require.NoError(
 		t, s.ds.RecordPolicyQueryExecutions(
-			context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false,
+			context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil,
 		),
 	)
 	// Update policy stats
@@ -2991,11 +3035,11 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
-	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	deletePolicyParams := fleet.DeleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := fleet.DeleteGlobalPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
-	policiesResponse = listGlobalPoliciesResponse{}
+	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
 }
@@ -3029,14 +3073,14 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	require.NoError(t, err)
 
 	tpName := "TestPolicy3"
-	tpParams := teamPolicyRequest{
+	tpParams := fleet.TeamPolicyRequest{
 		Name:        tpName,
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
 		Platform:    "darwin",
 	}
-	tpResp := teamPolicyResponse{}
+	tpResp := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
@@ -3057,7 +3101,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 		"description": "Some description updated",
 		"resolution": "some team resolution updated"
 	}`, tpNameNew)), http.StatusOK)
-	var mtpResp modifyGlobalPolicyResponse
+	var mtpResp fleet.ModifyGlobalPolicyResponse
 	responseBody, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 	err = json.Unmarshal(responseBody, &mtpResp)
@@ -3071,8 +3115,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "some team resolution updated", *mtpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", mtpResp.Policy.Platform)
 
-	gtpResp := getPolicyByIDResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &gtpResp)
+	gtpResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &gtpResp)
 	require.NotNil(t, gtpResp.Policy)
 	assert.Equal(t, tpNameNew, gtpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", gtpResp.Policy.Query)
@@ -3081,7 +3125,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "some team resolution updated", *gtpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", gtpResp.Policy.Platform)
 
-	policiesResponse := listTeamPoliciesResponse{}
+	policiesResponse := fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, tpNameNew, policiesResponse.Policies[0].Name)
@@ -3093,22 +3137,22 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	require.Len(t, policiesResponse.InheritedPolicies, 0)
 
 	// test team policy count endpoint
-	tpCountResp := countTeamPoliciesResponse{}
+	tpCountResp := fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp)
 	assert.Equal(t, 1, tpCountResp.Count)
 	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
-	tpCountResp = countTeamPoliciesResponse{}
+	tpCountResp = fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", tpNameNew)
 	assert.Equal(t, 1, tpCountResp.Count)
 	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
-	tpCountResp = countTeamPoliciesResponse{}
+	tpCountResp = fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " "+tpNameNew+" ")
 	assert.Equal(t, 1, tpCountResp.Count)
 	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
-	tpCountResp = countTeamPoliciesResponse{}
+	tpCountResp = fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " nomatch")
 	assert.Equal(t, 0, tpCountResp.Count)
 	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
@@ -3125,19 +3169,19 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?team_id=%d&policy_id=%d&policy_response=passing", team1.ID, policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 1)
 
-	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
-	deletePolicyResp := deleteTeamPoliciesResponse{}
+	deletePolicyParams := fleet.DeleteTeamPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
+	deletePolicyResp := fleet.DeleteTeamPoliciesResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team1.ID), deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
-	policiesResponse = listTeamPoliciesResponse{}
+	policiesResponse = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
 }
@@ -3152,24 +3196,24 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	})
 	require.NoError(t, err)
 
-	tpParams := teamPolicyRequest{
+	tpParams := fleet.TeamPolicyRequest{
 		Name:        "TestQuery3-Team",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
 	}
-	tpResp := teamPolicyResponse{}
+	tpResp := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	teamPolicyID := tpResp.Policy.ID
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		Name:        "TestQuery3-Global",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NotEmpty(t, gpResp.Policy.ID)
@@ -3216,48 +3260,48 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
-			tpReq := teamPolicyRequest{
+			tpReq := fleet.TeamPolicyRequest{
 				QueryID:  tc.queryID,
 				Name:     tc.name,
 				Query:    tc.query,
 				Platform: tc.platforms,
 			}
-			tpResp := teamPolicyResponse{}
+			tpResp := fleet.TeamPolicyResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpReq, http.StatusBadRequest, &tpResp)
 			require.Nil(t, tpResp.Policy)
 
 			testUpdate := tc.queryID == nil
 
 			if testUpdate {
-				tpReq := modifyTeamPolicyRequest{
+				tpReq := fleet.ModifyTeamPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 						Name:  ptr.String(tc.name),
 						Query: ptr.String(tc.query),
 					},
 				}
-				tpResp := modifyTeamPolicyResponse{}
+				tpResp := fleet.ModifyTeamPolicyResponse{}
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, teamPolicyID), tpReq, http.StatusBadRequest, &tpResp)
 				require.Nil(t, tpResp.Policy)
 			}
 
-			gpReq := globalPolicyRequest{
+			gpReq := fleet.GlobalPolicyRequest{
 				QueryID:  tc.queryID,
 				Name:     tc.name,
 				Query:    tc.query,
 				Platform: tc.platforms,
 			}
-			gpResp := globalPolicyResponse{}
+			gpResp := fleet.GlobalPolicyResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/policies", gpReq, http.StatusBadRequest, &gpResp)
 			require.Nil(t, tpResp.Policy)
 
 			if testUpdate {
-				gpReq := modifyGlobalPolicyRequest{
+				gpReq := fleet.ModifyGlobalPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 						Name:  ptr.String(tc.name),
 						Query: ptr.String(tc.query),
 					},
 				}
-				gpResp := modifyGlobalPolicyResponse{}
+				gpResp := fleet.ModifyGlobalPolicyResponse{}
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), gpReq, http.StatusBadRequest, &gpResp)
 				require.Nil(t, tpResp.Policy)
 			}
@@ -3312,24 +3356,24 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		Name:        "HostDetailsPolicies",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NotEmpty(t, gpResp.Policy.ID)
 
-	tpParams := teamPolicyRequest{
+	tpParams := fleet.TeamPolicyRequest{
 		Name:        "HostDetailsPolicies-Team",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
 	}
-	tpResp := teamPolicyResponse{}
+	tpResp := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
@@ -3340,6 +3384,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(true)},
 		time.Now(),
 		false,
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -3357,6 +3402,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	policies := *hd.Policies
 	require.Len(t, policies, 2)
 	// Policies that did not run are listed before passing policies
+	// TODO(JVE): verify that this passes once JK merges his code
 	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[0].PolicyData))
 	require.Equal(t, policies[0].Response, "") // policy didn't "run"
 
@@ -3712,13 +3758,16 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
+	sql := "select * from time;"
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
 		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
-		Query: ptr.String("select * from time;"),
+		Query: ptr.String(sql),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
+	assert.Equal(t, query.Query, sql)
+	assert.Equal(t, createQueryResp.Report.Query, sql)
 
 	// listing returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
@@ -3758,6 +3807,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var getQryResp getQueryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
 	assert.Equal(t, query.ID, getQryResp.Query.ID)
+	assert.Equal(t, query.ID, getQryResp.Report.ID)
+	assert.Equal(t, sql, getQryResp.Query.Query)
+	assert.Equal(t, sql, getQryResp.Report.Query)
 
 	// list scheduled queries in pack, none yet
 	var getInPackResp getScheduledQueriesInPackResponse
@@ -3843,6 +3895,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var modQryResp modifyQueryResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
 	assert.Equal(t, "updated", modQryResp.Query.Description)
+	assert.Equal(t, sql, modQryResp.Query.Query)
+	assert.Equal(t, sql, modQryResp.Report.Query)
 
 	// TODO(jahziel): check that the query results were deleted
 
@@ -4137,7 +4191,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	})
 
 	// create a custom_installer email for orbit host
-	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", fleet.OrbitPutDeviceMappingRequest{
 		OrbitNodeKey: *orbitHost.OrbitNodeKey,
 		Email:        "e@b.c",
 	}, http.StatusOK)
@@ -4169,7 +4223,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", orbitHost.ID), putHostDeviceMappingRequest{Email: "f@b.c"}, http.StatusOK, &putResp)
 
 	// update the custom_installer email for orbit host, will get ignored (because a custom_override exists)
-	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", fleet.OrbitPutDeviceMappingRequest{
 		OrbitNodeKey: *orbitHost.OrbitNodeKey,
 		Email:        "g@b.c",
 	}, http.StatusOK)
@@ -5355,16 +5409,16 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	)
 	require.NoError(t, err)
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		QueryID:    &qr.ID,
 		Resolution: "some global resolution",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NoError(
 		t,
-		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false),
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil),
 	)
 
 	// Add MDM info
@@ -5451,17 +5505,15 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		&applyResp,
 	)
 
-	// apply an invalid label spec - manual membership without a host specified
+	// apply a valid label spec - manual membership without hosts specified (preserves existing membership)
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
 			{
 				Name:                name,
-				Query:               "select 1",
-				Platform:            "linux",
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 			},
 		},
-	}, http.StatusUnprocessableEntity, &applyResp,
+	}, http.StatusOK, &applyResp,
 	)
 
 	// apply an invalid label spec - builtin label type
@@ -5853,11 +5905,11 @@ func (s *integrationTestSuite) TestUsers() {
 func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	t := s.T()
 
-	gpParams := globalPolicyRequest{
+	gpParams := fleet.GlobalPolicyRequest{
 		Name:  "policy1",
 		Query: "select 41;",
 	}
-	gpResp := globalPolicyResponse{}
+	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
@@ -5880,8 +5932,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	require.Equal(t, 1*time.Hour, config.WebhookSettings.Interval.Duration)
 	require.Equal(t, 1000, config.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
-	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{gpResp.Policy.ID}}
-	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	deletePolicyParams := fleet.DeleteGlobalPoliciesRequest{IDs: []uint{gpResp.Policy.ID}}
+	deletePolicyResp := fleet.DeleteGlobalPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
 	config = s.getConfig()
@@ -7525,6 +7577,12 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	require.Contains(t, errMsg, "missing or invalid license")
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "apple_require_hardware_attestation": true }
+	}`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "missing or invalid license")
+
+	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
@@ -7594,11 +7652,11 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	})
 	require.NoError(t, err)
 
-	gpParams0 := globalPolicyRequest{
+	gpParams0 := fleet.GlobalPolicyRequest{
 		Name:  "global policy",
 		Query: "select * from osquery;",
 	}
-	gpResp0 := globalPolicyResponse{}
+	gpResp0 := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams0, http.StatusOK, &gpResp0)
 	require.NotNil(t, gpResp0.Policy)
 
@@ -7625,7 +7683,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 		s.token = oldToken
 	})
 
-	policiesResponse := listGlobalPoliciesResponse{}
+	policiesResponse := fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, "global policy", policiesResponse.Policies[0].Name)
@@ -7635,12 +7693,12 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	t := s.T()
 
-	teamPoliciesResponse := listTeamPoliciesResponse{}
+	teamPoliciesResponse := fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
 	require.Len(t, teamPoliciesResponse.Policies, 0)
 
-	deleteTeamPoliciesResponse := deleteTeamPoliciesResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), deleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResponse)
+	deleteTeamPoliciesResp := fleet.DeleteTeamPoliciesResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), fleet.DeleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResp)
 }
 
 func (s *integrationTestSuite) TestSessionInfo() {
@@ -7685,8 +7743,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
-	assert.False(t, acResp.UIGitOpsMode.GitopsModeEnabled)
-	assert.Zero(t, acResp.UIGitOpsMode.RepositoryURL)
+	assert.False(t, acResp.GitOpsConfig.GitopsModeEnabled)
+	assert.Zero(t, acResp.GitOpsConfig.RepositoryURL)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -8015,7 +8073,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
 	  }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+	assert.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)
@@ -9254,7 +9312,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	// create a policy and make the host fail it
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", Platform: host.FleetPlatform()})
 	require.NoError(t, err)
-	err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+	err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// refetch the host details
@@ -9995,7 +10053,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// create a policy and make host[1] fail that policy
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
 	require.NoError(t, err)
-	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// create some device mappings for host[2]
@@ -10045,7 +10103,12 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 55)         // total number of cols
+	assert.Len(t, rows[0], 57)         // total number of cols
+	// Validate that both team_id and fleet_id columns are present.
+	assert.Contains(t, rows[0], "team_id")
+	assert.Contains(t, rows[0], "fleet_id")
+	assert.Contains(t, rows[0], "team_name")
+	assert.Contains(t, rows[0], "fleet_name")
 
 	const (
 		idCol        = 3
@@ -10070,13 +10133,17 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// valid format, some columns
 	res = s.DoRaw(
 		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
-		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space",
+		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,team_id,team_name",
 	)
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 	require.Contains(t, rows[0], "hostname") // first row contains headers
+	assert.Contains(t, rows[0], "team_id")
+	assert.Contains(t, rows[0], "fleet_id")
+	assert.Contains(t, rows[0], "team_name")
+	assert.Contains(t, rows[0], "fleet_name")
 	require.Contains(t, res.Header, "Content-Disposition")
 	require.Contains(t, res.Header, "Content-Type")
 	require.Contains(t, res.Header, "X-Content-Type-Options")
@@ -10487,7 +10554,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	// the orbit endpoint to set the disk encryption key always fails in this
 	// suite because MDM is not configured.
 	orbitHost := createOrbitEnrolledHost(t, "windows", "diskenc", s.ds)
-	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *orbitHost.OrbitNodeKey,
 		EncryptionKey: []byte("testkey"),
 	}, http.StatusBadRequest)
@@ -11067,7 +11134,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		var headers map[string]string
 		switch {
 		case route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status":
-			params = getOrbitSetupExperienceStatusRequest{
+			params = fleet.GetOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
 
@@ -11121,19 +11188,19 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 		require.NoError(t, err)
 	}()
 
-	var resp orbitGetConfigResponse
+	var resp fleet.OrbitGetConfigResponse
 	// missing orbit key
 	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
 
 	hNoMDM := createOrbitEnrolledHost(t, "darwin", "nomdm", s.ds)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hNoMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
 	hSimpleMDM := createOrbitEnrolledHost(t, "darwin", "simplemdm", s.ds)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hSimpleMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -11142,7 +11209,7 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -11155,14 +11222,14 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.NoError(t, err)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.True(t, resp.Notifications.RenewEnrollmentProfile)
 
 	// if the fleet mdm host is fully enrolled (not pending anymore), then the notification is false
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, true, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
@@ -11185,7 +11252,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	require.NoError(t, err)
 
 	var resp endpointer.JsonError
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
 		HardwareSerial: h.HardwareSerial,
@@ -11222,9 +11289,9 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// enroll the host from orbit, it will NOT match the existing host since MDM
 	// is not configured (it will only look for a match by osquery_host_id with
 	// the provided uuid).
-	var resp EnrollOrbitResponse
+	var resp enrollOrbitResponse
 	hostUUID := uuid.New().String()
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 		EnrollSecret:   secret,
 		HardwareUUID:   hostUUID, // will not match any existing host
 		HardwareSerial: h.HardwareSerial,
@@ -12262,7 +12329,7 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 
 	// Orbit client gets no extensions if extensions are not configured.
 	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar1", s.ds)
-	resp := orbitGetConfigResponse{}
+	resp := fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.Extensions)
 
@@ -12334,7 +12401,7 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 
 	// Orbit client gets extensions configured for its platform.
 	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar2", s.ds)
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
     "hello_world_macos": {
@@ -12346,12 +12413,12 @@ func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
 
 	// Orbit client gets no extensions if none of the platforms target it.
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.Extensions)
 
 	// Orbit client gets the two extensions configured for its platform.
-	resp = orbitGetConfigResponse{}
+	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
 	require.JSONEq(t, `{
 	"hello_world_linux": {
@@ -12408,20 +12475,20 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 
 	for i, host := range hosts {
 		// All hosts pass the globalPolicy0
-		err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: ptr.Bool(true)}, time.Now(), false)
+		err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: new(true)}, time.Now(), false, nil)
 		require.NoError(t, err)
 
 		if i%2 == 0 {
 			// Half of the hosts pass the globalPolicy1 and fail the globalPolicy2
-			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(true)}, time.Now(), false)
+			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil)
 			require.NoError(t, err)
-			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: ptr.Bool(false)}, time.Now(), false)
+			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(false)}, time.Now(), false, nil)
 			require.NoError(t, err)
 		} else {
 			// Half of the hosts pass the globalPolicy2 and fail the globalPolicy1
-			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(false)}, time.Now(), false)
+			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(false)}, time.Now(), false, nil)
 			require.NoError(t, err)
-			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: ptr.Bool(true)}, time.Now(), false)
+			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(true)}, time.Now(), false, nil)
 			require.NoError(t, err)
 		}
 	}
@@ -12433,7 +12500,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 55)         // total number of cols
+	assert.Len(t, rows1[0], 57)         // total number of cols
 
 	var (
 		idIdx     int
@@ -12463,7 +12530,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 55)         // total number of cols
+	assert.Len(t, rows2[0], 57)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
@@ -13527,8 +13594,8 @@ func (s *integrationTestSuite) TestHostHealth() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: ptr.Bool(false)}, time.Now(), false))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil))
 
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true))
 
@@ -13597,28 +13664,28 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	orbitHost := createOrbitEnrolledHost(t, "windows", "device_token", s.ds)
 
 	// Write empty token
-	body := setOrUpdateDeviceTokenRequest{
+	body := fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 
 	// Use illegal characters
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "../.",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 
 	// Write bad node key
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    "",
 		DeviceAuthToken: "token",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusUnauthorized, &response{})
 
 	// Write a good token.
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "token",
 	}
@@ -13627,14 +13694,14 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	// Try to write the token again for a different host.
 	// First write a valid token.
 	orbitHost2 := createOrbitEnrolledHost(t, "darwin", "device_token2", s.ds)
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
 		DeviceAuthToken: "token2",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
 
 	// Now write a duplicate token, which will result in a conflict with the first host.
-	body = setOrUpdateDeviceTokenRequest{
+	body = fleet.SetOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
 		DeviceAuthToken: "token",
 	}
@@ -13678,7 +13745,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	require.Equal(t, "echo 'hello world'", result.ScriptContents)
 	require.Nil(t, result.ExitCode)
 
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
@@ -14277,7 +14344,7 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 		},
 	)
 
-	req := autofillPoliciesRequest{
+	req := fleet.AutofillPoliciesRequest{
 		SQL: "  ", // empty
 	}
 	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/ok"
@@ -14287,14 +14354,14 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 
 	// good request
 	req.SQL = "select 1"
-	var res autofillPoliciesResponse
+	var res fleet.AutofillPoliciesResponse
 	s.DoJSON("POST", "/api/latest/fleet/autofill/policy", req, http.StatusOK, &res)
 	assert.Equal(t, "description", res.Description)
 	assert.Equal(t, "resolution", res.Resolution)
 
 	// good request with weird characters
 	req.SQL = `select * from " with ' and "" \"`
-	res = autofillPoliciesResponse{}
+	res = fleet.AutofillPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/autofill/policy", req, http.StatusOK, &res)
 	assert.Equal(t, "description", res.Description)
 	assert.Equal(t, "resolution", res.Resolution)
@@ -15889,4 +15956,399 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
+}
+
+// TestOsqueryBodySizeLimit verifies the body size limits on the
+// /api/osquery/log and /api/osquery/distributed/write endpoints:
+//   - Bodies exceeding the default limit are rejected with HTTP 413.
+//   - Bodies within the limit are accepted.
+//   - A malformed (truncated) body within the limit is NOT reported as HTTP 413
+//     (guards against the false-positive PayloadTooLargeError fix).
+//   - Setting Osquery.MaxLogWriteBodySize / MaxDistributedWriteBodySize in the
+//     server config overrides the built-in defaults.
+func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
+	t := s.T()
+
+	host := createOrbitEnrolledHost(t, "linux", "body-limit", s.ds)
+
+	// Body over DefaultMaxOsqueryLogWriteSize must be rejected with 413. The padding
+	// is inside a JSON string value so the body is syntactically valid up to
+	// the point where the reader is cut off.
+	logPrefix := fmt.Sprintf(`{"node_key":%q,"log_type":"status","data":["`, *host.NodeKey)
+	logSuffix := `"]}`
+	logPadSize := int(fleet.DefaultMaxOsqueryLogWriteSize) + 1 - len(logPrefix) - len(logSuffix)
+	require.Positive(t, logPadSize, "padding must be positive; DefaultMaxOsqueryLogWriteSize may be too small")
+	overLimitLog := []byte(logPrefix + strings.Repeat("x", logPadSize) + logSuffix)
+	s.DoRawNoAuth("POST", "/api/osquery/log", overLimitLog, http.StatusRequestEntityTooLarge)
+
+	// A well-formed body within the limit is accepted.
+	withinLimitLog, err := json.Marshal(submitLogsRequest{
+		NodeKey: *host.NodeKey,
+		LogType: "status",
+		Data:    []json.RawMessage{},
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
+
+	// A truncated (malformed) body within the limit must NOT return 413.
+	// Before the fix, io.ErrUnexpectedEOF from the JSON decoder was incorrectly
+	// converted to PayloadTooLargeError even when the reader had not been exhausted.
+	// The correct response is 400 Bad Request.
+	truncatedLog := fmt.Appendf(nil, `{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey) // missing closing ]}
+	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusBadRequest)
+
+	// Body over DefaultMaxOsqueryDistributedWriteSize must be rejected with 413.
+	distPrefix := fmt.Sprintf(`{"node_key":%q,"queries":{"q1":[{"data":"`, *host.NodeKey)
+	distSuffix := `"}]},"statuses":{"q1":0},"messages":{},"stats":{}}`
+	distPadSize := int(fleet.DefaultMaxOsqueryDistributedWriteSize) + 1 - len(distPrefix) - len(distSuffix)
+	require.Positive(t, distPadSize, "padding must be positive; DefaultMaxOsqueryDistributedWriteSize may be too small")
+	overLimitDist := []byte(distPrefix + strings.Repeat("x", distPadSize) + distSuffix)
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", overLimitDist, http.StatusRequestEntityTooLarge)
+
+	// A well-formed body within the limit is accepted.
+	withinLimitDist, err := json.Marshal(submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  map[string]json.RawMessage{},
+		Statuses: map[string]any{},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+
+	// A truncated body within the limit must NOT return 413 (same false-positive guard).
+	// io.ErrUnexpectedEOF from the bodyDecoder path is now wrapped as BadRequestErr → 400.
+	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusBadRequest)
+
+	// Verify that Osquery.MaxLogWriteBodySize and MaxDistributedWriteBodySize
+	// in the server config override the built-in defaults.
+	s.Run("config override", func() {
+		const customLimit = 2 * units.MiB
+
+		cfg := config.TestConfig()
+		cfg.Osquery.MaxLogWriteBodySize = customLimit
+		cfg.Osquery.MaxDistributedWriteBodySize = customLimit
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// body over the custom limit must return 413.
+		logPad := customLimit + 1 - len(logPrefix) - len(logSuffix)
+		require.Positive(s.T(), logPad, "padding must be positive; customLimit may be too small")
+		ts.DoRawNoAuth("POST", "/api/osquery/log", []byte(logPrefix+strings.Repeat("x", logPad)+logSuffix), http.StatusRequestEntityTooLarge)
+
+		// body within the custom limit must succeed.
+		ts.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
+
+		// body over the custom limit must return 413.
+		distPad := customLimit + 1 - len(distPrefix) - len(distSuffix)
+		require.Positive(s.T(), distPad, "padding must be positive; customLimit may be too small")
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", []byte(distPrefix+strings.Repeat("x", distPad)+distSuffix), http.StatusRequestEntityTooLarge)
+
+		// body within the custom limit must succeed.
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+	})
+}
+
+func (s *integrationTestSuite) TestListHostReports() {
+	t := s.T()
+	ctx := t.Context()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	earlier := now.Add(-time.Hour)
+
+	// Create a global host (no team).
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// Create two global queries that save results and one that discards them.
+	admin := s.users[TestAdminUserEmail]
+	qAlpha, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_alpha",
+		Query:       "SELECT 1",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingSnapshot,
+		Description: "alpha description",
+	})
+	require.NoError(t, err)
+
+	qBeta, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_beta",
+		Query:       "SELECT 2",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingSnapshot,
+		Description: "beta description",
+	})
+	require.NoError(t, err)
+
+	qDiscard, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_discard",
+		Query:       "SELECT 3",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: true,
+		Logging:     fleet.LoggingDifferential, // non-snapshot + discard_data=1 → "don't store results"
+	})
+	require.NoError(t, err)
+
+	// Insert two result rows for qAlpha on the host (to test has_more_results and first_result).
+	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: earlier, Data: ptr.RawMessage([]byte(`{"col":"older"}`))},
+		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"newest"}`))},
+	}, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	// Insert one result row for qDiscard (only appears when include_reports_dont_store_results=true).
+	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+		{QueryID: qDiscard.ID, HostID: host.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"discarded"}`))},
+	}, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	url := fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", host.ID)
+
+	t.Run("unauthenticated returns 401", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSONWithoutAuth("GET", url, nil, http.StatusUnauthorized, &resp)
+	})
+
+	t.Run("observer can read reports", func(t *testing.T) {
+		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("admin can read reports", func(t *testing.T) {
+		s.setTokenForTest(t, TestAdminUserEmail, test.GoodPassword)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("nonexistent host returns 404", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/99999999/reports", nil, http.StatusNotFound, &resp)
+	})
+
+	t.Run("default excludes dont-store-results queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+		for _, r := range resp.Reports {
+			assert.NotEqual(t, qDiscard.Name, r.Name)
+		}
+	})
+
+	t.Run("include_reports_dont_store_results=true returns all queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true", "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 3, resp.Count)
+		require.Len(t, resp.Reports, 3)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+		assert.Equal(t, qDiscard.Name, resp.Reports[2].Name)
+	})
+
+	t.Run("response fields are populated correctly", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+
+		alpha := resp.Reports[0]
+		assert.Equal(t, qAlpha.ID, alpha.ReportID)
+		assert.Equal(t, qAlpha.Name, alpha.Name)
+		assert.Equal(t, "alpha description", alpha.Description)
+		// first_result is the most recent row.
+		require.NotNil(t, alpha.FirstResult)
+		assert.Equal(t, "newest", alpha.FirstResult["col"])
+		// last_fetched is the most recent timestamp.
+		require.NotNil(t, alpha.LastFetched)
+		assert.Equal(t, now.Unix(), alpha.LastFetched.Unix())
+		// n_host_results is 2 because there are 2 rows.
+		assert.Equal(t, 2, alpha.NHostResults)
+		assert.False(t, alpha.ReportClipped)
+		// qAlpha stores results (discard_data=false).
+		assert.True(t, alpha.StoreResults)
+
+		// qBeta has no results yet.
+		beta := resp.Reports[1]
+		assert.Equal(t, qBeta.ID, beta.ReportID)
+		assert.Nil(t, beta.FirstResult)
+		assert.Nil(t, beta.LastFetched)
+		assert.Equal(t, 0, beta.NHostResults)
+		// qBeta also stores results.
+		assert.True(t, beta.StoreResults)
+	})
+
+	t.Run("store_results is false for discard queries", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true", "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 3)
+		// qDiscard has discard_data=true → store_results must be false.
+		discard := resp.Reports[2]
+		assert.Equal(t, qDiscard.Name, discard.Name)
+		assert.False(t, discard.StoreResults)
+	})
+
+	t.Run("report_clipped when total results reach the cap", func(t *testing.T) {
+		// Save the current cap before mutating.
+		var originalConfig fleet.AppConfig
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &originalConfig)
+		origCap := originalConfig.ServerSettings.QueryReportCap
+
+		// Set the report cap to 2, which equals the number of rows already stored for qAlpha.
+		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"query_report_cap":2}}`), http.StatusOK)
+		t.Cleanup(func() {
+			s.DoRaw("PATCH", "/api/latest/fleet/config",
+				fmt.Appendf(nil, `{"server_settings":{"query_report_cap":%d}}`, origCap),
+				http.StatusOK)
+		})
+
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+		assert.True(t, resp.Reports[0].ReportClipped)  // qAlpha has 2 rows == cap of 2
+		assert.False(t, resp.Reports[1].ReportClipped) // qBeta has 0 rows
+	})
+
+	t.Run("name search", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "query", "alpha")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 1, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+	})
+
+	t.Run("sort by name ascending and descending", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// Ascending (A→Z).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name", "order_direction", "asc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+
+		// Descending (Z→A).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name", "order_direction", "desc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qBeta.Name, resp.Reports[0].Name)
+		assert.Equal(t, qAlpha.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("sort by last_fetched puts nulls last", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// ASC: qAlpha (has results) before qBeta (no results / NULL).
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "last_fetched", "order_direction", "asc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+
+		// DESC: same NULL-last behaviour.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "last_fetched", "order_direction", "desc")
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		var resp listHostReportsResponse
+
+		// Page 0, 1 item per page.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp,
+			"order_key", "name", "per_page", "1", "page", "0")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		require.NotNil(t, resp.Meta)
+		assert.True(t, resp.Meta.HasNextResults)
+		assert.False(t, resp.Meta.HasPreviousResults)
+
+		// Page 1, 1 item per page.
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp,
+			"order_key", "name", "per_page", "1", "page", "1")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+		require.Len(t, resp.Reports, 1)
+		assert.Equal(t, qBeta.Name, resp.Reports[0].Name)
+		require.NotNil(t, resp.Meta)
+		assert.False(t, resp.Meta.HasNextResults)
+		assert.True(t, resp.Meta.HasPreviousResults)
+	})
+
+	t.Run("default page size is 50", func(t *testing.T) {
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+		require.NotNil(t, resp.Meta)
+		// With only 2 queries, both fit within the default page size of 50.
+		assert.False(t, resp.Meta.HasNextResults)
+		assert.Len(t, resp.Reports, 2)
+	})
+
+	t.Run("alt path /hosts/:id/queries works", func(t *testing.T) {
+		altURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID)
+		var resp listHostReportsResponse
+		s.DoJSON("GET", altURL, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		assert.Equal(t, 2, resp.Count)
+	})
+
+	t.Run("default sort is last_fetched descending (newest first)", func(t *testing.T) {
+		// With no order params, the endpoint defaults to last_fetched DESC.
+		// qAlpha has results (non-NULL last_fetched) so it comes first; qBeta
+		// has no results (NULL) so it sorts last.
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+		assert.Equal(t, qAlpha.Name, resp.Reports[0].Name)
+		assert.Equal(t, qBeta.Name, resp.Reports[1].Name)
+	})
+
+	t.Run("report_id is present in JSON response", func(t *testing.T) {
+		rawBody := s.DoRaw("GET", url, nil, http.StatusOK)
+		var raw map[string]any
+		require.NoError(t, json.NewDecoder(rawBody.Body).Decode(&raw))
+
+		reports, ok := raw["reports"].([]any)
+		require.True(t, ok)
+		require.NotEmpty(t, reports)
+
+		firstReport, ok := reports[0].(map[string]any)
+		require.True(t, ok)
+
+		_, hasReportID := firstReport["report_id"]
+		assert.True(t, hasReportID, "expected key 'report_id' in response")
+	})
 }

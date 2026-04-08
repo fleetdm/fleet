@@ -53,6 +53,7 @@ backup.sql.gz
 # Common mistake for new developers to run npm install and then end up
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json
+!website/package-lock.json
 
 # infra
 .terraform
@@ -118,6 +119,7 @@ fleet_tables_*.ext
 .tool-versions
 .zed/
 third_party/vuln-check/go.sum
+cvefeed
 
 # Required to not make `fleet-desktop` macOS executable built with a `dirty` flag (see #35006).
 Fleet\ Desktop.app

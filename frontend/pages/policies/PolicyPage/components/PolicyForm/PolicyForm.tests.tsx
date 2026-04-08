@@ -60,6 +60,7 @@ describe("PolicyForm - component", () => {
     isFetchingAutofillDescription: false,
     isFetchingAutofillResolution: false,
     resetAiAutofillData: jest.fn(),
+    currentAutomatedPolicies: [],
   };
 
   it("should not show the target selector in the free tier", async () => {
@@ -144,6 +145,7 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
         />
       );
 
@@ -186,7 +188,7 @@ describe("PolicyForm - component", () => {
         },
       });
 
-      const { container, user } = render(
+      const { user } = render(
         <PolicyForm
           policyIdForEdit={mockPolicy.id}
           showOpenSchemaActionText={false}
@@ -206,20 +208,18 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
         />
       );
 
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      await user.hover(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => {
-        waitFor(() => {
-          user.hover(screen.getByRole("button", { name: "Save" }));
-        });
-
         expect(
-          container.querySelector("#save-policy-button")
-        ).toHaveTextContent(/to save or run the policy/i);
+          screen.getByText(/to save or run the policy/i)
+        ).toBeInTheDocument();
       });
     });
 
@@ -284,6 +284,7 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
         />
       );
 
@@ -444,7 +445,316 @@ describe("PolicyForm - component", () => {
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
       });
     });
+
+    describe("patch policy behavior", () => {
+      const patchPolicy = createMockPolicy({
+        type: "patch",
+        platform: "darwin",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+        install_software: undefined,
+      });
+
+      const patchPolicyProps = {
+        ...defaultProps,
+        storedPolicy: patchPolicy,
+      };
+
+      const renderPatchPolicy = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: patchPolicy.id,
+            lastEditedQueryName: patchPolicy.name,
+            lastEditedQueryDescription: patchPolicy.description,
+            lastEditedQueryBody: patchPolicy.query,
+            lastEditedQueryResolution: patchPolicy.resolution,
+            lastEditedQueryCritical: patchPolicy.critical,
+            lastEditedQueryPlatform: patchPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      it("hides platform selector", () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+        expect(screen.queryByLabelText("macOS")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Windows")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Linux")).not.toBeInTheDocument();
+      });
+
+      it("hides target label selector", () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+        expect(screen.queryByLabelText("All hosts")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      });
+
+      it("submits only editable fields on save", async () => {
+        const onUpdate = jest.fn();
+        renderPatchPolicy(
+          <PolicyForm {...patchPolicyProps} onUpdate={onUpdate} />
+        );
+
+        const saveButton = await screen.findByRole("button", { name: "Save" });
+        await userEvent.click(saveButton);
+
+        expect(onUpdate).toHaveBeenCalledTimes(1);
+        const payload = onUpdate.mock.calls[0][0];
+        expect(payload).toHaveProperty("name");
+        expect(payload).toHaveProperty("description");
+        expect(payload).toHaveProperty("resolution");
+        expect(payload).toHaveProperty("critical");
+        expect(payload).not.toHaveProperty("query");
+        expect(payload).not.toHaveProperty("platform");
+        expect(payload).not.toHaveProperty("labels_include_any");
+      });
+
+      it("shows 'Add automation' CTA when patch policy has no install_software", async () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+        await waitFor(() => {
+          expect(
+            screen.getByText(/Automatically patch Firefox/)
+          ).toBeInTheDocument();
+          expect(screen.getByText(/Add automation/)).toBeInTheDocument();
+        });
+      });
+
+      it("hides 'Add automation' CTA when automation already exists", async () => {
+        const automatedPatchPolicy = createMockPolicy({
+          type: "patch",
+          platform: "darwin",
+          patch_software: { name: "Firefox", software_title_id: 42 },
+          install_software: { name: "Firefox", software_title_id: 42 },
+        });
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={automatedPatchPolicy}
+          />
+        );
+
+        // Wait for the component to fully render, then assert CTA is absent
+        await waitFor(() => {
+          expect(
+            screen.getByRole("button", { name: "Save" })
+          ).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/Add automation/)).not.toBeInTheDocument();
+      });
+    });
   });
   // TODO: Consider testing save button is disabled for a sql error
   // Trickiness is in modifying react-ace using react-testing library
+
+  describe("renderPolicyFleetName", () => {
+    it("does not render anything on free tier", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: false,
+            isSandboxMode: false,
+            isFreeTier: true,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: mockPolicy.query,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      render(<PolicyForm {...defaultProps} />);
+
+      expect(screen.queryByText(/policy for/i)).not.toBeInTheDocument();
+    });
+
+    it("shows 'Editing policy' when existing policy and user has save permissions", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true, // has save perms
+            isGlobalMaintainer: false,
+            isTeamMaintainerOrTeamAdmin: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: mockPolicy.query,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      render(<PolicyForm {...defaultProps} />);
+
+      expect(screen.getByText(/Editing policy for/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(createMockTeamSummary().name)
+      ).toBeInTheDocument();
+    });
+
+    it("shows 'Viewing policy' when existing policy and user has no save permissions", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: true, // no save perms
+            isGlobalAdmin: false,
+            isGlobalMaintainer: false,
+            isTeamMaintainerOrTeamAdmin: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: mockPolicy.query,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      render(<PolicyForm {...defaultProps} />);
+
+      expect(screen.getByText(/Viewing policy for/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(createMockTeamSummary().name)
+      ).toBeInTheDocument();
+    });
+
+    it("shows 'Creating a new policy' when there is no existing policy", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isTeamMaintainerOrTeamAdmin: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: null,
+            lastEditedQueryName: "",
+            lastEditedQueryDescription: "",
+            lastEditedQueryBody: "",
+            lastEditedQueryResolution: "",
+            lastEditedQueryCritical: false,
+            lastEditedQueryPlatform: undefined,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      render(
+        <PolicyForm
+          {...defaultProps}
+          policyIdForEdit={null}
+          storedPolicy={undefined}
+        />
+      );
+
+      expect(
+        screen.getByText(/Creating a new policy for/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(createMockTeamSummary().name)
+      ).toBeInTheDocument();
+    });
+  });
 });

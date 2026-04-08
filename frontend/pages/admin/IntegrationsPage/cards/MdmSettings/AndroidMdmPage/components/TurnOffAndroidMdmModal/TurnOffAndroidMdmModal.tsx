@@ -39,33 +39,27 @@ const TurnOffAndroidMdmModal = ({
 
   return (
     <Modal title="Turn off Android MDM" className={baseClass} onExit={onExit}>
-      <>
-        <p>
-          If you want to use MDM features again, you&apos;ll have to reconnect
-          Android Enterprise.
-        </p>
-        <p>
-          End users will lose access to organization resources and all data in
-          their Android work partition.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            isLoading={isDeleting}
-            disabled={isDeleting}
-            onClick={onClickConfirm}
-          >
-            Turn off
-          </Button>
-          <Button
-            variant="inverse-alert"
-            disabled={isDeleting}
-            onClick={onExit}
-          >
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        If you want to use MDM features again, you&apos;ll have to reconnect
+        Android Enterprise.
+      </p>
+      <p>
+        End users will lose access to organization resources and all data in
+        their Android work partition.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          isLoading={isDeleting}
+          disabled={isDeleting}
+          onClick={onClickConfirm}
+        >
+          Turn off
+        </Button>
+        <Button variant="inverse-alert" disabled={isDeleting} onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

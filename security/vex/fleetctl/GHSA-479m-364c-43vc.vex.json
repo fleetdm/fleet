@@ -1,0 +1,26 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://openvex.dev/docs/public/vex-39ac4ea905da60153211f8f9904c3e18cf56676c48242d8694953cd10f05ff15",
+  "author": "@lucasmrod",
+  "timestamp": "2026-03-23T16:44:57.349455-03:00",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "GHSA-479m-364c-43vc"
+      },
+      "timestamp": "2026-03-23T16:44:57.349455-03:00",
+      "products": [
+        {
+          "@id": "fleetctl"
+        },
+        {
+          "@id": "pkg:golang/github.com/russellhaering/goxmldsig"
+        }
+      ],
+      "status": "not_affected",
+      "status_notes": "fleetctl does not validate any XML signatures",
+      "justification": "vulnerable_code_not_in_execute_path"
+    }
+  ]
+}

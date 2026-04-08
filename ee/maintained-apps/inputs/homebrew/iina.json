@@ -1,0 +1,8 @@
+{
+  "name": "IINA",
+  "slug": "iina/darwin",
+  "unique_identifier": "com.colliderli.iina",
+  "token": "iina",
+  "installer_format": "dmg",
+  "default_categories": ["Utilities"]
+}

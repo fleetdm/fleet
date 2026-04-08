@@ -44,6 +44,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 					Resolution:  ptr.String("policy1 resolution"),
 					Platform:    "darwin",
 					Critical:    true,
+					Type:        "dynamic",
 				},
 			}, nil
 		}
@@ -127,7 +128,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "host_count_updated_at": null,
 		"critical": true,
 		"calendar_events_enabled": false,
-		"conditional_access_enabled": false
+		"conditional_access_enabled": false,
+		"type": "dynamic"
     },
     "hosts": [
         {
@@ -197,6 +199,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Resolution:            ptr.String("policy1 resolution"),
 				Platform:              "darwin",
 				CalendarEventsEnabled: true,
+				Type:                  "dynamic",
 			},
 		},
 		2: {
@@ -211,11 +214,12 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				TeamID:      &teamID,
 				Resolution:  ptr.String("policy2 resolution"),
 				Platform:    "darwin",
+				Type:        "dynamic",
 			},
 		},
 		3: {
 			PolicyData: fleet.PolicyData{
-				ID:          3,
+				ID:          2,
 				Name:        "policy3",
 				Query:       "select 3",
 				Description: "policy3 description",
@@ -225,6 +229,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				TeamID:      nil, // global policy
 				Resolution:  ptr.String("policy3 resolution"),
 				Platform:    "darwin",
+				Type:        "dynamic",
 			},
 		},
 	}
@@ -316,7 +321,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "host_count_updated_at": null,
 		"critical": false,
 		"calendar_events_enabled": true,
-		"conditional_access_enabled": false
+		"conditional_access_enabled": false,
+		"type": "dynamic"
     },
     "hosts": [
         {

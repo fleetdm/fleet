@@ -52,7 +52,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	}
 
 	var mockListSetupExperience []*fleet.SetupExperienceStatusResult
-	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 		return mockListSetupExperience, nil
 	}
 
@@ -276,18 +276,18 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 
 	// No team
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 0, []uint{1, 2})
-	require.ErrorContains(t, err, "Couldn’t add setup experience software. To add software, first disable manual_agent_install.")
+	require.ErrorContains(t, err, "Couldn’t add setup experience software. To add software, first disable macos_manual_agent_install.")
 
 	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
-	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable manual_agent_install.")
+	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable macos_manual_agent_install.")
 	_, _ = scriptReader.Seek(0, io.SeekStart)
 
 	// Team
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{1, 2})
-	require.ErrorContains(t, err, "Couldn’t add setup experience software. To add software, first disable manual_agent_install.")
+	require.ErrorContains(t, err, "Couldn’t add setup experience software. To add software, first disable macos_manual_agent_install.")
 
 	err = svc.SetSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
-	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable manual_agent_install.")
+	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable macos_manual_agent_install.")
 	_, _ = scriptReader.Seek(0, io.SeekStart)
 
 	// We can still set software to none though

@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: row;
   gap: $pad-xsmall;
+  position: relative;
 
   &__sha256 {
     display: flex;
@@ -11,8 +12,8 @@
 
   &__copy-overlay {
     display: flex;
-    position: relative;
-    left: -100px; // diff from installer details widget
+    position: absolute;
+    right: 0;
     height: 25px; // diff from installer details widget
     align-self: center; // diff from installer details widget
   }

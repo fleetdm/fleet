@@ -87,7 +87,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| Live query execution | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Live report execution | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
 | Scheduled queries | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
 | Software inventory | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
 | Hardware inventory | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |

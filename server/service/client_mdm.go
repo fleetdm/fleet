@@ -40,6 +40,14 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	return responseBody.AppleBM, err
 }
 
+// GetVPPTokens retrieves the List Volume Purchasing Program (VPP) tokens
+func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	verb, path := "GET", "/api/latest/fleet/vpp_tokens"
+	var responseBody getVPPTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Tokens, err
+}
+
 func (c *Client) CountABMTokens() (int, error) {
 	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
 	var responseBody countABMTokensResponse
@@ -116,8 +124,8 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dry
 		return err
 	}
 
-	// add the team_id field
-	if err := w.WriteField("team_id", fmt.Sprint(pkg.TeamID)); err != nil {
+	// add the fleet_id field
+	if err := w.WriteField("fleet_id", fmt.Sprint(pkg.TeamID)); err != nil {
 		return err
 	}
 
@@ -137,7 +145,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dry
 	defer response.Body.Close()
 
 	var bpResponse uploadBootstrapPackageResponse
-	if err := c.parseResponse(verb, path, response, &bpResponse); err != nil {
+	if err := c.ParseResponse(verb, path, response, &bpResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 
@@ -192,7 +200,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("the URL to the bootstrap_package doesn't exist. Please make this URL publicly accessible to the internet.")
+		return nil, errors.New("the URL to the macos_bootstrap_package doesn't exist. Please make this URL publicly accessible to the internet.")
 	}
 
 	// try to extract the name from a header
@@ -226,9 +234,9 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 	if err := file.CheckPKGSignature(pkgReader); err != nil {
 		switch {
 		case errors.Is(err, file.ErrInvalidType):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The file must be a package (.pkg).")
+			return nil, errors.New("Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")
 		case errors.Is(err, file.ErrNotSigned):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")
+			return nil, errors.New("Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")
 		default:
 			return nil, fmt.Errorf("checking package signature: %w", err)
 		}
@@ -247,7 +255,7 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	}
 
 	if strings.ToLower(filepath.Ext(fileName)) != ".json" {
-		return nil, errors.New("Couldn’t edit macos_setup_assistant. The file should be a .json file.")
+		return nil, errors.New("Couldn’t edit apple_setup_assistant. The file should be a .json file.")
 	}
 
 	b, err := os.ReadFile(fileName)
@@ -256,7 +264,7 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	}
 	var raw json.RawMessage
 	if err := json.Unmarshal(b, &raw); err != nil {
-		return nil, fmt.Errorf("Couldn’t edit macos_setup_assistant. The file should include valid JSON: %w", err)
+		return nil, fmt.Errorf("Couldn’t edit apple_setup_assistant. The file should include valid JSON: %w", err)
 	}
 
 	return b, nil
@@ -548,7 +556,7 @@ func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 	defer resp.Body.Close()
 
 	var eulaResponse createMDMEULAResponse
-	if err := c.parseResponse(verb, path, resp, &eulaResponse); err != nil {
+	if err := c.ParseResponse(verb, path, resp, &eulaResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 

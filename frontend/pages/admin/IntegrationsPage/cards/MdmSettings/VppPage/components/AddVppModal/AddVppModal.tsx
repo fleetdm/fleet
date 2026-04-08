@@ -57,30 +57,28 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
       onExit={onCancel}
       width="large"
     >
-      <>
-        <VppSetupSteps extendendSteps />
-        <FileUploader
-          className={`${baseClass}__file-uploader ${
-            isUploading ? `${baseClass}__file-uploader--loading` : ""
-          }`}
-          accept=".vpptoken"
-          message="Content token (.vpptoken)"
-          graphicName="file-vpp"
-          buttonType="brand-inverse-icon"
-          buttonMessage={isUploading ? "Uploading..." : "Upload"}
-          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
-          onFileUpload={onSelectFile}
-        />
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={uploadVppToken}
-            isLoading={isUploading}
-            disabled={!tokenFile || isUploading}
-          >
-            Add VPP
-          </Button>
-        </div>
-      </>
+      <VppSetupSteps extendendSteps />
+      <FileUploader
+        className={`${baseClass}__file-uploader ${
+          isUploading ? `${baseClass}__file-uploader--loading` : ""
+        }`}
+        accept=".vpptoken"
+        message="Content token (.vpptoken)"
+        graphicName="file-vpp"
+        buttonType="brand-inverse-icon"
+        buttonMessage={isUploading ? "Uploading..." : "Upload"}
+        fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
+        onFileUpload={onSelectFile}
+      />
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={uploadVppToken}
+          isLoading={isUploading}
+          disabled={!tokenFile || isUploading}
+        >
+          Add VPP
+        </Button>
+      </div>
     </Modal>
   );
 };

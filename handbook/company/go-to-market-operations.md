@@ -26,11 +26,11 @@ The goal of the 🤝Enterprise group is to provide the best possible customer ex
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| Revenue DRI                       | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_ <br> [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ <br> [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) _([@headmin](https://github.com/headmin))_
-| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12))_ <br> [Eric Swenson](https://www.linkedin.com/in/eswenson1/) _([@ericswenson0](https://github.com/ericswenson0))_ <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_
+| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_  <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_
 | Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/thomassalomon4/) _([@ThomasSalomon4](https://github.com/ThomasSalomon4))_ <br> [Maribell Morales](https://www.linkedin.com/in/maribell-morales-056647139/) _([@maribell-fleetdm](https://github.com/maribell-fleetdm))_
-| Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Pipeline DRI                      | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala/) _([@akuthiala](https://github.com/akuthiala))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ 
 | Customer Support Engineer (CSE)       | <sup><sub> _See [Customer_Success](https://fleetdm.com/handbook/customer-success)_
@@ -51,7 +51,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 
 Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
 
-Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company.
+Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company. This includes demos of GTM tools — any demo of a tool used in Sales, Marketing, Customer Success, or that integrates with/uses data from Salesforce must be kicked off by the Head of GTM Architecture.
 
 To request approval for a new GTM tool/functionality, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&template=1-custom-request.md&labels=%3Ahelp-gtm-ops) and include a user story describing the goal of the added tool/automation.
 
@@ -169,21 +169,6 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
-##### Creating contacts in the wild
-
-Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM quickly. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
-1. Locate the [help-create-contact](https://fleetdm.slack.com/archives/C091MLXQKQV) channel in Fleet Slack.
-2. Add the person's full name and any other details that can help the team identify the correct person. E.g.:
-  - LinkedIn profile URL (this is the best option)
-  - Company name
-  - Company website
-  - Email
-
-> Please use the following guidelines when posting in the channel:
->   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
->   - Add as much context as possible to help the team find the right info. At least a full name + one other piece of information is required, but more is preferred.
-
-
 #### SWAG
 
 Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
@@ -228,7 +213,7 @@ When the prospect is ready to "kick the tires/do a POC", the opportunity is move
 
 You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
 
-- **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
+- **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://github.com/fleetdm/confidential/issues/new?template=new-fleet-instance.md).  Then, once the environment is set up, you'll get a notification and you can let the user know.
 - **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/try, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
 
 

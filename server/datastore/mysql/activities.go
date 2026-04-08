@@ -15,9 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var (
-	deleteIDsBatchSize = 1000
-)
+var deleteIDsBatchSize = 1000
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -563,7 +561,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 	// if the activity is related to lock/wipe actions, clear the status for that
 	// action as it was canceled (note that lock/wipe is prevented at the service
 	// layer from being canceled if it was already activated).
-	if err := clearLockWipeForCanceledActivity(ctx, tx, hostID, executionID); err != nil {
+	if err := clearHostMDMActionsForCanceledLockWipe(ctx, tx, hostID, executionID); err != nil {
 		return nil, err
 	}
 
@@ -785,56 +783,19 @@ func cancelHostScriptUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, a
 	}, nil
 }
 
-func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) error {
+func clearHostMDMActionsForCanceledLockWipe(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) error {
 	const clearLockStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND lock_ref = ?`
-	resLock, err := tx.ExecContext(ctx, clearLockStmt, hostID, executionID)
+	_, err := tx.ExecContext(ctx, clearLockStmt, hostID, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for lock")
 	}
 
 	const clearWipeStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND wipe_ref = ?`
-	resWipe, err := tx.ExecContext(ctx, clearWipeStmt, hostID, executionID)
+	_, err = tx.ExecContext(ctx, clearWipeStmt, hostID, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for wipe")
 	}
 
-	lockCnt, _ := resLock.RowsAffected()
-	wipeCnt, _ := resWipe.RowsAffected()
-	if lockCnt > 0 || wipeCnt > 0 {
-		// if it did delete host_mdm_actions, then it was a lock or wipe activity,
-		// we need to delete the "past" activity that gets created immediately
-		// when that command is queued.
-		actType := fleet.ActivityTypeLockedHost{}.ActivityName()
-		if wipeCnt > 0 {
-			actType = fleet.ActivityTypeWipedHost{}.ActivityName()
-		}
-
-		const findActStmt = `SELECT
-				id
-			FROM
-				activities
-				INNER JOIN host_activities ON (host_activities.activity_id = activities.id)
-			WHERE
-				host_activities.host_id = ? AND
-				activities.activity_type = ?
-			ORDER BY
-				activities.created_at DESC
-			LIMIT 1
-`
-		var activityID uint
-		if err := sqlx.GetContext(ctx, tx, &activityID, findActStmt, hostID, actType); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// no activity to delete, nothing to do
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "find past activity for lock/wipe")
-		}
-
-		const delStmt = `DELETE FROM activities WHERE id = ?`
-		if _, err := tx.ExecContext(ctx, delStmt, activityID); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete past activity for lock/wipe")
-		}
-	}
 	return nil
 }
 
@@ -1487,7 +1448,7 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "get in-house app title id")
 	}
 
-	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
+	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
 	// insert the nano command
 	namedArgs := map[string]any{

@@ -38,6 +38,21 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+// testSAMLIDPBaseURL is the SAML IDP base URL, read from FLEET_SAML_IDP_HTTP_PORT (defaults to http://localhost:9080).
+var (
+	testSAMLIDPBaseURL     = getTestSAMLIDPBaseURL()
+	testSAMLIDPMetadataURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/metadata.php"
+	testSAMLIDPSSOURL      = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SSOService.php"
+	testSAMLIDPSLOURL      = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SingleLogoutService.php"
+)
+
+func getTestSAMLIDPBaseURL() string {
+	if port := os.Getenv("FLEET_SAML_IDP_HTTP_PORT"); port != "" {
+		return "http://localhost:" + port
+	}
+	return "http://localhost:9080"
+}
+
 type withDS struct {
 	s       *suite.Suite
 	ds      *mysql.Datastore
@@ -455,7 +470,7 @@ func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID stri
 	res := ts.loginSSOUserIDPInitiated(
 		username, password,
 		"/api/v1/fleet/sso",
-		fmt.Sprintf("http://127.0.0.1:9080/simplesaml/saml2/idp/SSOService.php?spentityid=%s", entityID),
+		fmt.Sprintf("%s?spentityid=%s", testSAMLIDPSSOURL, entityID),
 		http.StatusOK,
 	)
 	defer res.Body.Close()
@@ -630,6 +645,27 @@ func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint,
 	return act.ID
 }
 
+func (ts *withServer) lastHostActivityMatches(hostID uint, name, details string, id uint) uint {
+	t := ts.s.T()
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.NotEmpty(t, listActivities.Activities)
+
+	act := listActivities.Activities[0]
+
+	if name != "" {
+		assert.Equal(t, name, act.Type)
+	}
+	if details != "" {
+		require.NotNil(t, act.Details)
+		assert.JSONEq(t, details, string(*act.Details))
+	}
+	if id > 0 {
+		assert.Equal(t, id, act.ID)
+	}
+	return act.ID
+}
+
 // gets the latest activity with the specified type name and checks that it
 // matches any provided properties. empty string or 0 id means do not check
 // that property. It returns the ID of that latest activity.
@@ -765,6 +801,11 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
 		}
 	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
+		}
+	}
 	if payload.AutomaticInstall {
 		require.NoError(t, w.WriteField("automatic_install", "true"))
 	}
@@ -845,6 +886,11 @@ func (ts *withServer) updateSoftwareInstaller(
 	if payload.LabelsExcludeAny != nil {
 		for _, l := range payload.LabelsExcludeAny {
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
 		}
 	}
 	if payload.Categories != nil {

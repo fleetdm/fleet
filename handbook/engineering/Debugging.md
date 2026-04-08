@@ -61,7 +61,7 @@ With these areas in mind, here's a list of possible issues and what you should l
 - The Fleet UI is slow overall -> `SERVER`
 - A specific page (or a handful of pages, but not all) in the Fleet UI is slow -> `PARTIALSERVER`
 - New devices cannot enroll -> `OSQUERY`
-- Live query results come in very slowly -> `REDIS` or `SERVER`
+- Live report results come in very slowly -> `REDIS` or `SERVER`
 - osquery Extensions are not working correctly -> `OSQUERY`
 - fleetctl is getting errors when applying YAMLs -> `SERVER` 
 - Migrations are taking too long -> `MYSQL`

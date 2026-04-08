@@ -69,6 +69,11 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	// If using the legacy UI, then call that method.
 	if s.UseLegacyUI {
+		// FIXME: We set this flag in the main orbit function https://github.com/fleetdm/fleet/blob/575a47410c2d2a4de569159ee71a5a4ba02682f7/orbit/cmd/orbit/orbit.go#L1217-L1218
+		// Is there a potential race here where the server capabilities are not yet loaded
+		// when we check for them? Should we have a more robust way to handle the indeterminate
+		// state?
+		log.Debug().Msg("running setup experience with legacy UI")
 		return s.RunLegacy(oc)
 	}
 
@@ -103,14 +108,32 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	} else {
 		log.Debug().Msgf("setup experience payload: %s", string(payloadBytes))
 	}
-
-	// If swiftDialog isn't up yet, then launch it
 	orgLogo := payload.OrgLogoURL
 	if orgLogo == "" {
 		orgLogo = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
 
-	if err := s.startSwiftDialog(binaryPath, orgLogo); err != nil {
+	// Determine whether we should start directly with the webview UI or show the UI for waiting on the
+	// bootstrap package, configuration profiles, and account configuration to complete first. We
+	// want to start directly with the webview if all of those things are already in a terminal
+	// state to avoid have a momentary flash of the "Setting up your Mac..." UI.
+	log.Info().Msg("setup experience: checking for pending statuses")
+
+	isPending, pendingName := anyProfilePending(payload.ConfigurationProfiles)
+	if isPending {
+		log.Info().Msgf("setup experience: profile pending: %s", pendingName)
+	}
+
+	bootstrapDone := payload.BootstrapPackage == nil || payload.BootstrapPackage.Status == fleet.MDMBootstrapPackageFailed || payload.BootstrapPackage.Status == fleet.MDMBootstrapPackageInstalled
+
+	accountConfigDone := payload.AccountConfiguration == nil || payload.AccountConfiguration.Status == fleet.MDMAppleStatusAcknowledged ||
+		payload.AccountConfiguration.Status == fleet.MDMAppleStatusError ||
+		payload.AccountConfiguration.Status == fleet.MDMAppleStatusCommandFormatError
+
+	log.Info().Msgf("setup experience status: bootstrap done: %t, profiles done: %t, account config done: %t", bootstrapDone, !isPending, accountConfigDone)
+
+	showWebview := !isPending && bootstrapDone && accountConfigDone
+	if err := s.startSwiftDialog(binaryPath, orgLogo, showWebview); err != nil {
 		return err
 	}
 
@@ -125,35 +148,16 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		// ok
 	}
 
-	// We're rendering the initial loading UI (shown while there are still profiles, bootstrap package,
-	// and account configuration to verify) right off the bat, so we can just no-op if any of those
-	// are not terminal
-
-	log.Info().Msg("setup experience: checking for pending statuses")
-
-	if payload.BootstrapPackage != nil {
-		if payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageFailed && payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageInstalled {
-			log.Info().Msg("setup experience: bootstrap package pending")
-			return nil
-		}
-	}
-
-	if isPending, name := anyProfilePending(payload.ConfigurationProfiles); isPending {
-		log.Info().Msg(fmt.Sprintf("setup experience: profile pending: %s", name))
+	if !showWebview {
+		// We're rendering the initial loading UI (shown while there are still profiles, bootstrap package,
+		// and account configuration to verify) right off the bat, so we can just no-op if any of those
+		// are not terminal
+		log.Info().Msg("setup experience: showing initial UI for pending bootstrap package, configuration profile, or account configuration")
 		return nil
 	}
 
-	if payload.AccountConfiguration != nil {
-		if payload.AccountConfiguration.Status != fleet.MDMAppleStatusAcknowledged &&
-			payload.AccountConfiguration.Status != fleet.MDMAppleStatusError &&
-			payload.AccountConfiguration.Status != fleet.MDMAppleStatusCommandFormatError {
-
-			log.Info().Msg("setup experience: account config pending")
-			return nil
-		}
-	}
-
-	// If we got this far, then we can hand the UI over to the webview.
+	// Otherwise, proceed to show the webview UI for software and script status
+	log.Info().Msg("setup experience: proceeding to software and script status UI")
 
 	// Clear the dialog message.
 	if err := s.sd.HideMessage(); err != nil {
@@ -209,6 +213,8 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		if payload.Script != nil && payload.Script.Status != fleet.SetupExperienceStatusFailure && payload.Script.Status != fleet.SetupExperienceStatusSuccess {
 			allStepsDone = false
 		}
+	} else {
+		log.Info().Msg("setup experience: no software or script payload")
 	}
 
 	// If we get here, we can close the webview.
@@ -243,8 +249,23 @@ func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResu
 	return false, ""
 }
 
-func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
+func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string, startWithWebview bool) error {
 	if s.started {
+		// FIXME: It seems like something has gotten out of whack with all the different control
+		// signals. We have this struct flag being set in a defer plus assorted channel sends and
+		// receives involved across different goroutines. I've observed cases where swiftDialog is
+		// closed but s.started is still true, which causes us to skip starting a new instance when
+		// expected. I haven't been able to identify the root cause yet and it may be an edge
+		// case timing issue around TUF updates that doesn't appear in real world deployments.
+		// I don't have an easy fix so I'm documenting my efforts here for future reference. One
+		// alternative to consider is to use s.sd.Activate() to bring the existing instance to the
+		// foreground if it's still running instead of starting a new one, and then
+		// check for errors to determine the state of the existing swiftDialog instance.
+		// Another consideration is that swiftDialog v3 was recently announced so we may be revisiting
+		// these flows in the near future if we upgrade to that version. We should keep an eye on this and
+		// consider refactoring to have a more clear and deterministic control flow around when
+		// swiftDialog is started and stopped and how that interacts with the setup experience
+		// status checks and the various channels involved.
 		log.Info().Msg("swiftDialog started")
 		return nil
 	}
@@ -254,21 +275,15 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 	created := make(chan struct{})
 	swiftDialog, err := swiftdialog.Create(context.Background(), binaryPath)
 	if err != nil {
-		return errors.New("creating swiftDialog instance: %w")
+		return fmt.Errorf("creating swiftDialog instance: %w", err)
 	}
 	s.sd = swiftDialog
-
-	iconSize, err := swiftdialog.GetIconSize(orgLogo)
-	if err != nil {
-		log.Error().Err(err).Msg("setup experience: getting icon size")
-		iconSize = swiftdialog.DefaultIconSize
-	}
 
 	go func() {
 		initOpts := &swiftdialog.SwiftDialogOptions{
 			Title:            "none",
-			Message:          "### Setting up your Mac...\n\nYour Mac is being configured by your organization using Fleet. This process may take some time to complete. Please don't attempt to restart or shut down the computer unless prompted to do so.",
-			Icon:             orgLogo,
+			Message:          "none",
+			Icon:             "none",
 			MessageAlignment: swiftdialog.AlignmentCenter,
 			CentreIcon:       true,
 			Height:           "625",
@@ -281,16 +296,28 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			QuitKey:          "X", // Capital X to require command+shift+x
 		}
 
+		if !startWithWebview {
+			initOpts.Message = "### Setting up your Mac...\n\nYour Mac is being configured by your organization using Fleet. This process may take some time to complete. Please don't attempt to restart or shut down the computer unless prompted to do so."
+			initOpts.Icon = orgLogo
+		}
+
 		if err := s.sd.Start(context.Background(), initOpts, true); err != nil {
 			log.Error().Err(err).Msg("starting swiftDialog instance")
 		}
+		if !startWithWebview {
+			if err = s.sd.ShowProgress(); err != nil {
+				log.Error().Err(err).Msg("setting initial setup experience progress")
+			}
 
-		if err = s.sd.ShowProgress(); err != nil {
-			log.Error().Err(err).Msg("setting initial setup experience progress")
-		}
+			iconSize, err := swiftdialog.GetIconSize(orgLogo)
+			if err != nil {
+				log.Error().Err(err).Msg("setup experience: getting icon size")
+				iconSize = swiftdialog.DefaultIconSize
+			}
 
-		if err := s.sd.SetIconSize(iconSize); err != nil {
-			log.Error().Err(err).Msg("setting initial setup experience icon size")
+			if err := s.sd.SetIconSize(iconSize); err != nil {
+				log.Error().Err(err).Msg("setting initial setup experience icon size")
+			}
 		}
 
 		log.Debug().Msg("swiftDialog process started")

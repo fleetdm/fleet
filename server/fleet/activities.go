@@ -8,6 +8,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// ActivityWriteService is the subset of the activity bounded context service
+// used by the legacy service layer for write operations.
+type ActivityWriteService interface {
+	api.NewActivityService
+	api.CleanupHostActivitiesService
+}
+
 // NewActivityFunc is the function signature for creating a new activity.
 type NewActivityFunc func(ctx context.Context, user *User, activity ActivityDetails) error
 
@@ -104,6 +111,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledMacosUpdateNewHosts{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
+	ActivityTypeViewedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedMacosProfile{},
 	ActivityTypeDeletedMacosProfile{},
@@ -115,8 +123,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
 
-	ActivityTypeEnabledRecoveryLockPassword{},
-	ActivityTypeDisabledRecoveryLockPassword{},
+	ActivityTypeSetHostRecoveryLockPassword{},
+	ActivityTypeEnabledRecoveryLockPasswords{},
+	ActivityTypeDisabledRecoveryLockPasswords{},
 
 	ActivityTypeEnabledGitOpsMode{},
 	ActivityTypeDisabledGitOpsMode{},
@@ -147,6 +156,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
+	ActivityTypeRotatedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedDeclarationProfile{},
 	ActivityTypeDeletedDeclarationProfile{},
@@ -156,6 +166,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedAndroidProfile{},
 	ActivityTypeEditedAndroidProfile{},
 	ActivityTypeEditedAndroidCertificate{},
+	ActivityTypeResentCertificate{},
+	ActivityTypeInstalledCertificate{},
 
 	ActivityTypeResentConfigurationProfile{},
 	ActivityTypeResentConfigurationProfileBatch{},
@@ -665,6 +677,19 @@ func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeViewedHostRecoveryLockPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
+	return "viewed_host_recovery_lock_password"
+}
+
+func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCreatedMacosProfile struct {
 	ProfileName       string  `json:"profile_name"`
 	ProfileIdentifier string  `json:"profile_identifier"`
@@ -734,22 +759,39 @@ func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
 }
 
-type ActivityTypeEnabledRecoveryLockPassword struct {
+type ActivityTypeSetHostRecoveryLockPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) ActivityName() string {
+	return "set_host_recovery_lock_password"
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) WasFromAutomation() bool {
+	return true
+}
+
+type ActivityTypeEnabledRecoveryLockPasswords struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
 }
 
-func (a ActivityTypeEnabledRecoveryLockPassword) ActivityName() string {
-	return "enabled_recovery_lock_password"
+func (a ActivityTypeEnabledRecoveryLockPasswords) ActivityName() string {
+	return "enabled_recovery_lock_passwords"
 }
 
-type ActivityTypeDisabledRecoveryLockPassword struct {
+type ActivityTypeDisabledRecoveryLockPasswords struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
 }
 
-func (a ActivityTypeDisabledRecoveryLockPassword) ActivityName() string {
-	return "disabled_recovery_lock_password"
+func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
+	return "disabled_recovery_lock_passwords"
 }
 
 type ActivityTypeEnabledGitOpsMode struct{}
@@ -963,6 +1005,26 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+// ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.
+// Can be user-initiated (manual) or Fleet-initiated (auto-rotation after password viewed).
+type ActivityTypeRotatedHostRecoveryLockPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	FleetInitiated  bool   `json:"-"` // True for auto-rotation, not serialized
+}
+
+func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
+	return "rotated_host_recovery_lock_password"
+}
+
+func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
+	return a.FleetInitiated
+}
+
 type ActivityTypeCreatedDeclarationProfile struct {
 	ProfileName string  `json:"profile_name"`
 	Identifier  string  `json:"identifier"`
@@ -1084,6 +1146,7 @@ type ActivityTypeAddedSoftware struct {
 	SoftwareTitleID  uint                    `json:"software_title_id"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 }
 
 func (a ActivityTypeAddedSoftware) ActivityName() string {
@@ -1099,6 +1162,7 @@ type ActivityTypeEditedSoftware struct {
 	SoftwareIconURL     *string                 `json:"software_icon_url"`
 	LabelsIncludeAny    []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny    []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll    []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 	SoftwareTitleID     uint                    `json:"software_title_id"`
 	SoftwareDisplayName string                  `json:"software_display_name"`
 }
@@ -1116,6 +1180,7 @@ type ActivityTypeDeletedSoftware struct {
 	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 }
 
 func (a ActivityTypeDeletedSoftware) ActivityName() string {
@@ -1229,6 +1294,7 @@ type ActivityAddedAppStoreApp struct {
 	SelfService      bool                      `json:"self_service"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 	Configuration    json.RawMessage           `json:"configuration,omitempty"`
 }
 
@@ -1245,6 +1311,7 @@ type ActivityDeletedAppStoreApp struct {
 	SoftwareIconURL  *string                   `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -1301,6 +1368,7 @@ type ActivityEditedAppStoreApp struct {
 	SoftwareIconURL     *string                   `json:"software_icon_url"`
 	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll    []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 	SoftwareDisplayName string                    `json:"software_display_name"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
@@ -1690,6 +1758,21 @@ func (a ActivityTypeEditedAndroidCertificate) ActivityName() string {
 	return "edited_android_certificate"
 }
 
+type ActivityTypeResentCertificate struct {
+	HostID                uint   `json:"host_id"`
+	HostDisplayName       string `json:"host_display_name"`
+	CertificateTemplateID uint   `json:"certificate_template_id"`
+	CertificateName       string `json:"certificate_name"`
+}
+
+func (a ActivityTypeResentCertificate) ActivityName() string {
+	return "resent_certificate"
+}
+
+func (a ActivityTypeResentCertificate) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeEditedHostIdpData struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -1743,4 +1826,46 @@ type ActivityTypeEditedEnrollSecrets struct {
 
 func (a ActivityTypeEditedEnrollSecrets) ActivityName() string {
 	return "edited_enroll_secrets"
+}
+
+type ActivityTypeInstalledCertificate struct {
+	HostID                uint   `json:"host_id"`
+	HostDisplayName       string `json:"host_display_name"`
+	CertificateTemplateID uint   `json:"certificate_template_id"`
+	CertificateName       string `json:"certificate_name"`
+	Status                string `json:"status"`
+	Detail                string `json:"detail,omitempty"`
+}
+
+func (a ActivityTypeInstalledCertificate) ActivityName() string {
+	return "installed_certificate"
+}
+
+func (a ActivityTypeInstalledCertificate) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeInstalledCertificate) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeInstalledCertificate) HostOnly() bool {
+	return true
+}
+
+type ActivityTypeClearedPasscode struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeClearedPasscode) ActivityName() string {
+	return "cleared_passcode"
+}
+
+func (a ActivityTypeClearedPasscode) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeClearedPasscode) HostOnly() bool {
+	return true
 }

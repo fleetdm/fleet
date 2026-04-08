@@ -9,10 +9,12 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -22,6 +24,37 @@ import (
 )
 
 var yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
+
+var (
+	envOverridesMu sync.RWMutex
+	envOverrides   map[string]string
+)
+
+// SetEnvOverrides sets environment variable overrides that take precedence over
+// os.LookupEnv during env expansion in GitOps file parsing. Pass nil to clear.
+func SetEnvOverrides(overrides map[string]string) {
+	envOverridesMu.Lock()
+	defer envOverridesMu.Unlock()
+	if overrides == nil {
+		envOverrides = nil
+		return
+	}
+	envOverrides = make(map[string]string, len(overrides))
+	maps.Copy(envOverrides, overrides)
+}
+
+// lookupEnv checks env overrides first, then falls back to os.LookupEnv.
+func lookupEnv(key string) (string, bool) {
+	envOverridesMu.RLock()
+	if envOverrides != nil {
+		if v, ok := envOverrides[key]; ok {
+			envOverridesMu.RUnlock()
+			return v, true
+		}
+	}
+	envOverridesMu.RUnlock()
+	return os.LookupEnv(key)
+}
 
 // Group holds a set of "specs" that can be applied to a Fleet server.
 type Group struct {
@@ -129,6 +162,14 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
+			// Distinguish between hosts key omitted (nil, preserve membership)
+			// and hosts key present with null value (clear all hosts). Both
+			// unmarshal to nil, so check the raw YAML for key presence.
+			if labelSpec.Hosts == nil {
+				if hostsKeyPresent(s.Spec) {
+					labelSpec.Hosts = []string{}
+				}
+			}
 			specs.Labels = append(specs.Labels, labelSpec)
 
 		case fleet.PolicyKind:
@@ -193,7 +234,13 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			specs.Teams = append(specs.Teams, rawTeam["team"])
+			teamRaw := rawTeam["team"]
+			var err error
+			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(teamRaw, fleet.TeamSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
+			specs.Teams = append(specs.Teams, teamRaw)
 
 		default:
 			return nil, fmt.Errorf("unknown kind %q", s.Kind)
@@ -293,7 +340,7 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 			switch secretMode {
 			case secretsExpand:
 				// Expand secrets for client-side validation
-				v, ok := os.LookupEnv(env)
+				v, ok := lookupEnv(env)
 				if ok {
 					if !documentIsXML {
 						return v, true
@@ -326,7 +373,7 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 			}
 		}
 
-		v, ok := os.LookupEnv(env)
+		v, ok := lookupEnv(env)
 		if !ok {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 			return "", false
@@ -390,7 +437,7 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
 		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
 			// lookup the secret and save it, but don't replace
-			v, ok := os.LookupEnv(env)
+			v, ok := lookupEnv(env)
 			if !ok {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false
@@ -443,4 +490,21 @@ func getExclusionZones(s string) [][2]int {
 		}
 	}
 	return zones
+}
+
+// hostsKeyPresent checks if the "hosts" key is present in raw spec bytes.
+// The input may be YAML or JSON; YAML is converted to JSON before inspection.
+// Used to distinguish between an omitted hosts key (nil, no-op) and an
+// explicit hosts key with null value (should clear hosts).
+func hostsKeyPresent(rawBytes []byte) bool {
+	jsonBytes, err := yaml.YAMLToJSON(rawBytes)
+	if err != nil {
+		return false
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(jsonBytes, &raw); err != nil {
+		return false
+	}
+	_, ok := raw["hosts"]
+	return ok
 }

@@ -72,7 +72,7 @@ const SaveAsNewQueryModal = ({
   const [formData, setFormData] = useState<ISANQFormData>({
     queryName: `Copy of ${initialQueryData.name}`,
     team: {
-      id: initialQueryData.team_id,
+      id: initialQueryData.fleet_id,
       name: undefined,
     },
   });
@@ -155,7 +155,7 @@ const SaveAsNewQueryModal = ({
     const createBody = {
       ...initialQueryData,
       name: queryName,
-      team_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
+      fleet_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
     };
     try {
       const { query: newQuery } = await queryAPI.create(createBody);

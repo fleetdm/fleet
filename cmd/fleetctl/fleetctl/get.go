@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -304,10 +303,6 @@ func getCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "get",
 		Usage: "Get/list resources",
-		Before: func(c *cli.Context) error {
-			logging.DisableTopic(logging.DeprecatedFieldTopic)
-			return nil
-		},
 		Subcommands: withLogTopicFlags([]*cli.Command{
 			getReportsCommand(),
 			getPacksCommand(),
@@ -884,7 +879,7 @@ func getHostsCommand() *cli.Command {
 				query := url.Values{}
 				query.Set("additional_info_filters", "*")
 				if teamID := c.Uint(fleetFlagName); teamID > 0 {
-					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
+					query.Set("fleet_id", strconv.FormatUint(uint64(teamID), 10))
 				}
 
 				if c.Bool("mdm") || c.Bool("mdm-pending") {
@@ -1306,7 +1301,7 @@ func getSoftwareCommand() *cli.Command {
 
 			teamID := c.Uint(fleetFlagName)
 			if teamID != 0 {
-				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
+				query.Set("fleet_id", strconv.FormatUint(uint64(teamID), 10))
 			}
 
 			if c.Bool("versions") {

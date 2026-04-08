@@ -233,18 +233,13 @@ const ManageQueriesPage = ({
       } else {
         await queriesAPI.destroy(selectedQueryIds[0]);
       }
-      renderFlash(
-        "success",
-        `Successfully deleted ${bulk ? "reports" : "report"}.`
-      );
+      renderFlash("success", "Successfully deleted reports.");
       setResetSelectedRows(true);
       refetchQueries();
     } catch (errorResponse) {
       renderFlash(
         "error",
-        `There was an error deleting your ${
-          bulk ? "reports" : "report"
-        }. Please try again later.`
+        "There was an error deleting your reports. Please try again later."
       );
     } finally {
       toggleDeleteQueryModal();

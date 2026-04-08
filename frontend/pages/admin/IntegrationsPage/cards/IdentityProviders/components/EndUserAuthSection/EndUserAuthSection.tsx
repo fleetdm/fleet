@@ -17,12 +17,14 @@ import Button from "components/buttons/Button/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import CustomLink from "components/CustomLink";
 
 import {
   IFormDataIdp,
   IFormErrorsIdp,
   isEmptyFormData,
   isMissingAnyRequiredField,
+  trimFormDataIdp,
   validateFormDataIdp,
 } from "./helpers";
 
@@ -59,7 +61,7 @@ const EndUserAuthSection = ({
 
   const onInputChange = useCallback(
     ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
-      const newData = { ...formData, [name]: value?.trim() || "" };
+      const newData = { ...formData, [name]: value };
       setFormData(newData);
       setDirty(true);
 
@@ -81,13 +83,18 @@ const EndUserAuthSection = ({
   );
 
   const onBlur = useCallback(() => {
-    setFormErrors(validateFormDataIdp(formData));
-  }, [formData]);
+    const trimmed = trimFormDataIdp(formData);
+    setFormData(trimmed);
+    setFormErrors(validateFormDataIdp(trimmed));
+  }, [formData, setFormData]);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent<SubmitEvent>) => {
       e.preventDefault();
-      const newErrors = validateFormDataIdp(formData);
+      const trimmed = trimFormDataIdp(formData);
+      setFormData(trimmed);
+
+      const newErrors = validateFormDataIdp(trimmed);
       if (newErrors) {
         setFormErrors(newErrors);
         return;
@@ -97,7 +104,7 @@ const EndUserAuthSection = ({
         await configAPI.update({
           mdm: {
             end_user_authentication: {
-              ...formData,
+              ...trimmed,
             },
           },
         });
@@ -119,7 +126,7 @@ const EndUserAuthSection = ({
         renderFlash("error", "Couldn't update. Please try again.");
       }
     },
-    [formData, renderFlash, setDirty]
+    [formData, setFormData, renderFlash, setDirty]
   );
 
   const renderContent = () => {
@@ -135,7 +142,12 @@ const EndUserAuthSection = ({
             Controls &gt; Setup experience &gt; End user authentication
           </strong>
           , end users will be required to authenticate when they first set up
-          their host.
+          their host.{" "}
+          <CustomLink
+            text="Learn more"
+            url="https://fleetdm.com/guides/setup-experience#end-user-authentication"
+            newTab
+          />
         </p>
         <div
           className={`form ${

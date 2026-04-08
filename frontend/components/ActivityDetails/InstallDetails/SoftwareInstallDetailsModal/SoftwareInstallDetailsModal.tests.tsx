@@ -103,13 +103,15 @@ describe("SoftwareInstallDetailsModal", () => {
             status: "failed_install",
           })}
           isMyDevicePage={false}
-          hasInstalledVersions
+          canOverrideFailureWithInstalled
         />
       );
 
       expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
       expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
       expect(screen.queryByText(/failed to install/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId("failed-icon")).not.toBeInTheDocument();
     });
 
     it("on host details page, renders failed install without retry", () => {
@@ -178,16 +180,16 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(onCancel).toHaveBeenCalledTimes(2);
     });
 
-    it("shows Done button for pending install", () => {
+    it("shows Close button for pending install", () => {
       const onCancel = jest.fn();
       render(<ModalButtons status="pending_install" onCancel={onCancel} />);
-      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Retry" })
       ).not.toBeInTheDocument();
     });
 
-    it("on device user page, shows Done button for installed software", () => {
+    it("on device user page, shows Close button for installed software", () => {
       const onCancel = jest.fn();
       render(
         <ModalButtons
@@ -196,7 +198,7 @@ describe("SoftwareInstallDetailsModal", () => {
           onCancel={onCancel}
         />
       );
-      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     });
   });
 

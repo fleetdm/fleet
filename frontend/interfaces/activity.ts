@@ -46,6 +46,11 @@ export enum ActivityType {
   EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
   DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
+  ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
+  SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
+  RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
+  EnabledRecoveryLockPasswords = "enabled_recovery_lock_passwords",
+  DisabledRecoveryLockPasswords = "disabled_recovery_lock_passwords",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   CreatedAppleOSProfile = "created_macos_profile",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
@@ -80,6 +85,7 @@ export enum ActivityType {
   DeletedAndroidProfile = "deleted_android_profile",
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
+  ResentCertificate = "resent_certificate",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -154,9 +160,11 @@ export enum ActivityType {
   EditedHostIdpData = "edited_host_idp_data",
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
+  InstalledCertificate = "installed_certificate",
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
+  ClearedPasscode = "cleared_passcode",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -165,6 +173,9 @@ export type IHostPastActivityType =
   | ActivityType.LockedHost
   | ActivityType.WipedHost
   | ActivityType.ReadHostDiskEncryptionKey
+  | ActivityType.ViewedHostRecoveryLockPassword
+  | ActivityType.SetHostRecoveryLockPassword
+  | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
@@ -172,7 +183,10 @@ export type IHostPastActivityType =
   | ActivityType.CanceledRunScript
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
-  | ActivityType.CanceledUninstallSoftware;
+  | ActivityType.CanceledUninstallSoftware
+  | ActivityType.InstalledCertificate
+  | ActivityType.ResentCertificate
+  | ActivityType.ClearedPasscode;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -278,6 +292,9 @@ export interface IActivityDetails {
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
+  certificate_name?: string;
+  certificate_template_id?: number;
+  detail?: string;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -390,6 +407,12 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   scheduled_script_batch: "Scheduled script batch",
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
+  viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
+  set_host_recovery_lock_password: "Set Recovery Lock password",
+  rotated_host_recovery_lock_password:
+    "Triggered Recovery Lock password rotation",
+  enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",
+  disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
   resent_configuration_profile_batch: "Bulk resent configuration profile",
   transferred_hosts: "Transferred hosts",
@@ -429,6 +452,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "GitOps: edited configuration profiles: Android",
   [ActivityType.EditedAndroidCertificate]:
     "GitOps: edited certificate templates: Android",
+  [ActivityType.ResentCertificate]: "Resent certificate",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
   [ActivityType.HostBypassedConditionalAccess]:
     "Host bypassed conditional access",
@@ -441,5 +465,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
+  [ActivityType.InstalledCertificate]: "Installed certificate",
   [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
+  [ActivityType.ClearedPasscode]: "Cleared passcode",
 };

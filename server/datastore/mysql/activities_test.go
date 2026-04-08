@@ -2001,13 +2001,13 @@ func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datast
 			extension, version, platform, install_script_content_id,
 			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
 			self_service, user_id, user_name, user_email, package_ids,
-			fleet_maintained_app_id, url, upgrade_code
+			fleet_maintained_app_id, url, upgrade_code, patch_query
 		)
-		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
 	`
 	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
 		titleID, "storage-123", "test-script.sh", "sh", "", "linux", scriptContentID,
-		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "")
+		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "", "")
 	require.NoError(t, err)
 	installerID, _ := res.LastInsertId()
 
@@ -2176,13 +2176,13 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 			extension, version, platform, install_script_content_id,
 			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
 			self_service, user_id, user_name, user_email, package_ids,
-			fleet_maintained_app_id, url, upgrade_code
+			fleet_maintained_app_id, url, upgrade_code, patch_query
 		)
-		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
 	`
 	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
 		titleID, "storage-id-uninstall", "test-uninstall.sh", "sh", "", "linux", scriptContentID,
-		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "")
+		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "", "")
 	require.NoError(t, err)
 	installerID, _ := res.LastInsertId()
 
