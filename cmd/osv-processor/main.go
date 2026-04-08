@@ -91,13 +91,22 @@ type RHELArtifactData struct {
 
 func main() {
 	platform := flag.String("platform", "ubuntu", "Platform to process: ubuntu or rhel")
-	inputDir := flag.String("input", "/tmp/ubuntu-osv", "Input directory with OSV JSON files")
+	inputDir := flag.String("input", "", "Input directory with OSV JSON files (default: /tmp/ubuntu-osv for ubuntu, /tmp/rhel-osv for rhel)")
 	outputDir := flag.String("output", "./artifacts", "Output directory for artifacts")
 	versions := flag.String("versions", "", "Comma-separated versions to process (inclusive)")
 	excludeVersions := flag.String("exclude-versions", "", "Comma-separated versions to exclude (ignored if --versions is set)")
-	changedFilesToday := flag.String("changed-files-today", "", "Path to file containing CVE files changed today (generates today's deltas)")
-	changedFilesYesterday := flag.String("changed-files-yesterday", "", "Path to file containing CVE files changed yesterday (generates yesterday's deltas)")
+	changedFilesToday := flag.String("changed-files-today", "", "Path to file containing CVE files changed today (ubuntu only)")
+	changedFilesYesterday := flag.String("changed-files-yesterday", "", "Path to file containing CVE files changed yesterday (ubuntu only)")
 	flag.Parse()
+
+	if *inputDir == "" {
+		switch *platform {
+		case "rhel":
+			*inputDir = "/tmp/rhel-osv"
+		default:
+			*inputDir = "/tmp/ubuntu-osv"
+		}
+	}
 
 	runTime := time.Now().UTC()
 
@@ -583,6 +592,12 @@ type vulnKey struct {
 }
 
 func runRHEL(cfg Config) error {
+	// Delta generation is not supported for RHEL — the data source is a full GCS zip
+	// download with no git-based change tracking. Fail fast if callers pass delta flags.
+	if cfg.ChangedFilesToday != "" || cfg.ChangedFilesYesterday != "" {
+		return fmt.Errorf("--changed-files-today and --changed-files-yesterday are not supported with --platform rhel (no git-based change tracking for GCS data)")
+	}
+
 	if err := os.MkdirAll(cfg.OutputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
