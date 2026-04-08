@@ -208,7 +208,7 @@ jobs:
           SKIP_UPLOAD: ${{ steps.extract_version.outputs.is_test_mode }}
         run: |
           chmod +x tools/build-fleetctl-pkg/main.sh
-          ./tools/build-fleetctl-pkg/main.sh fleetctl
+          ./tools/build-fleetctl-pkg/main.sh ./fleetctl
 
       - name: Upload package artifact (test mode only)
         if: steps.extract_version.outputs.is_test_mode == 'true'
