@@ -93,6 +93,8 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.NotZero(t, gotEnrolledDevice.CreatedAt)
 	require.Equal(t, enrolledDevice.MDMDeviceID, gotEnrolledDevice.MDMDeviceID)
 	require.Equal(t, enrolledDevice.MDMHardwareID, gotEnrolledDevice.MDMHardwareID)
+	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, gotEnrolledDevice.AwaitingConfiguration)
+	require.Nil(t, gotEnrolledDevice.AwaitingConfigurationAt)
 
 	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.NoError(t, err)
@@ -127,6 +129,29 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 
 	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
+
+	// Test that awaiting configuration is persisted and updated on upsert.
+	now := time.Now().UTC()
+	enrolledDevice.AwaitingConfiguration = fleet.WindowsMDMAwaitingConfigurationPending
+	enrolledDevice.AwaitingConfigurationAt = &now
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
+	require.NoError(t, err)
+
+	gotEnrolledDevice, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, gotEnrolledDevice.AwaitingConfiguration)
+	require.NotNil(t, gotEnrolledDevice.AwaitingConfigurationAt)
+
+	// Re-enroll clears awaiting configuration via upsert.
+	enrolledDevice.AwaitingConfiguration = fleet.WindowsMDMAwaitingConfigurationNone
+	enrolledDevice.AwaitingConfigurationAt = nil
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
+	require.NoError(t, err)
+
+	gotEnrolledDevice, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, gotEnrolledDevice.AwaitingConfiguration)
+	require.Nil(t, gotEnrolledDevice.AwaitingConfigurationAt)
 }
 
 func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
