@@ -6343,24 +6343,16 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 	})
 
 	t.Run("multiple supported variables", func(t *testing.T) {
-		contents := `{"Type": "com.apple.configuration.test", "Identifier": "test", "Payload": {"serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`
-		vars, err := validateDeclarationFleetVariables(contents, premiumLic)
+		vars, err := validateDeclarationFleetVariables(
+			makeDecl(`["$FLEET_VAR_HOST_HARDWARE_SERIAL", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"]`), premiumLic)
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{"HOST_HARDWARE_SERIAL", "HOST_END_USER_IDP_USERNAME"}, vars)
 	})
 
 	t.Run("all supported variables", func(t *testing.T) {
-		contents := `{"Type": "com.apple.configuration.test", "Identifier": "test", "Payload": {
-			"a": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-			"b": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
-			"c": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART",
-			"d": "$FLEET_VAR_HOST_END_USER_IDP_GROUPS",
-			"e": "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT",
-			"f": "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME",
-			"g": "$FLEET_VAR_HOST_UUID",
-			"h": "$FLEET_VAR_HOST_PLATFORM"
-		}}`
-		vars, err := validateDeclarationFleetVariables(contents, premiumLic)
+		vars, err := validateDeclarationFleetVariables(
+			makeDecl(`["$FLEET_VAR_HOST_HARDWARE_SERIAL", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", "$FLEET_VAR_HOST_END_USER_IDP_GROUPS", "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", "$FLEET_VAR_HOST_UUID", "$FLEET_VAR_HOST_PLATFORM"]`),
+			premiumLic)
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{
 			"HOST_HARDWARE_SERIAL", "HOST_END_USER_IDP_USERNAME",
@@ -6380,22 +6372,17 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
-	t.Run("unsupported variable NDES_SCEP_CHALLENGE", func(t *testing.T) {
+	t.Run("unsupported variable", func(t *testing.T) {
 		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_NDES_SCEP_CHALLENGE"), premiumLic)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in DDM declarations")
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in DDM profiles")
 	})
 
-	t.Run("unsupported variable DIGICERT", func(t *testing.T) {
-		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_DIGICERT_DATA_myCA"), premiumLic)
+	t.Run("supported and unsupported variables", func(t *testing.T) {
+		_, err := validateDeclarationFleetVariables(
+			makeDecl(`["$FLEET_VAR_HOST_UUID", "$FLEET_VAR_DIGICERT_DATA_myCA"]`), premiumLic)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_DIGICERT_DATA_myCA is not supported in DDM declarations")
-	})
-
-	t.Run("unsupported variable HOST_END_USER_EMAIL_IDP", func(t *testing.T) {
-		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"), premiumLic)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP is not supported in DDM declarations")
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_DIGICERT_DATA_myCA is not supported in DDM profiles")
 	})
 }
 
