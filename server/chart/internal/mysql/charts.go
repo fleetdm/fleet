@@ -1,15 +1,51 @@
+// Package mysql provides the MySQL datastore implementation for the chart bounded context.
 package mysql
 
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/chart"
+	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+// Datastore is the MySQL implementation of the chart datastore.
+type Datastore struct {
+	primary *sqlx.DB
+	replica *sqlx.DB
+	logger  *slog.Logger
+}
+
+// NewDatastore creates a new MySQL datastore for the chart bounded context.
+func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
+	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
+}
+
+// Ensure Datastore implements types.Datastore at compile time.
+var _ types.Datastore = (*Datastore)(nil)
+
+func (ds *Datastore) reader(ctx context.Context) sqlx.QueryerContext {
+	if ctxdb.IsPrimaryRequired(ctx) {
+		return ds.primary
+	}
+	return ds.replica
+}
+
+func (ds *Datastore) writer(_ context.Context) *sqlx.DB {
+	return ds.primary
+}
+
+// rebind rewrites a query from ? placeholders to the driver-specific format.
+func (ds *Datastore) rebind(query string) string {
+	return ds.primary.Rebind(query)
+}
 
 func (ds *Datastore) RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, timestamp time.Time) error {
 	utc := timestamp.UTC()
@@ -33,11 +69,11 @@ func (ds *Datastore) GetChartData(
 	dataset string,
 	startDate time.Time,
 	endDate time.Time,
-	hostFilter *fleet.ChartHostFilter,
+	hostFilter *chart.HostFilter,
 	entityIDs []uint,
 	hasEntityDimension bool,
 	downsample int,
-) ([]fleet.ChartDataPoint, error) {
+) ([]chart.DataPoint, error) {
 	// Build the host filter subquery.
 	hostSubquery, hostArgs := buildHostFilterSubquery(hostFilter)
 
@@ -106,7 +142,7 @@ func (ds *Datastore) GetChartData(
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "expand chart data query args")
 	}
-	query = ds.reader(ctx).Rebind(query)
+	query = ds.rebind(query)
 
 	dbRows, err := ds.reader(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
@@ -114,7 +150,7 @@ func (ds *Datastore) GetChartData(
 	}
 	defer dbRows.Close()
 
-	var results []fleet.ChartDataPoint
+	var results []chart.DataPoint
 	for dbRows.Next() {
 		var chartDate time.Time
 		hourVals := make([]int, len(hours))
@@ -128,7 +164,7 @@ func (ds *Datastore) GetChartData(
 		}
 		for i, h := range hours {
 			ts := time.Date(chartDate.Year(), chartDate.Month(), chartDate.Day(), h, 0, 0, 0, time.UTC)
-			results = append(results, fleet.ChartDataPoint{
+			results = append(results, chart.DataPoint{
 				Timestamp: ts,
 				Value:     hourVals[i],
 			})
@@ -141,7 +177,7 @@ func (ds *Datastore) GetChartData(
 	return results, nil
 }
 
-func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *fleet.ChartHostFilter) (int, error) {
+func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
 	subquery, args := buildHostCountFilterClauses(hostFilter)
 
 	query := fmt.Sprintf(`SELECT COUNT(*) FROM hosts h WHERE 1=1 %s`, subquery)
@@ -151,7 +187,7 @@ func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *f
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "expand count hosts query args")
 	}
-	query = ds.reader(ctx).Rebind(query)
+	query = ds.rebind(query)
 
 	var count int
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...); err != nil {
@@ -206,7 +242,7 @@ func (ds *Datastore) CleanupHostHourlyData(ctx context.Context, days int) error 
 // buildHostFilterSubquery builds SQL clauses to filter host_hourly_data rows by host attributes.
 // Uses "hd" as the table alias. Returns the clause (prefixed with AND) and args.
 // Args may contain slices — caller must use sqlx.In to expand them.
-func buildHostFilterSubquery(filter *fleet.ChartHostFilter) (string, []any) {
+func buildHostFilterSubquery(filter *chart.HostFilter) (string, []any) {
 	if filter == nil {
 		return "", nil
 	}
@@ -243,7 +279,7 @@ func buildHostFilterSubquery(filter *fleet.ChartHostFilter) (string, []any) {
 
 // buildHostCountFilterClauses builds filter clauses for counting hosts directly from the hosts table.
 // Uses "h" as the table alias. Args may contain slices — caller must use sqlx.In to expand them.
-func buildHostCountFilterClauses(filter *fleet.ChartHostFilter) (string, []any) {
+func buildHostCountFilterClauses(filter *chart.HostFilter) (string, []any) {
 	if filter == nil {
 		return "", nil
 	}

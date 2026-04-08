@@ -78,8 +78,6 @@ type Service struct {
 	// acmeSvc is the ACME service module for write operations.
 	acmeSvc fleet.ACMEWriteService
 
-	// chartSvc is the chart bounded-context service for chart data operations.
-	chartSvc fleet.ChartService
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -211,12 +209,6 @@ func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 // This should be called after NewService to inject the ACME service dependency.
 func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
 	svc.acmeSvc = acmeSvc
-}
-
-// SetChartService sets the chart service module.
-// This should be called after NewService to inject the chart service dependency.
-func (svc *Service) SetChartService(chartSvc fleet.ChartService) {
-	svc.chartSvc = chartSvc
 }
 
 type validationMiddleware struct {
