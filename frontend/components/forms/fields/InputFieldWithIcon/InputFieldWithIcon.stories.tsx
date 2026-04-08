@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
 
-// @ts-ignore
 import InputFieldWithIcon from ".";
 
 // Define metadata for the story
