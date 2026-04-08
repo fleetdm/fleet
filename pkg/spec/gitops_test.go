@@ -257,10 +257,10 @@ func TestValidGitOpsYaml(t *testing.T) {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
 					assert.True(t, ok, "server_settings not found")
-					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]interface{})["server_url"])
-					assert.EqualValues(t, 2000, serverSettings.(map[string]interface{})["query_report_cap"])
+					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]any)["server_url"])
+					assert.EqualValues(t, 2000, serverSettings.(map[string]any)["report_cap"])
 					assert.Contains(t, gitops.OrgSettings, "org_info")
-					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]interface{})
+					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]any)
 					assert.True(t, ok)
 					assert.Equal(t, "Fleet Device Management", orgInfo["org_name"])
 					assert.Contains(t, gitops.OrgSettings, "smtp_settings")
@@ -2960,9 +2960,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_settings")
-		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.macos_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
@@ -2989,9 +2989,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.apple_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
@@ -3018,9 +3018,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.windows_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
@@ -3047,9 +3047,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.android_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
@@ -3073,9 +3073,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "setup_experience")
-		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.macos_setup' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_bootstrap_package", func(t *testing.T) {
@@ -3098,9 +3098,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_bootstrap_package")
-		require.Contains(t, err.Error(), "`bootstrap_package` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.bootstrap_package' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_enable_release_device_manually", func(t *testing.T) {
@@ -3123,9 +3123,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_enable_release_device_manually")
-		require.Contains(t, err.Error(), "`enable_release_device_manually` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.enable_release_device_manually' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_script", func(t *testing.T) {
@@ -3148,9 +3148,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_script")
-		require.Contains(t, err.Error(), "`script` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.script' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_manual_agent_install", func(t *testing.T) {
@@ -3173,9 +3173,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_manual_agent_install")
-		require.Contains(t, err.Error(), "`manual_agent_install` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.manual_agent_install' (deprecated)")
 	})
 
 	t.Run("duplicate_keys_external_file", func(t *testing.T) {
@@ -3206,7 +3206,7 @@ org_settings:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_settings")
 		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
 	})

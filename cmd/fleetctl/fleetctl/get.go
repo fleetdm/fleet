@@ -864,7 +864,7 @@ func getHostsCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:  "mdm-pending",
-				Usage: "Filters hosts by hosts ordered via Apple Business Manager (ABM). These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
+				Usage: "Filters hosts by hosts ordered via Apple Business (AB). These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -1455,7 +1455,7 @@ func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-apple-bm",
 		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Show information about Apple Business Manager for automatic enrollment",
+		Usage:   "Show information about Apple Business for automatic enrollment",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -1473,7 +1473,7 @@ func getMDMAppleBMCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					log(c, "Error: No Apple Business Manager server token found. Use `fleetctl generate mdm-apple-bm` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
+					log(c, "Error: No Apple Business server token found. Use `fleetctl generate mdm-apple-bm` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
 					return nil
 				}
 				return fmt.Errorf("could not get Apple BM information: %w", err)
@@ -1494,10 +1494,10 @@ func getMDMAppleBMCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if bm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business Manager (ABM) server token is expired. Laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
 			} else if bm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
 			}
 
 			return nil
