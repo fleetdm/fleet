@@ -287,7 +287,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Devices]
 - industryName: Fully-managed for employee-issued Android
-  description: Enroll and managed company-owned Android devices.
+  description: Enroll and manage company-owned Android devices.
   documentationUrl: https://fleetdm.com/guides/android-mdm-setup
   tier: Premium
   jamfProHasFeature: yes
