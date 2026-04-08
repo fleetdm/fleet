@@ -270,6 +270,14 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		})
 	}
 
+	setProtectionStatus := func(t *testing.T, hostID uint, protectionStatus *int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := `UPDATE host_disks SET bitlocker_protection_status = ? where host_id = ?`
+			_, err := q.ExecContext(ctx, stmt, protectionStatus, hostID)
+			return err
+		})
+	}
+
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			// Generate a command UUID for the profile
@@ -673,6 +681,91 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			checkExpected(t, nil, hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
 				fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
+			})
+		})
+
+		t.Run("BitLocker protection status", func(t *testing.T) {
+			targetHost := hosts[4]
+
+			// Explicitly set up state so this subtest can run standalone.
+			// hosts[0]: encrypted, key escrowed, verified
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true, nil))
+			_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", new(true))
+			require.NoError(t, err)
+			// targetHost: encrypted, key escrowed, verified
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, nil))
+			_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, targetHost, "test-key", "", new(true))
+			require.NoError(t, err)
+			setProtectionStatus(t, targetHost.ID, nil)
+			// hosts[1]: failed (has client error)
+			_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1], "", "test-error", new(false))
+			require.NoError(t, err)
+
+			// baseline check
+			checkExpected(t, nil, hostIDsByDEStatus{
+				fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
+				fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
+			})
+
+			t.Run("protection_status=1 stays verified", func(t *testing.T) {
+				setProtectionStatus(t, targetHost.ID, new(1))
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
+					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
+				})
+			})
+
+			t.Run("protection_status=0 becomes action_required", func(t *testing.T) {
+				setProtectionStatus(t, targetHost.ID, new(0))
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified:       []uint{hosts[0].ID},
+					fleet.DiskEncryptionActionRequired: []uint{targetHost.ID},
+					fleet.DiskEncryptionFailed:         []uint{hosts[1].ID},
+				})
+			})
+
+			t.Run("protection_status=2 (unknown) treated as on", func(t *testing.T) {
+				setProtectionStatus(t, targetHost.ID, new(2))
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
+					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
+				})
+			})
+
+			t.Run("protection_status=NULL treated as on (backward compat)", func(t *testing.T) {
+				setProtectionStatus(t, targetHost.ID, nil)
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
+					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
+				})
+			})
+
+			t.Run("protection off during encryption in progress is verifying not action_required", func(t *testing.T) {
+				// Simulate: orbit escrowed key, encryption in progress, osquery reports
+				// encrypted=false and protection_status=0. This is normal during encryption.
+				_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, targetHost, "test-key", "", new(true))
+				require.NoError(t, err)
+				updateHostDisks(t, targetHost.ID, false, time.Now())
+				setProtectionStatus(t, targetHost.ID, new(0))
+
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+					fleet.DiskEncryptionVerifying: []uint{targetHost.ID},
+					fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				})
+			})
+
+			t.Run("action_required detail message for protection off", func(t *testing.T) {
+				// Restore targetHost to encrypted + protection off
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(0)))
+				h, err := ds.Host(ctx, targetHost.ID)
+				require.NoError(t, err)
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.NotNil(t, bls)
+				require.NotNil(t, bls.Status)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.Contains(t, bls.Detail, "BitLocker protection is off")
 			})
 		})
 	})
