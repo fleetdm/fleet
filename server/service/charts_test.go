@@ -165,6 +165,57 @@ func TestFillZeroValues(t *testing.T) {
 		assert.Equal(t, 0, result[0].Value)  // hour 0
 		assert.Equal(t, 10, result[1].Value) // hour 4
 	})
+
+	t.Run("24h starts at start hour not midnight", func(t *testing.T) {
+		// Simulates days=1: startDate is yesterday at 16:00, endDate is today at 16:00
+		s := time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC)
+		e := time.Date(2026, 4, 8, 16, 0, 0, 0, time.UTC)
+		data := []fleet.ChartDataPoint{
+			{Timestamp: time.Date(2026, 4, 7, 18, 0, 0, 0, time.UTC), Value: 50},
+			{Timestamp: time.Date(2026, 4, 8, 10, 0, 0, 0, time.UTC), Value: 75},
+		}
+		result := fillZeroValues(data, s, e, 0)
+		// 16:00 yesterday through 16:00 today = 25 data points
+		assert.Len(t, result, 25)
+		assert.Equal(t, time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC), result[0].Timestamp)
+		assert.Equal(t, 0, result[0].Value)
+		assert.Equal(t, 50, result[2].Value)  // hour 18
+		assert.Equal(t, 75, result[18].Value) // hour 10 next day
+		assert.Equal(t, time.Date(2026, 4, 8, 16, 0, 0, 0, time.UTC), result[24].Timestamp)
+	})
+
+	t.Run("downsample aligns start hour to step", func(t *testing.T) {
+		// Start hour 17 with downsample=2 should align down to 16
+		s := time.Date(2026, 4, 7, 17, 0, 0, 0, time.UTC)
+		e := time.Date(2026, 4, 7, 22, 0, 0, 0, time.UTC)
+		data := []fleet.ChartDataPoint{
+			{Timestamp: time.Date(2026, 4, 7, 18, 0, 0, 0, time.UTC), Value: 30},
+			{Timestamp: time.Date(2026, 4, 7, 20, 0, 0, 0, time.UTC), Value: 40},
+		}
+		result := fillZeroValues(data, s, e, 2)
+		// Aligned start=16, so: 16, 18, 20, 22 = 4 data points
+		require.Len(t, result, 4)
+		assert.Equal(t, time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC), result[0].Timestamp)
+		assert.Equal(t, 0, result[0].Value)
+		assert.Equal(t, 30, result[1].Value) // hour 18
+		assert.Equal(t, 40, result[2].Value) // hour 20
+		assert.Equal(t, 0, result[3].Value)  // hour 22
+	})
+
+	t.Run("downsample 4 aligns start hour", func(t *testing.T) {
+		// Start hour 5 with downsample=4 should align down to 4
+		s := time.Date(2026, 4, 7, 5, 0, 0, 0, time.UTC)
+		e := time.Date(2026, 4, 7, 15, 0, 0, 0, time.UTC)
+		data := []fleet.ChartDataPoint{
+			{Timestamp: time.Date(2026, 4, 7, 8, 0, 0, 0, time.UTC), Value: 55},
+		}
+		result := fillZeroValues(data, s, e, 4)
+		// Aligned start=4, so: 4, 8, 12 = 3 data points
+		require.Len(t, result, 3)
+		assert.Equal(t, time.Date(2026, 4, 7, 4, 0, 0, 0, time.UTC), result[0].Timestamp)
+		assert.Equal(t, 55, result[1].Value) // hour 8
+		assert.Equal(t, 0, result[2].Value)  // hour 12
+	})
 }
 
 func TestCollectDatasets(t *testing.T) {

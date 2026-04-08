@@ -64,10 +64,10 @@ func (cs *chartServiceImpl) GetChartData(ctx context.Context, metric string, opt
 		return nil, err
 	}
 
-	// Calculate date range.
+	// Calculate date range — go back exactly N days from now.
 	now := time.Now().UTC()
 	endDate := now
-	startDate := now.AddDate(0, 0, -(opts.Days - 1))
+	startDate := now.AddDate(0, 0, -opts.Days)
 
 	// Build host filter.
 	var hostFilter *fleet.ChartHostFilter
@@ -177,7 +177,13 @@ func fillZeroValues(data []fleet.ChartDataPoint, startDate, endDate time.Time, d
 		step = downsample
 	}
 
-	start := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, time.UTC)
+	// Align start hour to the step boundary so timestamps match the SQL output
+	// (which always uses step-aligned hours from midnight: 0, 2, 4... or 0, 4, 8...).
+	startHour := startDate.Hour()
+	if step > 1 {
+		startHour = (startHour / step) * step
+	}
+	start := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), startHour, 0, 0, 0, time.UTC)
 	end := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), endDate.Hour(), 0, 0, 0, time.UTC)
 
 	var result []fleet.ChartDataPoint
