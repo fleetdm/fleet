@@ -1350,7 +1350,7 @@ func TestValidateAPIEndpoints(t *testing.T) {
 
 	t.Run("no routes registered returns error listing all missing", func(t *testing.T) {
 		err := validateAPIEndpoints(mux.NewRouter(), allEndpoints)
-		require.ErrorContains(t, err, "the following API endpoints are missing")
+		require.ErrorContains(t, err, "the following API endpoints are unknown")
 	})
 
 	t.Run("non-mux handler returns error", func(t *testing.T) {

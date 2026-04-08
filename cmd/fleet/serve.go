@@ -2225,7 +2225,7 @@ func validateAPIEndpoints(h http.Handler, endpoints []fleet.APIEndpoint) error {
 	}
 
 	if len(missing) > 0 {
-		return fmt.Errorf("the following API endpoints are missing: %v", missing)
+		return fmt.Errorf("the following API endpoints are unknown: %v", missing)
 	}
 
 	return nil

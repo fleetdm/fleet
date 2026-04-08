@@ -12,8 +12,8 @@ func TestList(t *testing.T) {
 	t.Run("no filter returns all", func(t *testing.T) {
 		opts := fleet.ListOptions{}
 		got, meta, count, err := List(opts)
-		require.Equal(t, 5, count)
-		require.Len(t, got, 5)
+		require.Equal(t, 9, count)
+		require.Len(t, got, 9)
 		require.False(t, meta.HasNextResults)
 		require.False(t, meta.HasPreviousResults)
 		require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestList(t *testing.T) {
 	})
 
 	t.Run("filter matches either display_name or normalized_path", func(t *testing.T) {
-		// "software" appears in both the DisplayName of two entries and the NormalizedPath of two entries
+		// "software" appears in the DisplayName and NormalizedPath of two entries
 		opts := fleet.ListOptions{MatchQuery: "software"}
 		got, _, count, err := List(opts)
 		require.Equal(t, 2, count)
@@ -50,7 +50,7 @@ func TestList(t *testing.T) {
 	t.Run("pagination first page", func(t *testing.T) {
 		opts := fleet.ListOptions{Page: 0, PerPage: 2}
 		got, meta, count, err := List(opts)
-		require.Equal(t, 5, count)
+		require.Equal(t, 9, count)
 		require.Len(t, got, 2)
 		require.True(t, meta.HasNextResults)
 		require.False(t, meta.HasPreviousResults)
@@ -60,7 +60,7 @@ func TestList(t *testing.T) {
 	t.Run("pagination middle page", func(t *testing.T) {
 		opts := fleet.ListOptions{Page: 1, PerPage: 2}
 		got, meta, count, err := List(opts)
-		require.Equal(t, 5, count)
+		require.Equal(t, 9, count)
 		require.Len(t, got, 2)
 		require.True(t, meta.HasNextResults)
 		require.True(t, meta.HasPreviousResults)
@@ -68,9 +68,9 @@ func TestList(t *testing.T) {
 	})
 
 	t.Run("pagination last page", func(t *testing.T) {
-		opts := fleet.ListOptions{Page: 2, PerPage: 2}
+		opts := fleet.ListOptions{Page: 4, PerPage: 2}
 		got, meta, count, err := List(opts)
-		require.Equal(t, 5, count)
+		require.Equal(t, 9, count)
 		require.Len(t, got, 1)
 		require.False(t, meta.HasNextResults)
 		require.True(t, meta.HasPreviousResults)
@@ -80,7 +80,7 @@ func TestList(t *testing.T) {
 	t.Run("pagination beyond last page returns empty", func(t *testing.T) {
 		opts := fleet.ListOptions{Page: 99, PerPage: 2}
 		got, meta, count, err := List(opts)
-		require.Equal(t, 5, count)
+		require.Equal(t, 9, count)
 		require.Empty(t, got)
 		require.False(t, meta.HasNextResults)
 		require.True(t, meta.HasPreviousResults)

@@ -28343,17 +28343,16 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 	require.Empty(t, emptyResp.APIEndpoints)
 	require.Equal(t, 0, emptyResp.Count)
 
-	// filtering by path segment: "fleet/hosts" matches both host endpoints
+	// filtering by path segment: "fleet/hosts" matches all four host endpoints
 	var hostPathResp listAPIEndpointsResponse
 	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &hostPathResp, "query", "fleet/hosts")
-	require.Len(t, hostPathResp.APIEndpoints, 2)
-	require.Equal(t, 2, hostPathResp.Count)
+	require.Len(t, hostPathResp.APIEndpoints, 4)
+	require.Equal(t, 4, hostPathResp.Count)
 
 	// filtering by path with placeholder: "fleet/hosts/:id" is normalized to
-	// "fleet/hosts/:placeholder_1", matching only the single-host endpoint
+	// "fleet/hosts/:placeholder_1", matching the GET and DELETE single-host endpoints
 	var hostByIDResp listAPIEndpointsResponse
 	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &hostByIDResp, "query", "fleet/hosts/:something_wicked")
-	require.Len(t, hostByIDResp.APIEndpoints, 1)
-	require.Equal(t, "Get host", hostByIDResp.APIEndpoints[0].DisplayName)
-	require.Equal(t, 1, hostByIDResp.Count)
+	require.Len(t, hostByIDResp.APIEndpoints, 2)
+	require.Equal(t, 2, hostByIDResp.Count)
 }
