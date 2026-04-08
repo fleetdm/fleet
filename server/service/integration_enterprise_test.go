@@ -28264,6 +28264,23 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 	// unauthenticated request is rejected
 	s.DoRawNoAuth("GET", "/api/latest/fleet/rest_api", nil, http.StatusUnauthorized)
 
+	// non-admin roles are forbidden (endpoint requires ActionWrite on User)
+	for _, role := range []string{fleet.RoleObserver, fleet.RoleObserverPlus, fleet.RoleMaintainer, fleet.RoleGitOps} {
+		u := &fleet.User{
+			Name:       "test " + role,
+			Email:      role + "-api-endpoints@example.com",
+			GlobalRole: ptr.String(role),
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(context.Background(), u)
+		require.NoError(t, err)
+		s.token = s.getTestToken(u.Email, test.GoodPassword)
+		s.Do("GET", "/api/latest/fleet/rest_api", nil, http.StatusForbidden)
+	}
+
+	// restore admin token
+	s.token = s.getTestAdminToken()
+
 	// global admin can list API endpoints
 	var resp listAPIEndpointsResponse
 	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &resp)
