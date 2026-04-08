@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can lock and wipe macOS, Windows, Linux, iOS and iPadOS hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user.
+In Fleet, you can lock and wipe macOS, Windows, Linux, iOS, iPadOS, and Android hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user.
 
 Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads is coming soon.
 
@@ -20,7 +20,9 @@ Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.mic
 > **iOS and iPadOS**: Lock action is only available for company-owned ([supervised](https://support.apple.com/en-gb/guide/deployment/dep1d89f0bff/web)) hosts.
 As part of locking an iOS or iPadOS host, Fleet collects the device's location data. Fleet will not consider the device fully locked until the location data is collected.
 
-> **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
+> **Linux**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
+
+> **Android**: Lock action will enforce the host lock screen and require the user to enter their password/PIN to regain access. Fully managed and BYO Android hosts are both supported.
 
 ### Get location of locked iOS/iPadOS host
 
@@ -56,6 +58,8 @@ When wiping and re-installing the operating system (OS) on a host, delete the ho
 If you're gifting a company-owned macOS host or you want to prevent the host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business Manager (ABM) and then delete the host in Fleet.
 
 For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). However, it is possible to use the [doWipe command via the API](https://fleetdm.com/docs/rest-api/rest-api#parameters57).
+
+Wipe is available for fully managed Android hosts. To remove Fleet from a BYO Android host, unenroll it instead.
 
 ## Unlock a host
 
