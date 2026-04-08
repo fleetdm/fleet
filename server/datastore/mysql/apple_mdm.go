@@ -265,7 +265,7 @@ INSERT INTO
 		}
 		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 			{ProfileUUID: profUUID, FleetVariables: usesFleetVars},
-		}, "darwin"); err != nil {
+		}, "darwin", false); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile variable associations")
 		}
 
@@ -5258,7 +5258,7 @@ func (ds *Datastore) updateDeclarationsVariableAssociations(ctx context.Context,
 	}
 
 	if len(profilesVarsToUpsert) > 0 {
-		if updatedDB, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "apple_declaration"); err != nil {
+		if updatedDB, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "darwin", true); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
 		}
 	}
@@ -5504,7 +5504,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 			{ProfileUUID: declUUID, FleetVariables: usesFleetVars},
-		}, "apple_declaration"); err != nil {
+		}, "darwin", true); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
 		}
 

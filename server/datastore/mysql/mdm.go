@@ -2016,20 +2016,21 @@ func batchSetProfileVariableAssociationsDB(
 	tx sqlx.ExtContext,
 	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
 	platform string,
+	forAppleDeclarations bool,
 ) (didUpdate bool, err error) {
 	if len(profileVariablesByUUID) == 0 {
 		return false, nil
 	}
 
 	var columnName string
-	switch platform {
-	case "darwin":
-		columnName = "apple_profile_uuid"
-	case "windows":
-		columnName = "windows_profile_uuid"
-	case "apple_declaration":
+	switch {
+	case platform == "darwin" && forAppleDeclarations:
 		columnName = "apple_declaration_uuid"
-	case "android":
+	case platform == "darwin":
+		columnName = "apple_profile_uuid"
+	case platform == "windows":
+		columnName = "windows_profile_uuid"
+	case platform == "android":
 		return false, nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
 	default:
 		return false, fmt.Errorf("unsupported platform %s", platform)
@@ -2592,7 +2593,7 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 
 	if len(profilesVarsToUpsert) > 0 {
 		var didUpdateVariableAssociations bool
-		if didUpdateVariableAssociations, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, platform); err != nil {
+		if didUpdateVariableAssociations, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, platform, false); err != nil {
 			return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("inserting %s profile variable associations", platform))
 		}
 
