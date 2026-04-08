@@ -75,6 +75,7 @@ const ChartCard = (): JSX.Element => {
     () => ({
       ...filterParams,
       days: selectedDays,
+      downsample: selectedDays >= 7 ? selectedDays === 30 ? 4 : 2 : undefined,
       label_ids: chartFilters.labelIDs.length
         ? chartFilters.labelIDs.join(",")
         : undefined,
