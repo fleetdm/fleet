@@ -38,7 +38,7 @@ Iru (Kandji) takes a no-code approach through pre-built automations. The API pro
 
 ### Security and compliance capabilities
 
-Both solutions offer compliance and security features through different approaches. Jamf Pro offers compliance benchmarks derived from government security standards, implementing [CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) and [STIG baselines](https://www.cyber.mil/stigs/) with explicit mapping to NIST 800-53 controls. The [Jamf Compliance Editor](https://trusted.jamf.com/docs/establishing-compliance-baselines) is an application that allows admins to build controls tied to specific framework requirements for macOS, iOS, iPadOS, and visionOS. Once controls are created on an admin’s computer they can be uploaded to the Jamf console for use.
+Both solutions offer compliance and security features through different approaches. Jamf Pro offers compliance benchmarks derived from government security standards, implementing [CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) and [STIG baselines](https://www.cyber.mil/stigs/) with explicit mapping to NIST 800-53 controls. The [Jamf Compliance Editor](https://trusted.jamf.com/docs/establishing-compliance-baselines) is a macOS application that allows admins to build controls tied to specific framework requirements. Once controls are created on an admin’s computer they must be manually uploaded to the Jamf console for use.
 
 Iru (Kandji) provides automated security controls designed to meet compliance requirements across frameworks like SOC 2 and HIPAA. The solution emphasizes continuous monitoring with automated remediation when devices drift from compliant states. Compliance reports generate automatically but focus on proving compliance rather than detailed control citation mapping.
 
@@ -55,14 +55,88 @@ Iru (Kandji) offers direct support focused on implementing pre-built features. T
 ## Key differences at a glance
 
 The architectural differences between Jamf and Iru (Kandji) translate into practical trade-offs that affect daily operations.
-| Dimension | Jamf Pro | Iru (Kandji) |
-|---|---|---|
-| Team technical depth | Teams comfortable with shell scripting, API integration, and custom automation development | IT generalists managing multiple responsibilities beyond Mac administration |
-| Customization needs | Complex regulatory requirements; custom integrations via API workflows and scripts | Standard compliance frameworks with no need for highly customized workflows |
-| Compliance approach | Framework templates from CIS, NIST, STIG standards; audit trails with control citation mapping | One-click compliance templates for SOC 2, HIPAA; automated controls with continuous remediation |
-| Security tooling | Optional Jamf Protect for EDR; Jamf Connect for identity. 'Jamf for Mac' bundles Pro + Connect + Protect; documented SIEM integrations | EDR and vulnerability management as add-ons (priced per device) via single agent; consolidates endpoint tools when purchased |
-| Device ecosystem | Apple and Android support | Cross-platform solution with support for Apple, Windows, and Android |
-| Implementation timeline | Longer time-to-productivity; often requires consultants | Faster deployment through pre-built automations and Liftoff onboarding |
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Dimension
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Jamf Pro
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Iru (Kandji)
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Team technical depth
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Teams comfortable with shell scripting, API integration, and custom automation development
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+IT generalists managing multiple responsibilities beyond Mac administration
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Customization needs
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Complex regulatory requirements; custom integrations via API workflows and scripts
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Standard compliance frameworks with no need for highly customized workflows
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Compliance approach
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Framework templates from CIS, NIST, STIG standards; audit trails with control citation mapping
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+One-click compliance templates for SOC 2, HIPAA; automated controls with continuous remediation
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Security tooling
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Optional Jamf Protect for EDR; Jamf Connect for identity. 'Jamf for Mac' bundles Pro + Connect + Protect; documented SIEM integrations
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+EDR and vulnerability management as add-ons (priced per device) via single agent; consolidates endpoint tools when purchased
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Device ecosystem
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Apple and Android support
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Cross-platform solution with support for Apple, Windows, and Android
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Implementation timeline
+
+<table><tbody><tr><td></td></tr></tbody></table>
+
+Longer time-to-productivity; often requires consultants
+
+<table><tbody><tr><td></td></tr></tbody></table>
 
 Faster deployment through pre-built automations and Liftoff onboarding
 
@@ -103,11 +177,11 @@ Choosing between Jamf and Iru (Kandji) addresses Apple device management, but fo
 
 ### How hard is it to migrate from Jamf to Iru (Kandji) or from Iru (Kandji) to Jamf?
 
-MDM migrations benefit from careful planning and phased implementation. Apple's Managed Device Migration features built into their operating systems for all devices running an Apple OS 26.0+ makes MDM migration easier than ever. By reassigning devices to a new MDM server in Apple Business Manager and setting an enforcement deadline, Apple handles notifying users and, if they don't act in time, automatically enforcing the migration. The bigger challenge isn't the migration itself. It's translating configurations between solutions. Jamf's policy-based architecture fundamentally differs from the Iru (Kandji) Blueprint system, meaning you'll need to reimplement policies rather than simply export and import them.
+MDM migrations benefit from careful planning and phased implementation. Apple's recently announced Managed Device Migration features built into their operating systems for all devices makes MDM migration easier than ever. By unassigning devices from the current MDM server in Apple Business Manager, and assigning them to a new MDM server, Apple now handles notifying users to take action on completing migration. The bigger challenge isn't the migration itself. It's translating configurations between solutions. Jamf's policy-based architecture fundamentally differs from the Iru (Kandji) Blueprint system, meaning you'll need to reimplement policies rather than simply export and import them.
 
 ### Do I still need separate security and compliance tools if I use Jamf or Iru (Kandji)?
 
-Iru (Kandji) includes native EDR and automated compliance controls that can reduce the need for separate endpoint security tools. Jamf requires add-on modules (Jamf Protect for EDR, Jamf Compliance Editor/Jamf Pro Compliance Benchmarks for compliance framework mapping) that together provide similar coverage. However, both solutions have important limitations: your security teams typically still need SIEM integration, threat intelligence platforms, and broader security monitoring beyond endpoint management. Additionally, organizations with multi-platform device fleets may face coverage gaps with either solution alone, as neither fully covers Linux or ChromeOS.
+Iru (Kandji) includes native EDR and automated compliance controls that can reduce the need for separate endpoint security tools. Jamf requires add-on modules (Jamf Protect for EDR, Jamf Trusted Access/Compliance Editor for compliance framework mapping) that together provide similar coverage. However, both solutions have important limitations: your security teams typically still need SIEM integration, threat intelligence platforms, and broader security monitoring beyond endpoint management. Additionally, organizations with multi-platform device fleets may face coverage gaps with either solution alone, as neither fully covers Linux or ChromeOS.
 
 ### What are the best alternatives for mixed macOS, Windows, and Linux fleets?
 
@@ -121,5 +195,5 @@ You can maintain Jamf or Iru (Kandji) for core device management while adding mu
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-03-24">
-<meta name="description" value="Compare Fleet, Jamf, and Iru (fka Kandji) for platform support, pricing, GitOps, security, and API capabilities to find the right MDM for your team.">
+<meta name="publishedOn" value="2026-04-08">
+<meta name="description" value="Compare Fleet, Jamf, and Iru (formerly Kandji) across platform support, pricing, GitOps, security, and API capabilities to find the right MDM for your team.">
