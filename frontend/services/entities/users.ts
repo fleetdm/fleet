@@ -65,10 +65,21 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  createUserWithoutInvitation: (formData: ICreateUserFormData) => {
+  createUserWithoutInvitation: (
+    formData: ICreateUserFormData
+  ): Promise<{ user: IUser; token?: string }> => {
     const { USERS_ADMIN } = endpoints;
 
-    return sendRequest("POST", USERS_ADMIN, formData).then((response) =>
+    return sendRequest("POST", USERS_ADMIN, formData).then((response) => ({
+      user: helpers.addGravatarUrlToResource(response.user),
+      token: response.token,
+    }));
+  },
+  getUserById: (userId: number): Promise<IUser> => {
+    const { USERS } = endpoints;
+    const path = `${USERS}/${userId}`;
+
+    return sendRequest("GET", path).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
   },

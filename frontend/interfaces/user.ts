@@ -97,12 +97,13 @@ export interface ILoginUserData {
 }
 
 export interface ICreateUserFormData {
-  email: string;
+  email?: string;
   global_role: UserRole | null;
   name: string;
   password?: string | null;
   sso_enabled?: boolean;
   mfa_enabled?: boolean;
+  api_only?: boolean;
   teams: ITeam[];
 }
 
