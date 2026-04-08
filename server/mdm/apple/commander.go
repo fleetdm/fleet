@@ -52,7 +52,7 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 	}
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return ctxerr.Wrap(ctx, err, "decoding InstallProfile command")
 	}
 	err = svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, name)
 	return ctxerr.Wrap(ctx, err, "commander install profile")
@@ -102,7 +102,7 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 </plist>`, uuid, profileIdentifier)
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return ctxerr.Wrap(ctx, err, "decoding RemoveProfile command")
 	}
 	err = svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, name)
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
@@ -201,7 +201,7 @@ func (svc *MDMAppleCommander) EnableLostMode(ctx context.Context, host *fleet.Ho
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return ctxerr.Wrap(ctx, err, "decoding EnableLostMode command")
 	}
 
 	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, ""); err != nil {
@@ -271,7 +271,7 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return ctxerr.Wrap(ctx, err, "decoding DeviceWipe command")
 	}
 
 	if err := svc.storage.EnqueueDeviceWipeCommand(ctx, host, cmd); err != nil {
