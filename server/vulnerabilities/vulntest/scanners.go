@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"testing"
 	"time"
@@ -12,8 +13,6 @@ import (
 	goval_dictionary "github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/stretchr/testify/require"
-
-	"log/slog"
 )
 
 // OVALScanner returns a Scanner that uses the OVAL analyzer for RHEL package vulnerabilities.
