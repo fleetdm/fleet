@@ -6102,8 +6102,7 @@ func setVariablesUpdatedAtForDeclarations(ctx context.Context, tx sqlx.ExtContex
 		hasVars[uuid] = struct{}{}
 	}
 
-	// Give a few minutes leeway to account for clock skew (same as profiles)
-	now := time.Now().UTC().Add(-3 * time.Minute)
+	now := time.Now().UTC()
 	for _, d := range decls {
 		if _, ok := hasVars[d.DeclarationUUID]; ok && d.OperationType == fleet.MDMOperationTypeInstall {
 			d.VariablesUpdatedAt = &now
