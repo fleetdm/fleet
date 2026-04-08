@@ -625,16 +625,14 @@ When Dependabot or code scanning surfaces critical or high-severity vulnerabilit
    > devdep, unused in prod. Proof:
    > https://github.com/fleetdm/fleet/blob/3a6ecb5a11fdbdf290faf7fdd7ffa6b29335892f/website/package-lock.json#L10798 _(link to the relevant line)_
 
-2. **Check low-severity alerts too** — Low severity can still matter if the vulnerable package is a production dependency. Reopen any previously dismissed low-severity alerts that impact production deps.
+2. **Assess real-world applicability** — Some vulnerabilities only apply under specific conditions (e.g., a path-to-regex vulnerability that only triggers with 3+ dynamic path params, which fleetdm.com doesn't use). Note these for upstream fixes but deprioritize if not exploitable in our setup.
 
-3. **Assess real-world applicability** — Some vulnerabilities only apply under specific conditions (e.g., a path-to-regex vulnerability that only triggers with 3+ dynamic path params, which fleetdm.com doesn't use). Note these for upstream fixes but deprioritize if not exploitable in our setup.
-
-4. **Address real vulnerabilities** — For confirmed production-impacting vulnerabilities:
+3. **Address real vulnerabilities** — For confirmed production-impacting vulnerabilities:
    - Identify the root cause (e.g., a transitive dependency using a `~` semver range instead of `^`).
    - Publish patch releases of affected upstream packages (e.g., `@sailshq/router`, `sails-hook-organics`) as needed.
    - Regenerate the lockfile in `fleetdm/fleet:website` after upstream fixes are published.
 
-5. **Reference video walkthrough** — For a detailed walkthrough of this process, see [this confidential video](https://drive.google.com/file/d/17JF1jtEjVc7wkeXYA-2GIJbh9GDPWJEc/view?usp=sharing) (accessible to fleeties only).
+4. **Reference video walkthrough** — For a detailed walkthrough of this process, see [this confidential video](https://drive.google.com/file/d/17JF1jtEjVc7wkeXYA-2GIJbh9GDPWJEc/view?usp=sharing) (accessible to fleeties only).
 
 
 ### Respond to a 5xx error on fleetdm.com
