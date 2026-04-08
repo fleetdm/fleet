@@ -81,11 +81,11 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
           	</array>
         	</array>
          <array>
-				      <array>
-					        <string>OU</string>
-				  	      <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
-			  	    </array>
-		  	</array>
+				    <array>
+					      <string>OU</string>
+				  	    <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+			  	  </array>
+         </array>
       	</array>
     	</dict>
     	<key>PayloadIdentifier</key>
