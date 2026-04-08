@@ -1525,13 +1525,13 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 						case prev.Query != spec.Query:
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil && !ptr.Equal(prev.SoftwareInstallerID, softwareInstallerID):
+						case teamID != nil && softwareInstallerID != nil && !ptr.Equal(prev.SoftwareInstallerID, softwareInstallerID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil && !ptr.Equal(prev.VPPAppsTeamsID, vppAppsTeamsID):
+						case teamID != nil && vppAppsTeamsID != nil && !ptr.Equal(prev.VPPAppsTeamsID, vppAppsTeamsID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil && !ptr.Equal(prev.ScriptID, scriptID):
+						case teamID != nil && scriptID != nil && !ptr.Equal(prev.ScriptID, scriptID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
 						case prev.Platforms != spec.Platform:
