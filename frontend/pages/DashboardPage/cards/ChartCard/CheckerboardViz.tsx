@@ -36,10 +36,10 @@ interface ICheckerboardVizProps {
   isPercentage: boolean;
 }
 
-const HOUR_ROWS = 12; // 0, 2, 4, ..., 22
 const CELL_GAP = 2;
 const AXIS_HEIGHT = 20; // space for x-axis labels at bottom
-const CHART_HEIGHT = 260; // target height for the grid area
+const CHART_HEIGHT = 260; // target height for the grid area (non-30-day)
+const CHART_HEIGHT_30D = 130; // half height for 30-day view
 
 const CheckerboardViz = ({
   data,
@@ -69,6 +69,10 @@ const CheckerboardViz = ({
     return undefined;
   }, []);
 
+  // Hours per slot: 4 for 30-day, 2 for 7/14-day, 1 for 24-hour
+  const hoursPerSlot = selectedDays === 30 ? 4 : selectedDays >= 7 ? 2 : 1;
+  const hourRows = 24 / hoursPerSlot;
+
   const { grid, dayLabels } = useMemo(() => {
     const dayMap = new Map<string, Map<number, IFormattedDataPoint>>();
     const dayOrder: string[] = [];
@@ -77,7 +81,7 @@ const CheckerboardViz = ({
       const date = parseISO(point.timestamp);
       const dayKey = format(date, "yyyy-MM-dd");
       const hour = date.getHours();
-      const slot = Math.floor(hour / 2);
+      const slot = Math.floor(hour / hoursPerSlot);
 
       if (!dayMap.has(dayKey)) {
         dayMap.set(dayKey, new Map());
@@ -100,9 +104,9 @@ const CheckerboardViz = ({
       labels.push(format(date, "MMM d"));
       const hourMap = dayMap.get(dayKey);
 
-      for (let row = 0; row < HOUR_ROWS; row += 1) {
+      for (let row = 0; row < hourRows; row += 1) {
         const point = hourMap?.get(row);
-        const hourVal = row * 2;
+        const hourVal = row * hoursPerSlot;
         cells.push({
           dayIndex,
           hourRow: row,
@@ -114,7 +118,7 @@ const CheckerboardViz = ({
     });
 
     return { grid: cells, dayLabels: labels };
-  }, [data]);
+  }, [data, hoursPerSlot, hourRows]);
 
   const numDays = dayLabels.length || 1;
 
@@ -122,8 +126,9 @@ const CheckerboardViz = ({
   const cellW = containerWidth
     ? (containerWidth - CELL_GAP * (numDays - 1)) / numDays
     : 0;
-  const cellH = (CHART_HEIGHT - CELL_GAP * (HOUR_ROWS - 1)) / HOUR_ROWS;
-  const gridHeight = cellH * HOUR_ROWS + CELL_GAP * (HOUR_ROWS - 1);
+  const chartHeight = selectedDays === 30 ? CHART_HEIGHT_30D : CHART_HEIGHT;
+  const cellH = (chartHeight - CELL_GAP * (hourRows - 1)) / hourRows;
+  const gridHeight = cellH * hourRows + CELL_GAP * (hourRows - 1);
   const svgHeight = gridHeight + AXIS_HEIGHT;
 
   // Show ~6 x-axis labels
