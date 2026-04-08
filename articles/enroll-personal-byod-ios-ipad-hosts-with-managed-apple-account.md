@@ -58,7 +58,7 @@ Apple requires that you sign-in twice: once to Fleet, using your IdP credentials
 
 ## Migration from other MDM
 
-If you're migrating from another MDM, configure your previous MDM to remove managed apps during unenrollment. If apps from the previous MDM aren't removed, Fleet can't install or update those apps until the end user manually uninstalls them.
+If you're migrating from another MDM, make sure to uninstall the apps that you want to update with Fleet. If apps from your current MDM aren't removed, after the end user migrates, Fleet won't be able update those apps until the end user manually uninstalls them.
 
 If you or the end user (via self-service) tries to install an app that is already installed, you'll see an error on the **Host details > Activity feed > Past**.
 
