@@ -70,10 +70,31 @@ const CheckerboardViz = ({
   }, []);
 
   // Hours per slot: 4 for 30-day, 2 for 7/14-day, 1 for 24-hour
-  const hoursPerSlot = selectedDays === 30 ? 4 : selectedDays >= 7 ? 2 : 1;
+  const is24h = selectedDays === 1;
+  let hoursPerSlot = 1;
+  if (selectedDays === 30) {
+    hoursPerSlot = 4;
+  } else if (selectedDays >= 7) {
+    hoursPerSlot = 2;
+  }
   const hourRows = 24 / hoursPerSlot;
 
   const { grid, dayLabels } = useMemo(() => {
+    if (is24h) {
+      // 24h: flat sequence of data points as columns, no day grouping
+      const cells: ICellData[] = data.map((point, i) => {
+        const date = parseISO(point.timestamp);
+        return {
+          dayIndex: 0,
+          hourRow: i,
+          percentage: point.percentage,
+          dayLabel: format(date, "MMM d"),
+          hourLabel: formatHourLabel(date.getHours()),
+        };
+      });
+      return { grid: cells, dayLabels: ["today"] };
+    }
+
     const dayMap = new Map<string, Map<number, IFormattedDataPoint>>();
     const dayOrder: string[] = [];
 
@@ -118,21 +139,30 @@ const CheckerboardViz = ({
     });
 
     return { grid: cells, dayLabels: labels };
-  }, [data, hoursPerSlot, hourRows]);
+  }, [data, hoursPerSlot, hourRows, is24h]);
 
   const numDays = dayLabels.length || 1;
 
-  // Cell width fills the container, cell height fills the target chart height
-  const cellW = containerWidth
-    ? (containerWidth - CELL_GAP * (numDays - 1)) / numDays
-    : 0;
-  const chartHeight = selectedDays === 30 ? CHART_HEIGHT_30D : CHART_HEIGHT;
-  const cellH = (chartHeight - CELL_GAP * (hourRows - 1)) / hourRows;
-  const gridHeight = cellH * hourRows + CELL_GAP * (hourRows - 1);
-  const svgHeight = gridHeight + AXIS_HEIGHT;
+  // For 24h: hours are columns, single row. Otherwise: days are columns, hours are rows.
+  const numCols = is24h ? hourRows : numDays;
+  const numRows = is24h ? 1 : hourRows;
 
-  // Show ~6 x-axis labels
-  const tickInterval = Math.max(1, Math.floor(numDays / 6));
+  const cellW = containerWidth
+    ? (containerWidth - CELL_GAP * (numCols - 1)) / numCols
+    : 0;
+
+  let chartHeight: number;
+  if (selectedDays === 30) {
+    chartHeight = CHART_HEIGHT_30D;
+  } else if (is24h) {
+    chartHeight = 40; // single row
+  } else {
+    chartHeight = CHART_HEIGHT;
+  }
+
+  const cellH = (chartHeight - CELL_GAP * (numRows - 1)) / numRows;
+  const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
+  const svgHeight = gridHeight + AXIS_HEIGHT;
 
   const handleMouseEnter = (cell: ICellData, e: React.MouseEvent) => {
     setHoveredCell(cell);
@@ -158,22 +188,26 @@ const CheckerboardViz = ({
     >
       {cellW > 0 && (
         <svg width="100%" height={svgHeight}>
-          {grid.map((cell) => (
-            <rect
-              key={`${cell.dayIndex}-${cell.hourRow}`}
-              x={cell.dayIndex * (cellW + CELL_GAP)}
-              y={cell.hourRow * (cellH + CELL_GAP)}
-              width={cellW}
-              height={cellH}
-              rx={3}
-              ry={3}
-              className={`${baseClass}__cell ${baseClass}__cell--level-${getColorLevel(
-                cell.percentage
-              )}`}
-              onMouseEnter={(e) => handleMouseEnter(cell, e)}
-              onMouseLeave={handleMouseLeave}
-            />
-          ))}
+          {grid.map((cell) => {
+            const col = is24h ? cell.hourRow : cell.dayIndex;
+            const row = is24h ? 0 : cell.hourRow;
+            return (
+              <rect
+                key={`${cell.dayIndex}-${cell.hourRow}`}
+                x={col * (cellW + CELL_GAP)}
+                y={row * (cellH + CELL_GAP)}
+                width={cellW}
+                height={cellH}
+                rx={3}
+                ry={3}
+                className={`${baseClass}__cell ${baseClass}__cell--level-${getColorLevel(
+                  cell.percentage
+                )}`}
+                onMouseEnter={(e) => handleMouseEnter(cell, e)}
+                onMouseLeave={handleMouseLeave}
+              />
+            );
+          })}
         </svg>
       )}
       {hoveredCell && (
