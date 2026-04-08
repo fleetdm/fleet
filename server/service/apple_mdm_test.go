@@ -6350,16 +6350,16 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 	})
 
 	t.Run("all supported variables", func(t *testing.T) {
+		// Build the declaration content and expected results from the allowed list
+		var jsonVars, expectedVars []string
+		for _, v := range fleetVarsSupportedInDDMDeclarations {
+			jsonVars = append(jsonVars, fmt.Sprintf(`"$FLEET_VAR_%s"`, v))
+			expectedVars = append(expectedVars, string(v))
+		}
 		vars, err := validateDeclarationFleetVariables(
-			makeDecl(`["$FLEET_VAR_HOST_HARDWARE_SERIAL", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", "$FLEET_VAR_HOST_END_USER_IDP_GROUPS", "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", "$FLEET_VAR_HOST_UUID", "$FLEET_VAR_HOST_PLATFORM"]`),
-			premiumLic)
+			makeDecl("["+strings.Join(jsonVars, ", ")+"]"), premiumLic)
 		require.NoError(t, err)
-		require.ElementsMatch(t, []string{
-			"HOST_HARDWARE_SERIAL", "HOST_END_USER_IDP_USERNAME",
-			"HOST_END_USER_IDP_USERNAME_LOCAL_PART", "HOST_END_USER_IDP_GROUPS",
-			"HOST_END_USER_IDP_DEPARTMENT", "HOST_END_USER_IDP_FULL_NAME",
-			"HOST_UUID", "HOST_PLATFORM",
-		}, vars)
+		require.ElementsMatch(t, expectedVars, vars)
 	})
 
 	t.Run("supported variable without premium license", func(t *testing.T) {
