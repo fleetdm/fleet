@@ -3,6 +3,11 @@
   query: SELECT 1 FROM programs WHERE name = 'Slack' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
+- name: x86 Windows hosts with 1Password installed
+  description: x86 Windows hosts with 1Password installed
+  query: SELECT 1 FROM programs WHERE name = '1Password' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
 - name: x86 Windows hosts with Claude installed
   description: x86 Windows hosts with Claude installed
   query: SELECT 1 FROM programs WHERE name = 'Claude' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
