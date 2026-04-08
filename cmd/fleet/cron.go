@@ -1383,6 +1383,28 @@ func newCleanupsAndAggregationSchedule(
 	return s, nil
 }
 
+func newChartDataCollectionSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	chartSvc fleet.ChartService,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronChartDataCollection)
+		defaultInterval = 10 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
+			return chartSvc.CollectDatasets(ctx, time.Now())
+		}),
+	)
+
+	return s, nil
+}
+
 func newFrequentCleanupsSchedule(
 	ctx context.Context,
 	instanceID string,

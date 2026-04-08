@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -28,8 +30,14 @@ func (cs *chartServiceImpl) RegisterDataset(ds fleet.ChartDataset) {
 	cs.datasets[ds.Name()] = ds
 }
 
-func (cs *chartServiceImpl) RecordUptime(ctx context.Context, hostID uint, timestamp time.Time) error {
-	return cs.ds.RecordHostHourlyData(ctx, hostID, "uptime", 0, timestamp)
+func (cs *chartServiceImpl) CollectDatasets(ctx context.Context, now time.Time) error {
+	for name, dataset := range cs.datasets {
+		if err := dataset.Collect(ctx, cs.ds, now); err != nil {
+			// Log and continue — don't let one dataset failure block others.
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, fmt.Sprintf("collect chart dataset %s", name)))
+		}
+	}
+	return nil
 }
 
 func (cs *chartServiceImpl) GetChartData(ctx context.Context, metric string, opts fleet.ChartRequestOpts) (*fleet.ChartResponse, error) {
