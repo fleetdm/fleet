@@ -101,6 +101,8 @@ Once the package is installed, Fleet will automatically refetch the host's vital
 
 > .ipa apps on iOS/iPadOS will be uninstalled when the host is unenrolled from MDM.
 
+> Software installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. IT admins can see error messages for all attempts in the **Host details > Activity** card.
+
 ## Edit the package
 
 * Navigate to the **Software** page, choose a fleet, and select the software you want to edit.
