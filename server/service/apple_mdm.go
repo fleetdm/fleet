@@ -1068,6 +1068,9 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 			if err := hydrateHost(); err != nil {
 				return "", err
 			}
+			if strings.TrimSpace(hostLite.HardwareSerial) == "" {
+				return "", fmt.Errorf("There is no serial number for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+			}
 			value = hostLite.HardwareSerial
 
 		case fleet.FleetVarHostPlatform:
@@ -6282,11 +6285,11 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	}
 
 	// Replace Fleet variables with host-specific values
-	expanded, varReplaceErr := svc.replaceDeclarationFleetVariables(ctx, expanded, hostUUID)
-	if varReplaceErr != nil {
+	expanded, err = svc.replaceDeclarationFleetVariables(ctx, expanded, hostUUID)
+	if err != nil {
 		// Mark this declaration as failed for this host, return empty 200
-		if markErr := svc.markDeclarationFailed(ctx, hostUUID, d, varReplaceErr.Error()); markErr != nil {
-			svc.logger.ErrorContext(ctx, "failed to mark declaration as failed", "err", markErr)
+		if err := svc.markDeclarationFailed(ctx, hostUUID, d, err.Error()); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
 		}
 		return nil, nil
 	}
