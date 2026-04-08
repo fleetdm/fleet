@@ -137,15 +137,14 @@ const EndUserAuthSection = ({
     return (
       <form>
         <p>
-          If enabled in{" "}
+          After configuring, head to{" "}
           <strong>
             Controls &gt; Setup experience &gt; End user authentication
-          </strong>
-          , end users will be required to authenticate when they first set up
-          their host.{" "}
+          </strong>{" "}
+          to require end users to authenticate.{" "}
           <CustomLink
             text="Learn more"
-            url="https://fleetdm.com/guides/setup-experience#end-user-authentication"
+            url="https://fleetdm.com/learn-more-about/end-user-authentication"
             newTab
           />
         </p>
