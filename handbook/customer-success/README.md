@@ -27,6 +27,10 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 
+### Responsibilities when out of office
+When a CS team member is unable to attend a scheduled customer call, they should find backup coverage for their respective function or request a reschedule with the customer.
+
+If a CSM is having another team member cover their call, the CSM is responsible for preparing the customer agenda doc and debriefing their co-worker in advance of the meeting. If a CSA is having another technical resource cover their call, the CSA is responsible for debriefing that team member on the current status of the customer deployment.
 
 ### Respond to a "Contact us" job application submission
 
