@@ -153,7 +153,6 @@ xcrun stapler staple "$PACKAGE_NAME" || {
     echo "❌ Stapling failed after notarization; failing release packaging."
     exit 1
 }
-}
 
 # Clean up notarization zip
 rm -f fleetctl_notarize.zip
