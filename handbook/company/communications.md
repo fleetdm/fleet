@@ -580,7 +580,19 @@ To request reimbursement for miles driven:
 4. Enter your starting and ending destinations, and whether it was one-way or round-trip. Brex will automatically calculate your miles driven. If the distance doesn't match what you actually drove, edit it to be correct.
 5. In the memo line, describe the reason for your travel (E.g. Houston GitOps) and submit the request.
 
-Finance will review and process your request within 2 business days. 
+Finance will review and process your request within 5 business days. 
+
+
+### Other reimbursement
+
+To request reimbursement for expenses incurred during travel: 
+1. Navigate to [Brex](https://dashboard.brex.com/wallet)
+2. Click "Request reimbursement," then "Out of pocket."
+3. Upload receipt for the spend item.
+4. Follow the instructions on the screen. 
+5. In the memo line, describe the reason for your travel (E.g. Houston GitOps) and submit the request.
+
+Finance will review and process your request within 5 business days. 
 
 
 ### Lodging
