@@ -4605,6 +4605,7 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					error,
 				) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, "fl33t enrollment", cmd.Name)
 					wantCommandUUID = cmd.CommandUUID
 					return map[string]error{}, nil
 				}
@@ -4648,6 +4649,7 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					error,
 				) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, "fl33t enrollment", cmd.Name)
 					wantCommandUUID = cmd.CommandUUID
 					return map[string]error{}, nil
 				}
@@ -4707,6 +4709,7 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					error,
 				) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, "fl33t account driven enrollment", cmd.Name)
 					require.Equal(t, 1, len(id))
 					_, idAlreadyExists := wantCommandUUIDs[id[0]]
 					// Should only get one for each host
@@ -4761,6 +4764,7 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					error,
 				) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, "fl33t account driven enrollment", cmd.Name)
 					require.Equal(t, 1, len(id))
 					_, idAlreadyExists := wantCommandUUIDs[id[0]]
 					// Should only get one for each host
@@ -4952,6 +4956,7 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 					}}, nil
 				}
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					require.Equal(t, "fl33t enrollment", cmd.Name)
 					return map[string]error{}, nil
 				}
 				t.Cleanup(func() {
@@ -4985,6 +4990,7 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 				}
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, "fl33t ACME enrollment", cmd.Name)
 					wantCommandUUID = cmd.CommandUUID
 					// Verify the profile is an ACME profile by checking it contains the device serial
 					var fullCmd micromdm.CommandPayload
@@ -5031,6 +5037,7 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 				}
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, "fl33t ACME enrollment", cmd.Name)
 					wantCommandUUID = cmd.CommandUUID
 					var fullCmd micromdm.CommandPayload
 					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
@@ -5109,6 +5116,14 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
 					for _, hostUUID := range id {
+						switch hostUUID {
+						case "hostUUID-acme":
+							require.Equal(t, "fl33t ACME enrollment", cmd.Name)
+						case "hostUUID-scep":
+							require.Equal(t, "fl33t enrollment", cmd.Name)
+						default:
+							require.Failf(t, "Unexpected host UUID", "Unexpected host UUID: %s", hostUUID)
+						}
 						enqueuedHostUUIDs[hostUUID] = true
 					}
 					return map[string]error{}, nil

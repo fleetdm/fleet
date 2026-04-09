@@ -2330,7 +2330,7 @@ func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	cmdUUID := uuid.New().String()
-	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{nanoEnroll.ID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
+	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{nanoEnroll.ID}, apple_mdm.FleetPayloadIdentifier, cmdUUID, "")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
@@ -5253,6 +5253,7 @@ func ReconcileAppleProfiles(
 			target = &fleet.CmdTarget{
 				CmdUUID:           uuid.New().String(),
 				ProfileIdentifier: p.ProfileIdentifier,
+				ProfileName:       p.ProfileName,
 			}
 			installTargets[p.ProfileUUID] = target
 		}
@@ -5356,6 +5357,7 @@ func ReconcileAppleProfiles(
 			target = &fleet.CmdTarget{
 				CmdUUID:           uuid.New().String(),
 				ProfileIdentifier: p.ProfileIdentifier,
+				ProfileName:       p.ProfileName,
 			}
 			removeTargets[p.ProfileUUID] = target
 		}
@@ -5688,7 +5690,7 @@ func RenewSCEPCertificates(
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
 			}
-			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, filteredAssocs, profile); err != nil {
+			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, filteredAssocs, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 			}
 		}
@@ -5729,7 +5731,7 @@ func RenewSCEPCertificates(
 			}
 
 			// each host with association needs a different enrollment profile, and thus a different command.
-			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" account driven enrollment"); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending account driven enrollment profile renewal to hosts")
 			}
 		}
@@ -5758,7 +5760,7 @@ func RenewSCEPCertificates(
 		}
 
 		// each host with association needs a different enrollment profile, and thus a different command.
-		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 		}
 	}
@@ -5796,7 +5798,7 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts requiring ACME renewal")
 		}
 
-		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" ACME enrollment"); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending ACME enrollment profile to hosts")
 		}
 	}
@@ -5814,7 +5816,7 @@ func RenewSCEPCertificates(
 	}
 	if migrationEnrollmentProfile != "" && hasAssocsFromMigration {
 		profileBytes := []byte(migrationEnrollmentProfile)
-		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, assocsFromMigration, profileBytes); err != nil {
+		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, assocsFromMigration, profileBytes, appConfig.OrgInfo.OrgName+" migration enrollment"); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts from migration")
 		}
 	}
@@ -5829,6 +5831,7 @@ func renewMDMAppleEnrollmentProfile(
 	logger *slog.Logger,
 	assocs []fleet.SCEPIdentityAssociation,
 	profile []byte,
+	profileName string,
 ) error {
 	cmdUUID := uuid.NewString()
 	var uuids []string
@@ -5848,7 +5851,7 @@ func renewMDMAppleEnrollmentProfile(
 		uuids = append(uuids, assoc.HostUUID)
 	}
 
-	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
+	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID, profileName); err != nil {
 		return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", uuids)
 	}
 
