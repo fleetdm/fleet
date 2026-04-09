@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -92,7 +93,7 @@ func doFetch(ctx context.Context, baseURL, path string) ([]byte, error) {
 	case http.StatusOK:
 		return body, nil
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("not found (HTTP 404)")
+		return nil, errors.New("not found (HTTP 404)")
 	default:
 		if len(body) > 512 {
 			body = body[:512]
