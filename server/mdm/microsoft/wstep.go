@@ -276,6 +276,9 @@ func (m *manager) GetSTSAuthTokenClaims(tokenStr string) (string, string, error)
 		if len(claims.UPN) == 0 {
 			return "", "", errors.New("issue with UPN token claim")
 		}
+		if len(claims.DeviceID) == 0 {
+			return "", "", errors.New("issue with device_id token claim")
+		}
 		return claims.UPN, claims.DeviceID, nil
 	}
 

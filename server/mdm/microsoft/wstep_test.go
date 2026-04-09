@@ -126,13 +126,11 @@ func TestSTSTokenWithDeviceID(t *testing.T) {
 	_, err = cm.NewSTSAuthTokenWithDeviceID(upn, "")
 	require.ErrorContains(t, err, "invalid device_id field")
 
-	// Token signed by NewSTSAuthToken (no device_id) is also valid via GetSTSAuthTokenClaims
+	// Token signed by NewSTSAuthToken (no device_id) is rejected — device_id is required
 	oldToken, err := cm.NewSTSAuthToken(upn)
 	require.NoError(t, err)
-	gotUPN, gotDeviceID, err = cm.GetSTSAuthTokenClaims(oldToken)
-	require.NoError(t, err)
-	require.Equal(t, upn, gotUPN)
-	require.Empty(t, gotDeviceID)
+	_, _, err = cm.GetSTSAuthTokenClaims(oldToken)
+	require.ErrorContains(t, err, "issue with device_id token claim")
 
 	// Tampered token is rejected
 	_, _, err = cm.GetSTSAuthTokenClaims(token + "tampered")
