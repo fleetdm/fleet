@@ -4058,11 +4058,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			// This AccountConfiguration included a managed local account
 			switch cmdResult.Status {
 			case fleet.MDMAppleStatusAcknowledged:
-				svc.ds.SetHostManagedLocalAccountStatus(r.Context, cmdResult.CommandUUID, fleet.MDMDeliveryVerified)
+				svc.ds.SetHostManagedLocalAccountStatus(r.Context, host.UUID, fleet.MDMDeliveryVerified)
 				svc.newActivityFn(r.Context, nil, fleet.ActivityTypeCreatedManagedLocalAccount{HostID: host.ID, HostDisplayName: host.DisplayName()})
 
 			case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
-				svc.ds.SetHostManagedLocalAccountStatus(r.Context, cmdResult.CommandUUID, fleet.MDMDeliveryFailed)
+				svc.ds.SetHostManagedLocalAccountStatus(r.Context, host.UUID, fleet.MDMDeliveryFailed)
 			}
 		}
 		// No matching row = SSO-only AccountConfiguration → no-op
