@@ -7,10 +7,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import {
-  LIVE_QUERY_STEPS,
-  DOCUMENT_TITLE_SUFFIX,
-} from "utilities/constants";
+import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -122,9 +119,7 @@ const LivePolicyPage = ({
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
     () =>
-      hostAPI.loadHostDetails(
-        parseInt(location.query.host_ids as string, 10)
-      ),
+      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
     {
       enabled: !!location.query.host_ids && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
@@ -154,9 +149,7 @@ const LivePolicyPage = ({
   }, [location.pathname, storedPolicy?.name]);
 
   const goToQueryEditor = useCallback(() => {
-    const path = policyId
-      ? PATHS.EDIT_POLICY(policyId)
-      : PATHS.NEW_POLICY;
+    const path = policyId ? PATHS.EDIT_POLICY(policyId) : PATHS.NEW_POLICY;
 
     router.push(getPathWithQueryParams(path, { fleet_id: teamIdForApi }));
   }, [policyId, router, teamIdForApi]);
