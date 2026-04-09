@@ -50,6 +50,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Show managed account",
+    value: "managedAccount",
+    disabled: false,
+  },
+  {
     label: "Turn off MDM",
     value: "mdmOff",
     disabled: false,
@@ -108,6 +113,7 @@ interface IHostActionConfigOptions {
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordAvailable: boolean;
+  isManagedLocalAccountEnabled: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -317,6 +323,21 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
   return isRecoveryLockPasswordEnabled;
 };
 
+const canShowManagedAccount = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    isEnrolledInMdm,
+    hostPlatform,
+    isManagedLocalAccountEnabled,
+  } = config;
+  if (!isPremiumTier) return false;
+  if (hostPlatform !== "darwin") return false;
+  if (!isConnectedToFleetMdm) return false;
+  if (!isEnrolledInMdm) return false;
+  return isManagedLocalAccountEnabled;
+};
+
 const canClearPasscode = (config: IHostActionConfigOptions) => {
   if (!config.isPremiumTier) {
     return false;
@@ -396,6 +417,10 @@ const removeUnavailableOptions = (
     options = options.filter(
       (option) => option.value !== "recoveryLockPassword"
     );
+  }
+
+  if (!canShowManagedAccount(config)) {
+    options = options.filter((option) => option.value !== "managedAccount");
   }
 
   if (!canClearPasscode(config)) {

@@ -117,6 +117,7 @@ import DeleteHostModal from "../../components/DeleteHostModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
+import ManagedAccountModal from "./modals/ManagedAccountModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
@@ -226,6 +227,7 @@ const HostDetailsPage = ({
     showRecoveryLockPasswordModal,
     setShowRecoveryLockPasswordModal,
   ] = useState(false);
+  const [showManagedAccountModal, setShowManagedAccountModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -948,6 +950,9 @@ const HostDetailsPage = ({
       case "recoveryLockPassword":
         setShowRecoveryLockPasswordModal(true);
         break;
+      case "managedAccount":
+        setShowManagedAccountModal(true);
+        break;
       case "mdmOff":
         toggleUnenrollMdmModal();
         break;
@@ -1008,6 +1013,9 @@ const HostDetailsPage = ({
         recoveryLockPasswordAvailable={
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
+        }
+        isManagedLocalAccountEnabled={
+          mdmConfig?.setup_experience?.enable_managed_local_account ?? false
         }
       />
     );
@@ -1609,6 +1617,12 @@ const HostDetailsPage = ({
                 isHostTeamMaintainer
               }
               onCancel={() => setShowRecoveryLockPasswordModal(false)}
+            />
+          )}
+          {showManagedAccountModal && host && (
+            <ManagedAccountModal
+              hostId={host.id}
+              onCancel={() => setShowManagedAccountModal(false)}
             />
           )}
           {showBootstrapPackageModal &&

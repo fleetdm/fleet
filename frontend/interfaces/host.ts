@@ -258,6 +258,14 @@ export interface IHostRecoveryLockPasswordResponse {
   };
 }
 
+export interface IHostManagedAccountPasswordResponse {
+  host_id: number;
+  managed_account_password: {
+    password: string;
+    updated_at: string;
+  };
+}
+
 export interface IHostIssues {
   total_issues_count: number;
   critical_vulnerabilities_count?: number; // Premium
