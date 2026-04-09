@@ -68,6 +68,8 @@ echo "Building $MSI_NAME..."
 
 # Create working directory
 WORKDIR="$(mktemp -d)"
+# Convert to Windows path for native Windows tools (signtool, candle, light)
+WORKDIR_WIN="$(cygpath -w "$WORKDIR")"
 cleanup() {
     echo "Cleaning up..."
     rm -rf "$WORKDIR"
@@ -83,27 +85,28 @@ sed "s/__VERSION__/$VERSION/g" "$SCRIPT_DIR/fleetctl.wxs" > "$WORKDIR/main.wxs"
 
 # Sign fleetctl.exe before packaging into MSI
 # MSYS_NO_PATHCONV=1 prevents Git Bash from converting /flags to Windows paths
+# Windows-native tools need Windows-style paths (WORKDIR_WIN)
 echo "Signing fleetctl.exe..."
 MSYS_NO_PATHCONV=1 signtool.exe sign /v /sha1 "$DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT" \
     /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 \
-    "$WORKDIR/root/fleetctl.exe"
-MSYS_NO_PATHCONV=1 signtool.exe verify /v /pa "$WORKDIR/root/fleetctl.exe"
+    "$WORKDIR_WIN\\root\\fleetctl.exe"
+MSYS_NO_PATHCONV=1 signtool.exe verify /v /pa "$WORKDIR_WIN\\root\\fleetctl.exe"
 echo "fleetctl.exe signed successfully"
 
 # Compile WiX source
 echo "Running candle (WiX compiler)..."
-candle.exe "$WORKDIR/main.wxs" -arch "$WIX_ARCH" -out "$WORKDIR/main.wixobj"
+candle.exe "$WORKDIR_WIN\\main.wxs" -arch "$WIX_ARCH" -out "$WORKDIR_WIN\\main.wixobj"
 
 # Link to create MSI
 echo "Running light (WiX linker)..."
-light.exe "$WORKDIR/main.wixobj" -b "$WORKDIR" -out "$WORKDIR/$MSI_NAME" -sval
+light.exe "$WORKDIR_WIN\\main.wixobj" -b "$WORKDIR_WIN" -out "$WORKDIR_WIN\\$MSI_NAME" -sval
 
 # Sign the MSI
 echo "Signing MSI..."
 MSYS_NO_PATHCONV=1 signtool.exe sign /v /sha1 "$DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT" \
     /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 \
-    "$WORKDIR/$MSI_NAME"
-MSYS_NO_PATHCONV=1 signtool.exe verify /v /pa "$WORKDIR/$MSI_NAME"
+    "$WORKDIR_WIN\\$MSI_NAME"
+MSYS_NO_PATHCONV=1 signtool.exe verify /v /pa "$WORKDIR_WIN\\$MSI_NAME"
 echo "MSI signed successfully"
 
 # Copy to output location
