@@ -66,7 +66,8 @@ const RefetchButton = ({
 };
 
 interface IHostSummaryProps {
-  summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TODO: create interfaces for this and use consistently across host pages and related helpers
+  summaryData: any;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>

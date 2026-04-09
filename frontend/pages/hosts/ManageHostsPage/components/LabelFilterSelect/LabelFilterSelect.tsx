@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import Select, {
   GroupBase,
   SelectInstance,
+  ValueContainerProps,
   components,
   MenuProps,
 } from "react-select-5";
@@ -186,7 +187,10 @@ const LabelFilterSelect = ({
 
   const classes = classnames(baseClass, className);
 
-  const ValueContainer = ({ children, ...props }: any) => {
+  const ValueContainer = ({
+    children,
+    ...props
+  }: ValueContainerProps<ILabel | IEmptyOption, false, IGroupOption>) => {
     return (
       components.ValueContainer && (
         <components.ValueContainer {...props}>

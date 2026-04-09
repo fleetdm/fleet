@@ -17,6 +17,7 @@ export interface ICheckboxProps {
   /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
   name?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange?: any; // TODO: meant to be an event; figure out type for this
   onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
   value?: boolean | null;

@@ -46,7 +46,13 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
-const onDownload = async (script: IScript, renderFlash: any) => {
+const onDownload = async (
+  script: IScript,
+  renderFlash: (
+    alertType: "success" | "error" | "warning-filled" | null,
+    message: JSX.Element | string | null
+  ) => void
+) => {
   try {
     const content = await scriptAPI.downloadScript(script.id);
     const formatDate = format(new Date(), "yyyy-MM-dd");

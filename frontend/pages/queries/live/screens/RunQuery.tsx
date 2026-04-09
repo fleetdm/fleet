@@ -50,9 +50,9 @@ const RunQuery = ({
   const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
 
   const ws = useRef(null);
-  const runQueryInterval = useRef<any>(null);
-  const globalSocket = useRef<any>(null);
-  const previousSocketData = useRef<any>(null);
+  const runQueryInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const globalSocket = useRef<WebSocket | null>(null);
+  const previousSocketData = useRef<string | null>(null);
   const responseCount = useRef({ ...RESPONSE_COUNT_ZERO });
 
   const removeSocket = () => {
@@ -179,8 +179,8 @@ const RunQuery = ({
       });
 
       connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError: any) {
-      const err = campaignError.toString();
+    } catch (campaignError: unknown) {
+      const err = String(campaignError);
       if (err.includes("no hosts targeted")) {
         renderFlash(
           "error",

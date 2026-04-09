@@ -11,6 +11,7 @@ import permissions from "utilities/permissions";
 
 interface IAppProps {
   children: JSX.Element;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
   router: InjectedRouter;
 }

@@ -8,8 +8,8 @@ interface IOptions {
 
 const DEFAULT_TIMEOUT = 1000; // 1 function execution per second by default
 
-export default (
-  func: (...args: any[]) => any,
+export default <T extends (...args: never[]) => unknown>(
+  func: T,
   options: IOptions = {
     leading: true,
     trailing: false,

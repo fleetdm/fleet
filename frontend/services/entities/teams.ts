@@ -163,7 +163,10 @@ export default {
   /**
    * updates the team config. This can take any partial data that is in the team config.
    */
-  updateConfig: (data: any, teamId: number): Promise<ITeamConfig> => {
+  updateConfig: (
+    data: Record<string, unknown>,
+    teamId: number
+  ): Promise<ITeamConfig> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
     return sendRequest("PATCH", path, data);

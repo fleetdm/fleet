@@ -39,7 +39,7 @@ export interface ICampaign {
   // upstream websocket and services methods return any
   // so narrower typing at this level is not actually guaranteed
   Metrics?: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
   created_at: string;
 
@@ -77,11 +77,11 @@ export interface ICampaignState {
   observerShowSql: boolean;
   queryIsRunning: boolean;
   queryPosition: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  queryResultsToggle: any;
+  queryResultsToggle: unknown;
   runQueryMilliseconds: number;
   selectRelatedHostTarget: boolean;
   targetsCount: number;
-  targetsError: any;
+  targetsError: unknown;
 }

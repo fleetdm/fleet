@@ -117,6 +117,7 @@ const CustomQueryClientProvider: FC<ICustomQueryClientProviderProps> = QueryClie
 
 interface IAppWrapperProps {
   children: JSX.Element;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location?: any;
 }
 

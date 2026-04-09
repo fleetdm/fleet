@@ -5,6 +5,7 @@ import { max } from "lodash";
 import paths from "router/paths";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
+import { IRegistrationFormData } from "interfaces/registration_form_data";
 import authToken from "utilities/auth_token";
 
 import FlashMessage from "components/FlashMessage";
@@ -55,7 +56,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     setPageProgress(max([nextPage, pageProgress]) || 1);
   };
 
-  const onRegistrationFormSubmit = async (formData: any) => {
+  const onRegistrationFormSubmit = async (formData: IRegistrationFormData) => {
     const { DASHBOARD } = paths;
 
     setIsLoading(true);

@@ -63,6 +63,7 @@ const EmptyComponent = React.memo(
 );
 
 interface IHostSoftwareTableProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
   platform: HostPlatform;

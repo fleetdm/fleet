@@ -105,7 +105,7 @@ const RunScriptBatchModal = ({
     IScript[],
     IListScriptsQueryKey[]
   >(
-    [addTeamIdCriteria({ scope: "scripts" }, teamId, isFreeTier)],
+    [addTeamIdCriteria({ scope: "scripts" } as const, teamId, isFreeTier)],
     ({ queryKey }) => {
       return scriptsAPI.getScripts(queryKey[0]);
     },

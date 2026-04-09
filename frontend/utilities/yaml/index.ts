@@ -10,26 +10,30 @@ export const constructErrorString = (yamlError: IYAMLError) => {
   return `${yamlError.name}: ${yamlError.reason} at line ${yamlError.line}`;
 };
 
-export const agentOptionsToYaml = (agentOpts: any) => {
-  agentOpts ||= { config: {} };
+export const agentOptionsToYaml = (agentOpts: unknown) => {
+  const opts: Record<string, unknown> = (agentOpts as
+    | Record<string, unknown>
+    | null
+    | undefined) ?? { config: {} };
 
   // hide the "overrides" key if it is empty
-  if (!agentOpts.overrides || Object.keys(agentOpts.overrides).length === 0) {
-    delete agentOpts.overrides;
+  const overrides = opts.overrides as Record<string, unknown> | undefined;
+  if (!overrides || Object.keys(overrides).length === 0) {
+    delete opts.overrides;
   }
 
   // add a comment besides the "command_line_flags" if it is empty
   let addFlagsComment = false;
-  if (
-    !agentOpts.command_line_flags ||
-    Object.keys(agentOpts.command_line_flags).length === 0
-  ) {
+  const commandLineFlags = opts.command_line_flags as
+    | Record<string, unknown>
+    | undefined;
+  if (!commandLineFlags || Object.keys(commandLineFlags).length === 0) {
     // delete it so it does not render, and will add it explicitly after (along with the comment)
-    delete agentOpts.command_line_flags;
+    delete opts.command_line_flags;
     addFlagsComment = true;
   }
 
-  let yamlString = yaml.dump(agentOpts);
+  let yamlString = yaml.dump(opts);
   if (addFlagsComment) {
     yamlString +=
       "# Requires Fleet's osquery installer\n# command_line_flags: {}\n";

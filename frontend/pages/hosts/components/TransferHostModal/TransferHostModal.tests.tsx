@@ -21,6 +21,7 @@ const setup = (
   render(
     <TransferHostModal
       isGlobalAdmin={false}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       teams={teams as any}
       onSubmit={onSubmit}
       onCancel={onCancel}

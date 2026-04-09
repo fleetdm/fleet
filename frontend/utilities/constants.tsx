@@ -470,7 +470,7 @@ export const HOST_OSQUERY_DATA = [
 export const DEFAULT_USE_QUERY_OPTIONS = {
   refetchOnWindowFocus: false,
   retry: (failureCount: number, error: unknown) => {
-    const err = error as any;
+    const err = error as { status?: number };
     let isBadRequestErr = false;
     if (err.status !== undefined) {
       isBadRequestErr = err.status >= 400 && err.status < 500;

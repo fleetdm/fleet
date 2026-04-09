@@ -4,7 +4,9 @@ import { HeaderProps, Row } from "react-table";
 
 interface GetConditionalSelectHeaderCheckboxProps {
   /** react-table header props */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   headerProps: React.PropsWithChildren<HeaderProps<any>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   checkIfRowIsSelectable: (row: Row<any>) => boolean;
 }
 
@@ -13,6 +15,7 @@ export const getConditionalSelectHeaderCheckboxProps = ({
   checkIfRowIsSelectable,
 }: GetConditionalSelectHeaderCheckboxProps) => {
   // Define if the checkbox should show as checked or indeterminate
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const checkIfAllSelectableRowsSelected = (rows: Row<any>[]) => {
     const selectableRows = rows.filter(checkIfRowIsSelectable);
     return (

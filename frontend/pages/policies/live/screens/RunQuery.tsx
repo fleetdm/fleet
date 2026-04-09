@@ -41,9 +41,9 @@ const RunQuery = ({
   const { lastEditedQueryBody } = useContext(PolicyContext);
 
   const ws = useRef(null);
-  const runQueryInterval = useRef<any>(null);
-  const globalSocket = useRef<any>(null);
-  const previousSocketData = useRef<any>(null);
+  const runQueryInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const globalSocket = useRef<WebSocket | null>(null);
+  const previousSocketData = useRef<string | null>(null);
 
   const removeSocket = () => {
     if (globalSocket.current) {
@@ -162,7 +162,7 @@ const RunQuery = ({
       });
 
       connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError: any) {
+    } catch (campaignError: unknown) {
       if (campaignError === "resource already created") {
         renderFlash(
           "error",
@@ -170,8 +170,12 @@ const RunQuery = ({
         );
       }
 
-      if ("message" in campaignError) {
-        const { message } = campaignError;
+      if (
+        typeof campaignError === "object" &&
+        campaignError !== null &&
+        "message" in campaignError
+      ) {
+        const { message } = campaignError as { message: string };
 
         if (message === "forbidden") {
           renderFlash(

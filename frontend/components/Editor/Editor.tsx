@@ -52,6 +52,7 @@ interface IEditorProps {
   isFormField?: boolean;
   maxLines?: number;
   className?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange?: (value: string, event?: any) => void;
   onBlur?: () => void;
 }

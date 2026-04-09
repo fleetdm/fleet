@@ -75,6 +75,7 @@ interface IPaginatedListProps<TItem> {
   helpText?: React.ReactNode;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PaginatedListInner<TItem extends Record<string, any>>(
   {
     data,

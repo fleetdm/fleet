@@ -254,6 +254,7 @@ const generateTableHeaders = (
   if (hasPermissionAndPoliciesToDelete) {
     tableHeaders.unshift({
       id: "selection",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       Header: (headerProps: any) => {
         // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({

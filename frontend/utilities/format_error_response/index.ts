@@ -21,15 +21,16 @@ const formatServerErrors = (errors: IFleetApiError[]) => {
   return result; // TODO: Typing {base: string}
 };
 
-const formatErrorResponse = (errorResponse: any) => {
+const formatErrorResponse = (errorResponse: unknown) => {
   const errors =
     get(errorResponse, "message.errors") ||
     get(errorResponse, "data.errors") ||
     [];
 
   return {
-    ...formatServerErrors(errors),
-    http_status: errorResponse.status,
+    ...formatServerErrors(errors as IFleetApiError[]),
+    http_status: get(errorResponse, "status") as number | undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any; // TODO: Fix type to IOldApiError
 };
 

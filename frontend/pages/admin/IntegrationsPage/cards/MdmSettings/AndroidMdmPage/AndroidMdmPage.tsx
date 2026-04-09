@@ -89,10 +89,12 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},top=${top},left=${left}`
       );
       setSetupSse(true);
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errData = (e as { data?: { errors?: Array<{ reason?: string }> } })
+        ?.data;
       if (
-        e.data?.errors &&
-        e.data.errors[0].reason?.includes("android enterprise already exists")
+        errData?.errors &&
+        errData.errors[0]?.reason?.includes("android enterprise already exists")
       ) {
         renderFlash(
           "error",

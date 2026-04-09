@@ -605,7 +605,7 @@ const ManagePolicyPage = ({
       }
 
       // Execute policy updates sequentially to reduce DB load
-      const results: PromiseSettledResult<any>[] = [];
+      const results: PromiseSettledResult<unknown>[] = [];
 
       // Use reduce to execute promises sequentially
       await formData.reduce(async (previousPromise, changedPolicy) => {
@@ -894,7 +894,7 @@ const ManagePolicyPage = ({
   const onDeletePolicySubmit = useCallback(async () => {
     setIsUpdatingPolicies(true);
     try {
-      const responses: Promise<any>[] = [];
+      const responses: Promise<unknown>[] = [];
       if (isPrimoMode) {
         // filter selected policies by All team and no team
         const selectedSet = new Set(selectedPolicyIds); // more efficient for below reduce

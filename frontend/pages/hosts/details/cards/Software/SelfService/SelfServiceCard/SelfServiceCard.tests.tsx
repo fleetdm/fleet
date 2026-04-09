@@ -61,7 +61,8 @@ const createTestProps = (
       has_next_results: false,
     },
   },
-  tableConfig: createMockTableConfig(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tableConfig: createMockTableConfig() as any,
   isLoading: false,
   isError: false,
   isFetching: false,

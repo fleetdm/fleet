@@ -2,7 +2,7 @@ import { isEqual } from "lodash";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { IInvite } from "interfaces/invite";
-import { IUser, IUserUpdateBody, IUpdateUserFormData } from "interfaces/user";
+import { IUser, IUpdateUserFormData } from "interfaces/user";
 import { IUserFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
@@ -34,7 +34,7 @@ const generateUpdateData = (
     "sso_enabled",
     "mfa_enabled",
   ];
-  return Object.keys(formData).reduce<IUserUpdateBody | any>(
+  return Object.keys(formData).reduce<IUpdateUserFormData>(
     (updatedAttributes, attr) => {
       // attribute can be updated and is different from the current value.
       if (

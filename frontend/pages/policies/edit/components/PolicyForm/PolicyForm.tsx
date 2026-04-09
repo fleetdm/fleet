@@ -80,10 +80,10 @@ interface IPolicyFormProps {
 }
 
 const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: Record<string, string> = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
-  if (!queryValid) {
+  if (!queryValid && queryError) {
     errors.query = queryError;
   }
 
@@ -115,7 +115,7 @@ const PolicyForm = ({
   currentAutomatedPolicies,
   onCancel,
 }: IPolicyFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
     false
   );
@@ -326,7 +326,7 @@ const PolicyForm = ({
     editor.setOptions({
       enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
-    } as any);
+    } as Partial<Ace.EditorOptions>);
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it

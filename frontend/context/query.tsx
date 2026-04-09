@@ -93,7 +93,39 @@ const actions = {
   SET_SELECTED_QUERY_TARGETS_BY_TYPE: "SET_SELECTED_QUERY_TARGETS_BY_TYPE",
 } as const;
 
-const reducer = (state: InitialStateType, action: any) => {
+type QueryAction =
+  | {
+      type: typeof actions.SET_SELECTED_OSQUERY_TABLE;
+      tableName: string;
+    }
+  | {
+      type: typeof actions.SET_LAST_EDITED_QUERY_INFO;
+      lastEditedQueryId?: number | null;
+      lastEditedQueryName?: string;
+      lastEditedQueryDescription?: string;
+      lastEditedQueryBody?: string;
+      lastEditedQueryObserverCanRun?: boolean;
+      lastEditedQueryFrequency?: number;
+      lastEditedQueryAutomationsEnabled?: boolean;
+      lastEditedQueryPlatforms?: CommaSeparatedPlatformString;
+      lastEditedQueryMinOsqueryVersion?: string;
+      lastEditedQueryLoggingType?: QueryLoggingOption;
+      lastEditedQueryDiscardData?: boolean;
+      editingExistingQuery?: boolean;
+    }
+  | {
+      type: typeof actions.SET_SELECTED_QUERY_TARGETS;
+      selectedQueryTargets?: ITarget[];
+    }
+  | {
+      type: typeof actions.SET_SELECTED_QUERY_TARGETS_BY_TYPE;
+      selectedQueryTargetsByType?: ISelectedTargetsByType;
+    };
+
+const reducer = (
+  state: InitialStateType,
+  action: QueryAction
+): InitialStateType => {
   switch (action.type) {
     case actions.SET_SELECTED_OSQUERY_TABLE:
       return {
@@ -242,7 +274,9 @@ const QueryProvider = ({ children }: Props) => {
         lastEditedQueryAutomationsEnabled,
       });
     },
-    setLastEditedQueryPlatforms: (lastEditedQueryPlatforms: string) => {
+    setLastEditedQueryPlatforms: (
+      lastEditedQueryPlatforms: CommaSeparatedPlatformString
+    ) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryPlatforms,
@@ -259,7 +293,7 @@ const QueryProvider = ({ children }: Props) => {
     setLastEditedQueryLoggingType: (lastEditedQueryLoggingType: string) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
-        lastEditedQueryLoggingType,
+        lastEditedQueryLoggingType: lastEditedQueryLoggingType as QueryLoggingOption,
       });
     },
     setLastEditedQueryDiscardData: (lastEditedQueryDiscardData: boolean) => {

@@ -61,7 +61,9 @@ import CustomLink from "components/CustomLink";
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
-export const addGravatarUrlToResource = (resource: any): any => {
+export const addGravatarUrlToResource = <T extends { email: string }>(
+  resource: T
+): T & { gravatar_url: string; gravatar_url_dark: string } => {
   const { email } = resource;
   const gravatarAvailable =
     localStorage.getItem("gravatar_available") !== "false"; // Only fallback if explicitly set to "false"
@@ -171,17 +173,19 @@ export const formatFloatAsPercentage = (float?: number): string => {
   return formatter.format(float);
 };
 
-const formatLabelResponse = (response: any): ILabel[] => {
+const formatLabelResponse = (response: { labels: ILabel[] }): ILabel[] => {
   const labels = response.labels.map((label: ILabel) => {
-    let labelType = "custom";
+    let labelType: ILabel["type"] = "custom";
     if (isPlatformLabelNameFromAPI(label.display_text)) {
-      labelType = PLATFORM_LABEL_DISPLAY_TYPES[label.display_text];
+      labelType = PLATFORM_LABEL_DISPLAY_TYPES[
+        label.display_text
+      ] as ILabel["type"];
     }
     return {
       ...label,
       slug: labelSlug(label),
       type: labelType,
-      target_type: "labels",
+      target_type: "labels" as const,
     };
   });
 
@@ -242,7 +246,7 @@ export const formatScheduledQueryForServer = (
   }
 
   if (queryID) {
-    (result as any).report_id = Number(queryID);
+    (result as Record<string, unknown>).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -304,7 +308,7 @@ export const formatGlobalScheduledQueryForServer = (
   }
 
   if (queryID) {
-    (result as any).report_id = Number(queryID);
+    (result as Record<string, unknown>).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -367,7 +371,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (queryID) {
-    (result as any).report_id = Number(queryID);
+    (result as Record<string, unknown>).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -375,7 +379,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (teamID) {
-    (result as any).fleet_id = Number(teamID);
+    (result as Record<string, unknown>).fleet_id = Number(teamID);
   }
 
   return result;
@@ -763,7 +767,7 @@ export const abbreviateTimeUnits = (str: string): string =>
   str.replace("minute", "min").replace("second", "sec");
 
 // TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
-export const syntaxHighlight = (json: any): string => {
+export const syntaxHighlight = (json: unknown): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")
@@ -842,11 +846,13 @@ export const normalizeEmptyValues = (
 export const wait = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-export const wrapFleetHelper = (
-  helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
-  value: string
+export const wrapFleetHelper = <T extends string | number = string>(
+  helperFn: (value: T) => string,
+  value: T | string
 ): string => {
-  return value === DEFAULT_EMPTY_CELL_VALUE ? value : helperFn(value);
+  return value === DEFAULT_EMPTY_CELL_VALUE
+    ? DEFAULT_EMPTY_CELL_VALUE
+    : helperFn(value as T);
 };
 
 interface ILocationParams {

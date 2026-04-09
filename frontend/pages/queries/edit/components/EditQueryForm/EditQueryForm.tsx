@@ -190,7 +190,7 @@ const EditQueryForm = ({
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
-  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  const [errors, setErrors] = useState<Record<string, string>>({});
   // handles saving a copy of an existing query as a new query
   const [showSaveAsNewQueryModal, setShowSaveAsNewQueryModal] = useState(false);
 

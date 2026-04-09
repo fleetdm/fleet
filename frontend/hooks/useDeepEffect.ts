@@ -10,7 +10,7 @@ import { isEqual } from "lodash";
  * this hook does a deeper check for changes within objects and arrays
  */
 
-export const useDeepEffect = (fn: () => void, deps: Array<any>) => {
+export const useDeepEffect = (fn: () => void, deps: ReadonlyArray<unknown>) => {
   const isFirst = useRef(true);
   const prevDeps = useRef(deps);
 

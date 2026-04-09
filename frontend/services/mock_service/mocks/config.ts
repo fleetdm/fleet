@@ -4,7 +4,7 @@ type MockResponse = Record<string, unknown>;
 
 type MockResponseFunction = (
   url: string,
-  data?: any
+  data?: Record<string, unknown>
 ) => MockResponse | Promise<MockResponse>;
 
 export type MockEndpointHandler = MockResponse | MockResponseFunction;

@@ -1,6 +1,7 @@
 import PATHS from "router/paths";
 
 import { ISideNavItem } from "../components/SideNav/SideNav";
+import { IAppConfigFormProps } from "../OrgSettingsPage/cards/constants";
 import Integrations from "./cards/Integrations";
 import MdmSettings from "./cards/MdmSettings";
 import Calendars from "./cards/Calendars";
@@ -11,8 +12,8 @@ import IdentityProviders from "./cards/IdentityProviders";
 import Sso from "./cards/Sso";
 import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
-const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
-  const items: ISideNavItem<any>[] = [
+const getIntegrationSettingsNavItems = (): ISideNavItem<IAppConfigFormProps>[] => {
+  const items: ISideNavItem<IAppConfigFormProps>[] = [
     {
       title: "Ticket destinations",
       urlSection: "ticket-destinations",

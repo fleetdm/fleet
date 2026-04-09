@@ -261,7 +261,7 @@ const SQLEditor = ({
     onLoad && onLoad(editor);
   };
 
-  const onBlurHandler = (event: any, editor?: Ace.Editor): void => {
+  const onBlurHandler = (_event: unknown, editor?: Ace.Editor): void => {
     onBlur && onBlur(editor);
   };
 

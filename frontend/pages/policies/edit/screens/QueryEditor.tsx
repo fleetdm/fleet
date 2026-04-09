@@ -11,7 +11,12 @@ import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { getPathWithQueryParams } from "utilities/url";
-import { IPolicyFormData, IPolicy } from "interfaces/policy";
+import {
+  IPolicyFormData,
+  IPolicy,
+  IStoredPolicyResponse,
+} from "interfaces/policy";
+import { getErrorReason } from "interfaces/errors";
 
 import BackButton from "components/BackButton";
 import PolicyForm from "pages/policies/edit/components/PolicyForm";
@@ -26,7 +31,7 @@ interface IQueryEditorProps {
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
   isTeamObserver: boolean;
-  createPolicy: (formData: IPolicyFormData) => Promise<any>;
+  createPolicy: (formData: IPolicyFormData) => Promise<IStoredPolicyResponse>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
@@ -174,9 +179,9 @@ const QueryEditor = ({
         })
       );
       renderFlash("success", "Policy created.");
-    } catch (createError: any) {
+    } catch (createError: unknown) {
       console.error(createError);
-      if (createError.data.errors[0].reason.includes("already exists")) {
+      if (getErrorReason(createError).includes("already exists")) {
         setBackendValidators({
           name: "A policy with this name already exists",
         });
@@ -228,9 +233,9 @@ const QueryEditor = ({
     try {
       await updateAPIRequest();
       renderFlash("success", "Policy updated.");
-    } catch (updateError: any) {
+    } catch (updateError: unknown) {
       console.error(updateError);
-      if (updateError.data.errors[0].reason.includes("Duplicate")) {
+      if (getErrorReason(updateError).includes("Duplicate")) {
         renderFlash("error", "A policy with this name already exists.");
       } else {
         renderFlash(

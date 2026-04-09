@@ -43,7 +43,8 @@ interface IBootstrapPackageData {
 }
 
 interface IHostSummaryProps {
-  summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TODO: create interfaces for this and use consistently across host pages and related helpers
+  summaryData: any;
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
   toggleOSSettingsModal?: () => void;

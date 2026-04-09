@@ -449,6 +449,7 @@ describe("InstallStatusCell - component", () => {
             software_package: createMockHostSoftwarePackage({
               last_install: {
                 installed_at: "2022-01-01T12:00:00Z",
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
               } as any,
             }),
           }),

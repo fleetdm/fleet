@@ -8,14 +8,14 @@ const booleanAsc = (a: unknown, b: unknown): number => {
   return 0;
 };
 
-const caseInsensitiveAsc = (a: any, b: any): number => {
-  a = typeof a === "string" ? a.toLowerCase() : a;
-  b = typeof b === "string" ? b.toLowerCase() : b;
+const caseInsensitiveAsc = (a: unknown, b: unknown): number => {
+  const aVal = typeof a === "string" ? a.toLowerCase() : a;
+  const bVal = typeof b === "string" ? b.toLowerCase() : b;
 
-  if (a < b) {
+  if ((aVal as string) < (bVal as string)) {
     return -1;
   }
-  if (a > b) {
+  if ((aVal as string) > (bVal as string)) {
     return 1;
   }
   return 0;

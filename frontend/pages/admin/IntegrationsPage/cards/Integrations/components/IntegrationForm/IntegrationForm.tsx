@@ -148,7 +148,7 @@ const IntegrationForm = ({
           url,
           email: email || "",
           api_token: apiToken,
-          group_id: parseInt(groupId as any, 10) || 0,
+          group_id: parseInt(String(groupId), 10) || 0,
         },
       ];
     }

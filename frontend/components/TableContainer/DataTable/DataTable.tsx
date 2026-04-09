@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import classnames from "classnames";
 import {
+  Cell,
   Column,
   HeaderGroup,
   Row,
@@ -37,18 +38,19 @@ const baseClass = "data-table-block";
 
 interface IDataTableProps {
   columns: Column[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   filters?: Record<string, string | number | boolean>;
   isLoading: boolean;
   manualSortBy?: boolean;
-  sortHeader: any;
-  sortDirection: any;
-  onSort: any; // TODO: an event type
+  sortHeader: string;
+  sortDirection: string;
+  onSort: (id: string | undefined, desc?: boolean) => void;
   disableMultiRowSelect: boolean;
   keyboardSelectableRows?: boolean;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
-  toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+  toggleAllPagesSelected?: (value: boolean) => void;
   resultsTitle?: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
@@ -72,6 +74,7 @@ interface IDataTableProps {
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
   /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
@@ -84,6 +87,7 @@ interface IDataTableProps {
   /** Optional override for react-table's row ID derivation.
    *  Note: avoid index-only row IDs in server-side paginated or selectable tables,
    *  as IDs would collide across pages. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getRowId?: (row: any, index: number) => string;
 }
 
@@ -188,6 +192,7 @@ const DataTable = ({
       // Use a stable row ID when available (row.id), otherwise fall back to the index-based ID (default of react-table)
       getRowId:
         getRowIdProp ??
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ((row: any, index: number) =>
           row && row.id != null ? String(row.id) : String(index)),
       initialState: {
@@ -416,7 +421,7 @@ const DataTable = ({
   }, [tableState.selectedRowIds, toggleAllPagesSelected]);
 
   const onToggleAllPagesClick = useCallback(() => {
-    toggleAllPagesSelected();
+    toggleAllPagesSelected?.(true);
   }, [toggleAllPagesSelected]);
 
   const onClearSelectionClick = useCallback(() => {
@@ -426,7 +431,7 @@ const DataTable = ({
   }, [onClearSelection, toggleAllPagesSelected, toggleAllRowsSelected]);
 
   const onSelectRowClick = useCallback(
-    (row: any) => {
+    (row: Row) => {
       if (disableMultiRowSelect) {
         row.toggleRowSelected();
         onSelectSingleRow && onSelectSingleRow(row);
@@ -483,6 +488,7 @@ const DataTable = ({
   };
 
   const renderPrimarySelectAction = (): JSX.Element | null => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const targetIds = selectedFlatRows.map((row: any) => row.original.id);
     const buttonText =
       typeof primarySelectAction?.buttonText === "function"
@@ -504,6 +510,7 @@ const DataTable = ({
 
   const renderSecondarySelectActions = (): JSX.Element[] | null => {
     if (secondarySelectActions) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const targetIds = selectedFlatRows.map((row: any) => row.original.id);
       const buttons = secondarySelectActions.map((actionProps) => {
         actionProps = { ...actionProps, targetIds };
@@ -667,10 +674,12 @@ const DataTable = ({
                   tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
                   {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
-                  {row.cells.map((cell: any, _index: number) => {
+                  {row.cells.map((cell: Cell, _index: number) => {
                     // Only allow row click behavior on first cell
                     // if the first cell is not a checkbox
-                    const cellProps = cell.getCellProps();
+                    // Destructure key from cellProps to avoid "key specified more than once" warning
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { key: _cellKey, ...cellProps } = cell.getCellProps();
                     const multiRowSelectEnabled = !disableMultiRowSelect;
 
                     return (

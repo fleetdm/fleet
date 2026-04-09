@@ -52,7 +52,7 @@ const AgentOptionsPage = ({
 
   const [teamName, setTeamName] = useState("");
   const [formData, setFormData] = useState<{ agentOptions?: string }>({});
-  const [formErrors, setFormErrors] = useState<any>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isUpdatingAgentOptions, setIsUpdatingAgentOptions] = useState(false);
 
   const { agentOptions } = formData;
@@ -80,7 +80,7 @@ const AgentOptionsPage = ({
   );
 
   const validateForm = () => {
-    const errors: any = {};
+    const errors: Record<string, string> = {};
 
     if (agentOptions) {
       const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);

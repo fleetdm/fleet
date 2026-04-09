@@ -142,7 +142,8 @@ interface IPackageFormProps {
   onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
   isEditingSoftware?: boolean;
   isFleetMaintainedApp?: boolean;
-  defaultSoftware?: any; // TODO
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  defaultSoftware?: any;
   defaultInstallScript?: string;
   defaultPreInstallQuery?: string;
   defaultPostInstallScript?: string;

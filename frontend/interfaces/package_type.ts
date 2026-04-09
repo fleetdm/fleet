@@ -22,24 +22,37 @@ export type PackageType =
   | ScriptOnlyPackageType
   | IosIpadosPackageType;
 
-export const isWindowsPackageType = (s: any): s is WindowsPackageType => {
-  return windowsPackageTypes.includes(s);
+export const isWindowsPackageType = (s: unknown): s is WindowsPackageType => {
+  return (
+    typeof s === "string" &&
+    windowsPackageTypes.includes(s as WindowsPackageType)
+  );
 };
 
-export const isUnixPackageType = (s: any): s is UnixPackageType => {
-  return unixPackageTypes.includes(s);
+export const isUnixPackageType = (s: unknown): s is UnixPackageType => {
+  return (
+    typeof s === "string" && unixPackageTypes.includes(s as UnixPackageType)
+  );
 };
 
 export const isFleetMaintainedPackageType = (
-  s: any
+  s: unknown
 ): s is FleetMaintainedPackageType => {
-  return fleetMaintainedPackageTypes.includes(s);
+  return (
+    typeof s === "string" &&
+    fleetMaintainedPackageTypes.includes(s as FleetMaintainedPackageType)
+  );
 };
 
-export const isIosIpadosPackageType = (s: any): s is IosIpadosPackageType => {
-  return iosIpadosPackageTypes.includes(s);
+export const isIosIpadosPackageType = (
+  s: unknown
+): s is IosIpadosPackageType => {
+  return (
+    typeof s === "string" &&
+    iosIpadosPackageTypes.includes(s as IosIpadosPackageType)
+  );
 };
 
-export const isPackageType = (s: any): s is PackageType => {
-  return packageTypes.includes(s);
+export const isPackageType = (s: unknown): s is PackageType => {
+  return typeof s === "string" && packageTypes.includes(s as PackageType);
 };
