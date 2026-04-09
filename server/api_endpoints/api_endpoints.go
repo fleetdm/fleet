@@ -23,8 +23,6 @@ func GetAPIEndpoints() []fleet.APIEndpoint {
 func mustGetAPIEndpoints() []fleet.APIEndpoint {
 	endpoints := make([]fleet.APIEndpoint, 0)
 
-	// ghodss/yaml converts YAML→JSON then calls json.Unmarshal, so
-	// APIEndpoint.UnmarshalJSON fires — which normalizes and validates each entry.
 	if err := yaml.Unmarshal(apiEndpointsYAML, &endpoints); err != nil {
 		panic(fmt.Errorf("failed to parse: %w", err))
 	}
