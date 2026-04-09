@@ -14,8 +14,8 @@ func TestIdIsConstructedCorrectly(t *testing.T) {
 	}{
 		{
 			method: "GET",
-			path:   "/api/_version_/fleet/trigger",
-			want:   "|GET|/api/_version_/fleet/trigger|",
+			path:   "/api/v1/fleet/trigger",
+			want:   "|GET|/api/v1/fleet/trigger|",
 		},
 		{
 			method: "GET",
@@ -24,8 +24,8 @@ func TestIdIsConstructedCorrectly(t *testing.T) {
 		},
 		{
 			method: "GET",
-			path:   "/api/_version_/fleet/hosts/:id",
-			want:   "|GET|/api/_version_/fleet/hosts/:placeholder_1|",
+			path:   "/api/v1/fleet/hosts/:id",
+			want:   "|GET|/api/v1/fleet/hosts/:placeholder_1|",
 		},
 		{
 			method: "post",
@@ -50,13 +50,13 @@ func TestIdIsConstructedCorrectly(t *testing.T) {
 		// gorilla/mux brace-style placeholders
 		{
 			method: "post",
-			path:   "/api/_version_/fleet/hosts/{id:[0-9]+}",
-			want:   "|POST|/api/_version_/fleet/hosts/:placeholder_1|",
+			path:   "/api/v1/fleet/hosts/{id:[0-9]+}",
+			want:   "|POST|/api/v1/fleet/hosts/:placeholder_1|",
 		},
 		{
 			method: "get",
-			path:   "/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}",
-			want:   "|GET|/api/_version_/fleet/hosts/:placeholder_1/reports/:placeholder_2|",
+			path:   "/api/v1/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}",
+			want:   "|GET|/api/v1/fleet/hosts/:placeholder_1/reports/:placeholder_2|",
 		},
 	}
 	for _, tt := range tests {
@@ -68,7 +68,7 @@ func TestIdIsConstructedCorrectly(t *testing.T) {
 }
 
 func TestAPIEndpointValidate(t *testing.T) {
-	base := APIEndpoint{Method: "GET", Path: "/api/_version_/fleet/foo", DisplayName: "foo"}
+	base := APIEndpoint{Method: "GET", Path: "/api/v1/fleet/foo", DisplayName: "foo"}
 
 	tests := []struct {
 		name    string
