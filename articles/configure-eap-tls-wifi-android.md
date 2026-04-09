@@ -70,7 +70,7 @@ To check the status, go to the host and select **OS settings** in Fleet.
 
 If the profile shows `"openNetworkConfiguration" setting couldn't apply to a host. Reason: INVALID_VALUE.` error, the certificate specified in `ClientCertKeyPairAlias` isn't available on the host. Verify the name matches the certificate in **Controls > OS settings > Certificates** and that the certificate deployed successfully.
 
-If a Wi-Fi configuration profile references a certificate that hasn't been installed yet, Fleet will automatically withhold the profile until the certificate is available on the host. Once the certificate is installed, Fleet will apply the Wi-Fi profile.
+If a Wi-Fi configuration profile references a certificate that hasn't been installed yet, Fleet will automatically keep the profile pending until the certificate is installed on the host. Once the certificate is installed, Fleet will apply the Wi-Fi configuration.
 
 ## End user experience
 
