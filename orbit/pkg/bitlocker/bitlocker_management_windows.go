@@ -257,12 +257,14 @@ func (v *Volume) getKeyProtectorIDs(protectorType int32) ([]string, error) {
 
 	// The WMI method returns an out-parameter VARIANT containing a SAFEARRAY.
 	// The array type is VT_ARRAY|VT_VARIANT (0x200C), not VT_ARRAY|VT_BSTR.
-	// We use ToValueArray() to extract each element as an interface{}, then convert to strings.
+	// We use ToValueArray() to extract each element as an interface{}, then
+	// convert to strings. We do NOT call safeArray.Release() here because
+	// ToArray() wraps the same pointer from the VARIANT without copying --
+	// defer VariantClear above handles freeing the SAFEARRAY.
 	safeArray := protectorIDs.ToArray()
 	if safeArray == nil {
 		return nil, nil
 	}
-	defer safeArray.Release()
 
 	values := safeArray.ToValueArray()
 	result := make([]string, 0, len(values))
