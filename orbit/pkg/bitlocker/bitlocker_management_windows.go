@@ -65,6 +65,14 @@ const (
 	EncryptionTypeHardware ForceEncryptionType = 2
 )
 
+// fveErrorCode formats a BitLocker error code as "unsigned_decimal (0xHEX)" to
+// match the format used in the Microsoft WMI documentation, making errors
+// searchable. The WMI docs define return values as uint32 but the COM VARIANT
+// transport delivers them as int32 (see comment on the error code constants).
+func fveErrorCode(val int32) string {
+	return fmt.Sprintf("%d (0x%08x)", uint32(val), uint32(val))
+}
+
 func encryptErrHandler(val int32) error {
 	var msg string
 
@@ -90,7 +98,7 @@ func encryptErrHandler(val int32) error {
 	case ErrorCodeProtectorExists:
 		msg = "key protector cannot be added; only one key protector of this type is allowed for this drive"
 	default:
-		msg = fmt.Sprintf("error code returned during encryption: %d", val)
+		msg = fmt.Sprintf("error code returned during encryption: %s", fveErrorCode(val))
 	}
 
 	return &EncryptionError{msg, val}
