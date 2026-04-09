@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260406114157, Down_20260406114157)
+	MigrationClient.AddMigration(Up_20260409153714, Down_20260409153714)
 }
 
-func Up_20260406114157(tx *sql.Tx) error {
+func Up_20260409153714(tx *sql.Tx) error {
 	if !tableExists(tx, "user_api_endpoints") {
 		_, err := tx.Exec(`
 			CREATE TABLE user_api_endpoints (
@@ -34,6 +34,6 @@ func Up_20260406114157(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260406114157(tx *sql.Tx) error {
+func Down_20260409153714(tx *sql.Tx) error {
 	return nil
 }

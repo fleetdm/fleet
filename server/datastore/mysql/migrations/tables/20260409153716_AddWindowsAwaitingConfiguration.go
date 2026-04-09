@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260407214038, Down_20260407214038)
+	MigrationClient.AddMigration(Up_20260409153716, Down_20260409153716)
 }
 
-func Up_20260407214038(tx *sql.Tx) error {
+func Up_20260409153716(tx *sql.Tx) error {
 	if columnExists(tx, "mdm_windows_enrollments", "awaiting_configuration") {
 		return nil
 	}
@@ -24,6 +24,6 @@ func Up_20260407214038(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260407214038(tx *sql.Tx) error {
+func Down_20260409153716(tx *sql.Tx) error {
 	return nil
 }
