@@ -1,5 +1,10 @@
 /** The original mdm command status representation */
-export type CommandStatus = "Pending" | "Acknowledged" | "Error" | "NotNow";
+export type CommandStatus =
+  | "Pending"
+  | "Acknowledged"
+  | "Error"
+  | "NotNow"
+  | "CommandFormatError";
 
 /** The fleet representation of command status */
 export type FleetCommandStatus = "ran" | "pending" | "failed";

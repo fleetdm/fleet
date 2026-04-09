@@ -24,9 +24,14 @@ const isProfileCommand = (requestType: string): boolean =>
 const getStatusText = (command: ICommand): string => {
   const { command_status, status } = command;
 
-  // Differentiate NotNow from regular Pending
-  if (status === "NotNow") {
-    return "is deferred";
+  // Differentiate NotNow and CommandFormatError from regular Pending
+  switch (status) {
+    case "NotNow":
+      return "is deferred";
+    case "CommandFormatError":
+      return "failed";
+    default:
+    // fall through to command status checking
   }
 
   switch (command_status) {
