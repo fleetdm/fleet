@@ -3080,10 +3080,14 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 
 // packageExtensionToPlatform returns the platform name based on the
 // package extension. Returns an empty string if there is no match.
+//
+// .msix is included for Fleet-maintained Windows apps only; custom package
+// upload still rejects .msix (see addMetadataToSoftwarePayload and
+// SoftwareInstallerPlatformFromExtension).
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
-	case ".msi", ".exe", ".ps1":
+	case ".msi", ".exe", ".ps1", ".msix":
 		requiredPlatform = "windows"
 	case ".pkg", ".dmg", ".zip":
 		requiredPlatform = "darwin"

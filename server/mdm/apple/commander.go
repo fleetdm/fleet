@@ -45,12 +45,16 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
+func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, name string) error {
 	raw, err := svc.SignAndEncodeInstallProfile(ctx, profile, uuid)
 	if err != nil {
 		return err
 	}
-	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding InstallProfile command")
+	}
+	err = svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, name)
 	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 
@@ -80,7 +84,7 @@ func (svc *MDMAppleCommander) SignAndEncodeInstallProfile(ctx context.Context, p
 }
 
 // RemoveProfile sends the homonymous MDM command to the given hosts.
-func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string) error {
+func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string, name string) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -96,7 +100,11 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	</dict>
 </dict>
 </plist>`, uuid, profileIdentifier)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding RemoveProfile command")
+	}
+	err = svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, name)
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
@@ -193,7 +201,7 @@ func (svc *MDMAppleCommander) EnableLostMode(ctx context.Context, host *fleet.Ho
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return ctxerr.Wrap(ctx, err, "decoding EnableLostMode command")
 	}
 
 	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, ""); err != nil {
@@ -263,7 +271,7 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return ctxerr.Wrap(ctx, err, "decoding DeviceWipe command")
 	}
 
 	if err := svc.storage.EnqueueDeviceWipeCommand(ctx, host, cmd); err != nil {
@@ -547,7 +555,7 @@ func (svc *MDMAppleCommander) ClearPasscode(ctx context.Context, hostUUIDs []str
 	}
 	cmd.Command.RequestType = fleet.AppleMDMCommandTypeClearPasscode
 
-	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone)
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, "")
 }
 
 // EnqueueCommand takes care of enqueuing the commands and sending push
@@ -562,14 +570,14 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 		return ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone)
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, "")
 }
 
 func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []string, cmd *mdm.Command,
-	subtype mdm.CommandSubtype,
+	subtype mdm.CommandSubtype, name string,
 ) error {
 	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
-		&mdm.CommandWithSubtype{Command: *cmd, Subtype: subtype}); err != nil {
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: subtype, Name: name}); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 
@@ -582,7 +590,7 @@ func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []
 // EnqueueCommandInstallProfileWithSecrets is a special case of EnqueueCommand that does not expand secret variables.
 // Secret variables are expanded when the command is sent to the device, and secrets are never stored in the database unencrypted.
 func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx context.Context, hostUUIDs []string,
-	rawCommand mobileconfig.Mobileconfig, commandUUID string,
+	rawCommand mobileconfig.Mobileconfig, commandUUID string, name string,
 ) error {
 	cmd := &mdm.Command{
 		CommandUUID: commandUUID,
@@ -590,7 +598,7 @@ func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx contex
 	}
 	cmd.Command.RequestType = "InstallProfile"
 
-	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeProfileWithSecrets)
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeProfileWithSecrets, name)
 }
 
 func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
