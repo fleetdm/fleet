@@ -263,9 +263,7 @@ jobs:
 
       - name: Install DigiCert KeyLocker KSP
         run: |
-          curl -fSL -o Keylockertools-windows-x64.msi ^
-            -H "x-api-key:%SM_API_KEY%" ^
-            https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download
+          curl https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" --fail-with-body -o Keylockertools-windows-x64.msi
           msiexec /i Keylockertools-windows-x64.msi /quiet /qn
           smksp_registrar.exe list
           smctl.exe keypair ls
