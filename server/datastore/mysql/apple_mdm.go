@@ -6104,6 +6104,9 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 %s
         )
     `,
+		// We specifically want Removals first, since we later batch process
+		// and rely on removals being updated so the matching install entry
+		// can find it and clean it up avoiding leaving stale pending removals in the database.
 		entitiesToRemoveQuery,
 		entitiesToInstallQuery,
 	)
