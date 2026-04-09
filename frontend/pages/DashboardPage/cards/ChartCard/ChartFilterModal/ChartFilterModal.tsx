@@ -1,12 +1,20 @@
-import React, { useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useQuery } from "react-query";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import labelsAPI from "services/entities/labels";
+import { IHost } from "interfaces/host";
 import { ILabelSummary } from "interfaces/label";
+import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
+import labelsAPI from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import Checkbox from "components/forms/fields/Checkbox";
+import Icon from "components/Icon";
+import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
@@ -22,9 +30,13 @@ const PLATFORM_OPTIONS = [
   { label: "Android", value: "android" },
 ];
 
+type HostFilterMode = "none" | "include" | "exclude";
+
 export interface IChartFilterState {
   labelIDs: number[];
   platforms: string[];
+  hostFilterMode: HostFilterMode;
+  selectedHosts: IHost[];
 }
 
 interface IChartFilterModalProps {
@@ -32,6 +44,8 @@ interface IChartFilterModalProps {
   onApply: (filters: IChartFilterState) => void;
   onCancel: () => void;
 }
+
+const PAGE_SIZE = 20;
 
 const ChartFilterModal = ({
   filters,
@@ -44,6 +58,56 @@ const ChartFilterModal = ({
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(
     filters.platforms
   );
+  const [hostFilterMode, setHostFilterMode] = useState<HostFilterMode>(
+    filters.hostFilterMode
+  );
+  const [selectedHosts, setSelectedHosts] = useState<IHost[]>(
+    filters.selectedHosts
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pageCount, setPageCount] = useState(1);
+
+  const listRef = useRef<HTMLDivElement>(null);
+  const selectedHostIds = new Set(selectedHosts.map((h) => h.id));
+
+  // Fetch hosts with pagination — load all pages up to pageCount
+  const { data: hostsData, isLoading: isLoadingHosts } = useQuery<
+    ILoadHostsResponse,
+    Error
+  >(
+    ["chartFilterHosts", searchQuery, pageCount],
+    () =>
+      hostsAPI.loadHosts({
+        page: 0,
+        perPage: pageCount * PAGE_SIZE,
+        globalFilter: searchQuery || undefined,
+        sortBy: [{ key: "display_name", direction: "asc" }],
+      }),
+    {
+      keepPreviousData: true,
+      staleTime: 30000,
+    }
+  );
+
+  const hosts = hostsData?.hosts ?? [];
+  const hasMore = hosts.length === pageCount * PAGE_SIZE;
+
+  const handleScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el || !hasMore || isLoadingHosts) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+      setPageCount((prev) => prev + 1);
+    }
+  }, [hasMore, isLoadingHosts]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setPageCount(1);
+    // Scroll list back to top on new search
+    if (listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+  }, []);
 
   const { data: labels } = useQuery<ILabelSummary[]>(
     ["labelsSummary"],
@@ -65,20 +129,96 @@ const ChartFilterModal = ({
     onApply({
       labelIDs: selectedLabelIDs,
       platforms: selectedPlatforms,
+      hostFilterMode,
+      selectedHosts,
     });
   };
 
   const handleClear = () => {
     setSelectedLabelIDs([]);
     setSelectedPlatforms([]);
+    setHostFilterMode("none");
+    setSelectedHosts([]);
+    setSearchQuery("");
+  };
+
+  const handleTabChange = (index: number) => {
+    const mode = index === 0 ? "exclude" : "include";
+    setHostFilterMode(mode);
+  };
+
+  const toggleHost = (host: IHost) => {
+    if (selectedHostIds.has(host.id)) {
+      setSelectedHosts((prev) => prev.filter((h) => h.id !== host.id));
+    } else {
+      setSelectedHosts((prev) => [...prev, host]);
+    }
+  };
+
+  const removeHost = (hostId: number) => {
+    setSelectedHosts((prev) => prev.filter((h) => h.id !== hostId));
   };
 
   const hasFilters =
-    selectedLabelIDs.length > 0 || selectedPlatforms.length > 0;
+    selectedLabelIDs.length > 0 ||
+    selectedPlatforms.length > 0 ||
+    selectedHosts.length > 0;
+
+  const tabIndex = hostFilterMode === "include" ? 1 : 0;
+
+  const renderHostSearch = () => (
+    <div className={`${baseClass}__host-search`}>
+      <SearchField
+        placeholder="Search name, hostname, or serial number"
+        defaultValue={searchQuery}
+        onChange={handleSearchChange}
+      />
+      {selectedHosts.length > 0 && (
+        <div className={`${baseClass}__pills`}>
+          {selectedHosts.map((host) => (
+            <button
+              key={host.id}
+              type="button"
+              className={`${baseClass}__pill`}
+              onClick={() => removeHost(host.id)}
+            >
+              {host.display_name}
+              <Icon name="close" />
+            </button>
+          ))}
+        </div>
+      )}
+      <div
+        className={`${baseClass}__results-list`}
+        ref={listRef}
+        onScroll={handleScroll}
+      >
+        {hosts.map((host) => (
+          <div key={host.id} className={`${baseClass}__results-row`}>
+            <Checkbox
+              name={`host-${host.id}`}
+              value={selectedHostIds.has(host.id)}
+              onChange={() => toggleHost(host)}
+            >
+              {host.display_name}
+            </Checkbox>
+          </div>
+        ))}
+        {isLoadingHosts && (
+          <div className={`${baseClass}__results-status`}>Loading...</div>
+        )}
+        {!isLoadingHosts && hosts.length === 0 && (
+          <div className={`${baseClass}__results-status`}>
+            No matching hosts.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <Modal title="Chart filters" onExit={onCancel} className={baseClass}>
-      <form onSubmit={handleApply}>
+    <Modal title="Settings" onExit={onCancel} className={baseClass}>
+      <div className={`${baseClass}__form`}>
         <Dropdown
           label="Labels"
           name="labels"
@@ -113,15 +253,36 @@ const ChartFilterModal = ({
           searchable={false}
           clearable
         />
-        <div className="modal-cta-wrap">
-          <Button variant="default" type="submit">
-            Apply
+        <TabNav secondary>
+          <Tabs selectedIndex={tabIndex} onSelect={handleTabChange}>
+            <TabList>
+              <Tab>
+                <TabText>Exclude hosts</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Specific hosts</TabText>
+              </Tab>
+            </TabList>
+            <TabPanel>{renderHostSearch()}</TabPanel>
+            <TabPanel>{renderHostSearch()}</TabPanel>
+          </Tabs>
+        </TabNav>
+      </div>
+      <div className={`${baseClass}__btn-wrap`}>
+        {hasFilters && (
+          <Button variant="text-link" onClick={handleClear}>
+            Clear all
           </Button>
+        )}
+        <div className={`${baseClass}__btn-actions`}>
           <Button variant="inverse" onClick={onCancel}>
             Cancel
           </Button>
+          <Button variant="default" onClick={handleApply}>
+            Apply
+          </Button>
         </div>
-      </form>
+      </div>
     </Modal>
   );
 };
