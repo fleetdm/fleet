@@ -19,19 +19,22 @@ body {
 
 // Applied briefly by theme.ts during toggle to fade all colors smoothly.
 // Removed after 300ms so it doesn't interfere with normal interactions.
-body.theme-transition,
-body.theme-transition *,
-body.theme-transition *::before,
-body.theme-transition *::after {
-  transition: background-color 300ms ease, color 300ms ease,
-    border-color 300ms ease, box-shadow 300ms ease, fill 300ms ease,
-    stroke 300ms ease !important;
-}
+// Only applies when the user hasn't requested reduced motion.
+@media (prefers-reduced-motion: no-preference) {
+  body.theme-transition,
+  body.theme-transition *,
+  body.theme-transition *::before,
+  body.theme-transition *::after {
+    transition: background-color 300ms ease, color 300ms ease,
+      border-color 300ms ease, box-shadow 300ms ease, fill 300ms ease,
+      stroke 300ms ease !important;
+  }
 
-// Hide the gradient image during theme switch so background-color
-// can transition smoothly without the gradient snapping.
-body.theme-transition .core-wrapper {
-  background-image: none !important;
+  // Hide the gradient image during theme switch so background-color
+  // can transition smoothly without the gradient snapping.
+  body.theme-transition .core-wrapper {
+    background-image: none !important;
+  }
 }
 
 html,

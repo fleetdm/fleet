@@ -18,6 +18,8 @@ export const toggleDarkMode = (): boolean => {
     document.body.classList.remove("theme-transition");
   }, TRANSITION_MS);
 
+  window.dispatchEvent(new CustomEvent("fleet-theme-change", { detail: { dark } }));
+
   return dark;
 };
 

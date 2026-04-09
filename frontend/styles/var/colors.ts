@@ -1,7 +1,5 @@
-export type Colors = string;
-
 // Static fallback values (used during SSR or if CSS custom property is missing)
-const STATIC_COLORS: Record<string, string> = {
+const STATIC_COLORS = {
   // 2025 branding
   "core-fleet-black": "#192147",
   "core-fleet-green": "#009A7D",
@@ -48,19 +46,26 @@ const STATIC_COLORS: Record<string, string> = {
   "core-vibrant-blue-down": "#4b4ab4",
   "ui-vibrant-blue-25": "#d9d9fe",
   "ui-vibrant-blue-10": "#f1f0ff",
-};
+} as const;
 
-// Proxy reads the current CSS custom property value so inline JS styles
-// automatically adapt to light/dark mode. Falls back to the static value
-// when running outside a browser or when the property is not defined.
-export const COLORS: Record<string, string> = new Proxy(STATIC_COLORS, {
-  get(target, key: string) {
-    if (typeof document !== "undefined" && document.body) {
-      const cssValue = getComputedStyle(document.body)
-        .getPropertyValue(`--${key}`)
-        .trim();
-      if (cssValue) return cssValue;
-    }
-    return target[key] ?? "";
-  },
-});
+export type Colors = keyof typeof STATIC_COLORS;
+
+// Proxy returns CSS var() references so inline JS styles automatically adapt
+// to light/dark mode without calling getComputedStyle. Falls back to the
+// static value when running outside a browser (e.g. SSR or tests in jsdom).
+// eslint-disable-next-line import/prefer-default-export
+export const COLORS: Record<Colors, string> = new Proxy(
+  STATIC_COLORS as Record<Colors, string>,
+  {
+    get(target, key, receiver) {
+      if (typeof key === "symbol") {
+        return Reflect.get(target, key, receiver);
+      }
+      const fallback = target[key as Colors] ?? "";
+      if (typeof document !== "undefined") {
+        return fallback ? `var(--${key}, ${fallback})` : `var(--${key})`;
+      }
+      return fallback;
+    },
+  }
+);

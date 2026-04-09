@@ -36,7 +36,7 @@ const AccountSidePanel = ({
 }: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
   const [versionData, setVersionData] = useState<IVersionData>();
-  const [darkMode, setDarkMode] = useState(isDarkMode());
+  const [darkMode, setDarkMode] = useState(() => isDarkMode());
 
   useEffect(() => {
     const getVersionData = async () => {
