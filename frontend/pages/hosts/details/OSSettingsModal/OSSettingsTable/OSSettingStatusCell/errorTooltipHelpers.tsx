@@ -1,53 +1,9 @@
-import React, { useContext, useState } from "react";
-import classnames from "classnames";
-import { noop } from "lodash";
+import React from "react";
 
-import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
-
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { NotificationContext } from "context/notification";
-import {
-  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
-  IHostMdmProfile,
-} from "interfaces/mdm";
-import { getErrorReason } from "interfaces/errors";
-
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
+import { IHostMdmProfile } from "interfaces/mdm";
 
 import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
-
-const baseClass = "os-settings-error-cell";
-
-interface IResendButtonProps {
-  isResending: boolean;
-  onClick: (evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>) => void;
-}
-
-const ResendButton = ({ isResending, onClick }: IResendButtonProps) => {
-  const classNames = classnames(`${baseClass}__resend-button`, "resend-link", {
-    [`${baseClass}__resending`]: isResending,
-  });
-
-  const buttonText = isResending ? "Resending..." : "Resend";
-
-  // add additional props when we need to display a tooltip for the button
-
-  return (
-    <Button
-      disabled={isResending}
-      onClick={onClick}
-      variant="inverse"
-      className={classNames}
-      size="small"
-    >
-      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
-      {buttonText}
-    </Button>
-  );
-};
 
 const formatAndroidProfileNotAppliedError = (
   detail: IHostMdmProfile["detail"]
@@ -207,10 +163,9 @@ const formatDetailWindowsProfile = (detail: string) => {
  * unformatted.
  */
 const generateErrorTooltip = (
-  cellValue: string,
   profile: IHostMdmProfileWithAddedStatus
-) => {
-  if (profile.status !== "failed") return null;
+): React.ReactNode => {
+  if (profile.status !== "failed" || !profile.detail) return null;
 
   // Special case to handle IdP email errors
   const idpEmailError = formatDetailIdpEmailError(profile.detail);
@@ -235,141 +190,7 @@ const generateErrorTooltip = (
     return formatDetailWindowsProfile(profile.detail);
   }
 
-  return cellValue;
+  return profile.detail;
 };
 
-interface IRotateButtonProps {
-  isRotating: boolean;
-  onClick: () => void;
-}
-
-const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
-  const classNames = classnames(`${baseClass}__rotate-button`, "rotate-link", {
-    [`${baseClass}__rotating`]: isRotating,
-  });
-
-  const buttonText = isRotating ? "Rotating..." : "Rotate";
-
-  return (
-    <Button
-      disabled={isRotating}
-      onClick={onClick}
-      variant="inverse"
-      className={classNames}
-      size="small"
-    >
-      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
-      {buttonText}
-    </Button>
-  );
-};
-
-interface IOSSettingsErrorCellProps {
-  canResendProfiles: boolean;
-  canRotateRecoveryLockPassword?: boolean;
-  profile: IHostMdmProfileWithAddedStatus;
-  resendRequest: (profileUUID: string) => Promise<void>;
-  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
-  rotateRecoveryLockPassword?: () => Promise<void>;
-  onProfileResent?: () => void;
-}
-
-const OSSettingsErrorCell = ({
-  canResendProfiles,
-  canRotateRecoveryLockPassword = false,
-  profile,
-  resendRequest,
-  resendCertificateRequest,
-  rotateRecoveryLockPassword,
-  onProfileResent = noop,
-}: IOSSettingsErrorCellProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const [isResending, setIsResending] = useState(false);
-  const [isRotating, setIsRotating] = useState(false);
-
-  const isAndroidCertificate =
-    profile.profile_uuid === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
-
-  const onResendProfile = async () => {
-    setIsResending(true);
-    try {
-      if (
-        isAndroidCertificate &&
-        resendCertificateRequest &&
-        profile.certificate_template_id !== undefined
-      ) {
-        await resendCertificateRequest(profile.certificate_template_id);
-        renderFlash(
-          "success",
-          "Successfully sent request to resend certificate."
-        );
-        onProfileResent();
-      } else if (!isAndroidCertificate) {
-        await resendRequest(profile.profile_uuid);
-        onProfileResent();
-      }
-    } catch (e) {
-      renderFlash("error", "Couldn't resend. Please try again.");
-    }
-    setIsResending(false);
-  };
-
-  const onRotatePassword = async () => {
-    if (!rotateRecoveryLockPassword) return;
-    setIsRotating(true);
-    try {
-      await rotateRecoveryLockPassword();
-      renderFlash(
-        "success",
-        "Successfully sent request to rotate Recovery Lock password."
-      );
-    } catch (e) {
-      const msg = getErrorReason(e).includes("already in progress")
-        ? "Recovery lock password rotation is already in progress for this host."
-        : "Couldn't send request to rotate Recovery Lock password. Please try again.";
-
-      renderFlash("error", msg);
-    }
-    setIsRotating(false);
-  };
-
-  const isFailed = profile.status === "failed";
-  const isPending =
-    profile.status === "pending" ||
-    profile.status === "delivering" ||
-    profile.status === "delivered";
-  const isVerified = profile.status === "verified";
-  const showResendButton =
-    canResendProfiles &&
-    (isFailed || isVerified) &&
-    profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
-  const showRotateButton =
-    canRotateRecoveryLockPassword && (isFailed || isVerified);
-  const value =
-    ((isFailed || isPending) && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
-
-  const tooltip = generateErrorTooltip(value, profile);
-
-  return (
-    <div className={baseClass}>
-      <TooltipTruncatedTextCell
-        tooltipBreakOnWord
-        tooltip={tooltip}
-        value={value}
-        className={
-          isFailed || showResendButton || showRotateButton
-            ? `${baseClass}__failed-message`
-            : undefined
-        }
-      />
-      {showResendButton && (
-        <ResendButton isResending={isResending} onClick={onResendProfile} />
-      )}
-      {showRotateButton && (
-        <RotateButton isRotating={isRotating} onClick={onRotatePassword} />
-      )}
-    </div>
-  );
-};
-
-export default OSSettingsErrorCell;
+export default generateErrorTooltip;
