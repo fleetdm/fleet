@@ -2107,7 +2107,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	_, err = db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1, "test-key", "", ptr.Bool(true))
 	require.NoError(t, err)
 	// add disk encryption for h1
-	require.NoError(t, db.SetOrUpdateHostDisksEncryption(context.Background(), h1.ID, true))
+	require.NoError(t, db.SetOrUpdateHostDisksEncryption(context.Background(), h1.ID, true, nil))
 
 	checkHosts := func(t *testing.T, gotHosts []*fleet.Host, expectedIDs []uint) {
 		require.Len(t, gotHosts, len(expectedIDs))
