@@ -1998,19 +1998,39 @@ func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 		assert.Nil(t, gotProtectionStatus)
 	})
 
+	t.Run("fully decrypted", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyDecrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
+		})
+		require.NoError(t, err)
+		assert.False(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, fleet.BitLockerProtectionStatusOff, *gotProtectionStatus)
+	})
+
+	t.Run("in-progress conversion statuses are not encrypted", func(t *testing.T) {
+		for _, cs := range []int{2, 3, 4, 5} { // encrypting, decrypting, encryption paused, decryption paused
+			err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+				{"conversion_status": strconv.Itoa(cs), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
+			})
+			require.NoError(t, err)
+			assert.False(t, gotEncrypted, "conversion_status=%d should not be treated as encrypted", cs)
+		}
+	})
+
 	t.Run("fully encrypted but protection off", func(t *testing.T) {
 		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
-			{"conversion_status": "1", "protection_status": "0"},
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
 		})
 		require.NoError(t, err)
 		assert.True(t, gotEncrypted)
 		require.NotNil(t, gotProtectionStatus)
-		assert.Equal(t, 0, *gotProtectionStatus)
+		assert.Equal(t, fleet.BitLockerProtectionStatusOff, *gotProtectionStatus)
 	})
 
-	t.Run("protection status unknown (2) normalized to nil", func(t *testing.T) {
+	t.Run("protection status unknown normalized to nil", func(t *testing.T) {
 		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
-			{"conversion_status": "1", "protection_status": "2"},
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusUnknown)},
 		})
 		require.NoError(t, err)
 		assert.True(t, gotEncrypted)

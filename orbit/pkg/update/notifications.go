@@ -517,9 +517,10 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 	}
 
 	// If a previous rotation succeeded but escrow failed, retry the
-	// escrow with the cached key instead of rotating again. This check
-	// runs before the encryptionStatus guard so it retries even when
-	// WMI status is transiently unavailable.
+	// escrow with the cached key instead of rotating again. This runs
+	// before the ConversionStatus == FullyEncrypted check below so
+	// that a transient WMI failure (encryptionStatus == nil) doesn't
+	// skip the retry and fall through to performEncryption.
 	if w.pendingRecoveryKey != "" {
 		log.Debug().Msg("retrying escrow of previously rotated recovery key")
 		if serverErr := w.updateFleetServer(w.pendingRecoveryKey, nil); serverErr != nil {

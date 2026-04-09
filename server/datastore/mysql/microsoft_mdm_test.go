@@ -733,7 +733,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			})
 
 			t.Run("protection_status=1 stays verified", func(t *testing.T) {
-				setProtectionStatus(t, targetHost.ID, new(1))
+				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOn))
 				checkExpected(t, nil, hostIDsByDEStatus{
 					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
 					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
@@ -741,19 +741,11 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			})
 
 			t.Run("protection_status=0 becomes action_required", func(t *testing.T) {
-				setProtectionStatus(t, targetHost.ID, new(0))
+				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOff))
 				checkExpected(t, nil, hostIDsByDEStatus{
 					fleet.DiskEncryptionVerified:       []uint{hosts[0].ID},
 					fleet.DiskEncryptionActionRequired: []uint{targetHost.ID},
 					fleet.DiskEncryptionFailed:         []uint{hosts[1].ID},
-				})
-			})
-
-			t.Run("protection_status=2 (unknown) treated as on", func(t *testing.T) {
-				setProtectionStatus(t, targetHost.ID, new(2))
-				checkExpected(t, nil, hostIDsByDEStatus{
-					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
-					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
 				})
 			})
 
@@ -771,7 +763,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, targetHost, "test-key", "", new(true))
 				require.NoError(t, err)
 				updateHostDisks(t, targetHost.ID, false, time.Now())
-				setProtectionStatus(t, targetHost.ID, new(0))
+				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOff))
 
 				checkExpected(t, nil, hostIDsByDEStatus{
 					fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
@@ -782,7 +774,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			t.Run("action_required detail message for protection off", func(t *testing.T) {
 				// Restore targetHost to encrypted + protection off
-				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(0)))
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))
 				h, err := ds.Host(ctx, targetHost.ID)
 				require.NoError(t, err)
 				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)

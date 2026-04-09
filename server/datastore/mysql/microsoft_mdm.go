@@ -891,7 +891,7 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 		whereHostDisksUpdated = `(hd.updated_at IS NOT NULL AND hdek.updated_at IS NOT NULL AND hd.updated_at >= hdek.updated_at)`
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
 		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
-		whereProtectionOn     = `(hd.bitlocker_protection_status IS NULL OR hd.bitlocker_protection_status IN (1, 2))`
+		whereProtectionOn     = `(hd.bitlocker_protection_status IS NULL OR hd.bitlocker_protection_status != 0)`
 		whereProtectionOff    = `(hd.bitlocker_protection_status = 0)`
 	)
 
@@ -1108,7 +1108,7 @@ WHERE
 
 	// Build a meaningful detail message for action_required when there's no client error.
 	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
-		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == 0
+		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
 		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
 
 		switch {

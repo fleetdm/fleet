@@ -2652,22 +2652,20 @@ func directIngestDiskEncryptionWindows(ctx context.Context, logger *slog.Logger,
 
 	row := rows[0]
 
-	// conversion_status: 0=decrypted, 1=encrypted, 2=encrypting, 3=decrypting, 4/5=paused
 	conversionStatus, err := strconv.Atoi(row["conversion_status"])
 	if err != nil {
 		return fmt.Errorf("parsing bitlocker conversion_status %q: %w", row["conversion_status"], err)
 	}
-	encrypted := conversionStatus == 1
+	encrypted := conversionStatus == fleet.BitLockerConversionStatusFullyEncrypted
 
-	// protection_status: 0=off, 1=on, 2=unknown
-	// Normalize 2 (unknown) to nil so downstream status logic treats it
-	// the same as hosts that haven't reported yet.
+	// Normalize protection_status=2 (unknown) to nil so downstream status
+	// logic treats it the same as hosts that haven't reported yet.
 	var protectionStatus *int
 	protectionStatusVal, err := strconv.Atoi(row["protection_status"])
 	if err != nil {
 		return fmt.Errorf("parsing bitlocker protection_status %q: %w", row["protection_status"], err)
 	}
-	if protectionStatusVal == 0 || protectionStatusVal == 1 {
+	if protectionStatusVal == fleet.BitLockerProtectionStatusOff || protectionStatusVal == fleet.BitLockerProtectionStatusOn {
 		protectionStatus = &protectionStatusVal
 	}
 	// protectionStatusVal == 2 (unknown) or any other value: leave protectionStatus as nil
