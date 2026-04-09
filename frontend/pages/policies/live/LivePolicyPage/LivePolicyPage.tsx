@@ -75,13 +75,16 @@ const LivePolicyPage = ({
   const teamIdForApi = currentTeamId === -1 ? undefined : currentTeamId;
 
   // Reroute users out of live flow when live queries are globally disabled
-  if (disabledLiveQuery) {
-    const path = policyId
-      ? PATHS.POLICY_DETAILS(policyId)
-      : PATHS.MANAGE_POLICIES;
+  // Reroute users out of live flow when live queries are globally disabled
+  useEffect(() => {
+    if (disabledLiveQuery) {
+      const path = policyId
+        ? PATHS.POLICY_DETAILS(policyId)
+        : PATHS.MANAGE_POLICIES;
 
-    router.push(getPathWithQueryParams(path, { fleet_id: teamIdForApi }));
-  }
+      router.push(getPathWithQueryParams(path, { fleet_id: teamIdForApi }));
+    }
+  }, [disabledLiveQuery, policyId, router, teamIdForApi]);
 
   const { data: storedPolicy } = useQuery<
     IStoredPolicyResponse,
@@ -116,12 +119,15 @@ const LivePolicyPage = ({
     }
   );
 
+  const hostIdFromURL = location.query.host_ids
+    ? parseInt(location.query.host_ids as string, 10)
+    : null;
+
   useQuery<IHostResponse, Error, IHost>(
-    "hostFromURL",
-    () =>
-      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
+    ["hostFromURL", hostIdFromURL, teamIdForApi],
+    () => hostAPI.loadHostDetails(hostIdFromURL as number),
     {
-      enabled: !!location.query.host_ids && !queryParamHostsAdded,
+      enabled: !!hostIdFromURL && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
         setTargetedHosts((prevHosts) =>
