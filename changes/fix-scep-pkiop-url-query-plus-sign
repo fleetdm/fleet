@@ -1,0 +1,6 @@
+* Fixed SCEP PKIOperation handler incorrectly decoding base64 `+` characters
+  as spaces due to Go's `url.Query()` using `application/x-www-form-urlencoded`
+  decoding rules. This caused iOS and macOS devices to receive a 400 error
+  during MDM enrollment (certificate request phase), as the DER-encoded
+  SCEP message could not be base64-decoded after `+` characters were replaced
+  with spaces.
