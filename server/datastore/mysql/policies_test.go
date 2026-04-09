@@ -93,6 +93,7 @@ func TestPolicies(t *testing.T) {
 		{"BatchedPolicyMembershipCleanupOnPolicyUpdate", testBatchedPolicyMembershipCleanupOnPolicyUpdate},
 		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
 		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
+		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -7947,4 +7948,88 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	mergedCount, err = ds.CountPolicies(ctx, ptr.Uint(0), "", "software")
 	require.NoError(t, err)
 	assert.Equal(t, 3, mergedCount)
+}
+
+// testApplyPolicySpecNoSpuriousStatsReset verifies that re-applying a team
+// policy via ApplyPolicySpecs does not spuriously reset policy_stats when the
+// only change is author_id (e.g. a different user runs GitOps) and the spec
+// has SoftwareTitleID set to ptr.Uint(0) (as the GitOps client does for all
+// team policies to "unset" the installer field).
+func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user1 := test.NewUser(t, ds, "StatsUser1", "statsuser1@example.com", true)
+	user2 := test.NewUser(t, ds, "StatsUser2", "statsuser2@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create a team policy (no software installer) as user1.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:     "stats-test-policy",
+			Query:    "SELECT 1;",
+			Team:     team.Name,
+			Platform: "darwin",
+			Type:     fleet.PolicyTypeDynamic,
+		},
+	}))
+
+	// Create a host on the team and record a failing result.
+	hostID := fmt.Sprintf("%s-host", strings.ReplaceAll(t.Name(), "/", "_"))
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   &hostID,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &hostID,
+		UUID:            hostID,
+		Hostname:        hostID,
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Get the policy to find its ID.
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	pol := policies[0]
+
+	// Record a failing result for the host.
+	err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	require.NoError(t, err)
+
+	// Update aggregate counts.
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+
+	// Verify the policy has a failing host count of 1.
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, uint(1), policies[0].FailingHostCount)
+
+	// Now re-apply the same policy as a DIFFERENT user (simulating GitOps run
+	// by a different API token), with SoftwareTitleID=ptr.Uint(0) as the GitOps
+	// client sets for all team policies. This changes author_id in the DB, which
+	// causes insertOnDuplicateDidInsertOrUpdate to return true. Before the fix,
+	// the comparison logic would see SoftwareTitleID!=nil and incorrectly
+	// conclude the software installer changed, resetting stats.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user2.ID, []*fleet.PolicySpec{
+		{
+			Name:            "stats-test-policy",
+			Query:           "SELECT 1;",
+			Team:            team.Name,
+			Platform:        "darwin",
+			SoftwareTitleID: new(uint), // ptr to 0, as GitOps does
+			Type:            fleet.PolicyTypeDynamic,
+		},
+	}))
+
+	// Verify that policy stats were NOT reset.
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
 }
