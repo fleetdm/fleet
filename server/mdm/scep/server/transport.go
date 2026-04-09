@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
@@ -180,15 +179,10 @@ func message(r *http.Request) ([]byte, error) {
 				return nil, &BadRequestError{Message: "missing PKIOperation message"}
 			}
 
-			msg2, err := url.PathUnescape(msg)
+			msg = strings.ReplaceAll(msg, " ", "+")
+			decoded, err := base64.StdEncoding.DecodeString(msg)
 			if err != nil {
-				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", msg)}
-			}
-
-			msg2 = strings.ReplaceAll(msg2, " ", "+")
-			decoded, err := base64.StdEncoding.DecodeString(msg2)
-			if err != nil {
-				return nil, &BadRequestError{Message: fmt.Sprintf("failed to base64 decode message: %s: %s", err.Error(), msg2)}
+				return nil, &BadRequestError{Message: fmt.Sprintf("failed to base64 decode message: %s: %s", err.Error(), msg)}
 			}
 
 			return decoded, nil
