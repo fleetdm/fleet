@@ -28,7 +28,8 @@ type comWorkResult struct {
 // Update) that share the global comshim singleton.
 type COMWorker struct {
 	workCh    chan comWorkItem
-	done      chan struct{}
+	stop      chan struct{} // closed by Close to signal the loop to exit
+	done      chan struct{} // closed by loop when it has finished
 	closeOnce sync.Once
 }
 
@@ -37,6 +38,7 @@ type COMWorker struct {
 func NewCOMWorker() (*COMWorker, error) {
 	w := &COMWorker{
 		workCh: make(chan comWorkItem),
+		stop:   make(chan struct{}),
 		done:   make(chan struct{}),
 	}
 	initErr := make(chan error, 1)
@@ -59,17 +61,22 @@ func (w *COMWorker) loop(initErr chan<- error) {
 	defer ole.CoUninitialize()
 	initErr <- nil
 
-	for item := range w.workCh {
-		val, err := item.fn()
-		item.result <- comWorkResult{val, err}
+	for {
+		select {
+		case item := <-w.workCh:
+			val, err := item.fn()
+			item.result <- comWorkResult{val, err}
+		case <-w.stop:
+			close(w.done)
+			return
+		}
 	}
-	close(w.done)
 }
 
 // Close shuts down the COM worker goroutine and waits for it to finish.
 func (w *COMWorker) Close() {
 	w.closeOnce.Do(func() {
-		close(w.workCh)
+		close(w.stop)
 	})
 	<-w.done
 }

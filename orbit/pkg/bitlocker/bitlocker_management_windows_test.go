@@ -119,9 +119,11 @@ func TestGetLogicalVolumes(t *testing.T) {
 func TestCOMWorkerLifecycle(t *testing.T) {
 	w, err := NewCOMWorker()
 	require.NoError(t, err, "NewCOMWorker should initialize COM successfully")
+	t.Log("COMWorker initialized successfully, closing")
 	w.Close()
+	t.Log("COMWorker closed successfully")
 
-	// After Close, operations must return ErrWorkerClosed.
+	// After Close, operations must return ErrWorkerClosed (not panic).
 	_, err = w.GetEncryptionStatus()
 	assert.ErrorIs(t, err, ErrWorkerClosed)
 }
