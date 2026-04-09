@@ -32,12 +32,9 @@ const getStatusText = (command: ICommand): string => {
   switch (command_status) {
     case "pending":
       return "is pending";
-    case "ran":
-      return isProfileCommand(command.request_type)
-        ? "was acknowledged"
-        : "ran";
     case "failed":
       return "failed";
+    case "ran":
     default:
       return "was acknowledged";
   }
