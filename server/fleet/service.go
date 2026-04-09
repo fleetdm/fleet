@@ -1342,6 +1342,9 @@ type Service interface {
 	// an existing recovery lock password.
 	RotateRecoveryLockPassword(ctx context.Context, hostID uint) error
 
+	// TODO(JK): comment
+	GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*HostManagedLocalAccountPassword, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers
 	//
@@ -1382,6 +1385,9 @@ type Service interface {
 	// setup experience status results table and enqueues the next
 	// step. It returns true when there is nothing left to do (setup finished)
 	SetupExperienceNextStep(ctx context.Context, host *Host) (bool, error)
+
+	// TODO(JK): comment
+	UpdateManagedLocalAccount(ctx context.Context, teamID *uint, enabled bool) (bool, error)
 
 	// SetupExperienceInit initializes the "Setup experience" for a device (by queueing items like software installation, etc.).
 	// This is used for the "Setup experience" on non-darwin devices.

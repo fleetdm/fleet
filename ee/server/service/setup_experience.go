@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -327,4 +328,39 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	}
 
 	return false, nil
+}
+
+func (svc *Service) UpdateManagedLocalAccount(ctx context.Context, teamID *uint, enabled bool) (bool, error) {
+	tmID := ptr.ValOrZero(teamID)
+
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: tmID}, fleet.ActionWrite); err != nil {
+		return false, err
+	}
+
+	if tmID == 0 {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(enabled)
+
+		err = svc.ds.SaveAppConfig(ctx, ac)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "saving app config")
+		}
+		return ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil
+	} else {
+		// Need to use TeamWithExtras to use SaveTeam
+		team, err := svc.ds.TeamWithExtras(ctx, tmID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting team config")
+		}
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(enabled)
+
+		team, err = svc.ds.SaveTeam(ctx, team)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "saving app config")
+		}
+		return team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil
+	}
 }

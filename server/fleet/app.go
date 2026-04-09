@@ -554,7 +554,8 @@ type MacOSSetup struct {
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
 	// TODO(JK): optjson? probably
-	EnableManagedLocalAccount bool `json:"enable_managed_local_account"`
+	EnableManagedLocalAccount optjson.Bool   `json:"enable_managed_local_account"`
+	EndUserLocalAccountType   optjson.String `json:"end_user_local_account_type"`
 }
 
 func (mos *MacOSSetup) Validate() error {
@@ -593,6 +594,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.ManualAgentInstall.Valid {
 		mos.ManualAgentInstall = optjson.SetBool(false)
+	}
+	if !mos.EndUserLocalAccountType.Valid {
+		mos.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 }
 

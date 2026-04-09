@@ -4052,13 +4052,12 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 		if host != nil && host.UUID != "" {
 			// This AccountConfiguration included a managed local account
-			switch {
-			case cmdResult.Status == fleet.MDMAppleStatusAcknowledged:
+			switch cmdResult.Status {
+			case fleet.MDMAppleStatusAcknowledged:
 				svc.ds.SetHostManagedLocalAccountStatus(r.Context, cmdResult.CommandUUID, fleet.MDMDeliveryVerified)
 				svc.newActivityFn(r.Context, nil, fleet.ActivityTypeCreatedManagedLocalAccount{HostID: host.ID, HostDisplayName: host.DisplayName()})
 
-			case cmdResult.Status == fleet.MDMAppleStatusError,
-				cmdResult.Status == fleet.MDMAppleStatusCommandFormatError:
+			case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
 				svc.ds.SetHostManagedLocalAccountStatus(r.Context, cmdResult.CommandUUID, fleet.MDMDeliveryFailed)
 			}
 		}

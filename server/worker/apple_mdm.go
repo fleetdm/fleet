@@ -214,6 +214,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	var ssoEnabled, managedAdminAccountEnabled, lockPrimaryAccountInfo bool
 	var ssoAccount *fleet.MDMIdPAccount
+	var adminAccount *AdminAccount
 
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.InfoContext(ctx, "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
@@ -242,26 +243,44 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
 				return err
 			}
-			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount
+			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount.Value
 		} else {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
-			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount
+			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value
 		}
 	}
 
+	const (
+		fleetAdminShortName = "_fleetadmin"
+		fleetAdminFullName  = "Fleet Admin"
+	)
+
 	if ssoEnabled || managedAdminAccountEnabled {
-		// TODO(JK): NOTE: no particular reason to not generate password here other than
-		// it would add two if statements in here. But if we want to make an AdminAccount struct
-		// we can do that here
-		cmdUUID, password, err := a.sendAccountConfigurationCommand(ctx, &args, ssoAccount, lockPrimaryAccountInfo, ssoEnabled, managedAdminAccountEnabled)
+		var password string
+		if managedAdminAccountEnabled {
+			password = apple_mdm.GenerateManagedAccountPassword()
+			passwordHash, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(password)
+			if err != nil {
+				return err
+			}
+			adminAccount = &AdminAccount{
+				ShortName:    fleetAdminShortName,
+				FullName:     fleetAdminFullName,
+				PasswordHash: passwordHash,
+				Hidden:       true,
+			}
+		}
+
+		cmdUUID, err := a.createManagedAccounts(ctx, &args, ssoAccount, adminAccount, lockPrimaryAccountInfo)
 		if err != nil {
 			return err
 		}
 		awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
+
 		if managedAdminAccountEnabled {
-			err := a.Datastore.SaveManagedLocalAccount(ctx, args.HostUUID, password, cmdUUID)
+			err := a.Datastore.SaveHostManagedLocalAccount(ctx, args.HostUUID, password, cmdUUID)
 			if err != nil {
 				return err
 			}
@@ -877,16 +896,15 @@ func QueueAppleMDMJob(
 	return nil
 }
 
-// sendAccountConfigurationCommand sends an AccountConfiguration command for an sso and/or
-// a breakglass admin account. It returns the breakglass account's password if created.
-func (a *AppleMDM) sendAccountConfigurationCommand(
+// createManagedAccounts enqueues an AccountConfiguration command for an sso and/or
+// a breakglass admin account.
+func (a *AppleMDM) createManagedAccounts(
 	ctx context.Context,
 	args *appleMDMArgs,
 	ssoAccount *fleet.MDMIdPAccount,
+	adminAccount *AdminAccount,
 	lockPrimaryAccountInfo bool,
-	ssoEnabled bool,
-	managedAccountEnabled bool,
-) (string, string, error) {
+) (string, error) {
 
 	// we can keep the base command as is
 	// if managed account is disabled, check sso
@@ -898,12 +916,11 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 
 	// call a.Commander.AccountConfiguration() here?
 	var ssoAccountPayload, managedAccountPayload string
-	var password, passwordHash string
 
-	if ssoEnabled {
+	if ssoAccount != nil {
 		fullName, err := a.getIdPDisplayName(ctx, ssoAccount, *args)
 		if err != nil {
-			return "", "", ctxerr.Wrap(ctx, err, "getting idp account display name")
+			return "", ctxerr.Wrap(ctx, err, "getting idp account display name")
 		}
 
 		// TODO(JK): use plist.Marshal() instead?
@@ -917,13 +934,7 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
 `, fullName, ssoAccount.Username, lockPrimaryAccountInfo)
 	}
 
-	if managedAccountEnabled {
-		var err error
-		password, passwordHash, err = a.createManagedAccountPassword(ctx)
-		if err != nil {
-			return "", "", ctxerr.Wrap(ctx, err, "creating managed account password")
-		}
-
+	if adminAccount != nil {
 		// TODO(JK): use plist.Marshal() instead?
 		managedAccountPayload = fmt.Sprintf(`
       <key>AutoSetupAdminAccount</key>
@@ -934,71 +945,44 @@ func (a *AppleMDM) sendAccountConfigurationCommand(
         <data>%s</data>
         <key>shortName</key>
         <string>%s</string>
+        <key>fullName</key>
+        <string>%s</string>
      </dict>
-`, passwordHash, adminAccountName)
+`, adminAccount.PasswordHash, adminAccount.ShortName, adminAccount.FullName)
 	}
 
 	var payload string
-	if managedAccountEnabled {
-		if ssoEnabled {
+	if adminAccount != nil {
+		if ssoAccount != nil {
 			payload = ssoAccountPayload
 		}
 		payload += managedAccountPayload
 
 	} else {
-		if ssoEnabled {
+		if ssoAccount != nil {
 			payload = ssoAccountPayload
 		} else {
 			// unreachable - at least one of ssoEnabled or managedAccountEnabled should be true
-			return "", "", ctxerr.New(ctx, "unreachable")
+			return "", ctxerr.New(ctx, "unreachable")
 		}
 	}
 
-	if ssoEnabled {
+	if ssoAccount != nil {
 		a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
 	}
 	cmdUUID := uuid.New().String()
 	if err := a.Commander.AccountConfiguration(ctx, []string{args.HostUUID}, payload, cmdUUID); err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
+		return "", ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 	}
 
-	return cmdUUID, password, nil
+	return cmdUUID, nil
 }
 
-const (
-	passwordSaltSize   = 32
-	passwordKeyLen     = 128
-	passwordIterations = 20000
-	adminAccountName   = "_fleetadmin"
-)
-
-// createManagedAccountPassword creates a password to use for a breakglass admin account. It
-// returns the plaintext password and the passwordHash disctionary to use in [AutoSetupAdminAccounts][1]
-// encoded in base64. See [PasswordHash][2] for a more detailed description.
-//
-// [1]: https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary/autosetupadminaccountitem
-// [2]: https://developer.apple.com/documentation/devicemanagement/passwordhash/salted-sha512-pbkdf2-data.dictionary
-func (a *AppleMDM) createManagedAccountPassword(ctx context.Context) (string, string, error) {
-	plaintext := apple_mdm.GenerateRecoveryLockPassword()
-
-	salt := make([]byte, passwordSaltSize)
-	_, err := rand.Read(salt)
-	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "generating salt")
-	}
-
-	entropy := pbkdf2.Key([]byte(plaintext), salt, passwordIterations, passwordKeyLen, sha512.New)
-
-	type passwordPList struct {
-		Entropy    []byte `plist:"entropy"`
-		Salt       []byte `plist:"salt"`
-		Iterations int    `plist:"iterations"`
-	}
-	body, err := plist.Marshal(passwordPList{Entropy: entropy, Salt: salt, Iterations: passwordIterations})
-	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "marshalling plist")
-	}
-	bodyBase64 := base64.StdEncoding.EncodeToString(body)
-
-	return plaintext, bodyBase64, nil
+// AdminAccount holds the parameters for an AutoSetupAdminAccounts entry in
+// an AccountConfiguration MDM command.
+type AdminAccount struct {
+	ShortName    string // e.g. "_fleetadmin"
+	FullName     string // e.g. "Fleet Admin"
+	PasswordHash []byte // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
+	Hidden       bool   // true → hidden from login window (UID ≤ 499)
 }

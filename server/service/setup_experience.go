@@ -409,3 +409,34 @@ func transformPlatformListForSetupExperience(platforms string) string {
 	}
 	return strings.ReplaceAll(platforms, "macos", "darwin")
 }
+
+type updateManagedLocalAccountRequest struct {
+	TeamID                    *uint `json:"team_id" renameto:"fleet_id"`
+	EnableManagedLocalAccount bool  `json:"enable_managed_local_account"`
+}
+
+type updateManagedLocalAccountResponse struct {
+	TeamID                    *uint `json:"team_id,omitempty" renameto:"fleet_id"`
+	EnableManagedLocalAccount bool  `json:"enable_managed_local_account"`
+	Err                       error `json:"error,omitempty"`
+}
+
+func (r updateManagedLocalAccountResponse) Error() error { return r.Err }
+
+func updateManagedLocalAccountEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateManagedLocalAccountRequest)
+	enabled, err := svc.UpdateManagedLocalAccount(ctx, req.TeamID, req.EnableManagedLocalAccount)
+	if err != nil {
+		return updateManagedLocalAccountResponse{Err: err}, nil
+	}
+
+	return updateManagedLocalAccountResponse{TeamID: req.TeamID, EnableManagedLocalAccount: enabled}, nil
+}
+
+func (svc *Service) UpdateManagedLocalAccount(ctx context.Context, teamID *uint, enabled bool) (bool, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return false, fleet.ErrMissingLicense
+}

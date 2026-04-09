@@ -705,3 +705,30 @@ var (
 			</Item>
 		</Exec>`
 )
+
+func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+	if !fleet.IsMacOSPlatform(host.Platform) {
+		return nil, &fleet.BadRequestError{
+			Message: "Host is not a macOS device.",
+		}
+	}
+
+	pwd, err := svc.ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, &fleet.BadRequestError{
+				Message: "Host does not have a managed account.",
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host managed account password")
+	}
+
+	return pwd, nil
+}
