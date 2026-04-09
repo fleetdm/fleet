@@ -12,14 +12,14 @@ permissions:
 jobs:
   build:
     permissions:
-      contents: write  # for Git to git push
+      contents: read
     if: ${{ github.repository == 'fleetdm/fleet' }}
 
     runs-on: ubuntu-22.04
 
     strategy:
       matrix:
-        node-version: [14.x]
+        node-version: [20.x]
 
     steps:
     - name: Harden Runner
@@ -91,15 +91,15 @@ jobs:
       run: |
         set -euo pipefail
         git add -A
-        # Create a git tree object that contains only the changes in the /website folder.
+        # Create a git tree object from the currently staged repository state for this Heroku deploy.
         TREE=$(git write-tree)
         # Create a parentless commit from the tree object.
         COMMIT=$(git -c "user.name=Fleetwood" -c "user.email=github@example.com" \
           commit-tree "$TREE" \
-          -m 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.')
+          -m 'AUTOMATED COMMIT - Deploy Fleet agent downloader app with the latest staged changes, including generated production assets.')
         # Push the parentless commit to Heroku
         # Note: The commit pushed to Heroku will not contain the full git history.
         # This lets up deploy this app from the Fleet monorepo while working around Heroku's pack size limits.
         git push heroku "$COMMIT":refs/heads/master --force
-    - name: 🌐 The dashboard has been deployed
+    - name: 🌐 Fleet agent downloader has been deployed
       run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)'
