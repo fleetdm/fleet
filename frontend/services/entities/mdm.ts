@@ -56,6 +56,7 @@ interface IUpdateSetupExperienceBody {
   enable_end_user_authentication?: boolean;
   apple_enable_release_device_manually?: boolean;
   macos_manual_agent_install?: boolean;
+  enable_managed_local_account?: boolean;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
