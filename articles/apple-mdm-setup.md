@@ -10,14 +10,19 @@ To turn on Windows MDM features, head to this [Windows MDM setup article](https:
 
 Apple uses APNs to authenticate and manage interactions between Fleet and hosts.
 
-To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > Mobile device management (MDM)** page.
-
-Then select **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
-
 > Apple requires that APNs certificates are renewed annually.
-> - The recommended approach is to use a shared admin account to generate the CSR ensuring it can be renewed regardless of individual availability.
-> - If your certificate expires, you must turn MDM off and back on for all macOS hosts. Until then, configuration profile changes and other MDM commands will remain stuck in “Pending.”
+> - The recommended approach is to use a shared admin Apple ID to obtain the APNs certificate, ensuring it can be renewed regardless of individual availability.
+> - If your certificate expires, you must turn MDM off and back on for all macOS hosts. Until then, configuration profile changes and other MDM commands will remain stuck in "Pending."
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
+
+### To turn on Apple MDM for the first time:
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page in Fleet.
+2. Under the Apple (macOS, iOS, iPadOS) MDM section, select **Turn on**.
+3. Download the certificate signing request (CSR) for Apple Push Notification service (APNs).
+4. Go to the [Apple Push Certificates Portal](https://identity.apple.com/pushcert/) and sign in with your Apple ID. If you don't have an Apple ID, select **Create yours now**.
+5. In Apple Push Certificates Portal, select **Create a Certificate**, upload the CSR downloaded from Fleet, and download your APNs certificate (`.pem` file).
+6. Back in Fleet, upload the APNs certificate (`.pem` file) on the setup page.
 
 ## Renew APNs certificate
 

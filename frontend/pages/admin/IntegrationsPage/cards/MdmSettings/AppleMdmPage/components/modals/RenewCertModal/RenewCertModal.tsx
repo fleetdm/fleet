@@ -70,12 +70,21 @@ const RenewCertModal = ({
         renderFlash("error", "Something's gone wrong. Please try again.");
       }
     },
-    [renderFlash]
+    [renderFlash],
   );
 
   return (
     <Modal title="Renew certificate" onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
+        <p className={`${baseClass}__description`}>
+          Renew your APNs certificate by downloading a new CSR, renewing in
+          Apple Push Certificates Portal, and uploading the new certificate.{" "}
+          <CustomLink
+            newTab
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/renew-apns"
+          />
+        </p>
         <ol className={`${baseClass}__setup-instructions-list`}>
           <li>
             <p>
@@ -86,27 +95,18 @@ const RenewCertModal = ({
           </li>
           <li>
             <p>
-              2. Sign in to{" "}
+              2. Renew your certificate in{" "}
               <CustomLink
                 url="https://identity.apple.com/pushcert/"
                 text="Apple Push Certificates Portal"
                 newTab
-              />
+              />{" "}
+              using the CSR and download the new APNs certificate.
             </p>
           </li>
           <li>
             <p>
-              3. In Apple Push Certificates Portal, select <b>Renew</b> next to
-              your certificate (make sure that the certificate&apos;s{" "}
-              <b>Common Name (CN)</b> matches the one presented in Fleet).
-            </p>
-          </li>
-          <li>
-            <p>4. Upload your CSR and download new APNs certificate.</p>
-          </li>
-          <li>
-            <p>
-              5. Upload APNs certificate (.pem file) below.
+              3. Upload APNs certificate (.pem file) below.
               <FileUploader
                 className={`${baseClass}__file-uploader`}
                 accept=".pem"

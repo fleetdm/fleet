@@ -44,7 +44,7 @@ const ApplePushCertSetup = ({
         setIsUploading(false);
       }
     },
-    [renderFlash, onSetupSuccess]
+    [renderFlash, onSetupSuccess],
   );
 
   const onDownloadError = useCallback(
@@ -59,13 +59,18 @@ const ApplePushCertSetup = ({
         renderFlash("error", "Something's gone wrong. Please try again.");
       }
     },
-    [renderFlash]
+    [renderFlash],
   );
 
   return (
     <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
       <p className={`${baseClass}__setup-description`}>
-        Connect Fleet to Apple Push Certificates Portal to turn on MDM.
+        Connect Fleet to Apple Push Certificates Portal to turn on MDM.{" "}
+        <CustomLink
+          url="https://fleetdm.com/learn-more-about/setup-apns"
+          text="Learn more"
+          newTab
+        />
       </p>
       <div>
         <ol className={`${baseClass}__setup-instructions-list`}>
@@ -82,28 +87,16 @@ const ApplePushCertSetup = ({
           <li>
             <span>2. </span>
             <span>
-              Sign in to{" "}
+              Create an APNs certificate using the CSR in{" "}
               <CustomLink
                 url="https://identity.apple.com/pushcert/"
                 text="Apple Push Certificates Portal"
                 newTab
               />
-              <br />
-              <br />
-              If you don&apos;t have an Apple ID, select <b>Create yours now</b>
-              .
             </span>
           </li>
           <li>
             <span>3. </span>
-            <span>
-              In Apple Push Certificates Portal, select{" "}
-              <b>Create a Certificate</b>, upload your CSR, and download your
-              APNs certificate.
-            </span>
-          </li>
-          <li>
-            <span>4. </span>
             <span>Upload APNs certificate (.pem file) below.</span>
           </li>
         </ol>
