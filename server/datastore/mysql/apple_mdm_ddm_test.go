@@ -377,23 +377,14 @@ func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
 func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// Create 2 declarations with the same raw_json (so they produce the same token).
 	// D1 simulates the "old" declaration that was already installed on hosts.
-	// D2 simulates the "new" declaration (same content, different UUID — e.g. after a name change caused delete+reinsert).
+	// D2 simulates the "new" declaration (same content/identifier, different UUID — e.g. after a name change caused delete+reinsert).
+	// They share the same identifier, so D1 must be deleted before D2 is created (unique constraint on team_id+identifier).
 	declJSON := []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.cleanup"}`)
 
 	d1, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		DeclarationUUID: "decl-old",
 		Name:            "Old Declaration",
-		Identifier:      "com.example.cleanup",
-		RawJSON:         declJSON,
-	})
-	require.NoError(t, err)
-
-	// D2 has different name but same content/identifier — same token
-	d2, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		DeclarationUUID: "decl-new",
-		Name:            "New Declaration",
 		Identifier:      "com.example.cleanup",
 		RawJSON:         declJSON,
 	})
@@ -405,16 +396,10 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 		return sqlx.GetContext(ctx, q, &d1Token,
 			"SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", d1.DeclarationUUID)
 	})
-	var d2Token string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &d2Token,
-			"SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", d2.DeclarationUUID)
-	})
-	require.Equal(t, d1Token, d2Token, "declarations with same raw_json should have the same token")
 
 	// Create 3 hosts, all enrolled
 	hosts := make([]*fleet.Host, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		hostUUID := fmt.Sprintf("cleanup-host-%d", i)
 		hosts[i], err = ds.NewHost(ctx, &fleet.Host{
 			Hostname:        fmt.Sprintf("cleanup-host-%d", i),
@@ -446,12 +431,28 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 		})
 	}
 
-	// Now delete D1 from mdm_apple_declarations (simulating IT admin removing the old declaration).
+	// Delete D1 from mdm_apple_declarations (simulating IT admin removing the old declaration).
 	// The host_mdm_apple_declarations rows for D1 remain — the reconciler will mark them for removal.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?", d1.DeclarationUUID)
 		return err
 	})
+
+	// Now create D2 with the same identifier (possible since D1 was just deleted) and same raw_json → same token.
+	d2, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		DeclarationUUID: "decl-new",
+		Name:            "New Declaration",
+		Identifier:      "com.example.cleanup",
+		RawJSON:         declJSON,
+	})
+	require.NoError(t, err)
+
+	var d2Token string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &d2Token,
+			"SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", d2.DeclarationUUID)
+	})
+	require.Equal(t, d1Token, d2Token, "declarations with same raw_json should have the same token")
 
 	// Force a small batch size so installs and removes end up in different batches.
 	// The UNION ALL query returns removes first, then installs. With 3 hosts:
