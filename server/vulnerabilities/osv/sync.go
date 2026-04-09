@@ -108,7 +108,7 @@ func getNeededUbuntuVersions(osVers *fleet.OSVersions) []string {
 	var needed []string
 
 	for _, os := range osVers.OSVersions {
-		if !IsPlatformSupported(os.Platform) {
+		if strings.ToLower(os.Platform) != "ubuntu" {
 			continue
 		}
 
