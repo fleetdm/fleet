@@ -47,6 +47,7 @@ func TestFetchAppsListPrimarySuccess(t *testing.T) {
 }
 
 func TestFetchAppsListFallbackOnPrimaryFailure(t *testing.T) {
+	wasSecondaryCalled := false
 	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("primary is down"))
@@ -57,6 +58,7 @@ func TestFetchAppsListFallbackOnPrimaryFailure(t *testing.T) {
 		assert.Equal(t, "/apps.json", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(newTestAppsJSON())
+		wasSecondaryCalled = true
 	}))
 	t.Cleanup(fallback.Close)
 
@@ -67,6 +69,7 @@ func TestFetchAppsListFallbackOnPrimaryFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 	assert.Equal(t, "test-app", apps.Apps[0].Slug)
+	assert.True(t, wasSecondaryCalled)
 }
 
 func TestFetchAppsListFallbackOnPrimary404(t *testing.T) {
