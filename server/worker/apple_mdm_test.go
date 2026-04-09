@@ -3,6 +3,7 @@ package worker
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1490,7 +1491,7 @@ INSERT INTO setup_experience_status_results (
 		adminAccount := &AdminAccount{
 			ShortName:    "_fleetadmin",
 			FullName:     "Fleet Admin",
-			PasswordHash: []byte("dGVzdC1oYXNo"), // base64-encoded test hash
+			PasswordHash: []byte("PASSWORD_HASH_PLACEHOLDER"),
 			Hidden:       true,
 		}
 
@@ -1522,7 +1523,7 @@ INSERT INTO setup_experience_status_results (
 		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccount</key>")
 		assert.Contains(t, rawCommand, "<string>_fleetadmin</string>")
 		assert.Contains(t, rawCommand, "<string>Fleet Admin</string>")
-		assert.Contains(t, rawCommand, "<data>dGVzdC1oYXNo</data>")
+		assert.Contains(t, rawCommand, fmt.Sprintf("<data>%s</data>", base64.StdEncoding.EncodeToString([]byte("PASSWORD_HASH_PLACEHOLDER"))))
 
 		// Verify the command structure
 		assert.Contains(t, rawCommand, "<string>AccountConfiguration</string>")
@@ -1591,7 +1592,7 @@ INSERT INTO setup_experience_status_results (
 		adminAccount := &AdminAccount{
 			ShortName:    "_fleetadmin",
 			FullName:     "Fleet Admin",
-			PasswordHash: []byte("dGVzdC1oYXNo"),
+			PasswordHash: []byte("PASSWORD_HASH_PLACEHOLDER"),
 			Hidden:       true,
 		}
 
@@ -1614,7 +1615,7 @@ INSERT INTO setup_experience_status_results (
 		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccount</key>")
 		assert.Contains(t, rawCommand, "<string>_fleetadmin</string>")
 		assert.Contains(t, rawCommand, "<string>Fleet Admin</string>")
-		assert.Contains(t, rawCommand, "<data>dGVzdC1oYXNo</data>")
+		assert.Contains(t, rawCommand, fmt.Sprintf("<data>%s</data>", base64.StdEncoding.EncodeToString([]byte("PASSWORD_HASH_PLACEHOLDER"))))
 
 		// SSO fields NOT present
 		assert.NotContains(t, rawCommand, "<key>PrimaryAccountFullName</key>")
