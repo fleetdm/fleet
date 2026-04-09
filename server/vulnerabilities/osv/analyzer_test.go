@@ -669,58 +669,58 @@ func TestExtractRHELMajorVersion(t *testing.T) {
 
 func TestIsVulnerableRPM(t *testing.T) {
 	tests := []struct {
-		name      string
-		version   string
-		release   string
-		vuln      OSVVulnerability
-		expected  bool
+		name     string
+		version  string
+		release  string
+		vuln     OSVVulnerability
+		expected bool
 	}{
 		{
 			name:    "vulnerable - older than fixed",
 			version: "2.1.3", release: "3.el9",
-			vuln:    OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
+			vuln:     OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
 			expected: true,
 		},
 		{
 			name:    "not vulnerable - at fixed version",
 			version: "2.1.3", release: "4.el9_1",
-			vuln:    OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
+			vuln:     OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
 			expected: false,
 		},
 		{
 			name:    "not vulnerable - newer than fixed",
 			version: "2.1.3", release: "5.el9_2",
-			vuln:    OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
+			vuln:     OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
 			expected: false,
 		},
 		{
 			name:    "vulnerable - no release field",
 			version: "1.0.0", release: "",
-			vuln:    OSVVulnerability{Fixed: "0:2.0.0-1.el9", Introduced: "0"},
+			vuln:     OSVVulnerability{Fixed: "0:2.0.0-1.el9", Introduced: "0"},
 			expected: true,
 		},
 		{
 			name:    "vulnerable - no fixed version (still affected)",
 			version: "1.0.0", release: "1.el9",
-			vuln:    OSVVulnerability{Introduced: "0"},
+			vuln:     OSVVulnerability{Introduced: "0"},
 			expected: true,
 		},
 		{
 			name:    "not vulnerable - below introduced",
 			version: "0.9.0", release: "1.el9",
-			vuln:    OSVVulnerability{Fixed: "0:2.0.0-1.el9", Introduced: "0:1.0.0-1.el9"},
+			vuln:     OSVVulnerability{Fixed: "0:2.0.0-1.el9", Introduced: "0:1.0.0-1.el9"},
 			expected: false,
 		},
 		{
 			name:    "vulnerable - kernel version with epoch",
 			version: "5.14.0", release: "503.26.1.el9_5",
-			vuln:    OSVVulnerability{Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
+			vuln:     OSVVulnerability{Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
 			expected: true,
 		},
 		{
 			name:    "not vulnerable - kernel at fixed",
 			version: "5.14.0", release: "611.8.1.el9_7",
-			vuln:    OSVVulnerability{Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
+			vuln:     OSVVulnerability{Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
 			expected: false,
 		},
 	}
