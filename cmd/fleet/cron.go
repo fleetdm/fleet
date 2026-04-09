@@ -207,7 +207,7 @@ func scanVulnerabilities(
 		ovalVulns = append(ovalVulns, osvVulns...)
 	}
 
-	if config.RHELOSVForVulnerabilities {
+	if config.OSVForVulnerabilities {
 		rhelOSVVulns := checkRHELOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 		ovalVulns = append(ovalVulns, rhelOSVVulns...)
 	}
@@ -422,15 +422,12 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
-	// If OSV feature flags are enabled, filter out platforms handled by OSV (OVAL will skip them)
+	// If OSV feature flag is enabled, filter out platforms handled by OSV (OVAL will skip them)
 	processVersions := versions
-	if config.OSVForVulnerabilities || config.RHELOSVForVulnerabilities {
+	if config.OSVForVulnerabilities {
 		var nonOSVPlatforms []fleet.OSVersion
 		for _, v := range versions.OSVersions {
-			if config.OSVForVulnerabilities && osv.IsPlatformSupported(v.Platform) {
-				continue
-			}
-			if config.RHELOSVForVulnerabilities && osv.IsRHELOSVSupported(v.Platform) {
+			if osv.IsPlatformSupported(v.Platform) || osv.IsRHELOSVSupported(v.Platform) {
 				continue
 			}
 			nonOSVPlatforms = append(nonOSVPlatforms, v)
@@ -480,7 +477,7 @@ func checkOvalVulnerabilities(
 	analyzeSpan.End()
 
 	cleanupStaleOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
-	cleanupStaleRHELOSVVulnerabilities(ctx, ds, logger, config.RHELOSVForVulnerabilities)
+	cleanupStaleRHELOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
 
 	return results
 }
@@ -641,8 +638,8 @@ func checkRHELOSVVulnerabilities(
 }
 
 // cleanupStaleRHELOSVVulnerabilities removes RHEL OSV vulnerabilities when the flag is disabled.
-func cleanupStaleRHELOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, rhelOSVEnabled bool) {
-	if rhelOSVEnabled {
+func cleanupStaleRHELOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
+	if osvEnabled {
 		return
 	}
 
@@ -698,7 +695,7 @@ func checkGovalDictionaryVulnerabilities(
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		// Skip RHEL platforms when RHEL OSV is enabled (OSV handles both kernel and non-kernel)
-		if config.RHELOSVForVulnerabilities && osv.IsRHELOSVSupported(version.Platform) {
+		if config.OSVForVulnerabilities && osv.IsRHELOSVSupported(version.Platform) {
 			continue
 		}
 		start := time.Now()
