@@ -464,5 +464,148 @@ We generally do not manually update these fields. A Salesforce Flow acts as a "T
 - **Deliverability:** Sending marketing blasts to "Cold" data (Clay lists) ruins domain reputation. We keep those lists separate for low-volume, high-relevance sales outreach only.
 - **Debugging:** If a VIP prospect stops receiving emails, the `Status Reason` tells us if it was a system error (Bounce) or human error (Sales marked "Do Not Contact").
 
+
+## ActiveCampaign
+
+Fleet uses ActiveCampaign as its marketing automation platform for email marketing, contact lifecycle management, lead nurturing, and segmentation. ActiveCampaign is integrated with Salesforce (SFDC) as the system of record; key contact fields sync from SFDC into ActiveCampaign, and lifecycle transitions driven by sales activity in SFDC are reflected in ActiveCampaign automations.
+
+### Lists
+
+ActiveCampaign lists represent permission groups — the type of communication a contact has consented to receive. Fleet maintains four lists:
+
+| List | Channel | Who belongs here | Purpose |
+|---|---|---|---|
+| Marketing Contacts | Email | All opted-in prospects and trial users | All marketing emails: nurture sequences, product announcements, event follow-ups, and campaigns |
+| Newsletter | Email | Contacts who have explicitly opted into the Fleet newsletter | Newsletter sends only. A contact can be on this list without being on Marketing Contacts. |
+| Master SMS List | SMS | Contacts who have opted into SMS communications | SMS campaigns and notifications |
+| Customers | Email | Active Fleet customers on a paid plan | Customer-specific communications: onboarding, product updates, and renewals |
+
+Unsubscribing from a list removes the contact from all automations tied to that list. Contacts may appear on multiple lists (e.g., a customer who also receives the newsletter).
+
+### Segmentation
+
+Segmentation in ActiveCampaign is driven by two mechanisms: **contact fields** for stable attributes and **tags** for dynamic, behavioral signals.
+
+#### Contact fields
+
+The following fields are available on every contact record. Fields in the Attribution group are set automatically and should not be manually edited.
+
+**General Details**
+
+| Field | Type | Personalization tag | Notes |
+|---|---|---|---|
+| First Name | Text | `%FIRSTNAME%` | |
+| Last Name | Text | `%LASTNAME%` | |
+| Email | Text | `%EMAIL%` | |
+| Phone | Text | `%PHONE%` | |
+| Account | Text | `%ACCT_NAME%` | Company name, synced from SFDC |
+| Job Title | Text | `%CONTACT_JOBTITLE%` | |
+| LinkedInURL | Text | `%LINKEDINURL%` | |
+| Role | Dropdown | `%ROLE%` | Synced from SFDC. Values: 🧝 Niche individual contributor, 🦌 Program owner, 🧑‍🎄 Leadership, ⛄️ Non-prospect |
+| Primary buying situation | Dropdown | `%PRIMARY_BUYING_SITU%` | Synced from SFDC |
+| Contact Status | Dropdown | `%CONTACT_STATUS%` | Synced from SFDC |
+| Contact stage | Dropdown | `%CONTACT_STAGE%` | Current lifecycle stage. Synced from SFDC and updated by AC automations. See lifecycle stages below. |
+| Marketing Email | Dropdown | `%MARKETING_EMAIL%` | Gives sales the ability to block emails for a contact |
+| State | Text | `%STATE%` | |
+| Country | Text | `%COUNTRY%` | |
+| GCLID | Text | `%GCLID%` | Google Click ID, captured from paid search landing pages |
+
+**Attribution**
+
+Attribution fields map directly to Fleet's [attribution framework](#attribution-framework). First-touch fields capture the original source when a contact enters the database and are never overwritten. Most recent fields capture the last known touch and are updated at opportunity creation.
+
+| Field | Type | Personalization tag | Maps to |
+|---|---|---|---|
+| Source channel | Dropdown | `%SOURCE_CHANNEL%` | First-touch → Level 1 (Source bucket) |
+| Source channel detail | Dropdown | `%SOURCE_CHANNEL_DET%` | First-touch → Level 2 (Source detail) |
+| Source campaign | Text | `%SOURCE_CAMPAIGN%` | First-touch → Level 3 (Campaign code) |
+| Most recent channel | Dropdown | `%MOST_RECENT_CHANNE%` | Converting-touch → Level 1 |
+| Most recent channel detail | Dropdown | `%MOST_RECENT_CHANNE%` | Converting-touch → Level 2 |
+| Most recent campaign | Text | `%MOST_RECENT_CAMPAI%` | Converting-touch → Level 3 (Campaign code) |
+| Contact source | Dropdown | `%CONTACT_SOURCE%` | Summary source field for reporting |
+
+#### Tags
+
+Tags handle behavioral and automation state signals that change over time. They follow a `namespace: value` naming convention and are used to enroll, pause, and exit contacts from automations.
+
+| Tag | Category | Description |
+|---|---|---|
+| `ls: prospect` | Lifecycle Stage | Opted-in contact with no qualification yet. Starting point for all contacts regardless of source. |
+| `ls: mql` | Lifecycle Stage | Marketing Qualified Lead. Right-fit demographics/firmographics plus minor intent signal. Qualifies for increased marketing investment. |
+| `ls: srl` | Lifecycle Stage | Sales Ready Lead. MQL threshold met plus sufficient intent to hand off. Triggers sales notification and pauses marketing nurture. |
+| `ls: sal` | Lifecycle Stage | Sales Accepted Lead. Sales has accepted and is actively working the contact. SFDC is system of record from this point. |
+| `ls: sql` | Lifecycle Stage | Sales Qualified Lead. Sales has met with the contact and is moving forward toward a deal. |
+| `ls: customer` | Lifecycle Stage | Has purchased Fleet. Contact is added to the Customers list. |
+| `ls: churned` | Lifecycle Stage | Former customer who has cancelled or not renewed. |
+| `ls: non-prospect` | Lifecycle Stage | In the database but will never enter the funnel (press, media, analysts, students, community members). Excluded from all nurture automations. |
+| `interest: mdm` | Interest | Has shown interest in Fleet's MDM / device management use case. |
+| `interest: vuln-management` | Interest | Has shown interest in Fleet's vulnerability management use case. |
+| `interest: compliance` | Interest | Has shown interest in Fleet's compliance use case. |
+| `interest: osquery` | Interest | Has shown interest in Fleet as an osquery management platform. |
+| `nurture: enrolled` | Nurture State | Currently active in a marketing nurture sequence. |
+| `nurture: completed` | Nurture State | Finished a nurture sequence without advancing to the next lifecycle stage. |
+| `nurture: paused` | Nurture State | Sales is actively working this contact. All marketing sequences are suppressed. |
+| `demo: requested` | Demo | Contact has requested a demo. |
+| `demo: completed` | Demo | Contact has completed a demo with the sales team. |
+| `engaged: hot` | Engagement | 3 or more email opens or clicks in the last 30 days. |
+| `engaged: cold` | Engagement | No email opens in 90 or more days. Candidate for re-engagement sequence or suppression. |
+
+`ls:` tags are mutually exclusive — when a contact advances to a new lifecycle stage, the previous `ls:` tag must be removed in the same automation step. The `ls:` tag and the **Contact stage** field should always be kept in sync; any automation that updates one must update the other.
+
+### Email marketing
+
+Fleet uses ActiveCampaign for all owned-list email marketing. This includes the newsletter, product announcements, event follow-ups, and lead nurture sequences.
+
+All campaign names in ActiveCampaign must follow the Level 3 attribution naming convention so that email-driven conversions are correctly attributed in SFDC:
+
+```
+YYYY_MM-EM-description
+```
+
+For example: `2026_04-EM-trial_nurture_wk1` or `2026_03-EM-q1_newsletter`.
+
+This maps to the **Digital > Email marketing (owned list)** source detail in the attribution framework. When a contact clicks through an email and subsequently books a demo, the ActiveCampaign campaign name is passed to SFDC as the converting-touch via the **Most recent campaign** field.
+
+Newsletter sends are targeted to the **Newsletter** list. All other marketing campaigns target the **Marketing Contacts** list, or a segment within it.
+
+### Opt-in and opt-out
+
+Fleet uses an **opt-in** model for all marketing communications.
+
+- Contacts must explicitly consent before being added to the Marketing Contacts or Newsletter lists. Consent is captured at the point of form submission (newsletter sign-up, content downloads, event registration) or when a contact responds to an SDR or AE outreach.
+- Contacts collected at events (e.g., badge scans) are considered opted-in at the point of scanning and are added to Marketing Contacts with `ls: prospect`.
+- Contacts with Role = ⛄️ Non-prospect are tagged `ls: non-prospect` and excluded from marketing sends even if they are on a marketing list.
+- The **Marketing Email** field is used to give the sales team the ability to signal to Marketing(ActiveCampaign) that they want to STOP marketing from emailing a contact.  The defualt value is **"no restrictions"**, the two optional values are **"Block Nurture Email""** and **"Block All Email"**
+- Unsubscribing removes a contact from the relevant list and halts all active automations tied to it. Unsubscribed contacts should not be re-subscribed without explicit re-consent.
+- Transactional and product emails (e.g., billing notifications, security alerts) are not managed in ActiveCampaign and are not subject to marketing list opt-in requirements.
+
+### Automation
+
+ActiveCampaign automations manage lifecycle progression, nurture enrollment, and sales handoff. The following rules govern all automations.
+
+**Lifecycle updates are always paired.** Any automation that advances a lifecycle stage must simultaneously: (1) add the new `ls:` tag, (2) remove the previous `ls:` tag, and (3) update the **Contact stage** field to match. These three actions happen in a single automation step.
+
+**Marketing defers to sales at SRL.** When a contact reaches `ls: srl`, ActiveCampaign notifies sales and sets `nurture: paused`. All nurture sequences include an exclusion condition for `nurture: paused`. ActiveCampaign does not set `ls: sal` or `ls: sql` — those transitions are driven by SFDC and synced back into ActiveCampaign.
+
+**Sales rejection handling.** If sales declines an SRL (wrong timing, poor fit, incomplete data), the contact is returned to `ls: mql`, `nurture: paused` is removed, and the contact re-enters the appropriate nurture sequence based on their `interest:` tags.
+
+**DRAFT**
+| Trigger | Actions |
+|---|---|
+| Contact added to Marketing Contacts | Add `ls: prospect`, update Contact stage, enroll in welcome sequence |
+| Role syncs as ⛄️ Non-prospect | Add `ls: non-prospect`, remove active `ls:` tag, exit all nurture sequences |
+| Contact meets MQL criteria | Remove `ls: prospect`, add `ls: mql`, update Contact stage, enroll in MQL nurture sequence |
+| Contact meets SRL criteria | Remove `ls: mql`, add `ls: srl`, update Contact stage, add `nurture: paused`, notify SDR |
+| SFDC sync: SAL | Remove `ls: srl`, add `ls: sal`, update Contact stage |
+| SFDC sync: SQL | Remove `ls: sal`, add `ls: sql`, update Contact stage |
+| SFDC sync: Closed Won | Remove `ls: sql`, add `ls: customer`, update Contact stage, add to Customers list |
+| SFDC sync: Churned | Add `ls: churned`, update Contact stage |
+| Demo booked | Add `demo: requested` |
+| Demo completed (SFDC sync) | Add `demo: completed` |
+| No email opens in 90 days | Add `engaged: cold`, trigger re-engagement sequence |
+| 3+ opens or clicks in 30 days | Add `engaged: hot` |
+
+
+
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing ops">

@@ -162,8 +162,8 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/scripts': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
-    // 🫧 Bulk operations dashboard
-    'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
+    // 🫧 Fleet agent downloader app
+    'ee/fleet-agent-downloader': 'eashaw',// (catch-all)
 
     // Handbook
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
@@ -263,8 +263,8 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
-    // 🫧 Bulk operations dashboard
-    'ee/bulk-operations-dashboard': 'eashaw',
+    // 🫧 Fleet agent downloader app
+    'ee/fleet-agent-downloader': 'eashaw',
 
     // FMA and icons
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
