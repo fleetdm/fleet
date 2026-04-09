@@ -55,6 +55,7 @@ jobs:
       - name: Run Windows-specific Go tests
         run: |
           $packages = @(
+            "./orbit/pkg/bitlocker/..."
             "./orbit/pkg/keystore/..."
             "./orbit/pkg/platform/..."
             "./orbit/pkg/table/bitlocker_key_protectors/..."
