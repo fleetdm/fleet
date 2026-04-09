@@ -243,7 +243,7 @@ func TestSyncOSVFaultTolerance(t *testing.T) {
 		return errors.New("mock download failure")
 	}
 
-	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload)
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload, osvFilename)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 

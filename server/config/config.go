@@ -597,6 +597,7 @@ type VulnerabilitiesConfig struct {
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
 	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities" yaml:"osv_for_vulnerabilities"`
+	RHELOSVForVulnerabilities   bool          `json:"rhel_osv_for_vulnerabilities" yaml:"rhel_osv_for_vulnerabilities"`
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
@@ -1885,6 +1886,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
 			OSVForVulnerabilities:       man.getConfigBool("vulnerabilities.osv_for_vulnerabilities"),
+			RHELOSVForVulnerabilities:   man.getConfigBool("vulnerabilities.rhel_osv_for_vulnerabilities"),
 			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
@@ -2340,7 +2342,8 @@ func TestConfig() FleetConfig {
 			MaxInstallerSizeBytes: 513 * units.MiB,
 		},
 		Vulnerabilities: VulnerabilitiesConfig{
-			OSVForVulnerabilities: true,
+			OSVForVulnerabilities:     true,
+			RHELOSVForVulnerabilities: true,
 		},
 	}
 }

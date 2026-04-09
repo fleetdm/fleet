@@ -207,6 +207,11 @@ func scanVulnerabilities(
 		ovalVulns = append(ovalVulns, osvVulns...)
 	}
 
+	if config.RHELOSVForVulnerabilities {
+		rhelOSVVulns := checkRHELOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		ovalVulns = append(ovalVulns, rhelOSVVulns...)
+	}
+
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
@@ -417,14 +422,18 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
-	// If OSV feature flag is enabled, filter out platforms supported by OSV (OVAL will skip them)
+	// If OSV feature flags are enabled, filter out platforms handled by OSV (OVAL will skip them)
 	processVersions := versions
-	if config.OSVForVulnerabilities {
+	if config.OSVForVulnerabilities || config.RHELOSVForVulnerabilities {
 		var nonOSVPlatforms []fleet.OSVersion
 		for _, v := range versions.OSVersions {
-			if !osv.IsPlatformSupported(v.Platform) {
-				nonOSVPlatforms = append(nonOSVPlatforms, v)
+			if config.OSVForVulnerabilities && osv.IsPlatformSupported(v.Platform) {
+				continue
 			}
+			if config.RHELOSVForVulnerabilities && osv.IsRHELOSVSupported(v.Platform) {
+				continue
+			}
+			nonOSVPlatforms = append(nonOSVPlatforms, v)
 		}
 
 		processVersions = &fleet.OSVersions{
@@ -471,6 +480,7 @@ func checkOvalVulnerabilities(
 	analyzeSpan.End()
 
 	cleanupStaleOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
+	cleanupStaleRHELOSVVulnerabilities(ctx, ds, logger, config.RHELOSVForVulnerabilities)
 
 	return results
 }
@@ -567,6 +577,89 @@ func cleanupStaleOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, lo
 	}
 }
 
+func checkRHELOSVVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_rhel_osv")
+	defer span.End()
+
+	var results []fleet.SoftwareVulnerability
+
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for RHEL OSV", err)
+		return nil
+	}
+
+	var now time.Time
+	if !config.DisableDataSync {
+		now = time.Now()
+	}
+
+	if !config.DisableDataSync {
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.rhel_osv.refresh")
+		downloaded, err := osv.RefreshRHEL(refreshCtx, versions, vulnPath, now)
+		if err != nil {
+			errHandler(refreshCtx, logger, "updating RHEL OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(refreshCtx, "", "rhel-osv-sync-downloaded", d)
+		}
+		refreshSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.rhel_osv.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := osv.AnalyzeRHEL(analyzeCtx, ds, version, vulnPath, collectVulns, logger, now)
+		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
+			logger.DebugContext(analyzeCtx, "rhel-osv-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "rhel-osv-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger, "analyzing RHEL OSV artifacts", err)
+		}
+	}
+	analyzeSpan.End()
+
+	cleanupStaleRHELOVALVulnerabilities(ctx, ds, logger)
+
+	return results
+}
+
+// cleanupStaleRHELOSVVulnerabilities removes RHEL OSV vulnerabilities when the flag is disabled.
+func cleanupStaleRHELOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, rhelOSVEnabled bool) {
+	if rhelOSVEnabled {
+		return
+	}
+
+	logger.DebugContext(ctx, "cleaning up RHEL OSV vulnerabilities because RHEL OSV is disabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.RHELOSVSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up RHEL OSV vulnerabilities", err)
+	}
+}
+
+// cleanupStaleRHELOVALVulnerabilities removes RHEL OVAL vulnerabilities when RHEL OSV is enabled.
+func cleanupStaleRHELOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	logger.DebugContext(ctx, "cleaning up RHEL OVAL vulnerabilities because RHEL OSV is enabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.RHELOVALSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up RHEL OVAL vulnerabilities", err)
+	}
+}
+
 func checkGovalDictionaryVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -604,6 +697,10 @@ func checkGovalDictionaryVulnerabilities(
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.goval_dictionary.analyze",
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
+		// Skip RHEL platforms when RHEL OSV is enabled (OSV handles both kernel and non-kernel)
+		if config.RHELOSVForVulnerabilities && osv.IsRHELOSVSupported(version.Platform) {
+			continue
+		}
 		start := time.Now()
 		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
