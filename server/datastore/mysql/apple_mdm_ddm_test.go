@@ -21,6 +21,7 @@ func TestMDMDDMApple(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestMDMAppleBatchSetHostDeclarationState", testMDMAppleBatchSetHostDeclarationState},
+		{"StoreDDMStatusReportSkipsRemoveRows", testStoreDDMStatusReportSkipsRemoveRows},
 	}
 
 	for _, c := range cases {
@@ -275,4 +276,98 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 			}
 		}
 	})
+}
+
+func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a test host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host-ddm-status",
+		UUID:            "test-host-uuid-ddm-status",
+		HardwareSerial:  "ABC123-DDM-STATUS",
+		PrimaryIP:       "192.168.1.50",
+		PrimaryMac:      "00:00:00:00:00:50",
+		OsqueryHostID:   ptr.String("test-host-uuid-ddm-status"),
+		NodeKey:         ptr.String("test-host-uuid-ddm-status"),
+		DetailUpdatedAt: time.Now(),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	setupMDMDeviceAndEnrollment(t, ds, ctx, host.UUID, host.HardwareSerial)
+
+	// Insert two rows into host_mdm_apple_declarations:
+	// Row A: a remove-operation row (simulating a declaration pending removal)
+	// Row B: a normal install-operation row
+	insertHostDeclaration(t, ds, ctx, host.UUID, "decl-remove", "shared-token", "pending", "remove", "com.example.remove")
+	insertHostDeclaration(t, ds, ctx, host.UUID, "decl-install", "install-token", "pending", "install", "com.example.install")
+
+	// Query back the HEX tokens from the DB (MDMAppleStoreDDMStatusReport reads tokens as HEX)
+	type tokenRow struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		Token           string `db:"token"`
+	}
+	var tokens []tokenRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &tokens, `
+			SELECT declaration_uuid, HEX(token) as token
+			FROM host_mdm_apple_declarations
+			WHERE host_uuid = ?
+			ORDER BY declaration_uuid`, host.UUID)
+	})
+	require.Len(t, tokens, 2)
+
+	tokenByDecl := make(map[string]string, 2)
+	for _, tok := range tokens {
+		tokenByDecl[tok.DeclarationUUID] = tok.Token
+	}
+	tokenA := tokenByDecl["decl-remove"]
+	tokenB := tokenByDecl["decl-install"]
+	require.NotEmpty(t, tokenA)
+	require.NotEmpty(t, tokenB)
+
+	// Build the updates slice as if the device is reporting status.
+	// The device always reports operation_type='install' for all declarations.
+	updates := []*fleet.MDMAppleHostDeclaration{
+		{
+			Token:         tokenA,
+			Status:        new(fleet.MDMDeliveryStatus),
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+		{
+			Token:         tokenB,
+			Status:        new(fleet.MDMDeliveryStatus),
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+	}
+	*updates[0].Status = fleet.MDMDeliveryVerified
+	*updates[1].Status = fleet.MDMDeliveryVerified
+
+	// Call the method under test
+	err = ds.MDMAppleStoreDDMStatusReport(ctx, host.UUID, updates)
+	require.NoError(t, err)
+
+	// Assert the end state.
+	type resultRow struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		Token           string `db:"token"`
+		Status          string `db:"status"`
+		OperationType   string `db:"operation_type"`
+	}
+	var remaining []resultRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining, `
+			SELECT declaration_uuid, HEX(token) as token, status, operation_type
+			FROM host_mdm_apple_declarations
+			WHERE host_uuid = ?
+			ORDER BY declaration_uuid`, host.UUID)
+	})
+
+	// With the fix: only the install row should remain (remove row was skipped then deleted)
+	// With the bug: both rows remain, and the remove row was flipped to install/verified
+	require.Len(t, remaining, 1, "expected remove row to not survive as install/verified — this is the token collision bug")
+	assert.Equal(t, "decl-install", remaining[0].DeclarationUUID)
+	assert.Equal(t, "install", remaining[0].OperationType)
+	assert.Equal(t, "verified", remaining[0].Status)
 }
