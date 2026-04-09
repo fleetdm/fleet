@@ -144,7 +144,9 @@ const PolicyPage = ({
     };
   }, []);
 
-  const [step, setStep] = useState(LIVE_POLICY_STEPS[1]);
+  const [step, setStep] = useState(
+    location.hash === "#targets" ? LIVE_POLICY_STEPS[2] : LIVE_POLICY_STEPS[1]
+  );
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
   const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);

@@ -42,7 +42,7 @@ const generateInstallerPoliciesTableConfig = ({
           value={cellProps.cell.value}
           tooltipTruncate
           path={getPathWithQueryParams(
-            PATHS.EDIT_POLICY(cellProps.row.original.id),
+            PATHS.POLICY_DETAILS(cellProps.row.original.id),
             {
               fleet_id: teamId,
             }
