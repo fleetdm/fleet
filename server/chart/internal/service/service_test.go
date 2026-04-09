@@ -165,47 +165,48 @@ func TestGetChartDataWithHostFilters(t *testing.T) {
 }
 
 func TestFillZeroValues(t *testing.T) {
-	start := time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2026, 4, 7, 5, 0, 0, 0, time.UTC)
-
 	t.Run("hourly", func(t *testing.T) {
+		// 5 hours apart → 5 buckets ending at hour 5
+		start := time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2026, 4, 7, 5, 0, 0, 0, time.UTC)
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 2, 0, 0, 0, time.UTC), Value: 42},
 		}
 		result := fillZeroValues(data, start, end, 0)
-		// Hours 0-5 = 6 data points
-		assert.Len(t, result, 6)
-		assert.Equal(t, 0, result[0].Value)
-		assert.Equal(t, 0, result[1].Value)
-		assert.Equal(t, 42, result[2].Value)
-		assert.Equal(t, 0, result[3].Value)
+		// 5 hours → 5 data points: hours 1,2,3,4,5
+		assert.Len(t, result, 5)
+		assert.Equal(t, 42, result[1].Value)
 	})
 
 	t.Run("downsample 2", func(t *testing.T) {
+		start := time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2026, 4, 7, 6, 0, 0, 0, time.UTC)
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 2, 0, 0, 0, time.UTC), Value: 42},
 		}
 		result := fillZeroValues(data, start, end, 2)
-		// Hours 0,2,4 = 3 data points
+		// 6 hours / 2 = 3 buckets ending at 6: hours 2, 4, 6
 		assert.Len(t, result, 3)
-		assert.Equal(t, 0, result[0].Value)  // hour 0
-		assert.Equal(t, 42, result[1].Value) // hour 2
-		assert.Equal(t, 0, result[2].Value)  // hour 4
+		assert.Equal(t, 42, result[0].Value) // hour 2
+		assert.Equal(t, 0, result[1].Value)  // hour 4
+		assert.Equal(t, 0, result[2].Value)  // hour 6
 	})
 
 	t.Run("downsample 4", func(t *testing.T) {
+		start := time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2026, 4, 7, 8, 0, 0, 0, time.UTC)
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 4, 0, 0, 0, time.UTC), Value: 10},
 		}
 		result := fillZeroValues(data, start, end, 4)
-		// Hours 0,4 = 2 data points
+		// 8 hours / 4 = 2 buckets ending at 8: hours 4, 8
 		assert.Len(t, result, 2)
-		assert.Equal(t, 0, result[0].Value)  // hour 0
-		assert.Equal(t, 10, result[1].Value) // hour 4
+		assert.Equal(t, 10, result[0].Value) // hour 4
+		assert.Equal(t, 0, result[1].Value)  // hour 8
 	})
 
-	t.Run("24h starts at start hour not midnight", func(t *testing.T) {
-		// Simulates days=1: startDate is yesterday at 16:00, endDate is today at 16:00
+	t.Run("24h gives exactly 24 points", func(t *testing.T) {
+		// Simulates days=1: 24 hours apart, should give exactly 24 data points
 		s := time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC)
 		e := time.Date(2026, 4, 8, 16, 0, 0, 0, time.UTC)
 		data := []chart.DataPoint{
@@ -213,46 +214,44 @@ func TestFillZeroValues(t *testing.T) {
 			{Timestamp: time.Date(2026, 4, 8, 10, 0, 0, 0, time.UTC), Value: 75},
 		}
 		result := fillZeroValues(data, s, e, 0)
-		// 16:00 yesterday through 16:00 today = 25 data points
-		assert.Len(t, result, 25)
-		assert.Equal(t, time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC), result[0].Timestamp)
-		assert.Equal(t, 0, result[0].Value)
-		assert.Equal(t, 50, result[2].Value)  // hour 18
-		assert.Equal(t, 75, result[18].Value) // hour 10 next day
-		assert.Equal(t, time.Date(2026, 4, 8, 16, 0, 0, 0, time.UTC), result[24].Timestamp)
+		require.Len(t, result, 24)
+		// First point: hour 17 yesterday (end - 23h)
+		assert.Equal(t, time.Date(2026, 4, 7, 17, 0, 0, 0, time.UTC), result[0].Timestamp)
+		// Last point: hour 16 today (the current hour)
+		assert.Equal(t, time.Date(2026, 4, 8, 16, 0, 0, 0, time.UTC), result[23].Timestamp)
+		// Check values at known timestamps
+		assert.Equal(t, 50, result[1].Value)  // hour 18 yesterday
+		assert.Equal(t, 75, result[17].Value) // hour 10 today
 	})
 
-	t.Run("downsample aligns start hour to step", func(t *testing.T) {
-		// Start hour 17 with downsample=2 should align down to 16
-		s := time.Date(2026, 4, 7, 17, 0, 0, 0, time.UTC)
-		e := time.Date(2026, 4, 7, 22, 0, 0, 0, time.UTC)
+	t.Run("downsample aligns end hour to step", func(t *testing.T) {
+		// End hour 17 with downsample=2 → end aligns to 16
+		s := time.Date(2026, 4, 7, 11, 0, 0, 0, time.UTC)
+		e := time.Date(2026, 4, 7, 17, 0, 0, 0, time.UTC)
 		data := []chart.DataPoint{
-			{Timestamp: time.Date(2026, 4, 7, 18, 0, 0, 0, time.UTC), Value: 30},
-			{Timestamp: time.Date(2026, 4, 7, 20, 0, 0, 0, time.UTC), Value: 40},
+			{Timestamp: time.Date(2026, 4, 7, 14, 0, 0, 0, time.UTC), Value: 30},
 		}
 		result := fillZeroValues(data, s, e, 2)
-		// Aligned start=16, so: 16, 18, 20, 22 = 4 data points
-		require.Len(t, result, 4)
-		assert.Equal(t, time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC), result[0].Timestamp)
-		assert.Equal(t, 0, result[0].Value)
-		assert.Equal(t, 30, result[1].Value) // hour 18
-		assert.Equal(t, 40, result[2].Value) // hour 20
-		assert.Equal(t, 0, result[3].Value)  // hour 22
+		// 6 hours / 2 = 3 buckets ending at aligned hour 16: 12, 14, 16
+		require.Len(t, result, 3)
+		assert.Equal(t, time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC), result[0].Timestamp)
+		assert.Equal(t, 30, result[1].Value) // hour 14
+		assert.Equal(t, time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC), result[2].Timestamp)
 	})
 
-	t.Run("downsample 4 aligns start hour", func(t *testing.T) {
-		// Start hour 5 with downsample=4 should align down to 4
-		s := time.Date(2026, 4, 7, 5, 0, 0, 0, time.UTC)
+	t.Run("downsample 4 aligns end hour", func(t *testing.T) {
+		// 14 hours apart, end hour 15 aligns to 12, 14/4=3 buckets
+		s := time.Date(2026, 4, 7, 1, 0, 0, 0, time.UTC)
 		e := time.Date(2026, 4, 7, 15, 0, 0, 0, time.UTC)
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 8, 0, 0, 0, time.UTC), Value: 55},
 		}
 		result := fillZeroValues(data, s, e, 4)
-		// Aligned start=4, so: 4, 8, 12 = 3 data points
+		// End aligns to 12, 14 hours / 4 = 3 buckets: 4, 8, 12
 		require.Len(t, result, 3)
 		assert.Equal(t, time.Date(2026, 4, 7, 4, 0, 0, 0, time.UTC), result[0].Timestamp)
 		assert.Equal(t, 55, result[1].Value) // hour 8
-		assert.Equal(t, 0, result[2].Value)  // hour 12
+		assert.Equal(t, time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC), result[2].Timestamp)
 	})
 }
 
