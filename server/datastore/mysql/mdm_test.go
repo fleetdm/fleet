@@ -9486,6 +9486,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
 		Command: *decodedCmd3,
+		Subtype: mdm.CommandSubtypeNone,
 		Name:    name255,
 	})
 	require.NoError(t, err)
@@ -9506,6 +9507,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
 		Command: *decodedCmd4,
+		Subtype: mdm.CommandSubtypeNone,
 		Name:    name300,
 	})
 	require.NoError(t, err)
@@ -9528,6 +9530,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
 		Command: *decodedCmd5,
+		Subtype: mdm.CommandSubtypeNone,
 		Name:    nameMultibyte,
 	})
 	require.NoError(t, err)
