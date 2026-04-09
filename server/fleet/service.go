@@ -1387,10 +1387,6 @@ type Service interface {
 	// step. It returns true when there is nothing left to do (setup finished)
 	SetupExperienceNextStep(ctx context.Context, host *Host) (bool, error)
 
-	// UpdateManagedLocalAccount updates the team or global configuration to set the
-	// enable_managed_local_account flag, and creates an activity.
-	UpdateManagedLocalAccount(ctx context.Context, teamID *uint, enabled bool) (bool, error)
-
 	// SetupExperienceInit initializes the "Setup experience" for a device (by queueing items like software installation, etc.).
 	// This is used for the "Setup experience" on non-darwin devices.
 	SetupExperienceInit(ctx context.Context) (*SetupExperienceInitResult, error)

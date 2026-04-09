@@ -23264,10 +23264,8 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	team := createTeamResp.Team
 
 	// Enable managed local account on the team
-	var updateResp updateManagedLocalAccountResponse
-	s.DoJSON("POST", "/api/latest/fleet/managed_local_account",
-		updateManagedLocalAccountRequest{TeamID: &team.ID, EnableManagedLocalAccount: true},
-		http.StatusOK, &updateResp)
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
 
@@ -23375,9 +23373,8 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 
 		// Disable managed local account
-		s.DoJSON("POST", "/api/latest/fleet/managed_local_account",
-			updateManagedLocalAccountRequest{TeamID: &team.ID, EnableManagedLocalAccount: false},
-			http.StatusOK, &updateResp)
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(false)}, http.StatusNoContent)
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
 			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
 
@@ -23407,10 +23404,8 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 	t.Run("Failed enrollment", func(t *testing.T) {
 		// Re-enable managed local account on the team
-		var updateResp updateManagedLocalAccountResponse
-		s.DoJSON("POST", "/api/latest/fleet/managed_local_account",
-			updateManagedLocalAccountRequest{TeamID: &team.ID, EnableManagedLocalAccount: true},
-			http.StatusOK, &updateResp)
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
 
 		// DEP-enroll a third host
 		s.runDEPSchedule()

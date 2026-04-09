@@ -854,8 +854,6 @@ type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) err
 
 type SetupExperienceNextStepFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
-type UpdateManagedLocalAccountFunc func(ctx context.Context, teamID *uint, enabled bool) (bool, error)
-
 type SetupExperienceInitFunc func(ctx context.Context) (*fleet.SetupExperienceInitResult, error)
 
 type GetDeviceSetupExperienceStatusFunc func(ctx context.Context) (*fleet.DeviceSetupExperienceStatusPayload, error)
@@ -2163,9 +2161,6 @@ type Service struct {
 
 	SetupExperienceNextStepFunc        SetupExperienceNextStepFunc
 	SetupExperienceNextStepFuncInvoked bool
-
-	UpdateManagedLocalAccountFunc        UpdateManagedLocalAccountFunc
-	UpdateManagedLocalAccountFuncInvoked bool
 
 	SetupExperienceInitFunc        SetupExperienceInitFunc
 	SetupExperienceInitFuncInvoked bool
@@ -5171,13 +5166,6 @@ func (s *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Host)
 	s.SetupExperienceNextStepFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetupExperienceNextStepFunc(ctx, host)
-}
-
-func (s *Service) UpdateManagedLocalAccount(ctx context.Context, teamID *uint, enabled bool) (bool, error) {
-	s.mu.Lock()
-	s.UpdateManagedLocalAccountFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateManagedLocalAccountFunc(ctx, teamID, enabled)
 }
 
 func (s *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperienceInitResult, error) {
