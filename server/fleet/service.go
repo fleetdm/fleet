@@ -1387,7 +1387,6 @@ type Service interface {
 	// step. It returns true when there is nothing left to do (setup finished)
 	SetupExperienceNextStep(ctx context.Context, host *Host) (bool, error)
 
-	// TODO(JK): comment
 	// UpdateManagedLocalAccount updates the team or global configuration to set the
 	// enable_managed_local_account flag, and creates an activity.
 	UpdateManagedLocalAccount(ctx context.Context, teamID *uint, enabled bool) (bool, error)

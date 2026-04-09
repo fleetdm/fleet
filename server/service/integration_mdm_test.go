@@ -23257,55 +23257,55 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	abmOrgName := t.Name()
 	s.enableABM(abmOrgName)
 
+	// Create a team used by enrollment subtests
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+	team := createTeamResp.Team
+
+	// Enable managed local account on the team
+	var updateResp updateManagedLocalAccountResponse
+	s.DoJSON("POST", "/api/latest/fleet/managed_local_account",
+		updateManagedLocalAccountRequest{TeamID: &team.ID, EnableManagedLocalAccount: true},
+		http.StatusOK, &updateResp)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
+
+	// Assign ABM org to the team
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_business_manager": [{
+				"organization_name": %q,
+				"macos_team": %q,
+				"ios_team": "",
+				"ipados_team": ""
+			}]
+		}
+	}`, abmOrgName, team.Name)), http.StatusOK, &acResp)
+
+	// Mock DEP response with devices
+	serials := []string{"MANAGED_ACCT_1", "MANAGED_ACCT_2", "MANAGED_ACCT_3"}
+	syncCount := 0
+	s.mockDEPResponse(abmOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			_, _ = w.Write([]byte(`{"profile_uuid": "abc"}`))
+		case "/devices/sync":
+			var devices []godep.Device
+			for i := 0; i <= syncCount && i < len(serials); i++ {
+				devices = append(devices, godep.Device{SerialNumber: serials[i]})
+			}
+			syncCount++
+			_ = json.NewEncoder(w).Encode(godep.DeviceResponse{Devices: devices})
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
 	t.Run("Enrollment flow", func(t *testing.T) {
-		// Create a team and enable managed local account
-		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
-		team := createTeamResp.Team
-
-		var updateResp updateManagedLocalAccountResponse
-		s.DoJSON("POST", "/api/latest/fleet/managed_local_account",
-			updateManagedLocalAccountRequest{TeamID: &team.ID, EnableManagedLocalAccount: true},
-			http.StatusOK, &updateResp)
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
-			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
-
-		// Assign ABM org to the team
-		var acResp appConfigResponse
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-			"mdm": {
-				"apple_business_manager": [{
-					"organization_name": %q,
-					"macos_team": %q,
-					"ios_team": "",
-					"ipados_team": ""
-				}]
-			}
-		}`, abmOrgName, team.Name)), http.StatusOK, &acResp)
-
-		// Mock DEP response with devices
-		serials := []string{"MANAGED_ACCT_1", "MANAGED_ACCT_2"}
-		syncCount := 0
-		s.mockDEPResponse(abmOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			switch r.URL.Path {
-			case "/session":
-				_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
-			case "/profile":
-				_, _ = w.Write([]byte(`{"profile_uuid": "abc"}`))
-			case "/devices/sync":
-				var devices []godep.Device
-				if syncCount == 0 {
-					devices = []godep.Device{{SerialNumber: serials[0]}}
-				} else {
-					devices = []godep.Device{{SerialNumber: serials[0]}, {SerialNumber: serials[1]}}
-				}
-				syncCount++
-				_ = json.NewEncoder(w).Encode(godep.DeviceResponse{Devices: devices})
-			default:
-				_, _ = w.Write([]byte(`{}`))
-			}
-		}))
 
 		// DEP-enroll the first host and run the post-enrollment worker
 		s.runDEPSchedule()
@@ -23387,6 +23387,46 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.NoError(t, err)
 		var pwdResp2 getHostManagedAccountPasswordResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host2.ID), nil, http.StatusBadRequest, &pwdResp2)
+	})
+
+	t.Run("Failed enrollment", func(t *testing.T) {
+		// Re-enable managed local account on the team
+		var updateResp updateManagedLocalAccountResponse
+		s.DoJSON("POST", "/api/latest/fleet/managed_local_account",
+			updateManagedLocalAccountRequest{TeamID: &team.ID, EnableManagedLocalAccount: true},
+			http.StatusOK, &updateResp)
+
+		// DEP-enroll a third host
+		s.runDEPSchedule()
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice3 := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serials[2], "MacBookPro16,1")
+		require.NoError(t, mdmDevice3.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		// Device sends error response to AccountConfiguration command
+		cmd, err := mdmDevice3.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.AccountConfigurationCmdName {
+				cmd, err = mdmDevice3.Err(cmd.CommandUUID, []mdm.ErrorChain{
+					// TODO(JK): Not sure if this error is correct, need to test failure on a real device
+					{ErrorCode: 12064, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Failed to create the admin account.", USEnglishDescription: "Failed to create the admin account."},
+				})
+			} else {
+				cmd, err = mdmDevice3.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+
+		// Verify status is "failed"
+		var status *string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice3.UUID)
+		})
+		require.NotNil(t, status)
+		require.Equal(t, string(fleet.MDMDeliveryFailed), *status)
 	})
 
 	t.Run("Setup experience global config", func(t *testing.T) {
