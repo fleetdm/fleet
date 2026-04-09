@@ -30,7 +30,7 @@ interface ICellProps {
   };
 }
 
-interface ITextCellProps extends ICellProps {
+interface ITextCellProps {
   cell: {
     value: string | number;
   };
@@ -40,7 +40,9 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ITextCellProps) => JSX.Element;
+  Cell:
+    | ((props: ITextCellProps) => JSX.Element)
+    | ((props: ICellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
