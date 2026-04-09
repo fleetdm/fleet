@@ -66,7 +66,7 @@ For example:
 
 It can be helpful to quickly populate the UI with simulated hosts when developing or testing features that require host information.
 
-Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for starting up simulated hosts in your development environment.
+Check out the [instructions](https://github.com/fleetdm/fleet/tree/main/tools/osquery#usage) for starting up simulated hosts in your development environment.
 
 ## Test suite
 

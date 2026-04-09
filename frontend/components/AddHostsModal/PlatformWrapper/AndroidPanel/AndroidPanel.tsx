@@ -6,7 +6,6 @@ import { AppContext } from "context/app";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 type EnrollmentType = "workProfile" | "fullyManaged";

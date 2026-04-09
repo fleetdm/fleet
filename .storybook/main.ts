@@ -7,6 +7,19 @@ import type { StorybookConfig } from "@storybook/react-webpack5";
 
 const config: StorybookConfig = {
   webpackFinal: async (config) => {
+    if (!config.resolve) {
+      config.resolve = {};
+    }
+    if (!config.resolve.alias) {
+      config.resolve.alias = {};
+    }
+    (config.resolve.alias as Record<string, string>)[
+      "node-sql-parser"
+    ] = path.resolve(
+      __dirname,
+      "../node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js"
+    );
+
     config.module?.rules?.push({
       test: /\.scss$/,
       use: [

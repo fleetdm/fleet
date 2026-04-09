@@ -6,20 +6,37 @@
     margin: 0;
   }
 
-  &__title-bar {
+  &__page-header {
     display: flex;
-    justify-content: space-between;
-    gap: 1.5rem;
+    flex-direction: column;
+    gap: $pad-small;
   }
+
+  &__page-title {
+    font-size: $large;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__page-subtitle {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    margin: 0;
+  }
+
+  &__query-name-fleet-name {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
   .form-field {
     margin-bottom: 0px;
   }
 
-  .input-field,
-  .input-field__text-area {
-    min-height: auto;
-    line-height: normal;
-    white-space: normal;
+  .input-field__textarea {
+    min-width: 100%;
+    resize: vertical;
   }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
@@ -33,57 +50,6 @@
     scrollbar-width: none; /* Firefox */
   }
 
-  &__query-name-wrapper,
-  &__query-description-wrapper {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    width: fit-content;
-    &:not(.edit-query-form--editing) {
-      &:hover {
-        cursor: pointer;
-        * {
-          color: $core-fleet-green;
-          cursor: pointer;
-        }
-      }
-    }
-    &--disabled-by-gitops-mode {
-      @include disabled;
-    }
-  }
-
-  &__edit-icon {
-    opacity: 1;
-    transition: opacity 0.2s;
-    margin-left: 0;
-    /** Designed to be aligned with first line of text, not center of multiple
-    lines of text, without this, the icon will vertically center on multiline */
-    align-self: initial;
-    height: 42px; // 24px font-size * 1.75 line height
-    align-items: center; // Centers the icon in the height area
-
-    &--hide {
-      opacity: 0;
-    }
-  }
-
-  &__query-name-wrapper {
-    .no-value {
-      min-width: 168px;
-    }
-  }
-
-  &__query-description-wrapper {
-    .no-value {
-      min-width: 144px;
-    }
-
-    .edit-query-form__edit-icon {
-      height: 21px; // 14px font-size * 1.5 line height
-    }
-  }
-
   // Author section
   &__author {
     align-items: flex-end;
@@ -94,49 +60,6 @@
       align-items: center;
       gap: $pad-small;
     }
-  }
-
-  &__query-name,
-  &__query-description {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    resize: none;
-    white-space: normal;
-    background-color: transparent;
-    overflow: hidden;
-    &.focus-visible {
-      outline: 0;
-    }
-  }
-
-  // Future iteration: move size="large" into AutoSizeInputField isntead of styling here
-  &__query-name-wrapper {
-    color: $core-fleet-black;
-    font-size: $large;
-    line-height: $line-height-large;
-
-    .no-value {
-      min-width: 168px;
-    }
-    .edit-query-form__query-name,
-    .input-sizer::after {
-      font-size: $large;
-      line-height: $line-height-large;
-    }
-    .component__auto-size-input-field {
-      font-size: $large;
-      line-height: $line-height-large;
-    }
-
-    &.input-field--error {
-      border: 1px solid $core-vibrant-red;
-    }
-  }
-
-  &__query-description {
-    color: $ui-fleet-black-75;
   }
 
   &__button-wrap {
