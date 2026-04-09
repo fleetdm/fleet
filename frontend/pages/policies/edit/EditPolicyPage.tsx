@@ -11,10 +11,7 @@ import {
   IPolicy,
   IStoredPolicyResponse,
 } from "interfaces/policy";
-import {
-  API_ALL_TEAMS_ID,
-  APP_CONTEXT_ALL_TEAMS_ID,
-} from "interfaces/team";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
