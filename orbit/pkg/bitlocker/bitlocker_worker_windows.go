@@ -26,10 +26,20 @@ type comWorkResult struct {
 // COMWorker runs all BitLocker COM/WMI operations on a single dedicated OS
 // thread. This prevents deadlocks with other COM callers (MDM Bridge, Windows
 // Update) that share the global comshim singleton.
+//
+// Shutdown uses two channels to avoid a race between Close and exec:
+//   - stop: closed by Close() to tell the loop goroutine to exit.
+//   - done: closed by the loop goroutine after it has exited and cleaned up COM.
+//
+// Using a separate stop channel (instead of closing workCh) is necessary because
+// exec() sends on workCh. Closing a channel that another goroutine may send on
+// causes a panic. With this design, workCh is never closed -- it is garbage
+// collected along with the COMWorker once all references are dropped. When
+// exec() races with Close(), it sees <-w.done and returns ErrWorkerClosed.
 type COMWorker struct {
 	workCh    chan comWorkItem
-	stop      chan struct{} // closed by Close to signal the loop to exit
-	done      chan struct{} // closed by loop when it has finished
+	stop      chan struct{}
+	done      chan struct{}
 	closeOnce sync.Once
 }
 

@@ -1,14 +1,13 @@
 //go:build windows
-// +build windows
 
 package cisaudit
 
 import (
-	"runtime"
 	"testing"
 
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -19,8 +18,8 @@ func TestGenerateItemNotPresent(t *testing.T) {
 		Constraints: make(map[string]table.ConstraintList),
 	}
 	result, err := Generate(ctx, queryContext)
-	assert.Nil(t, err)
-	assert.Equal(t, len(result), 1)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
 	assert.Empty(t, result[0]["item"])
 	assert.Empty(t, result[0]["value"])
 }
@@ -41,9 +40,9 @@ func TestGenerateItemConstrainIsPresentAndResponseMaintainsValue(t *testing.T) {
 		},
 	}
 	result, err := Generate(ctx, queryContext)
-	assert.Nil(t, err)
-	assert.Equal(t, len(result), 1)
-	assert.Equal(t, result[0]["item"], "value")
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "value", result[0]["item"])
 }
 
 func TestGenerateItemInvalidInput(t *testing.T) {
@@ -62,11 +61,13 @@ func TestGenerateItemInvalidInput(t *testing.T) {
 		},
 	}
 	result, err := Generate(ctx, queryContext)
-	assert.Nil(t, err)
-	assert.Equal(t, len(result), 1)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
 	assert.Empty(t, result[0]["value"])
 }
 
+// TestGenerateItemValid queries a real CIS audit item via secedit.
+// The CI runner (windows-latest) runs elevated so secedit succeeds.
 func TestGenerateItemValid(t *testing.T) {
 	ctx := context.Background()
 
@@ -83,18 +84,8 @@ func TestGenerateItemValid(t *testing.T) {
 		},
 	}
 	result, err := Generate(ctx, queryContext)
-
-	if runtime.GOOS == "windows" {
-		// secedit requires elevation; the call may succeed (admin) or fail (non-admin).
-		if err != nil {
-			t.Logf("Generate returned error (expected when not running elevated): %v", err)
-			return
-		}
-		// When running elevated the result should contain the queried item.
-		t.Logf("Generate succeeded (running elevated), result: %v", result)
-		assert.Len(t, result, 1)
-		assert.Equal(t, "1.2.1", result[0]["item"])
-	} else {
-		assert.Nil(t, err)
-	}
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "1.2.1", result[0]["item"])
+	assert.NotEmpty(t, result[0]["value"])
 }
