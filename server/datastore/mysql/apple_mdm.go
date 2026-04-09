@@ -5979,7 +5979,26 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 // the same host, token, and identifier in a verified or verifying state. This
 // means the declaration content is already on the device — the remove is stale.
 func cleanUpOrphanedPendingRemoves(ctx context.Context, tx sqlx.ExtContext) error {
-	_, err := tx.ExecContext(ctx, `
+	var found bool
+	err := sqlx.GetContext(ctx, tx, &found, `
+		SELECT EXISTS (
+			SELECT 1 FROM host_mdm_apple_declarations r
+			INNER JOIN host_mdm_apple_declarations i
+				ON r.host_uuid = i.host_uuid
+				AND r.token = i.token
+				AND r.declaration_identifier = i.declaration_identifier
+			WHERE r.operation_type = 'remove' AND r.status = 'pending'
+				AND i.operation_type = 'install'
+				AND i.status IN ('verified', 'verifying')
+			LIMIT 1)`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for orphaned remove/pending rows")
+	}
+	if !found {
+		return nil
+	}
+
+	_, err = tx.ExecContext(ctx, `
 		DELETE r FROM host_mdm_apple_declarations r
 		INNER JOIN host_mdm_apple_declarations i
 			ON r.host_uuid = i.host_uuid
