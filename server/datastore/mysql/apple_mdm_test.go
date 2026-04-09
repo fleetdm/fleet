@@ -10195,6 +10195,14 @@ func testBatchSetMDMAppleDeclarationsCaseChange(t *testing.T, ds *Datastore) {
 			assertHostProfileOpStatus(t, ds, host2.UUID,
 				hostProfileOpStatus{origUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
 		})
+
+		// Sub-test 4: host profile has updated name for the declaration.
+		t.Run("host profile reflects name change", func(t *testing.T) {
+			profs, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+			require.NoError(t, err)
+			require.Len(t, profs, 1)
+			require.Equal(t, "software update settings", profs[0].Name, "host profile should reflect declaration name change")
+		})
 	}
 
 	t.Run("No team", func(t *testing.T) {
