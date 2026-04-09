@@ -1,7 +1,6 @@
 package maintained_apps
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -40,7 +39,7 @@ func TestFetchAppsListPrimarySuccess(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	apps, err := FetchAppsList(context.Background())
+	apps, err := FetchAppsList(t.Context())
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 	assert.Equal(t, "test-app", apps.Apps[0].Slug)
@@ -65,7 +64,7 @@ func TestFetchAppsListFallbackOnPrimaryFailure(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	apps, err := FetchAppsList(context.Background())
+	apps, err := FetchAppsList(t.Context())
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 	assert.Equal(t, "test-app", apps.Apps[0].Slug)
@@ -87,7 +86,7 @@ func TestFetchAppsListFallbackOnPrimary404(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	apps, err := FetchAppsList(context.Background())
+	apps, err := FetchAppsList(t.Context())
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 }
@@ -108,7 +107,7 @@ func TestFetchAppsListBothFail(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	_, err := FetchAppsList(context.Background())
+	_, err := FetchAppsList(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "primary")
 	assert.Contains(t, err.Error(), "fallback")
@@ -128,7 +127,7 @@ func TestFetchAppsListFallbackOnPrimaryNetworkError(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	apps, err := FetchAppsList(context.Background())
+	apps, err := FetchAppsList(t.Context())
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 }
@@ -148,7 +147,7 @@ func TestFetchAppsListOnlyFallbackFails(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	apps, err := FetchAppsList(context.Background())
+	apps, err := FetchAppsList(t.Context())
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 }
@@ -173,7 +172,7 @@ func TestFetchManifestDataFallbackUsedForSlugPath(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	body, err := fetchManifestFile(context.Background(), "/test-app.json")
+	body, err := fetchManifestFile(t.Context(), "/test-app.json")
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"test"`)
 	assert.Equal(t, int32(1), primaryHits.Load(), "primary should have been tried once")
@@ -196,7 +195,7 @@ func TestFetchManifestDataPrimarySucceedsSkipsFallback(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	body, err := fetchManifestFile(context.Background(), "/something.json")
+	body, err := fetchManifestFile(t.Context(), "/something.json")
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"ok"`)
 	assert.Equal(t, int32(0), fallbackHits.Load(), "fallback must not be contacted when primary succeeds")
@@ -227,7 +226,7 @@ func TestDoFetchSuccess(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	body, err := doFetch(context.Background(), srv.URL, "/test.json")
+	body, err := doFetch(t.Context(), srv.URL, "/test.json")
 	require.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
 }
@@ -238,7 +237,7 @@ func TestDoFetchNotFound(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	_, err := doFetch(context.Background(), srv.URL, "/missing.json")
+	_, err := doFetch(t.Context(), srv.URL, "/missing.json")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "404")
 }
@@ -250,7 +249,7 @@ func TestDoFetchServerError(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	_, err := doFetch(context.Background(), srv.URL, "/broken.json")
+	_, err := doFetch(t.Context(), srv.URL, "/broken.json")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "502")
 }
@@ -259,7 +258,7 @@ func TestDoFetchNetworkError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	srv.Close() // immediately close to force connection errors
 
-	_, err := doFetch(context.Background(), srv.URL, "/anything.json")
+	_, err := doFetch(t.Context(), srv.URL, "/anything.json")
 	require.Error(t, err)
 }
 
@@ -275,7 +274,7 @@ func TestDoFetchTruncatesLargeBodyInErrorMessage(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	_, err := doFetch(context.Background(), srv.URL, "/big.json")
+	_, err := doFetch(t.Context(), srv.URL, "/big.json")
 	require.Error(t, err)
 	// The error message should contain at most 512 bytes of body.
 	assert.LessOrEqual(t, len(err.Error()), 600) // 512 body + status prefix
@@ -298,7 +297,7 @@ func TestFetchAppsListFallbackOverrideViaEnvVar(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", customFallback.URL, t)
 
-	apps, err := FetchAppsList(context.Background())
+	apps, err := FetchAppsList(t.Context())
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 	assert.Equal(t, "test-app", apps.Apps[0].Slug)
