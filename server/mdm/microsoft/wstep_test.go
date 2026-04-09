@@ -122,13 +122,9 @@ func TestSTSTokenWithDeviceID(t *testing.T) {
 	_, err = cm.NewSTSAuthTokenWithDeviceID("", deviceID)
 	require.ErrorContains(t, err, "invalid upn field")
 
-	// Empty device ID is allowed (optional claim)
-	token, err = cm.NewSTSAuthTokenWithDeviceID(upn, "")
-	require.NoError(t, err)
-	gotUPN, gotDeviceID, err = cm.GetSTSAuthTokenClaims(token)
-	require.NoError(t, err)
-	require.Equal(t, upn, gotUPN)
-	require.Empty(t, gotDeviceID)
+	// Empty device ID is rejected
+	_, err = cm.NewSTSAuthTokenWithDeviceID(upn, "")
+	require.ErrorContains(t, err, "invalid device_id field")
 
 	// Token signed by NewSTSAuthToken (no device_id) is also valid via GetSTSAuthTokenClaims
 	oldToken, err := cm.NewSTSAuthToken(upn)

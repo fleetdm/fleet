@@ -227,6 +227,9 @@ func (m *manager) NewSTSAuthTokenWithDeviceID(upn string, deviceID string) (stri
 	if len(upn) == 0 {
 		return "", errors.New("invalid upn field")
 	}
+	if len(deviceID) == 0 {
+		return "", errors.New("invalid device_id field")
+	}
 
 	claims := STSClaims{
 		UPN:      upn,
