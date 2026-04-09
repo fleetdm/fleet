@@ -9412,7 +9412,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macH, false)
 
-	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	commander, mdmStorage := createMDMAppleCommanderAndStorage(t, ds)
 
 	// Test 1: InstallProfile with a name
 	cmdUUID1 := uuid.New().String()
@@ -9477,6 +9477,68 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, "Test Profile Name", *gotByUUID[cmdUUID1].Name)
 	require.Nil(t, gotByUUID[cmdUUID2].Name)
+
+	// Test 3: Name exactly 255 characters — should NOT be truncated
+	cmdUUID3 := uuid.New().String()
+	name255 := strings.Repeat("a", 255)
+	rawXML3 := createRawAppleCmd("InstallProfile", cmdUUID3)
+	decodedCmd3, err := mdm.DecodeCommand([]byte(rawXML3))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd3,
+		Name:    name255,
+	})
+	require.NoError(t, err)
+
+	var storedName3 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName3, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID3)
+	})
+	require.True(t, storedName3.Valid)
+	require.Equal(t, name255, storedName3.String)
+	require.Len(t, []rune(storedName3.String), 255)
+
+	// Test 4: Name longer than 255 ASCII characters — should be truncated to 255
+	cmdUUID4 := uuid.New().String()
+	name300 := strings.Repeat("b", 300)
+	rawXML4 := createRawAppleCmd("InstallProfile", cmdUUID4)
+	decodedCmd4, err := mdm.DecodeCommand([]byte(rawXML4))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd4,
+		Name:    name300,
+	})
+	require.NoError(t, err)
+
+	var storedName4 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName4, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID4)
+	})
+	require.True(t, storedName4.Valid)
+	require.Equal(t, strings.Repeat("b", 255), storedName4.String)
+	require.Len(t, []rune(storedName4.String), 255)
+
+	// Test 5: Name with multi-byte utf8mb4 characters exceeding 255 — should truncate to 255 runes (not bytes)
+	cmdUUID5 := uuid.New().String()
+	// Each emoji is a single rune but 4 bytes in utf8mb4. Build a 300-rune string.
+	nameMultibyte := strings.Repeat("🍎", 300)
+	require.Len(t, []rune(nameMultibyte), 300)
+	rawXML5 := createRawAppleCmd("InstallProfile", cmdUUID5)
+	decodedCmd5, err := mdm.DecodeCommand([]byte(rawXML5))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd5,
+		Name:    nameMultibyte,
+	})
+	require.NoError(t, err)
+
+	var storedName5 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName5, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID5)
+	})
+	require.True(t, storedName5.Valid)
+	require.Equal(t, strings.Repeat("🍎", 255), storedName5.String)
+	require.Len(t, []rune(storedName5.String), 255)
 }
 
 func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {

@@ -20,7 +20,11 @@ func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Com
 	}
 	var nameArg sql.NullString
 	if cmd.Name != "" {
-		nameArg = sql.NullString{String: cmd.Name, Valid: true}
+		name := cmd.Name
+		if runes := []rune(name); len(runes) > 255 {
+			name = string(runes[:255])
+		}
+		nameArg = sql.NullString{String: name, Valid: true}
 	}
 	_, err := tx.ExecContext(
 		ctx,
