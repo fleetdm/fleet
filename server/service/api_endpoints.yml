@@ -1,0 +1,4 @@
+- method: POST
+  path: "/api/_version_/fleet/trigger"
+  name: "Some wild description goes here"
+  deprecated: false

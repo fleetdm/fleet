@@ -10,10 +10,12 @@ import BetterDisplay from "./BetterDisplay";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
+import Marvel from "./Marvel";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
@@ -313,10 +315,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
+  marvel: Marvel,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,

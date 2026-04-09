@@ -203,6 +203,7 @@ How-to guides, step-by-step walkthroughs, and reference material for IT admins a
 | ☁️ AWS | [Deploy Fleet on AWS ECS](https://fleetdm.com/guides/deploy-fleet-on-aws-ecs) | Information for deploying Fleet on AWS ECS. | Ben Edwards | <nobr>2021‑10‑06</nobr> |
 | 🐳 Container | [Deploy Fleet on Kubernetes](https://fleetdm.com/guides/deploy-fleet-on-kubernetes) | Learn how to deploy Fleet on Kubernetes. | Mike Arpaia | <nobr>2017‑11‑18</nobr> |
 | 🐧 Linux | [Deploy Fleet on CentOS](https://fleetdm.com/guides/deploy-fleet-on-centos) | A guide to deploy Fleet on CentOS. | Mike Arpaia | <nobr>2017‑09‑22</nobr> |
+| 🐧 Linux | [Deploy Fleet on Proxmox](https://fleetdm.com/guides/deploy-fleet-on-proxmox) | A guide to deploy Fleet on Proxmox. | Anthony Critelli | <nobr>2026‑04‑07</nobr> |
 
 ### MDM setup & enrollment
 

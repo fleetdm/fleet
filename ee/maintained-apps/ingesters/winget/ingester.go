@@ -322,7 +322,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-	productCode = strings.Split(productCode, ".")[0]
+	if input.InstallerType == installerTypeMSIX && productCode == "" {
+		productCode = selectedInstaller.PackageFamilyName
+	}
+	if input.InstallerType == installerTypeMSI && productCode != "" {
+		productCode = strings.Split(productCode, ".")[0]
+	}
 
 	if upgradeCode != "" {
 		out.UpgradeCode = upgradeCode
@@ -368,23 +373,13 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	external_refs.EnrichManifest(&out)
 
 	// create patch policy
-	if input.PatchPolicyPath != "" {
-		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy path")
-		}
-
-		p := patch_policy.PolicyData{}
-		if err := yaml.Unmarshal(policyBytes, &p); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
-		}
-
-		p.Platform = "windows"
-		p.Version = out.Version
-		out.Queries.Patch, err = patch_policy.GenerateFromManifest(p)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
-		}
+	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "windows",
+		Version:     out.Version,
+		ExistsQuery: out.Queries.Exists,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
 
 	return &out, nil
@@ -477,6 +472,7 @@ type installer struct {
 	InstallModes           []string                 `yaml:"InstallModes,omitempty"`
 	InstallerSwitches      installerSwitches        `yaml:"InstallerSwitches,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
+	PackageFamilyName      string                   `yaml:"PackageFamilyName"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	InstallerLocale        string                   `yaml:"InstallerLocale"`
 }

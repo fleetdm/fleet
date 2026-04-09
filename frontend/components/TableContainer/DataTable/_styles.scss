@@ -120,9 +120,7 @@ $shadow-transition-width: 10px;
           border-top-right-radius: 6px;
         }
 
-        &.actions__header,
-        &.id__header // Same as actions__header on some pages
-        {
+        &.actions__header {
           border-left: none;
           width: 99px;
         }
@@ -277,9 +275,7 @@ $shadow-transition-width: 10px;
         max-width: 500px;
         word-wrap: break-word;
 
-        &.actions__cell,
-        &.id__cell // Same as actions__cell on some pages
-        {
+        &.actions__cell {
           display: flex;
           justify-content: end; // Aligns actions dropdown to right of table
           max-width: 99px;
@@ -408,7 +404,11 @@ $shadow-transition-width: 10px;
         }
         .italic-cell {
           font-style: italic;
-          .__react_component_tooltip {
+
+          // old react tooltip version
+          .__react_component_tooltip,
+          // new react tooltip version
+          .react-tooltip {
             font-style: normal;
           }
         }
