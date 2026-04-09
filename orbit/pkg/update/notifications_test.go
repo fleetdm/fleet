@@ -771,4 +771,51 @@ func TestBitlockerOperations(t *testing.T) {
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, encryptFnCalled, "encryption function should have been called")
 	})
+
+	t.Run("failed escrow caches key for retry", func(t *testing.T) {
+		setupTest()
+		shouldFailServerUpdate = true
+		lastRunBefore := enrollReceiver.lastRun
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		// First run: rotation succeeds but escrow fails, key should be cached
+		err := enrollReceiver.Run(makeConfig())
+		require.NoError(t, err)
+		require.True(t, rotateKeyFnCalled, "rotate key function should have been called")
+		require.Equal(t, "rotated-key-789", enrollReceiver.pendingRecoveryKey, "key should be cached after failed escrow")
+		require.Equal(t, lastRunBefore, enrollReceiver.lastRun, "lastRun should not advance when escrow fails")
+	})
+
+	t.Run("cached key retried without re-rotating", func(t *testing.T) {
+		setupTest()
+		shouldFailServerUpdate = true
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		// First run: rotation succeeds, escrow fails, key cached
+		err := enrollReceiver.Run(makeConfig())
+		require.NoError(t, err)
+		require.True(t, rotateKeyFnCalled)
+		require.Equal(t, "rotated-key-789", enrollReceiver.pendingRecoveryKey)
+
+		// Second run: escrow succeeds, key cleared, no re-rotation
+		rotateKeyFnCalled = false
+		encryptFnCalled = false
+		shouldFailServerUpdate = false
+		logBuf.Reset()
+
+		err = enrollReceiver.Run(makeConfig())
+		require.NoError(t, err)
+		require.Contains(t, logBuf.String(), "retrying escrow of previously rotated recovery key")
+		require.False(t, rotateKeyFnCalled, "should NOT rotate again")
+		require.False(t, encryptFnCalled, "should NOT encrypt again")
+		require.Empty(t, enrollReceiver.pendingRecoveryKey, "cached key should be cleared after successful escrow")
+		require.False(t, enrollReceiver.lastRun.IsZero(), "lastRun should be set after successful escrow")
+	})
+
 }
