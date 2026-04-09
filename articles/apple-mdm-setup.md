@@ -19,6 +19,22 @@ Then select **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 > - If your certificate expires, you must turn MDM off and back on for all macOS hosts. Until then, configuration profile changes and other MDM commands will remain stuck in “Pending.”
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
+## Renew APNs certificate
+
+Apple requires that APNs certificates are renewed annually. When your certificate is within 30 days of expiring, you will see a warning banner in Fleet reminding you to renew.
+
+> **Important:** You **must** use the same Apple ID that was used to originally obtain the APNs certificate. Using a different Apple ID will require re-enrollment of all hosts.
+
+### To renew your APNs certificate:
+
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page in Fleet.
+2. Under the Apple (macOS, iOS, iPadOS) MDM section, select **Edit** and then download the renewal CSR.
+3. Go to the [Apple Push Certificates Portal](https://identity.apple.com/pushcert/) and sign in with the **same Apple ID** used to get the original certificate.
+4. Find your existing certificate in the list and select **Renew**.
+5. Upload the CSR downloaded from Fleet.
+6. Download the renewed certificate (`.pem` file) from the Apple Push Certificates Portal.
+7. Back in Fleet, upload the renewed certificate on the **Settings > Integrations > Mobile device management (MDM)** page.
+
 ## Apple Business Manager (ABM)
 
 > Available in Fleet Premium
