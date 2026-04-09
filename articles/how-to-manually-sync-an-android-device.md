@@ -7,8 +7,8 @@ There is a way to manually sync an Android device, which can be useful for testi
 ## Sync policies
 
 1. Go to your Work Profile in **Settings**:
-   1.1 Google devices: select your name at the top of **Settings**, then select your Work Profile.
-   1.2 Samsung devices: select **Google**, then select your Work Profile.
+   1. Google devices: select your name at the top of **Settings**, then select your Work Profile.
+   2. Samsung devices: select **Google**, then select your Work Profile.
 2. Scroll to the bottom and select **Device Policy**.
 3. Select the three dots in the upper right corner, then select **Sync policies**.
    - The message at the top of the screen should change to "Synced now".
