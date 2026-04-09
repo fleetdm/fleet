@@ -127,7 +127,7 @@ func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.
 	req := request.(*fleet.GetQueryReportRequest)
 	queryReportResults, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID, req.TeamID)
 	if err != nil {
-		return fleet.ListQueriesResponse{Err: err}, nil
+		return fleet.GetQueryReportResponse{Err: err}, nil
 	}
 	// Return an empty array if there are no results stored.
 	results := []fleet.HostQueryResultRow{}

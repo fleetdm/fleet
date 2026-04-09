@@ -7388,7 +7388,7 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 			reqQuery := &fleet.PackPayload{
 				Name: ptr.String(tc.name),
 			}
-			createPackResp := fleet.CreateQueryResponse{}
+			createPackResp := createPackResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/packs", reqQuery, http.StatusBadRequest, &createPackResp)
 
 			payload := fleet.PackPayload{
