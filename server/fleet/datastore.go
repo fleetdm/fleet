@@ -1625,6 +1625,29 @@ type Datastore interface {
 	// Limited to 100 hosts per batch.
 	GetHostsForAutoRotation(ctx context.Context) ([]HostAutoRotationInfo, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Managed local account
+
+	// SaveHostManagedLocalAccount encrypts and stores the managed local account password
+	// for a host. Uses INSERT ... ON DUPLICATE KEY UPDATE.
+	SaveHostManagedLocalAccount(ctx context.Context, hostUUID, plaintextPassword, commandUUID string) error
+
+	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
+	// password for the given host UUID. Returns notFoundError if no record exists.
+	GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*HostManagedLocalAccountPassword, error)
+
+	// GetHostManagedLocalAccountStatus returns the managed local account status for a host.
+	// Translates DB NULL status to "pending". Returns notFoundError if no record exists.
+	GetHostManagedLocalAccountStatus(ctx context.Context, hostUUID string) (*HostMDMManagedLocalAccount, error)
+
+	// SetHostManagedLocalAccountStatus updates the status of the managed local account for a host.
+	SetHostManagedLocalAccountStatus(ctx context.Context, hostUUID string, status MDMDeliveryStatus) error
+
+	// GetManagedLocalAccountByCommandUUID looks up the host UUID associated with a managed
+	// local account command UUID. Returns notFoundError if no matching record (i.e. SSO-only
+	// AccountConfiguration).
+	GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (hostUUID string, err error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error

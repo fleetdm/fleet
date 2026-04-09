@@ -241,6 +241,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				fullName,
 				acct.Username,
 				lockPrimaryAccountInfo,
+				nil, // no managed local account admin (handled separately in sub-issue 2)
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 			}
