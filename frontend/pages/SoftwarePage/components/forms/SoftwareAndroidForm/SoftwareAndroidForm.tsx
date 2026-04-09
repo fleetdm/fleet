@@ -109,7 +109,7 @@ const SoftwareAndroidForm = ({
       <>
         <div className={`${baseClass}__form-fields`}>
           <InputField
-            autoFocus
+            autofocus
             label="Application ID"
             placeholder="com.android.chrome"
             helpText={

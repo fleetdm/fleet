@@ -94,7 +94,7 @@ export const WithTooltip: Story = {
 export const WithClearButton: Story = {
   args: {
     ...Default.args,
-    clearButton: action("clearButton"),
+    clearButton: true,
     value: "example@email.com",
   },
 };

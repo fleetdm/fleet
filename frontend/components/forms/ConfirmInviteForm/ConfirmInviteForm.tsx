@@ -110,7 +110,7 @@ const ConfirmInviteForm = ({
         value={name}
         error={formErrors.name}
         parseTarget
-        maxLength={80}
+        inputOptions={{ maxLength: 80 }}
       />
       <InputField
         label="Password"

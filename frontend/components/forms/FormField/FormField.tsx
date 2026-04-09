@@ -14,7 +14,7 @@ export interface IFormFieldProps {
   name: string;
   helpText?: React.ReactNode;
   type?: string;
-  error?: string;
+  error?: string | null;
   className?: string;
   tooltip?: React.ReactNode;
   labelTooltipPosition?: PlacesType;

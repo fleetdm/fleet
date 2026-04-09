@@ -12,7 +12,7 @@ type IconName = keyof typeof ICON_MAP;
 
 export interface IInputFieldWithIconProps {
   autofocus?: boolean;
-  error?: string;
+  error?: string | null;
   helpText?: string[] | string;
   iconSvg?: IconName;
   label?: string;
@@ -109,8 +109,8 @@ const InputFieldWithIcon = ({
     `${baseClass}__input`,
     className,
     { "input-with-icon": !!iconSvg },
-    { [`${baseClass}__input--error`]: error },
-    { [`${baseClass}__input--password`]: type === "password" && value }
+    { [`${baseClass}__input--error`]: !!error },
+    { [`${baseClass}__input--password`]: !!(type === "password" && value) }
   );
 
   const inputWrapperClasses = classnames(`${baseClass}__input-wrapper`, {
@@ -119,8 +119,8 @@ const InputFieldWithIcon = ({
 
   const iconClasses = classnames(
     `${baseClass}__icon`,
-    { [`${baseClass}__icon--error`]: error },
-    { [`${baseClass}__icon--active`]: value }
+    { [`${baseClass}__icon--error`]: !!error },
+    { [`${baseClass}__icon--active`]: !!value }
   );
 
   const handleClear = () => {

@@ -503,7 +503,7 @@ const UserForm = ({
         placeholder="Full name"
         value={formData.name || ""}
         inputOptions={{
-          maxLength: "80",
+          maxLength: 80,
         }}
         ignore1password
         parseTarget

@@ -17,7 +17,7 @@ export interface IInputFieldProps {
   readOnly?: boolean;
   /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
-  error?: string;
+  error?: string | null;
   inputClassName?: string;
   inputWrapperClass?: string;
   inputOptions?: React.InputHTMLAttributes<HTMLInputElement>;
@@ -37,7 +37,7 @@ export interface IInputFieldProps {
   placeholder?: string;
   type?: string;
   blockAutoComplete?: boolean;
-  value: boolean | string | number;
+  value?: boolean | string | number | null;
   /** Returns both name and value */
   parseTarget?: boolean;
   tooltip?: React.ReactNode;
@@ -171,7 +171,7 @@ const InputField = ({
     [`${baseClass}--password`]: shouldShowPasswordClass,
     [`${baseClass}--read-only`]: readOnly || disabled,
     [`${baseClass}--disabled`]: disabled,
-    [`${baseClass}--error`]: error,
+    [`${baseClass}--error`]: !!error,
     [`${baseClass}__textarea`]: type === "textarea",
   });
 

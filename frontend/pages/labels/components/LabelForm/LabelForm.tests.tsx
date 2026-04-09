@@ -36,7 +36,9 @@ describe("LabelForm", () => {
         onCancel={noop}
         teamName={null}
         immutableFields={[]}
-        additionalFields={<InputField name="test field" label="test field" />}
+        additionalFields={
+          <InputField name="test field" label="test field" value="" />
+        }
       />
     );
 
