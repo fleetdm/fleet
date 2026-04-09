@@ -301,4 +301,3 @@ func TestGenerateWindowsEUAToken(t *testing.T) {
 		require.False(t, ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked, "should not query db when cert manager is nil")
 	})
 }
-
