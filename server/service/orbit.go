@@ -106,7 +106,7 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 		return "", "", fleet.NewOrbitIDPAuthRequiredError()
 	}
 
-	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	_, err = svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			svc.logger.WarnContext(ctx, "EUA token device_id not found in windows mdm enrollments, falling back to end user auth prompt",
@@ -116,33 +116,30 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 		return "", "", ctxerr.Wrap(ctx, err, "getting windows mdm enrollment for EUA token")
 	}
 
-	if device.HostUUID == "" {
-		// Fetch or create the mdm_idp_accounts row for this email.
-		// Fetch first so we do not overwrite existing first/last names
-		// that may have been populated by SCIM provisioning.
-		acct, err := svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
-		if err != nil && !fleet.IsNotFound(err) {
-			return "", "", ctxerr.Wrap(ctx, err, "getting mdm idp account by email for EUA token")
+	// Fetch or create the mdm_idp_accounts row for this email.
+	// Fetch first so we do not overwrite existing first/last names
+	// that may have been populated by SCIM provisioning.
+	acct, err := svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", "", ctxerr.Wrap(ctx, err, "getting mdm idp account by email for EUA token")
+	}
+	if fleet.IsNotFound(err) {
+		if err := svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Email: upn, Username: upn}); err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
 		}
-		if fleet.IsNotFound(err) {
-			acct = &fleet.MDMIdPAccount{Email: upn, Username: upn}
-			if err := svc.ds.InsertMDMIdPAccount(ctx, acct); err != nil {
-				return "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
-			}
-			// Re-fetch to get the UUID assigned by the DB.
-			acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
-			if err != nil {
-				return "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
-			}
-			if acct == nil {
-				return "", "", ctxerr.New(ctx, "mdm idp account not found after insert for EUA token")
-			}
+		// Re-fetch to get the UUID assigned by the DB.
+		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
+		if err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
 		}
+	}
+	if acct == nil {
+		return "", "", ctxerr.New(ctx, "mdm idp account not found for EUA token")
+	}
 
-		// Link the IdP account to this host UUID in host_mdm_idp_accounts.
-		if err := svc.ds.AssociateHostMDMIdPAccountDB(ctx, hostUUID, acct.UUID); err != nil {
-			return "", "", ctxerr.Wrap(ctx, err, "associating host with mdm idp account for EUA token")
-		}
+	// Link the IdP account to this host UUID in host_mdm_idp_accounts.
+	if err := svc.ds.AssociateHostMDMIdPAccountDB(ctx, hostUUID, acct.UUID); err != nil {
+		return "", "", ctxerr.Wrap(ctx, err, "associating host with mdm idp account for EUA token")
 	}
 
 	return upn, deviceID, nil
