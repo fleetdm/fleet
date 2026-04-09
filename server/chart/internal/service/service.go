@@ -144,14 +144,19 @@ func fillZeroValues(data []chart.DataPoint, startDate, endDate time.Time, downsa
 		step = downsample
 	}
 
-	// Align start hour to the step boundary so timestamps match the SQL output
-	// (which always uses step-aligned hours from midnight: 0, 2, 4... or 0, 4, 8...).
-	startHour := startDate.Hour()
+	// Align end to the current step-aligned hour, then walk back from end to
+	// produce exactly the right number of data points ending at the current hour.
+	endHour := endDate.Hour()
 	if step > 1 {
-		startHour = (startHour / step) * step
+		endHour = (endHour / step) * step
 	}
-	start := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), startHour, 0, 0, 0, time.UTC)
-	end := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), endDate.Hour(), 0, 0, 0, time.UTC)
+	end := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), endHour, 0, 0, 0, time.UTC)
+
+	// The inclusive loop produces numStepsBack+1 data points. For days=1 hourly
+	// we want 24 points, so step back 23 times from end.
+	totalHours := int(endDate.Sub(startDate).Hours())
+	numStepsBack := totalHours/step - 1
+	start := end.Add(-time.Duration(numStepsBack) * time.Duration(step) * time.Hour)
 
 	var result []chart.DataPoint
 	for t := start; !t.After(end); t = t.Add(time.Duration(step) * time.Hour) {
