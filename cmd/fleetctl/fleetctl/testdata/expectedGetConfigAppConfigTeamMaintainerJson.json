@@ -135,7 +135,9 @@
         "software": null,
         "manual_agent_install": null,
         "require_all_software_macos": false,
-        "require_all_software_windows": false
+        "require_all_software_windows": false,
+        "enable_managed_local_account": false,
+        "end_user_local_account_type": ""
       },
       "setup_experience": {
         "macos_bootstrap_package": null,
@@ -147,7 +149,9 @@
         "software": null,
         "macos_manual_agent_install": null,
         "require_all_software_macos": false,
-        "require_all_software_windows": false
+        "require_all_software_windows": false,
+        "enable_managed_local_account": false,
+        "end_user_local_account_type": ""
       },
       "windows_settings": {
         "custom_settings": null,

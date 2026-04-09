@@ -56,6 +56,8 @@
           "macos_script": null,
           "require_all_software_macos": false,
           "require_all_software_windows": false,
+          "enable_managed_local_account": false,
+          "end_user_local_account_type": "",
           "software": null
         },
         "windows_require_bitlocker_pin": false,
@@ -128,6 +130,8 @@
           "manual_agent_install": null,
           "require_all_software_macos": false,
           "require_all_software_windows": false,
+          "enable_managed_local_account": false,
+          "end_user_local_account_type": "",
           "script": null,
           "software": null
         },
@@ -233,6 +237,8 @@
           "macos_script": null,
           "require_all_software_macos": false,
           "require_all_software_windows": false,
+          "enable_managed_local_account": false,
+          "end_user_local_account_type": "",
           "software": null
         },
         "windows_require_bitlocker_pin": false,
@@ -320,6 +326,8 @@
           "manual_agent_install": null,
           "require_all_software_macos": false,
           "require_all_software_windows": false,
+          "enable_managed_local_account": false,
+          "end_user_local_account_type": "",
           "script": null,
           "software": null
         },
