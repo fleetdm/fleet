@@ -224,6 +224,7 @@ module.exports = {
         // wr: 'Web referral',
         // soc: 'Organic social',
         // "Digital" sources:
+        cpc: 'Paid search (PS)', //note: either cpc or ps both map to Paid Search
         ps: 'Paid search (PS)',
         so: 'Paid social (SO)',
         pm: 'Paid media (PM)',
