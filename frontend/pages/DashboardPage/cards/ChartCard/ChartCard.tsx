@@ -67,24 +67,41 @@ const ChartCard = (): JSX.Element => {
   const [chartFilters, setChartFilters] = useState<IChartFilterState>({
     labelIDs: [],
     platforms: [],
+    hostFilterMode: "none",
+    selectedHosts: [],
   });
 
   const currentDataset = getDataset(selectedMetric);
 
-  const queryParams: IChartRequestParams = useMemo(
-    () => ({
+  const queryParams: IChartRequestParams = useMemo(() => {
+    let downsample: number | undefined;
+    if (selectedDays === 30) {
+      downsample = 4;
+    } else if (selectedDays >= 7) {
+      downsample = 2;
+    }
+    return {
       ...filterParams,
       days: selectedDays,
-      downsample: selectedDays >= 7 ? selectedDays === 30 ? 4 : 2 : undefined,
+      downsample,
       label_ids: chartFilters.labelIDs.length
         ? chartFilters.labelIDs.join(",")
         : undefined,
       platforms: chartFilters.platforms.length
         ? chartFilters.platforms.join(",")
         : undefined,
-    }),
-    [filterParams, selectedDays, chartFilters]
-  );
+      include_host_ids:
+        chartFilters.hostFilterMode === "include" &&
+        chartFilters.selectedHosts.length
+          ? chartFilters.selectedHosts.map((h) => h.id).join(",")
+          : undefined,
+      exclude_host_ids:
+        chartFilters.hostFilterMode === "exclude" &&
+        chartFilters.selectedHosts.length
+          ? chartFilters.selectedHosts.map((h) => h.id).join(",")
+          : undefined,
+    };
+  }, [filterParams, selectedDays, chartFilters]);
 
   const { data: chartData, isFetching, error } = useQuery<
     IChartResponse,
