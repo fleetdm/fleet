@@ -650,14 +650,12 @@ func TestExtractRHELMajorVersion(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"RHEL 9.4", "Red Hat Enterprise Linux 9.4.0", "9"},
-		{"RHEL 8.10", "Red Hat Enterprise Linux 8.10.0", "8"},
-		{"RHEL Server 7.9", "Red Hat Enterprise Linux Server 7.9.0", "7"},
-		{"RHEL Server 8.2", "Red Hat Enterprise Linux Server 8.2.0", "8"},
-		{"Fedora 36 maps to RHEL 9", "Fedora Linux 36.0.0", "9"},
-		{"Fedora 28 maps to RHEL 8", "Fedora Linux 28.0.0", "8"},
-		{"Ubuntu ignored", "Ubuntu 22.04.1 LTS", ""},
+		{"RHEL 9.4.0", "9.4.0", "9"},
+		{"RHEL 8.10.0", "8.10.0", "8"},
+		{"RHEL 7.9.0", "7.9.0", "7"},
+		{"Major only", "9", "9"},
 		{"Empty string", "", ""},
+		{"Whitespace", "  9.4.0  ", "9"},
 	}
 
 	for _, tt := range tests {

@@ -9,13 +9,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
-	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
@@ -396,24 +394,22 @@ type RHELOSVArtifact struct {
 	Vulnerabilities map[string][]OSVVulnerability `json:"vulnerabilities"`
 }
 
-// extractRHELMajorVersion extracts the major RHEL version from an OS version name string.
+// extractRHELMajorVersion extracts the major RHEL version from an OSVersion.Version string.
+// Uses Version (e.g., "9.4.0") rather than Name (e.g., "Red Hat Enterprise Linux Server 8.2.0")
+// because Name varies inconsistently (the "Server" suffix appears only on some versions).
+//
 // Examples:
 //
-//	"Red Hat Enterprise Linux 9.4.0" → "9"
-//	"Red Hat Enterprise Linux Server 8.10.0" → "8"
-//	"Fedora Linux 36.0.0" → "9" (via ReplaceFedoraOSVersion mapping)
-func extractRHELMajorVersion(name string) string {
-	if strings.Contains(name, "Fedora") {
-		name = oval_parsed.ReplaceFedoraOSVersion(name)
+//	"9.4.0"  → "9"
+//	"8.10.0" → "8"
+//	"7.9.0"  → "7"
+func extractRHELMajorVersion(version string) string {
+	version = strings.TrimSpace(version)
+	parts := strings.Split(version, ".")
+	if len(parts) < 1 || parts[0] == "" {
+		return ""
 	}
-
-	// Extract first digit sequence after "Linux" or "Server"
-	re := regexp.MustCompile(`(?:Linux|Server)\s+(\d+)`)
-	m := re.FindStringSubmatch(name)
-	if len(m) >= 2 {
-		return m[1]
-	}
-	return ""
+	return parts[0]
 }
 
 // rhelKernelPackages maps installed kernel package variants to the "kernel" package name
@@ -632,7 +628,7 @@ func findLatestRHELOSVArtifactForVersion(vulnPath string, rhelVersion string) (s
 
 // loadRHELOSVArtifact loads the RHEL OSV artifact for the given OS version.
 func loadRHELOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, logger *slog.Logger, date time.Time) (*RHELOSVArtifact, error) {
-	rhelVer := extractRHELMajorVersion(ver.Name)
+	rhelVer := extractRHELMajorVersion(ver.Version)
 	if rhelVer == "" {
 		return nil, fmt.Errorf("could not extract RHEL version from %s", ver.Name)
 	}

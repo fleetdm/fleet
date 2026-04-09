@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 )
 
 const (
@@ -134,6 +135,17 @@ func osvFilename(ubuntuVersion string, date time.Time) string {
 		OSVFilePrefix, ubuntuVersion, date.Year(), date.Month(), date.Day())
 }
 
+// extractVersionFromMappedName extracts the version portion from a mapped OS name.
+// "Red Hat Enterprise Linux 9.0.0" → "9.0.0"
+func extractVersionFromMappedName(name string) string {
+	// Find the last space-separated token that looks like a version
+	parts := strings.Fields(name)
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return ""
+}
+
 // rhelOSVFilename generates the RHEL OSV artifact filename for a given major version and date.
 // Format: osv-rhel-9-2026-04-08.json.gz
 func rhelOSVFilename(rhelVersion string, date time.Time) string {
@@ -194,7 +206,14 @@ func getNeededRHELVersions(osVers *fleet.OSVersions) []string {
 			continue
 		}
 
-		rhelVer := extractRHELMajorVersion(osVer.Name)
+		// Fedora reports platform "rhel" but needs version mapping
+		version := osVer.Version
+		if strings.Contains(osVer.Name, "Fedora") {
+			mapped := oval_parsed.ReplaceFedoraOSVersion(osVer.Name)
+			version = extractVersionFromMappedName(mapped)
+		}
+
+		rhelVer := extractRHELMajorVersion(version)
 		if rhelVer == "" {
 			continue
 		}
