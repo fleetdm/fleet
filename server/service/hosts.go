@@ -280,8 +280,27 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		if id == nil {
 			id = req.Opts.SoftwareIDFilter
 		}
-		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
-		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software in that case
+
+		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
+		switch {
+		case err == nil:
+			software = sw
+
+		case fleet.IsNotFound(err):
+			// Look for lite summary data as admin
+			systemCtx := viewer.NewSystemContext(ctx)
+			swLite, errLite := svc.SoftwareLiteByID(systemCtx, *id)
+			if errLite != nil && !fleet.IsNotFound(errLite) {
+				return listHostsResponse{Err: errLite}, nil
+			}
+			if errLite == nil {
+				software = &fleet.Software{
+					ID:      *id,
+					Name:    swLite.Name,
+					Version: swLite.Version,
+				}
+			}
+		default:
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -1666,6 +1685,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
+	var mdmHardwareAttested bool
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -1768,7 +1788,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// fetch host last seen at and last enrolled at times, currently only supported for
 				// Apple platforms
-				mdmLastEnrollment, mdmLastCheckedIn, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+				details, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+				if details != nil {
+					mdmLastCheckedIn = details.LastMDMSeenTime
+					mdmLastEnrollment = details.LastMDMEnrollmentTime
+					mdmHardwareAttested = details.HardwareAttested
+				}
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
@@ -1840,15 +1865,16 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
 	return &fleet.HostDetail{
-		Host:                      *host,
-		Labels:                    labels,
-		Packs:                     packs,
-		Batteries:                 &bats,
-		MaintenanceWindow:         nextMw,
-		EndUsers:                  endUsers,
-		LastMDMEnrolledAt:         mdmLastEnrollment,
-		LastMDMCheckedInAt:        mdmLastCheckedIn,
-		ConditionalAccessBypassed: conditionalAccessBypassed,
+		Host:                          *host,
+		Labels:                        labels,
+		Packs:                         packs,
+		Batteries:                     &bats,
+		MaintenanceWindow:             nextMw,
+		EndUsers:                      endUsers,
+		LastMDMEnrolledAt:             mdmLastEnrollment,
+		LastMDMCheckedInAt:            mdmLastCheckedIn,
+		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
+		ConditionalAccessBypassed:     conditionalAccessBypassed,
 	}, nil
 }
 
@@ -2048,7 +2074,7 @@ func (svc *Service) ListHostReports(
 		opts.ListOptions.OrderDirection = fleet.OrderDescending
 	}
 
-	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, opts, maxQueryReportRows)
+	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
 	}
@@ -3548,23 +3574,12 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 	return nil
 }
 
-type removeLabelsFromHostRequest struct {
-	ID     uint     `url:"id"`
-	Labels []string `json:"labels"`
-}
-
-type removeLabelsFromHostResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r removeLabelsFromHostResponse) Error() error { return r.Err }
-
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*removeLabelsFromHostRequest)
+	req := request.(*fleet.RemoveLabelsFromHostRequest)
 	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
-		return removeLabelsFromHostResponse{Err: err}, nil
+		return fleet.RemoveLabelsFromHostResponse{Err: err}, nil
 	}
-	return removeLabelsFromHostResponse{}, nil
+	return fleet.RemoveLabelsFromHostResponse{}, nil
 }
 
 func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelNames []string) error {
@@ -3902,8 +3917,9 @@ type getHostRecoveryLockPasswordRequest struct {
 }
 
 type recoveryLockPasswordPayload struct {
-	Password  string    `json:"password"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Password     string     `json:"password"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty"`
 }
 
 type getHostRecoveryLockPasswordResponse struct {
@@ -3923,8 +3939,9 @@ func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc f
 	return getHostRecoveryLockPasswordResponse{
 		HostID: req.ID,
 		RecoveryLockPassword: &recoveryLockPasswordPayload{
-			Password:  password.Password,
-			UpdatedAt: password.UpdatedAt,
+			Password:     password.Password,
+			UpdatedAt:    password.UpdatedAt,
+			AutoRotateAt: password.AutoRotateAt,
 		},
 	}, nil
 }
@@ -3966,6 +3983,8 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
 	}
 
+	// Create activity first. If this fails, we return an error before scheduling
+	// rotation, ensuring we don't rotate passwords that were never returned to the user.
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
@@ -3976,6 +3995,14 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
 	}
+
+	// Schedule auto-rotation by marking the password as viewed.
+	// This sets auto_rotate_at to 1 hour from now.
+	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+	password.AutoRotateAt = &rotateAt
 
 	return password, nil
 }

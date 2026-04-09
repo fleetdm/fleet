@@ -266,15 +266,14 @@ module.exports = {
         }
       });
 
-      let todayOn = new Date();
-      let isoTimestampForDescription = todayOn.toISOString();
+
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: userForThisSubscription.emailAddress,
         firstName: userForThisSubscription.firstName,
         lastName: userForThisSubscription.lastName,
         organization: userForThisSubscription.organization,
         contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
-        description: `Purchased a self-service Fleet Premium license on ${isoTimestampForDescription.split('T')[0]} for ${numberOfHosts} host${numberOfHosts > 1 ? 's' : ''}.`
+        description: `Purchased a self-service Fleet Premium license for ${numberOfHosts} host${numberOfHosts > 1 ? 's' : ''}.`
       }).exec((err)=>{
         if(err){
           sails.log.warn(`Background task failed: When a user (email: ${userForThisSubscription.emailAddress} purchased a self-service Fleet premium subscription, a Contact and Account record could not be created/updated in the CRM.`, err);

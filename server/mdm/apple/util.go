@@ -91,6 +91,21 @@ func IsRecoveryLockPasswordMismatchError(chain []mdm.ErrorChain) bool {
 	return false
 }
 
+// IsProfileNotFoundError checks if the error chain indicates that a profile
+// was not found on the device. When this error occurs during a RemoveProfile
+// command, it means the profile is already absent — the desired outcome.
+//
+// Known error signature:
+// - MDMClientError (89): "Profile with identifier '...' not found."
+func IsProfileNotFoundError(chain []mdm.ErrorChain) bool {
+	for _, e := range chain {
+		if e.ErrorDomain == "MDMClientError" && e.ErrorCode == 89 {
+			return true
+		}
+	}
+	return false
+}
+
 // FmtDDMError formats a DDM error message
 func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
 	var errMsg strings.Builder

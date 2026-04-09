@@ -8,7 +8,7 @@ For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator]
 
 For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any [configuration service providers (CSPs)](https://fleetdm.com/guides/creating-windows-csps) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/). For local testing on Windows, [SyncMLViewer](https://github.com/okieselbach/SyncMLViewer/releases) is a useful GUI tool for inspecting MDM traffic.
 
-For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w).
+For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
 ## Enforce
 
@@ -83,15 +83,13 @@ Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 
 
 ### Verified
 
-> For some Windows configuration profiles, [verification doesn't work](https://github.com/fleetdm/fleet/issues/38833). Fleet will [remove verification](https://github.com/fleetdm/fleet/issues/31921) for Windows profiles in 4.83 (coming soon).
+Hosts that applied all OS settings.
 
-Hosts that applied all OS settings. 
-
-For macOS configuration profiles and device-scoped Windows profiles, Fleet verified by running a report. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
+For macOS configuration profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
 macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
-User-scoped Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
+All Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
 
 iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings. Android hosts are "Verified" after Fleet verifies that the settings is applied in the next [status report](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices).
 
@@ -99,13 +97,13 @@ iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to a
 
 Hosts that acknowledged all MDM commands to apply OS settings. Fleet is verifying. If the profile wasn't delivered, Fleet will redeliver the profile.
 
-For Windows profiles, when Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol, device-scoped profiles are "Verifying" but, currently, user-scoped Windows profiles go straight to "Verified."
-
 ### Pending
 
 Hosts that are running MDM commands or will run MDM commands to apply OS settings when they come online.
 
 ### Failed
+
+> Apple MDM profiles and Android certificates are automatically attempted up to 4 times (1 initial attempt + 3 retries) before entering the "Failed" state.
 
 Hosts that failed to apply OS settings. For Windows profiles, status codes are listed in [Microsoft's OMA DM docs](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
@@ -133,7 +131,7 @@ SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\emp
 
 > If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
 
-### Special Android behvaior
+### Special Android behavior
 
 On Android, if some settings from the profile fail (e.g. incompatible device), other settings from the profile will still be applied. Failed settings will be surfaced on **Host > OS settings**.
 Also, some settings from the profile might be overridden by another configuration profile, which means if multiple profiles include the same setting, the profile that is delivered most recently will be applied.

@@ -120,12 +120,34 @@ Policies can be specified inline in your `default.yml`, `fleets/fleet-name.yml`,
 
 ### Options
 
-For possible options, see the parameters for the [Create policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-policy)
+For available options, see the parameters for the [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Create team policy](https://fleetdm.com/docs/rest-api/rest-api#create-team-policy) API endpoints.
 
-In Fleet Premium you can trigger software installs or script runs on policy failure:
+#### Patch policy
 
-- For software installs, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML.
-- For script runs, specify `run_script.path`.
+_Available in Fleet Premium_
+
+You can create a patch policy by setting `type` to `patch` and specifying `fleet_maintained_app_slug`.
+
+A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
+
+To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
+#### Automations
+
+##### Install software
+
+_Available in Fleet Premium_
+
+To trigger software install, when policy fails, specify one of:
+  - `install_software.package_path` is the path to a custom package YAML. Only one package can be specified in the package YAML.
+  - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
+
+#### Run script
+
+_Available in Fleet Premium_
+
+To trigger script run, when policy fails, specify:
+
+- `run_script.path` is a path to a script YAML.
 
 > Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
 
@@ -188,6 +210,12 @@ policies:
   install_software:
     package_path: ./linux-firefox.deb.package.yml
     # app_store_id: "1487937127" (for App Store apps)
+- name: Zoom up to date
+  description: Outdated software might introduce security vulnerabilities or compatibility issues.
+  resolution: Install the latest version from self-service.
+  type: patch
+  fleet_maintained_app_slug: zoom/darwin
+  install_software: true
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `fleets/fleet-name.yml`, or `fleet/unassigned.yml`
@@ -198,6 +226,9 @@ policies:
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
+
+> If using `labels_include_any`/`labels_exclude_any` for targeting, these keys are specified on the individual policies. Specifying at the top level of `policies` will _not_ apply the labels to each policy.
+
 
 ## reports
 
@@ -327,6 +358,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
+- `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 
 #### Example
 
@@ -342,6 +374,7 @@ controls:
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
+  enable_recovery_lock_password: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
     minimum_version: "15.1"
@@ -380,6 +413,11 @@ controls:
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
+    enable_create_local_idp_user_account: true
+    local_idp_user_account_configuration:
+      sso_configuration_profile_path: ../lib/platform-sso.mobileconfig
+      sso_software_package_path: ../lib/company-portal.package.yml
+      authentication_url: https://login.microsoftonline.com/common
     enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
@@ -477,7 +515,13 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android. 
+- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
+- `enable_create_local_idp_user_account` specifies whether or not to automatically create a local idp user account on the host. Requires `enable_end_user_authentication` to be `true` and must be accompanied by `local_idp_user_account_configuration` object. Applies to macOS only. (default: `false`)
+- `local_idp_user_account_configuration` specifies the Platform SSO configuration profile, SSO extension software package, and authentication URL used to automatically create a local user account with IdP credentials when the user first sets up their macOS host.
+  - `sso_configuration_profile_path` is the path to the Platform SSO configuration profile (.mobileconfig). The profile must have `com.apple.extensiblesso` PayloadType and include `EnableAuthorization` and `EnableCreateUserAtLogin` set to `true`.
+  - `sso_software_package_path` is the path to the SSO extension software package (.package.yml) that is added to the fleet.
+  - `authentication_url` is the URL used to authenticate the user with the IdP during Platform SSO setup.
+- `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
 - `macos_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
@@ -492,6 +536,12 @@ macos_setup:
   bootstrap_package: "https://your-storage/package.pkg"
   manual_agent_install: false
   enable_end_user_authentication: true
+  enable_create_local_idp_user_account: true
+  local_idp_user_account_configuration:
+    sso_configuration_profile_path: "./platform-sso.mobileconfig"
+    sso_software_package_path: "./company-portal.package.yml"
+    authentication_url: "https://login.microsoftonline.com/common"
+  lock_end_user_info: true
   enable_release_device_manually: false
   macos_setup_assistant: "./setup_assistant.json"
   script: "./post_setup.sh"
@@ -537,7 +587,7 @@ software:
       setup_experience: true
     - path: ../lib/software-name2.package.yml
   app_store_apps:
-    - app_store_id: "1091189122"
+    - app_store_id: "546505307"
       platform: ios
       labels_include_any: # Available in Fleet Premium
         - Product
@@ -548,6 +598,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "00:00"
       auto_update_window_end: "04:00"
+      configuration:
+        path: ../lib/software/zoom-config.xml
     - app_store_id: "us.zoom.videomeetings"
       platform: android
       self_service: true
@@ -628,9 +680,9 @@ You can view the hash for existing software in the software detail page in the F
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
-- `configuration.path` is the Android Play Store app's managed configuration in JSON format. Currently only supported for Android.
-  + `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
-  + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+- `configuration.path` is the app managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
+  + Android: `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
+  + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
 

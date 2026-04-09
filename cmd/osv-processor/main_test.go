@@ -474,15 +474,15 @@ func TestShouldIncludeInDelta(t *testing.T) {
 		name          string
 		inputDir      string
 		filePath      string
-		changedFiles  map[string]bool
+		changedFiles  map[string]struct{}
 		expectedMatch bool
 	}{
 		{
 			name:     "Unix path: file in changed set",
 			inputDir: "/tmp/ubuntu-osv",
 			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-1234.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-1234.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-1234.json": {},
 			},
 			expectedMatch: true,
 		},
@@ -490,8 +490,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Unix path: file not in changed set",
 			inputDir: "/tmp/ubuntu-osv",
 			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-9999.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-1234.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-1234.json": {},
 			},
 			expectedMatch: false,
 		},
@@ -499,8 +499,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Nested directory: file in changed set",
 			inputDir: "/data/osv",
 			filePath: "/data/osv/osv/cve/2024/CVE-2024-1111.json",
-			changedFiles: map[string]bool{
-				"osv/cve/2024/CVE-2024-1111.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/2024/CVE-2024-1111.json": {},
 			},
 			expectedMatch: true,
 		},
@@ -508,8 +508,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "File already has osv/cve prefix in relative path",
 			inputDir: "/workspace",
 			filePath: "/workspace/osv/cve/CVE-2024-2222.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-2222.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-2222.json": {},
 			},
 			expectedMatch: true,
 		},
@@ -517,8 +517,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Changed files with leading slash (should not match)",
 			inputDir: "/tmp/ubuntu-osv",
 			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-3333.json",
-			changedFiles: map[string]bool{
-				"/osv/cve/CVE-2024-3333.json": true, // Wrong: has leading slash
+			changedFiles: map[string]struct{}{
+				"/osv/cve/CVE-2024-3333.json": {}, // Wrong: has leading slash
 			},
 			expectedMatch: false,
 		},
@@ -526,8 +526,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Changed files without osv/cve prefix (should not match)",
 			inputDir: "/tmp/ubuntu-osv",
 			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-4444.json",
-			changedFiles: map[string]bool{
-				"CVE-2024-4444.json": true, // Wrong: missing osv/cve/ prefix
+			changedFiles: map[string]struct{}{
+				"CVE-2024-4444.json": {}, // Wrong: missing osv/cve/ prefix
 			},
 			expectedMatch: false,
 		},
@@ -535,15 +535,15 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:          "Empty changed files set",
 			inputDir:      "/tmp/ubuntu-osv",
 			filePath:      "/tmp/ubuntu-osv/osv/cve/CVE-2024-5555.json",
-			changedFiles:  map[string]bool{},
+			changedFiles:  map[string]struct{}{},
 			expectedMatch: false,
 		},
 		{
 			name:     "File outside input directory tree (relative path doesn't match)",
 			inputDir: "/tmp/ubuntu-osv/subdir",
 			filePath: "/tmp/other-dir/osv/cve/CVE-2024-6666.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-6666.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-6666.json": {},
 			},
 			expectedMatch: false, // filepath.Rel will work but path won't match
 		},
@@ -551,10 +551,10 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Multiple files in changed set, match one",
 			inputDir: "/data/osv",
 			filePath: "/data/osv/osv/cve/CVE-2024-7777.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-1111.json": true,
-				"osv/cve/CVE-2024-7777.json": true,
-				"osv/cve/CVE-2024-9999.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-1111.json": {},
+				"osv/cve/CVE-2024-7777.json": {},
+				"osv/cve/CVE-2024-9999.json": {},
 			},
 			expectedMatch: true,
 		},

@@ -49,7 +49,7 @@ const SetupAssistant = ({
     refetchOnWindowFocus: false,
     retry: false,
     enabled: currentTeamId !== API_NO_TEAM_ID,
-    select: (res) => res.team,
+    select: (res) => res.fleet,
   });
 
   const {
@@ -69,10 +69,14 @@ const SetupAssistant = ({
   const getReleaseDeviceSetting = () => {
     if (currentTeamId === API_NO_TEAM_ID) {
       return (
-        globalConfig?.mdm.macos_setup.enable_release_device_manually || false
+        globalConfig?.mdm.setup_experience
+          .apple_enable_release_device_manually || false
       );
     }
-    return teamConfig?.mdm?.macos_setup.enable_release_device_manually || false;
+    return (
+      teamConfig?.mdm?.setup_experience.apple_enable_release_device_manually ||
+      false
+    );
   };
 
   const onUpload = () => {

@@ -426,8 +426,22 @@ module.exports = {
               if(htmlString.match(/(&#96;){3,4}[\s\S]+(&#96;){3}/g)){
                 throw new Error('The compiled markdown has a codeblock (\`\`\`) nested inside of another codeblock (\`\`\`\`) at '+pageSourcePath+'. To resolve this error, remove the codeblock nested inside another codeblock from this file.');
               }
-              // (2025-11-06) eashaw: I'm commenting the line below out to resolve a bug where the regex below would replace content inside of a code block. See https://github.com/fleetdm/fleet/issues/34935 for more details.
-              // htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
+              htmlString = htmlString.replace(
+                /(<code(?:\s[^>]*)?>[\s\S]*?<\/code>)|\(\(([^()]*)\)\)/g,
+                (match, codeBlock, bubbleContent) => {
+                  if (codeBlock) {
+                    // ignore content inside of <code> elements.
+                    return codeBlock;
+                  } else {
+                    let sanitizedType = bubbleContent.trim().replace(/["'`]/g, '');
+                    if (!sanitizedType) {
+                      return match; // ignore bubbles with no text
+                    } else {
+                      return `<bubble type="${sanitizedType}" class="colors"></bubble>`;
+                    }
+                  }
+                }
+              );// « Replace ((bubble))s (outside of code blocks) with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               htmlString = htmlString.replace(/(href="(\.\/[^"]+|\.\.\/[^"]+)")/g, (hrefString)=>{// « Modify path-relative links like `./…` and `../…` to make them absolute.  (See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for more background)
                 let oldRelPath = hrefString.match(/href="(\.\/[^"]+|\.\.\/[^"]+)"/)[1];
                 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -752,10 +766,6 @@ module.exports = {
                 }
                 // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
                 if(embeddedMetadata.category === 'comparison') {
-                  if(!embeddedMetadata.articleSubtitle){
-                    throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSubtitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSubtitle meta tag and try running this script again.`);
-                  }
-
                   if(!embeddedMetadata.articleSlugInCategory){
                     throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSlugInCategory" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSlugInCategory meta tag and try running this script again.`);
                   }

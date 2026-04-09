@@ -68,7 +68,7 @@ const Policies = ({
     }
     if (conditionalAccessBypassed) {
       return (
-        <InfoBanner color="grey" borderRadius="xlarge">
+        <InfoBanner borderRadius="xlarge">
           <IconStatusMessage
             iconName="clock"
             iconColor="ui-fleet-black-50"

@@ -81,6 +81,10 @@ interface IDataTableProps {
   setExportRows?: (rows: Row[]) => void;
   onClearSelection?: () => void;
   suppressHeaderActions?: boolean;
+  /** Optional override for react-table's row ID derivation.
+   *  Note: avoid index-only row IDs in server-side paginated or selectable tables,
+   *  as IDs would collide across pages. */
+  getRowId?: (row: any, index: number) => string;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -128,6 +132,7 @@ const DataTable = ({
   setExportRows,
   onClearSelection = noop,
   suppressHeaderActions,
+  getRowId: getRowIdProp,
 }: IDataTableProps): JSX.Element => {
   // used to track the initial mount of the component.
   const isInitialRender = useRef(true);
@@ -181,8 +186,10 @@ const DataTable = ({
       columns,
       data,
       // Use a stable row ID when available (row.id), otherwise fall back to the index-based ID (default of react-table)
-      getRowId: (row: any, index: number) =>
-        row && row.id != null ? String(row.id) : String(index),
+      getRowId:
+        getRowIdProp ??
+        ((row: any, index: number) =>
+          row && row.id != null ? String(row.id) : String(index)),
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,

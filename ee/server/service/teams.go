@@ -1267,6 +1267,11 @@ func (svc *Service) createTeamFromSpec(
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`))
 	}
 
+	if macOSSetup.RequireAllSoftwareWindows && !appCfg.MDM.WindowsEnabledAndConfigured {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
+			`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+	}
+
 	// Default the value of "lock_end_user_info" to the value of "enable_end_user_authentication" if not explicitly set in the spec to keep prior
 	// behavior.
 	if !macOSSetup.LockEndUserInfo.Valid {
@@ -1593,10 +1598,19 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
 
+	didUpdateWindowsRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftwareWindows != oldMacOSSetup.RequireAllSoftwareWindows
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
 	}
+	if didUpdateWindowsRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftwareWindows {
+		if !windowsEnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
+				`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+		}
+	}
+	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = spec.MDM.MacOSSetup.RequireAllSoftwareWindows
+
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
 		if !windowsEnabledAndConfigured &&
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
@@ -2033,6 +2047,11 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 
 	if payload.RequireAllSoftware != nil && tm.Config.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
 		tm.Config.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
+		didUpdate = true
+	}
+
+	if payload.RequireAllSoftwareWindows != nil && tm.Config.MDM.MacOSSetup.RequireAllSoftwareWindows != *payload.RequireAllSoftwareWindows {
+		tm.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = *payload.RequireAllSoftwareWindows
 		didUpdate = true
 	}
 

@@ -10,10 +10,12 @@ import BetterDisplay from "./BetterDisplay";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
+import Marvel from "./Marvel";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
@@ -204,6 +206,7 @@ import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
 import SuspiciousPackage from "./SuspiciousPackage";
+import Swiftdialog from "./Swiftdialog";
 import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
@@ -312,10 +315,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
+  marvel: Marvel,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -462,6 +467,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "sublime text": SublimeText,
   surfshark: Surfshark,
   "suspicious package": SuspiciousPackage,
+  swiftdialog: Swiftdialog,
   tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
