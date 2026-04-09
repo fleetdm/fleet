@@ -11,6 +11,7 @@ import { ILabelPolicy } from "interfaces/label";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
 import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
@@ -108,34 +109,41 @@ const PolicyDetailsPage = ({
     IStoredPolicyResponse,
     Error,
     IPolicy
-  >(["policy", policyId], () => globalPoliciesAPI.load(policyId as number), {
-    enabled: isRouteOk && !!policyId,
-    refetchOnWindowFocus: false,
-    retry: false,
-    select: (data: IStoredPolicyResponse) => data.policy,
-    onSuccess: (returnedPolicy) => {
-      setLastEditedQueryId(returnedPolicy.id);
-      setLastEditedQueryName(returnedPolicy.name);
-      setLastEditedQueryDescription(returnedPolicy.description);
-      setLastEditedQueryBody(returnedPolicy.query);
-      setLastEditedQueryResolution(returnedPolicy.resolution);
-      setLastEditedQueryCritical(returnedPolicy.critical);
-      setLastEditedQueryPlatform(returnedPolicy.platform);
-      setLastEditedQueryLabelsIncludeAny(
-        returnedPolicy.labels_include_any || []
-      );
-      setLastEditedQueryLabelsExcludeAny(
-        returnedPolicy.labels_exclude_any || []
-      );
-      const deNulledTeamId = returnedPolicy.team_id ?? undefined;
-      setPolicyTeamId(
-        deNulledTeamId === API_ALL_TEAMS_ID
-          ? APP_CONTEXT_ALL_TEAMS_ID
-          : deNulledTeamId
-      );
-    },
-    onError: (error) => handlePageError(error),
-  });
+  >(
+    ["policy", policyId, teamIdForApi],
+    () =>
+      teamIdForApi && teamIdForApi > 0
+        ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
+        : globalPoliciesAPI.load(policyId as number),
+    {
+      enabled: isRouteOk && !!policyId,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IStoredPolicyResponse) => data.policy,
+      onSuccess: (returnedPolicy) => {
+        setLastEditedQueryId(returnedPolicy.id);
+        setLastEditedQueryName(returnedPolicy.name);
+        setLastEditedQueryDescription(returnedPolicy.description);
+        setLastEditedQueryBody(returnedPolicy.query);
+        setLastEditedQueryResolution(returnedPolicy.resolution);
+        setLastEditedQueryCritical(returnedPolicy.critical);
+        setLastEditedQueryPlatform(returnedPolicy.platform);
+        setLastEditedQueryLabelsIncludeAny(
+          returnedPolicy.labels_include_any || []
+        );
+        setLastEditedQueryLabelsExcludeAny(
+          returnedPolicy.labels_exclude_any || []
+        );
+        const deNulledTeamId = returnedPolicy.team_id ?? undefined;
+        setPolicyTeamId(
+          deNulledTeamId === API_ALL_TEAMS_ID
+            ? APP_CONTEXT_ALL_TEAMS_ID
+            : deNulledTeamId
+        );
+      },
+      onError: (error) => handlePageError(error),
+    }
+  );
 
   const { data: teamData } = useQuery<ILoadTeamResponse>(
     ["team", teamIdForApi],
