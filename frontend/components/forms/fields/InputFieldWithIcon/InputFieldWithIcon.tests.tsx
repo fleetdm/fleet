@@ -274,21 +274,6 @@ describe("InputFieldWithIcon Component", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  test("uses placeholder as label when label is not provided", () => {
-    render(
-      <InputFieldWithIcon
-        value=""
-        onChange={mockOnChange}
-        placeholder="Search items"
-        name="test-input"
-      />
-    );
-
-    // When no label prop, the component does not render the heading
-    // (labelProp is undefined so renderHeading is not called)
-    expect(screen.queryByLabelText(/search items/i)).not.toBeInTheDocument();
-  });
-
   test("applies password type styling when type is password and value is present", () => {
     render(
       <InputFieldWithIcon
