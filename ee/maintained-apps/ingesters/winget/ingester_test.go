@@ -18,6 +18,25 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+func TestWingetVersionManifestDirs(t *testing.T) {
+	dir := func(name string) *github.RepositoryContent {
+		return &github.RepositoryContent{Name: &name, Type: ptr.String("dir")}
+	}
+	file := func(name string) *github.RepositoryContent {
+		return &github.RepositoryContent{Name: &name, Type: ptr.String("file")}
+	}
+	in := []*github.RepositoryContent{
+		dir("Portable"),
+		dir("0.9.6"),
+		dir("0.20.4"),
+		file("README.md"),
+	}
+	got := wingetVersionManifestDirs(in)
+	require.Len(t, got, 2)
+	assert.Equal(t, "0.9.6", got[0].GetName())
+	assert.Equal(t, "0.20.4", got[1].GetName())
+}
+
 func TestBuildUpgradeCodeBasedUninstallScript(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -245,10 +264,13 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 		switch r.URL.Path {
 
 		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
-			content := []github.RepositoryContent{{Name: ptr.String("Foo")}}
+			content := []github.RepositoryContent{{
+				Name: ptr.String("1.0"),
+				Type: ptr.String("dir"),
+			}}
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.installer.yaml":
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
 			manifest := installerManifest{
 				ProductCode:    cfg.productCode,
 				InstallerType:  cfg.installerType,
@@ -277,7 +299,7 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			}
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.locale.en-US.yaml":
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
 			lManifest := localeManifest{
 				PackageName: "foo",
 				Publisher:   "Bar, Inc.",
