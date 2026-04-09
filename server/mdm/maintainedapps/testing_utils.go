@@ -43,6 +43,8 @@ func SyncApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	// this call
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", srv.URL)
 	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", srv.URL)
+	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL")
 
 	err := SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
