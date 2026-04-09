@@ -44,7 +44,7 @@ const ApplePushCertSetup = ({
         setIsUploading(false);
       }
     },
-    [renderFlash, onSetupSuccess],
+    [renderFlash, onSetupSuccess]
   );
 
   const onDownloadError = useCallback(
@@ -59,7 +59,7 @@ const ApplePushCertSetup = ({
         renderFlash("error", "Something's gone wrong. Please try again.");
       }
     },
-    [renderFlash],
+    [renderFlash]
   );
 
   return (

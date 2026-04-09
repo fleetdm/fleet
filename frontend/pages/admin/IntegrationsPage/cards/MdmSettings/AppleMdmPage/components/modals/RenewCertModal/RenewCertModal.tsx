@@ -70,7 +70,7 @@ const RenewCertModal = ({
         renderFlash("error", "Something's gone wrong. Please try again.");
       }
     },
-    [renderFlash],
+    [renderFlash]
   );
 
   return (
