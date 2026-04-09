@@ -448,7 +448,11 @@ spec:
           capabilities:
             drop: [ALL]
           privileged: false
+          {{- if .Values.fleet.securityContext.readOnlyRootFilesystem }}
+          readOnlyRootFilesystem: {{ .Values.fleet.securityContext.readOnlyRootFilesystem }}
+          {{ else }}
           readOnlyRootFilesystem: true
+          {{- end }}
           {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
           {{- end }}
