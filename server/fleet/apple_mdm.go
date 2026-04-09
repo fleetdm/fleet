@@ -30,8 +30,8 @@ var (
 )
 
 type MDMAppleCommandIssuer interface {
-	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
-	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, name string) error
+	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string, name string) error
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
 	EnableLostMode(ctx context.Context, host *Host, commandUUID string, orgName string) error
 	DisableLostMode(ctx context.Context, host *Host, commandUUID string) error
@@ -629,6 +629,8 @@ type MDMAppleCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// Name is the optional human-readable name of the command, used for indicating the profile added/removed, if any.
+	Name *string `json:"name" db:"name"`
 }
 
 // MDMAppleSetupAssistant represents the setup assistant set for a given team

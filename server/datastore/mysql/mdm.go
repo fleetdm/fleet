@@ -48,7 +48,8 @@ SELECT
     COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
     nvq.request_type as request_type,
     h.hostname,
-    h.team_id
+    h.team_id,
+    nvq.name
 FROM
     nano_view_queue nvq
 INNER JOIN
@@ -67,7 +68,8 @@ SELECT
     COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
-    h.team_id
+    h.team_id,
+    NULL as name
 FROM windows_mdm_commands wmc
 LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
 LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uuid
@@ -225,7 +227,8 @@ SELECT
         WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error' THEN 'failed'
         ELSE 'pending'
     END AS command_status,
-	request_type
+	request_type,
+	nc.name
 FROM
 	nano_enrollment_queue nq
 	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
@@ -251,7 +254,8 @@ WHERE
 		wc.created_at AS updated_at,
 		'101' AS status,
 		'pending' AS command_status,
-		wc.target_loc_uri AS request_type
+		wc.target_loc_uri AS request_type,
+		NULL AS name
 	FROM
 		windows_mdm_command_queue wq
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
@@ -287,7 +291,8 @@ WHERE
             ) AS UNSIGNED
         ) >= 400 THEN 'failed'
     END AS command_status,
-		wc.target_loc_uri AS request_type
+		wc.target_loc_uri AS request_type,
+		NULL AS name
 	FROM
 		windows_mdm_command_results wcr
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wcr.enrollment_id
