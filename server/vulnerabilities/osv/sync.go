@@ -190,7 +190,7 @@ func getNeededRHELVersions(osVers *fleet.OSVersions) []string {
 	var needed []string
 
 	for _, osVer := range osVers.OSVersions {
-		if !IsRHELOSVSupported(osVer.Platform) {
+		if strings.ToLower(osVer.Platform) != "rhel" {
 			continue
 		}
 

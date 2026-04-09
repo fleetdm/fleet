@@ -26,14 +26,10 @@ const (
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
-// IsPlatformSupported returns true if the given platform is supported by Ubuntu OSV.
+// IsPlatformSupported returns true if the given platform is supported by OSV.
 func IsPlatformSupported(platform string) bool {
-	return strings.ToLower(platform) == "ubuntu"
-}
-
-// IsRHELOSVSupported returns true if the given platform is supported by RHEL OSV.
-func IsRHELOSVSupported(platform string) bool {
-	return strings.ToLower(platform) == "rhel"
+	p := strings.ToLower(platform)
+	return p == "ubuntu" || p == "rhel"
 }
 
 // OSVArtifact represents the processed OSV data for a specific Ubuntu version
@@ -508,7 +504,7 @@ func AnalyzeRHEL(
 	logger *slog.Logger,
 	date time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
-	if !IsRHELOSVSupported(ver.Platform) {
+	if strings.ToLower(ver.Platform) != "rhel" {
 		return nil, ErrUnsupportedPlatform
 	}
 

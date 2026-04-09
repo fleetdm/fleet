@@ -427,7 +427,7 @@ func checkOvalVulnerabilities(
 	if config.OSVForVulnerabilities {
 		var nonOSVPlatforms []fleet.OSVersion
 		for _, v := range versions.OSVersions {
-			if osv.IsPlatformSupported(v.Platform) || osv.IsRHELOSVSupported(v.Platform) {
+			if osv.IsPlatformSupported(v.Platform) {
 				continue
 			}
 			nonOSVPlatforms = append(nonOSVPlatforms, v)
@@ -695,7 +695,7 @@ func checkGovalDictionaryVulnerabilities(
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		// Skip RHEL platforms when RHEL OSV is enabled (OSV handles both kernel and non-kernel)
-		if config.OSVForVulnerabilities && osv.IsRHELOSVSupported(version.Platform) {
+		if config.OSVForVulnerabilities && osv.IsPlatformSupported(version.Platform) {
 			continue
 		}
 		start := time.Now()
