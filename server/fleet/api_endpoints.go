@@ -36,11 +36,14 @@ var validHTTPMethods = map[string]struct{}{
 var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
 
 // NewAPIEndpointFromTpl creates a new APIEndpoint from the provided params.
-// tpl is meant to be a route template as usually defined in the mux router.
+// tpl is meant to be a route template as usually defined in the mux router,
+// or a path using the /_version_/ placeholder convention.
 func NewAPIEndpointFromTpl(method string, tpl string) APIEndpoint {
+	path := versionSegmentRe.ReplaceAllString(tpl, "/v1/")
+	path = strings.ReplaceAll(path, "/_version_/", "/v1/")
 	val := APIEndpoint{
 		Method: method,
-		Path:   versionSegmentRe.ReplaceAllString(tpl, "/v1/"),
+		Path:   path,
 	}
 	val.normalize()
 	return val
