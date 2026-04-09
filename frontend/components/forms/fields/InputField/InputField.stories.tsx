@@ -19,10 +19,6 @@ const meta: Meta<typeof InputField> = {
     blockAutoComplete: { control: "boolean" },
     enableCopy: { control: "boolean" },
     enableShowSecret: { control: "boolean" },
-    copyButtonPosition: {
-      control: "radio",
-      options: ["inside", "outside"],
-    },
     labelTooltipPosition: {
       control: "select",
       options: ["top", "right", "bottom", "left"],
