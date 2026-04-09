@@ -10,6 +10,8 @@ import { ITeamConfig } from "interfaces/team";
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import UsersForm from "./components/UsersForm/UsersForm";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
@@ -151,7 +153,16 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
 
   return (
     <section className={baseClass}>
-      <SectionHeader title="Users" />
+      <SectionHeader
+        title="Users"
+        details={
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-experience/end-user-authentication`}
+            text="Preview end user experience"
+          />
+        }
+      />
       {renderContent()}
     </section>
   );

@@ -58,24 +58,49 @@ const UsersForm = ({
   const onClickSave = async () => {
     setIsUpdating(true);
     const canLockEndUserInfo = isEndUserAuthEnabled && lockEndUserInfo;
-    try {
-      // Save both end user auth and managed local account settings together
-      await mdmAPI.updateEndUserAuthentication(
-        currentTeamId,
-        isEndUserAuthEnabled,
-        canLockEndUserInfo
-      );
-      await mdmAPI.updateSetupExperienceSettings({
-        fleet_id: currentTeamId,
-        enable_managed_local_account: enableManagedLocalAccount,
-      });
-      renderFlash("success", "Successfully updated.");
-    } catch {
-      renderFlash("error", "Couldn't update. Please try again.");
-    } finally {
-      setIsUpdating(false);
-      setLockEndUserInfo(canLockEndUserInfo);
+
+    const endUserAuthDirty =
+      isEndUserAuthEnabled !== defaultIsEndUserAuthEnabled ||
+      canLockEndUserInfo !== defaultLockEndUserInfo;
+    const managedAccountDirty =
+      enableManagedLocalAccount !== defaultEnableManagedLocalAccount;
+
+    const errors: string[] = [];
+
+    if (endUserAuthDirty) {
+      try {
+        await mdmAPI.updateEndUserAuthentication(
+          currentTeamId,
+          isEndUserAuthEnabled,
+          canLockEndUserInfo
+        );
+      } catch {
+        errors.push("end user authentication");
+      }
     }
+
+    if (managedAccountDirty) {
+      try {
+        await mdmAPI.updateSetupExperienceSettings({
+          fleet_id: currentTeamId,
+          enable_managed_local_account: enableManagedLocalAccount,
+        });
+      } catch {
+        errors.push("managed local account");
+      }
+    }
+
+    if (errors.length > 0) {
+      renderFlash(
+        "error",
+        `Couldn't update ${errors.join(" and ")}. Please try again.`
+      );
+    } else {
+      renderFlash("success", "Successfully updated.");
+    }
+
+    setIsUpdating(false);
+    setLockEndUserInfo(canLockEndUserInfo);
   };
 
   return (
