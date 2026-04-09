@@ -15,6 +15,9 @@ name: Build fleetctl Windows MSI
 # 4. To test release upload, set test_mode to false (use with caution)
 
 on:
+  push: # TODO: remove before merging — temporary trigger for testing on feature branch
+    branches:
+      - sgress454/fleetctl-msi-package
   workflow_dispatch: # Manual trigger for testing only
     inputs:
       test_mode:
