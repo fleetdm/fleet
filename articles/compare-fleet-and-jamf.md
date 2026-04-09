@@ -128,13 +128,13 @@ Both solutions provide the ability to upload custom software packages for instal
 
 ### Security and compliance
 
-Jamf Pro is Jamf's flagship device management solution but it is not an out-of-the-box security solution. Jamf Pro enables management of FileVault disk encryption, Gatekeeper and other Apple features which help to keep devices secure, however, Jamf's advanced security offerings like Jamf Protect and Jamf Executive Threat Protection are separate products from Jamf Pro that must be purchased separately at additional cost.
+Jamf Pro is Jamf's flagship device management solution but it is not an out-of-the-box security solution. Jamf Pro enables management of FileVault disk encryption, Gatekeeper, and other Apple features which help to keep devices secure, however, Jamf's advanced security offerings like Jamf Protect and Jamf Executive Threat Protection are separate products from Jamf Pro that must be purchased separately at additional cost.
 
 Jamf's security products make use of Apple's native Endpoint Security Framework for EDR and telemetry collection enabling security monitoring and SIEM integration capabilities, but, this potentially means detection and compliance are more expensive when using Jamf's full product line.
 
 Fleet approaches security and compliance through built-in software vulnerability detection and the power of built-in osquery reporting combined with automation capabilities for enforcing and remediating controls on top of complete support for Apple's MDM specification (which includes control over basic security features like FileVault and Gatekeeper.)
 
-These combined Fleet capabilities make it straight-forward to enforce compliance baselines using frameworks like [CIS](/guides/cis-benchmarks) or STIG. Threat detection in Fleet works through the creation of queries to find attributes, device processes, file systems, network configurations, malware detection via [YARA-based signature matching](/guides/remote-yara-rules), and vulnerability intelligence. Security monitoring, data collection, SIEM integration and all other Fleet capabilities are included under a single license at no additional cost. Fleet provides visibility into software inventories, file system events, connected hardware, firewall status and virtually any imaginable attribute of any device via the [Fleet osquery data table schema](/tables).
+These combined Fleet capabilities make it straight-forward to enforce compliance baselines using frameworks like [CIS](/guides/cis-benchmarks) or STIG. Threat detection in Fleet works through the creation of queries to find attributes, device processes, file systems, network configurations, malware detection via [YARA-based signature matching](/guides/remote-yara-rules), and vulnerability intelligence. Security monitoring, data collection, SIEM integration, and all other Fleet capabilities are included under a single license at no additional cost. Fleet provides visibility into software inventories, file system events, connected hardware, firewall status, and virtually any imaginable attribute of any device via the [Fleet osquery data table schema](/tables).
 
 ## Single-platform vs. multi-platform support
 
@@ -158,7 +158,7 @@ Fleet is an Apple-oriented device management solution. Though it is multi-platfo
 
 Both Fleet and Jamf Pro offer per-device subscription pricing with costs varying based on fleet size and requirements. Organizations should consider implementation effort, training needs, and ROI savings through tool consolidation when choosing to move to a new device management solution. More specialized training and support may be required when maintaining multiple device management solutions. multi-platform device management solutions enable tool consolidation that can offset per-device costs.
 
-In addition to device management feature parity with Jamf, Fleet includes capabilities that Jamf does not like GitOps console management, software vulnerability reporting, osquery data collection and SIEM integration under a single license per device at no additional cost. These inclusions may allow an organization to trim costs even further when consolidating tools by moving to Fleet.
+In addition to device management feature parity with Jamf, Fleet includes capabilities that Jamf does not like GitOps console management, software vulnerability reporting, osquery data collection, and SIEM integration under a single license per device at no additional cost. These inclusions may allow an organization to trim costs even further when consolidating tools by moving to Fleet.
 
 #### How long does it take to implement device management across different platforms?
 
