@@ -28313,46 +28313,8 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 	var resp listAPIEndpointsResponse
 	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.APIEndpoints)
-	require.NotNil(t, resp.Meta)
-	require.Positive(t, resp.Count)
 	require.NoError(t, resp.Err)
-
-	// pagination works: request page 0 with per_page=1
-	var pagedResp listAPIEndpointsResponse
-	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &pagedResp, "per_page", "1", "page", "0")
-	require.Len(t, pagedResp.APIEndpoints, 1)
-	require.True(t, pagedResp.Meta.HasNextResults)
-	require.False(t, pagedResp.Meta.HasPreviousResults)
-
-	// filtering by display_name (case-insensitive): "get host" matches only "Get host"
-	var filteredResp listAPIEndpointsResponse
-	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &filteredResp, "query", "get host")
-	require.Len(t, filteredResp.APIEndpoints, 1)
-	require.Equal(t, "Get host", filteredResp.APIEndpoints[0].DisplayName)
-	require.Equal(t, 1, filteredResp.Count)
-
-	// filtering by display_name substring: "software" matches "List software titles" and "Get software title"
-	var softwareResp listAPIEndpointsResponse
-	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &softwareResp, "query", "software")
-	require.Len(t, softwareResp.APIEndpoints, 2)
-	require.Equal(t, 2, softwareResp.Count)
-
-	// filtering with no matches returns empty results
-	var emptyResp listAPIEndpointsResponse
-	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &emptyResp, "query", "zzznomatch")
-	require.Empty(t, emptyResp.APIEndpoints)
-	require.Equal(t, 0, emptyResp.Count)
-
-	// filtering by path segment: "fleet/hosts" matches all five host endpoints
-	var hostPathResp listAPIEndpointsResponse
-	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &hostPathResp, "query", "fleet/hosts")
-	require.Len(t, hostPathResp.APIEndpoints, 5)
-	require.Equal(t, 5, hostPathResp.Count)
-
-	// filtering by path with placeholder: "fleet/hosts/:id" is normalized to
-	// "fleet/hosts/:placeholder_1", matching GET, DELETE, and PUT single-host endpoints
-	var hostByIDResp listAPIEndpointsResponse
-	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &hostByIDResp, "query", "fleet/hosts/:something_wicked")
-	require.Len(t, hostByIDResp.APIEndpoints, 3)
-	require.Equal(t, 3, hostByIDResp.Count)
+	require.NotEmpty(t, resp.APIEndpoints[0].Method)
+	require.NotEmpty(t, resp.APIEndpoints[0].Path)
+	require.NotEmpty(t, resp.APIEndpoints[0].DisplayName)
 }

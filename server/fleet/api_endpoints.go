@@ -13,9 +13,14 @@ import (
 type APIEndpoint struct {
 	Method         string `json:"method" yaml:"method"`
 	Path           string `json:"path" yaml:"path"`
+	NormalizedPath string `json:"-"`
 	DisplayName    string `json:"display_name" yaml:"display_name"`
 	Deprecated     bool   `json:"deprecated" yaml:"deprecated"`
-	NormalizedPath string `json:"-"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (e *APIEndpoint) AuthzType() string {
+	return "api_endpoint"
 }
 
 var validHTTPMethods = map[string]struct{}{
@@ -32,23 +37,20 @@ var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
 
 // NewAPIEndpointFromTpl creates a new APIEndpoint from the provided params.
 // tpl is meant to be a route template as usually defined in the mux router.
-func NewAPIEndpointFromTpl(method string, tpl string, name string) APIEndpoint {
-	// TODO: We might need to some more processing on tpl, depending on the
-	// final format of api_endpoints.yml
+func NewAPIEndpointFromTpl(method string, tpl string) APIEndpoint {
 	val := APIEndpoint{
-		Method:      method,
-		Path:        versionSegmentRe.ReplaceAllString(tpl, "/_version_/"),
-		DisplayName: name,
+		Method: method,
+		Path:   versionSegmentRe.ReplaceAllString(tpl, "/_version_/"),
 	}
 	val.normalize()
 	return val
 }
 
-// NormalizePathPlaceholders replaces each variable path segment with a
-// numbered placeholder. It handles both the colon-prefix style used in YAML
-// (e.g. /:id) and the brace style used by gorilla/mux (e.g. /{id:[0-9]+}).
-func NormalizePathPlaceholders(path string) string {
-	segments := strings.Split(path, "/")
+// normalize method and path properties
+func (e *APIEndpoint) normalize() {
+	e.Method = strings.ToUpper(e.Method)
+
+	segments := strings.Split(e.Path, "/")
 	n := 0
 	for i, seg := range segments {
 		if strings.HasPrefix(seg, ":") ||
@@ -57,13 +59,13 @@ func NormalizePathPlaceholders(path string) string {
 			segments[i] = fmt.Sprintf(":placeholder_%d", n)
 		}
 	}
-	return strings.Join(segments, "/")
+	e.NormalizedPath = strings.ToLower(strings.Join(segments, "/"))
 }
 
-// Normalize uppercases the method and computes NormalizedPath.
-func (e *APIEndpoint) normalize() {
-	e.Method = strings.ToUpper(e.Method)
-	e.NormalizedPath = NormalizePathPlaceholders(e.Path)
+// Fingerprint return a string that uniquely identifies
+// the APIEndpoint
+func (e APIEndpoint) Fingerprint() string {
+	return fmt.Sprintf("|%s|%s|", e.Method, e.NormalizedPath)
 }
 
 func (e APIEndpoint) validate() error {
@@ -77,16 +79,6 @@ func (e APIEndpoint) validate() error {
 		return errors.New("path is required")
 	}
 	return nil
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (e *APIEndpoint) AuthzType() string {
-	return "api_endpoint"
-}
-
-// Fingerprint returns a string that uniquely identifies an API endpoint
-func (e APIEndpoint) Fingerprint() string {
-	return fmt.Sprintf("|%s|%s|", e.Method, e.NormalizedPath)
 }
 
 func (e *APIEndpoint) UnmarshalJSON(data []byte) error {

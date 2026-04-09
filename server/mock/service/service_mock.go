@@ -876,7 +876,7 @@ type ListSecretVariablesFunc func(ctx context.Context, opts fleet.ListOptions) (
 
 type DeleteSecretVariableFunc func(ctx context.Context, id uint) error
 
-type ListAPIEndpointsFunc func(ctx context.Context, opts fleet.ListOptions) (endpoints []fleet.APIEndpoint, meta *fleet.PaginationMetadata, count int, err error)
+type ListAPIEndpointsFunc func(ctx context.Context) (endpoints []fleet.APIEndpoint, err error)
 
 type ScimDetailsFunc func(ctx context.Context) (fleet.ScimDetails, error)
 
@@ -5245,11 +5245,11 @@ func (s *Service) DeleteSecretVariable(ctx context.Context, id uint) error {
 	return s.DeleteSecretVariableFunc(ctx, id)
 }
 
-func (s *Service) ListAPIEndpoints(ctx context.Context, opts fleet.ListOptions) (endpoints []fleet.APIEndpoint, meta *fleet.PaginationMetadata, count int, err error) {
+func (s *Service) ListAPIEndpoints(ctx context.Context) (endpoints []fleet.APIEndpoint, err error) {
 	s.mu.Lock()
 	s.ListAPIEndpointsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListAPIEndpointsFunc(ctx, opts)
+	return s.ListAPIEndpointsFunc(ctx)
 }
 
 func (s *Service) ScimDetails(ctx context.Context) (fleet.ScimDetails, error) {

@@ -1485,11 +1485,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
 
-		apiEndpoints, _, _, endpointsErr := apiendpoints.List(fleet.ListOptions{})
-		if endpointsErr != nil {
-			panic(fmt.Sprintf("failed to load API endpoints: %v", endpointsErr))
-		}
-		if err := validateAPIEndpoints(apiHandler, apiEndpoints); err != nil {
+		if err := validateAPIEndpoints(apiHandler, apiendpoints.GetAPIEndpoints()); err != nil {
 			panic(fmt.Sprintf("invalid API endpoints: %v", err))
 		}
 
@@ -2209,9 +2205,8 @@ func validateAPIEndpoints(h http.Handler, endpoints []fleet.APIEndpoint) error {
 		if err != nil || len(meths) == 0 {
 			return nil
 		}
-		name := route.GetName()
 		for _, m := range meths {
-			val := fleet.NewAPIEndpointFromTpl(m, tpl, name)
+			val := fleet.NewAPIEndpointFromTpl(m, tpl)
 			registered[val.Fingerprint()] = struct{}{}
 		}
 		return nil

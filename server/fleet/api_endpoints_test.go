@@ -6,52 +6,63 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNormalizePathPlaceholders(t *testing.T) {
+func TestIdIsConstructedCorrectly(t *testing.T) {
 	tests := []struct {
-		path string
-		want string
+		method string
+		path   string
+		want   string
 	}{
 		{
-			path: "/api/_version_/fleet/trigger",
-			want: "/api/_version_/fleet/trigger",
+			method: "GET",
+			path:   "/api/_version_/fleet/trigger",
+			want:   "|GET|/api/_version_/fleet/trigger|",
 		},
 		{
-			path: "/software/titles/:title_id/icon/:id",
-			want: "/software/titles/:placeholder_1/icon/:placeholder_2",
+			method: "GET",
+			path:   "/software/titles/:title_id/icon/:id",
+			want:   "|GET|/software/titles/:placeholder_1/icon/:placeholder_2|",
 		},
 		{
-			path: "/api/_version_/fleet/hosts/:id",
-			want: "/api/_version_/fleet/hosts/:placeholder_1",
+			method: "GET",
+			path:   "/api/_version_/fleet/hosts/:id",
+			want:   "|GET|/api/_version_/fleet/hosts/:placeholder_1|",
 		},
 		{
-			path: "/a/:b/:c/:d",
-			want: "/a/:placeholder_1/:placeholder_2/:placeholder_3",
+			method: "post",
+			path:   "/a/:b/:c/:d",
+			want:   "|POST|/a/:placeholder_1/:placeholder_2/:placeholder_3|",
 		},
 		{
-			path: "/no/placeholders/here",
-			want: "/no/placeholders/here",
+			method: "pAtCh",
+			path:   "/no/placeholders/here",
+			want:   "|PATCH|/no/placeholders/here|",
 		},
 		{
-			path: "/:single",
-			want: "/:placeholder_1",
+			method: "GET",
+			path:   "/:single",
+			want:   "|GET|/:placeholder_1|",
 		},
 		{
-			path: "/UPPER/CASE",
-			want: "/UPPER/CASE",
+			method: "GET",
+			path:   "/UPPER/CASE",
+			want:   "|GET|/upper/case|",
 		},
 		// gorilla/mux brace-style placeholders
 		{
-			path: "/api/_version_/fleet/hosts/{id:[0-9]+}",
-			want: "/api/_version_/fleet/hosts/:placeholder_1",
+			method: "post",
+			path:   "/api/_version_/fleet/hosts/{id:[0-9]+}",
+			want:   "|POST|/api/_version_/fleet/hosts/:placeholder_1|",
 		},
 		{
-			path: "/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}",
-			want: "/api/_version_/fleet/hosts/:placeholder_1/reports/:placeholder_2",
+			method: "get",
+			path:   "/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}",
+			want:   "|GET|/api/_version_/fleet/hosts/:placeholder_1/reports/:placeholder_2|",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			require.Equal(t, tt.want, NormalizePathPlaceholders(tt.path))
+			sut := NewAPIEndpointFromTpl(tt.method, tt.path)
+			require.Equal(t, tt.want, sut.Fingerprint())
 		})
 	}
 }

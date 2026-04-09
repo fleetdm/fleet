@@ -1426,10 +1426,8 @@ type Service interface {
 	// Returns a NotFoundError error if there's no secret variable with such ID.
 	DeleteSecretVariable(ctx context.Context, id uint) error
 
-	// ListAPIEndpoints returns paginated API endpoint metadata derived from
-	// the server's api_endpoints.yml file. opts.MatchQuery filters against both
-	// display_name and normalized_path (case-insensitive substring match).
-	ListAPIEndpoints(ctx context.Context, opts ListOptions) (endpoints []APIEndpoint, meta *PaginationMetadata, count int, err error)
+	// ListAPIEndpoints returns all API endpoints
+	ListAPIEndpoints(ctx context.Context) (endpoints []APIEndpoint, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM

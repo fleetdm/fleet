@@ -8,11 +8,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc *Service) ListAPIEndpoints(ctx context.Context, opts fleet.ListOptions) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {
+func (svc *Service) ListAPIEndpoints(ctx context.Context) ([]fleet.APIEndpoint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.APIEndpoint{}, fleet.ActionRead); err != nil {
-		return nil, nil, 0, ctxerr.Wrap(ctx, err, "authorize list API endpoints")
+		return nil, ctxerr.Wrap(ctx, err, "authorize list API endpoints")
 	}
-
-	opts.IncludeMetadata = true
-	return apiendpoints.List(opts)
+	return apiendpoints.GetAPIEndpoints(), nil
 }

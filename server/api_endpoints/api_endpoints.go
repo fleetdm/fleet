@@ -1,9 +1,8 @@
-package api_endpoints
+package apiendpoints
 
 import (
 	_ "embed"
 	"fmt"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
@@ -14,9 +13,18 @@ var apiEndpointsYAML []byte
 
 var apiEndpoints = mustGetAPIEndpoints()
 
+// GetAPIEndpoints returns a copy of the embedded API endpoints slice.
+func GetAPIEndpoints() []fleet.APIEndpoint {
+	result := make([]fleet.APIEndpoint, len(apiEndpoints))
+	copy(result, apiEndpoints)
+	return result
+}
+
 func mustGetAPIEndpoints() []fleet.APIEndpoint {
 	endpoints := make([]fleet.APIEndpoint, 0)
 
+	// ghodss/yaml converts YAML→JSON then calls json.Unmarshal, so
+	// APIEndpoint.UnmarshalJSON fires — which normalizes and validates each entry.
 	if err := yaml.Unmarshal(apiEndpointsYAML, &endpoints); err != nil {
 		panic(fmt.Errorf("failed to parse: %w", err))
 	}
@@ -30,46 +38,4 @@ func mustGetAPIEndpoints() []fleet.APIEndpoint {
 		seen[fp] = struct{}{}
 	}
 	return endpoints
-}
-
-func List(opts fleet.ListOptions) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {
-	query := strings.ToLower(strings.TrimSpace(opts.MatchQuery))
-
-	if query == "" {
-		return paginateAPIEndpoints(apiEndpoints, opts)
-	}
-
-	normalizedQuery := fleet.NormalizePathPlaceholders(query)
-	filtered := make([]fleet.APIEndpoint, 0)
-	for _, e := range apiEndpoints {
-		if !strings.Contains(strings.ToLower(e.DisplayName), query) &&
-			!strings.Contains(strings.ToLower(e.NormalizedPath), normalizedQuery) {
-			continue
-		}
-		filtered = append(filtered, e)
-	}
-
-	return paginateAPIEndpoints(filtered, opts)
-}
-
-func paginateAPIEndpoints(
-	rows []fleet.APIEndpoint,
-	opts fleet.ListOptions,
-) ([]fleet.APIEndpoint, *fleet.PaginationMetadata, int, error) {
-	total := len(rows)
-	utotal := uint(total)
-
-	perPage := opts.GetPerPage()
-	start := opts.Page * perPage
-	if start >= utotal {
-		var meta fleet.PaginationMetadata
-		meta.HasPreviousResults = opts.Page > 0
-		return nil, &meta, total, nil
-	}
-	end := min(start+perPage, utotal)
-
-	return rows[start:end], &fleet.PaginationMetadata{
-		HasPreviousResults: opts.Page > 0,
-		HasNextResults:     end < utotal,
-	}, total, nil
 }
