@@ -190,6 +190,33 @@ $base-class: "button";
     }
   }
 
+  &--grey-pill {
+    @include button-variant(
+      $core-fleet-white,
+      $ui-off-white,
+      null,
+      $inverse: true
+    );
+    color: $ui-fleet-black-75;
+    border: 1px solid $ui-fleet-black-25;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: $xx-small;
+    font-weight: $bold;
+    padding: 0 $pad-small;
+    height: 28px;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus {
+      border: 1px solid $ui-fleet-black-50;
+    }
+
+    &:active {
+      box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.1);
+    }
+  }
+
   &--text-link {
     @include button-variant(transparent);
     border: 0;

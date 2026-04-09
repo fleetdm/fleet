@@ -1,6 +1,6 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import userEvent from "@testing-library/user-event";
@@ -42,6 +42,8 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 
 describe("PolicyForm - component", () => {
   const defaultProps = {
+    router: createMockRouter(),
+    teamIdForApi: 3,
     policyIdForEdit: mockPolicy.id,
     showOpenSchemaActionText: false,
     storedPolicy: createMockPolicy({ name: "Foo" }),
@@ -127,6 +129,8 @@ describe("PolicyForm - component", () => {
 
       render(
         <PolicyForm
+          router={createMockRouter()}
+          teamIdForApi={3}
           policyIdForEdit={mockPolicy.id}
           showOpenSchemaActionText={false}
           storedPolicy={createMockPolicy({ name: "" })}
@@ -190,6 +194,8 @@ describe("PolicyForm - component", () => {
 
       const { user } = render(
         <PolicyForm
+          router={createMockRouter()}
+          teamIdForApi={3}
           policyIdForEdit={mockPolicy.id}
           showOpenSchemaActionText={false}
           storedPolicy={createMockPolicy({ platform: undefined })}
@@ -266,6 +272,8 @@ describe("PolicyForm - component", () => {
 
       const { user } = render(
         <PolicyForm
+          router={createMockRouter()}
+          teamIdForApi={3}
           policyIdForEdit={mockPolicy.id}
           showOpenSchemaActionText={false}
           storedPolicy={createMockPolicy()}
@@ -360,7 +368,9 @@ describe("PolicyForm - component", () => {
         const saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeDisabled();
 
-        const funButton = screen.getByLabelText("Fun");
+        const funButton = await screen.findByRole("checkbox", {
+          name: "Fun",
+        });
         expect(funButton).not.toBeChecked();
         await userEvent.click(funButton);
         await waitFor(() => {
@@ -378,7 +388,11 @@ describe("PolicyForm - component", () => {
 
         // Set a label.
         await userEvent.click(screen.getByLabelText("Custom"));
-        await userEvent.click(screen.getByLabelText("Fun"));
+        await userEvent.click(
+          await screen.findByRole("checkbox", {
+            name: "Fun",
+          })
+        );
 
         const saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
@@ -398,7 +412,11 @@ describe("PolicyForm - component", () => {
 
         // Set a label.
         await userEvent.click(screen.getByLabelText("Custom"));
-        await userEvent.click(screen.getByLabelText("Fun"));
+        await userEvent.click(
+          await screen.findByRole("checkbox", {
+            name: "Fun",
+          })
+        );
 
         // Click "Include any" to open the dropdown.
         const includeAnyOption = screen.getByRole("option", {
@@ -433,7 +451,11 @@ describe("PolicyForm - component", () => {
 
         // Set a label.
         await userEvent.click(screen.getByLabelText("Custom"));
-        await userEvent.click(screen.getByLabelText("Fun"));
+        await userEvent.click(
+          await screen.findByRole("checkbox", {
+            name: "Fun",
+          })
+        );
 
         await userEvent.click(screen.getByLabelText("All hosts"));
 
@@ -650,53 +672,6 @@ describe("PolicyForm - component", () => {
       render(<PolicyForm {...defaultProps} />);
 
       expect(screen.getByText(/Editing policy for/i)).toBeInTheDocument();
-      expect(
-        screen.getByText(createMockTeamSummary().name)
-      ).toBeInTheDocument();
-    });
-
-    it("shows 'Viewing policy' when existing policy and user has no save permissions", () => {
-      const render = createCustomRenderer({
-        withBackendMock: true,
-        context: {
-          app: {
-            currentUser: createMockUser(),
-            currentTeam: createMockTeamSummary(),
-            isGlobalObserver: true, // no save perms
-            isGlobalAdmin: false,
-            isGlobalMaintainer: false,
-            isTeamMaintainerOrTeamAdmin: false,
-            isOnGlobalTeam: true,
-            isPremiumTier: true,
-            isSandboxMode: false,
-            isFreeTier: false,
-            config: createMockConfig(),
-          },
-          policy: {
-            policyTeamId: undefined,
-            lastEditedQueryId: mockPolicy.id,
-            lastEditedQueryName: mockPolicy.name,
-            lastEditedQueryDescription: mockPolicy.description,
-            lastEditedQueryBody: mockPolicy.query,
-            lastEditedQueryResolution: mockPolicy.resolution,
-            lastEditedQueryCritical: mockPolicy.critical,
-            lastEditedQueryPlatform: mockPolicy.platform,
-            lastEditedQueryLabelsIncludeAny: [],
-            lastEditedQueryLabelsExcludeAny: [],
-            defaultPolicy: false,
-            setLastEditedQueryName: jest.fn(),
-            setLastEditedQueryDescription: jest.fn(),
-            setLastEditedQueryBody: jest.fn(),
-            setLastEditedQueryResolution: jest.fn(),
-            setLastEditedQueryCritical: jest.fn(),
-            setLastEditedQueryPlatform: jest.fn(),
-          },
-        },
-      });
-
-      render(<PolicyForm {...defaultProps} />);
-
-      expect(screen.getByText(/Viewing policy for/i)).toBeInTheDocument();
       expect(
         screen.getByText(createMockTeamSummary().name)
       ).toBeInTheDocument();

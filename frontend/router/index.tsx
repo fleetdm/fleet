@@ -42,6 +42,7 @@ import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
+import PolicyDetailsPage from "pages/policies/PolicyDetailsPage";
 import PolicyPage from "pages/policies/PolicyPage";
 import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
 import LiveQueryPage from "pages/queries/live/LiveQueryPage";
@@ -411,7 +412,10 @@ const routes = (
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
               <Route path="new" component={PolicyPage} />
             </Route>
-            <Route path=":id" component={PolicyPage} />
+            <Route path=":id">
+              <IndexRoute component={PolicyDetailsPage} />
+              <Route path="edit" component={PolicyPage} />
+            </Route>
           </Route>
           <Redirect from="profile" to="account" /> {/* deprecated URL */}
           <Route path="account" component={AccountPage} />

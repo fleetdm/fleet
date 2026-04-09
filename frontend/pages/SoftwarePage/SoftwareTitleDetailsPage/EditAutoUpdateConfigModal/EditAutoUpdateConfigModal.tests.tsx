@@ -401,11 +401,15 @@ describe("Edit Auto Update Config Modal", () => {
       await screen.findByLabelText("Custom");
 
       // Now wait specifically for one label to appear
-      const freshLabel = await screen.findByLabelText(mockLabels[1].name);
+      const freshLabel = await screen.findByRole("checkbox", {
+        name: mockLabels[1].name,
+      });
       expect(freshLabel).toBeInTheDocument();
       expect(freshLabel).toBeChecked();
 
-      const funLabel = screen.getByLabelText(mockLabels[0].name);
+      const funLabel = screen.getByRole("checkbox", {
+        name: mockLabels[0].name,
+      });
       expect(funLabel).toBeInTheDocument();
       expect(funLabel).not.toBeChecked();
     });
@@ -426,10 +430,12 @@ describe("Edit Auto Update Config Modal", () => {
         />
       );
       // Wait for labels to load
-      await screen.findByLabelText(mockLabels[1].name);
+      await screen.findByRole("checkbox", { name: mockLabels[1].name });
       const customOption = screen.getByLabelText("Custom");
       expect(customOption).toBeChecked();
-      const labelOption = screen.getByLabelText(mockLabels[1].name);
+      const labelOption = screen.getByRole("checkbox", {
+        name: mockLabels[1].name,
+      });
       expect(labelOption).toBeChecked();
       await user.click(labelOption);
       expect(labelOption).not.toBeChecked();

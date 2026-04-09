@@ -11,7 +11,6 @@ import configAPI from "services/entities/config";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button/Button";
 import TooltipWrapper from "components/TooltipWrapper";
