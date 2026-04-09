@@ -120,16 +120,6 @@ export const WithCopyButton: Story = {
   },
 };
 
-export const WithCopyEnabledInput: Story = {
-  args: {
-    ...Default.args,
-    name: "copy-enabled-input",
-    label: "Input with Copy Enabled",
-    value: "This text can be copied",
-    enableCopy: true,
-  },
-};
-
 export const AutoFocus: Story = {
   args: {
     ...Default.args,
