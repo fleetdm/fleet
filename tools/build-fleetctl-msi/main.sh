@@ -89,6 +89,7 @@ sed "s/__VERSION__/$VERSION/g" "$SCRIPT_DIR/fleetctl.wxs" > "$WORKDIR/main.wxs"
 echo "Signing fleetctl.exe..."
 MSYS_NO_PATHCONV=1 signtool.exe sign /v /sha1 "$DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT" \
     /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 \
+    /d "fleetctl by Fleet Device Management" /du "https://fleetdm.com" \
     "$WORKDIR_WIN\\root\\fleetctl.exe"
 MSYS_NO_PATHCONV=1 signtool.exe verify /v /pa "$WORKDIR_WIN\\root\\fleetctl.exe"
 echo "fleetctl.exe signed successfully"
@@ -105,6 +106,7 @@ light.exe "$WORKDIR_WIN\\main.wixobj" -b "$WORKDIR_WIN" -out "$WORKDIR_WIN\\$MSI
 echo "Signing MSI..."
 MSYS_NO_PATHCONV=1 signtool.exe sign /v /sha1 "$DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT" \
     /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 \
+    /d "fleetctl by Fleet Device Management" /du "https://fleetdm.com" \
     "$WORKDIR_WIN\\$MSI_NAME"
 MSYS_NO_PATHCONV=1 signtool.exe verify /v /pa "$WORKDIR_WIN\\$MSI_NAME"
 echo "MSI signed successfully"
