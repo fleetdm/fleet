@@ -42,6 +42,15 @@ export const Default: Story = {
   },
 };
 
+export const WithValue: Story = {
+  args: {
+    ...Default.args,
+    name: "with-value-input",
+    label: "Input with Value",
+    value: "Sample text",
+  },
+};
+
 export const WithError: Story = {
   args: {
     ...Default.args,
@@ -108,6 +117,25 @@ export const WithCopyButton: Story = {
     label: "Input with Copy Button",
     value: "Click to copy this text",
     enableCopy: true,
+  },
+};
+
+export const WithCopyEnabledInput: Story = {
+  args: {
+    ...Default.args,
+    name: "copy-enabled-input",
+    label: "Input with Copy Enabled",
+    value: "This text can be copied",
+    enableCopy: true,
+  },
+};
+
+export const AutoFocus: Story = {
+  args: {
+    ...Default.args,
+    name: "autofocus-input",
+    label: "Autofocus Input",
+    autofocus: true,
   },
 };
 
