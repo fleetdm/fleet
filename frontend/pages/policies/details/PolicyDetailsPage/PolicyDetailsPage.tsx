@@ -337,12 +337,9 @@ const PolicyDetailsPage = ({
                     onClick={() => {
                       policyId &&
                         router.push(
-                          getPathWithQueryParams(
-                            PATHS.LIVE_POLICY(policyId),
-                            {
-                              fleet_id: teamIdForApi,
-                            }
-                          )
+                          getPathWithQueryParams(PATHS.LIVE_POLICY(policyId), {
+                            fleet_id: teamIdForApi,
+                          })
                         );
                     }}
                     disabled={!!disabledLiveQuery}
