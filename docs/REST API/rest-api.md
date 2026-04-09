@@ -768,7 +768,9 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "team_id": 1,
   "fleet_id": 1,
   "certificate_authority_id": 1,
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+
 }
 ```
 
@@ -781,7 +783,8 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "certificate_authority_id": 1,
   "id": 1,
   "name": "wifi-certificate",
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 }
 ```
 
@@ -1014,7 +1017,7 @@ Get details of the certificate added to Fleet.
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
 | id   | integer | path | **Required**. The ID of the certificate. |
-| host_id   | integer | query | ID of the host. If included, variables in `subject_name` will be replaced with host's values. |
+| host_id   | integer | query | ID of the host. If included, variables in `subject_name`, and `subject_alternative_name` will be replaced with host's values. |
 
 #### Request headers
 
@@ -1064,6 +1067,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
   "id": 1,
   "name": "wifi-certificate",
   "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 }
 ```
 
