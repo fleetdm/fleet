@@ -8,7 +8,6 @@ import configAPI from "services/entities/config";
 import paths from "router/paths";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";

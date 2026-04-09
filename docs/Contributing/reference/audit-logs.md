@@ -872,7 +872,7 @@ This activity contains the following fields:
 
 ## enabled_macos_disk_encryption
 
-Generated when a user turns on macOS disk encryption for a team (or no team).
+Generated when a user turns on disk encryption for a team (or no team).
 
 This activity contains the following fields:
 - "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
@@ -889,7 +889,7 @@ This activity contains the following fields:
 
 ## disabled_macos_disk_encryption
 
-Generated when a user turns off macOS disk encryption for a team (or no team).
+Generated when a user turns off disk encryption for a team (or no team).
 
 This activity contains the following fields:
 - "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.

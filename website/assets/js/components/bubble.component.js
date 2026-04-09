@@ -1,0 +1,60 @@
+/**
+ * <bubble>
+ * -----------------------------------------------------------------------------
+ * A styled span used in documentation.
+ *
+ * @type {Component}
+ *
+ * @event click   [emitted when clicked]
+ * -----------------------------------------------------------------------------
+ */
+
+parasails.registerComponent('bubble', {
+  //  ╔═╗╦═╗╔═╗╔═╗╔═╗
+  //  ╠═╝╠╦╝║ ║╠═╝╚═╗
+  //  ╩  ╩╚═╚═╝╩  ╚═╝
+  props: [
+    'type',
+  ],
+
+  //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
+  //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
+  //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
+  data: function (){
+    return {
+      rawType: this.type ? this.type.replace(/\?$/, '').toLowerCase() : '',
+      isUncertain: this.type ? this.type.match(/\?$/g) ? true : false : '',
+    };
+  },
+
+  //  ╦ ╦╔╦╗╔╦╗╦
+  //  ╠═╣ ║ ║║║║
+  //  ╩ ╩ ╩ ╩ ╩╩═╝
+  template: `
+    <span>
+      <span purpose="bubble-heart" :class="rawType+' '+[[isUncertain ? 'uncertain' : '']]" class="">{{type}}</span>
+    </span>
+  `,
+
+  //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
+  //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
+  //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
+  beforeMount: function() {
+    if(this.type === undefined){
+      throw new Error(`Incomplete usage of <bubble>: Please provide a 'type' that will be displayed as text inside the bubble. e.g., <bubble type="Observer"></bubble>`);
+    }
+  },
+  mounted: async function(){
+    //…
+  },
+  beforeDestroy: function() {
+    //…
+  },
+
+  //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+  //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
+  //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
+  methods: {
+    //…
+  }
+});
