@@ -115,3 +115,4 @@ labels:
   - path: ./lib/all/labels/patch-management-macos-apps-installed.yml
   - path: ./lib/all/labels/patch-management-windows-apps-installed.yml
   - path: ./lib/all/labels/departments.yml
+  - path: ./lib/all/labels/idp-group-saml-aws-vpn.yml

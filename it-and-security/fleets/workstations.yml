@@ -250,6 +250,12 @@ software:
         - Productivity
   fleet_maintained_apps:
     # ---- Managed macOS apps ----
+    - slug: aws-vpn-client/darwin # AWS VPN Client for macOS
+      self_service: true
+      labels_include_any:
+        - "IdP group: SAML-aws-vpn"
+      categories:
+        - Utilities
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       setup_experience: true
