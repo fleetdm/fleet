@@ -18,9 +18,6 @@ interface ICommandItemProps {
   onShowDetails: ShowCommandDetailsHandler;
 }
 
-const isProfileCommand = (requestType: string): boolean =>
-  requestType === "InstallProfile" || requestType === "RemoveProfile";
-
 const getStatusText = (command: ICommand): string => {
   const { command_status, status } = command;
 
