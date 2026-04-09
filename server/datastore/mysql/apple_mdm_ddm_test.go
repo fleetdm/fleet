@@ -394,7 +394,7 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 	d2, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		DeclarationUUID: "decl-new",
 		Name:            "New Declaration",
-		Identifier:      "com.example.cleanup.new",
+		Identifier:      "com.example.cleanup",
 		RawJSON:         declJSON,
 	})
 	require.NoError(t, err)
@@ -454,10 +454,10 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 	})
 
 	// Force a small batch size so installs and removes end up in different batches.
-	// The UNION ALL query returns installs first, then removes. With 3 hosts:
-	//   - 3 install rows (D2 for each host) + 3 remove rows (D1 for each host) = 6 rows
-	//   - batch size 2 → batch 1: 2 installs, batch 2: 1 install + 1 remove, batch 3: 2 removes
-	// When batch 1 runs cleanUpDuplicateRemoveInstall, the removes haven't been upserted to
+	// The UNION ALL query returns removes first, then installs. With 3 hosts:
+	//   - 3 remove rows (D1 for each host) + 3 install rows (D2 for each host) = 6 rows
+	//   - batch size 2 → batch 1: 2 removes, batch 2: 1 remove + 1 install, batch 3: 2 installs
+	// When batch 1 runs cleanUpDuplicateRemoveInstall, the matching installs haven't been upserted to
 	// status='pending' yet — they still have status='verified' — so the cleanup finds no match.
 	ds.testUpsertMDMDesiredProfilesBatchSize = 2
 	t.Cleanup(func() { ds.testUpsertMDMDesiredProfilesBatchSize = 0 })
