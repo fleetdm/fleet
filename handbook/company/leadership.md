@@ -450,6 +450,15 @@ Schedule a call with [💸 Finance](https://fleetdm.com/handbook/finance#team) t
 
 Once approved by 💸 Finance, finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
 
+## Executive bios
+
+Certain of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
+
+| Person               | Headshot     | Bio   |
+|:---------------------|:-------------|:------|
+| Mike McNeil          | <img height="350" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | TODO |
+
+
 
 #### Stubs
 
