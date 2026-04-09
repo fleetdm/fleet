@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -48,11 +47,9 @@ func resolveBaseURLs() (primary, fallback string) {
 	return primary, fallback
 }
 
-// fetchManifestData fetches the given path (e.g. "/apps.json") from the primary
-// FMA base URL. If the primary request fails for any reason (network error,
-// non-200 status), it immediately retries with the fallback base URL. If both
-// fail, the returned error includes context from both attempts.
-func fetchManifestData(ctx context.Context, path string) ([]byte, error) {
+// fetchManifestFile fetches a manifest file from the primary FMA CDN, falling back to the
+// fallback CDN if the primary fails.
+func fetchManifestFile(ctx context.Context, path string) ([]byte, error) {
 	primaryBase, fallbackBase := resolveBaseURLs()
 
 	body, primaryErr := doFetch(ctx, primaryBase, path)
@@ -66,7 +63,7 @@ func fetchManifestData(ctx context.Context, path string) ([]byte, error) {
 		return body, nil
 	}
 
-	return nil, ctxerr.Errorf(ctx, "fetching %s: primary (%s) failed: %v; fallback (%s) also failed: %v",
+	return nil, ctxerr.Errorf(ctx, "fetching FMA manifest file %q: primary (%s) failed: %v; fallback (%s) also failed: %v",
 		path, primaryBase, primaryErr, fallbackBase, fallbackErr)
 }
 
@@ -104,9 +101,8 @@ func doFetch(ctx context.Context, baseURL, path string) ([]byte, error) {
 	}
 }
 
-// Refresh fetches the latest information about maintained apps from FMA's
-// apps list on GitHub and updates the Fleet database with the new information.
-func Refresh(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+// SyncAppsList fetches the latest FMA apps list and updates the apps list copy cached in the DB
+func SyncAppsList(ctx context.Context, ds fleet.Datastore) error {
 	appsList, err := FetchAppsList(ctx)
 	if err != nil {
 		return err
@@ -116,7 +112,7 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error
 }
 
 func FetchAppsList(ctx context.Context) (*AppsList, error) {
-	body, err := fetchManifestData(ctx, "/apps.json")
+	body, err := fetchManifestFile(ctx, "/apps.json")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetch apps list")
 	}
@@ -207,7 +203,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 		return app, nil
 	}
 
-	body, err := fetchManifestData(ctx, fmt.Sprintf("/%s.json", app.Slug))
+	body, err := fetchManifestFile(ctx, fmt.Sprintf("/%s.json", app.Slug))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetch app manifest")
 	}

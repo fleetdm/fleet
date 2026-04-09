@@ -170,7 +170,7 @@ func TestFetchManifestDataFallbackUsedForSlugPath(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	body, err := fetchManifestData(context.Background(), "/test-app.json")
+	body, err := fetchManifestFile(context.Background(), "/test-app.json")
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"test"`)
 	assert.Equal(t, int32(1), primaryHits.Load(), "primary should have been tried once")
@@ -193,7 +193,7 @@ func TestFetchManifestDataPrimarySucceedsSkipsFallback(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", primary.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", fallback.URL, t)
 
-	body, err := fetchManifestData(context.Background(), "/something.json")
+	body, err := fetchManifestFile(context.Background(), "/something.json")
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"ok"`)
 	assert.Equal(t, int32(0), fallbackHits.Load(), "fallback must not be contacted when primary succeeds")
