@@ -657,6 +657,23 @@ You can view the hash for existing software in the software detail page in the F
 - hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
 ```
 
+##### Script-only
+
+Script-only packages (`.sh` and `.ps1` files) are referenced directly inline in the team YAML file. The file contents become the install script. Script packages do not support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
+
+`self_service`, `categories`, `labels`, and `icon` are specified inline in the team YAML file.
+
+```yaml
+software:
+  packages:
+    - path: ../lib/linux/scripts/vpn-setup.sh
+      self_service: true
+      categories:
+        - Utilities
+```
+
+> Script-only packages do not currently support configuration via a separate package YAML file. All options must be specified inline in the team YAML file.
+
 ### app_store_apps
 
 - `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is "https://play.google.com/store/apps/details?id=com.android.chrome," so the `app_store_id` is "com.android.chrome."

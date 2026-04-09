@@ -424,6 +424,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `bug` A defect in the product.
 - `story` A user story.
 - `timebox` A timeboxed issue (a task or bug limited to a fixed duration, after which work stops regardless of completion).
+- `reliability` A scaling, performance, or reliability issue, including post-mortem action items.
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs).
 

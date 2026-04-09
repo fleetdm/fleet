@@ -1,0 +1,1 @@
+* Improved documentation for MySQL read replica configuration, clarifying that all settings (including region for IAM authentication) must be explicitly set for the read replica.

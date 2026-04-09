@@ -89,7 +89,6 @@ const TargetsInput = ({
           type="search"
           iconSvg="search"
           value={searchText}
-          iconPosition="start"
           label={label}
           placeholder={placeholder}
           onChange={setSearchText}

@@ -111,6 +111,8 @@ Fleet uses AI code review tools to supplement human review on pull requests. Thr
 2. **CodeRabbit**: Available for free as an open source project. To request a review, add a comment on the PR: `@coderabbitai full review`.
 3. **Claude**: A more thorough review that takes about 30 minutes and costs $20–$25 per review. Claude often finds issues the other AI reviews miss. Use this option judiciously given the cost.
 
+> **Tip:** When requesting a Claude review, use `@claude review once` instead of `@claude review`. There is currently no way to stop a Claude review once started, and each run takes ~45 minutes. Using `@claude review` causes it to re-run on every new commit—including minor or stale changes—leading to unnecessary long-running review cycles and added cost.
+
 
 ### AI coding tools
 
