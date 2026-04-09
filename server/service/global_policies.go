@@ -321,6 +321,8 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
 
+const errPolicyAllFleetsForConditionalAccess = "\"All fleets\" policy cannot have conditional_access_enabled set"
+
 type modifyGlobalPolicyRequest struct {
 	PolicyID uint `url:"policy_id"`
 	fleet.ModifyPolicyPayload
