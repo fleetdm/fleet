@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import classnames from "classnames";
-import { pick } from "lodash";
+
 import { PlacesType } from "react-tooltip-5";
 
 import { stringToClipboard } from "utilities/copy_text";
@@ -180,17 +180,14 @@ const InputField = ({
     [`input-field--disabled`]: disabled,
   });
 
-  const formFieldProps = pick(
-    {
-      helpText,
-      label,
-      error,
-      name,
-      tooltip,
-      labelTooltipPosition,
-    },
-    ["helpText", "label", "error", "name", "tooltip", "labelTooltipPosition"]
-  );
+  const formFieldProps = {
+    helpText,
+    label,
+    error,
+    name,
+    tooltip,
+    labelTooltipPosition,
+  };
 
   const inputContainerClasses = classnames(`${baseClass}__input-container`, {
     "copy-enabled": enableCopy,
