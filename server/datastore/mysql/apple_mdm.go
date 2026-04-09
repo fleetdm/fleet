@@ -6056,19 +6056,6 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	stmt := fmt.Sprintf(`
         (
             SELECT
-                ds.host_uuid,
-                'install' as operation_type,
-                ds.token,
-                ds.secrets_updated_at,
-                ds.declaration_uuid,
-                ds.declaration_identifier,
-                ds.declaration_name
-            FROM
-                %s
-        )
-        UNION ALL
-        (
-            SELECT
                 hmae.host_uuid,
                 'remove' as operation_type,
                 hmae.token,
@@ -6079,13 +6066,26 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
             FROM
                 %s
         )
+        UNION ALL
+        (
+			SELECT
+                ds.host_uuid,
+                'install' as operation_type,
+                ds.token,
+                ds.secrets_updated_at,
+                ds.declaration_uuid,
+                ds.declaration_identifier,
+                ds.declaration_name
+            FROM
+                %s
+        )
     `,
-		entitiesToInstallQuery,
 		entitiesToRemoveQuery,
+		entitiesToInstallQuery,
 	)
 
 	var decls []*fleet.MDMAppleHostDeclaration
-	args := slices.Concat(entitiesToInstallArgs, entitiesToRemoveArgs)
+	args := slices.Concat(entitiesToRemoveArgs, entitiesToInstallArgs)
 	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}

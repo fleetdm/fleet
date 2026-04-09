@@ -22,6 +22,7 @@ func TestMDMDDMApple(t *testing.T) {
 	}{
 		{"TestMDMAppleBatchSetHostDeclarationState", testMDMAppleBatchSetHostDeclarationState},
 		{"StoreDDMStatusReportSkipsRemoveRows", testStoreDDMStatusReportSkipsRemoveRows},
+		{"CleanUpDuplicateRemoveInstallAcrossBatches", testCleanUpDuplicateRemoveInstallAcrossBatches},
 	}
 
 	for _, c := range cases {
@@ -370,4 +371,138 @@ func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "decl-install", remaining[0].DeclarationUUID)
 	assert.Equal(t, "install", remaining[0].OperationType)
 	assert.Equal(t, "verified", remaining[0].Status)
+}
+
+func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create 2 declarations with the same raw_json (so they produce the same token).
+	// D1 simulates the "old" declaration that was already installed on hosts.
+	// D2 simulates the "new" declaration (same content, different UUID — e.g. after a name change caused delete+reinsert).
+	declJSON := []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.cleanup"}`)
+
+	d1, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		DeclarationUUID: "decl-old",
+		Name:            "Old Declaration",
+		Identifier:      "com.example.cleanup",
+		RawJSON:         declJSON,
+	})
+	require.NoError(t, err)
+
+	// D2 has different name but same content/identifier — same token
+	d2, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		DeclarationUUID: "decl-new",
+		Name:            "New Declaration",
+		Identifier:      "com.example.cleanup.new",
+		RawJSON:         declJSON,
+	})
+	require.NoError(t, err)
+
+	// Query the token for D1 from mdm_apple_declarations (generated column)
+	var d1Token string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &d1Token,
+			"SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", d1.DeclarationUUID)
+	})
+	var d2Token string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &d2Token,
+			"SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", d2.DeclarationUUID)
+	})
+	require.Equal(t, d1Token, d2Token, "declarations with same raw_json should have the same token")
+
+	// Create 3 hosts, all enrolled
+	hosts := make([]*fleet.Host, 3)
+	for i := 0; i < 3; i++ {
+		hostUUID := fmt.Sprintf("cleanup-host-%d", i)
+		hosts[i], err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("cleanup-host-%d", i),
+			UUID:            hostUUID,
+			HardwareSerial:  fmt.Sprintf("CLEANUP-%d", i),
+			PrimaryIP:       fmt.Sprintf("192.168.10.%d", i+1),
+			PrimaryMac:      fmt.Sprintf("00:00:00:00:10:%02d", i+1),
+			OsqueryHostID:   ptr.String(hostUUID),
+			NodeKey:         ptr.String(hostUUID),
+			DetailUpdatedAt: time.Now(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		setupMDMDeviceAndEnrollment(t, ds, ctx, hostUUID, hosts[i].HardwareSerial)
+	}
+
+	// For each host, insert a host_declaration row for D1 with status=verified, operation_type=install.
+	// This simulates D1 being currently installed on each host.
+	// NOTE: We use UNHEX(?) with the hex token directly (not insertHostDeclaration which does
+	// UNHEX(MD5(?))) because we need the token to match the generated column in mdm_apple_declarations exactly.
+	for _, h := range hosts {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_mdm_apple_declarations
+				(host_uuid, declaration_uuid, status, operation_type, token, declaration_identifier)
+				VALUES (?, ?, 'verified', 'install', UNHEX(?), ?)`,
+				h.UUID, d1.DeclarationUUID, d1Token, d1.Identifier)
+			return err
+		})
+	}
+
+	// Now delete D1 from mdm_apple_declarations (simulating IT admin removing the old declaration).
+	// The host_mdm_apple_declarations rows for D1 remain — the reconciler will mark them for removal.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?", d1.DeclarationUUID)
+		return err
+	})
+
+	// Force a small batch size so installs and removes end up in different batches.
+	// The UNION ALL query returns installs first, then removes. With 3 hosts:
+	//   - 3 install rows (D2 for each host) + 3 remove rows (D1 for each host) = 6 rows
+	//   - batch size 2 → batch 1: 2 installs, batch 2: 1 install + 1 remove, batch 3: 2 removes
+	// When batch 1 runs cleanUpDuplicateRemoveInstall, the removes haven't been upserted to
+	// status='pending' yet — they still have status='verified' — so the cleanup finds no match.
+	ds.testUpsertMDMDesiredProfilesBatchSize = 2
+	t.Cleanup(func() { ds.testUpsertMDMDesiredProfilesBatchSize = 0 })
+
+	// Run the reconciler
+	_, err = ds.MDMAppleBatchSetHostDeclarationState(ctx)
+	require.NoError(t, err)
+
+	// Assert: for each host, the cleanup should have:
+	//   1. Deleted the D1 remove row (same token as D2 install — duplicate remove/install)
+	//   2. Marked D2 install as verified with resync=1
+	// With the bug: the D1 remove row survives because cleanup ran per-batch and missed
+	// cross-batch matches. Both D1 (remove/pending) and D2 (install/pending) exist.
+	type declRow struct {
+		DeclarationUUID string  `db:"declaration_uuid"`
+		OperationType   string  `db:"operation_type"`
+		Status          string  `db:"status"`
+		Resync          bool    `db:"resync"`
+		Token           *string `db:"token"`
+	}
+	for _, h := range hosts {
+		var rows []declRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT declaration_uuid, operation_type, COALESCE(status, '') as status, resync, HEX(token) as token
+				FROM host_mdm_apple_declarations
+				WHERE host_uuid = ?
+				ORDER BY declaration_uuid`, h.UUID)
+		})
+
+		// Build a map by declaration UUID for easier assertions
+		rowByDecl := make(map[string]declRow, len(rows))
+		for _, r := range rows {
+			rowByDecl[r.DeclarationUUID] = r
+		}
+
+		// D1 remove row should NOT exist (cleaned up because same token as D2 install)
+		_, d1Exists := rowByDecl[d1.DeclarationUUID]
+		assert.False(t, d1Exists, "host %s: D1 remove row should have been cleaned up (same token as D2 install)", h.UUID)
+
+		// D2 install row should exist as verified with resync=1
+		d2Row, d2Exists := rowByDecl[d2.DeclarationUUID]
+		if assert.True(t, d2Exists, "host %s: D2 install row should exist", h.UUID) {
+			assert.Equal(t, "install", d2Row.OperationType, "host %s: D2 should be install", h.UUID)
+			assert.Equal(t, "verified", d2Row.Status, "host %s: D2 should be marked verified by cleanup", h.UUID)
+			assert.True(t, d2Row.Resync, "host %s: D2 should have resync=1", h.UUID)
+		}
+	}
 }
