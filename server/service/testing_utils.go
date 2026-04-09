@@ -15,6 +15,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -1494,12 +1496,25 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		_, _ = w.Write(state.installerBytes)
 	}))
 
-	// call Refresh directly (instead of SyncApps) since we're using the server above and not the file server
-	// created in SyncApps
-	err := maintained_apps.Refresh(t.Context(), ds, slog.New(slog.DiscardHandler))
-	require.NoError(t, err)
+	// Locate the repo's apps.json so the manifest server can serve it.
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("could not locate myself to serve apps.json file")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
+	appsJSONPath := filepath.Join(repoRoot, "ee", "maintained-apps", "outputs", "apps.json")
 
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/apps.json" {
+			b, err := os.ReadFile(appsJSONPath)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			_, _ = w.Write(b)
+			return
+		}
+
 		var state *fmaTestState
 		state, found := states[r.URL.Path]
 		if !found {
@@ -1532,6 +1547,9 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		installerServer.Close()
 	})
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
+
+	require.NoError(t, maintained_apps.SyncAppsList(t.Context(), ds))
 }
 
 // acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.
