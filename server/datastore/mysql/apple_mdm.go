@@ -5811,7 +5811,14 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		uuids, _, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Safety net: always clean up orphaned remove/pending rows, even when
+		// there are no changed declarations. This handles stuck rows from
+		// previous runs that can't self-heal via device status reports.
+		return cleanUpOrphanedPendingRemoves(ctx, tx)
 	})
 
 	return uuids, ctxerr.Wrap(ctx, err, "upserting host declaration state")
@@ -5967,6 +5974,23 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	return updatedDB, ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
 }
 
+// cleanUpOrphanedPendingRemoves deletes remove/pending rows from
+// host_mdm_apple_declarations where a matching install row already exists with
+// the same host, token, and identifier in a verified or verifying state. This
+// means the declaration content is already on the device — the remove is stale.
+func cleanUpOrphanedPendingRemoves(ctx context.Context, tx sqlx.ExtContext) error {
+	_, err := tx.ExecContext(ctx, `
+		DELETE r FROM host_mdm_apple_declarations r
+		INNER JOIN host_mdm_apple_declarations i
+			ON r.host_uuid = i.host_uuid
+			AND r.token = i.token
+			AND r.declaration_identifier = i.declaration_identifier
+		WHERE r.operation_type = 'remove' AND r.status = 'pending'
+			AND i.operation_type = 'install'
+			AND i.status IN ('verified', 'verifying')`)
+	return ctxerr.Wrap(ctx, err, "deleting orphaned remove/pending rows")
+}
+
 func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, profilesToInsert map[string]*fleet.MDMAppleHostDeclaration) error {
 	// If we are inserting a declaration that has a matching pending "remove" declaration (same hash),
 	// we will mark the insert as verified. Why? Because there is nothing for the host to do if the same
@@ -6055,7 +6079,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	entitiesToRemoveQuery, entitiesToRemoveArgs := generateEntitiesToRemoveQuery("declaration")
 	stmt := fmt.Sprintf(`
         (
-            SELECT
+			SELECT
                 hmae.host_uuid,
                 'remove' as operation_type,
                 hmae.token,

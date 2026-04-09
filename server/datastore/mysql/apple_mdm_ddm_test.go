@@ -23,6 +23,7 @@ func TestMDMDDMApple(t *testing.T) {
 		{"TestMDMAppleBatchSetHostDeclarationState", testMDMAppleBatchSetHostDeclarationState},
 		{"StoreDDMStatusReportSkipsRemoveRows", testStoreDDMStatusReportSkipsRemoveRows},
 		{"CleanUpDuplicateRemoveInstallAcrossBatches", testCleanUpDuplicateRemoveInstallAcrossBatches},
+		{"CleanUpOrphanedPendingRemoves", testCleanUpOrphanedPendingRemoves},
 	}
 
 	for _, c := range cases {
@@ -505,4 +506,98 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 			assert.True(t, d2Row.Resync, "host %s: D2 should have resync=1", h.UUID)
 		}
 	}
+}
+
+func testCleanUpOrphanedPendingRemoves(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// This test simulates the "already stuck" scenario: a host has an orphaned
+	// remove/pending row and a matching install/verified row with the same token
+	// and identifier. No new declarations are changed, so the reconciler's
+	// changedDeclarations is empty. The cleanUpOrphanedPendingRemoves safety net
+	// in MDMAppleBatchSetHostDeclarationState should still clean it up.
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host-orphan",
+		UUID:            "test-host-uuid-orphan",
+		HardwareSerial:  "ORPHAN-001",
+		PrimaryIP:       "192.168.20.1",
+		PrimaryMac:      "00:00:00:00:20:01",
+		OsqueryHostID:   ptr.String("test-host-uuid-orphan"),
+		NodeKey:         ptr.String("test-host-uuid-orphan"),
+		DetailUpdatedAt: time.Now(),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	setupMDMDeviceAndEnrollment(t, ds, ctx, host.UUID, host.HardwareSerial)
+
+	// Create a declaration so we have a valid token to work with.
+	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		DeclarationUUID: "decl-orphan-test",
+		Name:            "Orphan Test Declaration",
+		Identifier:      "com.example.orphan",
+		RawJSON:         []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.orphan"}`),
+	})
+	require.NoError(t, err)
+
+	// Get the token from mdm_apple_declarations
+	var hexToken string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &hexToken,
+			"SELECT HEX(token) FROM mdm_apple_declarations WHERE declaration_uuid = ?", decl.DeclarationUUID)
+	})
+
+	// Simulate the stuck state: insert both an install/verified row (new UUID)
+	// and a remove/pending row (old UUID) with the same token and identifier.
+	// Use UNHEX(?) directly to get the exact same binary token.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_apple_declarations
+			(host_uuid, declaration_uuid, status, operation_type, token, declaration_identifier)
+			VALUES (?, ?, 'verified', 'install', UNHEX(?), ?)`,
+			host.UUID, decl.DeclarationUUID, hexToken, decl.Identifier)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_apple_declarations
+			(host_uuid, declaration_uuid, status, operation_type, token, declaration_identifier)
+			VALUES (?, ?, 'pending', 'remove', UNHEX(?), ?)`,
+			host.UUID, "decl-orphan-old-uuid", hexToken, decl.Identifier)
+		return err
+	})
+
+	// Verify both rows exist before the reconciler runs.
+	var countBefore int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &countBefore, `
+			SELECT COUNT(*) FROM host_mdm_apple_declarations WHERE host_uuid = ?`, host.UUID)
+	})
+	require.Equal(t, 2, countBefore)
+
+	// Run the reconciler. There are no changed declarations (the install row
+	// matches the desired state, and the remove row is excluded by the
+	// reconciler's query filter). The safety net should still clean up.
+	_, err = ds.MDMAppleBatchSetHostDeclarationState(ctx)
+	require.NoError(t, err)
+
+	// Assert: the orphaned remove/pending row should be deleted.
+	type resultRow struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		OperationType   string `db:"operation_type"`
+		Status          string `db:"status"`
+	}
+	var remaining []resultRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining, `
+			SELECT declaration_uuid, operation_type, status
+			FROM host_mdm_apple_declarations
+			WHERE host_uuid = ?
+			ORDER BY declaration_uuid`, host.UUID)
+	})
+
+	require.Len(t, remaining, 1, "orphaned remove/pending row should have been cleaned up")
+	assert.Equal(t, decl.DeclarationUUID, remaining[0].DeclarationUUID)
+	assert.Equal(t, "install", remaining[0].OperationType)
+	assert.Equal(t, "verified", remaining[0].Status)
 }
