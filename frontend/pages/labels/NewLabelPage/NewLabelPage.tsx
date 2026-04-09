@@ -38,7 +38,6 @@ import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";

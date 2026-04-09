@@ -1,6 +1,6 @@
 - name: macOS - Google Chrome up to date
   description: The host may have an outdated version of Google Chrome, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Google Chrome's built-in update functionality. You can also delete Google Chrome if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Google Chrome's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: google-chrome/darwin
   install_software: false
@@ -57,7 +57,7 @@
     - Macs with Microsoft Teams installed
 - name: macOS - Slack up to date
   description: The host may have an outdated version of Slack, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality. You can also delete Slack if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: slack/darwin
   install_software: false
@@ -65,7 +65,7 @@
     - Macs with Slack installed
 - name: macOS - Zoom up to date
   description: The host may have an outdated version of Zoom, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality. You can also delete Zoom if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: zoom/darwin
   install_software: false
@@ -73,7 +73,7 @@
     - Macs with Zoom installed
 - name: macOS - Okta Verify up to date
   description: The host may have an outdated version of Okta Verify, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Okta Verify's built-in update functionality. You can also delete Okta Verify if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Okta Verify's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: okta-verify/darwin
   install_software: false
@@ -87,3 +87,11 @@
   install_software: false
   labels_include_any:
     - Macs with Claude installed
+- name: macOS - AWS VPN Client up to date
+  description: The host may have an outdated version of AWS VPN Client, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using AWS VPN Client's built-in update functionality. You can also delete AWS VPN Client if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: aws-vpn-client/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with AWS VPN Client installed

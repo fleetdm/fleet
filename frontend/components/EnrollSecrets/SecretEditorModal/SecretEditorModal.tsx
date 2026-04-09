@@ -5,7 +5,6 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 interface ISecretEditorModalProps {

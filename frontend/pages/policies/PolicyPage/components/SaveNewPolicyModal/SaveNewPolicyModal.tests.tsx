@@ -125,7 +125,9 @@ describe("SaveNewPolicyModal", () => {
       const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeDisabled();
 
-      const funButton = screen.getByLabelText("Fun");
+      const funButton = await screen.findByRole("checkbox", {
+        name: "Fun",
+      });
       expect(funButton).not.toBeChecked();
       await userEvent.click(funButton);
       expect(saveButton).toBeEnabled();
@@ -149,7 +151,9 @@ describe("SaveNewPolicyModal", () => {
 
       // Set a label.
       await userEvent.click(screen.getByLabelText("Custom"));
-      await userEvent.click(screen.getByLabelText("Fun"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onCreatePolicy.mock.calls[0][0].labels_include_any).toEqual([
@@ -175,7 +179,9 @@ describe("SaveNewPolicyModal", () => {
 
       // Set a label.
       await userEvent.click(screen.getByLabelText("Custom"));
-      await userEvent.click(screen.getByLabelText("Fun"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
 
       // Click "Include any" to open the dropdown.
       const includeAnyOption = screen.getByRole("option", {

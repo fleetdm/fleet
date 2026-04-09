@@ -1472,6 +1472,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
 
+				if spec.Type == "" {
+					spec.Type = fleet.PolicyTypeDynamic
+				}
+
 				// generate new up-to-date patch policy
 				if spec.Type == fleet.PolicyTypePatch {
 					installer, err := ds.getPatchPolicyInstaller(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
@@ -1515,29 +1519,19 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					removePolicyStats                bool
 				)
 				if insertOnDuplicateDidInsertOrUpdate(res) {
-					// Figure out if the query, platform, software installer, or VPP app changed.
-					var softwareInstallerID *uint
-					if spec.SoftwareTitleID != nil {
-						softwareInstallerID = softwareInstallerIDs[teamID][*spec.SoftwareTitleID]
-					}
+					// Figure out if the query, platform, software installer, VPP app, or script changed.
 					if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
 						switch {
 						case prev.Query != spec.Query:
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil &&
-							((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
-								(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
+						case teamID != nil && softwareInstallerID != nil && !ptr.Equal(prev.SoftwareInstallerID, softwareInstallerID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil &&
-							((prev.VPPAppsTeamsID == nil && spec.SoftwareTitleID != nil) ||
-								(prev.VPPAppsTeamsID != nil && vppAppsTeamsID != nil && *prev.VPPAppsTeamsID != *vppAppsTeamsID)):
+						case teamID != nil && vppAppsTeamsID != nil && !ptr.Equal(prev.VPPAppsTeamsID, vppAppsTeamsID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil &&
-							((prev.ScriptID == nil && spec.ScriptID != nil) ||
-								(prev.ScriptID != nil && spec.ScriptID != nil && *prev.ScriptID != *spec.ScriptID)):
+						case teamID != nil && scriptID != nil && !ptr.Equal(prev.ScriptID, scriptID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
 						case prev.Platforms != spec.Platform:

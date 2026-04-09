@@ -96,20 +96,5 @@
     &__wrapper {
       margin-bottom: $pad-medium;
     }
-
-    &__help-text {
-      font-size: $x-small;
-      font-weight: $regular;
-      line-height: 1.57;
-      letter-spacing: 1px;
-      color: $core-fleet-blue;
-
-      code {
-        color: $ui-fleet-black-75;
-        background-color: $ui-gray;
-        padding: $pad-xxsmall;
-        font-family: "SourceCodePro", $monospace;
-      }
-    }
   }
 }
