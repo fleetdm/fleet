@@ -47,7 +47,7 @@ func TestFetchAppsListPrimarySuccess(t *testing.T) {
 }
 
 func TestFetchAppsListFallbackOnPrimaryFailure(t *testing.T) {
-	wasSecondaryCalled := false
+	var fallbackWasCalled atomic.Bool
 	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("primary is down"))
@@ -58,7 +58,7 @@ func TestFetchAppsListFallbackOnPrimaryFailure(t *testing.T) {
 		assert.Equal(t, "/apps.json", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(newTestAppsJSON())
-		wasSecondaryCalled = true
+		fallbackWasCalled.Store(true)
 	}))
 	t.Cleanup(fallback.Close)
 
@@ -69,7 +69,7 @@ func TestFetchAppsListFallbackOnPrimaryFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 	assert.Equal(t, "test-app", apps.Apps[0].Slug)
-	assert.True(t, wasSecondaryCalled)
+	assert.True(t, fallbackWasCalled.Load())
 }
 
 func TestFetchAppsListFallbackOnPrimary404(t *testing.T) {
@@ -287,11 +287,11 @@ func TestFetchAppsListFallbackOverrideViaEnvVar(t *testing.T) {
 	}))
 	t.Cleanup(primary.Close)
 
-	fallbackWasCalled := false
+	var fallbackWasCalled atomic.Bool
 	customFallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(newTestAppsJSON())
-		fallbackWasCalled = true
+		fallbackWasCalled.Store(true)
 	}))
 	t.Cleanup(customFallback.Close)
 
@@ -302,5 +302,5 @@ func TestFetchAppsListFallbackOverrideViaEnvVar(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 	assert.Equal(t, "test-app", apps.Apps[0].Slug)
-	assert.True(t, fallbackWasCalled)
+	assert.True(t, fallbackWasCalled.Load())
 }
