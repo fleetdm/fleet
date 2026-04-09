@@ -510,17 +510,11 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 		log.Debug().Err(err).Msgf("unable to get encryption status for target volume %s, continuing anyway", targetVolume)
 	}
 
-	// don't do anything if the disk is being encrypted/decrypted
-	if w.bitLockerActionInProgress(encryptionStatus) {
-		log.Debug().Msgf("skipping encryption as the disk is not available. Disk conversion status: %d", encryptionStatus.ConversionStatus)
-		return
-	}
-
-	// If a previous rotation succeeded but escrow failed, retry the
-	// escrow with the cached key instead of rotating again. This runs
-	// before the ConversionStatus == FullyEncrypted check below so
-	// that a transient WMI failure (encryptionStatus == nil) doesn't
-	// skip the retry and fall through to performEncryption.
+	// If a previous encryption or rotation succeeded but escrow failed,
+	// retry the escrow with the cached key. This runs before all other
+	// checks because the escrow is just a server API call that doesn't
+	// touch the disk -- it should succeed even during encryption in progress
+	// or when WMI status is transiently unavailable.
 	if w.pendingRecoveryKey != "" {
 		log.Debug().Msg("retrying escrow of previously rotated recovery key")
 		if serverErr := w.updateFleetServer(w.pendingRecoveryKey, nil); serverErr != nil {
@@ -529,6 +523,12 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 		}
 		w.pendingRecoveryKey = ""
 		w.lastRun = time.Now()
+		return
+	}
+
+	// don't do anything if the disk is being encrypted/decrypted
+	if w.bitLockerActionInProgress(encryptionStatus) {
+		log.Debug().Msgf("skipping encryption as the disk is not available. Disk conversion status: %d", encryptionStatus.ConversionStatus)
 		return
 	}
 

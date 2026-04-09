@@ -975,7 +975,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 
-	// Note action_required and removing_enforcement are not applicable to Windows hosts
+	// Note removing_enforcement is not applicable to Windows hosts
 	sqlFmt := `
 SELECT
     COUNT(if((%s), 1, NULL)) AS verified,
