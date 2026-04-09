@@ -10,7 +10,6 @@ import formatErrorResponse from "utilities/format_error_response";
 // @ts-ignore
 import ResetPasswordForm from "components/forms/ResetPasswordForm";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import AuthenticationNav from "components/AuthenticationNav";
 
 const baseClass = "reset-password-page";
 interface IResetPasswordPageProps {

@@ -35,11 +35,7 @@ const PackQueriesTable = ({
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onTableQueryChange = (queryData: ITableQueryData) => {
-    const { searchQuery, sortHeader, sortDirection } = queryData;
-    let sortBy = [];
-    if (sortHeader !== "") {
-      sortBy = [{ id: sortHeader, direction: sortDirection }];
-    }
+    const { searchQuery } = queryData;
 
     if (!searchQuery) {
       setQuerySearchText("");

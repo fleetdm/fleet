@@ -5,7 +5,6 @@ import { max } from "lodash";
 import paths from "router/paths";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
-import local from "utilities/local";
 import authToken from "utilities/auth_token";
 
 import FlashMessage from "components/FlashMessage";

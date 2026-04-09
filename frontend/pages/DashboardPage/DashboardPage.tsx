@@ -159,7 +159,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setUpdatingActivityFeedAutomations,
   ] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
-  const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
+  const [, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
   const [mdmSolutions, setMdmSolutions] = useState<
     IMdmSummaryMdmSolution[] | null

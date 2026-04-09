@@ -666,7 +666,8 @@ const DataTable = ({
                   // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
                   tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
-                  {row.cells.map((cell: any, index: number) => {
+                  {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
+                  {row.cells.map((cell: any, _index: number) => {
                     // Only allow row click behavior on first cell
                     // if the first cell is not a checkbox
                     const cellProps = cell.getCellProps();

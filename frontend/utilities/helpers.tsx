@@ -10,7 +10,6 @@ import {
   trimEnd,
   union,
   uniqueId,
-  upperFirst,
 } from "lodash";
 import md5 from "js-md5";
 import {

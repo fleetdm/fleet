@@ -54,7 +54,6 @@ const PolicyDetailsPage = ({
     currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isGlobalObserver,
     isGlobalTechnician,
     isOnGlobalTeam,
     config,
@@ -387,7 +386,6 @@ const PolicyDetailsPage = ({
                 currentAutomatedPolicies={currentAutomatedPolicies}
                 onAddAutomation={noop}
                 isAddingAutomation={false}
-                gitOpsModeEnabled={false}
               />
             )}
           </>

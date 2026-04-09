@@ -85,6 +85,7 @@ export const validateLabelFormData = (
           formValidation.description = { isValid: true };
           break;
         default: {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _exhaustiveCheck: never = objKey;
           break;
         }
@@ -100,6 +101,7 @@ export const validateLabelFormData = (
           formValidation.description = { isValid: false, message };
           break;
         default: {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _exhaustiveCheck: never = objKey;
           break;
         }

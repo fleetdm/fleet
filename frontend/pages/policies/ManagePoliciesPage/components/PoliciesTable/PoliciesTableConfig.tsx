@@ -360,7 +360,8 @@ const generateDataSet = (
   // Each host asynchronously updates its own policy result every `osquery_policy` nanoseconds.
   // Then, the host count is updated by a cron job on the server every 1 hour (this is hardcoded on the server in `cron.go`).
   // So, we need to add `osquery_policy` to the time of the cron update.
-  let policiesLastRun: Date;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _policiesLastRun: Date;
   let osqueryPolicyMs = 0;
   const policiesThatHaveRunHostCountUpdatedAt =
     // host counts of all policies that have run are updated at the same time, and are therefore
@@ -375,12 +376,14 @@ const generateDataSet = (
   if (osquery_policy) {
     // Convert from nanosecond to milliseconds
     osqueryPolicyMs = osquery_policy / 1000000;
-    policiesLastRun = new Date(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _policiesLastRun = new Date(
       hostCountUpdatedAtDate.getTime() - osqueryPolicyMs
     );
   } else {
     // temporarily unused - will restore use with upcoming DB update
-    policiesLastRun = hostCountUpdatedAtDate;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _policiesLastRun = hostCountUpdatedAtDate;
   }
   // Now we figure out when the next host count update will be.
   // The % (mod) is used below in case server was restarted and previously scheduled host count update was skipped.
@@ -402,7 +405,7 @@ const generateDataSet = (
     const policyItemUpdatedAt = new Date(policyItem.updated_at);
     // TODO: restore and update setting of policyItem.has_run based on upcoming custom
     // `policy_membership_updated_at`(ish) DB column/API response field
-    // policyItem.has_run = isAfter(policiesLastRun, policyItemUpdatedAt);
+    // policyItem.has_run = isAfter(_policiesLastRun, policyItemUpdatedAt);
 
     // all of the policiess `has_run` will be either true (cron has run, so host_count_updated_at
     // has a value that is the same for all such policies) or false (policy is new, wasn't included

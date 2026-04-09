@@ -30,7 +30,9 @@ import { COLORS } from "styles/var/colors";
 declare module "react-select-5/dist/declarations/src/Select" {
   export interface Props<
     Option,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     IsMulti extends boolean,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     Group extends GroupBase<Option>
   > {
     searchQuery?: string;

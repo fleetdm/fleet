@@ -104,7 +104,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
   );
-  const [error, setError] = useState<Error | null>(null);
+  const [error] = useState<Error | null>(null);
   const idKey = _idKey ?? "id";
   const labelKey = _labelKey ?? "name";
   const pageSize = _pageSize ?? 20;
