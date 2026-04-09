@@ -5179,7 +5179,7 @@ func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx
 		for _, newlyInsertedDecl := range newlyInsertedDecls {
 			incomingDecl, ok := incomingDeclarationsMap[strings.ToLower(newlyInsertedDecl.Name)]
 			if !ok {
-				return false, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming",
+				return false, ctxerr.Errorf(ctx, "declaration %q is in the database but was not incoming",
 					newlyInsertedDecl.Name)
 			}
 
