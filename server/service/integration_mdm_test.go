@@ -23253,6 +23253,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := t.Context()
 	abmOrgName := t.Name()
 	s.enableABM(abmOrgName)
@@ -23323,6 +23324,16 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		})
 		require.Nil(t, status)
 
+		host, err := s.ds.HostByIdentifier(ctx, serials[0])
+		require.NoError(t, err)
+
+		// Get host API should show managed account as pending
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "pending", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+
 		// Device acknowledges AccountConfiguration command → status becomes verified
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
@@ -23344,8 +23355,13 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.NotNil(t, status)
 		require.Equal(t, string(fleet.MDMDeliveryVerified), *status)
 
-		host, err := s.ds.HostByIdentifier(ctx, serials[0])
-		require.NoError(t, err)
+		// Get host API should show managed account as verified with password available
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "verified", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.True(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+
 		// Activity for creating a local account was created
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedManagedLocalAccount{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
@@ -23427,6 +23443,15 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		})
 		require.NotNil(t, status)
 		require.Equal(t, string(fleet.MDMDeliveryFailed), *status)
+
+		// Get host API should show managed account as failed with no password available
+		host3, err := s.ds.HostByIdentifier(ctx, serials[2])
+		require.NoError(t, err)
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host3.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "failed", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
 	})
 
 	t.Run("Setup experience global config", func(t *testing.T) {

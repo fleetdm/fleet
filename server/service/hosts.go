@@ -1776,6 +1776,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						rlpStatus.PopulateStatus()
 						host.MDM.OSSettings.RecoveryLockPassword = *rlpStatus
 					}
+
+					acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+					if err != nil && !fleet.IsNotFound(err) {
+						return nil, ctxerr.Wrap(ctx, err, "get host local managed account status")
+					}
+					if acct != nil {
+						host.MDM.OSSettings.ManagedLocalAccount = *acct
+					}
 				}
 
 				for _, p := range profs {
