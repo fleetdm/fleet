@@ -183,6 +183,7 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 		if ferr, ok := err.(apple_mdm.FleetWebsiteError); ok {
 			status := http.StatusBadGateway
 			if ferr.Status >= 400 && ferr.Status <= 499 {
+				domain := "@" + strings.SplitN(email, "@", 2)[1]
 				// TODO: fleetdm.com returns a genereric "Bad
 				// Request" message, we should coordinate and
 				// stablish a response schema from which we can get
@@ -196,7 +197,7 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 					ctx,
 					fleet.NewInvalidArgumentError(
 						"email_address",
-						fmt.Sprintf("this email address is not valid: %v", err),
+						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.:%v", domain, err),
 					),
 				)
 			}
@@ -3131,11 +3132,12 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		if errors.As(err, &fwe) {
 			// From svc.RequestMDMAppleCSR: fleetdm.com returns a bad request here if the email is invalid.
 			if fwe.Status >= 400 && fwe.Status <= 499 {
+				domain := "@" + strings.SplitN(vc.Email(), "@", 2)[1]
 				return nil, ctxerr.Wrap(
 					ctx,
 					fleet.NewInvalidArgumentError(
 						"email_address",
-						fmt.Sprintf("this email address is not valid: %v", err),
+						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.", domain),
 					),
 				)
 			}

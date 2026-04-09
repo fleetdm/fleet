@@ -63,8 +63,7 @@ const RenewCertModal = ({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (e: unknown) => {
       const msg = getErrorReason(e);
-
-      if (msg.toLowerCase().includes("email address is not valid")) {
+      if (msg.toLowerCase().includes("Email domain is not permitted")) {
         renderFlash("error", msg);
       } else {
         renderFlash("error", "Something's gone wrong. Please try again.");
@@ -122,9 +121,8 @@ const RenewCertModal = ({
         </ol>
         <div className={`${baseClass}__button-wrap`}>
           <Button
-            className={`${baseClass}__submit-button ${
-              isUploading ? `uploading` : ""
-            }`}
+            className={`${baseClass}__submit-button ${isUploading ? `uploading` : ""
+              }`}
             disabled={!certFile || isUploading}
             isLoading={isUploading}
             type="button"
