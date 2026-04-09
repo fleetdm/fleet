@@ -82,11 +82,12 @@ cp "$FLEETCTL_EXE" "$WORKDIR/root/fleetctl.exe"
 sed "s/__VERSION__/$VERSION/g" "$SCRIPT_DIR/fleetctl.wxs" > "$WORKDIR/main.wxs"
 
 # Sign fleetctl.exe before packaging into MSI
+# MSYS_NO_PATHCONV=1 prevents Git Bash from converting /flags to Windows paths
 echo "Signing fleetctl.exe..."
-signtool.exe sign /v /sha1 "$DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT" \
+MSYS_NO_PATHCONV=1 signtool.exe sign /v /sha1 "$DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT" \
     /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 \
     "$WORKDIR/root/fleetctl.exe"
-signtool.exe verify /v /pa "$WORKDIR/root/fleetctl.exe"
+MSYS_NO_PATHCONV=1 signtool.exe verify /v /pa "$WORKDIR/root/fleetctl.exe"
 echo "fleetctl.exe signed successfully"
 
 # Compile WiX source
@@ -99,10 +100,10 @@ light.exe "$WORKDIR/main.wixobj" -b "$WORKDIR" -out "$WORKDIR/$MSI_NAME" -sval
 
 # Sign the MSI
 echo "Signing MSI..."
-signtool.exe sign /v /sha1 "$DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT" \
+MSYS_NO_PATHCONV=1 signtool.exe sign /v /sha1 "$DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT" \
     /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 \
     "$WORKDIR/$MSI_NAME"
-signtool.exe verify /v /pa "$WORKDIR/$MSI_NAME"
+MSYS_NO_PATHCONV=1 signtool.exe verify /v /pa "$WORKDIR/$MSI_NAME"
 echo "MSI signed successfully"
 
 # Copy to output location
