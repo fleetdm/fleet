@@ -185,7 +185,7 @@ func message(r *http.Request) ([]byte, error) {
 				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", msg)}
 			}
 
-			msg2 = strings.ReplaceAll(msg2, " ", "+") // restore '+' corrupted by url.Query() form-decoding
+			msg2 = strings.ReplaceAll(msg2, " ", "+")
 			decoded, err := base64.StdEncoding.DecodeString(msg2)
 			if err != nil {
 				return nil, &BadRequestError{Message: fmt.Sprintf("failed to base64 decode message: %s: %s", err.Error(), msg2)}
