@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -930,6 +931,7 @@ func (a *AppleMDM) createManagedAccounts(
 	}
 
 	if adminAccount != nil {
+		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
 		// TODO(JK): use plist.Marshal() instead?
 		managedAccountPayload = fmt.Sprintf(`
       <key>AutoSetupAdminAccount</key>
@@ -943,7 +945,7 @@ func (a *AppleMDM) createManagedAccounts(
         <key>fullName</key>
         <string>%s</string>
      </dict>
-`, adminAccount.PasswordHash, adminAccount.ShortName, adminAccount.FullName)
+`, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
 	}
 
 	var payload string

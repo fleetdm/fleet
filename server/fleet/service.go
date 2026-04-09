@@ -1342,7 +1342,8 @@ type Service interface {
 	// an existing recovery lock password.
 	RotateRecoveryLockPassword(ctx context.Context, hostID uint) error
 
-	// TODO(JK): comment
+	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
+	// password for the given host UUID only if it has a verified status.
 	GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*HostManagedLocalAccountPassword, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -1387,6 +1388,8 @@ type Service interface {
 	SetupExperienceNextStep(ctx context.Context, host *Host) (bool, error)
 
 	// TODO(JK): comment
+	// UpdateManagedLocalAccount updates the team or global configuration to set the
+	// enable_managed_local_account flag, and creates an activity.
 	UpdateManagedLocalAccount(ctx context.Context, teamID *uint, enabled bool) (bool, error)
 
 	// SetupExperienceInit initializes the "Setup experience" for a device (by queueing items like software installation, etc.).

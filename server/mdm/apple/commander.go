@@ -336,26 +336,6 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 	payload string,
 	uuid string,
 ) error {
-	// 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-	// <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-	// <plist version="1.0">
-	//   <dict>
-	//     <key>Command</key>
-	//     <dict>
-	//       <key>PrimaryAccountFullName</key>
-	//       <string>%s</string>
-	//       <key>PrimaryAccountUserName</key>
-	//       <string>%s</string>
-	//       <key>LockPrimaryAccountInfo</key>
-	//       <%t />
-	//       <key>RequestType</key>
-	//       <string>AccountConfiguration</string>
-	//     </dict>
-	//
-	//     <key>CommandUUID</key>
-	//     <string>%s</string>
-	//   </dict>
-	// </plist>`, fullName, userName, lockPrimaryAccountInfo, uuid)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">

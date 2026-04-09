@@ -274,7 +274,6 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 
 	if payload.EnableManagedLocalAccount != nil {
 		if ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
-			// update field, didUpdate = true, didUpdateManagedLocalAccount = true
 			ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
 			didUpdateManagedLocalAccount = true
 			didUpdate = true
@@ -283,7 +282,6 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 
 	if payload.EndUserLocalAccountType != nil {
 		if ac.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
-			// update field, didUpdate = true
 			ac.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
 			didUpdate = true
 		}
