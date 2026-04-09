@@ -106,9 +106,95 @@ func TestBitsToDrives(t *testing.T) {
 }
 
 func TestGetLogicalVolumes(t *testing.T) {
-	// This test calls the real Windows API -- it should return at least C:
+	// Calls kernel32.dll GetLogicalDrives -- should return at least C:
 	drives, err := getLogicalVolumes()
 	require.NoError(t, err)
 	require.NotEmpty(t, drives, "expected at least one logical volume")
 	assert.Contains(t, drives, "C:", "expected C: drive to be present")
+}
+
+// TestCOMWorkerLifecycle verifies that COM can be initialized on a dedicated
+// OS thread and cleanly torn down. This exercises the ole.CoInitializeEx /
+// CoUninitialize path that every real BitLocker operation depends on.
+func TestCOMWorkerLifecycle(t *testing.T) {
+	w, err := NewCOMWorker()
+	require.NoError(t, err, "NewCOMWorker should initialize COM successfully")
+	w.Close()
+
+	// After Close, operations must return ErrWorkerClosed.
+	_, err = w.GetEncryptionStatus()
+	assert.ErrorIs(t, err, ErrWorkerClosed)
+}
+
+// TestGetEncryptionStatus queries the BitLocker WMI provider for every logical
+// volume. This is a read-only operation that exercises the full COM -> WMI ->
+// Win32_EncryptableVolume pipeline. On a machine without BitLocker-capable
+// volumes (e.g. a CI runner) the result may be empty, but should never error.
+func TestGetEncryptionStatus(t *testing.T) {
+	w, err := NewCOMWorker()
+	require.NoError(t, err)
+	defer w.Close()
+
+	statuses, err := w.GetEncryptionStatus()
+	require.NoError(t, err)
+	t.Logf("GetEncryptionStatus returned %d volume(s)", len(statuses))
+
+	for _, vs := range statuses {
+		assert.NotEmpty(t, vs.DriveVolume, "drive volume should not be empty")
+		require.NotNil(t, vs.Status, "status should not be nil for %s", vs.DriveVolume)
+		assert.NotEmpty(t, vs.Status.EncryptionPercentage, "encryption percentage should be set for %s", vs.DriveVolume)
+		t.Logf("  %s: protection=%d conversion=%d encryption=%s",
+			vs.DriveVolume, vs.Status.ProtectionStatus, vs.Status.ConversionStatus, vs.Status.EncryptionPercentage)
+	}
+}
+
+// TestBitlockerConnectAndStatus connects to C: via WMI and reads its
+// encryption status. This isolates the bitlockerConnect + getBitlockerStatus
+// path from the COMWorker layer.
+func TestBitlockerConnectAndStatus(t *testing.T) {
+	// COM must be initialized on the calling thread for WMI calls.
+	w, err := NewCOMWorker()
+	require.NoError(t, err)
+	defer w.Close()
+
+	// Run the connect+status inside the COM worker thread.
+	type result struct {
+		status *EncryptionStatus
+		err    error
+	}
+	r := w.exec(func() (any, error) {
+		vol, err := bitlockerConnect("C:")
+		if err != nil {
+			return nil, err
+		}
+		defer vol.bitlockerClose()
+		return vol.getBitlockerStatus()
+	})
+
+	status, _ := r.val.(*EncryptionStatus)
+	// C: may not be an encryptable volume on all machines (e.g. VMs without
+	// BitLocker support). If the connect fails we accept that.
+	if r.err != nil {
+		t.Logf("bitlockerConnect(C:) returned error (acceptable on non-BitLocker VMs): %v", r.err)
+		return
+	}
+
+	require.NotNil(t, status)
+	assert.NotEmpty(t, status.EncryptionPercentage)
+	t.Logf("C: protection=%d conversion=%d encryption=%s",
+		status.ProtectionStatus, status.ConversionStatus, status.EncryptionPercentage)
+}
+
+// TestEncryptionFlagFromRegistry reads the OSEncryptionType GPO registry
+// value. On most machines (and CI runners) the key won't exist, so the
+// function should return the default EncryptDataOnly.
+func TestEncryptionFlagFromRegistry(t *testing.T) {
+	flag := encryptionFlagFromRegistry()
+	t.Logf("encryptionFlagFromRegistry returned %d (EncryptDataOnly=%d, EncryptDemandWipe=%d)",
+		flag, EncryptDataOnly, EncryptDemandWipe)
+	// Without a GPO or another MDM setting this key, the default is EncryptDataOnly.
+	// We can't guarantee the value on every machine, but we can verify it returns
+	// one of the two valid values.
+	assert.True(t, flag == EncryptDataOnly || flag == EncryptDemandWipe,
+		"expected EncryptDataOnly or EncryptDemandWipe, got %d", flag)
 }

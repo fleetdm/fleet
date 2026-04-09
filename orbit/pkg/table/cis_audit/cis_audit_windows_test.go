@@ -87,9 +87,11 @@ func TestGenerateItemValid(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// secedit requires elevation; the call may succeed (admin) or fail (non-admin).
 		if err != nil {
-			return // expected when not running elevated
+			t.Logf("Generate returned error (expected when not running elevated): %v", err)
+			return
 		}
 		// When running elevated the result should contain the queried item.
+		t.Logf("Generate succeeded (running elevated), result: %v", result)
 		assert.Len(t, result, 1)
 		assert.Equal(t, "1.2.1", result[0]["item"])
 	} else {
