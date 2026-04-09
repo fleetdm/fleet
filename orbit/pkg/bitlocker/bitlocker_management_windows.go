@@ -70,7 +70,7 @@ const (
 // searchable. The WMI docs define return values as uint32 but the COM VARIANT
 // transport delivers them as int32 (see comment on the error code constants).
 func fveErrorCode(val int32) string {
-	return fmt.Sprintf("%d (0x%08x)", uint32(val), uint32(val))
+	return fmt.Sprintf("%d (0x%08x)", uint32(val), uint32(val)) // nolint:gosec
 }
 
 func encryptErrHandler(val int32) error {
