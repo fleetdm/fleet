@@ -29,7 +29,6 @@ export interface IInputFieldWithIconProps {
   tooltip?: string;
   ignore1Password?: boolean;
   value?: string;
-  parseTarget?: boolean;
 }
 
 const InputFieldWithIcon = ({
@@ -51,7 +50,6 @@ const InputFieldWithIcon = ({
   tooltip,
   ignore1Password,
   value,
-  parseTarget = false,
 }: IInputFieldWithIconProps): JSX.Element => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -65,15 +63,9 @@ const InputFieldWithIcon = ({
     (evt: React.ChangeEvent<HTMLInputElement>) => {
       evt.preventDefault();
 
-      const { value: inputValue, name: inputName } = evt.target;
-
-      if (parseTarget) {
-        return onChange?.({ value: inputValue, name: inputName });
-      }
-
-      return onChange?.(inputValue);
+      return onChange?.(evt.target.value);
     },
-    [onChange, parseTarget]
+    [onChange]
   );
 
   const label = labelProp ?? placeholder;

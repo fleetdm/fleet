@@ -158,27 +158,6 @@ describe("InputFieldWithIcon Component", () => {
     expect(screen.queryByTestId("search-icon")).not.toBeInTheDocument();
   });
 
-  test("calls onChange with { name, value } when parseTarget is true", async () => {
-    render(
-      <InputFieldWithIcon
-        value=""
-        onChange={mockOnChange}
-        label="Test Input"
-        placeholder="Enter text"
-        name="my-field"
-        parseTarget
-      />
-    );
-
-    await userEvent.type(screen.getByPlaceholderText(/enter text/i), "a");
-
-    expect(mockOnChange).toHaveBeenCalledTimes(1);
-    expect(mockOnChange).toHaveBeenCalledWith({
-      value: "a",
-      name: "my-field",
-    });
-  });
-
   test("renders as disabled when disabled prop is true", () => {
     render(
       <InputFieldWithIcon
