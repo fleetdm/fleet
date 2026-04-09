@@ -1,1 +1,1 @@
-* Fixed SCEP PKIOperation handler incorrectly decoding base64 `+` characters as spaces.
+- Fixed SCEP PKIOperation handler incorrectly decoding base64 `+` characters as spaces.
