@@ -40,7 +40,7 @@ var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
 func NewAPIEndpointFromTpl(method string, tpl string) APIEndpoint {
 	val := APIEndpoint{
 		Method: method,
-		Path:   versionSegmentRe.ReplaceAllString(tpl, "/_version_/"),
+		Path:   versionSegmentRe.ReplaceAllString(tpl, "/v1/"),
 	}
 	val.normalize()
 	return val
