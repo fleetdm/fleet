@@ -481,14 +481,14 @@ func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 		if w.mu.TryLock() {
 			defer w.mu.Unlock()
 
-			w.attemptBitlockerEncryption(cfg.Notifications)
+			w.attemptBitlockerEncryption()
 		}
 	}
 
 	return nil
 }
 
-func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fleet.OrbitConfigNotifications) {
+func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 	if time.Since(w.lastRun) <= w.Frequency {
 		log.Debug().Msg("skipped encryption process, last run was too recent")
 		return
