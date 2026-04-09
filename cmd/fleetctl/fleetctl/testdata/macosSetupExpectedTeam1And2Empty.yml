@@ -31,6 +31,8 @@ spec:
         macos_manual_agent_install: null
         require_all_software_macos: false
         require_all_software_windows: false
+        enable_create_local_admin_account: false
+        end_user_local_account_type: ""
         apple_enable_release_device_manually: false
         macos_script: null
         software: null
@@ -84,6 +86,8 @@ spec:
         manual_agent_install: null
         require_all_software_macos: false
         require_all_software_windows: false
+        enable_managed_local_account: false
+        end_user_local_account_type: ""
         enable_release_device_manually: false
         script: null
         software: null
@@ -139,6 +143,8 @@ spec:
         macos_manual_agent_install: null
         apple_enable_release_device_manually: false
         lock_end_user_info: false
+        enable_create_local_admin_account: false
+        end_user_local_account_type: ""
         macos_script: null
         software: null
       macos_updates:
@@ -185,6 +191,8 @@ spec:
         manual_agent_install: null
         enable_release_device_manually: false
         lock_end_user_info: false
+        enable_managed_local_account: false
+        end_user_local_account_type: ""
         script: null
         software: null
       macos_updates:
