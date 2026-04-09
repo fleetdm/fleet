@@ -1,16 +1,7 @@
 .hosts-enrolled-card {
   &__title {
-    font-size: $medium;
-    font-weight: $bold;
-    margin: 0 0 $pad-large;
-  }
-
-  &__placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 280px;
-    color: $ui-fleet-black-50;
     font-size: $small;
+    font-weight: $bold;
+    margin: 0 0 $pad-medium !important;
   }
 }

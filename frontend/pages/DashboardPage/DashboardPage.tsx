@@ -927,7 +927,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             <ChartCard />
           </Card>
           <Card paddingSize="xlarge" borderRadiusSize="large">
-            <HostsEnrolledCard />
+            <HostsEnrolledCard
+              macCount={macCount}
+              windowsCount={windowsCount}
+              linuxCount={linuxCount}
+              chromeCount={chromeCount}
+              iosCount={iosCount}
+              ipadosCount={ipadosCount}
+              androidCount={androidCount}
+            />
           </Card>
         </div>
         {renderCards()}
