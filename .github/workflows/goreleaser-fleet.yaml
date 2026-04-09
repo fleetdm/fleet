@@ -213,18 +213,6 @@ jobs:
           codesign --verify --verbose dist/fleetctl_darwin_all/fleetctl || exit 1
           ./dist/fleetctl_darwin_all/fleetctl --version
 
-      - name: Install GitHub CLI
-        run: |
-          if ! command -v gh &> /dev/null; then
-            brew install gh
-          fi
-
-      - name: Authenticate GitHub CLI
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "$GITHUB_TOKEN" | gh auth login --with-token
-
       - name: Build and upload macOS .pkg
         env:
           APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
