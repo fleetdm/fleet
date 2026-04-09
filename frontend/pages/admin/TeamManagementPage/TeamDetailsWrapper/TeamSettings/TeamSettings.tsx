@@ -29,7 +29,6 @@ import validURL from "components/forms/validators/valid_url";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";

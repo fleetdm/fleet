@@ -34,7 +34,6 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import Radio from "components/forms/fields/Radio";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import validUrl from "components/forms/validators/valid_url";

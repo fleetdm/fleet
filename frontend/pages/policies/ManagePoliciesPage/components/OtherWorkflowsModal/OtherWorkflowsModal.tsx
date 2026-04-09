@@ -16,7 +16,6 @@ import Modal from "components/Modal";
 import Slider from "components/forms/fields/Slider";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Radio from "components/forms/fields/Radio";
