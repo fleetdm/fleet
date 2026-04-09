@@ -129,7 +129,15 @@ The profiles names must be unique across all platforms and profile types for a g
 
 * As mentioned earlier, label restrictions (include any, include all and exclude any) are supported for DDM profiles, same as for other types of profiles.
 * Fleet secrets [are supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L885-L888) and are expanded with their values when the declaration is sent to the host.
-* Fleet _variables_ [are **not** supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L948-L953) for DDM.
+* The following Fleet _variables_ are supported for DDM:
+  - `FleetVarHostHardwareSerial`
+  - `FleetVarHostEndUserIDPUsername`
+  - `FleetVarHostEndUserIDPUsernameLocalPart`
+  - `FleetVarHostEndUserIDPGroups`
+  - `FleetVarHostEndUserIDPDepartment`
+  - `FleetVarHostEndUserIDPFullname`
+  - `FleetVarHostUUID`
+  - `FleetVarHostPlatform`
 * DDM profiles [cannot include OS updates settings](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L670-L672), as those are handled by Fleet via the "Controls -> OS updates" settings.
 * DDM profiles [cannot be of a type that requires assets](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L674-L676), as assets are currently not supported.
 * DDM profiles [cannot have a "status subscription" type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L678-L680).
