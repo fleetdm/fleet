@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/go-kit/kit/transport"
@@ -184,6 +185,7 @@ func message(r *http.Request) ([]byte, error) {
 				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", msg)}
 			}
 
+			msg2 = strings.ReplaceAll(msg2, " ", "+") // restore '+' corrupted by url.Query() form-decoding
 			decoded, err := base64.StdEncoding.DecodeString(msg2)
 			if err != nil {
 				return nil, &BadRequestError{Message: fmt.Sprintf("failed to base64 decode message: %s: %s", err.Error(), msg2)}
