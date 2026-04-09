@@ -456,7 +456,7 @@ Certain of the executive team are asked for press involvement from time to time.
 
 | Person               | Headshot     | Bio   |
 |:---------------------|:-------------|:------|
-| Mike McNeil          | <img height="350" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | TODO |
+| Mike McNeil          | <img height="350" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | CEO/Co-founder of Fleet Device Management. Creator & BDFL of Sails.JS  (YC W15) |
 
 
 
