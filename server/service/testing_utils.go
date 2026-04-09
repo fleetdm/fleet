@@ -1497,7 +1497,10 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 	}))
 
 	// Locate the repo's apps.json so the manifest server can serve it.
-	_, thisFile, _, _ := runtime.Caller(0)
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("could not locate myself to serve apps.json file")
+	}
 	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
 	appsJSONPath := filepath.Join(repoRoot, "ee", "maintained-apps", "outputs", "apps.json")
 
