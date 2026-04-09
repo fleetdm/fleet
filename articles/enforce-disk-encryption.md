@@ -34,7 +34,7 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 * Verified: the host turned disk encryption on and sent their key to Fleet, and Fleet has verified the key with osquery. The [encryption key can be viewed within Fleet](#view-disk-encryption-key).
 
-* Verifying: the host acknowledged the MDM command to install the disk encryption profile. Fleet is verifying with osquery and retrieving the disk encryption key.
+* Verifying: the host acknowledged the MDM command to install the disk encryption profile. Fleet is verifying with osquery and retrieving the disk encryption key. On Windows, this means the encryption key has been escrowed to Fleet but disk encryption may still be physically completing in the background. The host will transition to "Verified" once osquery confirms encryption is complete and BitLocker protection is active.
 
 > It may take up to two hours for Fleet to collect and store the disk encryption keys from all hosts.
 
