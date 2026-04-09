@@ -203,13 +203,11 @@ func TestFetchManifestDataPrimarySucceedsSkipsFallback(t *testing.T) {
 }
 
 func TestResolveBaseURLsDefaults(t *testing.T) {
-	// Without any overrides and with dev mode disabled, resolveBaseURLs should
-	// return the hardcoded constants (dev_mode.Env returns "" when not enabled).
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", "", t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", "", t)
 	primary, fallback := resolveBaseURLs()
-	// We can't guarantee dev mode is off in the test runner, so just assert
-	// the values are non-empty.
-	assert.NotEmpty(t, primary)
-	assert.NotEmpty(t, fallback)
+	assert.Equal(t, fmaOutputsBase, primary)
+	assert.Equal(t, fmaOutputsFallbackBase, fallback)
 }
 
 func TestResolveBaseURLsWithOverrides(t *testing.T) {
@@ -265,7 +263,7 @@ func TestDoFetchNetworkError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestDoFetchTruncatesLargeBody(t *testing.T) {
+func TestDoFetchTruncatesLargeBodyInErrorMessage(t *testing.T) {
 	largeBody := make([]byte, 1024)
 	for i := range largeBody {
 		largeBody[i] = 'x'
@@ -284,16 +282,16 @@ func TestDoFetchTruncatesLargeBody(t *testing.T) {
 }
 
 func TestFetchAppsListFallbackOverrideViaEnvVar(t *testing.T) {
-	// Both primary and original fallback are down; a custom fallback URL (set
-	// via the env var override) serves the request.
 	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	t.Cleanup(primary.Close)
 
+	fallbackWasCalled := false
 	customFallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(newTestAppsJSON())
+		fallbackWasCalled = true
 	}))
 	t.Cleanup(customFallback.Close)
 
@@ -304,4 +302,5 @@ func TestFetchAppsListFallbackOverrideViaEnvVar(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, apps.Apps, 1)
 	assert.Equal(t, "test-app", apps.Apps[0].Slug)
+	assert.True(t, fallbackWasCalled)
 }
