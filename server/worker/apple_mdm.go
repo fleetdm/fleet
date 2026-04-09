@@ -2,9 +2,6 @@ package worker
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha512"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -14,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/pbkdf2"
-
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -24,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
-	"github.com/micromdm/plist"
 )
 
 // Name of the Apple MDM job as registered in the worker. Note that although it

@@ -348,6 +348,10 @@ func (svc *Service) UpdateManagedLocalAccount(ctx context.Context, teamID *uint,
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "saving app config")
 		}
+
+		if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, enabled, nil, nil); err != nil {
+			return false, err
+		}
 		return ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil
 	} else {
 		// Need to use TeamWithExtras to use SaveTeam
@@ -360,6 +364,10 @@ func (svc *Service) UpdateManagedLocalAccount(ctx context.Context, teamID *uint,
 		team, err = svc.ds.SaveTeam(ctx, team)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "saving app config")
+		}
+
+		if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, enabled, &team.ID, &team.Name); err != nil {
+			return false, err
 		}
 		return team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil
 	}
