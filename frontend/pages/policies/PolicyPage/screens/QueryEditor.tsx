@@ -261,7 +261,7 @@ const QueryEditor = ({
 
   const backPath = policyIdForEdit
     ? getPathWithQueryParams(PATHS.POLICY_DETAILS(policyIdForEdit), {
-        team_id: teamIdForApi,
+        fleet_id: teamIdForApi,
       })
     : backToPoliciesPath();
 

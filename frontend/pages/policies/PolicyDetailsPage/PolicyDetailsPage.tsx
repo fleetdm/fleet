@@ -35,7 +35,7 @@ interface IPolicyDetailsPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { team_id?: string };
+    query: { fleet_id?: string };
   };
 }
 
@@ -187,7 +187,7 @@ const PolicyDetailsPage = ({
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
-    team_id: teamIdForApi,
+    fleet_id: teamIdForApi,
   });
 
   const renderAuthor = (): JSX.Element | null => {
@@ -332,7 +332,7 @@ const PolicyDetailsPage = ({
                           `${getPathWithQueryParams(
                             PATHS.EDIT_POLICY(policyId),
                             {
-                              team_id: teamIdForApi,
+                              fleet_id: teamIdForApi,
                             }
                           )}#targets`
                         );
@@ -348,7 +348,7 @@ const PolicyDetailsPage = ({
                       policyId &&
                         router.push(
                           getPathWithQueryParams(PATHS.EDIT_POLICY(policyId), {
-                            team_id: teamIdForApi,
+                            fleet_id: teamIdForApi,
                           })
                         );
                     }}
