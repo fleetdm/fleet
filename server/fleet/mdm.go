@@ -36,6 +36,8 @@ const (
 	// We wrap the key in braces to make Redis hash the keys to the same slot, avoiding CrossSlot errors.
 	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
 	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
+
+	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -938,10 +940,10 @@ const (
 	// MDMAssetAPNSCert is the name of the APNs (Apple Push Notifications
 	// service) private key used by MDM
 	MDMAssetAPNSCert MDMAssetName = "apns_cert"
-	// MDMAssetABMKey is the name of the ABM (Apple Business Manager)
+	// MDMAssetABMKey is the name of the AB (Apple Business)
 	// private key used to decrypt MDMAssetABMToken
 	MDMAssetABMKey MDMAssetName = "abm_key"
-	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
+	// MDMAssetABMCert is the name of the AB (Apple Business)
 	// private key used to encrypt MDMAssetABMToken
 	MDMAssetABMCert MDMAssetName = "abm_cert"
 	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
@@ -1284,4 +1286,11 @@ type HostMDMIdentifiers struct {
 	Hostname       string `db:"hostname"`
 	Platform       string `db:"platform"`
 	TeamID         *uint  `db:"team_id"`
+}
+
+type NanoMDMEnrollmentDetails struct {
+	LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
+	LastMDMSeenTime       *time.Time `db:"last_seen_at"`
+	HardwareAttested      bool       `db:"hardware_attested"`
+	UnlockToken           *string    `db:"unlock_token"`
 }

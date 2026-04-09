@@ -1585,12 +1585,12 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
-	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business Manager encrypted server token path (.p7m file)")
-	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business Manager encrypted server token bytes")
-	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business Manager PEM-encoded certificate path")
-	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business Manager PEM-encoded certificate bytes")
-	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
-	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business encrypted server token path (.p7m file)")
+	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business encrypted server token bytes")
+	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_bm_key", "", "Apple Business PEM-encoded private key path")
+	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
@@ -1622,7 +1622,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
-	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
+	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
 
 	// Conditional Access
 	man.addConfigString("conditional_access.cert_serial_format", "hex",

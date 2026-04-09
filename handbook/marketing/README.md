@@ -210,16 +210,42 @@ To monitor and respond to LinkedIn comments:
 
 After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
-1. Download the sprint demo recording.
-2. Fix audio levels - because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels:
+1. **Download the sprint demo recording**
+
+   This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
+   
+3. **Review and scrub the recording**
+
+   The Content Specialist reviews the original recording and will remove/edit any issues, including:
+   - Mentions of customer names or sensitive information  
+   - Long pauses or dead air  
+   - The opening ritual or internal-only discussion  
+   - Any unclear or unnecessary segments
+   - Make sure the video has a clean start and a clear ending.
+   
+4. **Share with Technical Marketing**
+
+   After scrubbing, the Content Specialist shares the project file with the Technical Marketer.
+
+5. **Edit audio and visuals**
+
+   The Technical Marketer adjusts sound and visual quality as needed.
+
+   Ensure audio is clear and visuals are easy to follow.
+
+   Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels:
   - Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor. (need to revisit this. No longer a free option)
   - Apply "Auto Level Volume" (under the "Audio" section) to even out the volume levels across all presenters.
   - Export and download the processed video.
-3. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
-4. Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
-5. Add a brief description highlighting the new features.
-6. Add the new video to the "Releases" playlist.
 
+6. **Upload the video to Youtube**
+   Follow the steps to [upload the video to YouTube](#upload-to-youtube).
+
+   Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+
+   Add a brief description highlighting the new features.
+
+   Add the new video to the "Releases" playlist.
 
 ### Upload to YouTube
 
@@ -298,6 +324,9 @@ This view displays the website's efficiency by tracking the rate at which users 
   - **Contact Us (or Request Demo):** Tracks the rate of fleet website contact forms.  
   - **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
 - **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
+
+## Fleet writing style, tone, and voice instructions for AI
+When using an AI to create written content for Fleet, give your AI [these instructions first](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing. These instructions are aggregated and token-optimized from the handbook, in addition to fine tuned from usage results, which we should all continue to contribute to.
 
 ## Rituals
 

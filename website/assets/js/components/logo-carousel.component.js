@@ -46,6 +46,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Fastly logo" src="/images/logos/logo-fastly-60x32@2x.png">
           <img alt="Drata logo" src="/images/logos/logo-drata-105x32@2x.png">
           <img alt="Hubspot logo" src="/images/logos/logo-hubspot-113x32@2x.png">
+          <img alt="Abridge logo" src="/images/logos/logo-abridge-133x32@2x.png">
+          <img alt="Coinbase logo" src="/images/logos/logo-coinbase-135x32@2x.png">
           <!-- Group two -->
           <img alt="Csiro logo" src="/images/logos/logo-csiro-90x32@2x.png">
           <img alt="Copia logo" src="/images/logos/logo-copia-98x32@2x.png">
@@ -55,6 +57,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Snowflake logo" src="/images/logos/logo-snowflake-101x32@2x.png">
           <img alt="Vibe logo" src="/images/logos/logo-vibe-72x32@2x.png">
           <img alt="Conductorone logo" src="/images/logos/logo-conductorone-158x32@2x.png">
+          <img alt="Benchling logo" src="/images/logos/logo-benchling-126x32@2x.png">
+          <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
           <!-- Group one -->
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
           <img alt="Rivian logo" src="/images/logos/logo-rivian-120x32@2x.png">
@@ -66,6 +70,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Deeploi logo" src="/images/logos/logo-deeploi-69x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
+          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24.png">
+          <img alt="Webflow logo" src="/images/logos/logo-webflow-144x32@2x.png">
           <!-- Group four -->
           <img alt="Censys logo" src="/images/logos/logo-censys-110x32@2x.png">
           <img alt="Faire logo" src="/images/logos/logo-faire-160x32@2x.png">
@@ -77,6 +83,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Calendly logo" src="/images/logos/logo-calendly-100x32@2x.png">
           <img alt="Notion logo" src="/images/logos/logo-notion-68x32@2x.png">
           <img alt="Lastpass logo" src="/images/logos/logo-lastpass-90x32@2x.png">
+          <img alt="Smarter Technologies logo" src="/images/logos/logo-smarter-technology-130x32@2x.png">
+          <img alt="Treeline logo" src="/images/logos/logo-treeline-128x32@2x.png">
 
         </a>
       </div>
@@ -93,6 +101,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Fastly logo" src="/images/logos/logo-fastly-60x32@2x.png">
           <img alt="Drata logo" src="/images/logos/logo-drata-105x32@2x.png">
           <img alt="Hubspot logo" src="/images/logos/logo-hubspot-113x32@2x.png">
+          <img alt="Abridge logo" src="/images/logos/logo-abridge-133x32@2x.png">
+          <img alt="Coinbase logo" src="/images/logos/logo-coinbase-135x32@2x.png">
           <!-- Group two -->
           <img alt="Csiro logo" src="/images/logos/logo-csiro-90x32@2x.png">
           <img alt="Copia logo" src="/images/logos/logo-copia-98x32@2x.png">
@@ -102,6 +112,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Snowflake logo" src="/images/logos/logo-snowflake-101x32@2x.png">
           <img alt="Vibe logo" src="/images/logos/logo-vibe-72x32@2x.png">
           <img alt="Conductorone logo" src="/images/logos/logo-conductorone-158x32@2x.png">
+          <img alt="Benchling logo" src="/images/logos/logo-benchling-126x32@2x.png">
+          <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
           <!-- Group one -->
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
           <img alt="Rivian logo" src="/images/logos/logo-rivian-120x32@2x.png">
@@ -113,6 +125,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Deeploi logo" src="/images/logos/logo-deeploi-69x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
+          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24.png">
+          <img alt="Webflow logo" src="/images/logos/logo-webflow-144x32@2x.png">
           <!-- Group four -->
           <img alt="Censys logo" src="/images/logos/logo-censys-110x32@2x.png">
           <img alt="Faire logo" src="/images/logos/logo-faire-160x32@2x.png">
@@ -124,6 +138,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Calendly logo" src="/images/logos/logo-calendly-100x32@2x.png">
           <img alt="Notion logo" src="/images/logos/logo-notion-68x32@2x.png">
           <img alt="Lastpass logo" src="/images/logos/logo-lastpass-90x32@2x.png">
+          <img alt="Smarter Technologies logo" src="/images/logos/logo-smarter-technology-130x32@2x.png">
+          <img alt="Treeline logo" src="/images/logos/logo-treeline-128x32@2x.png">
         </a>
       </div>
       <div purpose="fade-left"></div>

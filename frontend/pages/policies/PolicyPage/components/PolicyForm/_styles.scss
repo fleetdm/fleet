@@ -17,6 +17,24 @@
     }
   }
 
+  &__page-header {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__page-title {
+    font-size: $large;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__page-subtitle {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    margin: 0;
+  }
+
   &__title-bar {
     display: flex;
     justify-content: space-between;
@@ -34,10 +52,8 @@
     }
   }
 
-  .input-field,
-  .input-field__text-area {
-    min-height: auto;
-    white-space: normal;
+  .input-field__textarea {
+    min-width: 100%;
   }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
@@ -56,7 +72,7 @@
     height: 18px;
   }
 
-  &__policy-name,
+  &__policy-name-fleet-name,
   &__description,
   &__resolution {
     .button--text-icon {
@@ -65,86 +81,31 @@
     }
   }
 
-  &__policy-name-wrapper,
-  &__policy-description-wrapper,
-  &__policy-resolution-wrapper {
+  &__policy-name-fleet-name {
     display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    width: fit-content;
-    &:not(&--editing) {
-      &:hover {
-        cursor: pointer;
-        * {
-          color: $core-fleet-green;
-          cursor: pointer;
-        }
-      }
-    }
-    &--disabled-by-gitops-mode {
-      @include disabled;
-    }
-  }
-
-  &__policy-name-wrapper {
-    .no-value {
-      min-width: 112px;
-    }
-  }
-
-  &__policy-description-wrapper {
-    .no-value {
-      min-width: 106px;
-    }
-    .edit-icon {
-      position: relative;
-      top: 0;
-    }
-  }
-  &__policy-resolution-wrapper {
-    .no-value {
-      min-width: 106px;
-    }
-  }
-  &__edit-icon {
-    opacity: 1;
-    transition: opacity 0.2s;
-    margin-left: 0;
-    align-self: initial;
-    &--hide {
-      opacity: 0;
-    }
-  }
-
-  &__policy-name,
-  &__policy-description,
-  &__policy-resolution {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    resize: none;
-    white-space: normal;
-    background-color: transparent;
-    overflow: hidden;
-    font-size: $x-small;
-  }
-
-  &__policy-name {
-    font-size: $large;
-
-    &.input-field--error {
-      border: 1px solid $core-vibrant-red;
-    }
+    flex-direction: column;
+    gap: $pad-small;
   }
 
   &__autofill-label {
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    .autofill-tooltip-wrapper {
+      display: flex; // Required for vertical centering
+    }
+
+    .autofill-button-tooltip {
+      font-weight: $regular;
+    }
   }
 
   &__button-wrap {
+    &--tooltip {
+      display: flex;
+    }
+
     .policy-form__run {
       min-width: 64px;
     }

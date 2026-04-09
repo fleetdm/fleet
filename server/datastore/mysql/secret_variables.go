@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -464,6 +465,21 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "getting pending recovery lock password for host %s", enrollmentID)
 			}
 			secretValues[secretType] = password
+		case fleet.HostSecretMDMUnlockToken:
+			details, err := ds.GetNanoMDMEnrollmentDetails(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting MDM enrollment details for host %s", enrollmentID)
+			}
+			if details == nil {
+				return "", ctxerr.Errorf(ctx, "no MDM enrollment details found for host %s", enrollmentID)
+			}
+			if details.UnlockToken == nil {
+				return "", ctxerr.Errorf(ctx, "%s", fleet.CantClearPasscodePersonalHostsMessage)
+			}
+
+			// We need to send base64 encoded data in the <data> field.
+			encoded := base64.StdEncoding.EncodeToString([]byte(*details.UnlockToken))
+			secretValues[secretType] = encoded
 		default:
 			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
 		}

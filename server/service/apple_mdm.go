@@ -861,7 +861,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	}
 
 	var teamName string
-	if teamID >= 1 {
+	if teamID > 0 {
+		lic, _ := license.FromContext(ctx)
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+		}
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
@@ -3590,6 +3594,11 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	enqueueSetupExperienceItems := false
 
 	if m.AwaitingConfiguration {
+		// We are sure that the device is going through a new enrollment here, so we want to
+		// remove the enrolled from migration flag as it is no longer true.
+		if err := svc.ds.ClearHostEnrolledFromMigration(r.Context, r.ID); err != nil {
+			return ctxerr.Wrap(r.Context, err, "resetting enrolled from migration flag", "host_uuid", r.ID)
+		}
 		// Note that Setup Experience is only skipped for macOS during DEP migration. iOS and iPadOS will still get VPP apps
 		if info.MigrationInProgress && info.Platform == "darwin" {
 			svc.logger.InfoContext(r.Context, "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
@@ -3857,11 +3866,20 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 		)
 	case "RemoveProfile":
+		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
+		detail := apple_mdm.FmtErrorChain(cmdResult.ErrorChain)
+		// MDMClientError 89 means "Profile not found" — for a removal, this
+		// is the desired outcome, so treat it as successful.
+		if status != nil && *status == fleet.MDMDeliveryFailed &&
+			apple_mdm.IsProfileNotFoundError(cmdResult.ErrorChain) {
+			status = &fleet.MDMDeliveryVerifying
+			detail = ""
+		}
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   cmdResult.CommandUUID,
 			HostUUID:      cmdResult.Identifier(),
-			Status:        mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
-			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
+			Status:        status,
+			Detail:        detail,
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
 	case "DeviceLock", "EraseDevice":

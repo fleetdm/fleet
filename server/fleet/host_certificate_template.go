@@ -5,6 +5,10 @@ import "time"
 // AndroidCertificateTemplateProfileID Used by the front-end for determining the displaying logic.
 const AndroidCertificateTemplateProfileID = "fleet-host-certificate-template"
 
+// ONCProfileWithheldDetailPrefix is the prefix used in the detail field of withheld Android
+// profiles that are waiting for a certificate to be installed before they can be applied.
+const ONCProfileWithheldDetailPrefix = "Waiting for certificate"
+
 // MaxCertificateInstallRetries is the maximum number of automatic retries after the initial attempt
 // when the Android agent reports a certificate install failure. Manual resend via the UI sets
 // retry_count to this value so the resend gets exactly one attempt with no automatic retry.

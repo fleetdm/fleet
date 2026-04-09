@@ -1,12 +1,10 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // ApplyQueries sends the list of Queries to be applied (upserted) to the
@@ -15,15 +13,7 @@ func (c *Client) ApplyQueries(specs []*fleet.QuerySpec) error {
 	req := applyQuerySpecsRequest{Specs: specs}
 	verb, path := "POST", "/api/latest/fleet/spec/reports"
 	var responseBody applyQuerySpecsResponse
-	data, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
-	if err != nil {
-		return err
-	}
-	return c.authenticatedRequest(data, verb, path, &responseBody)
+	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
 // GetQuerySpec returns the query spec of a query by its team+name.

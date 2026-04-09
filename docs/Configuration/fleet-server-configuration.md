@@ -15,7 +15,7 @@ You can specify configuration options in the following formats:
 
 ## MySQL
 
-This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
+This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). **Read replica configuration is fully independent from the primary — no values are inherited.** All required settings (address, region, TLS, authentication, etc.) must be explicitly set for the read replica using the `mysql_read_replica_` prefix. For example, if IAM authentication is used, both `FLEET_MYSQL_REGION` and `FLEET_MYSQL_READ_REPLICA_REGION` must be set. Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
@@ -119,7 +119,9 @@ The path to a PEM encoded private key used for TLS authentication.
 
 ### mysql_tls_config
 
-The TLS value in an MYSQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
+The TLS value in a MySQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
+
+When using IAM authentication with RDS, this setting is typically not needed — Fleet automatically uses `rdsmysql` as the TLS config, which includes bundled RDS CA certificates (including GovCloud regions). Setting this to `true` uses the system CA pool instead, which may not include RDS certificates in minimal container environments.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_CONFIG`
@@ -204,6 +206,8 @@ AWS region to use for Identity and Access Management (IAM) authentication of an 
 
 - `mysql_password` is not set
 - `mysql_password_path` is not set
+
+If a read replica is configured, the read replica's region must also be set explicitly via `mysql_read_replica_region` — it is not inherited from this setting.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_REGION`

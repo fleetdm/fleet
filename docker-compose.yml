@@ -17,6 +17,8 @@ services:
         "--server-id=master-01",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
@@ -46,6 +48,8 @@ services:
         "--server-id=1",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: *mysql-default-environment
     ports:
@@ -72,6 +76,8 @@ services:
         "--server-id=2",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: *mysql-default-environment
     ports:

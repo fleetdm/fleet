@@ -737,7 +737,7 @@
 
           <div purpose="footer-bottom">
             <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
-
+              <div class="d-flex flex-column">
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
@@ -748,6 +748,9 @@
                   <span purpose="legal-links">
                     <a href="/legal/privacy">Privacy</a>
                   </span>
+                </div>
+              </div>
+                <div purpose="cky-button-container" class="d-block">
                 </div>
               </div>
 
@@ -854,6 +857,7 @@
     <script src="/js/components/ajax-form.component.js"></script>
     <script src="/js/components/animated-arrow-button.component.js"></script>
     <script src="/js/components/bar-chart.component.js"></script>
+    <script src="/js/components/bubble.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
@@ -1057,6 +1061,26 @@
           $(this).children('.dropdown-menu').removeClass('show');
           $(this).children('.dropdown-toggle').attr('aria-expanded', false);
         });
+      });
+      // Add an event listener to watch for the cookie banner loading.
+      document.addEventListener("cookieyes_banner_load", function (eventData) {
+        //  Check the value in the JSON eventData and perform the desired action.
+        if(eventData.detail) {
+          if(eventData.detail.activeLaw === 'ccpa'){
+            // If this user sees a cookieyes banner for CCPA, add a "Do not sell or share my personal information" link to the bottom of the website footer.
+            $('div[purpose="cky-button-container"]').append(
+              '<a purpose="cky-button">Do Not Sell or Share My Personal Information</a>'
+            );
+            // Add a click event to the added button to bring up the cookie yes menu.
+            $(function(){
+              $('a[purpose="cky-button"]').click(
+                function() {
+                  revisitCkyConsent()
+                }
+              );
+            });
+          }
+        }
       });
     </script>
   </body>

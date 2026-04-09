@@ -150,25 +150,31 @@ const UserMenu = ({
   dropdownItems.unshift(manageLabelsMenuItem);
 
   if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
-    const userAdminTeams = currentUser.teams.filter(
-      (thisTeam: ITeam) => thisTeam.role === "admin"
-    );
-    const sortedTeams = getSortedTeamOptions(userAdminTeams);
-
     let clickHandler = () => onUserMenuItemClick(PATHS.ADMIN_ORGANIZATION);
     if (currentUser.global_role !== "admin") {
+      const userAdminTeams = currentUser.teams.filter(
+        (thisTeam: ITeam) => thisTeam.role === "admin"
+      );
       clickHandler = () => {
-        const targetTeam = sortedTeams[0];
-        if (currentTeam && currentTeam.id !== targetTeam.value) {
-          const msg = (
-            <>
-              You&apos;re not authorized to view this page for{" "}
-              <b>{currentTeam.name}</b>. Now viewing <b>{targetTeam.label}</b>.
-            </>
-          );
-          renderFlash("warning-filled", msg);
+        const currentTeamIsAdmin =
+          currentTeam && userAdminTeams.some((t) => t.id === currentTeam.id);
+        if (currentTeamIsAdmin) {
+          onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(currentTeam.id));
+        } else {
+          // Sort and pick the first team the user is admin of to display.
+          const targetTeam = getSortedTeamOptions(userAdminTeams)[0];
+          if (currentTeam) {
+            const msg = (
+              <>
+                You&apos;re not authorized to view this page for{" "}
+                <b>{currentTeam.name}</b>. Now viewing <b>{targetTeam.label}</b>
+                .
+              </>
+            );
+            renderFlash("warning-filled", msg);
+          }
+          onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
         }
-        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
       };
     }
 

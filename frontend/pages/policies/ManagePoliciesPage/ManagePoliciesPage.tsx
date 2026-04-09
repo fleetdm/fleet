@@ -1,5 +1,11 @@
 // TODO: make 'queryParams', 'router', and 'tableQueryData' dependencies stable (aka, memoized)
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
@@ -222,6 +228,8 @@ const ManagePolicyPage = ({
       ? automationQueryParam
       : null;
   })();
+
+  const isFirstNavigation = useRef(true);
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
@@ -496,7 +504,12 @@ const ManagePolicyPage = ({
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.push(locationPath);
+      if (isFirstNavigation.current) {
+        isFirstNavigation.current = false;
+        router?.replace(locationPath);
+      } else {
+        router?.push(locationPath);
+      }
     },
     [
       isRouteOk,

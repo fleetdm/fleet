@@ -200,7 +200,7 @@ type MDM struct {
 	// the server starts.
 	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
 
-	// AppleBMTermsExpired is set to true if an Apple Business Manager request
+	// AppleBMTermsExpired is set to true if an Apple Business request
 	// failed due to Apple's terms and conditions having changed and need the
 	// user to explicitly accept them. It cannot be set manually via the
 	// PATCH /config API, it is only set automatically, internally, by detecting
@@ -552,6 +552,7 @@ type MacOSSetup struct {
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
 }
 
 func (mos *MacOSSetup) Validate() error {

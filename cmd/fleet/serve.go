@@ -294,7 +294,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	//
 	// For example:
 	// platform_logging.DisableTopic("deprecated-api-keys")
-	platform_logging.DisableTopic(platform_logging.DeprecatedFieldTopic)
 
 	// Apply log topic overrides from config. Enables run first, then
 	// disables, so disable wins on conflict.
@@ -688,7 +687,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		return true, nil
 	}
 
-	// reconcile Apple Business Manager configuration environment variables with the database
+	// reconcile Apple Business configuration environment variables with the database
 	if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
 		if len(config.Server.PrivateKey) == 0 {
 			initFatal(errors.New("inserting MDM APNs and SCEP assets"),
@@ -769,7 +768,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// reconcile Apple Business Manager configuration environment variables with the database
+	// reconcile Apple Business configuration environment variables with the database
 	if config.MDM.IsAppleBMSet() {
 		if len(config.Server.PrivateKey) == 0 {
 			initFatal(errors.New("inserting MDM ABM assets"),
@@ -857,7 +856,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.InfoContext(cmd.Context(), "Apple MDM enabled")
 	}
 	if appCfg.MDM.AppleBMEnabledAndConfigured {
-		logger.InfoContext(cmd.Context(), "Apple Business Manager enabled")
+		logger.InfoContext(cmd.Context(), "Apple Business enabled")
 	}
 
 	// register the Microsoft MDM services
@@ -1484,6 +1483,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
 
+		if err := service.ValidateAPIEndpoints(apiHandler); err != nil {
+			panic(fmt.Sprintf("invalid api_endpoints.yml: %v", err))
+		}
+
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
 			apiHandler = endpointer.BrowserSecurityHeadersHandler(serveCSP, apiHandler)
@@ -1499,11 +1502,20 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if setupRequired {
 			// Pass in a closure to run the fleetctl command, so that the service layer
 			// doesn't need to import the CLI package.
-			applyStarterLibrary := func(ctx context.Context, serverURL, token string) error {
-				return service.ApplyStarterLibrary(ctx, serverURL, token, logger, func(args []string) error {
-					_, err := fleetctl.RunApp(args)
-					return err
-				})
+			// When Primo mode is enabled, skip the starter library.
+			var applyStarterLibrary func(ctx context.Context, serverURL, token string) error
+			if config.Partnerships.EnablePrimo {
+				applyStarterLibrary = func(ctx context.Context, _, _ string) error {
+					logger.DebugContext(ctx, "Skipping starter library application in Primo mode")
+					return nil
+				}
+			} else {
+				applyStarterLibrary = func(ctx context.Context, serverURL, token string) error {
+					return service.ApplyStarterLibrary(ctx, serverURL, token, logger, func(args []string) error {
+						_, err := fleetctl.RunApp(args)
+						return err
+					})
+				}
 			}
 			apiHandler = service.WithSetup(svc, logger, applyStarterLibrary, apiHandler)
 			frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
