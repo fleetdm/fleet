@@ -116,7 +116,7 @@ const RunQuery = ({
     websocket.onmessage = ({ data }: { data: string }) => {
       // string is easy to compare before converting to object
       if (data === previousSocketData.current) {
-        return false;
+        return;
       }
 
       previousSocketData.current = data;
@@ -132,7 +132,7 @@ const RunQuery = ({
         socketData.type === "status" &&
         socketData.data.status === "finished"
       ) {
-        return teardownDistributedQuery();
+        teardownDistributedQuery();
       }
     };
   };
@@ -143,7 +143,7 @@ const RunQuery = ({
         "error",
         "Something went wrong running your report. Please try again."
       );
-      return false;
+      return;
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
@@ -187,14 +187,14 @@ const RunQuery = ({
         }
       }
 
-      return teardownDistributedQuery();
+      teardownDistributedQuery();
     }
   });
 
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    return teardownDistributedQuery();
+    teardownDistributedQuery();
   };
 
   useEffect(() => {

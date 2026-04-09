@@ -94,7 +94,8 @@ const AutocompleteDropdown = ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getOptions = debounce((input: string, callback: any) => {
     if (!input) {
-      return callback([]);
+      callback([]);
+      return;
     }
 
     fetch(createUrl(resourceUrl, input), {

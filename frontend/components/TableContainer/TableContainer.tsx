@@ -360,6 +360,7 @@ const TableContainer = <T,>({
         button
       );
     }
+    return null;
   };
 
   const renderFilters = useCallback(() => {

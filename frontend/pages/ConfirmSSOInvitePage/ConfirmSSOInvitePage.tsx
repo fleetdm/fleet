@@ -37,7 +37,7 @@ const ConfirmSSOInvitePage = ({
     const { DASHBOARD } = paths;
 
     if (currentUser) {
-      return router.push(DASHBOARD);
+      router.push(DASHBOARD);
     }
   }, [currentUser]);
 
@@ -55,7 +55,6 @@ const ConfirmSSOInvitePage = ({
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      return false;
     }
   };
 

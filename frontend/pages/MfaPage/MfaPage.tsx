@@ -85,8 +85,9 @@ const MfaPage = ({ router, params }: IMfaPage) => {
 
   useEffect(() => {
     if (currentUser) {
-      return router.push(paths.DASHBOARD);
+      router.push(paths.DASHBOARD);
     }
+    return undefined;
   }, [currentUser, router]);
 
   const onClickLoginButton = () => {

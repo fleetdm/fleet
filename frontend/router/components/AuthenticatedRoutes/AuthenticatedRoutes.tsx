@@ -84,20 +84,23 @@ export const AuthenticatedRoutes = ({
         window.location.href = "https://www.fleetdm.com/try-fleet/login";
       }
 
-      return redirectToLogin();
+      redirectToLogin();
+      return;
     }
 
     if (currentUser?.force_password_reset && !authToken.get()) {
-      return redirectToPasswordReset();
+      redirectToPasswordReset();
+      return;
     }
 
     if (currentUser?.api_only) {
-      return redirectToApiUserOnly();
+      redirectToApiUserOnly();
+      return;
     }
 
     if (currentUser && permissions.isNoAccess(currentUser)) {
       authToken.remove();
-      return handlePageError({ status: 403 });
+      handlePageError({ status: 403 });
     }
   }, [currentUser]);
 

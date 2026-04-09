@@ -46,7 +46,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     const { DASHBOARD } = paths;
 
     if (currentUser) {
-      return router.push(DASHBOARD);
+      router.push(DASHBOARD);
     }
   }, [currentUser]);
 
@@ -80,7 +80,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
 
   const onSetPage = (pageNum: number) => {
     if (pageNum > pageProgress) {
-      return false;
+      return;
     }
 
     setPage(pageNum);

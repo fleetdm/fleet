@@ -37,6 +37,7 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
         document.removeEventListener("keydown", closeOrSaveWithEnterKey);
       };
     }
+    return undefined;
   }, [onBackToLogin]);
 
   return (

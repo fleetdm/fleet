@@ -1291,7 +1291,7 @@ const ManageHostsPage = ({
   const onDeleteLabel = async () => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
-      return false;
+      return;
     }
     setIsUpdating(true);
 

@@ -67,7 +67,8 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     new_password_confirmation: string;
   }) => {
     if (currentUser) {
-      return continueWithLoggedInUser(formData);
+      continueWithLoggedInUser(formData);
+      return;
     }
 
     const resetPasswordData = {
@@ -81,7 +82,6 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      return false;
     }
   };
 

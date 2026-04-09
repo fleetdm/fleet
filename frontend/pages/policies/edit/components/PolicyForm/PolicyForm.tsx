@@ -372,17 +372,19 @@ const PolicyForm = ({
     evt.preventDefault();
 
     if (isEditMode && !lastEditedQueryName) {
-      return setErrors({
+      setErrors({
         ...errors,
         name: "Policy name must be present",
       });
+      return;
     }
 
     if (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) {
-      return setErrors({
+      setErrors({
         ...errors,
         name: "At least one platform must be selected",
       });
+      return;
     }
 
     if (isPatchPolicy && isEditMode) {
