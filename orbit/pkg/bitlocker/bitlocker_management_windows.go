@@ -255,19 +255,23 @@ func (v *Volume) getKeyProtectorIDs(protectorType int32) ([]string, error) {
 		return nil, fmt.Errorf("getKeyProtectors(%s, %d): %w", v.letter, protectorType, encryptErrHandler(val))
 	}
 
-	// The WMI method returns a VARIANT containing a SAFEARRAY of BSTRs (Basic Strings).
-	// Extract strings from the VARIANT value directly. The go-ole library converts VT_ARRAY|VT_BSTR variants to []string via .Value().
-	val := protectorIDs.Value()
-	if val == nil {
+	// The WMI method returns an out-parameter VARIANT containing a SAFEARRAY.
+	// The array type is VT_ARRAY|VT_VARIANT (0x200C), not VT_ARRAY|VT_BSTR.
+	// We use ToValueArray() to extract each element as an interface{}, then convert to strings.
+	safeArray := protectorIDs.ToArray()
+	if safeArray == nil {
 		return nil, nil
 	}
+	defer safeArray.Release()
 
-	switch ids := val.(type) {
-	case []string:
-		return ids, nil
-	default:
-		return nil, fmt.Errorf("getKeyProtectors(%s, %d): unexpected variant type %T", v.letter, protectorType, val)
+	values := safeArray.ToValueArray()
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		if s, ok := v.(string); ok {
+			result = append(result, s)
+		}
 	}
+	return result, nil
 }
 
 // getBitlockerStatus returns the current status of the volume
