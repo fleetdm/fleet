@@ -1,3 +1,12 @@
+## Fleet 4.83.1 (Apr 10, 2026)
+
+### Bug fixes
+
+- Fixed policy creation failing when type was omitted.
+- Fixed auth token not persisting when logging in via SSO.
+- Fleet UI: Fixed infinite page loop pagination bug on software table page happening when viewing a subsequent page and then using the software filter dropdown to filter.
+- Fleet UI: Fixed software table page number to be bookmarkable
+
 ## Fleet 4.83.0 (Apr 1, 2026)
 
 ### IT Admins
