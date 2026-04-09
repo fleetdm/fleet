@@ -7,7 +7,6 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
