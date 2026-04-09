@@ -36,7 +36,7 @@ const InputFieldWithIcon = ({
   error,
   helpText,
   iconSvg,
-  label: labelProp,
+  label,
   name,
   onChange,
   onClick,
@@ -67,8 +67,6 @@ const InputFieldWithIcon = ({
     },
     [onChange]
   );
-
-  const label = labelProp ?? placeholder;
 
   const renderHeading = () => {
     const labelClasses = classnames(`${baseClass}__label`, {
@@ -131,7 +129,7 @@ const InputFieldWithIcon = ({
 
   return (
     <div className={wrapperClasses}>
-      {labelProp && renderHeading()}
+      {label && renderHeading()}
       <div className={inputWrapperClasses}>
         <input
           id={name}
