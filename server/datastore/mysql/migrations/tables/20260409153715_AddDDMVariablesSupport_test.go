@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260407185144(t *testing.T) {
+func TestUp_20260409153715(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Create prerequisite data: an Apple config profile, a Windows config
