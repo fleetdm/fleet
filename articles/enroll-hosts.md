@@ -12,7 +12,7 @@ To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-c
 
 ## UI
 
-### Workstations
+#### Workstations
 
 To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
 
