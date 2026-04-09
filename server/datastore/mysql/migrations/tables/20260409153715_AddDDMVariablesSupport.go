@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260407185144, Down_20260407185144)
+	MigrationClient.AddMigration(Up_20260409153715, Down_20260409153715)
 }
 
-func Up_20260407185144(tx *sql.Tx) error {
+func Up_20260409153715(tx *sql.Tx) error {
 	// Add variables_updated_at to host_mdm_apple_declarations to track when
 	// variables last changed so declaration tokens can be regenerated/updated.
 	_, err := tx.Exec(`ALTER TABLE host_mdm_apple_declarations ADD COLUMN variables_updated_at DATETIME(6) DEFAULT NULL`)
@@ -37,6 +37,6 @@ func Up_20260407185144(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260407185144(tx *sql.Tx) error {
+func Down_20260409153715(tx *sql.Tx) error {
 	return nil
 }
