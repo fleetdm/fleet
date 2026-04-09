@@ -128,7 +128,7 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
       <br />
       due to Google rate limiting.{" "}
       <CustomLink
-        url="TODO"
+        url="https://fleetdm.com/learn-more-about/android-manual-sync"
         text="Learn how to manually sync"
         variant="tooltip-link"
         newTab
