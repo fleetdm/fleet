@@ -14,7 +14,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
 import BackButton from "components/BackButton";
-import PolicyForm from "pages/policies/PolicyPage/components/PolicyForm";
+import PolicyForm from "pages/policies/edit/components/PolicyForm";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
 interface IQueryEditorProps {

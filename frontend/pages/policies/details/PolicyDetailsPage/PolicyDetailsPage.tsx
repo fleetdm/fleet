@@ -28,7 +28,7 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
-import PolicyAutomations from "pages/policies/PolicyPage/components/PolicyAutomations";
+import PolicyAutomations from "pages/policies/edit/components/PolicyAutomations";
 
 interface IPolicyDetailsPageProps {
   router: InjectedRouter;
@@ -337,12 +337,12 @@ const PolicyDetailsPage = ({
                     onClick={() => {
                       policyId &&
                         router.push(
-                          `${getPathWithQueryParams(
-                            PATHS.EDIT_POLICY(policyId),
+                          getPathWithQueryParams(
+                            PATHS.LIVE_POLICY(policyId),
                             {
                               fleet_id: teamIdForApi,
                             }
-                          )}#targets`
+                          )
                         );
                     }}
                     disabled={!!disabledLiveQuery}
