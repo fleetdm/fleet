@@ -504,6 +504,11 @@ func AnalyzeRHEL(
 		return nil, ErrUnsupportedPlatform
 	}
 
+	// Fedora reports platform "rhel" but Red Hat OSV data does not cover Fedora.
+	if strings.Contains(ver.Name, "Fedora") {
+		return nil, ErrUnsupportedPlatform
+	}
+
 	artifact, err := loadRHELOSVArtifact(ctx, ver, vulnPath, logger, date)
 	if err != nil {
 		return nil, fmt.Errorf("loading RHEL OSV artifact: %w", err)

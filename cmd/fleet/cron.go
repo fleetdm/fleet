@@ -427,7 +427,8 @@ func checkOvalVulnerabilities(
 	if config.OSVForVulnerabilities {
 		var nonOSVPlatforms []fleet.OSVersion
 		for _, v := range versions.OSVersions {
-			if osv.IsPlatformSupported(v.Platform) {
+			// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in OVAL
+			if osv.IsPlatformSupported(v.Platform) && !strings.Contains(v.Name, "Fedora") {
 				continue
 			}
 			nonOSVPlatforms = append(nonOSVPlatforms, v)
@@ -694,8 +695,9 @@ func checkGovalDictionaryVulnerabilities(
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.goval_dictionary.analyze",
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
-		// Skip RHEL platforms when RHEL OSV is enabled (OSV handles both kernel and non-kernel)
-		if config.OSVForVulnerabilities && osv.IsPlatformSupported(version.Platform) {
+		// Skip RHEL platforms when OSV is enabled (OSV handles both kernel and non-kernel).
+		// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in goval-dictionary.
+		if config.OSVForVulnerabilities && osv.IsPlatformSupported(version.Platform) && !strings.Contains(version.Name, "Fedora") {
 			continue
 		}
 		start := time.Now()
