@@ -184,7 +184,7 @@ const InputField = ({
     helpText,
     label,
     error,
-    name,
+    name: name ?? "",
     tooltip,
     labelTooltipPosition,
   };
