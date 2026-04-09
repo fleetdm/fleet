@@ -6,7 +6,7 @@
 
 In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). Variables are hidden when the script or configuration profile is viewed in the Fleet UI or API.
 
-Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
 ## Add variables
 
@@ -42,7 +42,7 @@ During a GitOps run, Fleet scans scripts and profiles for variables, pulls their
 
 Profiles with variables aren’t validated during a GitOps dry run because the variables may be missing or incorrect in Fleet. This means they’re more likely to fail during a real run. Best practice: test the script or profile by adding it to Fleet via the UI first.
 
-Some variables trigger a profile resend when their value changes. See which variables support this in the [YAML reference docs](https://fleetdm.com/docs/configuration/yaml-files#variables).
+Some variables trigger a profile resend when their value changes. See which variables support this in the [YAML reference docs](https://fleetdm.com/guides/fleet-variables).
 
 If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
 
