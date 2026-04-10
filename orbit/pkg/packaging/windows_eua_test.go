@@ -11,13 +11,13 @@ import (
 
 func TestWindowsWixTemplateEUAToken(t *testing.T) {
 	baseOpt := Options{
-		FleetURL:      "https://fleet.example.com",
-		EnrollSecret:  "secret",
-		OrbitChannel:  "stable",
+		FleetURL:        "https://fleet.example.com",
+		EnrollSecret:    "secret",
+		OrbitChannel:    "stable",
 		OsquerydChannel: "stable",
-		DesktopChannel: "stable",
-		NativePlatform: "windows",
-		Architecture:  ArchAmd64,
+		DesktopChannel:  "stable",
+		NativePlatform:  "windows",
+		Architecture:    ArchAmd64,
 	}
 
 	t.Run("EUA_TOKEN property and flag included when enabled", func(t *testing.T) {
