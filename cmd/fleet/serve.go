@@ -96,7 +96,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
@@ -1485,8 +1484,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
 
-		if err := validateAPIEndpoints(apiHandler, apiendpoints.GetAPIEndpoints()); err != nil {
-			panic(fmt.Sprintf("invalid API endpoints: %v", err))
+		if err := apiendpoints.Init(apiHandler); err != nil {
+			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 
 		if serveCSP {
@@ -2187,41 +2186,4 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 			"name", config.S3.CarvesBucket,
 		)
 	}
-}
-
-func validateAPIEndpoints(h http.Handler, endpoints []fleet.APIEndpoint) error {
-	r, ok := h.(*mux.Router)
-	if !ok {
-		return fmt.Errorf("expected *mux.Router, got %T", h)
-	}
-
-	registered := make(map[string]struct{})
-	_ = r.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		tpl, err := route.GetPathTemplate()
-		if err != nil {
-			return nil
-		}
-		meths, err := route.GetMethods()
-		if err != nil || len(meths) == 0 {
-			return nil
-		}
-		for _, m := range meths {
-			val := fleet.NewAPIEndpointFromTpl(m, tpl)
-			registered[val.Fingerprint()] = struct{}{}
-		}
-		return nil
-	})
-
-	var missing []string
-	for _, e := range endpoints {
-		if _, ok := registered[e.Fingerprint()]; !ok {
-			missing = append(missing, e.Method+" "+e.Path)
-		}
-	}
-
-	if len(missing) > 0 {
-		return fmt.Errorf("the following API endpoints are unknown: %v", missing)
-	}
-
-	return nil
 }

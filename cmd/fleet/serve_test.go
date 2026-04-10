@@ -28,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -1322,44 +1321,4 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	require.NoError(t, err)
 	// Only one label (the host vitals label) should have been processed.
 	require.Equal(t, 1, numCalls)
-}
-
-func TestValidateAPIEndpoints(t *testing.T) {
-	allEndpoints := []fleet.APIEndpoint{
-		fleet.NewAPIEndpointFromTpl("GET", "/api/_version_/fleet/hosts"),
-		fleet.NewAPIEndpointFromTpl("POST", "/api/_version_/fleet/hosts/:id/refetch"),
-	}
-	routerWithEndpoints := func(endpoints []fleet.APIEndpoint) *mux.Router {
-		r := mux.NewRouter()
-		for _, e := range endpoints {
-			path := strings.Replace(e.Path, "/_version_/", "/{fleetversion:(?:v1|latest)}/", 1)
-			r.Handle(path, http.NotFoundHandler()).Methods(e.Method)
-		}
-		return r
-	}
-
-	t.Run("all routes present", func(t *testing.T) {
-		err := validateAPIEndpoints(routerWithEndpoints(allEndpoints), allEndpoints)
-		require.NoError(t, err)
-	})
-
-	t.Run("missing route returns error", func(t *testing.T) {
-		err := validateAPIEndpoints(routerWithEndpoints(allEndpoints[:1]), allEndpoints)
-		require.ErrorContains(t, err, allEndpoints[1].Method+" "+allEndpoints[1].Path)
-	})
-
-	t.Run("no routes registered returns error listing all missing", func(t *testing.T) {
-		err := validateAPIEndpoints(mux.NewRouter(), allEndpoints)
-		require.ErrorContains(t, err, "the following API endpoints are unknown")
-	})
-
-	t.Run("non-mux handler returns error", func(t *testing.T) {
-		err := validateAPIEndpoints(http.NewServeMux(), allEndpoints)
-		require.ErrorContains(t, err, "expected *mux.Router")
-	})
-
-	t.Run("empty endpoint list always passes", func(t *testing.T) {
-		err := validateAPIEndpoints(mux.NewRouter(), nil)
-		require.NoError(t, err)
-	})
 }
