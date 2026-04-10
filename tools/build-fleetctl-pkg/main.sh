@@ -26,7 +26,7 @@ if [[ -n "$VERSION" ]]; then
 elif [[ -n "$GITHUB_REF" ]]; then
     TAG_NAME="${GITHUB_REF#refs/tags/}"
     if [[ "$TAG_NAME" == fleet-* ]]; then
-        VERSION="${TAG_NAME#fleet-}"
+        VERSION="${TAG_NAME#fleet-v}"
     else
         echo "Error: VERSION not set and GITHUB_REF is not a fleet tag: $GITHUB_REF"
         exit 1
@@ -185,6 +185,10 @@ echo "✓ Package created successfully: dist/$PACKAGE_NAME"
 if [[ "$SKIP_UPLOAD" == "true" ]]; then
     echo "Skipping release upload (SKIP_UPLOAD=true)"
 elif [[ -n "$GITHUB_TOKEN" ]] && [[ -n "$GITHUB_REPOSITORY" ]] && command -v gh &> /dev/null; then
+    if [[ "$GITHUB_REF" != refs/tags/* ]]; then
+        echo "Error: GITHUB_REF is not a tag ref ($GITHUB_REF), cannot upload to release"
+        exit 1
+    fi
     TAG_NAME="${GITHUB_REF#refs/tags/}"
     echo "Uploading package to release $TAG_NAME..."
     

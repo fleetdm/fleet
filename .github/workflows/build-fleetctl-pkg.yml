@@ -59,8 +59,8 @@ jobs:
 
           # Check if running from a tag (for testing tag-based workflows)
           if [[ "${{ github.ref }}" == refs/tags/* ]] && [[ "$REF_NAME" == fleet-* ]]; then
-            # Extract version from tag (e.g., fleet-v4.10.0 -> v4.10.0)
-            VERSION="${REF_NAME#fleet-}"
+            # Extract version from tag (e.g., fleet-v4.10.0 -> 4.10.0)
+            VERSION="${REF_NAME#fleet-v}"
             TAG_NAME="$REF_NAME"
           else
             # For branch-based manual triggers, use a test version
