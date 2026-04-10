@@ -45,16 +45,16 @@ type CertManager interface {
 	// NewSTSAuthToken returns an STS auth token for the given UPN claim.
 	NewSTSAuthToken(upn string) (string, error)
 
-	// NewSTSAuthTokenWithDeviceID returns an STS auth token for the given UPN and
-	// Windows MDM device ID claims. Used to pass end-user authentication context
-	// to the orbit installer so the user is not prompted twice.
-	NewSTSAuthTokenWithDeviceID(upn string, deviceID string) (string, error)
+	// NewEUAToken returns a Fleet-signed JWT for the given UPN and Windows MDM
+	// device ID. Used to pass end-user authentication context to the orbit
+	// installer so the user is not prompted twice.
+	NewEUAToken(upn string, deviceID string) (string, error)
 
 	// GetSTSAuthTokenUPNClaim validates the given token and returns the UPN claim
 	GetSTSAuthTokenUPNClaim(token string) (string, error)
 
-	// GetSTSAuthTokenClaims validates the given token and returns the UPN and device ID claims.
-	GetSTSAuthTokenClaims(token string) (upn string, deviceID string, err error)
+	// GetEUATokenClaims validates the given EUA token and returns the parsed claims.
+	GetEUATokenClaims(token string) (*EUATokenClaims, error)
 
 	// TODO: implement other methods as needed:
 	// - verify certificate-device association
@@ -70,9 +70,21 @@ type CertStore interface {
 }
 
 type STSClaims struct {
-	UPN      string `json:"upn"`
-	DeviceID string `json:"device_id,omitempty"`
+	UPN string `json:"upn"`
 	jwt.RegisteredClaims
+}
+
+// euaJWTClaims is the internal JWT struct for signing/parsing EUA tokens.
+type euaJWTClaims struct {
+	UPN      string `json:"upn"`
+	DeviceID string `json:"device_id"`
+	jwt.RegisteredClaims
+}
+
+// EUATokenClaims is the validated result returned to callers of GetEUATokenClaims.
+type EUATokenClaims struct {
+	UPN      string
+	DeviceID string
 }
 
 type AzureData struct {
@@ -214,8 +226,8 @@ func (m *manager) NewSTSAuthToken(upn string) (string, error) {
 	return signedToken, nil
 }
 
-// NewSTSAuthTokenWithDeviceID returns an STS auth token for the given UPN and Windows MDM device ID claims.
-func (m *manager) NewSTSAuthTokenWithDeviceID(upn string, deviceID string) (string, error) {
+// NewEUAToken returns a Fleet-signed JWT for the given UPN and Windows MDM device ID.
+func (m *manager) NewEUAToken(upn string, deviceID string) (string, error) {
 	if m == nil {
 		return "", errors.New("windows mdm identity keypair was not configured")
 	}
@@ -231,58 +243,58 @@ func (m *manager) NewSTSAuthTokenWithDeviceID(upn string, deviceID string) (stri
 		return "", errors.New("invalid device_id field")
 	}
 
-	claims := STSClaims{
+	claims := euaJWTClaims{
 		UPN:      upn,
 		DeviceID: deviceID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   "STSAuthToken",
+			Subject:   "EUAToken",
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS256"), claims)
 	signedToken, err := token.SignedString(m.identityPrivateKey)
 	if err != nil {
-		return "", fmt.Errorf("failed to sign STS token: %w", err)
+		return "", fmt.Errorf("failed to sign EUA token: %w", err)
 	}
 
 	return signedToken, nil
 }
 
-// GetSTSAuthTokenClaims validates the given token and returns the UPN and device ID claims.
-func (m *manager) GetSTSAuthTokenClaims(tokenStr string) (string, string, error) {
+// GetEUATokenClaims validates the given EUA token and returns the parsed claims.
+func (m *manager) GetEUATokenClaims(tokenStr string) (*EUATokenClaims, error) {
 	if m == nil {
-		return "", "", errors.New("windows mdm identity keypair was not configured")
+		return nil, errors.New("windows mdm identity keypair was not configured")
 	}
 
 	if m.identityCert == nil || m.identityPrivateKey == nil {
-		return "", "", errors.New("invalid identity certificate or private key")
+		return nil, errors.New("invalid identity certificate or private key")
 	}
 
 	if len(tokenStr) == 0 {
-		return "", "", errors.New("invalid STS token")
+		return nil, errors.New("invalid EUA token")
 	}
 
-	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (any, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &euaJWTClaims{}, func(token *jwt.Token) (any, error) {
 		return m.identityCert.PublicKey, nil
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("there was an error parsing the STS token claims: %w", err)
+		return nil, fmt.Errorf("there was an error parsing the EUA token claims: %w", err)
 	}
 
-	if claims, ok := token.Claims.(*STSClaims); ok && token.Valid {
+	if claims, ok := token.Claims.(*euaJWTClaims); ok && token.Valid {
 		if len(claims.UPN) == 0 {
-			return "", "", errors.New("issue with UPN token claim")
+			return nil, errors.New("issue with UPN token claim")
 		}
 		if len(claims.DeviceID) == 0 {
-			return "", "", errors.New("issue with device_id token claim")
+			return nil, errors.New("issue with device_id token claim")
 		}
-		return claims.UPN, claims.DeviceID, nil
+		return &EUATokenClaims{UPN: claims.UPN, DeviceID: claims.DeviceID}, nil
 	}
 
-	return "", "", errors.New("issue with STS token validation")
+	return nil, errors.New("issue with EUA token validation")
 }
 
 // GetSTSAuthToken validates the given token and returns the UPN claim

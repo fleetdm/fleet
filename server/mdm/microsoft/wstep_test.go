@@ -108,32 +108,32 @@ func TestSTSTokenWithDeviceID(t *testing.T) {
 	deviceID := "test-device-id-123"
 
 	// Generate token with device ID
-	token, err := cm.NewSTSAuthTokenWithDeviceID(upn, deviceID)
+	token, err := cm.NewEUAToken(upn, deviceID)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 
 	// Validate and extract both claims
-	gotUPN, gotDeviceID, err := cm.GetSTSAuthTokenClaims(token)
+	claims, err := cm.GetEUATokenClaims(token)
 	require.NoError(t, err)
-	require.Equal(t, upn, gotUPN)
-	require.Equal(t, deviceID, gotDeviceID)
+	require.Equal(t, upn, claims.UPN)
+	require.Equal(t, deviceID, claims.DeviceID)
 
 	// Empty UPN is rejected
-	_, err = cm.NewSTSAuthTokenWithDeviceID("", deviceID)
+	_, err = cm.NewEUAToken("", deviceID)
 	require.ErrorContains(t, err, "invalid upn field")
 
 	// Empty device ID is rejected
-	_, err = cm.NewSTSAuthTokenWithDeviceID(upn, "")
+	_, err = cm.NewEUAToken(upn, "")
 	require.ErrorContains(t, err, "invalid device_id field")
 
 	// Token signed by NewSTSAuthToken (no device_id) is rejected — device_id is required
 	oldToken, err := cm.NewSTSAuthToken(upn)
 	require.NoError(t, err)
-	_, _, err = cm.GetSTSAuthTokenClaims(oldToken)
+	_, err = cm.GetEUATokenClaims(oldToken)
 	require.ErrorContains(t, err, "issue with device_id token claim")
 
 	// Tampered token is rejected
-	_, _, err = cm.GetSTSAuthTokenClaims(token + "tampered")
+	_, err = cm.GetEUATokenClaims(token + "tampered")
 	require.Error(t, err)
 }
 

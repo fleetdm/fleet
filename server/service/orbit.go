@@ -99,12 +99,14 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 		return "", "", fleet.NewOrbitIDPAuthRequiredError()
 	}
 
-	upn, deviceID, tokenErr := svc.wstepCertManager.GetSTSAuthTokenClaims(euaToken)
+	claims, tokenErr := svc.wstepCertManager.GetEUATokenClaims(euaToken)
 	if tokenErr != nil {
 		svc.logger.WarnContext(ctx, "EUA token validation failed, falling back to end user auth prompt",
 			"err", tokenErr, "host_uuid", hostUUID)
 		return "", "", fleet.NewOrbitIDPAuthRequiredError()
 	}
+	upn = claims.UPN
+	deviceID = claims.DeviceID
 
 	_, err = svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
@@ -128,7 +130,7 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 			return "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
 		}
 		// Re-fetch to get the UUID assigned by the DB.
-		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
+		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctxdb.RequirePrimary(ctx, true), upn)
 		if err != nil {
 			return "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
 		}
@@ -241,12 +243,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			if platform == "linux" || platform == "windows" {
 				// If the Orbit client doesn't support end user auth, complain loudly and let the host enroll.
 				mp, ok := capabilities.FromContext(ctx)
-				//nolint:gocritic // ignore ifElseChain
-				if !ok {
-					svc.logger.ErrorContext(ctx, "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
-				} else if !mp.Has(fleet.CapabilityEndUserAuth) {
-					svc.logger.WarnContext(ctx, "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
-				} else if platform == "windows" && euaToken != "" {
+				switch {
+				case !ok:
+					svc.logger.ErrorContext(ctx, "allowing unauthenticated enrollment: could not determine orbit end-user auth capability", "host_uuid", hostInfo.HardwareUUID)
+				case !mp.Has(fleet.CapabilityEndUserAuth):
+					svc.logger.WarnContext(ctx, "allowing unauthenticated enrollment: orbit version does not support end-user authentication", "host_uuid", hostInfo.HardwareUUID)
+				case platform == "windows" && euaToken != "":
 					// A Windows host already authenticated during MDM enrollment and the
 					// EUA token was passed by the MSI installer.
 					upn, deviceID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
@@ -256,7 +258,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					euaUPN = upn
 					euaDeviceID = deviceID
 					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
-				} else {
+				default:
 					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
 					return "", fleet.NewOrbitIDPAuthRequiredError()
 				}

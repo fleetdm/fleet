@@ -9173,14 +9173,21 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 
 		var installJob struct {
 			Product struct {
-				ContentURL string `xml:"Download>ContentURLList>ContentURL"`
-				FileHash   string `xml:"Validation>FileHash"`
+				ContentURL  string `xml:"Download>ContentURLList>ContentURL"`
+				FileHash    string `xml:"Validation>FileHash"`
+				CommandLine string `xml:"Enforcement>CommandLine"`
 			} `xml:"Product"`
 		}
 		err = xml.Unmarshal([]byte(fleetdExecCmd.Cmd.Items[0].Data.Content), &installJob)
 		require.NoError(t, err)
 		require.Equal(t, s.mockedDownloadFleetdmMeta.MSIURL, installJob.Product.ContentURL)
 		require.Equal(t, s.mockedDownloadFleetdmMeta.MSISha256, installJob.Product.FileHash)
+
+		// The device enrolled with a valid UPN (azureMail), so the command line
+		// should include an EUA_TOKEN argument.
+		require.Contains(t, installJob.Product.CommandLine, `EUA_TOKEN="`)
+		require.Contains(t, installJob.Product.CommandLine, `FLEET_URL="`)
+		require.Contains(t, installJob.Product.CommandLine, `FLEET_SECRET="`)
 
 		// reply with success for both commands
 		msgID, err := d.GetCurrentMsgID()
