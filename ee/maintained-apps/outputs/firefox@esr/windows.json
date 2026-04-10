@@ -10,7 +10,9 @@
       "install_script_ref": "36995f4f",
       "uninstall_script_ref": "5dc712f7",
       "sha256": "97866d49ecbcb595c469f4963a6ce94ddbce9c873edf7fd7744aaba870e04f9f",
-      "default_categories": ["Browsers"]
+      "default_categories": [
+        "Browsers"
+      ]
     }
   ],
   "refs": {
