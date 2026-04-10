@@ -9,7 +9,7 @@ import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 
-import { syntaxHighlight } from "utilities/helpers";
+import SyntaxHighlightedCode from "components/SyntaxHighlightedCode";
 import CustomLink from "components/CustomLink";
 
 const baseClass = "activity-feed-automations-modal";
@@ -98,20 +98,18 @@ const ActivityFeedAutomationsModal = ({
     return (
       <>
         <pre>POST https://server.com/example</pre>
-        <pre
-          dangerouslySetInnerHTML={{
-            __html: syntaxHighlight({
-              timestamp: "0000-00-00T00:00:00Z",
-              activity_id: 123,
-              actor_full_name: "Anna Chao",
-              actor_id: 321,
-              actor_email: "anna.chao@example.com",
-              type: "live_query",
-              details: {
-                query_sql: "SELECT * FROM os_version",
-                targets_count: 1,
-              },
-            }),
+        <SyntaxHighlightedCode
+          json={{
+            timestamp: "0000-00-00T00:00:00Z",
+            activity_id: 123,
+            actor_full_name: "Anna Chao",
+            actor_id: 321,
+            actor_email: "anna.chao@example.com",
+            type: "live_query",
+            details: {
+              query_sql: "SELECT * FROM os_version",
+              targets_count: 1,
+            },
           }}
         />
         <div className="form-field__help-text">

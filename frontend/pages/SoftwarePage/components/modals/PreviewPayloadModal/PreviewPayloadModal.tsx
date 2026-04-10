@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 
 import { AppContext } from "context/app";
-import { syntaxHighlight } from "utilities/helpers";
+import SyntaxHighlightedCode from "components/SyntaxHighlightedCode";
 import { ISoftwareVulnerability } from "interfaces/software";
 
 import Modal from "components/Modal";
@@ -88,7 +88,7 @@ const PreviewPayloadModal = ({
           <pre>POST https://server.com/example</pre>
         </div>
         <div className={`${baseClass}__payload-webhook-preview`}>
-          <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+          <SyntaxHighlightedCode json={json} />
         </div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Close</Button>

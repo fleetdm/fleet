@@ -2,7 +2,6 @@ import React, { useState, useRef, useContext } from "react";
 import { noop } from "lodash";
 
 import { AppContext } from "context/app";
-import { syntaxHighlight } from "utilities/helpers";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import classnames from "classnames";
 import validURL from "components/forms/validators/valid_url";
@@ -14,6 +13,7 @@ import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Icon from "components/Icon";
 import { IPaginatedListHandle } from "components/PaginatedList";
+import SyntaxHighlightedCode from "components/SyntaxHighlightedCode";
 import paths from "router/paths";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 import CalendarPreview from "../../../../../../assets/images/calendar-graphic.png";
@@ -135,20 +135,18 @@ const CalendarEventsModal = ({
     return (
       <>
         <pre>POST https://server.com/example</pre>
-        <pre
-          dangerouslySetInnerHTML={{
-            __html: syntaxHighlight({
-              timestamp: "0000-00-00T00:00:00Z",
-              host_id: 1,
-              host_display_name: "Anna's MacBook Pro",
-              host_serial_number: "ABCD1234567890",
-              failing_policies: [
-                {
-                  id: 123,
-                  name: "macOS - Disable guest account",
-                },
-              ],
-            }),
+        <SyntaxHighlightedCode
+          json={{
+            timestamp: "0000-00-00T00:00:00Z",
+            host_id: 1,
+            host_display_name: "Anna's MacBook Pro",
+            host_serial_number: "ABCD1234567890",
+            failing_policies: [
+              {
+                id: 123,
+                name: "macOS - Disable guest account",
+              },
+            ],
           }}
         />
       </>

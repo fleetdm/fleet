@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { syntaxHighlight } from "utilities/helpers";
+import SyntaxHighlightedCode from "components/SyntaxHighlightedCode";
 
 import { AppContext } from "context/app";
 import { IPolicyWebhookPreviewPayload } from "interfaces/policy";
@@ -56,7 +56,7 @@ const ExamplePayload = (): JSX.Element => {
   return (
     <div className={baseClass}>
       <pre>POST https://server.com/example</pre>
-      <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+      <SyntaxHighlightedCode json={json} />
     </div>
   );
 };
