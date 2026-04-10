@@ -396,7 +396,7 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      background-color: rgba($core-fleet-black, 0.05);
+      background-color: $core-fleet-black-overlay-05;
       color: $core-fleet-green-over;
 
       svg {
