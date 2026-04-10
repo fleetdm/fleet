@@ -7209,7 +7209,7 @@ _Available in Fleet Premium_
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts that are "Unassigned" if set to true. |
+| enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
 | end_user_local_account_type     | string | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
