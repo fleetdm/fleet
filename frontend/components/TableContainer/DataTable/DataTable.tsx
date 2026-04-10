@@ -296,11 +296,22 @@ const DataTable = ({
       !!allFilters.length && setAllFilters(allFilters);
       setExportRows && setExportRows(rows);
     }
-  }, [tableFilters, rows, setAllFilters, setExportRows, setGlobalFilter]);
+    // NOTE: `rows` is intentionally excluded from deps to avoid an infinite
+    // re-render loop.  `setExportRows` calls setState in the parent, which
+    // regenerates column configs, which produces a new `rows` reference,
+    // which would re-trigger this effect → OOM.  `tableFilters` is the
+    // correct trigger for this side-effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableFilters, setAllFilters, setExportRows, setGlobalFilter]);
 
   useEffect(() => {
     setExportRows && setExportRows(rows);
-  }, [tableState.filters, rows.length, rows, setExportRows]);
+    // NOTE: `rows` is intentionally excluded – only `rows.length` is used so
+    // we detect actual data-count changes without reacting to every
+    // referential change (which would cause an infinite loop via
+    // setExportRows → parent re-render → new columns → new rows → …).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableState.filters, rows.length, setExportRows]);
 
   // Listen for changes to filters if clientSideFilter is enabled
 
