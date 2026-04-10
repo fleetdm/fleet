@@ -271,7 +271,19 @@ const PolicyForm = ({
         })
       );
     }
-  }, [policyIdForEdit, isTeamMaintainerOrTeamAdmin, isStoredPolicyLoading]);
+  }, [
+    policyIdForEdit,
+    isEditMode,
+    isStoredPolicyLoading,
+    isTeamObserver,
+    isGlobalObserver,
+    isTeamTechnician,
+    isGlobalTechnician,
+    isOnGlobalTeam,
+    storedPolicy?.team_id,
+    router,
+    teamIdForApi,
+  ]);
 
   useEffect(() => {
     setSelectedTargetType(

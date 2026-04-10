@@ -6,36 +6,27 @@ import { useErrorHandler } from "react-error-boundary";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { IHost, IHostResponse } from "interfaces/host";
-import { ILabel } from "interfaces/label";
 import {
   IPolicyFormData,
   IPolicy,
   IStoredPolicyResponse,
 } from "interfaces/policy";
-import { ITarget } from "interfaces/target";
-import {
-  API_ALL_TEAMS_ID,
-  APP_CONTEXT_ALL_TEAMS_ID,
-  ITeam,
-} from "interfaces/team";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
+import PATHS from "router/paths";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
 import SidePanelPage from "components/SidePanelPage";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
-import SelectTargets from "components/LiveQuery/SelectTargets";
+import QueryEditor from "pages/policies/edit/screens/QueryEditor";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import Spinner from "components/Spinner/Spinner";
 import CustomLink from "components/CustomLink";
-import RunQuery from "pages/policies/PolicyPage/screens/RunQuery";
 import { DEFAULT_POLICY } from "pages/policies/constants";
 
 interface IPolicyPageProps {
@@ -44,12 +35,11 @@ interface IPolicyPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { host_ids: string; fleet_id: string };
-    hash?: string;
+    query: { fleet_id: string };
   };
 }
 
-const baseClass = "policy-page";
+const baseClass = "edit-policy-page";
 
 const PolicyPage = ({
   router,
@@ -144,14 +134,6 @@ const PolicyPage = ({
     };
   }, []);
 
-  const [step, setStep] = useState(
-    location.hash === "#targets" ? LIVE_POLICY_STEPS[2] : LIVE_POLICY_STEPS[1]
-  );
-  const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
-  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
-  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
-  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
-  const [targetsTotalCount, setTargetsTotalCount] = useState(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
@@ -200,23 +182,6 @@ const PolicyPage = ({
         );
       },
       onError: (error) => handlePageError(error),
-    }
-  );
-
-  useQuery<IHostResponse, Error, IHost>(
-    "hostFromURL",
-    () =>
-      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)), // TODO(sarah): What should happen if this doesn't parse (e.g. the string is "foo")? Also, note that "1,2,3" parses as 1.
-    {
-      enabled: isRouteOk && !!location.query.host_ids,
-      retry: false,
-      select: (data: IHostResponse) => data.host,
-      onSuccess: (host) => {
-        const targets = selectedTargets;
-        host.target_type = "hosts";
-        targets.push(host);
-        setSelectedTargets([...targets]);
-      },
     }
   );
 
@@ -338,7 +303,7 @@ const PolicyPage = ({
   };
 
   const renderScreen = () => {
-    const step1Opts = {
+    const queryEditorOpts = {
       router,
       baseClass,
       policyIdForEdit: policyId,
@@ -352,51 +317,22 @@ const PolicyPage = ({
       storedPolicyError,
       createPolicy,
       onOsqueryTableSelect,
-      goToSelectTargets: () => setStep(LIVE_POLICY_STEPS[2]),
+      goToSelectTargets: () =>
+        router.push(
+          getPathWithQueryParams(PATHS.LIVE_POLICY(policyId), {
+            fleet_id: teamIdForApi,
+          })
+        ),
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
       teamIdForApi,
       currentAutomatedPolicies,
     };
 
-    const step2Opts = {
-      baseClass,
-      selectedTargets,
-      targetedHosts,
-      targetedLabels,
-      targetedTeams,
-      targetsTotalCount,
-      goToQueryEditor: () => setStep(LIVE_POLICY_STEPS[1]),
-      goToRunQuery: () => setStep(LIVE_POLICY_STEPS[3]),
-      setSelectedTargets,
-      setTargetedHosts,
-      setTargetedLabels,
-      setTargetedTeams,
-      setTargetsTotalCount,
-      isLivePolicy: true,
-    };
-
-    const step3Opts = {
-      selectedTargets,
-      storedPolicy,
-      setSelectedTargets,
-      goToQueryEditor: () => setStep(LIVE_POLICY_STEPS[1]),
-      targetsTotalCount,
-    };
-
-    switch (step) {
-      case LIVE_POLICY_STEPS[2]:
-        return <SelectTargets {...step2Opts} />;
-      case LIVE_POLICY_STEPS[3]:
-        return <RunQuery {...step3Opts} />;
-      default:
-        return <QueryEditor {...step1Opts} />;
-    }
+    return <QueryEditor {...queryEditorOpts} />;
   };
 
-  const isFirstStep = step === LIVE_POLICY_STEPS[1];
   const showSidebar =
-    isFirstStep &&
     isSidebarOpen &&
     (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
 
