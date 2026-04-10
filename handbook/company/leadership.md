@@ -452,7 +452,7 @@ Once approved by 💸 Finance, finalize purchase of accommodations and can assis
 
 ## Executive bios
 
-Certain of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
+Certain members of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
 
 | Person               | Headshot     | Bio   |
 |:---------------------|:-------------|:------|
