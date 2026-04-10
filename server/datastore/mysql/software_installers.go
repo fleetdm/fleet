@@ -3674,10 +3674,35 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			}
 		}
 
-		if payload.Platform == "windows" {
+		// For platforms/installers without a bundle identifier, the DB unique
+		// constraint (global_or_team_id, title_id, version) is too loose to
+		// prevent duplicates (it was relaxed for FMA version rollback). We
+		// need explicit checks that mirror the unique_identifier generated
+		// column: COALESCE(bundle_identifier, application_id,
+		//                   NULLIF(upgrade_code,''), name).
+		//
+		// Windows MSI installers surface an upgrade_code that becomes the
+		// unique_identifier, so we must check by upgrade_code (not title).
+		// EXE/Linux/macOS-pkg-without-bundle-id all fall back to name.
+		if payload.BundleIdentifier == "" {
+			// 1. If the installer carries an UpgradeCode (Windows MSI), check
+			//    by that value because unique_identifier = upgrade_code.
+			if payload.UpgradeCode != "" {
+				exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.UpgradeCode, payload.Platform, softwareTypeInstaller)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check if installer exists by upgrade code")
+				}
+				if exists {
+					return alreadyExists("installer", payload.Title)
+				}
+			}
+
+			// 2. Always check by title (= name), which is the final
+			//    COALESCE fallback and covers EXE, DEB, RPM, tar.gz,
+			//    pkg-without-bundle-id, and MSI without an upgrade code.
 			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+				return ctxerr.Wrap(ctx, err, "check if installer exists by title")
 			}
 			if exists {
 				return alreadyExists("installer", payload.Title)

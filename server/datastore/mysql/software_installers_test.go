@@ -58,6 +58,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
+		{"MatchOrCreateSoftwareInstallerCrossPlatformDedup", testMatchOrCreateSoftwareInstallerCrossPlatformDedup},
 	}
 
 	for _, c := range cases {
@@ -4142,6 +4143,97 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 	require.Len(t, names, 2)
 	require.Contains(t, names, "VPP1")
 	require.Contains(t, names, "ipa_foo")
+}
+
+func testMatchOrCreateSoftwareInstallerCrossPlatformDedup(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice-dedup@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "dedup-team"})
+	require.NoError(t, err)
+
+	mkPayload := func(title, ext, platform, source, version, bundleID, upgradeCode, storageID string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storageID), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:    tfr,
+			Title:            title,
+			Extension:        ext,
+			Platform:         platform,
+			Source:           source,
+			Version:          version,
+			BundleIdentifier: bundleID,
+			UpgradeCode:      upgradeCode,
+			StorageID:        storageID,
+			Filename:         title + "." + ext,
+			InstallScript:    "echo install",
+			UninstallScript:  "echo uninstall",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		}
+	}
+
+	// ---- Linux .deb ----
+	t.Run("linux_deb_dedup", func(t *testing.T) {
+		p1 := mkPayload("my-deb-pkg", "deb", "linux", "deb_packages", "1.0", "", "", "deb-hash-1")
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, p1)
+		require.NoError(t, err)
+
+		// Same title, different version → should be blocked by conflict check
+		p2 := mkPayload("my-deb-pkg", "deb", "linux", "deb_packages", "2.0", "", "", "deb-hash-2")
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
+		require.Error(t, err, "adding a second .deb with the same title should fail")
+		assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, "my-deb-pkg", team.Name))
+	})
+
+	// ---- Linux .rpm ----
+	t.Run("linux_rpm_dedup", func(t *testing.T) {
+		p1 := mkPayload("my-rpm-pkg", "rpm", "linux", "rpm_packages", "1.0", "", "", "rpm-hash-1")
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, p1)
+		require.NoError(t, err)
+
+		p2 := mkPayload("my-rpm-pkg", "rpm", "linux", "rpm_packages", "2.0", "", "", "rpm-hash-2")
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
+		require.Error(t, err, "adding a second .rpm with the same title should fail")
+		assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, "my-rpm-pkg", team.Name))
+	})
+
+	// ---- Windows .exe ----
+	t.Run("windows_exe_dedup", func(t *testing.T) {
+		p1 := mkPayload("My App", "exe", "windows", "programs", "1.0", "", "", "exe-hash-1")
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, p1)
+		require.NoError(t, err)
+
+		p2 := mkPayload("My App", "exe", "windows", "programs", "2.0", "", "", "exe-hash-2")
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
+		require.Error(t, err, "adding a second .exe with the same title should fail")
+		assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, "My App", team.Name))
+	})
+
+	// ---- Windows .msi with UpgradeCode ----
+	t.Run("windows_msi_upgrade_code_dedup", func(t *testing.T) {
+		p1 := mkPayload("MSI App", "msi", "windows", "programs", "1.0", "", "{UPGRADE-CODE-1}", "msi-hash-1")
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, p1)
+		require.NoError(t, err)
+
+		// Same upgrade code but different title and version → should still be blocked
+		p2 := mkPayload("MSI App Renamed", "msi", "windows", "programs", "2.0", "", "{UPGRADE-CODE-1}", "msi-hash-2")
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
+		require.Error(t, err, "adding a second .msi with the same upgrade code should fail")
+		assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, "MSI App Renamed", team.Name))
+	})
+
+	// ---- Cross-platform: different platforms should NOT conflict ----
+	t.Run("different_platforms_no_conflict", func(t *testing.T) {
+		// A Linux package and a Windows package with the same title should not conflict
+		p1 := mkPayload("cross-plat-app", "deb", "linux", "deb_packages", "1.0", "", "", "cross-hash-1")
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, p1)
+		require.NoError(t, err)
+
+		p2 := mkPayload("cross-plat-app", "exe", "windows", "programs", "1.0", "", "", "cross-hash-2")
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
+		require.NoError(t, err, "same title on different platforms should be allowed")
+	})
 }
 
 func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore) {
