@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-22.04-4-cores
     environment: Docker Hub
     outputs:
-      windows_binaries_uploaded: ${{ steps.check_windows_binaries.outputs.exists }}
+      windows_msi_arches: ${{ steps.check_windows_binaries.outputs.arches }}
     permissions:
       contents: write
       id-token: write
@@ -164,22 +164,22 @@ jobs:
         continue-on-error: true
         run: |
           # Goreleaser v2 places binaries at dist/<id>_<os>_<arch>*/binary
-          FOUND=false
+          ARCHES=()
           for arch in amd64 arm64; do
             EXE=$(find dist -name "fleetctl.exe" -path "*windows*${arch}*" -print -quit 2>/dev/null)
             if [[ -n "$EXE" ]]; then
               echo "Found: $EXE"
               echo "windows_${arch}_path=$EXE" >> "$GITHUB_OUTPUT"
-              FOUND=true
+              ARCHES+=("\"$arch\"")
             else
               echo "Warning: No fleetctl.exe found for windows/$arch"
             fi
           done
-          echo "exists=$FOUND" >> "$GITHUB_OUTPUT"
+          echo "arches=[$(IFS=,; echo "${ARCHES[*]}")]" >> "$GITHUB_OUTPUT"
 
       - name: Upload unsigned Windows fleetctl amd64
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
-        if: steps.check_windows_binaries.outputs.exists == 'true'
+        if: steps.check_windows_binaries.outputs.windows_amd64_path != ''
         with:
           name: fleetctl-unsigned-windows-amd64
           path: ${{ steps.check_windows_binaries.outputs.windows_amd64_path }}
@@ -187,7 +187,7 @@ jobs:
 
       - name: Upload unsigned Windows fleetctl arm64
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
-        if: steps.check_windows_binaries.outputs.exists == 'true'
+        if: steps.check_windows_binaries.outputs.windows_arm64_path != ''
         with:
           name: fleetctl-unsigned-windows-arm64
           path: ${{ steps.check_windows_binaries.outputs.windows_arm64_path }}
@@ -196,11 +196,11 @@ jobs:
   build-fleetctl-msi:
     runs-on: windows-2022
     needs: goreleaser
-    if: needs.goreleaser.outputs.windows_binaries_uploaded == 'true'
+    if: needs.goreleaser.outputs.windows_msi_arches != '[]'
     timeout-minutes: 60
     strategy:
       matrix:
-        arch: [amd64, arm64]
+        arch: ${{ fromJSON(needs.goreleaser.outputs.windows_msi_arches) }}
     permissions:
       contents: write
       id-token: write

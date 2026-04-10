@@ -62,7 +62,8 @@ jobs:
 
           # Check if running from a tag
           if [[ "${{ github.ref }}" == refs/tags/* ]] && [[ "$REF_NAME" == fleet-* ]]; then
-            VERSION="${REF_NAME#fleet-v}"
+            VERSION="${REF_NAME#fleet-}"
+            VERSION="${VERSION#v}"
             TAG_NAME="$REF_NAME"
           else
             VERSION="test-$(date +%Y%m%d-%H%M%S)"
@@ -70,8 +71,8 @@ jobs:
           fi
 
           # For MSI, we need a numeric version (X.Y.Z). Use 0.0.0 for test builds.
-          if [[ "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            MSI_VERSION="${VERSION#v}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            MSI_VERSION="$VERSION"
           else
             MSI_VERSION="0.0.0"
           fi
@@ -200,7 +201,7 @@ jobs:
 
   upload-release:
     needs: build-sign-msi
-    if: github.event.inputs.test_mode == 'false'
+    if: ${{ !inputs.test_mode }}
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
