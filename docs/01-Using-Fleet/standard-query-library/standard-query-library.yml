@@ -2254,7 +2254,7 @@ spec:
     
     # 1. Create the dconf profile if it doesn't exist
     PROFILE_FILE="/etc/dconf/profile/user"
-    if ! grep -q "system-db:local" "$PROFILE_FILE" 2>/dev/null; then
+    if ! grep -Eq '^[[:space:]]*system-db:local[[:space:]]*$' "$PROFILE_FILE" 2>/dev/null; then
         mkdir -p /etc/dconf/profile
         cat > "$PROFILE_FILE" <<EOF
     user-db:user
