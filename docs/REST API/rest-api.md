@@ -2527,7 +2527,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
-| enable_managed_local_account     | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on macOS hosts that are "Unassigned" if set to true. |
+| enable_managed_local_account     | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on macOS hosts if set to true. |
 | end_user_local_account_type     | string | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 | lock_end_user_info                | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
