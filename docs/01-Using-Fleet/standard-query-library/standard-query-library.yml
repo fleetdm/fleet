@@ -2176,17 +2176,18 @@ spec:
   platform: linux
   description: "Checks that the password policy requires at least 12 characters and is complex."
   query: |
-    SELECT
-      line
+    SELECT 1
     FROM file_lines
     WHERE
       path = '/etc/pam.d/common-password'
+      AND ltrim(line) NOT LIKE '#%'
       AND line LIKE '%pam_pwquality.so%'
       AND line LIKE '%minlen=12%'
       AND line LIKE '%dcredit=-1%'
       AND line LIKE '%ucredit=-1%'
       AND line LIKE '%lcredit=-1%'
       AND line LIKE '%ocredit=-1%'
+      AND line LIKE '%difok=3%'
       AND line LIKE '%enforce_for_root%';
   resolution:
   tags: compliance, hardening, critical
@@ -2230,17 +2231,20 @@ spec:
     WHERE (
       SELECT COUNT(*) FROM file_lines
       WHERE path = '/etc/dconf/profile/user'
-        AND line = 'system-db:local'
+        AND ltrim(line) = 'system-db:local'
+        AND ltrim(line) NOT LIKE '#%'
     ) > 0
     AND (
       SELECT COUNT(*) FROM file_lines
       WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
-        AND line LIKE '%lock-enabled=true%'
+        AND ltrim(line) LIKE 'lock-enabled=true%'
+        AND ltrim(line) NOT LIKE '#%'
     ) > 0
     AND (
       SELECT COUNT(*) FROM file_lines
       WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
-        AND line LIKE '%idle-delay=uint32 300%'
+        AND ltrim(line) LIKE 'idle-delay=uint32 300%'
+        AND ltrim(line) NOT LIKE '#%'
     ) > 0;
   resolution:
   tags: compliance, hardening, critical
