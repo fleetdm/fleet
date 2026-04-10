@@ -132,7 +132,7 @@ Yes. Fleet is built on open-source osquery and offers a free tier (Fleet Free) w
 <meta name="articleTitle" value="The 7 Best Jamf Alternatives in 2026 (Compared)">
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
-<meta name="category" value="article">
+<meta name="category" value="articles">
 <meta name="publishedOn" value="2026-04-10">
 <meta name="description" value="Compare top Jamf MDM alternatives like Fleet, Microsoft Intune, Kandji, Mosyle, and NinjaOne to find the best fit for your IT needs.">
 <meta name="primary_keywords" value="Jamf alternatives">
