@@ -444,15 +444,23 @@ const ManagePolicyPage = ({
     queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
   };
 
-  const refetchPolicies = (teamId?: number) => {
-    if (teamId !== undefined) {
-      refetchTeamPolicies();
-      refetchTeamPoliciesCountMergeInherited();
-    } else {
-      refetchGlobalPolicies(); // Only call on global policies as this is expensive
-      refetchGlobalPoliciesCount();
-    }
-  };
+  const refetchPolicies = useCallback(
+    (teamId?: number) => {
+      if (teamId !== undefined) {
+        refetchTeamPolicies();
+        refetchTeamPoliciesCountMergeInherited();
+      } else {
+        refetchGlobalPolicies(); // Only call on global policies as this is expensive
+        refetchGlobalPoliciesCount();
+      }
+    },
+    [
+      refetchTeamPolicies,
+      refetchTeamPoliciesCountMergeInherited,
+      refetchGlobalPolicies,
+      refetchGlobalPoliciesCount,
+    ]
+  );
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -526,8 +534,10 @@ const ManagePolicyPage = ({
   const toggleOtherWorkflowsModal = () =>
     setShowOtherWorkflowsModal(!showOtherWorkflowsModal);
 
-  const toggleDeletePoliciesModal = () =>
-    setShowDeletePoliciesModal(!showDeletePoliciesModal);
+  const toggleDeletePoliciesModal = useCallback(
+    () => setShowDeletePoliciesModal((prev) => !prev),
+    []
+  );
 
   const toggleInstallSoftwareModal = () => {
     setShowInstallSoftwareModal(!showInstallSoftwareModal);

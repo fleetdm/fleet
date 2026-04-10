@@ -148,7 +148,12 @@ const RunQueryPage = ({
       labels: targetedLabels,
       teams: targetedTeams,
     });
-  }, [targetedLabels, targetedHosts, targetedTeams]);
+  }, [
+    targetedLabels,
+    targetedHosts,
+    targetedTeams,
+    setSelectedQueryTargetsByType,
+  ]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
@@ -164,7 +169,7 @@ const RunQueryPage = ({
     const path = queryId ? PATHS.EDIT_REPORT(queryId) : PATHS.NEW_REPORT;
 
     router.push(getPathWithQueryParams(path, { fleet_id: currentTeamId }));
-  }, []);
+  }, [currentTeamId, queryId, router]);
 
   const renderScreen = () => {
     const step1Props = {

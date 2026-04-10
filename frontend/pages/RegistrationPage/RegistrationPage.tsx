@@ -48,7 +48,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     if (currentUser) {
       router.push(DASHBOARD);
     }
-  }, [currentUser]);
+  }, [currentUser, router]);
 
   const onNextPage = () => {
     const nextPage = page + 1;

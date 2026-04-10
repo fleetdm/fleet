@@ -37,7 +37,7 @@ const UninstallSoftwareModal = ({
     }
     setIsUninstalling(false);
     onExit();
-  }, [softwareId, renderFlash, onSuccess, onExit]);
+  }, [softwareId, token, renderFlash, onSuccess, onExit]);
 
   const displaySoftwareName = softwareName || "software";
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import yaml from "js-yaml";
 import paths from "router/paths";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
@@ -48,7 +48,7 @@ const Agents = ({
     setFormData({ ...formData, agentOptions: value });
   };
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const errors: IAgentOptionsFormErrors = {};
 
     if (agentOptions) {
@@ -59,12 +59,12 @@ const Agents = ({
     }
 
     setFormErrors(errors);
-  };
+  }, [agentOptions]);
 
   // onChange basic yaml validation only
   useEffect(() => {
     validateForm();
-  }, [agentOptions]);
+  }, [validateForm]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();

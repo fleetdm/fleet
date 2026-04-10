@@ -39,7 +39,7 @@ const ConfirmSSOInvitePage = ({
     if (currentUser) {
       router.push(DASHBOARD);
     }
-  }, [currentUser]);
+  }, [currentUser, router]);
 
   const onSubmit = async (
     formData: ICreateUserWithInvitationFormData & { sso_invite?: boolean }

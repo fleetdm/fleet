@@ -189,7 +189,7 @@ const EditQueryPage = ({
       );
       setCurrentTeam(querysTeam);
     }
-  }, [storedQuery]);
+  }, [storedQuery, availableTeams, setCurrentTeam]);
 
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
@@ -220,7 +220,17 @@ const EditQueryPage = ({
         })
       );
     }
-  }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
+  }, [
+    queryId,
+    isTeamMaintainerOrTeamAdmin,
+    isStoredQueryLoading,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    location.query.fleet_id,
+    location.query.host_id,
+    router,
+    storedQuery?.team_id,
+  ]);
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
@@ -237,7 +247,19 @@ const EditQueryPage = ({
       setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
       setLastEditedQueryDiscardData(DEFAULT_QUERY.discard_data);
     }
-  }, [queryId]);
+  }, [
+    queryId,
+    setLastEditedQueryId,
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryObserverCanRun,
+    setLastEditedQueryFrequency,
+    setLastEditedQueryAutomationsEnabled,
+    setLastEditedQueryLoggingType,
+    setLastEditedQueryMinOsqueryVersion,
+    setLastEditedQueryPlatforms,
+    setLastEditedQueryDiscardData,
+  ]);
 
   const [isQuerySaving, setIsQuerySaving] = useState(false);
   const [isQueryUpdating, setIsQueryUpdating] = useState(false);

@@ -873,7 +873,7 @@ const HostDetailsPage = ({
         default: // do nothing
       }
     },
-    [host?.display_name]
+    [host?.display_name, host?.platform]
   );
 
   const onCancelActivity = (activity: IHostUpcomingActivity) => {

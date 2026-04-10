@@ -124,7 +124,7 @@ const PolicyPage = ({
     if (lastEditedQueryBody === "") {
       setLastEditedQueryBody(DEFAULT_POLICY.query);
     }
-  }, []);
+  }, [lastEditedQueryBody, setLastEditedQueryBody]);
 
   useEffect(() => {
     // cleanup when component unmounts
@@ -132,7 +132,7 @@ const PolicyPage = ({
       setLastEditedQueryCritical(false);
       setLastEditedQueryPlatform(null);
     };
-  }, []);
+  }, [setLastEditedQueryCritical, setLastEditedQueryPlatform]);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);

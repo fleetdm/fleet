@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
@@ -38,7 +38,7 @@ const MfaPage = ({ router, params }: IMfaPage) => {
   );
   local.removeItem("auth_pending_mfa");
 
-  const finishMFA = async () => {
+  const finishMFA = useCallback(async () => {
     const { DASHBOARD, RESET_PASSWORD, NO_ACCESS } = paths;
 
     try {
@@ -75,7 +75,16 @@ const MfaPage = ({ router, params }: IMfaPage) => {
     } catch (response) {
       setIsExpired(true);
     }
-  };
+  }, [
+    config,
+    mfaToken,
+    redirectLocation,
+    router,
+    setAvailableTeams,
+    setConfig,
+    setCurrentTeam,
+    setCurrentUser,
+  ]);
 
   useEffect(() => {
     if (shouldFinishMFA) {

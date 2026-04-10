@@ -83,7 +83,7 @@ const QueryEditor = ({
         "Something went wrong retrieving your policy. Please try again."
       );
     }
-  }, []);
+  }, [renderFlash, storedPolicyError]);
 
   const [isUpdatingPolicy, setIsUpdatingPolicy] = useState(false);
   const [backendValidators, setBackendValidators] = useState<{

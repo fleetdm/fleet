@@ -147,9 +147,7 @@ const Advanced = ({
         // it's safe to assume that frequency is a number
         (frequency: number | string) => `${frequency as number} days`
       ),
-    // intentionally leave activityExpiryWindow out of the dependencies, so that the custom
-    // options are maintained even if the user changes the frequency in the UI
-    [deleteActivities]
+    [activityExpiryWindow]
   );
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {

@@ -220,7 +220,18 @@ const RunScriptBatchModal = ({
         setIsUpdating(false);
       }
     },
-    [renderFlash, selectedHostIds, runMode, batchRunDate, batchRunTime]
+    [
+      renderFlash,
+      selectedHostIds,
+      runMode,
+      batchRunDate,
+      batchRunTime,
+      filters,
+      isFreeTier,
+      onCancel,
+      runByFilters,
+      teamId,
+    ]
   );
 
   const renderModalContent = () => {

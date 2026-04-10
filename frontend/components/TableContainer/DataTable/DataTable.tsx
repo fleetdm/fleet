@@ -296,11 +296,11 @@ const DataTable = ({
       !!allFilters.length && setAllFilters(allFilters);
       setExportRows && setExportRows(rows);
     }
-  }, [tableFilters]);
+  }, [tableFilters, rows, setAllFilters, setExportRows, setGlobalFilter]);
 
   useEffect(() => {
     setExportRows && setExportRows(rows);
-  }, [tableState.filters, rows.length]);
+  }, [tableState.filters, rows.length, rows, setExportRows]);
 
   // Listen for changes to filters if clientSideFilter is enabled
 
@@ -328,7 +328,14 @@ const DataTable = ({
       toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
     }
     isInitialRender.current = false;
-  }, [searchQuery, searchQueryColumn]);
+  }, [
+    searchQuery,
+    searchQueryColumn,
+    isClientSideFilter,
+    persistSelectedRows,
+    setDebouncedClientFilter,
+    toggleAllRowsSelected,
+  ]);
 
   useEffect(() => {
     if (isClientSideFilter && selectedDropdownFilter) {
@@ -337,7 +344,12 @@ const DataTable = ({
         ? setDebouncedClientFilter("platforms", "")
         : setDebouncedClientFilter("platforms", selectedDropdownFilter);
     }
-  }, [selectedDropdownFilter]);
+  }, [
+    selectedDropdownFilter,
+    isClientSideFilter,
+    setDebouncedClientFilter,
+    toggleAllRowsSelected,
+  ]);
 
   // track previous sort state
   const prevSort = useRef<{ id?: string; desc?: boolean }>({
@@ -377,7 +389,14 @@ const DataTable = ({
     prevSort.current = column
       ? { id: newId, desc: newDesc }
       : { id: undefined, desc: undefined };
-  }, [sortBy, sortHeader, onSort, sortDirection, isClientSidePagination]);
+  }, [
+    sortBy,
+    sortHeader,
+    onSort,
+    sortDirection,
+    isClientSidePagination,
+    gotoPage,
+  ]);
 
   /** For onClientSidePaginationChange only:
    * Prevents bug where URL page + table page mismatch
@@ -409,7 +428,7 @@ const DataTable = ({
 
   useEffect(() => {
     setPageSize(defaultPageSize);
-  }, [setPageSize]);
+  }, [setPageSize, defaultPageSize]);
 
   useDeepEffect(() => {
     if (

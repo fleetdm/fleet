@@ -190,9 +190,9 @@ const UserForm = ({
     // If SSO is globally disabled but user previously signed in via SSO,
     // require password is automatically selected on first render
     if (!canUseSso && !isNewUser && isSsoEnabled) {
-      setFormData({ ...formData, sso_enabled: false });
+      setFormData((prev) => ({ ...prev, sso_enabled: false }));
     }
-  }, []);
+  }, [canUseSso, isNewUser, isSsoEnabled]);
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };

@@ -27,14 +27,14 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     if (!currentUser && !token) {
       router.push(PATHS.LOGIN);
     }
-  }, [currentUser, token]);
+  }, [currentUser, token, router]);
 
   // No access prompt if API errors due to no role or currentUser data has no role
   useEffect(() => {
     if (!currentUser?.global_role && currentUser?.teams.length === 0) {
       router.push(PATHS.NO_ACCESS);
     }
-  }, [errors, currentUser]);
+  }, [errors, currentUser, router]);
 
   const continueWithLoggedInUser = async (formData: {
     new_password: string;

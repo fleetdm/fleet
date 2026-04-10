@@ -1,6 +1,6 @@
 // Page returned when a user has no access because they have no global or team role
 
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 
@@ -19,9 +19,9 @@ interface INoAccessPageProps {
 }
 
 const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
-  const onBackToLogin = () => {
+  const onBackToLogin = useCallback(() => {
     router.push(PATHS.LOGIN);
-  };
+  }, [router]);
 
   useEffect(() => {
     if (onBackToLogin) {

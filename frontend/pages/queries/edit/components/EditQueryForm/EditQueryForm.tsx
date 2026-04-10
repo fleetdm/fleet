@@ -245,7 +245,7 @@ const EditQueryForm = ({
         };
       }, {}) || {}
     );
-  }, [storedQuery]);
+  }, [storedQuery, isPremiumTier]);
 
   const {
     data: { labels } = { labels: [] },
@@ -280,7 +280,14 @@ const EditQueryForm = ({
       setCompatiblePlatforms(lastEditedQueryBody);
     }
     debounceSQL(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
+  }, [
+    lastEditedQueryBody,
+    lastEditedQueryId,
+    isStoredQueryLoading,
+    debounceSQL,
+    queryIdForEdit,
+    setCompatiblePlatforms,
+  ]);
 
   const toggleSaveNewQueryModal = () => {
     setShowSaveNewQueryModal(!showSaveNewQueryModal);
@@ -325,9 +332,7 @@ const EditQueryForm = ({
         // it's safe to assume that frequency is a number
         (frequency) => `Every ${secondsToDhms(frequency as number)}`
       ),
-    // intentionally leave lastEditedQueryFrequency out of the dependencies, so that the custom
-    // options are maintained even if the user changes the frequency in the UI
-    []
+    [lastEditedQueryFrequency]
   );
 
   const onSelectLabel = ({

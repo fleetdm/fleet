@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
@@ -79,7 +79,7 @@ const AgentOptionsPage = ({
     }
   );
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
 
     if (agentOptions) {
@@ -90,12 +90,12 @@ const AgentOptionsPage = ({
     }
 
     setFormErrors(errors);
-  };
+  }, [agentOptions]);
 
   // onChange basic yaml validation only
   useEffect(() => {
     validateForm();
-  }, [formData]);
+  }, [validateForm]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();

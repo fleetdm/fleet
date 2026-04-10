@@ -207,7 +207,14 @@ const SaveNewPolicyModal = ({
         </TooltipWrapper>
       );
     },
-    [isFetchingAutofillDescription, isFetchingAutofillResolution, disableForm]
+    [
+      aiFeaturesDisabled,
+      disableForm,
+      isFetchingAutofillDescription,
+      isFetchingAutofillResolution,
+      onClickAutofillDescription,
+      onClickAutofillResolution,
+    ]
   );
 
   const renderAutofillLabel = useCallback(
@@ -223,7 +230,7 @@ const SaveNewPolicyModal = ({
         </div>
       );
     },
-    [renderAutofillButton]
+    [baseClass, renderAutofillButton]
   );
 
   return (

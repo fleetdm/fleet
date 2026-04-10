@@ -182,7 +182,7 @@ const ManageQueriesPage = ({
   // Reset selected targets when returned to this page
   useEffect(() => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-  }, []);
+  }, [setSelectedQueryTargetsByType]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -245,7 +245,13 @@ const ManageQueriesPage = ({
       toggleDeleteQueryModal();
       setIsUpdatingQueries(false);
     }
-  }, [refetchQueries, selectedQueryIds, toggleDeleteQueryModal]);
+  }, [
+    refetchQueries,
+    renderFlash,
+    selectedQueryIds,
+    setResetSelectedRows,
+    toggleDeleteQueryModal,
+  ]);
 
   const renderHeader = () => {
     if (isPremiumTier && userTeams && !config?.partnerships?.enable_primo) {

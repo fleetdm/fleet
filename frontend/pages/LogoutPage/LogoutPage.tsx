@@ -32,7 +32,7 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
     };
 
     logoutUser();
-  }, []);
+  }, [isSandboxMode, renderFlash, router]);
 
   return null;
 };

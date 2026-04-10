@@ -234,7 +234,7 @@ const SoftwareVulnerabilities = ({
     if (isExactMatchQuery) {
       refetchExactMatch();
     }
-  }, [queryParams.exploit, isExactMatchQuery]);
+  }, [queryParams.exploit, isExactMatchQuery, refetchExactMatch]);
 
   // !tableData is used to show the Spinner only on the first render.
   // This prevents the Spinner from flashing on every data refresh, noticable

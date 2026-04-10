@@ -319,7 +319,7 @@ const TableContainer = <T,>({
     onPaginationChange,
   ]);
 
-  const renderFilterActionButton = () => {
+  const renderFilterActionButton = useCallback(() => {
     // always !!actionButton here, this is for type checker
     if (actionButton) {
       const resolvedButtonText =
@@ -361,7 +361,7 @@ const TableContainer = <T,>({
       );
     }
     return null;
-  };
+  }, [actionButton, disableActionButton]);
 
   const renderFilters = useCallback(() => {
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
@@ -496,12 +496,12 @@ const TableContainer = <T,>({
     actionButton,
     customControl,
     customFiltersButton,
-    disableActionButton,
     disableCount,
     disableTableHeader,
     inputPlaceHolder,
     isLoading,
     renderCount,
+    renderFilterActionButton,
     searchQuery,
     searchToolTipText,
     searchable,

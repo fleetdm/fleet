@@ -108,7 +108,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
         toggleDeletePackModal();
         setIsUpdatingPack(false);
       });
-  }, [refetchPacks, selectedPackIds, toggleDeletePackModal]);
+  }, [refetchPacks, renderFlash, selectedPackIds, toggleDeletePackModal]);
 
   const onEnableDisablePackSubmit = useCallback(
     (selectedTablePackIds: number[], disablePack: boolean) => {
@@ -136,7 +136,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
           refetchPacks();
         });
     },
-    [refetchPacks, selectedPackIds]
+    [refetchPacks, renderFlash, selectedPackIds]
   );
 
   const onEnablePackClick = (selectedTablePackIds: number[]) => {

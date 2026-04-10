@@ -131,7 +131,7 @@ const HostSoftwareTable = ({
       };
       return newQueryParam;
     },
-    [vulnFilters]
+    [teamId, vulnFilters]
   );
 
   // TODO: Look into useDebounceCallback with dependencies

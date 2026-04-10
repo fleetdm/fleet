@@ -34,7 +34,7 @@ const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
     };
 
     fetchCurrentUser();
-  }, []);
+  }, [DASHBOARD, LOGIN, router]);
 
   return (
     <AuthenticationFormWrapper header="Access denied" className={baseClass}>

@@ -139,7 +139,7 @@ const HostQueryReport = ({
         </div>
       </div>
     );
-  }, [queryId, hostId, hqrError, hostName]);
+  }, [queryId, hostId, hqrError, hostName, currentTeam?.id]);
 
   return (
     <MainContent className={baseClass}>

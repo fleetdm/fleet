@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useState, useEffect, useMemo } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import {
@@ -73,7 +73,7 @@ const GlobalHostStatusWebhook = ({
     setFormErrors({});
   };
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const errors: IGlobalHostStatusWebhookFormErrors = {};
 
     if (enableHostStatusWebhook) {
@@ -85,11 +85,11 @@ const GlobalHostStatusWebhook = ({
     }
 
     setFormErrors(errors);
-  };
+  }, [enableHostStatusWebhook, destination_url]);
 
   useEffect(() => {
     validateForm();
-  }, [enableHostStatusWebhook]);
+  }, [validateForm]);
 
   const toggleHostStatusWebhookPreviewModal = () => {
     setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
@@ -125,8 +125,7 @@ const GlobalHostStatusWebhook = ({
         hostStatusWebhookHostPercentage,
         (val) => `${val}%`
       ),
-    // intentionally omit dependency so options only computed initially
-    []
+    [hostStatusWebhookHostPercentage]
   );
 
   const windowOptions = useMemo(
@@ -136,8 +135,7 @@ const GlobalHostStatusWebhook = ({
         hostStatusWebhookWindow,
         (val) => `${val} day${val !== 1 ? "s" : ""}`
       ),
-    // intentionally omit dependency so options only computed initially
-    []
+    [hostStatusWebhookWindow]
   );
   return (
     <div className={baseClass}>

@@ -104,14 +104,13 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     }
   }, [availableTeams, config, currentUser, redirectLocation, router]);
 
-  // TODO: Fix this. If renderFlash is added as a dependency it causes infinite re-renders.
   useEffect(() => {
     let status = new URLSearchParams(location.search).get("status");
     status = status && statusMessages[status as keyof IStatusMessages];
     if (status) {
       renderFlash("error", status);
     }
-  }, [location?.search]);
+  }, [location?.search, renderFlash]);
 
   const onSubmit = useCallback(
     async (formData: ILoginUserData) => {

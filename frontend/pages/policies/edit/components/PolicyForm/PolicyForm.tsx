@@ -309,7 +309,7 @@ const PolicyForm = ({
     if (isNewTemplatePolicy) {
       setCompatiblePlatforms(lastEditedQueryBody);
     }
-  }, []);
+  }, [isNewTemplatePolicy, lastEditedQueryBody, setCompatiblePlatforms]);
 
   useEffect(() => {
     debounceSQL(lastEditedQueryBody);
@@ -320,7 +320,14 @@ const PolicyForm = ({
       return;
     }
     setCompatiblePlatforms(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId]);
+  }, [
+    debounceSQL,
+    isNewTemplatePolicy,
+    lastEditedQueryBody,
+    lastEditedQueryId,
+    policyIdForEdit,
+    setCompatiblePlatforms,
+  ]);
 
   const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({

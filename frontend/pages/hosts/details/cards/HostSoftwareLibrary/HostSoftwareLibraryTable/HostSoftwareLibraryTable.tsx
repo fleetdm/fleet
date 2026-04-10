@@ -94,7 +94,7 @@ const HostSoftwareLibraryTable = ({
 
       return newQueryParam;
     },
-    [selfService]
+    [selfService, teamId]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
