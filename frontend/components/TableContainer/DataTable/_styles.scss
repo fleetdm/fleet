@@ -23,8 +23,16 @@ $shadow-transition-width: 16px;
         ),
         linear-gradient(to left, $core-fleet-white, $transparent),
         /* Shadow covers */
-          linear-gradient(to right, $ui-shadow, $core-fleet-white $shadow-transition-width),
-        linear-gradient(to left, $ui-shadow, $core-fleet-white $shadow-transition-width);
+          linear-gradient(
+            to right,
+            $ui-shadow,
+            $core-fleet-white $shadow-transition-width
+          ),
+        linear-gradient(
+          to left,
+          $ui-shadow,
+          $core-fleet-white $shadow-transition-width
+        );
 
       background-position: left center, right center, left center, right center;
       background-repeat: no-repeat;
