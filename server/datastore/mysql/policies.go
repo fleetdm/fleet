@@ -1609,7 +1609,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					}
 				}
 				if shouldUpdatePatchPolicyName {
-					if _, err := tx.ExecContext(ctx, `UPDATE policies SET name = ? WHERE id = ?`, spec.Name, policyID); err != nil {
+					if _, err := tx.ExecContext(ctx, `UPDATE policies SET name = ?, checksum = `+policiesChecksumComputedColumn()+` WHERE id = ?`, spec.Name, policyID); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting name for patch policy")
 					}
 				}

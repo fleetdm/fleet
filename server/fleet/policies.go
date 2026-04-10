@@ -117,6 +117,7 @@ var (
 	errPolicyPatchAndQuerySet                        = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
 	errPolicyPatchAndPlatformSet                     = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
 	errPolicyPatchNoTitleID                          = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
+	errPatchPolicyRequiresTeam                       = errors.New("If the \"type\" is \"patch\", the \"team\" field is required.")
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
@@ -209,7 +210,7 @@ func verifyPolicyPlatforms(platforms string) error {
 
 func verifyPatchPolicy(team string, typ string) error {
 	if typ == PolicyTypePatch && emptyString(team) {
-		return errPolicyInvalidPlatform
+		return errPatchPolicyRequiresTeam
 	}
 	return nil
 }

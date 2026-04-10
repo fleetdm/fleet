@@ -7794,6 +7794,11 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 
 	// Renaming a patch policy via ApplyPolicySpecs should update it, not delete it.
 	previousID := policies[0].ID
+	var previousChecksum []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &previousChecksum, `SELECT checksum FROM policies WHERE id = ?`, previousID)
+	})
+
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:                   "patch-renamed",
@@ -7811,6 +7816,12 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, previousID, policies[0].ID)
 	require.Equal(t, "patch-renamed", policies[0].Name)
 	require.Equal(t, fleet.PolicyTypePatch, policies[0].Type)
+
+	var newChecksum []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &newChecksum, `SELECT checksum FROM policies WHERE id = ?`, previousID)
+	})
+	require.NotEqual(t, previousChecksum, newChecksum)
 }
 
 func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
