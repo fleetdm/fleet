@@ -1478,6 +1478,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				// generate new up-to-date patch policy
 				if spec.Type == fleet.PolicyTypePatch {
+					if fmaTitleID == nil {
+						return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+							Message: fmt.Sprintf("fleet_maintained_app_slug must be set for patch policy: %s", spec.Name),
+						})
+					}
 					installer, err := ds.getPatchPolicyInstaller(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting patch policy installer")
@@ -1548,7 +1553,12 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					if teamID == nil {
 						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id is NULL", spec.Name)
 					} else {
-						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
+						// Patch policies are unique by patch_software_title_id so we need to get them by that instead of name
+						if spec.Type == fleet.PolicyTypePatch {
+							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE patch_software_title_id = ? AND team_id = ?", fmaTitleID, teamID)
+						} else {
+							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
+						}
 					}
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "select policies id")
