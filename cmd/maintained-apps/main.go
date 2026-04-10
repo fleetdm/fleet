@@ -57,6 +57,10 @@ func main() {
 	}
 }
 
+func appsListJSONPath() string {
+	return path.Join(maintained_apps.OutputPath, "apps.json")
+}
+
 func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
 	// validate categories before writing any files
 	if err := validateCategories(ctx, app); err != nil {
@@ -71,7 +75,7 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		return ctxerr.Wrap(ctx, err, "validating categories")
 	}
 
-	if err := updateAppsListFile(ctx, app); err != nil {
+	if err := updateAppsListFileAt(ctx, appsListJSONPath(), app); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating apps list file")
 	}
 	app.UniqueIdentifier = "" // make sure we don't leak unique_identifier into individual app manifests
@@ -144,8 +148,42 @@ func validateCategories(ctx context.Context, app *maintained_apps.FMAManifestApp
 	return nil
 }
 
-func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifestApp) error {
-	appListFilePath := path.Join(maintained_apps.OutputPath, "apps.json")
+func listFileAppFromManifest(outApp *maintained_apps.FMAManifestApp) (maintained_apps.FMAListFileApp, error) {
+	platform := outApp.Platform()
+	if platform == "" {
+		return maintained_apps.FMAListFileApp{}, fmt.Errorf("invalid platform found for slug %s", outApp.Slug)
+	}
+	return maintained_apps.FMAListFileApp{
+		Name:             outApp.Name,
+		Slug:             outApp.Slug,
+		Platform:         platform,
+		UniqueIdentifier: outApp.UniqueIdentifier,
+	}, nil
+}
+
+func writeAppsListJSON(appListFilePath string, outputAppsFile *maintained_apps.FMAListFile) error {
+	slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int {
+		return strings.Compare(a.Slug, b.Slug)
+	})
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(outputAppsFile); err != nil {
+		return fmt.Errorf("marshaling apps list: %w", err)
+	}
+	if err := os.WriteFile(appListFilePath, buf.Bytes(), 0o644); err != nil {
+		return fmt.Errorf("writing apps list: %w", err)
+	}
+	return nil
+}
+
+func updateAppsListFileAt(ctx context.Context, appListFilePath string, outApp *maintained_apps.FMAManifestApp) error {
+	newRow, err := listFileAppFromManifest(outApp)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building apps list row")
+	}
+
 	inputJson, err := os.ReadFile(appListFilePath)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading output apps list file")
@@ -156,43 +194,25 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
 	}
 
-	var found bool
-	for _, a := range outputAppsFile.Apps {
-		if a.Slug == outApp.Slug {
-			found = true
-			break
+	for i, a := range outputAppsFile.Apps {
+		if a.Slug != outApp.Slug {
+			continue
 		}
-	}
-
-	if !found {
-		platform := outApp.Platform()
-		if platform == "" {
-			return ctxerr.New(ctx, fmt.Sprintf("invalid platform found for slug %s", outApp.Slug))
+		updated := newRow
+		updated.Description = a.Description
+		if updated == a {
+			return nil
 		}
-
-		outputAppsFile.Apps = append(outputAppsFile.Apps, maintained_apps.FMAListFileApp{
-			Name:             outApp.Name,
-			Slug:             outApp.Slug,
-			Platform:         platform,
-			UniqueIdentifier: outApp.UniqueIdentifier,
-		})
-
-		// Keep existing order
-		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
-
-		var buf bytes.Buffer
-		encoder := json.NewEncoder(&buf)
-		encoder.SetEscapeHTML(false)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(outputAppsFile); err != nil {
-			return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
-		}
-		updatedFile := buf.Bytes()
-
-		if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
+		outputAppsFile.Apps[i] = updated
+		if err := writeAppsListJSON(appListFilePath, &outputAppsFile); err != nil {
 			return ctxerr.Wrap(ctx, err, "writing updated output apps file")
 		}
+		return nil
 	}
 
+	outputAppsFile.Apps = append(outputAppsFile.Apps, newRow)
+	if err := writeAppsListJSON(appListFilePath, &outputAppsFile); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing updated output apps file")
+	}
 	return nil
 }
