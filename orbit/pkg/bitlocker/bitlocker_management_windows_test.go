@@ -3,11 +3,29 @@
 package bitlocker
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testWorker is a process-wide COMWorker shared by all tests. This mirrors
+// production, where orbit creates exactly one COMWorker for its lifetime.
+// Creating multiple sequential COMWorkers in the same process is unsafe because
+// COM has process-level state and re-initialization races with teardown.
+var testWorker *COMWorker
+
+func TestMain(m *testing.M) {
+	w, err := NewCOMWorker()
+	if err != nil {
+		os.Exit(1)
+	}
+	testWorker = w
+	code := m.Run()
+	w.Close()
+	os.Exit(code)
+}
 
 func TestFveErrorCode(t *testing.T) {
 	t.Parallel()
@@ -66,7 +84,7 @@ func TestIntToPercentage(t *testing.T) {
 		want string
 	}{
 		{"zero", 0, "0.00%"},
-		{"full", 10000, "1.00%"},
+		{"one percent", 10000, "1.00%"},
 		{"hundred percent", 1000000, "100.00%"},
 		{"half", 500000, "50.00%"},
 		{"fractional", 123456, "12.35%"},
@@ -112,7 +130,7 @@ func TestGetLogicalVolumes(t *testing.T) {
 	assert.Contains(t, drives, "C:", "expected C: drive to be present")
 }
 
-func TestCOMWorkerLifecycle(t *testing.T) {
+func TestCOMWorkerClosedReturnsError(t *testing.T) {
 	w, err := NewCOMWorker()
 	require.NoError(t, err)
 	w.Close()
@@ -125,29 +143,21 @@ func TestCOMWorkerLifecycle(t *testing.T) {
 // TestGetEncryptionStatus exercises the full COM -> WMI -> Win32_EncryptableVolume
 // pipeline. The CI runner (windows-latest) has encryptable volumes (C:, D:).
 func TestGetEncryptionStatus(t *testing.T) {
-	w, err := NewCOMWorker()
-	require.NoError(t, err)
-	defer w.Close()
-
-	statuses, err := w.GetEncryptionStatus()
+	statuses, err := testWorker.GetEncryptionStatus()
 	require.NoError(t, err)
 	require.NotEmpty(t, statuses, "expected at least one encryptable volume")
 
 	for _, vs := range statuses {
 		assert.NotEmpty(t, vs.DriveVolume)
-		require.NotNil(t, vs.Status, "status should not be nil for %s", vs.DriveVolume)
+		require.NotNilf(t, vs.Status, "status should not be nil for %s", vs.DriveVolume)
 		assert.NotEmpty(t, vs.Status.EncryptionPercentage)
 	}
 }
 
 // TestBitlockerConnectAndStatus isolates the bitlockerConnect + getBitlockerStatus
-// path from the COMWorker layer by running directly on the COM thread.
+// path by calling them directly on the shared COM thread.
 func TestBitlockerConnectAndStatus(t *testing.T) {
-	w, err := NewCOMWorker()
-	require.NoError(t, err)
-	defer w.Close()
-
-	r := w.exec(func() (any, error) {
+	r := testWorker.exec(func() (any, error) {
 		vol, err := bitlockerConnect("C:")
 		if err != nil {
 			return nil, err

@@ -62,7 +62,6 @@ jobs:
             "./orbit/pkg/table/cis_audit/..."
             "./orbit/pkg/table/windowsupdatetable/..."
           )
-          $pkgList = $packages -join ","
           Write-Host "Running Windows-specific Go tests for packages:"
           $packages | ForEach-Object { Write-Host "  $_" }
           go test -v -timeout=10m $packages 2>&1 | Tee-Object -FilePath "$env:TEMP\gotest.log"
@@ -83,9 +82,9 @@ jobs:
         run: |
           $logContent = Get-Content "$env:TEMP\gotest.log" -Raw -ErrorAction SilentlyContinue
           if ($logContent) {
-            $failures = ($logContent | Select-String -Pattern "^--- FAIL:" -AllMatches).Matches.Value
-            $panics = ($logContent | Select-String -Pattern "^panic:" -AllMatches).Matches.Value
-            $failPkgs = ($logContent | Select-String -Pattern "^FAIL\t" -AllMatches).Matches.Value
+            $failures = ($logContent -split "`n" | Select-String -Pattern "^--- FAIL:").Line
+            $panics = ($logContent -split "`n" | Select-String -Pattern "^panic:").Line
+            $failPkgs = ($logContent -split "`n" | Select-String -Pattern "^FAIL\t").Line
             Write-Host "=== Test Failures ==="
             if ($failures) { $failures | ForEach-Object { Write-Host $_ } }
             if ($panics) { $panics | ForEach-Object { Write-Host $_ } }
