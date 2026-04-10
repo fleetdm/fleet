@@ -43,7 +43,7 @@ export default {
    * responsible for verifying that the value of the rejected promise is an AxiosError
    * and futher parsing of the the error mesage.
    */
-  update: (formData: any, skipParseError?: boolean) => {
+  update: (formData: object, skipParseError?: boolean) => {
     const { CONFIG } = endpoints;
 
     return sendRequest(

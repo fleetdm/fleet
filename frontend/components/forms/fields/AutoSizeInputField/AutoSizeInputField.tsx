@@ -40,7 +40,7 @@ const AutoSizeInputField = ({
     [`${baseClass}__textarea`]: true,
   });
 
-  const inputElement = useRef<any>(null);
+  const inputElement = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isFocused && inputElement.current) {
@@ -48,7 +48,7 @@ const AutoSizeInputField = ({
       inputElement.current.selectionStart = value.length;
       inputElement.current.selectionEnd = value.length;
     }
-  }, [isFocused]);
+  }, [isFocused, value]);
 
   const onInputFocus = () => {
     isFocused = true;
