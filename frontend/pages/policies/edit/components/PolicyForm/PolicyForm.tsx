@@ -36,7 +36,6 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
@@ -168,7 +167,6 @@ const PolicyForm = ({
   const {
     currentTeam,
     isGlobalObserver,
-    isTeamMaintainerOrTeamAdmin,
     isTeamTechnician,
     isGlobalTechnician,
     isOnGlobalTeam,
