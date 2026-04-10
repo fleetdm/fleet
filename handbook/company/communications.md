@@ -415,7 +415,7 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 | `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
