@@ -10,8 +10,8 @@ and why it's worth enabling.
 
 ## The problem attestation solves
 
-ADE ties a device to your MDM server before it ever reaches an end user. When someone powers on
-a new Mac, it checks in with Apple, learns which MDM it belongs to, and enrolls automatically.
+ADE ties a device to your MDM server before it ever reaches an end user. When someone powers on 
+a new Mac, it checks in with Apple. The device learns which MDM it belongs to and enrolls automatically.
 It's a smooth experience, but enrollment itself doesn't cryptographically prove the device's
 identity.
 
@@ -28,10 +28,10 @@ Apple Silicon Macs include a Secure Enclave, a dedicated coprocessor that stores
 keys in hardware. Keys generated in the Secure Enclave can't be exported. Operations that use
 them happen inside the enclave itself.
 
-During attestation, the device generates a key pair inside the Secure Enclave. It then requests
-a certificate from Apple's servers that binds that key to the device's hardware attributes,
-things like serial number, UDID, and chip type. Apple can verify these attributes because the
-device was manufactured by Apple and its provenance is known.
+During attestation, the device generates a key pair inside the Secure Enclave. It then requests 
+a certificate from Apple's servers. That certificate binds the key to hardware attributes like 
+serial number, UDID, and chip type. Apple can verify these attributes because the device was 
+manufactured by Apple and its provenance is known.
 
 The certificate Apple issues is signed by Apple's CA. Your MDM server can verify that chain,
 which means you're not just trusting the device's self-reported identity. You're trusting
@@ -75,9 +75,9 @@ It doesn't tell you:
 - Whether the right user is operating the device
 - Anything about software running on the device
 
-Attestation establishes hardware identity. Everything built on top of that, posture checks,
-access controls, compliance policies, benefits from having a trustworthy foundation. But
-attestation itself is specifically about proving the device is what it says it is.
+Attestation establishes hardware identity. Posture checks, access controls, and compliance 
+policies all benefit from that trustworthy foundation. But attestation itself is specifically 
+about proving the device is what it says it is.
 
 ## How Fleet supports device attestation
 
@@ -92,9 +92,8 @@ When you enable **Require hardware attestation** in Fleet's MDM settings, Fleet 
 Devices that fail the attestation challenge aren't allowed to enroll. This is an explicit gate,
 not a soft check.
 
-Devices that already enrolled via SCEP and later qualify for ACME (Apple Silicon Macs from ADE)
-will receive ACME certificates on renewal when this setting is enabled. You don't need to
-re-enroll them.
+Devices that already enrolled via SCEP don't need to re-enroll. Qualifying devices (Apple 
+Silicon Macs from ADE) receive ACME certificates on their next renewal cycle.
 
 Intel Macs, iPhones, and iPads don't support hardware-bound keys in the same way and use SCEP
 enrollment regardless of this setting.
@@ -114,14 +113,13 @@ You can't make meaningful trust decisions about a device if you can't verify its
 Hardware attestation gives you an identity that's rooted in silicon, not just MDM enrollment
 records.
 
-It also matters for regulated environments. If you need to demonstrate that only managed,
-genuine Apple devices can access certain resources, attestation gives you evidence that's
-anchored in hardware.
+It also matters for regulated environments. Some environments require proof that only managed, 
+genuine Apple devices access certain resources. Attestation provides evidence anchored in hardware.
 
-For Mac admins, the practical implication is that attestation is most meaningful when paired
-with something that acts on it: an identity provider that gates access based on device posture,
-or a network access control system that requires proof of enrollment. Fleet now gives you the
-verified device identity to feed those systems.
+For Mac admins, attestation is most meaningful when paired with something that acts on it. That 
+could be an identity provider that gates access based on device posture. It could also be a 
+network access control system that requires proof of enrollment. Fleet now gives you the verified 
+device identity to feed those systems.
 
 The best part? For devices that already enrolled, you don't have to do anything disruptive.
 Enable the setting and qualifying devices upgrade to ACME on their next renewal cycle.
