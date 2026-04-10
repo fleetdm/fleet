@@ -381,22 +381,26 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	// TODO - consider UpgradeCode here?
+	escapeSQLParam := func(s string) string {
+		return strings.ReplaceAll(s, "'", "''")
+	}
+
 	var existsQuery string
 	switch {
 	case input.FuzzyMatchName.Custom != "":
 		existsQuery = fmt.Sprintf(
 			"SELECT 1 FROM programs WHERE name LIKE '%s' AND publisher = '%s';",
-			input.FuzzyMatchName.Custom, publisher,
+			escapeSQLParam(input.FuzzyMatchName.Custom), escapeSQLParam(publisher),
 		)
 	case input.FuzzyMatchName.Enabled:
 		existsQuery = fmt.Sprintf(
 			"SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';",
-			name, publisher,
+			escapeSQLParam(name), escapeSQLParam(publisher),
 		)
 	default:
 		existsQuery = fmt.Sprintf(
 			"SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';",
-			name, publisher,
+			escapeSQLParam(name), escapeSQLParam(publisher),
 		)
 	}
 	out.Queries = maintained_apps.FMAQueries{
