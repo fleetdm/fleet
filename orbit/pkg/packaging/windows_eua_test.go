@@ -55,7 +55,7 @@ func TestWindowsWixTemplateEUAToken(t *testing.T) {
 		require.NoError(t, err)
 
 		// Find the ServiceInstall Arguments line and verify eua-token is in it.
-		for _, line := range strings.Split(buf.String(), "\n") {
+		for line := range strings.SplitSeq(buf.String(), "\n") {
 			if strings.Contains(line, "Arguments=") && strings.Contains(line, "--fleet-url") {
 				assert.Contains(t, line, `--eua-token="[EUA_TOKEN]"`,
 					"eua-token flag should be in ServiceInstall Arguments")
