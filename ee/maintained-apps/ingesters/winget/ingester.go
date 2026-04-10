@@ -380,32 +380,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		name = input.UniqueIdentifier
 	}
 
-	// TODO - consider UpgradeCode here?
-	escapeSQLParam := func(s string) string {
-		return strings.ReplaceAll(s, "'", "''")
-	}
-
-	var existsQuery string
-	switch {
-	case input.FuzzyMatchName.Custom != "":
-		existsQuery = fmt.Sprintf(
-			"SELECT 1 FROM programs WHERE name LIKE '%s' AND publisher = '%s';",
-			escapeSQLParam(input.FuzzyMatchName.Custom), escapeSQLParam(publisher),
-		)
-	case input.FuzzyMatchName.Enabled:
-		existsQuery = fmt.Sprintf(
-			"SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';",
-			escapeSQLParam(name), escapeSQLParam(publisher),
-		)
-	default:
-		existsQuery = fmt.Sprintf(
-			"SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';",
-			escapeSQLParam(name), escapeSQLParam(publisher),
-		)
-	}
-	out.Queries = maintained_apps.FMAQueries{
-		Exists: existsQuery,
-	}
+	out.Queries = setUpExistsQuery(input.FuzzyMatchName, name, publisher)
 	out.InstallScript = installScript
 	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
 	if err != nil {
@@ -429,6 +404,36 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	return &out, nil
+}
+
+func escapeSQLParam(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
+}
+
+func setUpExistsQuery(fuzzy fuzzyMatch, name string, publisher string) maintained_apps.FMAQueries {
+	// TODO - consider UpgradeCode here?
+	var existsQuery string
+	switch {
+	case fuzzy.Custom != "":
+		existsQuery = fmt.Sprintf(
+			"SELECT 1 FROM programs WHERE name LIKE '%s' AND publisher = '%s';",
+			escapeSQLParam(fuzzy.Custom), escapeSQLParam(publisher),
+		)
+	case fuzzy.Enabled:
+		existsQuery = fmt.Sprintf(
+			"SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';",
+			escapeSQLParam(name), escapeSQLParam(publisher),
+		)
+	default:
+		existsQuery = fmt.Sprintf(
+			"SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';",
+			escapeSQLParam(name), escapeSQLParam(publisher),
+		)
+	}
+
+	return maintained_apps.FMAQueries{
+		Exists: existsQuery,
+	}
 }
 
 func buildUpgradeCodeBasedUninstallScript(upgradeCode string) (string, error) {
