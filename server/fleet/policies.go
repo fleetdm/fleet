@@ -480,6 +480,7 @@ type PolicySpec struct {
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
+	PatchSoftwareTitleID   uint   `json:"-"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.

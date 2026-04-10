@@ -7791,6 +7791,24 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.PolicyTypePatch, policies[0].Type)
 	require.Equal(t, "darwin", policies[0].Platform)
 	require.Contains(t, policies[0].Query, "fleet.maintained1")
+
+	// Renaming a patch policy via ApplyPolicySpecs should update it, not delete it.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "patch-renamed",
+			Query:                  "SELECT 1;",
+			Team:                   "team2",
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained1",
+		},
+	})
+	require.NoError(t, err)
+
+	policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, "patch-renamed", policies[0].Name)
+	require.Equal(t, fleet.PolicyTypePatch, policies[0].Type)
 }
 
 func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {

@@ -1522,6 +1522,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				var (
 					shouldRemoveAllPolicyMemberships bool
 					removePolicyStats                bool
+					shouldUpdatePatchPolicyName      bool
 				)
 				if insertOnDuplicateDidInsertOrUpdate(res) {
 					// Figure out if the query, platform, software installer, VPP app, or script changed.
@@ -1553,9 +1554,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					if teamID == nil {
 						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id is NULL", spec.Name)
 					} else {
-						// Patch policies are unique by patch_software_title_id so we need to get them by that instead of name
+						// Patch policies are unique by patch_software_title_id so we need to get them by that, and update their name
+						// so that it doesn't get deleted later.
 						if spec.Type == fleet.PolicyTypePatch {
 							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE patch_software_title_id = ? AND team_id = ?", fmaTitleID, teamID)
+							shouldUpdatePatchPolicyName = true
 						} else {
 							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
 						}
@@ -1603,6 +1606,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 						`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`,
 						policyID); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting needs_full_membership_cleanup flag")
+					}
+				}
+				if shouldUpdatePatchPolicyName {
+					if _, err := tx.ExecContext(ctx, `UPDATE policies SET name = ? WHERE id = ?`, spec.Name, policyID); err != nil {
+						return ctxerr.Wrap(ctx, err, "setting name for patch policy")
 					}
 				}
 				// Defer cleanup outside the transaction to avoid long-held row locks on
