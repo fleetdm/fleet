@@ -97,8 +97,9 @@ const RenewCertModal = ({
         <div className={`${baseClass}__button-wrap`}>
           <DownloadCSR baseClass={baseClass} onError={onDownloadError} />
           <Button
-            className={`${baseClass}__submit-button ${isUploading ? `uploading` : ""
-              }`}
+            className={`${baseClass}__submit-button ${
+              isUploading ? `uploading` : ""
+            }`}
             disabled={!certFile || isUploading}
             isLoading={isUploading}
             type="button"
