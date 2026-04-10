@@ -219,7 +219,6 @@ jobs:
           retention-days: 7
 
       - name: Attest package
-        continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
           subject-path: dist/fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg
