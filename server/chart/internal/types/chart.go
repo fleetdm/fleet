@@ -10,20 +10,31 @@ import (
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
-	// RecordHostHourlyData sets a bit in the host_hourly_data bitmap for the given host, dataset,
+	// RecordHostHourlyData sets a bit in the host_daily_data_bitmaps bitmap for the given host, dataset,
 	// and entity. The timestamp is converted to UTC to derive the date and hour.
 	RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, timestamp time.Time) error
 
-	// GetChartData queries the host_hourly_data table for a given dataset and date range,
+	// GetChartData queries the host_daily_data_bitmaps table for a given dataset and date range,
 	// filtered by host IDs and optional entity IDs, aggregating bitmap data into time-bucketed counts.
 	GetChartData(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
+
+	// GetBlobData fetches raw host bitmap blobs from host_hourly_data_blobs for a given
+	// dataset and date range.
+	GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error)
+
+	// GetHostIDsForFilter returns the host IDs that match the given host filter.
+	// Used to build a filter bitmask for blob-based datasets.
+	GetHostIDsForFilter(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error)
 
 	// CountHostsForChartFilter returns the total number of hosts matching the chart host filters.
 	CountHostsForChartFilter(ctx context.Context, hostFilter *chart.HostFilter) (int, error)
 
-	// CollectUptimeChartData bulk-inserts uptime bitmap data for all recently seen hosts.
+	// CollectUptimeChartData bulk-inserts uptime blob data for all recently seen hosts.
 	CollectUptimeChartData(ctx context.Context, now time.Time) error
 
-	// CleanupHostHourlyData deletes rows older than the specified number of days.
-	CleanupHostHourlyData(ctx context.Context, days int) error
+	// CleanupHostDailyBitmapData deletes bitmap rows older than the specified number of days.
+	CleanupHostDailyBitmapData(ctx context.Context, days int) error
+
+	// CleanupBlobData deletes blob rows older than the specified number of days.
+	CleanupBlobData(ctx context.Context, days int) error
 }

@@ -7,13 +7,25 @@ import (
 	"time"
 )
 
+// StorageType identifies how a dataset stores its data.
+type StorageType string
+
+const (
+	// StorageTypeBitmap stores one row per host/entity/day with a 24-bit hour bitmap.
+	StorageTypeBitmap StorageType = "bitmap"
+	// StorageTypeBlob stores one row per entity/date/hour with a host bitmap blob.
+	StorageTypeBlob StorageType = "blob"
+)
+
 // Dataset defines the interface for a chartable dataset.
 type Dataset interface {
 	// Name returns the dataset identifier used in the DB and API path.
 	Name() string
 
-	// Collect is called by the cron job to populate bitmaps in bulk.
-	// Datasets populated entirely via RecordBit on check-in can no-op.
+	// StorageType returns how this dataset stores its data (bitmap or blob).
+	StorageType() StorageType
+
+	// Collect is called by the cron job to populate data in bulk.
 	Collect(ctx context.Context, store DatasetStore, hour time.Time) error
 
 	// ResolveFilters translates dataset-specific query params into entity IDs.
@@ -28,6 +40,13 @@ type Dataset interface {
 
 	// HasEntityDimension returns true if the dataset uses entity_id (requiring COUNT(DISTINCT host_id)).
 	HasEntityDimension() bool
+}
+
+// BlobDataPoint is a raw blob row returned from the datastore, before aggregation.
+type BlobDataPoint struct {
+	ChartDate  time.Time
+	Hour       int
+	HostBitmap []byte
 }
 
 // DatasetStore is the narrow interface that datasets need for their Collect and ResolveFilters methods.
