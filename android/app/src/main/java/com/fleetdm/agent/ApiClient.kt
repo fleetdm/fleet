@@ -11,11 +11,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.UnknownHostException
 import java.util.Date
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -63,10 +60,6 @@ interface CertificateApiClient {
 object ApiClient : CertificateApiClient {
     private const val TAG = "fleet-ApiClient"
 
-    // Retry DNS resolution failures that occur when Android wakes from Doze mode.
-    // The active network may be reported as connected before its DNS servers are fully operational.
-    private const val DNS_MAX_RETRIES = 3
-    private const val DNS_RETRY_DELAY_MS = 2000L
     private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
@@ -126,96 +119,78 @@ object ApiClient : CertificateApiClient {
     ): Result<T> = withContext(Dispatchers.IO) {
         require(method != "GET" || body == null) { "GET requests must not include a body" }
 
-        val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
-            Exception("Base URL not configured"),
-        )
-
-        // Validate base URL format and scheme
+        var connection: HttpURLConnection? = null
         try {
-            val parsedUrl = URL(baseUrl)
-            if (parsedUrl.protocol !in listOf("https", "http")) {
+            val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
+                Exception("Base URL not configured"),
+            )
+
+            // Validate base URL format and scheme
+            try {
+                val parsedUrl = URL(baseUrl)
+                if (parsedUrl.protocol !in listOf("https", "http")) {
+                    return@withContext Result.failure(
+                        Exception("Base URL must use HTTP or HTTPS scheme"),
+                    )
+                }
+            } catch (e: Exception) {
                 return@withContext Result.failure(
-                    Exception("Base URL must use HTTP or HTTPS scheme"),
+                    Exception("Invalid base URL format: ${e.message}"),
                 )
             }
-        } catch (e: Exception) {
-            return@withContext Result.failure(
-                Exception("Invalid base URL format: ${e.message}"),
-            )
-        }
 
-        val url = URL("$baseUrl$endpoint")
+            val url = URL("$baseUrl$endpoint")
+            connection = openConnectionOnActiveNetwork(url)
 
-        for (dnsAttempt in 0..DNS_MAX_RETRIES) {
-            var connection: HttpURLConnection? = null
-            try {
-                if (dnsAttempt > 0) {
-                    Log.w(TAG, "retrying $method $endpoint after DNS failure (attempt ${dnsAttempt + 1})")
-                    delay(DNS_RETRY_DELAY_MS)
+            connection.apply {
+                requestMethod = method
+                useCaches = false
+                doInput = true
+                if (authorized) {
+                    getNodeKeyOrEnroll().fold(
+                        onFailure = { throwable -> return@withContext Result.failure(throwable) },
+                        onSuccess = { nodeKey ->
+                            setRequestProperty("Authorization", "Node key $nodeKey")
+                        },
+                    )
                 }
+                connectTimeout = 15000
+                readTimeout = 15000
 
-                connection = openConnectionOnActiveNetwork(url)
-
-                connection.apply {
-                    requestMethod = method
-                    useCaches = false
-                    doInput = true
-                    if (authorized) {
-                        getNodeKeyOrEnroll().fold(
-                            onFailure = { throwable -> return@withContext Result.failure(throwable) },
-                            onSuccess = { nodeKey ->
-                                setRequestProperty("Authorization", "Node key $nodeKey")
-                            },
-                        )
-                    }
-                    connectTimeout = 15000
-                    readTimeout = 15000
-
-                    if (body != null) {
-                        requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
-                        setRequestProperty("Content-Type", "application/json")
-                        doOutput = true
-                        val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
-                        outputStream.use { it.write(bodyJson.toByteArray()) }
-                    }
+                if (body != null) {
+                    requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
+                    setRequestProperty("Content-Type", "application/json")
+                    doOutput = true
+                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
+                    outputStream.use { it.write(bodyJson.toByteArray()) }
                 }
-
-                val responseCode = connection.responseCode
-                val response = if (responseCode in 200..299) {
-                    connection.inputStream.bufferedReader().use { it.readText() }
-                } else {
-                    connection.errorStream?.bufferedReader()?.use { it.readText() }
-                        ?: "HTTP $responseCode"
-                }
-
-                Log.d(TAG, "server response from $method $endpoint ($responseCode)")
-
-                return@withContext if (responseCode in 200..299) {
-                    val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
-                    Result.success(parsed)
-                } else if (responseCode == 401) {
-                    Result.failure(UnauthorizedException(response))
-                } else if (responseCode == 404) {
-                    Result.failure(NotFoundException(response))
-                } else {
-                    Result.failure(Exception("HTTP $responseCode: $response"))
-                }
-            } catch (e: UnknownHostException) {
-                Log.w(TAG, "DNS resolution failed for $method $endpoint: ${e.message}")
-                if (dnsAttempt >= DNS_MAX_RETRIES) {
-                    return@withContext Result.failure(e)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                return@withContext Result.failure(e)
-            } finally {
-                connection?.disconnect()
             }
-        }
 
-        // Unreachable: the loop always returns. Required by the compiler since it can't prove the range is non-empty.
-        Result.failure(Exception("Exhausted DNS retries for $method $endpoint"))
+            val responseCode = connection.responseCode
+            val response = if (responseCode in 200..299) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() }
+                    ?: "HTTP $responseCode"
+            }
+
+            Log.d(TAG, "server response from $method $endpoint ($responseCode)")
+
+            if (responseCode in 200..299) {
+                val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
+                Result.success(parsed)
+            } else if (responseCode == 401) {
+                Result.failure(UnauthorizedException(response))
+            } else if (responseCode == 404) {
+                Result.failure(NotFoundException(response))
+            } else {
+                Result.failure(Exception("HTTP $responseCode: $response"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            connection?.disconnect()
+        }
     }
 
     /**

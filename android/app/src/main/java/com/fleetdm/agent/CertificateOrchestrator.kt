@@ -16,8 +16,6 @@ import java.time.Instant
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -822,7 +820,9 @@ class CertificateOrchestrator(
     }
 
     /**
-     * Enrolls multiple certificates in parallel.
+     * Enrolls multiple certificates sequentially. Each enrollment involves multiple HTTP calls
+     * (template fetch, SCEP enrollment, status update), so sequential processing avoids
+     * overwhelming the server and the device's network stack.
      *
      * @param context Android context for certificate installation
      * @param hostCertificates List of certificate templates to enroll
@@ -832,14 +832,12 @@ class CertificateOrchestrator(
         context: Context,
         hostCertificates: List<HostCertificate>,
         certificateInstaller: CertificateEnrollmentHandler.CertificateInstaller? = null,
-    ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> = coroutineScope {
+    ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> {
         Log.d(TAG, "Starting batch certificate enrollment for ${hostCertificates.size} certificates")
 
-        hostCertificates.associate { cert ->
-            cert.id to async {
-                enrollCertificate(context, cert.id, cert.uuid, certificateInstaller)
-            }
-        }.mapValues { it.value.await() }
+        return hostCertificates.associate { cert ->
+            cert.id to enrollCertificate(context, cert.id, cert.uuid, certificateInstaller)
+        }
     }
 
     /**
