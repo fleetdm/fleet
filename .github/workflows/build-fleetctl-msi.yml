@@ -62,7 +62,7 @@ jobs:
 
           # Check if running from a tag
           if [[ "${{ github.ref }}" == refs/tags/* ]] && [[ "$REF_NAME" == fleet-* ]]; then
-            VERSION="${REF_NAME#fleet-}"
+            VERSION="${REF_NAME#fleet-v}"
             TAG_NAME="$REF_NAME"
           else
             VERSION="test-$(date +%Y%m%d-%H%M%S)"
@@ -219,6 +219,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [[ "$GITHUB_REF" != refs/tags/* ]]; then
+            echo "Error: GITHUB_REF is not a tag ref ($GITHUB_REF), cannot upload to release"
+            exit 1
+          fi
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           echo "Uploading MSIs to release $TAG_NAME..."
           for msi in dist/*.msi; do
