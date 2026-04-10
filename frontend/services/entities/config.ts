@@ -41,7 +41,7 @@ export default {
    *
    * If the request fails and `skipParseError` is `true`, the caller is
    * responsible for verifying that the value of the rejected promise is an AxiosError
-   * and futher parsing of the the error mesage.
+   * and further parsing of the error message.
    */
   update: (formData: object, skipParseError?: boolean) => {
     const { CONFIG } = endpoints;
@@ -62,7 +62,7 @@ export default {
    *
    * If the request fails and `skipParseError` is `true`, the caller is
    * responsible for verifying that the value of the rejected promise is an AxiosError
-   * and futher parsing of the the error mesage.
+   * and further parsing of the error message.
    */
   updateMDMConfig: (mdm: Partial<IMdmConfig>, skipParseError?: boolean) => {
     const { CONFIG } = endpoints;
