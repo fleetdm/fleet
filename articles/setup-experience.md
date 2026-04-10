@@ -185,7 +185,7 @@ To replace the Fleet logo with your organization's logo:
  
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
-> Setup experience software, script packages, and VPP apps are installed in alphabetic order, sorting by display name if one is set, falling back to the app, package, or script name. The setup experience script, if provided, runs after setup experience software is installed. Each piece of software is queued for installation one at a time, with the next item queued after the previous one either succeeds or fails. This means that setup experience software installs will _not_ show up in a host's upcoming activity list until previous setup experience steps are done.
+> Setup experience software installs alphabetically (by name unless custom display name is added), one at a time. The setup script runs after all software installs are complete. Software won't appear in the upcoming activity until the previous install is complete (success or fail).
 
 > Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after the setup experience software/script. They aren't installed/run in any particular order.
 
