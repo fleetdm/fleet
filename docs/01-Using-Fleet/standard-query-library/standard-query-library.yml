@@ -2237,13 +2237,13 @@ spec:
     AND (
       SELECT COUNT(*) FROM file_lines
       WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
-        AND ltrim(line) LIKE 'lock-enabled=true%'
+        AND trim(line) = 'lock-enabled=true'
         AND ltrim(line) NOT LIKE '#%'
     ) > 0
     AND (
       SELECT COUNT(*) FROM file_lines
       WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
-        AND ltrim(line) LIKE 'idle-delay=uint32 300%'
+        AND trim(line) = 'idle-delay=uint32 300'
         AND ltrim(line) NOT LIKE '#%'
     ) > 0;
   resolution:
