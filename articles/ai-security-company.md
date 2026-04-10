@@ -23,9 +23,6 @@ Fleet’s use of osquery turned Linux workstations from a blind spot into a sour
 - **IDE security:** they use Fleet to monitor for risky IDE extensions (like VS Code or Cursor) to ensure AI coding tools remain secure.  
 - **SOC 2 maintenance:** when a new CVE is announced, they run a live query to get an answer in seconds, which is vital for maintaining SOC 2 status.  
 
-## About Fleet
-
-Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.
 
 <meta name="articleTitle" value="AI security company runs live queries to verify CVEs in seconds">
 <meta name="authorFullName" value="Irena Reedy">

@@ -171,6 +171,9 @@ describe("AddHostsModal", () => {
     expect(text).toBeInTheDocument();
   });
   it("renders no enroll secret cta", async () => {
+    const onCancel = jest.fn();
+    const openEnrollSecretModal = jest.fn();
+
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -181,23 +184,27 @@ describe("AddHostsModal", () => {
       },
     });
 
-    render(
+    const { user } = render(
       <AddHostsModal
         isAnyTeamSelected={false}
-        currentTeamName="Apples"
         isLoading={false}
-        onCancel={noop}
-        openEnrollSecretModal={noop}
+        onCancel={onCancel}
+        openEnrollSecretModal={openEnrollSecretModal}
       />
     );
 
-    const text = screen.getByText("Something's gone wrong.");
-    const ctaButton = screen.getByRole("button", {
-      name: "Manage enroll secrets",
-    });
+    expect(screen.getByText("Something's gone wrong.")).toBeInTheDocument();
+    expect(
+      screen.getByText(/you have no enroll secrets\./i)
+    ).toBeInTheDocument();
 
-    expect(text).toBeInTheDocument();
-    expect(ctaButton).toBeEnabled();
+    const cta = screen.getByText(/manage enroll secrets/i);
+    expect(cta).toBeInTheDocument();
+
+    await user.click(cta);
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(openEnrollSecretModal).toHaveBeenCalledTimes(1);
   });
 
   it("excludes `--enable-scripts` flag if `config.server_settings.scripts-disabled` is `true`", async () => {

@@ -2815,6 +2815,22 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
 			"",
 		},
+		{
+			"android profile with team and free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			1,
+			`{"screenCaptureDisabled": true}`,
+			"Requires Fleet Premium license",
+		},
+		{
+			"android profile with team and premium license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			1,
+			`{"screenCaptureDisabled": true}`,
+			"",
+		},
 	}
 
 	for _, tt := range testCases {

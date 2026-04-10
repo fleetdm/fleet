@@ -55,6 +55,7 @@
           "macos_manual_agent_install": null,
           "macos_script": null,
           "require_all_software_macos": false,
+          "require_all_software_windows": false,
           "software": null
         },
         "windows_require_bitlocker_pin": false,
@@ -126,6 +127,7 @@
           "macos_setup_assistant": null,
           "manual_agent_install": null,
           "require_all_software_macos": false,
+          "require_all_software_windows": false,
           "script": null,
           "software": null
         },
@@ -230,6 +232,7 @@
           "macos_manual_agent_install": null,
           "macos_script": null,
           "require_all_software_macos": false,
+          "require_all_software_windows": false,
           "software": null
         },
         "windows_require_bitlocker_pin": false,
@@ -316,6 +319,7 @@
           "macos_setup_assistant": null,
           "manual_agent_install": null,
           "require_all_software_macos": false,
+          "require_all_software_windows": false,
           "script": null,
           "software": null
         },

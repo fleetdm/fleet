@@ -127,7 +127,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		if license.IsPremium(ctx) {
-			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 			}
@@ -189,7 +189,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			}
 		}
 	} else {
-		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 		}
@@ -482,7 +482,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	}
 
 	if !isMacOS(args.Platform) {
-		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID)
+		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP release")
 		}
@@ -523,8 +523,8 @@ func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, 
 	return cmdUUID, nil
 }
 
-func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context, hostUUID string) ([]string, error) {
-	statuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context, hostUUID string, teamID uint) ([]string, error) {
+	statuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
@@ -583,9 +583,6 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 
 			cmdUUID, err := a.installSoftwareFromVPP(ctx, host, vppApp, true, opts)
 
-			app.NanoCommandUUID = &cmdUUID
-			app.Status = fleet.SetupExperienceStatusRunning
-
 			if err != nil {
 				// if we get an error (e.g. no available licenses) while attempting to enqueue the
 				// install, then we should immediately go to an error state so setup experience
@@ -594,6 +591,8 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 				app.Status = fleet.SetupExperienceStatusFailure
 				app.Error = ptr.String(err.Error())
 			} else {
+				app.NanoCommandUUID = &cmdUUID
+				app.Status = fleet.SetupExperienceStatusRunning
 				commandUUIDs = append(commandUUIDs, cmdUUID)
 			}
 			if err := a.Datastore.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
@@ -726,6 +725,7 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 		target := &fleet.CmdTarget{
 			CmdUUID:           uuid.NewString(),
 			ProfileIdentifier: profile.ProfileIdentifier,
+			ProfileName:       profile.ProfileName,
 			EnrollmentIDs:     []string{hostUUID},
 		}
 		installTargets[profile.ProfileUUID] = target

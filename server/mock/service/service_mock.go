@@ -812,6 +812,8 @@ type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, er
 
 type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
 
+type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error)
+
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
@@ -873,6 +875,8 @@ type CreateSecretVariableFunc func(ctx context.Context, name string, value strin
 type ListSecretVariablesFunc func(ctx context.Context, opts fleet.ListOptions) (secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error)
 
 type DeleteSecretVariableFunc func(ctx context.Context, id uint) error
+
+type ListAPIEndpointsFunc func(ctx context.Context) (endpoints []fleet.APIEndpoint, err error)
 
 type ScimDetailsFunc func(ctx context.Context) (fleet.ScimDetails, error)
 
@@ -2095,6 +2099,9 @@ type Service struct {
 	WipeHostFunc        WipeHostFunc
 	WipeHostFuncInvoked bool
 
+	ClearPasscodeFunc        ClearPasscodeFunc
+	ClearPasscodeFuncInvoked bool
+
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
 
@@ -2187,6 +2194,9 @@ type Service struct {
 
 	DeleteSecretVariableFunc        DeleteSecretVariableFunc
 	DeleteSecretVariableFuncInvoked bool
+
+	ListAPIEndpointsFunc        ListAPIEndpointsFunc
+	ListAPIEndpointsFuncInvoked bool
 
 	ScimDetailsFunc        ScimDetailsFunc
 	ScimDetailsFuncInvoked bool
@@ -5011,6 +5021,13 @@ func (s *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDM
 	return s.WipeHostFunc(ctx, hostID, metadata)
 }
 
+func (s *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
+	s.mu.Lock()
+	s.ClearPasscodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearPasscodeFunc(ctx, hostID)
+}
+
 func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.RotateRecoveryLockPasswordFuncInvoked = true
@@ -5226,6 +5243,13 @@ func (s *Service) DeleteSecretVariable(ctx context.Context, id uint) error {
 	s.DeleteSecretVariableFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSecretVariableFunc(ctx, id)
+}
+
+func (s *Service) ListAPIEndpoints(ctx context.Context) (endpoints []fleet.APIEndpoint, err error) {
+	s.mu.Lock()
+	s.ListAPIEndpointsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAPIEndpointsFunc(ctx)
 }
 
 func (s *Service) ScimDetails(ctx context.Context) (fleet.ScimDetails, error) {

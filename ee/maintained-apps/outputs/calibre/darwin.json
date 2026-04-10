@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "9.6.0",
+      "version": "9.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre' AND version_compare(bundle_short_version, '9.6.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre' AND version_compare(bundle_short_version, '9.7.0') < 0);"
       },
-      "installer_url": "https://download.calibre-ebook.com/9.6.0/calibre-9.6.0.dmg",
+      "installer_url": "https://download.calibre-ebook.com/9.7.0/calibre-9.7.0.dmg",
       "install_script_ref": "e64f74af",
       "uninstall_script_ref": "2ad19a72",
-      "sha256": "1e20b1a9859eae7411f4ff4fd7f7c64524ca16339d969aeb828b791673d03d4c",
+      "sha256": "cbdb1fb6685254bee6323f7b2bb68781c65ec8ab8198a2c8a123b1f30969d10c",
       "default_categories": [
         "Productivity"
       ]

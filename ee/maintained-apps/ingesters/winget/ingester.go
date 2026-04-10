@@ -104,6 +104,27 @@ type wingetIngester struct {
 	logger       *slog.Logger
 }
 
+// wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
+// package version folders (semver-style). The upstream repo may add other top-level
+// folders (e.g. "Portable") that sort after numeric versions but are not manifest roots.
+func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.RepositoryContent {
+	var out []*github.RepositoryContent
+	for _, c := range contents {
+		if c.GetType() != "dir" {
+			continue
+		}
+		name := c.GetName()
+		if len(name) == 0 {
+			continue
+		}
+		if name[0] < '0' || name[0] > '9' {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
 func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
 	// this is the path within the winget GitHub repo where the manifests are located
 	dirPath := path.Join(
@@ -122,11 +143,18 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
+	versionDirs := wingetVersionManifestDirs(repoContents)
+	if len(versionDirs) == 0 {
+		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
+			"path": dirPath,
+		})
+	}
+
 	// sort the list of directories in descending order
-	slices.SortFunc(repoContents, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
+	slices.SortFunc(versionDirs, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
 
 	// this directory has the latest version data in it
-	latestVersionDir := repoContents[0]
+	latestVersionDir := versionDirs[0]
 	if latestVersionDir.GetName() == "" {
 		return nil, ctxerr.New(ctx, "latest version for app not found")
 	}
@@ -322,7 +350,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-	productCode = strings.Split(productCode, ".")[0]
+	if input.InstallerType == installerTypeMSIX && productCode == "" {
+		productCode = selectedInstaller.PackageFamilyName
+	}
+	if input.InstallerType == installerTypeMSI && productCode != "" {
+		productCode = strings.Split(productCode, ".")[0]
+	}
 
 	if upgradeCode != "" {
 		out.UpgradeCode = upgradeCode
@@ -467,6 +500,7 @@ type installer struct {
 	InstallModes           []string                 `yaml:"InstallModes,omitempty"`
 	InstallerSwitches      installerSwitches        `yaml:"InstallerSwitches,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
+	PackageFamilyName      string                   `yaml:"PackageFamilyName"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	InstallerLocale        string                   `yaml:"InstallerLocale"`
 }

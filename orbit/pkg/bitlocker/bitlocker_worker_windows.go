@@ -98,8 +98,11 @@ func (w *COMWorker) EncryptVolume(targetVolume string) (string, error) {
 	return key, r.err
 }
 
-// DecryptVolume decrypts the specified volume.
-func (w *COMWorker) DecryptVolume(targetVolume string) error {
-	r := w.exec(func() (any, error) { return nil, decryptVolumeOnCOMThread(targetVolume) })
-	return r.err
+// RotateRecoveryKey rotates the recovery key on an already-encrypted volume.
+// It adds a new Fleet-managed recovery key, removes old recovery key protectors,
+// and returns the new key for escrow. The disk is never decrypted.
+func (w *COMWorker) RotateRecoveryKey(targetVolume string) (string, error) {
+	r := w.exec(func() (any, error) { return rotateRecoveryKeyOnCOMThread(targetVolume) })
+	key, _ := r.val.(string)
+	return key, r.err
 }

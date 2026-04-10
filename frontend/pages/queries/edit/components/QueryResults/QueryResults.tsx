@@ -234,6 +234,7 @@ const QueryResults = ({
             tableType === "results" ? setFilteredResults : setFilteredErrors
           }
           renderCount={() => renderCount(tableType)}
+          getRowId={(_row, index) => String(index)}
         />
       </div>
     );
@@ -274,7 +275,7 @@ const QueryResults = ({
         }
         numHostsRespondedErrors={uiHostCounts.failed}
         isFinished={isQueryFinished}
-        onClickDone={onQueryDone}
+        onClickClose={onQueryDone}
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />
