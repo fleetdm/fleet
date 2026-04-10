@@ -2105,6 +2105,12 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				"Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.",
 			)
 		}
+		if payload.AlwaysDownload && payload.SHA256 != "" {
+			return "", fleet.NewInvalidArgumentError(
+				"software",
+				"Couldn't edit software. The 'always_download' option cannot be used with 'hash_sha256'.",
+			)
+		}
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
 			return "", fleet.NewInvalidArgumentError(
 				"software.url",
@@ -2704,20 +2710,12 @@ func (svc *Service) softwareBatchUpload(
 					filename := maintained_apps.FilenameFromResponse(resp)
 					installer.Filename = filename
 
-					// Capture ETag from download response for future conditional requests.
-					// Only store when conditional downloads are enabled (the default).
-					if !p.AlwaysDownload {
-						if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
-							installer.HTTPETag = &etag
-						} else {
-							svc.logger.WarnContext(ctx, "no usable ETag from server for conditional download", "url", p.URL, "etag", resp.Header.Get("ETag"))
-						}
-					}
-
-					// When always_download is enabled, clear any stale ETag from a previous
-					// run so it won't be reused if always_download is later disabled.
-					if p.AlwaysDownload {
-						installer.HTTPETag = nil
+					// Always capture ETag from download response so it's available
+					// immediately if always_download is later disabled.
+					if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
+						installer.HTTPETag = &etag
+					} else {
+						svc.logger.DebugContext(ctx, "no usable ETag from server for conditional download", "url", p.URL, "etag", resp.Header.Get("ETag"))
 					}
 
 					// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
