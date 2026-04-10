@@ -59,7 +59,6 @@ interface CertificateApiClient {
 
 object ApiClient : CertificateApiClient {
     private const val TAG = "fleet-ApiClient"
-
     private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
