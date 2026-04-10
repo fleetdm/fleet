@@ -100,7 +100,7 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 	// Helper to generate a valid token for test cases.
 	makeToken := func(t *testing.T, svc *Service, upn, deviceID string) string {
 		t.Helper()
-		tok, err := svc.wstepCertManager.NewSTSAuthTokenWithDeviceID(upn, deviceID)
+		tok, err := svc.wstepCertManager.NewEUAToken(upn, deviceID)
 		require.NoError(t, err)
 		return tok
 	}
@@ -191,7 +191,7 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 		require.True(t, ds.AssociateHostMDMIdPAccountDBFuncInvoked, "should still link idp account even when enrollment has host_uuid")
 	})
 
-	t.Run("expired or invalid token falls back to END_USER_AUTH_REQUIRED", func(t *testing.T) {
+	t.Run("invalid token falls back to END_USER_AUTH_REQUIRED", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newTestServiceWithWSTEP(t, ds)
 
@@ -250,10 +250,10 @@ func TestGenerateWindowsEUAToken(t *testing.T) {
 		require.NotEmpty(t, token)
 
 		// Token should be valid and contain expected claims.
-		upn, deviceID, err := svc.wstepCertManager.GetSTSAuthTokenClaims(token)
+		claims, err := svc.wstepCertManager.GetEUATokenClaims(token)
 		require.NoError(t, err)
-		require.Equal(t, testUPN, upn)
-		require.Equal(t, testDeviceID, deviceID)
+		require.Equal(t, testUPN, claims.UPN)
+		require.Equal(t, testDeviceID, claims.DeviceID)
 	})
 
 	t.Run("returns empty string when device has no UPN", func(t *testing.T) {
@@ -272,7 +272,7 @@ func TestGenerateWindowsEUAToken(t *testing.T) {
 		svc := newTestServiceWithWSTEP(t, ds)
 
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-			return nil, nil
+			return nil, mysql_errors.NotFound("MDMWindowsEnrolledDevice")
 		}
 
 		require.Empty(t, svc.generateWindowsEUAToken(context.Background(), testDeviceID))

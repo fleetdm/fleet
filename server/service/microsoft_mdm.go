@@ -1509,15 +1509,15 @@ func (svc *Service) generateWindowsEUAToken(ctx context.Context, deviceID string
 	}
 	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
-		svc.logger.WarnContext(ctx, "unable to fetch windows mdm enrollment for EUA token generation", "err", err, "device_id", deviceID)
+		svc.logger.ErrorContext(ctx, "unable to fetch windows mdm enrollment for EUA token generation", "err", err, "device_id", deviceID)
 		return ""
 	}
 	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
 		return ""
 	}
-	token, err := svc.wstepCertManager.NewSTSAuthTokenWithDeviceID(device.MDMEnrollUserID, deviceID)
+	token, err := svc.wstepCertManager.NewEUAToken(device.MDMEnrollUserID, deviceID)
 	if err != nil {
-		svc.logger.WarnContext(ctx, "unable to generate EUA token for fleetd install", "err", err, "device_id", deviceID)
+		svc.logger.ErrorContext(ctx, "unable to generate EUA token for fleetd install", "err", err, "device_id", deviceID)
 		return ""
 	}
 	return token
