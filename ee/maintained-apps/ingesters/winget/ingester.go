@@ -380,14 +380,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		name = input.UniqueIdentifier
 	}
 
-	// TODO - consider UpgradeCode here?
-	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
-	if input.FuzzyMatchName {
-		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"
-	}
-	out.Queries = maintained_apps.FMAQueries{
-		Exists: fmt.Sprintf(existsTemplate, name, publisher),
-	}
+	out.Queries = setUpExistsQuery(input.FuzzyMatchName, name, publisher)
 	out.InstallScript = installScript
 	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
 	if err != nil {
@@ -411,6 +404,18 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	return &out, nil
+}
+
+func escapeSQLParam(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
+}
+
+func setUpExistsQuery(fuzzy fuzzyMatch, name string, publisher string) maintained_apps.FMAQueries {
+	// TODO - consider UpgradeCode here?
+	return maintained_apps.FMAQueries{
+		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE %s AND publisher = '%s';",
+			fuzzy.nameCondition(name), escapeSQLParam(publisher)),
+	}
 }
 
 func buildUpgradeCodeBasedUninstallScript(upgradeCode string) (string, error) {
@@ -456,6 +461,43 @@ func isFileType(installerType string) bool {
 	return ok
 }
 
+// fuzzyMatch supports three JSON representations:
+//   - false (or omitted): exact match on programs.name
+//   - true: automatic LIKE pattern  "name LIKE '<unique_identifier> %'"
+//   - "<pattern>": a custom LIKE pattern used verbatim, e.g. "Mozilla Firefox % ESR %"
+type fuzzyMatch struct {
+	Enabled bool   // true when the JSON value is the boolean `true`
+	Custom  string // non-empty when the JSON value is a string pattern
+}
+
+func (f *fuzzyMatch) UnmarshalJSON(data []byte) error {
+	// Try boolean first (handles true, false, and omitted-via-zero-value).
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		f.Enabled = b
+		f.Custom = ""
+		return nil
+	}
+	// Try string.
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		f.Custom = s
+		f.Enabled = s != ""
+		return nil
+	}
+	return fmt.Errorf("fuzzy_match_name must be a boolean or a string, got %s", string(data))
+}
+
+func (f *fuzzyMatch) nameCondition(name string) string {
+	if f.Custom != "" {
+		return fmt.Sprintf("name LIKE '%s'", escapeSQLParam(f.Custom))
+	}
+	if f.Enabled {
+		return fmt.Sprintf("name LIKE '%s %%'", escapeSQLParam(name))
+	}
+	return fmt.Sprintf("name = '%s'", escapeSQLParam(name))
+}
+
 type inputApp struct {
 	Name string `json:"name"`
 	Slug string `json:"slug"`
@@ -463,16 +505,16 @@ type inputApp struct {
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
 	PackageIdentifier string `json:"package_identifier"`
 	// The value matching programs.name for the primary app package in osquery
-	UniqueIdentifier    string `json:"unique_identifier"`
-	InstallScriptPath   string `json:"install_script_path"`
-	UninstallScriptPath string `json:"uninstall_script_path"`
-	InstallerArch       string `json:"installer_arch"`
-	InstallerType       string `json:"installer_type"`
-	InstallerScope      string `json:"installer_scope"`
-	InstallerLocale     string `json:"installer_locale"`
-	ProgramPublisher    string `json:"program_publisher"`
-	UninstallType       string `json:"uninstall_type"`
-	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
+	UniqueIdentifier    string     `json:"unique_identifier"`
+	InstallScriptPath   string     `json:"install_script_path"`
+	UninstallScriptPath string     `json:"uninstall_script_path"`
+	InstallerArch       string     `json:"installer_arch"`
+	InstallerType       string     `json:"installer_type"`
+	InstallerScope      string     `json:"installer_scope"`
+	InstallerLocale     string     `json:"installer_locale"`
+	ProgramPublisher    string     `json:"program_publisher"`
+	UninstallType       string     `json:"uninstall_type"`
+	FuzzyMatchName      fuzzyMatch `json:"fuzzy_match_name"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
