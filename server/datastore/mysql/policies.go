@@ -1558,7 +1558,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 						// so that it doesn't get deleted later.
 						if spec.Type == fleet.PolicyTypePatch {
 							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE patch_software_title_id = ? AND team_id = ?", fmaTitleID, teamID)
-							shouldUpdatePatchPolicyName = true
+							if _, ok := teamIDToPoliciesByName[teamID][spec.Name]; !ok {
+								shouldUpdatePatchPolicyName = true
+							}
 						} else {
 							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
 						}
