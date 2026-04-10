@@ -95,12 +95,18 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 		}
 	}
 
-	data, err := s.store.GetChartData(ctx, metric, startDate, endDate, hostFilter, entityIDs, dataset.HasEntityDimension(), opts.Downsample)
-	if err != nil {
-		return nil, err
-	}
+	var data []chart.DataPoint
+	var totalHosts int
 
-	totalHosts, err := s.store.CountHostsForChartFilter(ctx, hostFilter)
+	switch dataset.StorageType() {
+	case chart.StorageTypeBlob:
+		data, totalHosts, err = s.getChartDataBlob(ctx, metric, startDate, endDate, hostFilter, entityIDs, opts.Downsample)
+	default:
+		data, err = s.store.GetChartData(ctx, metric, startDate, endDate, hostFilter, entityIDs, dataset.HasEntityDimension(), opts.Downsample)
+		if err == nil {
+			totalHosts, err = s.store.CountHostsForChartFilter(ctx, hostFilter)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +134,94 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 	}, nil
 }
 
+// getChartDataBlob fetches raw blobs from the datastore and aggregates them in Go.
+// It handles host filtering (via bitwise AND) and downsampling (via bitwise OR of hour groups).
+func (s *Service) getChartDataBlob(
+	ctx context.Context,
+	dataset string,
+	startDate, endDate time.Time,
+	hostFilter *chart.HostFilter,
+	entityIDs []uint,
+	downsample int,
+) ([]chart.DataPoint, int, error) {
+	blobs, err := s.store.GetBlobData(ctx, dataset, startDate, endDate, entityIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Build filter mask if host filters are present.
+	var filterMask []byte
+	var totalHosts int
+	if hostFilter != nil {
+		hostIDs, err := s.store.GetHostIDsForFilter(ctx, hostFilter)
+		if err != nil {
+			return nil, 0, err
+		}
+		totalHosts = len(hostIDs)
+		filterMask = chart.HostIDsToBlob(hostIDs)
+	} else {
+		var err error
+		totalHosts, err = s.store.CountHostsForChartFilter(ctx, nil)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	step := 1
+	if downsample > 0 {
+		step = downsample
+	}
+
+	// Index blobs by (date, hour) for efficient lookup.
+	type dateHourKey struct {
+		date string
+		hour int
+	}
+	blobIndex := make(map[dateHourKey][]byte, len(blobs))
+	for _, b := range blobs {
+		key := dateHourKey{date: b.ChartDate.Format("2006-01-02"), hour: b.Hour}
+		blobIndex[key] = b.HostBitmap
+	}
+
+	// Build data points: for each step-aligned hour bucket, OR the blobs in the window,
+	// optionally AND with filter mask, then popcount.
+	var results []chart.DataPoint
+	for h := 0; h+step <= 24; h += step {
+		// Collect all dates in the range.
+		for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+			dateStr := d.Format("2006-01-02")
+
+			// OR blobs within the downsample window.
+			var merged []byte
+			for offset := range step {
+				key := dateHourKey{date: dateStr, hour: h + offset}
+				if blob, ok := blobIndex[key]; ok {
+					merged = chart.BlobOR(merged, blob)
+				}
+			}
+
+			// Apply host filter.
+			if filterMask != nil && merged != nil {
+				merged = chart.BlobAND(merged, filterMask)
+			}
+
+			count := chart.BlobPopcount(merged)
+			ts := time.Date(d.Year(), d.Month(), d.Day(), h, 0, 0, 0, time.UTC)
+			results = append(results, chart.DataPoint{
+				Timestamp: ts,
+				Value:     count,
+			})
+		}
+	}
+
+	return results, totalHosts, nil
+}
+
 func (s *Service) CleanupData(ctx context.Context, days int) error {
-	return s.store.CleanupHostHourlyData(ctx, days)
+	if err := s.store.CleanupHostDailyBitmapData(ctx, days); err != nil {
+		return err
+	}
+	return s.store.CleanupBlobData(ctx, days)
 }
 
 // fillZeroValues fills in missing time buckets with zero values.

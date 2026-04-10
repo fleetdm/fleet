@@ -53,7 +53,7 @@ func (ds *Datastore) RecordHostHourlyData(ctx context.Context, hostID uint, data
 	hour := utc.Hour()
 
 	stmt := `
-		INSERT INTO host_hourly_data (host_id, dataset, entity_id, chart_date, hours_bitmap)
+		INSERT INTO host_daily_data_bitmaps (host_id, dataset, entity_id, chart_date, hours_bitmap)
 		VALUES (?, ?, ?, ?, (1 << ?))
 		ON DUPLICATE KEY UPDATE hours_bitmap = hours_bitmap | (1 << ?)`
 
@@ -123,7 +123,7 @@ func (ds *Datastore) GetChartData(
 
 	query := fmt.Sprintf(`
 		SELECT hd.chart_date, %s
-		FROM host_hourly_data hd
+		FROM host_daily_data_bitmaps hd
 		WHERE hd.dataset = ?
 			AND hd.chart_date BETWEEN ? AND ?
 			%s
@@ -205,9 +205,10 @@ func (ds *Datastore) CollectUptimeChartData(ctx context.Context, now time.Time) 
 	hour := utc.Hour()
 	dateStr := utc.Format("2006-01-02")
 
-	stmt := fmt.Sprintf(`
-		INSERT INTO host_hourly_data (host_id, dataset, entity_id, chart_date, hours_bitmap)
-		SELECT h.id, 'uptime', 0, ?, (1 << ?)
+	// Query host IDs that have recently checked in.
+	var hostIDs []uint
+	query := fmt.Sprintf(`
+		SELECT h.id
 		FROM hosts h
 			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
@@ -219,27 +220,126 @@ func (ds *Datastore) CollectUptimeChartData(ctx context.Context, now time.Time) 
 			),
 			NULLIF(h.detail_updated_at, '2000-01-01 00:00:00'),
 			h.created_at
-		) >= NOW() - INTERVAL %d MINUTE
-		ON DUPLICATE KEY UPDATE hours_bitmap = hours_bitmap | VALUES(hours_bitmap)`,
+		) >= NOW() - INTERVAL %d MINUTE`,
 		collectChartDataIntervalMinutes)
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, dateStr, hour)
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostIDs, query); err != nil {
+		return ctxerr.Wrap(ctx, err, "query recently seen hosts for uptime")
+	}
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Build a blob from the host IDs.
+	newBlob := chart.HostIDsToBlob(hostIDs)
+
+	// Read the existing blob for this hour (if any) and OR it with the new data.
+	var existing []byte
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &existing,
+		`SELECT host_bitmap FROM host_hourly_data_blobs WHERE dataset = 'uptime' AND entity_id = 0 AND chart_date = ? AND hour = ?`,
+		dateStr, hour)
+	if err == nil {
+		newBlob = chart.BlobOR(existing, newBlob)
+	}
+	// If err is sql.ErrNoRows, that's fine — no existing blob to merge.
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
+		 VALUES ('uptime', 0, ?, ?, ?)
+		 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
+		dateStr, hour, newBlob)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "collect uptime chart data")
+		return ctxerr.Wrap(ctx, err, "write uptime blob data")
 	}
 	return nil
 }
 
-func (ds *Datastore) CleanupHostHourlyData(ctx context.Context, days int) error {
+func (ds *Datastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+	startStr := startDate.Format("2006-01-02")
+	endStr := endDate.Format("2006-01-02")
+
+	var entityClause string
+	var args []any
+	args = append(args, dataset, startStr, endStr)
+
+	if len(entityIDs) > 0 {
+		entityClause = " AND entity_id IN (?)"
+		args = append(args, entityIDs)
+	}
+
+	query := fmt.Sprintf(`
+		SELECT chart_date, hour, host_bitmap
+		FROM host_hourly_data_blobs
+		WHERE dataset = ? AND chart_date BETWEEN ? AND ?%s
+		ORDER BY chart_date, hour`, entityClause)
+
+	// Expand sqlx.In placeholders.
+	query, args, err := sqlx.In(query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expand blob data query args")
+	}
+	query = ds.rebind(query)
+
+	type blobRow struct {
+		ChartDate  time.Time `db:"chart_date"`
+		Hour       int       `db:"hour"`
+		HostBitmap []byte    `db:"host_bitmap"`
+	}
+
+	var rows []blobRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get blob data")
+	}
+
+	results := make([]chart.BlobDataPoint, len(rows))
+	for i, r := range rows {
+		results[i] = chart.BlobDataPoint{
+			ChartDate:  r.ChartDate,
+			Hour:       r.Hour,
+			HostBitmap: r.HostBitmap,
+		}
+	}
+	return results, nil
+}
+
+func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error) {
+	subquery, args := buildHostCountFilterClauses(hostFilter)
+
+	query := fmt.Sprintf(`SELECT h.id FROM hosts h WHERE 1=1 %s`, subquery)
+
+	// Expand sqlx.In placeholders.
+	query, args, err := sqlx.In(query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expand host IDs filter query args")
+	}
+	query = ds.rebind(query)
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs for filter")
+	}
+	return ids, nil
+}
+
+func (ds *Datastore) CleanupHostDailyBitmapData(ctx context.Context, days int) error {
 	_, err := ds.writer(ctx).ExecContext(ctx,
-		`DELETE FROM host_hourly_data WHERE chart_date < CURDATE() - INTERVAL ? DAY`, days)
+		`DELETE FROM host_daily_data_bitmaps WHERE chart_date < CURDATE() - INTERVAL ? DAY`, days)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup host hourly data")
+		return ctxerr.Wrap(ctx, err, "cleanup host daily bitmap data")
 	}
 	return nil
 }
 
-// buildHostFilterSubquery builds SQL clauses to filter host_hourly_data rows by host attributes.
+func (ds *Datastore) CleanupBlobData(ctx context.Context, days int) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM host_hourly_data_blobs WHERE chart_date < CURDATE() - INTERVAL ? DAY`, days)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup blob data")
+	}
+	return nil
+}
+
+// buildHostFilterSubquery builds SQL clauses to filter host_daily_data_bitmaps rows by host attributes.
 // Uses "hd" as the table alias. Returns the clause (prefixed with AND) and args.
 // Args may contain slices — caller must use sqlx.In to expand them.
 func buildHostFilterSubquery(filter *chart.HostFilter) (string, []any) {
