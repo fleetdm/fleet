@@ -7720,6 +7720,77 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Windows - Maintained2 up to date", p5.Name)
 	require.Equal(t, "windows", p5.Platform)
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Maintained2' AND version_compare(version, '1.0') < 0);", p5.Query)
+
+	//////////////////////////////////////////////
+	// ApplyPolicySpecs
+
+	// Test ApplyPolicySpecs with patch policies using a separate team.
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// Set up an FMA installer on team2 for the valid slug test.
+	team2Payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage-team2",
+		Filename:             "maintained1-team2",
+		Title:                "Maintained1",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintained1",
+		UserID:               user1.ID,
+		TeamID:               &team2.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	}
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, team2Payload)
+	require.NoError(t, err)
+
+	// ApplyPolicySpecs with type=patch and empty fleet_maintained_app_slug should return an error.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:  "patch-no-slug",
+			Query: "SELECT 1;",
+			Team:  "team2",
+			Type:  fleet.PolicyTypePatch,
+		},
+	})
+	require.Error(t, err)
+
+	// ApplyPolicySpecs with type=patch and a non-existent fleet_maintained_app_slug should return an error.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "patch-bad-slug",
+			Query:                  "SELECT 1;",
+			Team:                   "team2",
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "nonexistent-slug",
+		},
+	})
+	require.Error(t, err)
+
+	// ApplyPolicySpecs with type=patch and a valid fleet_maintained_app_slug should succeed.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "patch-valid-slug",
+			Query:                  "SELECT 1;",
+			Team:                   "team2",
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained1",
+		},
+	})
+	require.NoError(t, err)
+
+	// Verify the policy was created with the expected auto-generated query and platform.
+	policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, "patch-valid-slug", policies[0].Name)
+	require.Equal(t, fleet.PolicyTypePatch, policies[0].Type)
+	require.Equal(t, "darwin", policies[0].Platform)
+	require.Contains(t, policies[0].Query, "fleet.maintained1")
 }
 
 func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
