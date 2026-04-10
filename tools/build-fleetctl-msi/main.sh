@@ -120,6 +120,10 @@ echo "Package created: dist/$MSI_NAME"
 if [[ "$SKIP_UPLOAD" == "true" ]]; then
     echo "Skipping release upload (SKIP_UPLOAD=true)"
 elif [[ -n "$GITHUB_TOKEN" ]] && [[ -n "$GITHUB_REPOSITORY" ]] && [[ -n "$GITHUB_REF" ]] && command -v gh &> /dev/null; then
+    if [[ "$GITHUB_REF" != refs/tags/* ]]; then
+        echo "Error: GITHUB_REF is not a tag ref ($GITHUB_REF), cannot upload to release"
+        exit 1
+    fi
     TAG_NAME="${GITHUB_REF#refs/tags/}"
     echo "Uploading package to release $TAG_NAME..."
 
