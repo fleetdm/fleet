@@ -9,34 +9,34 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEnrollSendsEUAToken(t *testing.T) {
-	const (
-		testToken   = "eyJhbGciOiJSUzI1NiJ9.test-eua-token"
-		testNodeKey = "test-node-key-abc"
-	)
+	// nolint:gosec // not a real credential, test-only JWT fragment
+	euaTokenValue := "eyJhbGciOiJSUzI1NiJ9.test-eua-token"
+	const testNodeKey = "test-node-key-abc"
 
 	t.Run("eua_token included in enroll request when set", func(t *testing.T) {
 		var receivedBody fleet.EnrollOrbitRequest
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			body, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
-			require.NoError(t, json.Unmarshal(body, &receivedBody))
+			assert.NoError(t, err)
+			assert.NoError(t, json.Unmarshal(body, &receivedBody))
 
 			resp := fleet.EnrollOrbitResponse{OrbitNodeKey: testNodeKey}
 			w.Header().Set("Content-Type", "application/json")
 			err = json.NewEncoder(w).Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}))
 		defer srv.Close()
 
 		oc := &OrbitClient{
 			enrollSecret: "secret",
 			hostInfo:     fleet.OrbitHostInfo{HardwareUUID: "uuid-1", Platform: "windows"},
-			euaToken:     testToken,
+			euaToken:     euaTokenValue,
 		}
 		bc, err := NewBaseClient(srv.URL, true, "", "", nil, fleet.CapabilityMap{}, nil)
 		require.NoError(t, err)
@@ -45,7 +45,7 @@ func TestEnrollSendsEUAToken(t *testing.T) {
 		nodeKey, err := oc.enroll()
 		require.NoError(t, err)
 		require.Equal(t, testNodeKey, nodeKey)
-		require.Equal(t, testToken, receivedBody.EUAToken)
+		require.Equal(t, euaTokenValue, receivedBody.EUAToken)
 		require.Equal(t, "secret", receivedBody.EnrollSecret)
 		require.Equal(t, "uuid-1", receivedBody.HardwareUUID)
 	})
@@ -56,12 +56,12 @@ func TestEnrollSendsEUAToken(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var err error
 			rawBody, err = io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			resp := fleet.EnrollOrbitResponse{OrbitNodeKey: testNodeKey}
 			w.Header().Set("Content-Type", "application/json")
 			err = json.NewEncoder(w).Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}))
 		defer srv.Close()
 
