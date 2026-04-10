@@ -291,6 +291,7 @@ export default {
 
   // Vulnerabilities endpoints
   VULNERABILITIES: `/${API_VERSION}/fleet/vulnerabilities`,
+  VULNERABILITIES_HOST_COUNT_HISTOGRAM: `/${API_VERSION}/fleet/vulnerabilities/host_count_histogram`,
   VULNERABILITY: (cve: string) =>
     `/${API_VERSION}/fleet/vulnerabilities/${cve}`,
 

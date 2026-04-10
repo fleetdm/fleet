@@ -234,3 +234,32 @@ func (svc *Service) ListSoftwareByCVE(ctx context.Context, cve string, teamID *u
 	}
 	return svc.ds.SoftwareByCVE(ctx, cve, teamID)
 }
+
+type getVulnerabilityHostCountHistogramRequest struct {
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+}
+
+type getVulnerabilityHostCountHistogramResponse struct {
+	Histogram []fleet.VulnHostCountHistogramEntry `json:"histogram"`
+	Err       error                               `json:"error,omitempty"`
+}
+
+func (r getVulnerabilityHostCountHistogramResponse) Error() error { return r.Err }
+
+func getVulnerabilityHostCountHistogramEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	request := req.(*getVulnerabilityHostCountHistogramRequest)
+	histogram, err := svc.VulnerabilityHostCountHistogram(ctx, request.TeamID)
+	if err != nil {
+		return getVulnerabilityHostCountHistogramResponse{Err: err}, nil
+	}
+	return getVulnerabilityHostCountHistogramResponse{Histogram: histogram}, nil
+}
+
+func (svc *Service) VulnerabilityHostCountHistogram(ctx context.Context, teamID *uint) ([]fleet.VulnHostCountHistogramEntry, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
+		TeamID: teamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return svc.ds.VulnerabilityHostCountHistogram(ctx, teamID)
+}

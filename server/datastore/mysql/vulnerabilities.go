@@ -687,3 +687,70 @@ func (ds *Datastore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, e
 	}
 	return count > 0, nil
 }
+
+func (ds *Datastore) VulnerabilityHostCountHistogram(ctx context.Context, teamID *uint) ([]fleet.VulnHostCountHistogramEntry, error) {
+	query := `
+		SELECT
+			vuln_count_range,
+			SUM(hosts_count) as hosts_count,
+			SUM(CASE WHEN max_severity = 'critical' THEN hosts_count ELSE 0 END) as critical,
+			SUM(CASE WHEN max_severity = 'high' THEN hosts_count ELSE 0 END) as high,
+			SUM(CASE WHEN max_severity = 'medium' THEN hosts_count ELSE 0 END) as medium,
+			SUM(CASE WHEN max_severity = 'low' THEN hosts_count ELSE 0 END) as low,
+			SUM(CASE WHEN max_severity = 'none' THEN hosts_count ELSE 0 END) as none
+		FROM (
+			SELECT
+				CASE
+					WHEN vuln_count = 0 THEN '0'
+					WHEN vuln_count BETWEEN 1 AND 5 THEN '1-5'
+					WHEN vuln_count BETWEEN 6 AND 20 THEN '6-20'
+					WHEN vuln_count BETWEEN 21 AND 50 THEN '21-50'
+					ELSE '51+'
+				END as vuln_count_range,
+				CASE
+					WHEN max_cvss >= 9.0 THEN 'critical'
+					WHEN max_cvss >= 7.0 THEN 'high'
+					WHEN max_cvss >= 4.0 THEN 'medium'
+					WHEN max_cvss > 0 THEN 'low'
+					ELSE 'none'
+				END as max_severity,
+				COUNT(*) as hosts_count
+			FROM (
+				SELECT
+					h.id as host_id,
+					COUNT(DISTINCT combined.cve) as vuln_count,
+					COALESCE(MAX(cm.cvss_score), 0) as max_cvss
+				FROM hosts h
+				LEFT JOIN (
+					SELECT hs.host_id, sc.cve
+					FROM host_software hs
+					INNER JOIN software_cve sc ON hs.software_id = sc.software_id
+					UNION
+					SELECT hos.host_id, osv.cve
+					FROM host_operating_system hos
+					INNER JOIN operating_system_vulnerabilities osv ON hos.os_id = osv.operating_system_id
+				) combined ON h.id = combined.host_id
+				LEFT JOIN cve_meta cm ON combined.cve = cm.cve
+	`
+
+	var args []interface{}
+	if teamID != nil {
+		query += " WHERE h.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	query += `
+				GROUP BY h.id
+			) per_host
+			GROUP BY vuln_count_range, max_severity
+		) bucketed
+		GROUP BY vuln_count_range
+		ORDER BY FIELD(vuln_count_range, '0', '1-5', '6-20', '21-50', '51+')
+	`
+
+	var histogram []fleet.VulnHostCountHistogramEntry
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &histogram, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "vulnerability host count histogram")
+	}
+	return histogram, nil
+}
