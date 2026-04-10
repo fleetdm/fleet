@@ -13,6 +13,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.UnknownHostException
 import java.util.Date
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -204,6 +205,8 @@ object ApiClient : CertificateApiClient {
                 if (dnsAttempt >= DNS_MAX_RETRIES) {
                     return@withContext Result.failure(e)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 return@withContext Result.failure(e)
             } finally {
@@ -211,6 +214,7 @@ object ApiClient : CertificateApiClient {
             }
         }
 
+        // Unreachable: the loop always returns. Required by the compiler since it can't prove the range is non-empty.
         Result.failure(Exception("Exhausted DNS retries for $method $endpoint"))
     }
 
