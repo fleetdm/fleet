@@ -32,18 +32,11 @@ const DeleteHostModal = ({
   hostName,
   isUpdating,
 }: IDeleteHostModalProps): JSX.Element => {
-  const pluralizeHost = () => {
-    if (!selectedHostIds) {
-      return "host";
-    }
-    return strUtils.pluralize(selectedHostIds.length, "host");
-  };
-
   const hostText = () => {
     if (selectedHostIds) {
       return `${selectedHostIds.length}${
         isAllMatchingHostsSelected ? "+" : ""
-      } ${pluralizeHost()}`;
+      } ${strUtils.pluralize(selectedHostIds.length, "host")}`;
     }
     return hostName;
   };
@@ -57,8 +50,8 @@ const DeleteHostModal = ({
   return (
     <Modal title="Delete" onExit={onCancel} className={baseClass}>
       <p>
-        This will remove the record of <b>{hostText()}</b> and associated data
-        such as unlock PINs and disk encryption keys.
+        This will remove <b>{hostText()}</b> and associated data such as unlock
+        PINs and disk encryption keys.
       </p>
       {hasManyHosts && (
         <p>

@@ -1799,6 +1799,13 @@ const TAGGED_TEMPLATES = {
       <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
     );
   },
+  clearedPasscode: (activity: IActivity) => {
+    return (
+      <>
+        cleared the passcode on <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1957,15 +1964,11 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
     }
-    // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
-    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-    case ActivityType.EnabledDiskEncryption:
+    // Note: This activity is generated for all platforms.
     case ActivityType.EnabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
     }
-    // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
-    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-    case ActivityType.DisabledDiskEncryption:
+    // Note: This activity is generated for all platforms.
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
@@ -2203,6 +2206,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMicrosoftEntraTenant: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.ClearedPasscode: {
+      return TAGGED_TEMPLATES.clearedPasscode(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

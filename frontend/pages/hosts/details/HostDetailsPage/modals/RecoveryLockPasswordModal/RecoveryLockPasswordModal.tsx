@@ -132,7 +132,7 @@ const RecoveryLockPasswordModal = ({
             </p>
             {recoveryLockData?.auto_rotate_at && (
               <InfoBanner color="yellow">
-                Password rotates automatically at{" "}
+                Password rotates automatically after{" "}
                 {monthDayTimeFormat(recoveryLockData.auto_rotate_at)}.
               </InfoBanner>
             )}

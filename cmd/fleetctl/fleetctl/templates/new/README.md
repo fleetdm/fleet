@@ -10,7 +10,7 @@ You can read more about the anatomy of these files and what they do in [Fleet's 
 
 ## How to use
 
-1. Install fleectl. [Learn how](https://fleetdm.com/guides/fleetctl#installing-fleetctl).
+1. Install fleetctl. [Learn how](https://fleetdm.com/guides/fleetctl#installing-fleetctl).
 
 2. Open your Terminal, run `fleetctl new`, and follow instructions in the output.
 

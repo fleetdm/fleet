@@ -553,6 +553,14 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
+
+		// Update the software title name if this is a Windows FMA with an upgrade code. We already update
+		// software titles with macOS FMA names on FMA catalog sync, so we only do Windows here.
+		if payload.FleetMaintainedAppID != nil {
+			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
+			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
+		}
+
 		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
 		if err != nil {
 			return 0, err
@@ -2104,6 +2112,14 @@ WHERE
   team_id = ?
 `
 
+	const deleteAllPatchPolicies = `
+DELETE FROM
+	policies
+WHERE
+	team_id = ? AND
+	type = 'patch'
+`
+
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
@@ -2246,6 +2262,14 @@ WHERE
     WHERE global_or_team_id = ? AND
     title_id NOT IN (?)
   )
+`
+
+	const deletePatchPoliciesWithInstallersNotInList = `
+DELETE FROM
+	policies
+WHERE
+	team_id = ? AND
+	patch_software_title_id NOT IN (?)
 `
 
 	const countInstallDuringSetupNotInList = `
@@ -2478,6 +2502,10 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
 
+			if _, err := tx.ExecContext(ctx, deleteAllPatchPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all obsolete patch policies")
+			}
+
 			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
 			}
@@ -2576,6 +2604,14 @@ WHERE
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+		}
+
+		stmt, args, err = sqlx.In(deletePatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete patch policies")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete patch policies")
 		}
 
 		// check if any in the list are install_during_setup, fail if there is one
@@ -2875,7 +2911,7 @@ WHERE
 				// Evict old FMA versions beyond the max per title per team.
 				// Always keep the active installer; fill remaining slots with
 				// the most recent versions, evict everything else.
-				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
+				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}

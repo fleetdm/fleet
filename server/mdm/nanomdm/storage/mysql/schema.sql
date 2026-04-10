@@ -104,6 +104,8 @@ CREATE TABLE nano_enrollments (
 
     last_seen_at TIMESTAMP NOT NULL,
 
+    hardware_attested BOOLEAN NOT NULL DEFAULT 0,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -142,6 +144,7 @@ CREATE TABLE nano_commands (
     updated_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
     subtype ENUM('None','ProfileWithSecrets') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'None',
+    name varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 
     PRIMARY KEY (command_uuid),
 
@@ -229,6 +232,7 @@ SELECT
     c.command_uuid,
     c.request_type,
     c.command,
+    c.name,
     r.updated_at AS result_updated_at,
     r.status,
     r.result
@@ -282,4 +286,17 @@ CREATE TABLE nano_cert_auth_associations (
 
     CHECK (id != ''),
     CHECK (sha256 != '')
+);
+
+/*
+ * Note: The fake acme_orders table here is created to support tests. This schema is not used in production code and does not touch the actual mysql datastore
+ * but this is needed to support cross-references against ACME during nanomdm-only tests and because I couldn't find a cleaner way to do this
+ */
+CREATE TABLE acme_orders (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  issued_certificate_serial BIGINT DEFAULT NULL,
+  created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY idx_issued_certificate_serial (issued_certificate_serial)
 );

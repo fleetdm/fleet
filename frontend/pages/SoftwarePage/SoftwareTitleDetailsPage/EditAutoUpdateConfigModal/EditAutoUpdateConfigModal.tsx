@@ -6,7 +6,7 @@ import { ILabelSummary } from "interfaces/label";
 import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -27,7 +27,6 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
@@ -67,9 +66,7 @@ const EditAutoUpdateConfigModal = ({
   onExit,
 }: EditAutoUpdateConfigModal) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
-
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const formClassNames = classnames(formClass, {
     [`edit-auto-update-config-form--disabled`]: gitOpsModeEnabled,
@@ -304,6 +301,7 @@ const EditAutoUpdateConfigModal = ({
               Cancel
             </Button>
             <GitOpsModeTooltipWrapper
+              entityType="software"
               position="right"
               tipOffset={8}
               renderChildren={(disableChildren) => (

@@ -1,13 +1,12 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppStoreApp } from "interfaces/software";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
@@ -56,8 +55,7 @@ const SoftwareAndroidForm = ({
   onCancel,
   onClickPreviewEndUserExperience,
 }: ISoftwareAndroidFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [formData, setFormData] = useState<ISoftwareAndroidFormData>(
     softwareAndroidForEdit
@@ -111,7 +109,7 @@ const SoftwareAndroidForm = ({
       <>
         <div className={`${baseClass}__form-fields`}>
           <InputField
-            autoFocus
+            autofocus
             label="Application ID"
             placeholder="com.android.chrome"
             helpText={
@@ -172,6 +170,7 @@ const SoftwareAndroidForm = ({
         </div>
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
+            entityType="software"
             position="bottom"
             tipOffset={8}
             renderChildren={(disableChildren) => (

@@ -162,8 +162,8 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/scripts': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
-    // 🫧 Bulk operations dashboard
-    'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
+    // 🫧 Fleet agent downloader app
+    'ee/fleet-agent-downloader': 'eashaw',// (catch-all)
 
     // Handbook
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
@@ -226,7 +226,7 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['lukeheath', 'gillespi314', 'mna', 'georgekarrv'],
+    'ee/tools/puppet': ['lukeheath', 'mna', 'georgekarrv'],
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
@@ -263,8 +263,8 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
-    // 🫧 Bulk operations dashboard
-    'ee/bulk-operations-dashboard': 'eashaw',
+    // 🫧 Fleet agent downloader app
+    'ee/fleet-agent-downloader': 'eashaw',
 
     // FMA and icons
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
