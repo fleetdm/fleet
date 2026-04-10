@@ -1118,12 +1118,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Bootstrap chart bounded context
 	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
 
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newChartDataCollectionSchedule(ctx, instanceID, ds, chartSvc, logger)
-		},
-	); err != nil {
-		initFatal(err, "failed to register chart_data_collection schedule")
+	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
+		if err := cronSchedules.StartCronSchedule(
+			func() (fleet.CronSchedule, error) {
+				return newChartDataCollectionSchedule(ctx, instanceID, ds, chartSvc, logger)
+			},
+		); err != nil {
+			initFatal(err, "failed to register chart_data_collection schedule")
+		}
+	} else {
+		logger.InfoContext(ctx, "skipping chart data collection cron (FLEET_SKIP_CHART_DATA_COLLECTION is set)")
 	}
 
 	// Perform a cleanup of cron_stats outside of the cronSchedules because the
