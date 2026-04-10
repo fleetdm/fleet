@@ -10,7 +10,9 @@
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "4968aa57",
       "sha256": "aa8e5036d973688f1e8622fbe9ab22e037346e0def0197bf5e7cdf37da4e223d",
-      "default_categories": ["Productivity"],
+      "default_categories": [
+        "Productivity"
+      ],
       "upgrade_code": "{C9EAA861-2B72-4FAF-9FEE-EEB1AD5FD15E}"
     }
   ],
