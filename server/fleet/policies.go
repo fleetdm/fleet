@@ -207,6 +207,13 @@ func verifyPolicyPlatforms(platforms string) error {
 	return nil
 }
 
+func verifyPatchPolicy(team string, typ string) error {
+	if typ == PolicyTypePatch && emptyString(team) {
+		return errPolicyInvalidPlatform
+	}
+	return nil
+}
+
 func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform string) error {
 	if conditionalAccessEnabled && !strings.Contains(platform, "darwin") && !strings.Contains(platform, "windows") {
 		return errPolicyConditionalAccessEnabledInvalidPlatform
@@ -505,6 +512,9 @@ func (p PolicySpec) Verify() error {
 		return err
 	}
 	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
 		return err
 	}
 	return nil
