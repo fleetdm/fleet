@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260322120000, Down_20260322120000)
+	MigrationClient.AddMigration(Up_20260410173222, Down_20260410173222)
 }
 
-func Up_20260322120000(tx *sql.Tx) error {
+func Up_20260410173222(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE software_installers ADD COLUMN http_etag VARCHAR(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to add http_etag column to software_installers: %w", err)
@@ -26,6 +26,6 @@ func Up_20260322120000(tx *sql.Tx) error {
 
 // Down_20260322120000 is a no-op. Fleet convention: down migrations return nil
 // because forward-only migrations are safer than attempting rollback DDL.
-func Down_20260322120000(tx *sql.Tx) error {
+func Down_20260410173222(tx *sql.Tx) error {
 	return nil
 }
