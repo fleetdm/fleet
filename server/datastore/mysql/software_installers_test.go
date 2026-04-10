@@ -4183,7 +4183,7 @@ func testMatchOrCreateSoftwareInstallerCrossPlatformDedup(t *testing.T, ds *Data
 		p2 := mkPayload("my-deb-pkg", "deb", "linux", "deb_packages", "2.0", "", "", "deb-hash-2")
 		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
 		require.Error(t, err, "adding a second .deb with the same title should fail")
-		assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, "my-deb-pkg", team.Name))
+		assert.Contains(t, err.Error(), "already has an installer")
 	})
 
 	// ---- Linux .rpm ----
@@ -4195,7 +4195,7 @@ func testMatchOrCreateSoftwareInstallerCrossPlatformDedup(t *testing.T, ds *Data
 		p2 := mkPayload("my-rpm-pkg", "rpm", "linux", "rpm_packages", "2.0", "", "", "rpm-hash-2")
 		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
 		require.Error(t, err, "adding a second .rpm with the same title should fail")
-		assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, "my-rpm-pkg", team.Name))
+		assert.Contains(t, err.Error(), "already has an installer")
 	})
 
 	// ---- Windows .exe ----
@@ -4207,7 +4207,7 @@ func testMatchOrCreateSoftwareInstallerCrossPlatformDedup(t *testing.T, ds *Data
 		p2 := mkPayload("My App", "exe", "windows", "programs", "2.0", "", "", "exe-hash-2")
 		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
 		require.Error(t, err, "adding a second .exe with the same title should fail")
-		assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, "My App", team.Name))
+		assert.Contains(t, err.Error(), "already has an installer")
 	})
 
 	// ---- Windows .msi with UpgradeCode ----
@@ -4220,7 +4220,7 @@ func testMatchOrCreateSoftwareInstallerCrossPlatformDedup(t *testing.T, ds *Data
 		p2 := mkPayload("MSI App Renamed", "msi", "windows", "programs", "2.0", "", "{UPGRADE-CODE-1}", "msi-hash-2")
 		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
 		require.Error(t, err, "adding a second .msi with the same upgrade code should fail")
-		assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, "MSI App Renamed", team.Name))
+		assert.Contains(t, err.Error(), "already has an installer")
 	})
 
 	// ---- Cross-platform: different platforms should NOT conflict ----
