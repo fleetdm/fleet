@@ -28,6 +28,12 @@ const batchSize = 500
 // blobDatasets lists datasets that use blob storage.
 var blobDatasets = map[string]struct{}{
 	"uptime": {},
+	"cve":    {},
+}
+
+// dailyBlobDatasets use blob storage with hour=-1 (whole-day granularity).
+var dailyBlobDatasets = map[string]struct{}{
+	"cve": {},
 }
 
 func main() {
@@ -95,6 +101,14 @@ func main() {
 }
 
 func backfillBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs, entityIDs []uint) int {
+	_, isDaily := dailyBlobDatasets[dataset]
+	if isDaily {
+		return backfillDailyBlob(db, dataset, days, start, hostIDs, entityIDs)
+	}
+	return backfillHourlyBlob(db, dataset, days, start, hostIDs, entityIDs)
+}
+
+func backfillHourlyBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs, entityIDs []uint) int {
 	totalRows := 0
 
 	for day := range days {
@@ -121,6 +135,47 @@ func backfillBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs
 				}
 				totalRows++
 			}
+		}
+
+		if (day+1)%5 == 0 || day == days-1 {
+			log.Printf("  day %d/%d (%s) — %d rows so far",
+				day+1, days, dateStr, totalRows)
+		}
+	}
+
+	return totalRows
+}
+
+func backfillDailyBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs, entityIDs []uint) int {
+	totalRows := 0
+	minDensity, maxDensity := densityRange(dataset)
+	n := len(hostIDs)
+
+	for day := range days {
+		date := start.AddDate(0, 0, day)
+		dateStr := date.Format("2006-01-02")
+
+		for _, entityID := range entityIDs {
+			density := minDensity + rand.Float64()*(maxDensity-minDensity)
+			count := int(float64(n) * density)
+			if count == 0 {
+				continue
+			}
+			active := make([]uint, count)
+			for i, idx := range rand.Perm(n)[:count] {
+				active[i] = hostIDs[idx]
+			}
+			blob := chart.HostIDsToBlob(active)
+
+			_, err := db.Exec(
+				`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
+				 VALUES (?, ?, ?, ?, ?)
+				 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
+				dataset, entityID, dateStr, chart.HourWholeDay, blob)
+			if err != nil {
+				log.Fatalf("insert daily blob failed on day %s entity %d: %v", dateStr, entityID, err)
+			}
+			totalRows++
 		}
 
 		if (day+1)%5 == 0 || day == days-1 {
