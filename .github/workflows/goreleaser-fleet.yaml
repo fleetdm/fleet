@@ -225,8 +225,10 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_REF: ${{ github.ref }}
         run: |
+          # Extract version from tag (e.g., fleet-v4.10.0 -> 4.10.0)
+          VERSION="${GITHUB_REF#refs/tags/fleet-v}"
           chmod +x tools/build-fleetctl-pkg/main.sh
-          ./tools/build-fleetctl-pkg/main.sh dist/fleetctl_darwin_all/fleetctl
+          ./tools/build-fleetctl-pkg/main.sh dist/fleetctl_darwin_all/fleetctl "$VERSION"
 
       - name: Attest package
         continue-on-error: true

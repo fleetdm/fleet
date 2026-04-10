@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-# This script creates a signed and notarized macOS .pkg installer for fleetctl
-# It expects the signed universal binary to already exist (created by goreleaser)
-# and will create the .pkg, sign it, notarize it, and upload it to the GitHub release
+# This script creates a signed and notarized macOS .pkg installer for fleetctl.
+# It expects the signed universal binary to already exist (created by goreleaser
+# or the test workflow) and will create the .pkg, sign it, notarize it, and
+# optionally upload it to the GitHub release.
+#
+# Usage: ./main.sh <path-to-fleetctl-binary> <version>
+#   version: semver like "4.72.0" or "v4.72.0" (v prefix stripped)
+#
+# Environment variables:
+#   APPLE_INSTALLER_CERTIFICATE          - Base64-encoded installer certificate
+#   APPLE_INSTALLER_CERTIFICATE_PASSWORD - Password for the installer certificate
+#   APPLE_USERNAME                       - Apple ID for notarization
+#   APPLE_PASSWORD                       - App-specific password for notarization
+#   APPLE_TEAM_ID                        - Apple Developer Team ID
+#   KEYCHAIN_PASSWORD                    - Password for the build keychain
+#   SKIP_UPLOAD - set to "true" to skip GitHub release upload (default: upload)
+#   GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_REF - required if uploading to release
 
 check_env_var() {
     if [[ -z "${!1}" ]]; then
@@ -11,6 +25,24 @@ check_env_var() {
         exit 1
     fi
 }
+
+# Parse arguments
+FLEETCTL_BINARY="$1"
+VERSION="$2"
+
+if [[ -z "$FLEETCTL_BINARY" ]] || [[ -z "$VERSION" ]]; then
+    echo "Usage: $0 <path-to-fleetctl-binary> <version>"
+    echo "  version: semver like 4.72.0 or v4.72.0"
+    exit 1
+fi
+
+if [[ ! -f "$FLEETCTL_BINARY" ]]; then
+    echo "Error: Signed fleetctl binary not found at $FLEETCTL_BINARY"
+    exit 1
+fi
+
+# Strip v prefix from version
+VERSION="${VERSION#v}"
 
 # Check required environment variables
 check_env_var "APPLE_INSTALLER_CERTIFICATE"
@@ -20,42 +52,11 @@ check_env_var "APPLE_PASSWORD"
 check_env_var "APPLE_TEAM_ID"
 check_env_var "KEYCHAIN_PASSWORD"
 
-# Determine version: prefer VERSION env var, fall back to GITHUB_REF tag
-if [[ -n "$VERSION" ]]; then
-    echo "Using VERSION from environment: $VERSION"
-elif [[ -n "$GITHUB_REF" ]]; then
-    TAG_NAME="${GITHUB_REF#refs/tags/}"
-    if [[ "$TAG_NAME" == fleet-* ]]; then
-        VERSION="${TAG_NAME#fleet-v}"
-    else
-        echo "Error: VERSION not set and GITHUB_REF is not a fleet tag: $GITHUB_REF"
-        exit 1
-    fi
-else
-    echo "Error: VERSION or GITHUB_REF must be set"
-    exit 1
-fi
-
 # Upload is enabled by default; set SKIP_UPLOAD=true to skip
 if [[ "$SKIP_UPLOAD" != "true" ]]; then
     check_env_var "GITHUB_TOKEN"
     check_env_var "GITHUB_REPOSITORY"
     check_env_var "GITHUB_REF"
-fi
-
-# Find the signed universal binary (created by goreleaser)
-# Accept path as first argument, or default to dist location
-if [[ -n "$1" ]]; then
-    FLEETCTL_BINARY="$1"
-else
-    FLEETCTL_BINARY="dist/fleetctl_darwin_all/fleetctl"
-fi
-
-if [[ ! -f "$FLEETCTL_BINARY" ]]; then
-    echo "Error: Signed fleetctl binary not found at $FLEETCTL_BINARY"
-    echo "Available files in dist/:"
-    find dist -type f 2>/dev/null || true
-    exit 1
 fi
 
 echo "Found signed binary at: $FLEETCTL_BINARY"
