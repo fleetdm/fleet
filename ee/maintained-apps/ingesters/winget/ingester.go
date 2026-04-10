@@ -412,27 +412,9 @@ func escapeSQLParam(s string) string {
 
 func setUpExistsQuery(fuzzy fuzzyMatch, name string, publisher string) maintained_apps.FMAQueries {
 	// TODO - consider UpgradeCode here?
-	var existsQuery string
-	switch {
-	case fuzzy.Custom != "":
-		existsQuery = fmt.Sprintf(
-			"SELECT 1 FROM programs WHERE name LIKE '%s' AND publisher = '%s';",
-			escapeSQLParam(fuzzy.Custom), escapeSQLParam(publisher),
-		)
-	case fuzzy.Enabled:
-		existsQuery = fmt.Sprintf(
-			"SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';",
-			escapeSQLParam(name), escapeSQLParam(publisher),
-		)
-	default:
-		existsQuery = fmt.Sprintf(
-			"SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';",
-			escapeSQLParam(name), escapeSQLParam(publisher),
-		)
-	}
-
 	return maintained_apps.FMAQueries{
-		Exists: existsQuery,
+		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE %s AND publisher = '%s';",
+			fuzzy.nameCondition(name), escapeSQLParam(publisher)),
 	}
 }
 
@@ -504,6 +486,16 @@ func (f *fuzzyMatch) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	return fmt.Errorf("fuzzy_match_name must be a boolean or a string, got %s", string(data))
+}
+
+func (f *fuzzyMatch) nameCondition(name string) string {
+	if f.Custom != "" {
+		return fmt.Sprintf("name LIKE '%s'", escapeSQLParam(f.Custom))
+	}
+	if f.Enabled {
+		return fmt.Sprintf("name LIKE '%s %%'", escapeSQLParam(name))
+	}
+	return fmt.Sprintf("name = '%s'", escapeSQLParam(name))
 }
 
 type inputApp struct {
