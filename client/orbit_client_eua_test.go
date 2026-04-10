@@ -78,7 +78,7 @@ func TestEnrollSendsEUAToken(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the eua_token key is not present in the JSON body.
-		require.False(t, bytes.Contains(rawBody, []byte(`"eua_token"`)),
+		require.Falsef(t, bytes.Contains(rawBody, []byte(`"eua_token"`)),
 			"eua_token should not appear in JSON when empty, got: %s", string(rawBody))
 	})
 }
