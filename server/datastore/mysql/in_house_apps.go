@@ -1548,6 +1548,36 @@ WHERE
 	return exists == 1, nil
 }
 
+// checkInstallerExistsByTitleAndSource checks whether a software installer
+// already exists for the given title name, source, and platform within a team.
+// This is used for the name-based fallback dedup (when there is no
+// bundle_identifier or upgrade_code) so that packages with the same name but
+// different sources (e.g. ruby from deb_packages vs ruby from rpm_packages)
+// are not treated as duplicates.
+func (ds *Datastore) checkInstallerExistsByTitleAndSource(ctx context.Context, q sqlx.QueryerContext, teamID *uint, title, source, platform string) (bool, error) {
+	const stmt = `
+SELECT 1
+FROM
+	software_titles st
+	INNER JOIN software_installers ON st.id = software_installers.title_id AND software_installers.global_or_team_id = ?
+WHERE
+	st.name = ?
+	AND st.source = ?
+	AND software_installers.platform = ?
+`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	var exists int
+	err := sqlx.GetContext(ctx, q, &exists, stmt, globalOrTeamID, title, source, platform)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, "check installer exists by title and source")
+	}
+	return exists == 1, nil
+}
+
 func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
 	const stmt = `
 SELECT st.name

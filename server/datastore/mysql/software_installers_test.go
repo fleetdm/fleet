@@ -4223,6 +4223,18 @@ func testMatchOrCreateSoftwareInstallerCrossPlatformDedup(t *testing.T, ds *Data
 		assert.Contains(t, err.Error(), "already has an installer")
 	})
 
+	// ---- Same platform, different sources (.deb vs .rpm) should NOT conflict ----
+	t.Run("same_platform_different_sources_no_conflict", func(t *testing.T) {
+		// A .deb and .rpm with the same title are different packages (different sources)
+		p1 := mkPayload("ruby", "deb", "linux", "deb_packages", "1.0", "", "", "ruby-deb-hash-1")
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, p1)
+		require.NoError(t, err)
+
+		p2 := mkPayload("ruby", "rpm", "linux", "rpm_packages", "1.0", "", "", "ruby-rpm-hash-1")
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, p2)
+		require.NoError(t, err, "same title with different sources (deb vs rpm) should be allowed")
+	})
+
 	// ---- Cross-platform: different platforms should NOT conflict ----
 	t.Run("different_platforms_no_conflict", func(t *testing.T) {
 		// A Linux package and a Windows package with the same title should not conflict

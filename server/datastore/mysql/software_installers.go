@@ -3697,12 +3697,15 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 				}
 			}
 
-			// 2. Always check by title (= name), which is the final
-			//    COALESCE fallback and covers EXE, DEB, RPM, tar.gz,
+			// 2. Always check by title (= name) AND source, which is the
+			//    final COALESCE fallback and covers EXE, DEB, RPM, tar.gz,
 			//    pkg-without-bundle-id, and MSI without an upgrade code.
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+			//    We include source so that packages with the same name but
+			//    different sources (e.g. ruby from deb_packages vs ruby
+			//    from rpm_packages) are not treated as duplicates.
+			exists, err := ds.checkInstallerExistsByTitleAndSource(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Source, payload.Platform)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists by title")
+				return ctxerr.Wrap(ctx, err, "check if installer exists by title and source")
 			}
 			if exists {
 				return alreadyExists("installer", payload.Title)
