@@ -2,14 +2,14 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product
     Id="*"
-    Name="FleetDM fleetctl"
+    Name="fleetctl"
     Language="1033"
     Version="__VERSION__"
     Manufacturer="Fleet Device Management (fleetdm.com)"
     UpgradeCode="DA27C96F-3832-4E04-A6A9-1FDE1A8B37BE">
 
     <Package
-      Keywords="FleetDM fleetctl"
+      Keywords="fleetctl"
       Description="Fleet device management CLI tool"
       InstallerVersion="500"
       Compressed="yes"
@@ -45,7 +45,7 @@
       </Directory>
     </Directory>
 
-    <Feature Id="FleetctlFeature" Title="FleetDM fleetctl" Level="1">
+    <Feature Id="FleetctlFeature" Title="fleetctl" Level="1">
       <ComponentRef Id="C_FleetctlExe" />
     </Feature>
   </Product>
