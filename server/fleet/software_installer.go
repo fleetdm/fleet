@@ -547,8 +547,8 @@ type UploadSoftwareInstallerPayload struct {
 	AlwaysDownload bool
 	// HTTPETag stores the ETag from the last download response, used for
 	// conditional GET requests when AlwaysDownload is false.
-	HTTPETag *string
-	PatchQuery                  string
+	HTTPETag   *string
+	PatchQuery string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
