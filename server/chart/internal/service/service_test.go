@@ -21,6 +21,8 @@ func (m *mockAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzType
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
 	getChartDataFunc           func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
+	getBlobDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error)
+	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error)
 	countHostsForChartFilterFn func(ctx context.Context, hostFilter *chart.HostFilter) (int, error)
 	collectUptimeFn            func(ctx context.Context, now time.Time) error
 	collectUptimeInvoked       bool
@@ -46,7 +48,25 @@ func (m *mockDatastore) CollectUptimeChartData(ctx context.Context, now time.Tim
 	return nil
 }
 
-func (m *mockDatastore) CleanupHostHourlyData(_ context.Context, _ int) error {
+func (m *mockDatastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+	if m.getBlobDataFunc != nil {
+		return m.getBlobDataFunc(ctx, dataset, startDate, endDate, entityIDs)
+	}
+	return nil, nil
+}
+
+func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error) {
+	if m.getHostIDsForFilterFunc != nil {
+		return m.getHostIDsForFilterFunc(ctx, hostFilter)
+	}
+	return nil, nil
+}
+
+func (m *mockDatastore) CleanupHostDailyBitmapData(_ context.Context, _ int) error {
+	return nil
+}
+
+func (m *mockDatastore) CleanupBlobData(_ context.Context, _ int) error {
 	return nil
 }
 
@@ -79,21 +99,21 @@ func TestGetChartDataInvalidDownsample(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid downsample value")
 }
 
-func TestGetChartDataHourly(t *testing.T) {
+func TestGetChartDataBlobHourly(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	ds.getChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
+	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
 		assert.Equal(t, "uptime", dataset)
-		assert.Equal(t, 0, downsample)
-		assert.False(t, hasEntityDimension)
-		assert.Nil(t, hostFilter)
-		return []chart.DataPoint{
-			{Timestamp: time.Date(2026, 4, 7, 10, 0, 0, 0, time.UTC), Value: 100},
+		assert.Nil(t, entityIDs)
+		// Return a blob for one hour: hosts 1, 2, 3 were online.
+		return []chart.BlobDataPoint{
+			{ChartDate: time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC), Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
 		}, nil
 	}
 	ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
+		assert.Nil(t, hostFilter)
 		return 200, nil
 	}
 
@@ -104,9 +124,19 @@ func TestGetChartDataHourly(t *testing.T) {
 	assert.Equal(t, "hourly", resp.Resolution)
 	assert.Equal(t, 200, resp.TotalHosts)
 	assert.Equal(t, 7, resp.Days)
+
+	// Verify that the hour 10 data point has value 3 (three hosts).
+	var found bool
+	for _, dp := range resp.Data {
+		if dp.Timestamp.Hour() == 10 && dp.Timestamp.Day() == 7 {
+			assert.Equal(t, 3, dp.Value)
+			found = true
+		}
+	}
+	assert.True(t, found, "expected data point at hour 10")
 }
 
-func TestGetChartDataDownsample(t *testing.T) {
+func TestGetChartDataBlobDownsample(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
@@ -120,9 +150,12 @@ func TestGetChartDataDownsample(t *testing.T) {
 		{8, "8-hour"},
 	} {
 		t.Run(tc.resolution, func(t *testing.T) {
-			ds.getChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
-				assert.Equal(t, tc.downsample, downsample)
-				return nil, nil
+			// Return blobs for hours 0 and 1 with different hosts — downsampling should OR them.
+			ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+				return []chart.BlobDataPoint{
+					{ChartDate: time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC), Hour: 0, HostBitmap: chart.HostIDsToBlob([]uint{1, 2})},
+					{ChartDate: time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC), Hour: 1, HostBitmap: chart.HostIDsToBlob([]uint{2, 3})},
+				}, nil
 			}
 			ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
 				return 100, nil
@@ -131,37 +164,57 @@ func TestGetChartDataDownsample(t *testing.T) {
 			resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 30, Downsample: tc.downsample})
 			require.NoError(t, err)
 			assert.Equal(t, tc.resolution, resp.Resolution)
+
+			// The hour-0 bucket should have 3 hosts (OR of {1,2} and {2,3} = {1,2,3}).
+			var found bool
+			for _, dp := range resp.Data {
+				if dp.Timestamp.Day() == 15 && dp.Timestamp.Hour() == 0 {
+					assert.Equal(t, 3, dp.Value)
+					found = true
+				}
+			}
+			assert.True(t, found, "expected data point for hour 0 on day 15")
 		})
 	}
 }
 
-func TestGetChartDataWithHostFilters(t *testing.T) {
+func TestGetChartDataBlobWithHostFilters(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	ds.getChartDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
-		require.NotNil(t, hostFilter)
+	// Blob has hosts 1, 2, 3 online.
+	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+		return []chart.BlobDataPoint{
+			{ChartDate: time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC), Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
+		}, nil
+	}
+	// Filter returns only hosts 1, 3 (simulating a label filter).
+	ds.getHostIDsForFilterFunc = func(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error) {
 		assert.Equal(t, []uint{1, 2}, hostFilter.LabelIDs)
 		assert.Equal(t, []string{"darwin"}, hostFilter.Platforms)
-		assert.Equal(t, []uint{99}, hostFilter.ExcludeHostIDs)
-		return nil, nil
-	}
-	ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
-		require.NotNil(t, hostFilter)
-		return 50, nil
+		return []uint{1, 3}, nil
 	}
 
 	resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{
-		Days:           7,
-		LabelIDs:       []uint{1, 2},
-		Platforms:      []string{"darwin"},
-		ExcludeHostIDs: []uint{99},
+		Days:      7,
+		LabelIDs:  []uint{1, 2},
+		Platforms: []string{"darwin"},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 50, resp.TotalHosts)
+	assert.Equal(t, 2, resp.TotalHosts) // len(filteredHostIDs)
 	assert.Equal(t, []uint{1, 2}, resp.Filters.LabelIDs)
 	assert.Equal(t, []string{"darwin"}, resp.Filters.Platforms)
+
+	// Hour 10 should have value 2 (AND of {1,2,3} with {1,3} = {1,3}).
+	var found bool
+	for _, dp := range resp.Data {
+		if dp.Timestamp.Hour() == 10 && dp.Timestamp.Day() == 7 {
+			assert.Equal(t, 2, dp.Value)
+			found = true
+		}
+	}
+	assert.True(t, found, "expected filtered data point at hour 10")
 }
 
 func TestFillZeroValues(t *testing.T) {
@@ -275,6 +328,7 @@ func TestCollectDatasets(t *testing.T) {
 func TestUptimeDatasetMetadata(t *testing.T) {
 	d := &chart.UptimeDataset{}
 	assert.Equal(t, "uptime", d.Name())
+	assert.Equal(t, chart.StorageTypeBlob, d.StorageType())
 	assert.Equal(t, "line", d.DefaultVisualization())
 	assert.False(t, d.HasEntityDimension())
 	assert.Nil(t, d.SupportedFilters())
