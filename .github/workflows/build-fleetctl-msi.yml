@@ -177,7 +177,10 @@ jobs:
       - name: Build and sign MSI
         env:
           DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
-          SKIP_UPLOAD: "true"
+          SKIP_UPLOAD: ${{ inputs.test_mode && 'true' || 'false' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
           chmod +x tools/build-fleetctl-msi/main.sh
           ./tools/build-fleetctl-msi/main.sh \
@@ -185,7 +188,8 @@ jobs:
             "${{ steps.extract_version.outputs.msi_version }}" \
             "${{ matrix.arch }}"
 
-      - name: Upload MSI artifact
+      - name: Upload MSI artifact (test mode)
+        if: ${{ inputs.test_mode }}
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleetctl-msi-${{ matrix.arch }}
@@ -198,36 +202,3 @@ jobs:
         with:
           subject-path: dist/fleetctl_v${{ steps.extract_version.outputs.msi_version }}_windows_${{ matrix.arch }}.msi
           push-to-registry: false
-
-  upload-release:
-    needs: build-sign-msi
-    if: ${{ !inputs.test_mode }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
-        with:
-          egress-policy: audit
-
-      - name: Download MSI artifacts
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
-        with:
-          pattern: fleetctl-msi-*
-          merge-multiple: true
-          path: dist
-
-      - name: Upload to release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [[ "$GITHUB_REF" != refs/tags/* ]]; then
-            echo "Error: GITHUB_REF is not a tag ref ($GITHUB_REF), cannot upload to release"
-            exit 1
-          fi
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          echo "Uploading MSIs to release $TAG_NAME..."
-          for msi in dist/*.msi; do
-            echo "Uploading $msi..."
-            gh release upload "$TAG_NAME" "$msi" --repo "$GITHUB_REPOSITORY" --clobber
-          done
-          echo "Upload complete"
