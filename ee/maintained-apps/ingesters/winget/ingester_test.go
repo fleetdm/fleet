@@ -11,6 +11,7 @@ import (
 	"path"
 	"testing"
 
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/go-github/v37/github"
 	"github.com/stretchr/testify/assert"
@@ -100,6 +101,105 @@ func TestFuzzyMatchUnmarshalJSON(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantEnabled, out.FuzzyMatchName.Enabled)
 			assert.Equal(t, tt.wantCustom, out.FuzzyMatchName.Custom)
+		})
+	}
+}
+
+func TestSetUpExistsQuery(t *testing.T) {
+	tests := []struct {
+		name      string
+		fuzzy     fuzzyMatch
+		appName   string
+		publisher string
+		want      maintained_apps.FMAQueries
+	}{
+		{
+			name:      "exact match (fuzzy disabled)",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'Mozilla Firefox' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "fuzzy enabled without custom pattern",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: ""},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox %' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "custom fuzzy pattern",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: "Mozilla Firefox % ESR %"},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "exact match escapes single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'O''Reilly App' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "fuzzy enabled escapes single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: ""},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'O''Reilly App %' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "custom pattern escapes single quotes",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: "O'Reilly % Edition"},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'O''Reilly % Edition' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "empty name and publisher exact match",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "",
+			publisher: "",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = '' AND publisher = '';",
+			},
+		},
+		{
+			name:      "custom pattern takes precedence over Enabled flag",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: "Custom Pattern %"},
+			appName:   "Ignored Name",
+			publisher: "Some Publisher",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Custom Pattern %' AND publisher = 'Some Publisher';",
+			},
+		},
+		{
+			name:      "multiple single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "It's a 'test' app",
+			publisher: "Pub",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'It''s a ''test'' app' AND publisher = 'Pub';",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := setUpExistsQuery(tt.fuzzy, tt.appName, tt.publisher)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
