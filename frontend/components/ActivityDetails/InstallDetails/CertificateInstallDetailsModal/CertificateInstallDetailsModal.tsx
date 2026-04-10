@@ -66,7 +66,7 @@ const CertificateInstallDetailsModal = ({
           </>
         )}
       </div>
-      <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+      <ModalFooter primaryButtons={<Button onClick={onCancel}>Close</Button>} />
     </Modal>
   );
 };

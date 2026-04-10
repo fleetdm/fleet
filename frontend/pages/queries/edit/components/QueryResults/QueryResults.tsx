@@ -275,7 +275,7 @@ const QueryResults = ({
         }
         numHostsRespondedErrors={uiHostCounts.failed}
         isFinished={isQueryFinished}
-        onClickDone={onQueryDone}
+        onClickClose={onQueryDone}
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />

@@ -553,6 +553,18 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
     - Select "Edit", under "User and Profile Assignments" move the new user's name from "Available" to "Selected", scroll all the way down and click save.
 
 
+### Update Salesforce placards
+
+Quarterly, on the second Wednesday of the last month of the quarter, the Head of GTM Architecture will meet with the CFO to obtain the next quarter's goals for: 
+- Gross new ARR (QTD)
+  - New business (QTD)
+  - Expansion (QTD)
+- Gross new pipeline added (QTD)
+- Churn & contraction (QTD)
+
+The Head of GTM Architecture will update the corresponding placards in Salesforce (including churn & contraction targets from the operating model) and thermometer guidelines. Sam Pfluger and Tina Ong meet live for 30 minutes to complete this update, ensuring all reps, CSMs, and fleeties see accurate data before the new quarter begins.
+
+
 ## Rituals
 
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).

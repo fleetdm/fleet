@@ -21,7 +21,6 @@ Champion stories and case studies showing real customers achieving real outcomes
 
 | Story | Mac | Windows | Linux | Date |
 | --- | --- | --- | --- | --- |
-| [Financial technology company manages 15,000 devices with GitOps](https://fleetdm.com/case-study/financial-technology-company) | ✓ | ✓ | ✓ | 2026‑02‑22 |
 | [Financial services platform manages 6,000+ hosts with continuous compliance visibility](https://fleetdm.com/case-study/financial-services-platform) | ✓ | ✓ | ✓ | 2026‑02‑22 |
 | [Fintech company manages a global remote workforce with Fleet](https://fleetdm.com/articles/fintech-company) | ✓ | ✓ | ✓ | 2026‑03‑14 |
 | [Fintech company strengthens infrastructure visibility with Fleet](https://fleetdm.com/articles/fintech-company-strengthens-infrastructure-visibility) | ✓ | ✓ | ✓ | 2026‑03‑14 |
@@ -37,8 +36,6 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Workspace software company consolidates Kandji and Intune across 1,465 devices](https://fleetdm.com/case-study/workspace-software-company) | ✓ | ✓ |  | 2026‑02‑22 |
 | [Communications platform unifies device management across 3,000 devices](https://fleetdm.com/case-study/communications-platform) | ✓ | ✓ | ✓ | 2026‑02‑22 |
 | [Global technology platform improves vulnerability intelligence with Fleet](https://fleetdm.com/articles/global-technology-platform) | ✓ | ✓ | ✓ | 2026‑03‑03 |
-| [Online marketplace simplifies multi-OS device management with Fleet](https://fleetdm.com/articles/online-marketplace) | ✓ | ✓ | ✓ | 2026‑03‑14 |
-| [Global SaaS company modernizes device management with Fleet](https://fleetdm.com/case-study/global-saas-company) | ✓ | ✓ | ✓ | 2026‑03‑03 |
 | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | ✓ | ✓ | ✓ | 2024‑12‑20 |
 | [How a global workforce management company achieved compliance and clarity with Fleet](https://fleetdm.com/case-study/global-workforce-management-company) | ✓ | ✓ | ✓ | 2024‑12‑17 |
 | [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | ✓ | ✓ | ✓ | 2024‑06‑01 |
@@ -66,14 +63,12 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [IT platform provider automates patching across thousands of Mac, Windows, and Linux devices](https://fleetdm.com/case-study/it-platform-provider) | IT / MSP | ✓ | ✓ | ✓ | 2026‑02‑22 |
 | [Enforcing security policies in minutes across a regulated healthcare environment](https://fleetdm.com/case-study/healthcare-technology-organization) | Healthcare | ✓ | ✓ | ✓ | 2026‑02‑22 |
 | [Robotics company unifies Mac, Windows, Linux, and Android devices](https://fleetdm.com/case-study/robotics-company) | Robotics / Hardware | ✓ | ✓ | ✓ | 2026‑02‑22 |
-| [Open-source organization manages 1,556 devices with real-time compliance](https://fleetdm.com/case-study/open-source-organization) | Open Source / Nonprofit | ✓ | ✓ | ✓ | 2026‑02‑22 |
 | [Journalism nonprofit manages Mac and Linux devices with GitOps](https://fleetdm.com/case-study/journalism-nonprofit) | Media / Journalism | ✓ |  | ✓ | 2026‑02‑22 |
 | [Agritech producer replaces manual tracking across 273 devices](https://fleetdm.com/case-study/agritech-producer) | Agriculture / AgriTech | ✓ | ✓ | ✓ | 2026‑02‑23 |
 | [Cannabis technology company consolidates Jamf and Intune with Fleet](https://fleetdm.com/case-study/cannabis-technology-company) | Cannabis / Retail Tech | ✓ | ✓ |  | 2026‑02‑22 |
 | [Gaming technology company runs GitOps-driven device management on-prem](https://fleetdm.com/case-study/gaming-technology-company) | Gaming / Entertainment | ✓ | ✓ | ✓ | 2026‑02‑22 |
 | [Gaming platform gains production visibility with Fleet](https://fleetdm.com/articles/gaming-platform) | Gaming / Entertainment |  |  | ✓ | 2026‑03‑04 |
 | [Global entertainment company manages thousands of devices with GitOps workflows](https://fleetdm.com/articles/global-entertainment-company) | Gaming / Entertainment | ✓ | ✓ | ✓ | 2026‑03‑14 |
-| [Leading interactive entertainment company adopts Fleet for MDM](https://fleetdm.com/case-study/interactive-entertainment-company) | Gaming / Entertainment | ✓ | ✓ |  | 2024‑12‑23 |
 | [Large gaming company enhances server observability with Fleet](https://fleetdm.com/case-study/online-gaming-platform) | Gaming / Entertainment |  |  | ✓ | 2024‑12‑11 |
 | [Vehicle manufacturer transitions to Fleet for endpoint security](https://fleetdm.com/case-study/electric-vehicle-manufacturer) | Automotive / Manufacturing | ✓ | ✓ | ✓ | 2024‑12‑12 |
 | [EV manufacturer brings Linux workstations under centralized management with Fleet](https://fleetdm.com/case-study/ev-manufacturer) | Automotive / Manufacturing |  |  | ✓ | 2024‑06‑01 |
@@ -81,7 +76,6 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [National research organization improves Linux automation with Fleet](https://fleetdm.com/articles/national-research-organization) | Research / Nonprofit |  |  | ✓ | 2026‑03‑14 |
 | [Technology platform manages 15,000 iPads with Fleet](https://fleetdm.com/articles/technology-platform) | Technology |  |  |  | 2026‑03‑14 |
 | [Defense and engineering company improves visibility across Linux systems with Fleet](https://fleetdm.com/case-study/defense-and-engineering-company) | Defense / Engineering |  | ✓ | ✓ | 2026‑04‑01 |
-| [Open-source software company closes the Linux gap in device management with Fleet](https://fleetdm.com/case-study/open-source-software-company) | Open Source / Software | ✓ | ✓ | ✓ | 2026‑03‑21 |
 | [IT services company builds zero-touch workflows with Fleet](https://fleetdm.com/case-study/it-service-company) | IT / MSP | ✓ |  |  | 2026‑03‑21 |
 | [National research lab scales host visibility with Fleet](https://fleetdm.com/case-study/national-research-lab) | Research / HPC |  |  | ✓ | 2026‑03‑14 |
 | [Cybersecurity company improves endpoint visibility with Fleet](https://fleetdm.com/case-study/cybersecurity-company) | Security | ✓ | ✓ | ✓ | 2026‑03‑14 |
@@ -98,7 +92,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Identity security company](https://fleetdm.com/case-study/identity-security-company) | Cybersecurity | ✓ | ✓ |  | 2026‑03‑14 |
 | [Medical research institution](https://fleetdm.com/case-study/medical-research-institution) | Higher education | ✓ | ✓ | ✓ | 2026‑03‑14 |
 | [National research organization](https://fleetdm.com/case-study/national-research-organization) | Research and technology | ✓ |  | ✓ | 2026‑03‑14 |
-| [Online marketplace](https://fleetdm.com/case-study/online-marketplace) | Oneline marketplace | ✓ | ✓ | ✓ | 2026‑03‑14 |
+
 
 
 ### Fleet customer testimonials

@@ -7,6 +7,7 @@ import { addHours, differenceInMinutes } from "date-fns";
 import { internationalTimeFormat } from "utilities/helpers";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
+  INITIAL_FLEET_DATE,
   LEARN_MORE_ABOUT_BASE_LINK,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
@@ -349,8 +350,8 @@ const MDMStatusModal = ({
         tooltip: (
           <>
             Migration or new Mac setup won&apos;t work. Details are not
-            accessible from Apple Business Manager (ABM). Verify the host is
-            assigned to your MDM server and Fleet has access permissions.
+            accessible from Apple Business (AB). Verify the host is assigned to
+            your MDM server and Fleet has access permissions.
           </>
         ),
       },
@@ -367,13 +368,17 @@ const MDMStatusModal = ({
           <>
             The last time Apple reported a profile was assigned
             <br />
-            to this host in Apple Business Manager.
+            to this host in Apple Business.
           </>
         ),
         // Follow current pattern of international time format for dates in UI
-        status: internationalTimeFormat(
-          new Date(depAssignmentData.dep_device?.profile_assign_time)
-        ),
+        status:
+          !depAssignmentData.dep_device?.profile_assign_time ||
+          depAssignmentData.dep_device.profile_assign_time < INITIAL_FLEET_DATE
+            ? "Never"
+            : internationalTimeFormat(
+                new Date(depAssignmentData.dep_device.profile_assign_time)
+              ),
       },
       {
         id: "profile-pushed",
@@ -387,8 +392,9 @@ const MDMStatusModal = ({
         ),
         // Follow current pattern of international time format for dates in UI
         status:
-          depAssignmentData.dep_device.profile_push_time === ""
-            ? DEFAULT_EMPTY_CELL_VALUE
+          !depAssignmentData.dep_device.profile_push_time ||
+          depAssignmentData.dep_device.profile_push_time < INITIAL_FLEET_DATE
+            ? "Never"
             : internationalTimeFormat(
                 new Date(depAssignmentData.dep_device.profile_push_time)
               ),
@@ -440,8 +446,7 @@ const MDMStatusModal = ({
           <b>Profile assignment</b>
         </p>
         <p>
-          Details about automatic enrollment profile from Apple Business
-          Manager.{" "}
+          Details about automatic enrollment profile from Apple Business.{" "}
           <CustomLink
             text="Learn more"
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-issues`}
@@ -457,7 +462,7 @@ const MDMStatusModal = ({
     <ModalFooter
       primaryButtons={
         <Button type="button" onClick={onExit}>
-          Done
+          Close
         </Button>
       }
     />

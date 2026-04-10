@@ -687,7 +687,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		return true, nil
 	}
 
-	// reconcile Apple Business Manager configuration environment variables with the database
+	// reconcile Apple Business configuration environment variables with the database
 	if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
 		if len(config.Server.PrivateKey) == 0 {
 			initFatal(errors.New("inserting MDM APNs and SCEP assets"),
@@ -768,7 +768,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// reconcile Apple Business Manager configuration environment variables with the database
+	// reconcile Apple Business configuration environment variables with the database
 	if config.MDM.IsAppleBMSet() {
 		if len(config.Server.PrivateKey) == 0 {
 			initFatal(errors.New("inserting MDM ABM assets"),
@@ -856,7 +856,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.InfoContext(cmd.Context(), "Apple MDM enabled")
 	}
 	if appCfg.MDM.AppleBMEnabledAndConfigured {
-		logger.InfoContext(cmd.Context(), "Apple Business Manager enabled")
+		logger.InfoContext(cmd.Context(), "Apple Business enabled")
 	}
 
 	// register the Microsoft MDM services
@@ -1482,6 +1482,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
+
+		if err := service.ValidateAPIEndpoints(apiHandler); err != nil {
+			panic(fmt.Sprintf("invalid api_endpoints.yml: %v", err))
+		}
 
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request

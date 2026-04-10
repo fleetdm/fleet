@@ -144,6 +144,7 @@ CREATE TABLE nano_commands (
     updated_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
     subtype ENUM('None','ProfileWithSecrets') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'None',
+    name varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 
     PRIMARY KEY (command_uuid),
 
@@ -231,6 +232,7 @@ SELECT
     c.command_uuid,
     c.request_type,
     c.command,
+    c.name,
     r.updated_at AS result_updated_at,
     r.status,
     r.result
