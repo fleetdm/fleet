@@ -121,8 +121,9 @@ const RenewCertModal = ({
         </ol>
         <div className={`${baseClass}__button-wrap`}>
           <Button
-            className={`${baseClass}__submit-button ${isUploading ? `uploading` : ""
-              }`}
+            className={`${baseClass}__submit-button ${
+              isUploading ? `uploading` : ""
+            }`}
             disabled={!certFile || isUploading}
             isLoading={isUploading}
             type="button"
