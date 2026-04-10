@@ -917,6 +917,8 @@ type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
+type VulnerabilityHostCountHistogramFunc func(ctx context.Context, teamID *uint) ([]fleet.VulnHostCountHistogramEntry, error)
+
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error)
 
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
@@ -3200,6 +3202,9 @@ type DataStore struct {
 
 	IsCVEKnownToFleetFunc        IsCVEKnownToFleetFunc
 	IsCVEKnownToFleetFuncInvoked bool
+
+	VulnerabilityHostCountHistogramFunc        VulnerabilityHostCountHistogramFunc
+	VulnerabilityHostCountHistogramFuncInvoked bool
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
@@ -7744,6 +7749,13 @@ func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 	s.IsCVEKnownToFleetFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsCVEKnownToFleetFunc(ctx, cve)
+}
+
+func (s *DataStore) VulnerabilityHostCountHistogram(ctx context.Context, teamID *uint) ([]fleet.VulnHostCountHistogramEntry, error) {
+	s.mu.Lock()
+	s.VulnerabilityHostCountHistogramFuncInvoked = true
+	s.mu.Unlock()
+	return s.VulnerabilityHostCountHistogramFunc(ctx, teamID)
 }
 
 func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {

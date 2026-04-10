@@ -831,6 +831,8 @@ type Service interface {
 
 	// ListVulnerabilities returns a list of vulnerabilities based on the provided options.
 	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	// VulnerabilityHostCountHistogram returns hosts grouped by vulnerability count buckets.
+	VulnerabilityHostCountHistogram(ctx context.Context, teamID *uint) ([]VulnHostCountHistogramEntry, error)
 	// ListVulnerability returns a vulnerability based on the provided CVE.
 	Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (vuln *VulnerabilityWithMetadata, known bool, err error)
 	// CountVulnerabilities returns the number of vulnerabilities based on the provided options.
