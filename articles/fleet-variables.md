@@ -43,5 +43,5 @@ To hide variable values in the API and UI, you can use Fleet's [custom variables
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="publishedOn" value="2026-04-08">
-<meta name="articleTitle" value="Variables">
+<meta name="articleTitle" value="Built-in variables">
 <meta name="description" value="You can use variables to incorporate IdP or host vitals into a configuration profile or managed app configuration for deploying device-specific settings.">
