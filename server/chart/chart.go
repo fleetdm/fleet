@@ -42,6 +42,10 @@ type Dataset interface {
 	HasEntityDimension() bool
 }
 
+// HourWholeDay is the sentinel value stored in the hour column to indicate that
+// the blob represents a whole-day snapshot rather than a single hour.
+const HourWholeDay = -1
+
 // BlobDataPoint is a raw blob row returned from the datastore, before aggregation.
 type BlobDataPoint struct {
 	ChartDate  time.Time
