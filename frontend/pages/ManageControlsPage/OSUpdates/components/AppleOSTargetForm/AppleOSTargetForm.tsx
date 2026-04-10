@@ -9,7 +9,6 @@ import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
 import { ApplePlatform } from "interfaces/platform";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";

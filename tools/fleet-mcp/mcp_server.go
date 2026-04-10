@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/sirupsen/logrus"
 )
+
+const defaultEndpointsPerPage = 50
 
 // SetupMCPServer creates and configures the MCP server with all available tools
 func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer {
@@ -20,18 +23,20 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 	// 1. Get Endpoints Tool
 	// ==========================================
 	getEndpointsTool := mcp.NewTool("get_endpoints",
-		mcp.WithDescription("Get a list of all hosts/endpoints enrolled in Fleet"),
-		mcp.WithString("team", mcp.Description("Optional team name to filter by (e.g. 'engineering')")),
+		mcp.WithDescription("Get a list of hosts/endpoints enrolled in Fleet, including labels. Use get_host for full details on a specific host. Use get_total_system_count for total counts and get_aggregate_platforms for platform breakdowns — do NOT call this tool repeatedly with per_page=1 just to count hosts."),
+		mcp.WithString("fleet", mcp.Description("Optional fleet name to filter by (e.g. '💻 Workstations')")),
 		mcp.WithString("platform", mcp.Description("Optional platform to filter by (e.g. 'macos', 'windows', 'linux')")),
 		mcp.WithString("status", mcp.Description("Optional host status filter (e.g. 'online', 'offline', 'new', 'mia')")),
+		mcp.WithString("per_page", mcp.Description("Max number of hosts to return (default 50, max 200)")),
 	)
 	s.AddTool(getEndpointsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		logrus.Info("Tool invoked: get_endpoints")
 
-		var team, platform, status string
+		var fleet, platform, status string
+		perPage := defaultEndpointsPerPage
 		if args, ok := request.Params.Arguments.(map[string]interface{}); ok {
-			if t, ok := args["team"].(string); ok {
-				team = t
+			if t, ok := args["fleet"].(string); ok {
+				fleet = t
 			}
 			if p, ok := args["platform"].(string); ok {
 				platform = p
@@ -39,20 +44,43 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 			if s, ok := args["status"].(string); ok {
 				status = s
 			}
+			if pp, ok := args["per_page"].(string); ok && pp != "" {
+				if n, err := strconv.Atoi(pp); err == nil && n > 0 {
+					perPage = n
+					if perPage > 200 {
+						perPage = 200
+					}
+				}
+			}
 		}
 
 		var endpoints []Endpoint
 		var err error
-		if team != "" || platform != "" || status != "" {
-			endpoints, err = fleetClient.GetEndpointsWithFilters(team, platform, status)
+		if fleet != "" || platform != "" || status != "" {
+			endpoints, err = fleetClient.GetEndpointsWithFilters(fleet, platform, status, perPage)
 		} else {
-			endpoints, err = fleetClient.GetEndpoints()
+			endpoints, err = fleetClient.GetEndpoints(perPage)
 		}
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get endpoints: %v", err)), nil
 		}
 
-		b, err := json.MarshalIndent(endpoints, "", "  ")
+		totalCount, err := fleetClient.GetHostCount()
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get host count: %v", err)), nil
+		}
+
+		result := struct {
+			Total     int        `json:"total"`
+			Returned  int        `json:"returned"`
+			Endpoints []Endpoint `json:"endpoints"`
+		}{
+			Total:     totalCount,
+			Returned:  len(endpoints),
+			Endpoints: endpoints,
+		}
+
+		b, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to format output: %v", err)), nil
 		}
@@ -64,7 +92,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 	// 1b. Get Host Tool (with full label data)
 	// ==========================================
 	getHostTool := mcp.NewTool("get_host",
-		mcp.WithDescription("Get full details for a single host including its labels, team, and platform info. Use this when you need complete data for one host; use get_endpoints when you need to list or filter many hosts."),
+		mcp.WithDescription("Get full details for a single host including its labels, fleet, and platform info. Use this when you need complete data for one host; use get_endpoints when you need to list or filter many hosts."),
 		mcp.WithString("identifier", mcp.Required(), mcp.Description("The host's hostname, display name, UUID, or serial number (e.g. 'dhruvs-macbook-pro.local' or 'Dhruv\\'s MacBook Pro')")),
 	)
 	s.AddTool(getHostTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -77,7 +105,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 		host, err := fleetClient.GetHostByIdentifier(identifier)
 		if err != nil {
 			// If lookup by identifier fails, try searching by display_name from the endpoints list
-			endpoints, epErr := fleetClient.GetEndpoints()
+			endpoints, epErr := fleetClient.GetEndpoints(0)
 			if epErr == nil {
 				lowerID := strings.ToLower(identifier)
 				for _, ep := range endpoints {
@@ -96,6 +124,25 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 		}
 
 		b, err := json.MarshalIndent(host, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format output: %v", err)), nil
+		}
+		return mcp.NewToolResultText(string(b)), nil
+	})
+
+	// ==========================================
+	// 1c. Get Fleets Tool
+	// ==========================================
+	getFleetsTool := mcp.NewTool("get_fleets",
+		mcp.WithDescription("Get all fleets with their IDs and names. Use this to discover the exact fleet names before filtering by fleet in other tools."),
+	)
+	s.AddTool(getFleetsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		logrus.Info("Tool invoked: get_fleets")
+		fleets, err := fleetClient.GetTeams()
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get fleets: %v", err)), nil
+		}
+		b, err := json.MarshalIndent(fleets, "", "  ")
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to format output: %v", err)), nil
 		}
@@ -263,12 +310,12 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 		mcp.WithString("hostnames", mcp.Description("Optional comma-separated list of hostnames to target (e.g. 'mac-1, ubuntu-server')")),
 		mcp.WithString("labels", mcp.Description("Optional comma-separated list of Fleet label names to target (e.g. 'macos, engineering')")),
 		mcp.WithString("platforms", mcp.Description("Optional comma-separated list of platforms to target (e.g. 'macos, windows, linux')")),
-		mcp.WithString("teams", mcp.Description("Optional comma-separated list of Fleet team names to target (e.g. 'engineering, security')")),
+		mcp.WithString("fleets", mcp.Description("Optional comma-separated list of fleet names to target (e.g. 'engineering, security')")),
 	)
 	s.AddTool(prepareLiveQueryTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		logrus.Info("Tool invoked: prepare_live_query")
 
-		var hostnames, labels, platforms, teams []string
+		var hostnames, labels, platforms, fleets []string
 		if args, ok := request.Params.Arguments.(map[string]interface{}); ok {
 			if hStr, ok := args["hostnames"].(string); ok && hStr != "" {
 				for _, h := range strings.Split(hStr, ",") {
@@ -285,15 +332,15 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 					platforms = append(platforms, strings.TrimSpace(p))
 				}
 			}
-			if tStr, ok := args["teams"].(string); ok && tStr != "" {
+			if tStr, ok := args["fleets"].(string); ok && tStr != "" {
 				for _, t := range strings.Split(tStr, ",") {
-					teams = append(teams, strings.TrimSpace(t))
+					fleets = append(fleets, strings.TrimSpace(t))
 				}
 			}
 		}
 
-		if len(hostnames) == 0 && len(labels) == 0 && len(platforms) == 0 && len(teams) == 0 {
-			return mcp.NewToolResultError("You must provide at least one target in hostnames, labels, platforms, or teams. 'all' is not supported directly, please specify a platform, team, or label if you want a wide blast radius."), nil
+		if len(hostnames) == 0 && len(labels) == 0 && len(platforms) == 0 && len(fleets) == 0 {
+			return mcp.NewToolResultError("You must provide at least one target in hostnames, labels, platforms, or fleets. 'all' is not supported directly, please specify a platform, fleet, or label if you want a wide blast radius."), nil
 		}
 
 		// Resolve Schema context. If they targeted a specific platform, get that schema, otherwise return all.
@@ -327,7 +374,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 		mcp.WithString("hostnames", mcp.Description("Optional comma-separated list of hostnames to target (e.g. 'mac-1, ubuntu-server')")),
 		mcp.WithString("labels", mcp.Description("Optional comma-separated list of Fleet label names to target (e.g. 'macos, engineering')")),
 		mcp.WithString("platforms", mcp.Description("Optional comma-separated list of platforms to target (e.g. 'macos, windows, linux')")),
-		mcp.WithString("teams", mcp.Description("Optional comma-separated list of Fleet team names to target (e.g. 'engineering, security')")),
+		mcp.WithString("fleets", mcp.Description("Optional comma-separated list of fleet names to target (e.g. 'engineering, security')")),
 	)
 	s.AddTool(runLiveQueryTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		logrus.Info("Tool invoked: run_live_query")
@@ -336,7 +383,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 			return mcp.NewToolResultError("sql is required"), nil
 		}
 
-		var hostnames, labels, platforms, teams []string
+		var hostnames, labels, platforms, fleets []string
 		if args, ok := request.Params.Arguments.(map[string]interface{}); ok {
 			if hStr, ok := args["hostnames"].(string); ok && hStr != "" {
 				for _, h := range strings.Split(hStr, ",") {
@@ -353,15 +400,15 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 					platforms = append(platforms, strings.TrimSpace(p))
 				}
 			}
-			if tStr, ok := args["teams"].(string); ok && tStr != "" {
+			if tStr, ok := args["fleets"].(string); ok && tStr != "" {
 				for _, t := range strings.Split(tStr, ",") {
-					teams = append(teams, strings.TrimSpace(t))
+					fleets = append(fleets, strings.TrimSpace(t))
 				}
 			}
 		}
 
-		if len(hostnames) == 0 && len(labels) == 0 && len(platforms) == 0 && len(teams) == 0 {
-			return mcp.NewToolResultError("You must provide at least one target in hostnames, labels, platforms, or teams to run the query."), nil
+		if len(hostnames) == 0 && len(labels) == 0 && len(platforms) == 0 && len(fleets) == 0 {
+			return mcp.NewToolResultError("You must provide at least one target in hostnames, labels, platforms, or fleets to run the query."), nil
 		}
 
 		// Pre-flight: validate SQL table compatibility for the specified platforms
@@ -371,7 +418,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 			}
 		}
 
-		results, err := fleetClient.RunLiveQuery(sql, hostnames, labels, platforms, teams)
+		results, err := fleetClient.RunLiveQuery(sql, hostnames, labels, platforms, fleets)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to run live query: %v", err)), nil
 		}

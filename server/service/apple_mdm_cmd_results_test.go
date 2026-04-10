@@ -656,7 +656,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return "", nil
 		}
 
+		// No activity should be created for manual rotation (activity logged at initiation)
 		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			t.Fatal("Activity should not be created for manual rotation completion")
 			return nil
 		}
 
@@ -764,4 +766,8 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		assert.True(t, failRotationCalled, "FailRecoveryLockRotation should be called for command format errors")
 		assert.Equal(t, "RotateRecoveryLock command failed", capturedError)
 	})
+
+	// Note: Activity logging for auto-rotation now happens at initiation time
+	// (in the cron job's sendAutoRotationCommands), not at completion time.
+	// Manual rotation activity is logged at the API handler level.
 }

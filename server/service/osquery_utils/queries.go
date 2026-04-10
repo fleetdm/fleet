@@ -799,26 +799,33 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_windows": {
-		// Bitlocker is an optional component on Windows Server and
-		// isn't guaranteed to be installed. If we try to query the
-		// bitlocker_info table when the bitlocker component isn't
-		// present, the query will crash and fail to report back to
-		// the server. Before querying bitlocke_info, we check if it's
-		// either:
-		// 1. both an optional component, and installed.
-		// OR
-		// 2. not optional, meaning it's built into the OS
+		// BitLocker is an optional component on Windows Server and
+		// isn't guaranteed to be installed. We use bl_available to
+		// gate the bitlocker_info access: if BitLocker isn't installed,
+		// bl_available returns 0 rows and the CROSS JOIN ensures
+		// bitlocker_info is never scanned. This is safe on Windows
+		// Server without BitLocker (verified on Server 2022 with
+		// osquery 5.22.1 -- osquery returns empty results with a
+		// WMI warning but does not crash).
+		//
+		// bl_available returns a row when BitLocker is either:
+		// 1. not listed as an optional feature (built into the OS), OR
+		// 2. listed as an optional feature and installed (state = 1)
+		//
+		// Returns protection_status and conversion_status so the server
+		// can distinguish "encrypted + protected" from "encrypted + unprotected".
 		Query: `
-	WITH encrypted(enabled) AS (
-		SELECT CASE WHEN
+	WITH bl_available(ok) AS (
+		SELECT 1 WHERE
 			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-			OR
-			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-	END)
-	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL`,
+			OR EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+	)
+	SELECT bi.protection_status, bi.conversion_status
+	FROM bl_available
+	CROSS JOIN bitlocker_info bi
+	WHERE bi.drive_letter = 'C:'`,
 		Platforms:        []string{"windows"},
-		DirectIngestFunc: directIngestDiskEncryption,
+		DirectIngestFunc: directIngestDiskEncryptionWindows,
 	},
 	"certificates_darwin": {
 		Query: `
@@ -2630,12 +2637,40 @@ func directIngestDiskEncryptionLinux(ctx context.Context, logger *slog.Logger, h
 		}
 	}
 
-	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, nil)
 }
 
 func directIngestDiskEncryption(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	encrypted := len(rows) > 0
-	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, nil)
+}
+
+func directIngestDiskEncryptionWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, false, nil)
+	}
+
+	row := rows[0]
+
+	conversionStatus, err := strconv.Atoi(row["conversion_status"])
+	if err != nil {
+		return fmt.Errorf("parsing bitlocker conversion_status %q: %w", row["conversion_status"], err)
+	}
+	encrypted := conversionStatus == fleet.BitLockerConversionStatusFullyEncrypted
+
+	// Normalize protection_status=2 (unknown) to nil so downstream status
+	// logic treats it the same as hosts that haven't reported yet.
+	var protectionStatus *int
+	protectionStatusVal, err := strconv.Atoi(row["protection_status"])
+	if err != nil {
+		return fmt.Errorf("parsing bitlocker protection_status %q: %w", row["protection_status"], err)
+	}
+	if protectionStatusVal == fleet.BitLockerProtectionStatusOff || protectionStatusVal == fleet.BitLockerProtectionStatusOn {
+		protectionStatus = &protectionStatusVal
+	}
+	// protectionStatusVal == 2 (unknown) or any other value: leave protectionStatus as nil
+
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, protectionStatus)
 }
 
 // directIngestDiskEncryptionKeyFileDarwin ingests the FileVault key from the `filevault_prk`

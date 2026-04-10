@@ -30,7 +30,7 @@ const DiskEncryptionKeyModal = ({
     IHostEncrpytionKeyResponse,
     unknown,
     string
-  >("hostEncrpytionKey", () => hostAPI.getEncryptionKey(hostId), {
+  >(["hostEncrpytionKey", hostId], () => hostAPI.getEncryptionKey(hostId), {
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,

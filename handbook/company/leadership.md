@@ -159,7 +159,7 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 
 > Hiring restrictions
 >
-> Fleet maintains a list of **incompatible locations** and companies with whom Fleet has **do-not-solicit terms** that prevent us from making offers to employees that reside in certian locations or have partnered with certain companies.  These lists are in the ["🚫 Hiring restrictions" spreadsheet](https://docs.google.com/spreadsheets/d/1tIUzzwdro6rx9jMhLmThJ-0ZGZPgiSJXTJwbnAJkNrU/edit?gid=921044344#gid=921044344).
+> Fleet maintains a list of **incompatible locations** and companies with whom Fleet has **do-not-solicit terms** that prevent us from making offers to employees that reside in certain locations or have partnered with certain companies.  These lists are in the ["🚫 Hiring restrictions" spreadsheet](https://docs.google.com/spreadsheets/d/1tIUzzwdro6rx9jMhLmThJ-0ZGZPgiSJXTJwbnAJkNrU/edit?gid=921044344#gid=921044344).
 
 
 ### Recruiting
@@ -196,7 +196,6 @@ In addition to [core team members](https://fleetdm.com/handbook/company/leadersh
 
 Consultants:
 - do NOT receive company-issued laptops
-- do NOT receive Yubikeys
 - do NOT get a "Hiring" issue created for them
 - do NOT get a company email address, nor everyone's calendars, nor the shared drive _(with occasional exceptions)_
 - do NOT go through training using the contributor onboarding issue.
@@ -227,7 +226,7 @@ Fleet asks US-based hourly contributors to track hours in Gusto, and contributor
 
 Core team members:
 - are hired for an existing [open position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position)
-- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
+- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop
 - must be onboarded (complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template)
 - must be offboarded
 - get an email address
@@ -312,6 +311,8 @@ The hiring manager creates a 30-60-90 day plan outlining key role objectives to 
 ## CEO shadow program
 
 The CEO shadow program is a three-day temporary assignment (usually completed during onboarding) in which core team members will shadow all relevant meetings on the CEO's calendar. This gives team members an overview of all aspects of the company and provides high context and in turn, high-output contributors. The program also creates opportunities for the CEO to build relationships with team members across the company and to identify [challenges and opportunities](https://fleetdm.com/handbook/company/leadership#ceo-flaws) earlier. 
+
+> **AEs**: Account Executives (AEs) complete their shadow program with the [SVP Global Sales](https://fleetdm.com/handbook/sales#team) instead of the CEO.
  
 > **What it's not**: The CEO shadow program is not a performance evaluation or a determinating factor for a promotion or raise. 
 
@@ -448,6 +449,15 @@ Schedule a call with [💸 Finance](https://fleetdm.com/handbook/finance#team) t
 ### 5. Purchase accommodations and make reservations.
 
 Once approved by 💸 Finance, finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
+
+## Executive bios
+
+Certain members of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
+
+| Person               | Headshot     | Bio   |
+|:---------------------|:-------------|:------|
+| Mike McNeil          | <img height="350" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | CEO/Co-founder of Fleet Device Management. Creator & BDFL of Sails.JS  (YC W15) |
+
 
 
 #### Stubs

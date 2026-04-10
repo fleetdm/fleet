@@ -87,8 +87,12 @@ export default {
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+  HOST_CLEAR_PASSCODE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/clear_passcode`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
+  HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/certificates/${certificateTemplateId}/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
@@ -100,6 +104,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping`,
   HOST_DEVICE_MAPPING_IDP: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping/idp`,
+  HOST_DEP_ASSIGNMENT: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/dep_assignment`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
@@ -133,7 +139,7 @@ export default {
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
 
-  // Apple Business Manager (ABM) endpoints
+  // Apple Business (AB) endpoints
   MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
   MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
   MDM_ABM_TOKEN_RENEW: (id: number) =>

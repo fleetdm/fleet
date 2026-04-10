@@ -1,0 +1,46 @@
+.configuration-profiles {
+  @include vertical-card-layout;
+
+  .empty-profiles {
+    font-size: px-to-rem(14);
+    text-align: center;
+  }
+
+  .upload-list {
+    &__list {
+      .list-item__label-count {
+        align-self: center;
+      }
+      .list-item__actions {
+        display: none;
+      }
+      :hover:not(.component__tooltip-wrapper__tip-text):not(.custom-link--tooltip-link) {
+        .list-item__labels {
+          display: none;
+        }
+        .list-item__actions {
+          display: flex;
+          gap: $pad-xxlarge;
+        }
+      }
+    }
+  }
+
+  .turn-on-mdm-message {
+    border: px-to-rem(1);
+    border-color: $ui-fleet-black-10;
+    border-style: solid;
+    border-radius: px-to-rem(6);
+    padding-top: px-to-rem(64);
+    padding-bottom: px-to-rem(64);
+    width: 100%;
+    margin: px-to-rem(32) 0 0;
+    max-width: none;
+  }
+
+}
+
+// this is used to format the long error message when uploading invalid keys
+.upload-profile-invalid-keys-error {
+  display: flex;
+}

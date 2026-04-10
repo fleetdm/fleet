@@ -3009,3 +3009,31 @@ func TestAuthorizeSecretVariables(t *testing.T) {
 		{user: test.UserTeamTechnicianTeam1, object: secretVariable, action: write, allow: false},
 	})
 }
+
+func TestAuthorizeAPIEndpoint(t *testing.T) {
+	t.Parallel()
+
+	endpoint := &fleet.APIEndpoint{}
+	runTestCases(t, []authTestCase{
+		// Unauthenticated always denied.
+		{user: nil, object: endpoint, action: read, allow: false},
+
+		// Global roles: only admin is allowed.
+		{user: test.UserNoRoles, object: endpoint, action: read, allow: false},
+		{user: test.UserObserver, object: endpoint, action: read, allow: false},
+		{user: test.UserObserverPlus, object: endpoint, action: read, allow: false},
+		{user: test.UserMaintainer, object: endpoint, action: read, allow: false},
+		{user: test.UserTechnician, object: endpoint, action: read, allow: false},
+		{user: test.UserGitOps, object: endpoint, action: read, allow: false},
+		{user: test.UserAdmin, object: endpoint, action: read, allow: true},
+
+		// Team roles: only team admins are allowed.
+		{user: test.UserTeamObserverTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: endpoint, action: read, allow: true},
+		{user: test.UserTeamAdminTeam2, object: endpoint, action: read, allow: true},
+	})
+}

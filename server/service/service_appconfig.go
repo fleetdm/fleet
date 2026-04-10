@@ -122,6 +122,7 @@ func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.Vulnerabi
 		DisableDataSync:             svc.config.Vulnerabilities.DisableDataSync,
 		RecentVulnerabilityMaxAge:   svc.config.Vulnerabilities.RecentVulnerabilityMaxAge,
 		DisableWinOSVulnerabilities: svc.config.Vulnerabilities.DisableWinOSVulnerabilities,
+		OSVForVulnerabilities:       svc.config.Vulnerabilities.OSVForVulnerabilities,
 	}, nil
 }
 

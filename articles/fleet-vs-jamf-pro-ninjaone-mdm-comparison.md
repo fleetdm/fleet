@@ -118,7 +118,6 @@ Jamf Pro only supports Apple and Android devices, so organizations with Windows 
 Migration timeframes vary based on fleet size and complexity. Fleet supports gradual migration alongside existing MDM tools, allowing you to transition devices incrementally while maintaining visibility across your entire fleet during the transition. [Talk to Fleet](https://fleetdm.com/contact) to discuss your specific migration requirements and timeline.
 
 <meta name="articleTitle" value="Fleet vs. Jamf Pro and NinjaOne">
-<meta name="articleSubtitle" value="How do they compare?">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="publishedOn" value="2026-03-09">

@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 
 import PATHS from "router/paths";
 import hostReportsAPI, {
@@ -15,8 +16,8 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import SearchField from "components/forms/fields/SearchField";
 import Slider from "components/forms/fields/Slider";
-import ActionsDropdown from "components/ActionsDropdown";
-import { IDropdownOption } from "interfaces/dropdownOption";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Pagination from "components/Pagination";
 
 import HostReportCard from "./HostReportCard";
@@ -34,7 +35,7 @@ type SortOption =
 
 const DEFAULT_SORT_OPTION: SortOption = "newest_results";
 
-const SORT_OPTIONS: IDropdownOption[] = [
+const SORT_OPTIONS: CustomOptionType[] = [
   { value: "newest_results", label: "Newest results" },
   { value: "oldest_results", label: "Oldest results" },
   { value: "name_asc", label: "Name A-Z" },
@@ -69,6 +70,7 @@ interface IHostReportsTabProps {
     };
   };
   saveReportsDisabledInConfig?: boolean;
+  showReportsEmptyState?: boolean;
 }
 
 const HostReportsTab = ({
@@ -77,6 +79,7 @@ const HostReportsTab = ({
   router,
   location,
   saveReportsDisabledInConfig,
+  showReportsEmptyState = false,
 }: IHostReportsTabProps): JSX.Element => {
   const searchQuery = location.query.query ?? "";
   const sortOption: SortOption =
@@ -140,13 +143,17 @@ const HostReportsTab = ({
   );
 
   const onSortChange = useCallback(
-    (value: string) => {
+    (newValue: SingleValue<CustomOptionType>) => {
+      if (!newValue) return;
       router.replace(
         getNextLocationPath({
           pathPrefix: location.pathname,
           queryParams: {
             ...location.query,
-            sort: value === DEFAULT_SORT_OPTION ? undefined : value,
+            sort:
+              newValue.value === DEFAULT_SORT_OPTION
+                ? undefined
+                : newValue.value,
           },
         })
       );
@@ -182,13 +189,6 @@ const HostReportsTab = ({
     [router]
   );
 
-  const sortDropdownOptions = useMemo(() => {
-    return SORT_OPTIONS.map((opt) => ({
-      ...opt,
-      label: opt.value === sortOption ? `Sort: ${opt.label}` : opt.label,
-    }));
-  }, [sortOption]);
-
   if (isLoading) {
     return <Spinner />;
   }
@@ -197,7 +197,9 @@ const HostReportsTab = ({
     return <DataError />;
   }
 
-  if (totalCount === 0 && !searchQuery) {
+  // No reports should be available if MDM enrollment is pending so hide any previous reports
+  // that may be associated with the host to prevent confusion while pending
+  if ((totalCount === 0 && !searchQuery) || showReportsEmptyState) {
     return <EmptyReports isSearching={false} />;
   }
 
@@ -219,15 +221,13 @@ const HostReportsTab = ({
           )}
         </div>
         <div className={`${baseClass}__controls-right`}>
-          <ActionsDropdown
-            options={sortDropdownOptions}
-            placeholder={`Sort: ${
-              SORT_OPTIONS.find((o) => o.value === sortOption)?.label ?? ""
-            }`}
+          <DropdownWrapper
+            name="sort-reports"
+            options={SORT_OPTIONS}
+            value={sortOption}
             onChange={onSortChange}
             className={`${baseClass}__sort-dropdown`}
-            variant="button"
-            menuAlign="right"
+            variant="table-filter"
           />
           <SearchField
             placeholder="Search by name"

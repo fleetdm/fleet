@@ -152,8 +152,8 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return nil, nil, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
@@ -465,8 +465,12 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 
 	ts1 := time.Now().Add(-1 * time.Hour).UTC()
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return &ts1, &ts2, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{
+			LastMDMEnrollmentTime: &ts1,
+			LastMDMSeenTime:       &ts2,
+			HardwareAttested:      false,
+		}, nil
 	}
 
 	cases := []struct {
@@ -484,7 +488,7 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	}
 	for _, testcase := range cases {
 		t.Run("test MDM timestamps on platform "+testcase.platform, func(t *testing.T) {
-			ds.GetNanoMDMEnrollmentTimesFuncInvoked = false
+			ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
 			host := &fleet.Host{ID: 3, MDM: fleet.MDMHostData{}, Platform: testcase.platform, UUID: "abc123"}
 			opts := fleet.HostDetailOptions{
 				IncludeCVEScores:                    false,
@@ -495,13 +499,13 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
 			if testcase.platformIsApple {
-				assert.True(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
+				assert.True(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked)
 				require.NotNil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Equal(t, *hostDetail.LastMDMEnrolledAt, ts1)
 				require.NotNil(t, hostDetail.LastMDMCheckedInAt)
 				assert.Equal(t, *hostDetail.LastMDMCheckedInAt, ts2)
 			} else {
-				assert.False(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
+				assert.False(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked)
 				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
 			}
@@ -556,8 +560,8 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return nil, nil, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
@@ -798,8 +802,8 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return nil, nil, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{}, nil
@@ -2865,8 +2869,8 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return nil, nil, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
@@ -3009,8 +3013,8 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return nil, nil, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
@@ -3204,8 +3208,8 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 		return true, nil
 	}
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return nil, nil, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 
 	cases := []struct {
@@ -4734,10 +4738,102 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 				Password: "test-password",
 			}, nil
 		}
+		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
+			return time.Now().Add(1 * time.Hour), nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 3)
 		require.NoError(t, err)
 		assert.Equal(t, "test-password", password.Password)
+	})
+
+	t.Run("calls MarkRecoveryLockPasswordViewed and sets auto_rotate_at", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		appleSiliconHost := &fleet.Host{
+			ID:       4,
+			Platform: "darwin",
+			UUID:     "apple-silicon-uuid-4",
+			CPUType:  "arm64e",
+		}
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return appleSiliconHost, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnabledAndConfigured: true,
+				},
+			}, nil
+		}
+		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+			return &fleet.HostRecoveryLockPassword{
+				Password: "test-password-4",
+			}, nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		expectedRotateAt := time.Now().Add(1 * time.Hour)
+		markViewedCalled := false
+		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
+			markViewedCalled = true
+			assert.Equal(t, "apple-silicon-uuid-4", hostUUID)
+			return expectedRotateAt, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		password, err := svc.GetHostRecoveryLockPassword(userCtx, 4)
+		require.NoError(t, err)
+		assert.Equal(t, "test-password-4", password.Password)
+		assert.True(t, markViewedCalled, "MarkRecoveryLockPasswordViewed should be called")
+		require.NotNil(t, password.AutoRotateAt)
+		assert.WithinDuration(t, expectedRotateAt, *password.AutoRotateAt, 1*time.Second)
+	})
+
+	t.Run("fails if MarkRecoveryLockPasswordViewed fails", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		appleSiliconHost := &fleet.Host{
+			ID:       5,
+			Platform: "darwin",
+			UUID:     "apple-silicon-uuid-5",
+			CPUType:  "arm64e",
+		}
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return appleSiliconHost, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnabledAndConfigured: true,
+				},
+			}, nil
+		}
+		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+			return &fleet.HostRecoveryLockPassword{
+				Password: "test-password-5",
+			}, nil
+		}
+		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
+			return time.Time{}, errors.New("database error")
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		// Should fail because rotation scheduling failed - password must not be
+		// returned unless rotation is successfully scheduled
+		password, err := svc.GetHostRecoveryLockPassword(userCtx, 5)
+		require.Error(t, err)
+		assert.Nil(t, password)
+		assert.Contains(t, err.Error(), "mark recovery lock password viewed")
 	})
 }

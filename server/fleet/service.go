@@ -655,6 +655,14 @@ type Service interface {
 	// This should be called after service creation to inject the activity service dependency.
 	SetActivityService(activitySvc ActivityWriteService)
 
+	// SetACMEService sets the ACME service module for write operations.
+	// This should be called after service creation to inject the ACME service dependency.
+	SetACMEService(acmeSvc ACMEWriteService)
+
+	// NewACMEEnrollment creates a new ACME enrollment using the ACME service module. It returns the
+	// ACME identifier for the new enrollment, which is used to track the enrollment process and link it to a host.
+	NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+
 	// NewActivity creates the given activity on the datastore.
 	//
 	// What we call "Activities" are administrative operations,
@@ -731,6 +739,7 @@ type Service interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, *PaginationMetadata, error)
 	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*Software, error)
+	SoftwareLiteByID(ctx context.Context, id uint) (SoftwareLite, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	// SaveHostSoftwareInstallResult saves information about execution of a
@@ -928,7 +937,7 @@ type Service interface {
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.
 	GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error)
@@ -1324,6 +1333,10 @@ type Service interface {
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
 
+	// ClearPasscode is a method that clears the passcode on a host, primarily mobile devices.
+	// Not script based, only MDM based.
+	ClearPasscode(ctx context.Context, hostID uint) (*CommandEnqueueResult, error)
+
 	// RotateRecoveryLockPassword rotates the recovery lock password for a macOS host.
 	// This is only available for Apple Silicon Macs that are MDM-enrolled and have
 	// an existing recovery lock password.
@@ -1413,6 +1426,9 @@ type Service interface {
 	// Returns a NotFoundError error if there's no secret variable with such ID.
 	DeleteSecretVariable(ctx context.Context, id uint) error
 
+	// ListAPIEndpoints returns all API endpoints
+	ListAPIEndpoints(ctx context.Context) (endpoints []APIEndpoint, err error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 
@@ -1469,6 +1485,16 @@ type Service interface {
 type KeyValueStore interface {
 	Set(ctx context.Context, key string, value string, expireTime time.Duration) error
 	Get(ctx context.Context, key string) (*string, error)
+}
+
+type AdvancedKeyValueStore interface {
+	KeyValueStore
+
+	// MGet returns the values for the given keys.
+	// It returns a map of key to value, where the value is nil if the key doesn't exist.
+	// Important to use hashes for the keys to land in the same slot.
+	MGet(ctx context.Context, keys []string) (map[string]*string, error)
+	Delete(ctx context.Context, key string) error
 }
 
 const (

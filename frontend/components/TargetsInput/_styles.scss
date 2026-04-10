@@ -29,9 +29,9 @@
         display: inline-flex;
         align-items: center;
         white-space: nowrap;
+        gap: $pad-xsmall;
 
         .host-issue {
-          margin-left: $pad-xsmall;
           display: inline-flex;
         }
       }
@@ -81,9 +81,9 @@
         display: inline-flex;
         align-items: center;
         white-space: nowrap;
+        gap: $pad-xsmall;
 
         .host-issue {
-          margin-left: $pad-xsmall;
           display: inline-flex;
         }
       }
