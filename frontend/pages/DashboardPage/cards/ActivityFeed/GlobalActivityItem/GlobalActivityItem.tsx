@@ -1282,6 +1282,7 @@ const TAGGED_TEMPLATES = {
       software_title: title,
       status,
       source,
+      from_setup_experience,
     } = details;
 
     const showSoftwarePackage =
@@ -1294,7 +1295,8 @@ const TAGGED_TEMPLATES = {
         {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
         <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
-        <b>{hostName}</b>.
+        <b>{hostName}</b>
+        {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
   },
