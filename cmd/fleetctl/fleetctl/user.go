@@ -125,6 +125,12 @@ func createUserCommand() *cli.Command {
 			}
 
 			if apiOnly {
+				if sso {
+					return errors.New("--sso cannot be used with --api-only")
+				}
+				if mfa {
+					return errors.New("--mfa cannot be used with --api-only")
+				}
 				sessionKey, err := client.CreateAPIOnlyUser(name, globalRole, teams)
 				if err != nil {
 					return fmt.Errorf("Failed to create user: %w", err)

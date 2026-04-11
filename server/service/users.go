@@ -198,6 +198,9 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		}
 	}
 
+	if p.APIEndpoints != nil && (p.APIOnly == nil || !*p.APIOnly) {
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "API endpoints can only be specified for API only users"))
+	}
 	if p.APIOnly != nil && *p.APIOnly {
 		// API-Endpoints is a premium only feature,
 		// so we only require it if creating an API only
@@ -248,6 +251,7 @@ func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 
 	pwd, err := server.GenerateRandomPwd()
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return createUserResponse{
 			Err: ctxerr.Wrap(ctx, err, "generate user password"),
 		}, nil
@@ -257,12 +261,14 @@ func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 	// so we should have a logged-in user at this point.
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return createUserResponse{
 			Err: ctxerr.New(ctx, "failed to get logged user"),
 		}, nil
 	}
 	email, err := server.GenerateRandomEmail(vc.Email())
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return createUserResponse{
 			Err: ctxerr.Wrap(ctx, err, "generate user email"),
 		}, nil
@@ -323,9 +329,12 @@ func modifyAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 }
 
 func (svc *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
-	// Authorize before hitting the DB so that callers without write access cannot
-	// enumerate user IDs by observing 404 vs non-404 responses.
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionWrite); err != nil {
+	target, err := svc.ds.UserByID(ctx, userID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, fleet.NewPermissionError("no permission to modify this user")
+	}
+	if err := svc.authz.Authorize(ctx, target, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 

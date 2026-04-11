@@ -28588,7 +28588,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 		"fleets":      []map[string]any{{"id": team.ID, "role": "observer"}},
 	}, http.StatusUnprocessableEntity)
 
-	// PATCH updating fleets (team role) → 200.
+	// PATCH updating fleets (team role) → 200; global_role must be cleared.
 	var respTeam patchResp
 	s.DoJSON("PATCH", patchURL, map[string]any{
 		"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
@@ -28596,6 +28596,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 	require.Len(t, respTeam.User.Teams, 1)
 	require.Equal(t, team.ID, respTeam.User.Teams[0].ID)
 	require.Equal(t, "observer", respTeam.User.Teams[0].Role)
+	require.Nil(t, respTeam.User.GlobalRole, "global_role should be cleared when switching to fleet role")
 
 	// PATCH updating api_endpoints with catalog entries → 200.
 	var respEndpoints patchResp
@@ -28673,9 +28674,18 @@ func (s *integrationEnterpriseTestSuite) TestGetUserReturnsAPIEndpoints() {
 	require.Len(t, found.APIEndpoints, 2)
 
 	// A regular (non-API-only) user should have no api_endpoints in either response.
-	adminID := uint(1) // admin1@example.com created in suite setup
+	// Create a fresh regular user rather than relying on seed data.
+	var regularUserResp getUserResp
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       ptr.String("Regular User"),
+		Email:      ptr.String("regular-user-get-test@example.com"),
+		Password:   ptr.String(test.GoodPassword),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}, http.StatusOK, &regularUserResp)
+	require.NotZero(t, regularUserResp.User.ID)
+
 	var getAdminResp getUserResp
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", adminID), nil, http.StatusOK, &getAdminResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", regularUserResp.User.ID), nil, http.StatusOK, &getAdminResp)
 	require.False(t, getAdminResp.User.APIOnly)
 	require.Empty(t, getAdminResp.User.APIEndpoints)
 

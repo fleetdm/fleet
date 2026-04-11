@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 func init() {
@@ -25,8 +26,9 @@ func Up_20260411000000(tx *sql.Tx) error {
 	}
 
 	if constraintName != "" {
+		escaped := strings.ReplaceAll(constraintName, "`", "``")
 		if _, err := tx.Exec(fmt.Sprintf(
-			`ALTER TABLE user_api_endpoints DROP FOREIGN KEY %s`, constraintName,
+			"ALTER TABLE user_api_endpoints DROP FOREIGN KEY `%s`", escaped,
 		)); err != nil {
 			return fmt.Errorf("drop author_id foreign key: %w", err)
 		}
