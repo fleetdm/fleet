@@ -28466,6 +28466,9 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
 		"name":   "Team API User",
 		"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
+		"api_endpoints": []map[string]any{
+			{"method": "*", "path": "*"},
+		},
 	}, http.StatusOK, &createRespTeam)
 
 	require.NotEmpty(t, createRespTeam.Token)
