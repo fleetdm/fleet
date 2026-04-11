@@ -2911,6 +2911,67 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 				results = append(results, value.(map[string]string))
 				return true
 			})
+			cachedResults.software = results
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_windows_program_files_scan":
+		// Given queries run in lexicographic order, software_windows already ran and
+		// cachedResults.software should have its results.
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			// Generate file scan results: some duplicate entries (matching programs installed_paths)
+			// and some unique entries (new software not in programs).
+			if len(cachedResults.software) > 0 {
+				// Pick up to 3 programs entries to create duplicate file scan results
+				dupeCount := 0
+				for _, s := range cachedResults.software {
+					if dupeCount >= 3 {
+						break
+					}
+					if s["source"] != "programs" {
+						continue
+					}
+					installedPath := s["installed_path"]
+					if installedPath == "" {
+						continue
+					}
+					results = append(results, map[string]string{
+						"path":            installedPath + `\` + s["name"] + ".exe",
+						"filename":        s["name"] + ".exe",
+						"file_version":    s["version"],
+						"product_version": s["version"],
+						"size":            fmt.Sprintf("%d", rand.Intn(50000000)), //nolint:gosec // load testing
+					})
+					dupeCount++
+				}
+			}
+			// Add unique entries that won't be deduplicated
+			results = append(results,
+				map[string]string{
+					"path":            `C:\Program Files\Windows Defender\MsMpEng.exe`,
+					"filename":        "MsMpEng.exe",
+					"file_version":    "4.18.25030.2",
+					"product_version": "4.18.25030.2",
+					"size":            "12345678",
+				},
+				map[string]string{
+					"path":            `C:\Program Files\Adobe\DNG Converter\DNGConverter.exe`,
+					"filename":        "DNGConverter.exe",
+					"file_version":    "16.1.0.0",
+					"product_version": "16.1",
+					"size":            "98765432",
+				},
+				map[string]string{
+					"path":            `C:\Program Files\Custom App\Subfolder\customapp.exe`,
+					"filename":        "customapp.exe",
+					"file_version":    "2.5.0.0",
+					"product_version": "2.5.0",
+					"size":            "5432100",
+				},
+			)
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
