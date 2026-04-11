@@ -1,0 +1,4 @@
+* Added "Canceled activity: macOS setup experience" activity when setup experience is cancelled due to a software install failure.
+* Added cancel activities for VPP app installs that are skipped when setup experience is cancelled.
+* Added `from_setup_experience` flag to cancelled software install activities during setup experience.
+* Added install failure activity when VPP app installs fail prior to sending the MDM command during setup experience.

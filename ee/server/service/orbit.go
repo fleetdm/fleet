@@ -236,6 +236,21 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 	hostDisplayName string,
 	results []*fleet.SetupExperienceStatusResult,
 ) error {
+	// Find the software item that originally failed and triggered the cancellation.
+	// It already has SetupExperienceStatusFailure before we modify any cancelled items.
+	var failedSoftwareName string
+	var failedSoftwareTitleID uint
+	for _, r := range results {
+		if r.Status == fleet.SetupExperienceStatusFailure && r.IsForSoftware() {
+			failedSoftwareName = r.Name
+			if r.SoftwareTitleID != nil {
+				failedSoftwareTitleID = *r.SoftwareTitleID
+			}
+			break
+		}
+	}
+
+	var hasCancelledSoftware bool
 	for _, r := range results {
 		if r.Status != fleet.SetupExperienceStatusCancelled {
 			continue
@@ -246,46 +261,61 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
 		}
-		// TODO -- support recording activity for failed VPP apps as well.
-		// https://github.com/fleetdm/fleet/issues/34288
 		if r.IsForSoftwarePackage() {
-			softwarePackage := ""
-			var source *string
+			var softwareTitleID uint
 			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
 			if err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(ctx, err, "getting software installer metadata for cancelled setup experience software install")
 			}
-			if installerMeta != nil {
-				softwarePackage = installerMeta.Name
-				// Get the software title to retrieve the source
-				if installerMeta.TitleID != nil {
-					title, err := svc.ds.SoftwareTitleByID(ctx, *installerMeta.TitleID, nil, fleet.TeamFilter{})
-					if err != nil && !fleet.IsNotFound(err) {
-						return ctxerr.Wrap(ctx, err, "getting software title for cancelled setup experience software install")
-					}
-					if title != nil {
-						source = &title.Source
-					}
-				}
+			if installerMeta != nil && installerMeta.TitleID != nil {
+				softwareTitleID = *installerMeta.TitleID
 			}
-			activity := fleet.ActivityTypeInstalledSoftware{
+			activity := fleet.ActivityTypeCanceledInstallSoftware{
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
-				SoftwarePackage:     softwarePackage,
-				InstallUUID:         ptr.ValOrZero(r.HostSoftwareInstallsExecutionID),
-				Status:              "failed",
-				SelfService:         false,
-				Source:              source,
+				SoftwareTitleID:     softwareTitleID,
 				FromSetupExperience: true,
 			}
-			err = svc.NewActivity(ctx, nil, activity)
-			if err != nil {
+			if err := svc.NewActivity(ctx, nil, activity); err != nil {
 				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience software install")
 			}
+		} else if r.VPPAppTeamID != nil {
+			var softwareTitleID uint
+			if r.SoftwareTitleID != nil {
+				softwareTitleID = *r.SoftwareTitleID
+			}
+			activity := fleet.ActivityTypeCanceledInstallAppStoreApp{
+				HostID:              hostID,
+				HostDisplayName:     hostDisplayName,
+				SoftwareTitle:       r.Name,
+				SoftwareTitleID:     softwareTitleID,
+				FromSetupExperience: true,
+			}
+			if err := svc.NewActivity(ctx, nil, activity); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience VPP app install")
+			}
+		}
+		if r.IsForSoftware() {
+			hasCancelledSoftware = true
 		}
 		continue
 	}
+
+	// If there were cancelled software items, create a single canceled_setup_experience
+	// activity referencing the software that originally failed and triggered the cancellation.
+	if hasCancelledSoftware && failedSoftwareName != "" {
+		canceledActivity := fleet.ActivityTypeCanceledSetupExperience{
+			HostID:          hostID,
+			HostDisplayName: hostDisplayName,
+			SoftwareTitle:   failedSoftwareName,
+			SoftwareTitleID: failedSoftwareTitleID,
+		}
+		if err := svc.NewActivity(ctx, nil, canceledActivity); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")
+		}
+	}
+
 	return nil
 }
 

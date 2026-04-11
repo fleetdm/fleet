@@ -233,6 +233,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedHostIdpData{},
 
 	ActivityTypeEditedEnrollSecrets{},
+
+	ActivityTypeCanceledSetupExperience{},
 }
 
 // ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
@@ -1541,10 +1543,11 @@ func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallSoftware struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwareTitleID uint   `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
+	FromSetupExperience bool   `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
@@ -1553,6 +1556,10 @@ func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
 
 func (a ActivityTypeCanceledInstallSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledInstallSoftware) WasFromAutomation() bool {
+	return a.FromSetupExperience
 }
 
 type ActivityTypeCanceledUninstallSoftware struct {
@@ -1571,10 +1578,11 @@ func (a ActivityTypeCanceledUninstallSoftware) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallAppStoreApp struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	SoftwareTitleID uint   `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
+	FromSetupExperience bool   `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
@@ -1583,6 +1591,10 @@ func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
 
 func (a ActivityTypeCanceledInstallAppStoreApp) ActivityName() string {
 	return "canceled_install_app_store_app"
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) WasFromAutomation() bool {
+	return a.FromSetupExperience
 }
 
 type ActivityTypeRanScriptBatch struct {
@@ -1868,4 +1880,19 @@ func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 
 func (a ActivityTypeClearedPasscode) HostOnly() bool {
 	return true
+}
+
+type ActivityTypeCanceledSetupExperience struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledSetupExperience) ActivityName() string {
+	return "canceled_setup_experience"
+}
+
+func (a ActivityTypeCanceledSetupExperience) HostIDs() []uint {
+	return []uint{a.HostID}
 }

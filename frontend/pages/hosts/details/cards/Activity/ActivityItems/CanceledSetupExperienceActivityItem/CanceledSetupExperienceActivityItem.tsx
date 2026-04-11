@@ -2,15 +2,14 @@ import React from "react";
 
 import ActivityItem from "components/ActivityItem";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
-const baseClass = "canceled-install-software-activity-item";
+const baseClass = "canceled-setup-experience-activity-item";
 
-const CanceledInstallSoftwareActivityItem = ({
+const CanceledSetupExperienceActivityItem = ({
   activity,
 }: IHostActivityItemComponentProps) => {
-  const fromSetupExperience = activity.details?.from_setup_experience;
-
   return (
     <ActivityItem
       className={baseClass}
@@ -19,18 +18,18 @@ const CanceledInstallSoftwareActivityItem = ({
       hideShowDetails
     >
       <>
-        <b>{activity.actor_full_name}</b> canceled{" "}
+        <b>{activity.actor_full_name}</b> canceled setup experience on this host
+        because{" "}
         <b>
           {getDisplayedSoftwareName(
             activity.details.software_title,
             activity.details.software_display_name
           )}
         </b>{" "}
-        install on this host
-        {fromSetupExperience ? " during setup experience" : ""}.
+        failed to install.
       </>
     </ActivityItem>
   );
 };
 
-export default CanceledInstallSoftwareActivityItem;
+export default CanceledSetupExperienceActivityItem;
