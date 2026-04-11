@@ -1,0 +1,3 @@
+- Added POST /users/api_only endpoint for creating API-only users.
+- Added PATCH /users/api_only/{id} for updating existing API-only users.
+- Updated `fleetctl user create --api-only` removing email/password field requirements.

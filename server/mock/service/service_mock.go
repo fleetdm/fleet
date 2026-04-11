@@ -88,6 +88,8 @@ type ResetPasswordFunc func(ctx context.Context, token string, password string) 
 
 type ModifyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error)
 
+type ModifyAPIOnlyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error)
+
 type DeleteUserFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
 type ChangeUserEmailFunc func(ctx context.Context, token string) (string, error)
@@ -1012,6 +1014,9 @@ type Service struct {
 
 	ModifyUserFunc        ModifyUserFunc
 	ModifyUserFuncInvoked bool
+
+	ModifyAPIOnlyUserFunc        ModifyAPIOnlyUserFunc
+	ModifyAPIOnlyUserFuncInvoked bool
 
 	DeleteUserFunc        DeleteUserFunc
 	DeleteUserFuncInvoked bool
@@ -2485,6 +2490,13 @@ func (s *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPaylo
 	s.ModifyUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.ModifyUserFunc(ctx, userID, p)
+}
+
+func (s *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error) {
+	s.mu.Lock()
+	s.ModifyAPIOnlyUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.ModifyAPIOnlyUserFunc(ctx, userID, p)
 }
 
 func (s *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error) {

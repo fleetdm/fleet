@@ -333,6 +333,108 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	assertBodyContains(t, resp, `fleet with id 9999 does not exist`)
 }
 
+func (s *integrationTestSuite) TestCreateAPIOnlyUser() {
+	t := s.T()
+
+	// missing name → 422
+	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"global_role": "observer",
+	}, http.StatusUnprocessableEntity)
+
+	// neither global_role nor fleets → 422
+	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name": "Jane Doe",
+	}, http.StatusUnprocessableEntity)
+
+	// fleets without premium → 402
+	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":   "Jane Doe",
+		"fleets": []map[string]any{{"id": 9999, "role": "observer"}},
+	}, http.StatusPaymentRequired)
+
+	// api_endpoints without premium → 402
+	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "Jane Doe",
+		"global_role": "observer",
+		"api_endpoints": []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/hosts/:id"},
+		},
+	}, http.StatusPaymentRequired)
+
+	// both global_role and fleets without premium → 402 (premium check fires first)
+	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "Jane Doe",
+		"global_role": "observer",
+		"fleets":      []map[string]any{{"id": 9999, "role": "observer"}},
+	}, http.StatusPaymentRequired)
+
+	// successful creation with global_role only (no premium features) → 200
+	var createResp struct {
+		User struct {
+			ID         uint    `json:"id"`
+			Name       string  `json:"name"`
+			Email      string  `json:"email"`
+			APIOnly    bool    `json:"api_only"`
+			GlobalRole *string `json:"global_role"`
+		} `json:"user"`
+		Token string `json:"token"`
+		Err   string `json:"error,omitempty"`
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "Jane Doe",
+		"global_role": "observer",
+	}, http.StatusOK, &createResp)
+
+	require.NotEmpty(t, createResp.Token, "token must be set")
+	require.NotZero(t, createResp.User.ID, "user ID must be set")
+	require.Equal(t, "Jane Doe", createResp.User.Name)
+	require.NotEmpty(t, createResp.User.Email)
+	require.True(t, createResp.User.APIOnly, "user must be api_only")
+	require.NotNil(t, createResp.User.GlobalRole)
+	require.Equal(t, "observer", *createResp.User.GlobalRole)
+}
+
+func (s *integrationTestSuite) TestPatchAPIOnlyUser() {
+	t := s.T()
+
+	// Create an API-only user on the free tier (global_role only, no premium features).
+	var createResp struct {
+		User struct {
+			ID uint `json:"id"`
+		} `json:"user"`
+		Err string `json:"error,omitempty"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "API User",
+		"global_role": "observer",
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	apiUserID := createResp.User.ID
+
+	// Unauthenticated PATCH → 401.
+	// Must send a valid JSON body ({}) to avoid pre-auth decode error (400 vs 401).
+	s.DoRawNoAuth("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), []byte(`{}`), http.StatusUnauthorized)
+
+	// PATCH non-existent user → 404.
+	s.Do("PATCH", "/api/latest/fleet/users/api_only/999999", map[string]any{
+		"name": "New Name",
+	}, http.StatusNotFound)
+
+	// PATCH a non-API-only user (admin1) → 422.
+	admin := s.users["admin1@example.com"]
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", admin.ID), map[string]any{
+		"name": "New Name",
+	}, http.StatusUnprocessableEntity)
+
+	// PATCH api_endpoints without premium → 402.
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
+		"api_endpoints": []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/config"},
+		},
+	}, http.StatusPaymentRequired)
+}
+
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	t := s.T()
 
