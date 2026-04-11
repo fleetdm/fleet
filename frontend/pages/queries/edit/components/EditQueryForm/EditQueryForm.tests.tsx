@@ -154,7 +154,7 @@ describe("EditQueryForm - component", () => {
       },
     });
 
-    const { container, user } = render(
+    const { user } = render(
       <EditQueryForm
         router={mockRouter}
         location={mockLocation}

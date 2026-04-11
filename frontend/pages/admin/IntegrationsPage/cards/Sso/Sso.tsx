@@ -23,8 +23,6 @@ import {
   newFormDataIdp,
 } from "../IdentityProviders/components/EndUserAuthSection/helpers";
 
-const baseClass = "app-config-form";
-
 interface ISsoFormData {
   idpName: string;
   enableSso: boolean;

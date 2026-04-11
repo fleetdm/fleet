@@ -82,10 +82,11 @@ const EditPackForm = ({
     evt.preventDefault();
 
     if (packName === "") {
-      return setErrors({
+      setErrors({
         ...errors,
         name: "Pack name must be present",
       });
+      return;
     }
 
     handleSubmit({
