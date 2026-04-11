@@ -15,7 +15,7 @@ However, as IT infrastructure has evolved, several recurring themes come up when
 * **Cross-platform limitations.** Jamf is strictly for Apple. If your environment includes Windows, Linux, or Android devices, you need a separate solution for everything outside the Apple ecosystem. (*note: Jamf does have a 3rd party Android offering*) That means managing multiple vendors, multiple contracts, and constant context-switching.  
 * **Licensing and add-on costs.** Jamf Pro is an MDM, but it’s not a complete security story out of the box. Features like endpoint detection and response (EDR), telemetry collection, and advanced threat protection require purchasing Jamf Protect or Jamf Connect separately. Those costs multiply quickly at scale.  
 * **Complexity and legacy architecture.** Jamf is a powerful platform, but its depth creates a steep learning curve. Onboarding, configuration management, and keeping current with Jamf’s product sprawl takes heavy lifting from IT teams.  
-* **~~No~~  Limited GitOps or config-as-code.** Modern IT and security teams increasingly want infrastructure-as-code workflows—version-controlled configurations, auditability, peer-reviewed changes, and the ability to roll back. Jamf’s GUI-first approach doesn’t offer this natively.
+* **Limited GitOps or config-as-code.** Modern IT and security teams increasingly want infrastructure-as-code workflows—version-controlled configurations, auditability, peer-reviewed changes, and the ability to roll back. Jamf’s GUI-first approach doesn’t offer this natively.
 
 ## What to look for in a Jamf alternative
 
@@ -33,7 +33,7 @@ Before evaluating specific tools, define what your environment actually needs. T
 
 **Best for:** Cross-platform environments, security-first teams, and GitOps workflows.
 
-[Fleet](https://fleetdm.com/) is an open-source, multi-platform device management solution built on osquery. It manages macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS from a single, centralized console—making it the premier Jamf alternative for organizations with mixed environments.
+[Fleet](https://fleetdm.com/) is an open-source, multi-platform device management solution built on osquery. It manages macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS from a single, centralized console, making it the premier Jamf alternative for organizations with mixed environments.
 
 What distinguishes Fleet is its API-first architecture and native GitOps support. Teams can manage device configurations the exact same way they manage code. Built-in features include near real-time device reporting via SQL queries, software vulnerability detection with CVE scoring, and CIS/STIG compliance.
 
@@ -125,7 +125,8 @@ Yes. Fleet is built on open-source osquery and offers a free tier (Fleet Free) w
 
 "Better" depends on your needs. Iru is frequently praised for having a more modern, intuitive interface and easier compliance automation (like one-click CIS templates) compared to Jamf. However, Jamf still holds an edge in highly complex, bespoke enterprise workflows due to its two decades of legacy API development.
 
-**Wondering how Fleet specifically stacks up against Jamf?** [Book a demo](https://fleetdm.com/contact) and see how Fleet can unify your Apple, Windows, and Linux environment while cutting security tool sprawl.
+**Wondering how Fleet specifically stacks up against Jamf?** 
+**[Book a demo](https://fleetdm.com/contact)** and see how Fleet can unify your Apple, Windows, and Linux environment while cutting security tool sprawl.
 
 
 
