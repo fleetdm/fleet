@@ -1014,6 +1014,49 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 		require.NoError(t, err)
 		require.Equal(t, int64(0), rowsAffected)
 	})
+
+	t.Run("resets verified certs to pending on re-enrollment", func(t *testing.T) {
+		// Reproduces https://github.com/fleetdm/fleet/issues/42600:
+		// When an Android host removes the work profile and re-installs it without Fleet receiving
+		// a DELETED notification, old certificate records with status "verified" remain in the table.
+		// CreatePendingCertificateTemplatesForNewHost must reset them to "pending" so certs are re-delivered.
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		hostUUID := "re-enroll-android-host"
+		createEnrolledAndroidHost(t, ctx, ds, hostUUID, &setup.team.ID)
+
+		// Simulate initial enrollment: create pending cert records
+		rowsAffected, err := ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, setup.team.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), rowsAffected)
+
+		// Simulate certs being delivered and verified (the normal lifecycle)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_certificate_templates SET status = ?, operation_type = ? WHERE host_uuid = ?`,
+			fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, hostUUID,
+		)
+		require.NoError(t, err)
+
+		// Verify the record is "verified" before re-enrollment
+		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		require.EqualValues(t, fleet.CertificateTemplateVerified, *records[0].Status)
+
+		// Simulate re-enrollment (work profile removed and re-installed, no DELETED notification received)
+		rowsAffected, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, setup.team.ID)
+		require.NoError(t, err)
+		require.Greater(t, rowsAffected, int64(0))
+
+		// The record must be reset to "pending" so the cert gets re-delivered
+		records, err = ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		require.EqualValues(t, fleet.CertificateTemplatePending, *records[0].Status)
+		require.NotNil(t, records[0].OperationType)
+		require.EqualValues(t, fleet.MDMOperationTypeInstall, *records[0].OperationType)
+	})
 }
 
 func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
