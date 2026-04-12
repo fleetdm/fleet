@@ -1,5 +1,5 @@
 import React from "react";
-import { Column } from "react-table";
+import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
@@ -34,7 +34,7 @@ export const generateTableConfig = (
     {
       Header: "macOS",
       accessor: "macos",
-      Cell: (cellProps: any) => {
+      Cell: (cellProps: CellProps<ICombinedFMA>) => {
         const { macos } = cellProps.row.original;
 
         return (
@@ -46,7 +46,7 @@ export const generateTableConfig = (
     {
       Header: "Windows",
       accessor: "windows",
-      Cell: (cellProps: any) => {
+      Cell: (cellProps: CellProps<ICombinedFMA>) => {
         const { windows } = cellProps.row.original;
 
         return (
