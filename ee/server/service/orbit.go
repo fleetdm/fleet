@@ -169,9 +169,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), res)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
+	if err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, host.UUID, host.DisplayName(), res); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
 	}
 
 	payload := &fleet.SetupExperienceStatusPayload{
@@ -229,7 +228,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	return payload, nil
 }
 
-func (svc *Service) failCancelledSetupExperienceInstalls(
+func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 	ctx context.Context,
 	hostID uint,
 	hostUUID string,
@@ -237,82 +236,51 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 	results []*fleet.SetupExperienceStatusResult,
 ) error {
 	// Find the software item that originally failed and triggered the cancellation.
-	// It already has SetupExperienceStatusFailure before we modify any cancelled items.
-	var failedSoftwareName string
-	var failedSoftwareTitleID uint
+	// It already has SetupExperienceStatusFailure before we modify any canceled items.
 	for _, r := range results {
 		if r.Status == fleet.SetupExperienceStatusFailure && r.IsForSoftware() {
-			failedSoftwareName = r.Name
-			if r.SoftwareTitleID != nil {
-				failedSoftwareTitleID = *r.SoftwareTitleID
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
+				HostID:          hostID,
+				HostDisplayName: hostDisplayName,
+				SoftwareTitle:   r.Name,
+				SoftwareTitleID: ptr.ValOrZero(r.SoftwareTitleID),
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")
 			}
 			break
 		}
 	}
 
-	var hasCancelledSoftware bool
 	for _, r := range results {
 		if r.Status != fleet.SetupExperienceStatusCancelled {
 			continue
 		}
 		r.Status = fleet.SetupExperienceStatusFailure
-		svc.logger.InfoContext(ctx, "marking setup experience software as failed due to cancellation", "host_uuid", hostUUID, "software_name", r.Name)
+		svc.logger.InfoContext(ctx, "marking setup experience software as cancelled", "host_uuid", hostUUID, "software_name", r.Name)
 		err := svc.ds.UpdateSetupExperienceStatusResult(ctx, r)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
 		}
 		if r.IsForSoftwarePackage() {
-			var softwareTitleID uint
-			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
-			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "getting software installer metadata for cancelled setup experience software install")
-			}
-			if installerMeta != nil && installerMeta.TitleID != nil {
-				softwareTitleID = *installerMeta.TitleID
-			}
-			activity := fleet.ActivityTypeCanceledInstallSoftware{
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledInstallSoftware{
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
-				SoftwareTitleID:     softwareTitleID,
+				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
 				FromSetupExperience: true,
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for canceled setup experience software install")
 			}
-			if err := svc.NewActivity(ctx, nil, activity); err != nil {
-				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience software install")
-			}
-		} else if r.VPPAppTeamID != nil {
-			var softwareTitleID uint
-			if r.SoftwareTitleID != nil {
-				softwareTitleID = *r.SoftwareTitleID
-			}
-			activity := fleet.ActivityTypeCanceledInstallAppStoreApp{
+		} else if r.IsForVPPApp() {
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledInstallAppStoreApp{
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
-				SoftwareTitleID:     softwareTitleID,
+				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
 				FromSetupExperience: true,
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for canceled setup experience VPP app install")
 			}
-			if err := svc.NewActivity(ctx, nil, activity); err != nil {
-				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience VPP app install")
-			}
-		}
-		if r.IsForSoftware() {
-			hasCancelledSoftware = true
-		}
-		continue
-	}
-
-	// If there were cancelled software items, create a single canceled_setup_experience
-	// activity referencing the software that originally failed and triggered the cancellation.
-	if hasCancelledSoftware && failedSoftwareName != "" {
-		canceledActivity := fleet.ActivityTypeCanceledSetupExperience{
-			HostID:          hostID,
-			HostDisplayName: hostDisplayName,
-			SoftwareTitle:   failedSoftwareName,
-			SoftwareTitleID: failedSoftwareTitleID,
-		}
-		if err := svc.NewActivity(ctx, nil, canceledActivity); err != nil {
-			return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")
 		}
 	}
 

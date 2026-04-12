@@ -61,7 +61,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 			},
 		}
 
-		err := svc.failCancelledSetupExperienceInstalls(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
 		require.NoError(t, err)
 		assert.False(t, activityCreated, "no activity should be created for non-cancelled results")
 		assert.False(t, ds.UpdateSetupExperienceStatusResultFuncInvoked, "no update should be called for non-cancelled results")
@@ -112,7 +112,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 			},
 		}
 
-		err := svc.failCancelledSetupExperienceInstalls(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
 		require.NoError(t, err)
 
 		// Status should have been changed to failure
@@ -181,7 +181,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 			},
 		}
 
-		err := svc.failCancelledSetupExperienceInstalls(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
 		require.NoError(t, err)
 
 		// Status should have been changed to failure
@@ -271,7 +271,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 			},
 		}
 
-		err := svc.failCancelledSetupExperienceInstalls(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
 		require.NoError(t, err)
 
 		// Only the two cancelled results should have their status changed
@@ -323,7 +323,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 			},
 		}
 
-		err := svc.failCancelledSetupExperienceInstalls(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
 		require.NoError(t, err)
 
 		// Status should still be changed to failure
@@ -333,10 +333,10 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 	})
 
 	t.Run("empty results returns nil", func(t *testing.T) {
-		err := svc.failCancelledSetupExperienceInstalls(ctx, hostID, hostUUID, hostDisplayName, nil)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil)
 		require.NoError(t, err)
 
-		err = svc.failCancelledSetupExperienceInstalls(ctx, hostID, hostUUID, hostDisplayName, []*fleet.SetupExperienceStatusResult{})
+		err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, []*fleet.SetupExperienceStatusResult{})
 		require.NoError(t, err)
 	})
 
@@ -374,7 +374,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 			},
 		}
 
-		err := svc.failCancelledSetupExperienceInstalls(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
 		require.NoError(t, err)
 
 		// Should only have the canceled install, no canceled_setup_experience
