@@ -55,9 +55,9 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 				VPPAppTeamID: ptr.Uint(3),
 			},
 			{
-				HostUUID:     hostUUID,
-				Status:       fleet.SetupExperienceStatusFailure,
-				VPPAppTeamID: ptr.Uint(4),
+				HostUUID:                hostUUID,
+				Status:                  fleet.SetupExperienceStatusFailure,
+				SetupExperienceScriptID: ptr.Uint(4),
 			},
 		}
 
@@ -75,14 +75,6 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 
 		ds.UpdateSetupExperienceStatusResultFunc = func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
 			return nil
-		}
-
-		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
-			require.Equal(t, installerID, id)
-			return &fleet.SoftwareInstaller{
-				Name:    "installer.pkg",
-				TitleID: &titleID,
-			}, nil
 		}
 
 		var createdActivities []fleet.ActivityDetails
@@ -108,6 +100,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 				Name:                            "DummyApp",
 				Status:                          fleet.SetupExperienceStatusCancelled,
 				SoftwareInstallerID:             &installerID,
+				SoftwareTitleID:                 &titleID,
 				HostSoftwareInstallsExecutionID: ptr.String("exec-uuid-1"),
 			},
 		}
@@ -121,25 +114,25 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		// Update should have been called
 		assert.True(t, ds.UpdateSetupExperienceStatusResultFuncInvoked)
 
-		// Should have 2 activities: canceled install + canceled setup experience
+		// Should have 2 activities: canceled setup experience + canceled install
 		require.Len(t, createdActivities, 2)
 
-		// First: canceled install software
-		canceledAct, ok := createdActivities[0].(fleet.ActivityTypeCanceledInstallSoftware)
-		require.True(t, ok, "expected ActivityTypeCanceledInstallSoftware, got %T", createdActivities[0])
+		// First: canceled setup experience (emitted in first loop for the failed item)
+		cseAct, ok := createdActivities[0].(fleet.ActivityTypeCanceledSetupExperience)
+		require.True(t, ok, "expected ActivityTypeCanceledSetupExperience, got %T", createdActivities[0])
+		assert.Equal(t, hostID, cseAct.HostID)
+		assert.Equal(t, "FailedApp", cseAct.SoftwareTitle)
+		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
+
+		// Second: canceled install software
+		canceledAct, ok := createdActivities[1].(fleet.ActivityTypeCanceledInstallSoftware)
+		require.True(t, ok, "expected ActivityTypeCanceledInstallSoftware, got %T", createdActivities[1])
 		assert.Equal(t, hostID, canceledAct.HostID)
 		assert.Equal(t, hostDisplayName, canceledAct.HostDisplayName)
 		assert.Equal(t, "DummyApp", canceledAct.SoftwareTitle)
 		assert.Equal(t, titleID, canceledAct.SoftwareTitleID)
 		assert.True(t, canceledAct.FromSetupExperience, "FromSetupExperience should be true")
 		assert.True(t, canceledAct.WasFromAutomation(), "WasFromAutomation should be true")
-
-		// Second: canceled setup experience
-		cseAct, ok := createdActivities[1].(fleet.ActivityTypeCanceledSetupExperience)
-		require.True(t, ok, "expected ActivityTypeCanceledSetupExperience, got %T", createdActivities[1])
-		assert.Equal(t, hostID, cseAct.HostID)
-		assert.Equal(t, "FailedApp", cseAct.SoftwareTitle)
-		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
 
 		// Should be created with nil user (Fleet-initiated)
 		assert.Nil(t, createdUser)
@@ -187,24 +180,25 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		// Status should have been changed to failure
 		assert.Equal(t, fleet.SetupExperienceStatusFailure, results[1].Status)
 
-		// Should have 2 activities: canceled VPP + canceled setup experience
+		// Should have 2 activities: canceled setup experience + canceled VPP install
 		require.Len(t, createdActivities, 2)
 
-		// First: canceled install app store app
-		canceledAct, ok := createdActivities[0].(fleet.ActivityTypeCanceledInstallAppStoreApp)
-		require.True(t, ok, "expected ActivityTypeCanceledInstallAppStoreApp, got %T", createdActivities[0])
+		// First: canceled setup experience (emitted in first loop for the failed item)
+		cseAct, ok := createdActivities[0].(fleet.ActivityTypeCanceledSetupExperience)
+		require.True(t, ok, "expected ActivityTypeCanceledSetupExperience, got %T", createdActivities[0])
+		assert.Equal(t, hostID, cseAct.HostID)
+		assert.Equal(t, "FailedVPP", cseAct.SoftwareTitle)
+		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
+
+		// Second: canceled install app store app
+		canceledAct, ok := createdActivities[1].(fleet.ActivityTypeCanceledInstallAppStoreApp)
+		require.True(t, ok, "expected ActivityTypeCanceledInstallAppStoreApp, got %T", createdActivities[1])
 		assert.Equal(t, hostID, canceledAct.HostID)
 		assert.Equal(t, hostDisplayName, canceledAct.HostDisplayName)
 		assert.Equal(t, "VPPApp", canceledAct.SoftwareTitle)
 		assert.Equal(t, softwareTitleID, canceledAct.SoftwareTitleID)
 		assert.True(t, canceledAct.FromSetupExperience)
 		assert.True(t, canceledAct.WasFromAutomation())
-
-		// Second: canceled setup experience
-		cseAct, ok := createdActivities[1].(fleet.ActivityTypeCanceledSetupExperience)
-		require.True(t, ok)
-		assert.Equal(t, "FailedVPP", cseAct.SoftwareTitle)
-		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
 	})
 
 	t.Run("mixed cancelled and non-cancelled results", func(t *testing.T) {
@@ -218,13 +212,6 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 
 		ds.UpdateSetupExperienceStatusResultFunc = func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
 			return nil
-		}
-
-		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
-			return &fleet.SoftwareInstaller{
-				Name:    "installer.pkg",
-				TitleID: &titleID,
-			}, nil
 		}
 
 		var activities []fleet.ActivityDetails
@@ -253,6 +240,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 				Name:                            "CancelledSW",
 				Status:                          fleet.SetupExperienceStatusCancelled,
 				SoftwareInstallerID:             &installerID,
+				SoftwareTitleID:                 &titleID,
 				HostSoftwareInstallsExecutionID: ptr.String("exec-uuid-3"),
 			},
 			{
@@ -281,23 +269,23 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		assert.Equal(t, fleet.SetupExperienceStatusPending, results[3].Status) // unchanged
 		assert.Equal(t, fleet.SetupExperienceStatusFailure, results[4].Status) // cancelled -> failed
 
-		// Three activities: canceled sw install, canceled vpp install, canceled setup experience
+		// Three activities: canceled setup experience, canceled sw install, canceled vpp install
 		require.Len(t, activities, 3)
 
-		swAct, ok := activities[0].(fleet.ActivityTypeCanceledInstallSoftware)
+		cseAct, ok := activities[0].(fleet.ActivityTypeCanceledSetupExperience)
+		require.True(t, ok)
+		assert.Equal(t, "FailedApp", cseAct.SoftwareTitle)
+		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
+
+		swAct, ok := activities[1].(fleet.ActivityTypeCanceledInstallSoftware)
 		require.True(t, ok)
 		assert.Equal(t, "CancelledSW", swAct.SoftwareTitle)
 		assert.True(t, swAct.FromSetupExperience)
 
-		vppAct, ok := activities[1].(fleet.ActivityTypeCanceledInstallAppStoreApp)
+		vppAct, ok := activities[2].(fleet.ActivityTypeCanceledInstallAppStoreApp)
 		require.True(t, ok)
 		assert.Equal(t, "CancelledVPP", vppAct.SoftwareTitle)
 		assert.True(t, vppAct.FromSetupExperience)
-
-		cseAct, ok := activities[2].(fleet.ActivityTypeCanceledSetupExperience)
-		require.True(t, ok)
-		assert.Equal(t, "FailedApp", cseAct.SoftwareTitle)
-		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
 	})
 
 	t.Run("script cancellation does not trigger activity", func(t *testing.T) {
@@ -350,13 +338,6 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 			return nil
 		}
 
-		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
-			return &fleet.SoftwareInstaller{
-				Name:    "installer.pkg",
-				TitleID: &titleID,
-			}, nil
-		}
-
 		var createdActivities []fleet.ActivityDetails
 		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			createdActivities = append(createdActivities, activity)
@@ -370,6 +351,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 				Name:                            "DummyApp",
 				Status:                          fleet.SetupExperienceStatusCancelled,
 				SoftwareInstallerID:             &installerID,
+				SoftwareTitleID:                 &titleID,
 				HostSoftwareInstallsExecutionID: ptr.String("exec-uuid-1"),
 			},
 		}
