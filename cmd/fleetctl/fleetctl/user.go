@@ -125,9 +125,6 @@ func createUserCommand() *cli.Command {
 			}
 
 			if apiOnly {
-				if sso {
-					return errors.New("--sso cannot be used with --api-only")
-				}
 				if mfa {
 					return errors.New("--mfa cannot be used with --api-only")
 				}

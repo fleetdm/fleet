@@ -332,7 +332,7 @@ func (svc *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.
 	target, err := svc.ds.UserByID(ctx, userID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, fleet.NewPermissionError("no permission to modify this user")
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, target, fleet.ActionWrite); err != nil {
 		return nil, err

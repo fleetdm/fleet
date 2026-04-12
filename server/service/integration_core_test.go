@@ -395,10 +395,9 @@ func (s *integrationTestSuite) TestCreateAPIOnlyUser() {
 	require.Equal(t, "observer", *createResp.User.GlobalRole)
 }
 
-func (s *integrationTestSuite) TestPatchAPIOnlyUser() {
+func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 	t := s.T()
 
-	// Create an API-only user on the free tier (global_role only, no premium features).
 	var createResp struct {
 		User struct {
 			ID uint `json:"id"`
@@ -412,22 +411,17 @@ func (s *integrationTestSuite) TestPatchAPIOnlyUser() {
 	require.NotZero(t, createResp.User.ID)
 	apiUserID := createResp.User.ID
 
-	// Unauthenticated PATCH → 401.
-	// Must send a valid JSON body ({}) to avoid pre-auth decode error (400 vs 401).
 	s.DoRawNoAuth("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), []byte(`{}`), http.StatusUnauthorized)
 
-	// PATCH non-existent user → 404.
 	s.Do("PATCH", "/api/latest/fleet/users/api_only/999999", map[string]any{
 		"name": "New Name",
 	}, http.StatusNotFound)
 
-	// PATCH a non-API-only user (admin1) → 422.
 	admin := s.users["admin1@example.com"]
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", admin.ID), map[string]any{
 		"name": "New Name",
 	}, http.StatusUnprocessableEntity)
 
-	// PATCH api_endpoints without premium → 402.
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
 		"api_endpoints": []map[string]any{
 			{"method": "GET", "path": "/api/v1/fleet/config"},

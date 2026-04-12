@@ -28481,14 +28481,12 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 	require.Equal(t, "observer", createRespTeam.User.Teams[0].Role)
 }
 
-func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
+func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 	t := s.T()
 
-	// Create a team for fleet-scoped assignments.
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "_team"})
 	require.NoError(t, err)
 
-	// Create a non-API-only user to verify the endpoint rejects it.
 	nonAPIUser := &fleet.User{
 		Name:       "Non API User",
 		Email:      "non-api-patch@example.com",
@@ -28498,7 +28496,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 	nonAPIUser, err = s.ds.NewUser(context.Background(), nonAPIUser)
 	require.NoError(t, err)
 
-	// Helper struct for parsing PATCH responses.
 	type patchResp struct {
 		User struct {
 			ID           uint    `json:"id"`
@@ -28518,7 +28515,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 		Err string `json:"error,omitempty"`
 	}
 
-	// Create the API-only user we'll be patching throughout the test.
 	var createResp struct {
 		User struct {
 			ID uint `json:"id"`
@@ -28536,24 +28532,20 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 	uid := createResp.User.ID
 	patchURL := fmt.Sprintf("/api/latest/fleet/users/api_only/%d", uid)
 
-	// PATCH non-existent user → 404.
 	s.Do("PATCH", "/api/latest/fleet/users/api_only/999999", map[string]any{
 		"name": "Ghost",
 	}, http.StatusNotFound)
 
-	// PATCH a non-API-only user → 422.
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", nonAPIUser.ID), map[string]any{
 		"name": "New Name",
 	}, http.StatusUnprocessableEntity)
 
-	// PATCH with invalid api_endpoint (not in catalog) → 422.
 	s.Do("PATCH", patchURL, map[string]any{
 		"api_endpoints": []map[string]any{
 			{"method": "GET", "path": "/api/v1/fleet/nonexistent/endpoint"},
 		},
 	}, http.StatusUnprocessableEntity)
 
-	// PATCH with wildcard mixed with other entries → 422.
 	s.Do("PATCH", patchURL, map[string]any{
 		"api_endpoints": []map[string]any{
 			{"method": "*", "path": "*"},
@@ -28561,12 +28553,10 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 		},
 	}, http.StatusUnprocessableEntity)
 
-	// PATCH with empty api_endpoints slice → 422.
 	s.Do("PATCH", patchURL, map[string]any{
 		"api_endpoints": []map[string]any{},
 	}, http.StatusUnprocessableEntity)
 
-	// PATCH updating name only → 200.
 	var respName patchResp
 	s.DoJSON("PATCH", patchURL, map[string]any{
 		"name": "Patched Name",
@@ -28574,7 +28564,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 	require.Equal(t, "Patched Name", respName.User.Name)
 	require.True(t, respName.User.APIOnly)
 
-	// PATCH updating global_role → 200.
 	var respRole patchResp
 	s.DoJSON("PATCH", patchURL, map[string]any{
 		"global_role": "admin",
@@ -28582,13 +28571,11 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 	require.NotNil(t, respRole.User.GlobalRole)
 	require.Equal(t, "admin", *respRole.User.GlobalRole)
 
-	// PATCH global_role AND fleets together → 422 (mutual exclusivity).
 	s.Do("PATCH", patchURL, map[string]any{
 		"global_role": "observer",
 		"fleets":      []map[string]any{{"id": team.ID, "role": "observer"}},
 	}, http.StatusUnprocessableEntity)
 
-	// PATCH updating fleets (team role) → 200; global_role must be cleared.
 	var respTeam patchResp
 	s.DoJSON("PATCH", patchURL, map[string]any{
 		"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
@@ -28598,7 +28585,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 	require.Equal(t, "observer", respTeam.User.Teams[0].Role)
 	require.Nil(t, respTeam.User.GlobalRole, "global_role should be cleared when switching to fleet role")
 
-	// PATCH updating api_endpoints with catalog entries → 200.
 	var respEndpoints patchResp
 	s.DoJSON("PATCH", patchURL, map[string]any{
 		"api_endpoints": []map[string]any{
@@ -28608,7 +28594,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchAPIOnlyUserPremium() {
 	}, http.StatusOK, &respEndpoints)
 	require.Len(t, respEndpoints.User.APIEndpoints, 2)
 
-	// PATCH updating api_endpoints to single wildcard → 200.
 	var respWildcard patchResp
 	s.DoJSON("PATCH", patchURL, map[string]any{
 		"api_endpoints": []map[string]any{
