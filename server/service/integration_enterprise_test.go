@@ -23331,18 +23331,13 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.NotEmpty(t, executionIDs["vim"])
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallSoftware{}.ActivityName(), fmt.Sprintf(`{
 			"host_id": %d,
 			"host_display_name": %q,
 			"software_title": %q,
-			"software_package": %q,
-			"install_uuid": %q,
-			"status": "failed",
-			"self_service": false,
-			"source": "deb_packages",
-			"policy_name": null,
-			"policy_id": null
-		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", "vim.deb", executionIDs["vim"]), 0)
+			"software_title_id": %d,
+			"from_setup_experience": true
+		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", debVimTitleID), 0)
 
 		// Record a result for test.tar.gz.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
