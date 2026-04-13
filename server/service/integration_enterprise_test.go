@@ -28339,146 +28339,157 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "_team"})
 	require.NoError(t, err)
 
-	// --- Validation still enforced under premium ---
-
-	// missing name → 422 (same as free tier)
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
-	}, http.StatusUnprocessableEntity)
-
-	// neither global_role nor fleets → 422
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name": "Premium User",
-	}, http.StatusUnprocessableEntity)
-
-	// global_role AND fleets together → 422 (mutual exclusivity)
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "Premium User",
-		"global_role": "observer",
-		"fleets":      []map[string]any{{"id": team.ID, "role": "observer"}},
-	}, http.StatusUnprocessableEntity)
-
-	// invalid api_endpoint (not in catalog) → 422
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "Premium User",
-		"global_role": "observer",
-		"api_endpoints": []map[string]any{
-			{"method": "GET", "path": "/api/v1/fleet/nonexistent/endpoint"},
-		},
-	}, http.StatusUnprocessableEntity)
-
-	// wildcard mixed with other entries → 422
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "Premium User",
-		"global_role": "observer",
-		"api_endpoints": []map[string]any{
-			{"method": "*", "path": "*"},
-			{"method": "GET", "path": "/api/v1/fleet/config"},
-		},
-	}, http.StatusUnprocessableEntity)
-
-	// --- Premium features work under premium ---
-
-	// Create with wildcard api_endpoint → 200
-	var createRespWildcard struct {
+	type apiEndpoint struct {
+		Method string `json:"method"`
+		Path   string `json:"path"`
+	}
+	type teamEntry struct {
+		ID   uint   `json:"id"`
+		Role string `json:"role"`
+	}
+	type createAPIOnlyUserResponse struct {
 		User struct {
-			ID           uint    `json:"id"`
-			Name         string  `json:"name"`
-			Email        string  `json:"email"`
-			APIOnly      bool    `json:"api_only"`
-			GlobalRole   *string `json:"global_role"`
-			APIEndpoints []struct {
-				Method string `json:"method"`
-				Path   string `json:"path"`
-			} `json:"api_endpoints"`
+			ID           uint          `json:"id"`
+			Name         string        `json:"name"`
+			Email        string        `json:"email"`
+			APIOnly      bool          `json:"api_only"`
+			GlobalRole   *string       `json:"global_role"`
+			APIEndpoints []apiEndpoint `json:"api_endpoints"`
+			Teams        []teamEntry   `json:"teams"`
 		} `json:"user"`
 		Token string `json:"token"`
 		Err   string `json:"error,omitempty"`
 	}
-	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "Wildcard API User",
-		"global_role": "observer",
-		"api_endpoints": []map[string]any{
-			{"method": "*", "path": "*"},
+
+	cases := []struct {
+		name       string
+		body       map[string]any
+		wantStatus int
+		verify     func(t *testing.T, resp createAPIOnlyUserResponse)
+	}{
+		// --- Validation still enforced under premium ---
+		{
+			name: "missing name",
+			body: map[string]any{
+				"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
 		},
-	}, http.StatusOK, &createRespWildcard)
-
-	require.NotEmpty(t, createRespWildcard.Token)
-	require.NotZero(t, createRespWildcard.User.ID)
-	require.Equal(t, "Wildcard API User", createRespWildcard.User.Name)
-	require.NotEmpty(t, createRespWildcard.User.Email)
-	require.True(t, createRespWildcard.User.APIOnly)
-	require.NotNil(t, createRespWildcard.User.GlobalRole)
-	require.Equal(t, "observer", *createRespWildcard.User.GlobalRole)
-	require.Len(t, createRespWildcard.User.APIEndpoints, 1)
-	require.Equal(t, "*", createRespWildcard.User.APIEndpoints[0].Method)
-	require.Equal(t, "*", createRespWildcard.User.APIEndpoints[0].Path)
-
-	// Create with global_role and api_endpoints → 200
-	var createRespGlobal struct {
-		User struct {
-			ID           uint    `json:"id"`
-			Name         string  `json:"name"`
-			Email        string  `json:"email"`
-			APIOnly      bool    `json:"api_only"`
-			GlobalRole   *string `json:"global_role"`
-			APIEndpoints []struct {
-				Method string `json:"method"`
-				Path   string `json:"path"`
-			} `json:"api_endpoints"`
-		} `json:"user"`
-		Token string `json:"token"`
-		Err   string `json:"error,omitempty"`
+		{
+			name:       "neither global_role nor fleets",
+			body:       map[string]any{"name": "Premium User"},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "global_role and fleets together",
+			body: map[string]any{
+				"name":        "Premium User",
+				"global_role": "observer",
+				"fleets":      []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "invalid api_endpoint not in catalog",
+			body: map[string]any{
+				"name":        "Premium User",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/nonexistent/endpoint"},
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "wildcard mixed with other entries",
+			body: map[string]any{
+				"name":        "Premium User",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "*", "path": "*"},
+					{"method": "GET", "path": "/api/v1/fleet/config"},
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		// --- Premium features work under premium ---
+		{
+			name: "wildcard api_endpoint",
+			body: map[string]any{
+				"name":        "Wildcard API User",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "*", "path": "*"},
+				},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.NotEmpty(t, resp.Token)
+				require.NotZero(t, resp.User.ID)
+				require.Equal(t, "Wildcard API User", resp.User.Name)
+				require.NotEmpty(t, resp.User.Email)
+				require.True(t, resp.User.APIOnly)
+				require.NotNil(t, resp.User.GlobalRole)
+				require.Equal(t, "observer", *resp.User.GlobalRole)
+				require.Len(t, resp.User.APIEndpoints, 1)
+				require.Equal(t, "*", resp.User.APIEndpoints[0].Method)
+				require.Equal(t, "*", resp.User.APIEndpoints[0].Path)
+			},
+		},
+		{
+			name: "global_role with specific api_endpoints",
+			body: map[string]any{
+				"name":        "Global API User",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/config"},
+					{"method": "GET", "path": "/api/v1/fleet/version"},
+				},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.NotEmpty(t, resp.Token)
+				require.NotZero(t, resp.User.ID)
+				require.Equal(t, "Global API User", resp.User.Name)
+				require.NotEmpty(t, resp.User.Email)
+				require.True(t, resp.User.APIOnly)
+				require.NotNil(t, resp.User.GlobalRole)
+				require.Equal(t, "observer", *resp.User.GlobalRole)
+				require.Len(t, resp.User.APIEndpoints, 2)
+			},
+		},
+		{
+			name: "fleet-scoped assignment with wildcard api_endpoint",
+			body: map[string]any{
+				"name":   "Team API User",
+				"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
+				"api_endpoints": []map[string]any{
+					{"method": "*", "path": "*"},
+				},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.NotEmpty(t, resp.Token)
+				require.NotZero(t, resp.User.ID)
+				require.Equal(t, "Team API User", resp.User.Name)
+				require.NotEmpty(t, resp.User.Email)
+				require.True(t, resp.User.APIOnly)
+				require.Len(t, resp.User.Teams, 1)
+				require.Equal(t, team.ID, resp.User.Teams[0].ID)
+				require.Equal(t, "observer", resp.User.Teams[0].Role)
+			},
+		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "Global API User",
-		"global_role": "observer",
-		"api_endpoints": []map[string]any{
-			{"method": "GET", "path": "/api/v1/fleet/config"},
-			{"method": "GET", "path": "/api/v1/fleet/version"},
-		},
-	}, http.StatusOK, &createRespGlobal)
 
-	require.NotEmpty(t, createRespGlobal.Token)
-	require.NotZero(t, createRespGlobal.User.ID)
-	require.Equal(t, "Global API User", createRespGlobal.User.Name)
-	require.NotEmpty(t, createRespGlobal.User.Email)
-	require.True(t, createRespGlobal.User.APIOnly)
-	require.NotNil(t, createRespGlobal.User.GlobalRole)
-	require.Equal(t, "observer", *createRespGlobal.User.GlobalRole)
-	require.Len(t, createRespGlobal.User.APIEndpoints, 2)
-
-	// Create with fleets (team assignment) → 200
-	var createRespTeam struct {
-		User struct {
-			ID      uint   `json:"id"`
-			Name    string `json:"name"`
-			Email   string `json:"email"`
-			APIOnly bool   `json:"api_only"`
-			Teams   []struct {
-				ID   uint   `json:"id"`
-				Role string `json:"role"`
-			} `json:"teams"`
-		} `json:"user"`
-		Token string `json:"token"`
-		Err   string `json:"error,omitempty"`
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp createAPIOnlyUserResponse
+			s.DoJSON("POST", "/api/latest/fleet/users/api_only", tc.body, tc.wantStatus, &resp)
+			if tc.verify != nil {
+				tc.verify(t, resp)
+			}
+		})
 	}
-	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":   "Team API User",
-		"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
-		"api_endpoints": []map[string]any{
-			{"method": "*", "path": "*"},
-		},
-	}, http.StatusOK, &createRespTeam)
-
-	require.NotEmpty(t, createRespTeam.Token)
-	require.NotZero(t, createRespTeam.User.ID)
-	require.Equal(t, "Team API User", createRespTeam.User.Name)
-	require.NotEmpty(t, createRespTeam.User.Email)
-	require.True(t, createRespTeam.User.APIOnly)
-	require.Len(t, createRespTeam.User.Teams, 1)
-	require.Equal(t, team.ID, createRespTeam.User.Teams[0].ID)
-	require.Equal(t, "observer", createRespTeam.User.Teams[0].Role)
 }
 
 func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
@@ -28531,78 +28542,140 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 	require.NotZero(t, createResp.User.ID)
 	uid := createResp.User.ID
 	patchURL := fmt.Sprintf("/api/latest/fleet/users/api_only/%d", uid)
+	nonAPIURL := fmt.Sprintf("/api/latest/fleet/users/api_only/%d", nonAPIUser.ID)
 
-	s.Do("PATCH", "/api/latest/fleet/users/api_only/999999", map[string]any{
-		"name": "Ghost",
-	}, http.StatusNotFound)
-
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", nonAPIUser.ID), map[string]any{
-		"name": "New Name",
-	}, http.StatusUnprocessableEntity)
-
-	s.Do("PATCH", patchURL, map[string]any{
-		"api_endpoints": []map[string]any{
-			{"method": "GET", "path": "/api/v1/fleet/nonexistent/endpoint"},
+	// Cases are order-dependent: success cases mutate the same user sequentially.
+	cases := []struct {
+		name       string
+		url        string
+		body       map[string]any
+		wantStatus int
+		verify     func(t *testing.T, resp patchResp)
+	}{
+		// --- Validation errors ---
+		{
+			name:       "nonexistent user",
+			url:        "/api/latest/fleet/users/api_only/999999",
+			body:       map[string]any{"name": "Ghost"},
+			wantStatus: http.StatusNotFound,
 		},
-	}, http.StatusUnprocessableEntity)
-
-	s.Do("PATCH", patchURL, map[string]any{
-		"api_endpoints": []map[string]any{
-			{"method": "*", "path": "*"},
-			{"method": "GET", "path": "/api/v1/fleet/version"},
+		{
+			name:       "non-API-only user",
+			url:        nonAPIURL,
+			body:       map[string]any{"name": "New Name"},
+			wantStatus: http.StatusUnprocessableEntity,
 		},
-	}, http.StatusUnprocessableEntity)
-
-	s.Do("PATCH", patchURL, map[string]any{
-		"api_endpoints": []map[string]any{},
-	}, http.StatusUnprocessableEntity)
-
-	var respName patchResp
-	s.DoJSON("PATCH", patchURL, map[string]any{
-		"name": "Patched Name",
-	}, http.StatusOK, &respName)
-	require.Equal(t, "Patched Name", respName.User.Name)
-	require.True(t, respName.User.APIOnly)
-
-	var respRole patchResp
-	s.DoJSON("PATCH", patchURL, map[string]any{
-		"global_role": "admin",
-	}, http.StatusOK, &respRole)
-	require.NotNil(t, respRole.User.GlobalRole)
-	require.Equal(t, "admin", *respRole.User.GlobalRole)
-
-	s.Do("PATCH", patchURL, map[string]any{
-		"global_role": "observer",
-		"fleets":      []map[string]any{{"id": team.ID, "role": "observer"}},
-	}, http.StatusUnprocessableEntity)
-
-	var respTeam patchResp
-	s.DoJSON("PATCH", patchURL, map[string]any{
-		"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
-	}, http.StatusOK, &respTeam)
-	require.Len(t, respTeam.User.Teams, 1)
-	require.Equal(t, team.ID, respTeam.User.Teams[0].ID)
-	require.Equal(t, "observer", respTeam.User.Teams[0].Role)
-	require.Nil(t, respTeam.User.GlobalRole, "global_role should be cleared when switching to fleet role")
-
-	var respEndpoints patchResp
-	s.DoJSON("PATCH", patchURL, map[string]any{
-		"api_endpoints": []map[string]any{
-			{"method": "GET", "path": "/api/v1/fleet/config"},
-			{"method": "GET", "path": "/api/v1/fleet/version"},
+		{
+			name: "invalid api_endpoint not in catalog",
+			url:  patchURL,
+			body: map[string]any{
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/nonexistent/endpoint"},
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
 		},
-	}, http.StatusOK, &respEndpoints)
-	require.Len(t, respEndpoints.User.APIEndpoints, 2)
-
-	var respWildcard patchResp
-	s.DoJSON("PATCH", patchURL, map[string]any{
-		"api_endpoints": []map[string]any{
-			{"method": "*", "path": "*"},
+		{
+			name: "wildcard mixed with other entries",
+			url:  patchURL,
+			body: map[string]any{
+				"api_endpoints": []map[string]any{
+					{"method": "*", "path": "*"},
+					{"method": "GET", "path": "/api/v1/fleet/version"},
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
 		},
-	}, http.StatusOK, &respWildcard)
-	require.Len(t, respWildcard.User.APIEndpoints, 1)
-	require.Equal(t, "*", respWildcard.User.APIEndpoints[0].Method)
-	require.Equal(t, "*", respWildcard.User.APIEndpoints[0].Path)
+		{
+			name:       "empty api_endpoints",
+			url:        patchURL,
+			body:       map[string]any{"api_endpoints": []map[string]any{}},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		// --- Successful mutations (order matters — each one builds on prior state) ---
+		{
+			name:       "update name",
+			url:        patchURL,
+			body:       map[string]any{"name": "Patched Name"},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.Equal(t, "Patched Name", resp.User.Name)
+				require.True(t, resp.User.APIOnly)
+			},
+		},
+		{
+			name:       "update global_role",
+			url:        patchURL,
+			body:       map[string]any{"global_role": "admin"},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.NotNil(t, resp.User.GlobalRole)
+				require.Equal(t, "admin", *resp.User.GlobalRole)
+			},
+		},
+		{
+			name: "global_role and fleets together",
+			url:  patchURL,
+			body: map[string]any{
+				"global_role": "observer",
+				"fleets":      []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "assign to fleet clears global_role",
+			url:  patchURL,
+			body: map[string]any{
+				"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.Len(t, resp.User.Teams, 1)
+				require.Equal(t, team.ID, resp.User.Teams[0].ID)
+				require.Equal(t, "observer", resp.User.Teams[0].Role)
+				require.Nil(t, resp.User.GlobalRole, "global_role should be cleared when switching to fleet role")
+			},
+		},
+		{
+			name: "update api_endpoints to specific endpoints",
+			url:  patchURL,
+			body: map[string]any{
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/config"},
+					{"method": "GET", "path": "/api/v1/fleet/version"},
+				},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.Len(t, resp.User.APIEndpoints, 2)
+			},
+		},
+		{
+			name: "update api_endpoints to wildcard",
+			url:  patchURL,
+			body: map[string]any{
+				"api_endpoints": []map[string]any{
+					{"method": "*", "path": "*"},
+				},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.Len(t, resp.User.APIEndpoints, 1)
+				require.Equal(t, "*", resp.User.APIEndpoints[0].Method)
+				require.Equal(t, "*", resp.User.APIEndpoints[0].Path)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp patchResp
+			s.DoJSON("PATCH", tc.url, tc.body, tc.wantStatus, &resp)
+			if tc.verify != nil {
+				tc.verify(t, resp)
+			}
+		})
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestGetUserReturnsAPIEndpoints() {

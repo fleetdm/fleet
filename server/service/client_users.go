@@ -7,9 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// CreateAPIOnlyUser creates a new API-only user via the dedicated endpoint.
-// The email and password are generated server-side.
-// Returns the API token for the new user.
+// CreateAPIOnlyUser creates a new API-only user, returning the API token for the new user.
 func (c *Client) CreateAPIOnlyUser(name string, globalRole *string, teams []fleet.UserTeam) (*string, error) {
 	verb, path := "POST", "/api/latest/fleet/users/api_only"
 	payload := fleet.UserPayload{

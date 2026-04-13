@@ -336,40 +336,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 func (s *integrationTestSuite) TestCreateAPIOnlyUser() {
 	t := s.T()
 
-	// missing name → 422
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"global_role": "observer",
-	}, http.StatusUnprocessableEntity)
-
-	// neither global_role nor fleets → 422
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name": "Jane Doe",
-	}, http.StatusUnprocessableEntity)
-
-	// fleets without premium → 402
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":   "Jane Doe",
-		"fleets": []map[string]any{{"id": 9999, "role": "observer"}},
-	}, http.StatusPaymentRequired)
-
-	// api_endpoints without premium → 402
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "Jane Doe",
-		"global_role": "observer",
-		"api_endpoints": []map[string]any{
-			{"method": "GET", "path": "/api/v1/fleet/hosts/:id"},
-		},
-	}, http.StatusPaymentRequired)
-
-	// both global_role and fleets without premium → 402 (premium check fires first)
-	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "Jane Doe",
-		"global_role": "observer",
-		"fleets":      []map[string]any{{"id": 9999, "role": "observer"}},
-	}, http.StatusPaymentRequired)
-
-	// successful creation with global_role only (no premium features) → 200
-	var createResp struct {
+	type createAPIOnlyUserResponse struct {
 		User struct {
 			ID         uint    `json:"id"`
 			Name       string  `json:"name"`
@@ -381,18 +348,78 @@ func (s *integrationTestSuite) TestCreateAPIOnlyUser() {
 		Err   string `json:"error,omitempty"`
 	}
 
-	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "Jane Doe",
-		"global_role": "observer",
-	}, http.StatusOK, &createResp)
+	cases := []struct {
+		name       string
+		body       map[string]any
+		wantStatus int
+		verify     func(t *testing.T, resp createAPIOnlyUserResponse)
+	}{
+		{
+			name:       "missing name",
+			body:       map[string]any{"global_role": "observer"},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:       "neither global_role nor fleets",
+			body:       map[string]any{"name": "Jane Doe"},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "fleets without premium",
+			body: map[string]any{
+				"name":   "Jane Doe",
+				"fleets": []map[string]any{{"id": 9999, "role": "observer"}},
+			},
+			wantStatus: http.StatusPaymentRequired,
+		},
+		{
+			name: "api_endpoints without premium",
+			body: map[string]any{
+				"name":        "Jane Doe",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/hosts/:id"},
+				},
+			},
+			wantStatus: http.StatusPaymentRequired,
+		},
+		{
+			name: "both global_role and fleets without premium",
+			body: map[string]any{
+				"name":        "Jane Doe",
+				"global_role": "observer",
+				"fleets":      []map[string]any{{"id": 9999, "role": "observer"}},
+			},
+			wantStatus: http.StatusPaymentRequired,
+		},
+		{
+			name: "successful creation with global_role only",
+			body: map[string]any{
+				"name":        "Jane Doe",
+				"global_role": "observer",
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.NotEmpty(t, resp.Token, "token must be set")
+				require.NotZero(t, resp.User.ID, "user ID must be set")
+				require.Equal(t, "Jane Doe", resp.User.Name)
+				require.NotEmpty(t, resp.User.Email)
+				require.True(t, resp.User.APIOnly, "user must be api_only")
+				require.NotNil(t, resp.User.GlobalRole)
+				require.Equal(t, "observer", *resp.User.GlobalRole)
+			},
+		},
+	}
 
-	require.NotEmpty(t, createResp.Token, "token must be set")
-	require.NotZero(t, createResp.User.ID, "user ID must be set")
-	require.Equal(t, "Jane Doe", createResp.User.Name)
-	require.NotEmpty(t, createResp.User.Email)
-	require.True(t, createResp.User.APIOnly, "user must be api_only")
-	require.NotNil(t, createResp.User.GlobalRole)
-	require.Equal(t, "observer", *createResp.User.GlobalRole)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp createAPIOnlyUserResponse
+			s.DoJSON("POST", "/api/latest/fleet/users/api_only", tc.body, tc.wantStatus, &resp)
+			if tc.verify != nil {
+				tc.verify(t, resp)
+			}
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestModifyAPIOnlyUser() {

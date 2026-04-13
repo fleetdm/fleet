@@ -325,7 +325,6 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 }
 
 // loadAPIEndpointsForUsers loads api_endpoints for any API-only users in the slice.
-// Non-API-only users are left untouched.
 func (ds *Datastore) loadAPIEndpointsForUsers(ctx context.Context, users []*fleet.User) error {
 	var apiOnlyIDs []uint
 	for _, u := range users {
@@ -363,7 +362,7 @@ func (ds *Datastore) loadAPIEndpointsForUsers(ctx context.Context, users []*flee
 	}
 	for _, u := range users {
 		if u.APIOnly {
-			u.APIEndpoints = byUserID[u.ID] // nil when no endpoints assigned
+			u.APIEndpoints = byUserID[u.ID]
 		}
 	}
 	return nil
@@ -582,7 +581,7 @@ func replaceUserAPIEndpoints(ctx context.Context, tx sqlx.ExtContext, userID uin
 		return nil
 	}
 	placeholders := strings.Repeat("(?, ?, ?),", len(endpoints))
-	placeholders = placeholders[:len(placeholders)-1] // trim trailing comma
+	placeholders = placeholders[:len(placeholders)-1]
 	args := make([]any, 0, len(endpoints)*3)
 	for _, ep := range endpoints {
 		args = append(args, userID, ep.Path, ep.Method)
