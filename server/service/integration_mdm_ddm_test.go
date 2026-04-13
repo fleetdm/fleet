@@ -1443,12 +1443,6 @@ WHERE name = ?`
 	dbDeclPlain := getDeclaration(t, "Plain.json")
 	assert.Contains(t, string(dbDeclPlain.RawJSON), "static-value")
 
-	declsByToken := map[string]fleet.MDMAppleDeclaration{
-		dbDeclUUID.Token:   {Identifier: "com.fleet.var.uuid"},
-		dbDeclSerial.Token: {Identifier: "com.fleet.var.serial"},
-		dbDeclPlain.Token:  {Identifier: "com.fleet.plain"},
-	}
-
 	// === First sync — verify variable substitution ===
 
 	s.awaitTriggerProfileSchedule(t)
@@ -1462,12 +1456,6 @@ WHERE name = ?`
 	tokens := parseTokensResp(t, r)
 	lastSyncDeclToken := tokens.SyncTokens.DeclarationsToken
 	require.NotEmpty(t, lastSyncDeclToken)
-
-	// Host1 fetches declaration items
-	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
-	require.NoError(t, err)
-	itemsResp := parseDeclarationItemsResp(t, r)
-	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
 
 	// Fetch individual declarations and verify substitution
 	var gotParsed fleet.MDMAppleDDMDeclarationResponse
@@ -1497,6 +1485,19 @@ WHERE name = ?`
 	varsUpdatedPlain := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclPlain.DeclarationUUID)
 	require.Nil(t, varsUpdatedPlain)
 
+	// Build expected declaration-items map with effective tokens (incorporating variables_updated_at)
+	declsByToken := map[string]fleet.MDMAppleDeclaration{
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
+	}
+
+	// Host1 fetches declaration items
+	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	itemsResp := parseDeclarationItemsResp(t, r)
+	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
+
 	// === No resend when unrelated declaration added ===
 
 	newDecl := []byte(`{
@@ -1516,13 +1517,6 @@ WHERE name = ?`
 	dbNewDecl := getDeclaration(t, "NewDecl.json")
 	assert.Contains(t, string(dbNewDecl.RawJSON), "new-stuff")
 
-	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		dbDeclUUID.Token:   {Identifier: "com.fleet.var.uuid"},
-		dbDeclSerial.Token: {Identifier: "com.fleet.var.serial"},
-		dbDeclPlain.Token:  {Identifier: "com.fleet.plain"},
-		dbNewDecl.Token:    {Identifier: "com.fleet.new"},
-	}
-
 	s.awaitTriggerProfileSchedule(t)
 
 	// Host1 gets DDM sync (declaration set changed), host2 nothing
@@ -1534,6 +1528,13 @@ WHERE name = ?`
 	tokens = parseTokensResp(t, r)
 	lastSyncDeclToken = tokens.SyncTokens.DeclarationsToken
 	require.NotEmpty(t, lastSyncDeclToken)
+
+	declsByToken = map[string]fleet.MDMAppleDeclaration{
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
+		dbNewDecl.Token:   {Identifier: "com.fleet.new"},
+	}
 
 	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
 	require.NoError(t, err)
@@ -1561,9 +1562,9 @@ WHERE name = ?`
 	checkNoCommands(mdmDevice2)
 
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		dbDeclUUID.Token:   {Identifier: "com.fleet.var.uuid"},
-		dbDeclSerial.Token: {Identifier: "com.fleet.var.serial"},
-		dbDeclPlain.Token:  {Identifier: "com.fleet.plain"},
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, varsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, varsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
 	}
 
 	r, err = mdmDevice1.DeclarativeManagement("tokens")
@@ -1732,13 +1733,6 @@ WHERE name = ?`
 
 	dbDeclIdpUsername := getDeclaration(t, "VarIdpUsername.json")
 
-	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		dbDeclUUID.Token:        {Identifier: "com.fleet.var.uuid"},
-		dbDeclSerial.Token:      {Identifier: "com.fleet.var.serial"},
-		dbDeclPlain.Token:       {Identifier: "com.fleet.plain"},
-		dbDeclIdpUsername.Token: {Identifier: "com.fleet.var.idpusername"},
-	}
-
 	s.awaitTriggerProfileSchedule(t)
 
 	// Host1 gets DDM sync (declaration set changed)
@@ -1750,6 +1744,18 @@ WHERE name = ?`
 	tokens = parseTokensResp(t, r)
 	lastSyncDeclToken = tokens.SyncTokens.DeclarationsToken
 	require.NotEmpty(t, lastSyncDeclToken)
+
+	// Get current variables_updated_at for host1's declarations (may have changed since earlier captures)
+	latestVarsUpdatedUUID := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
+	latestVarsUpdatedSerial := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
+	latestVarsUpdatedIdp := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclIdpUsername.DeclarationUUID)
+
+	declsByToken = map[string]fleet.MDMAppleDeclaration{
+		fleet.EffectiveDDMToken(dbDeclUUID.Token, latestVarsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
+		fleet.EffectiveDDMToken(dbDeclSerial.Token, latestVarsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
+		fleet.EffectiveDDMToken(dbDeclIdpUsername.Token, latestVarsUpdatedIdp): {Identifier: "com.fleet.var.idpusername"},
+	}
 
 	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
 	require.NoError(t, err)

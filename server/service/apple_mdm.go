@@ -6160,13 +6160,14 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			}
 			continue
 		}
+		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt)
 		configurations = append(configurations, fleet.MDMAppleDDMManifest{
 			Identifier:  d.Identifier,
-			ServerToken: d.ServerToken,
+			ServerToken: effectiveToken,
 		})
 		activations = append(activations, fleet.MDMAppleDDMManifest{
 			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
-			ServerToken: d.ServerToken,
+			ServerToken: effectiveToken,
 		})
 	}
 
@@ -6280,7 +6281,7 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
   },
   "ServerToken": "%s",
   "Type": "com.apple.activation.simple"
-}`, parts[2], references, d.Token)
+}`, parts[2], references, fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt))
 
 	return []byte(response), nil
 }
@@ -6313,7 +6314,7 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
 	}
-	tempd["ServerToken"] = d.Token
+	tempd["ServerToken"] = fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt) //nolint:nilaway // tempd is non-nil after successful json.Unmarshal
 
 	b, err := json.Marshal(tempd)
 	if err != nil {

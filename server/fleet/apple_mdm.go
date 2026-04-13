@@ -720,9 +720,25 @@ type MDMAppleDeclaration struct {
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
-	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
-	UploadedAt       time.Time  `db:"uploaded_at" json:"uploaded_at"`
-	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
+	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+}
+
+// EffectiveDDMToken computes the per-declaration token that incorporates both
+// the static content hash and the host-specific variables_updated_at timestamp.
+// When variablesUpdatedAt is nil (declaration has no Fleet variables), the
+// effective token equals the static token unchanged.
+func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time) string {
+	if variablesUpdatedAt == nil {
+		return staticToken
+	}
+	// Must match MySQL's DATETIME(6) string representation used in
+	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
+	hasher := md5.New() // nolint:gosec // used for declarative management token
+	hasher.Write([]byte(staticToken + variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	return hex.EncodeToString(hasher.Sum(nil))
 }
 
 type MDMAppleRawDeclaration struct {

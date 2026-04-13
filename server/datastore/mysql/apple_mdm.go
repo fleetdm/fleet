@@ -5723,7 +5723,7 @@ func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identi
 	// declarations are removed, but the join would provide an extra layer of safety.
 	const stmt = `
 SELECT
-	mad.declaration_uuid, mad.raw_json, HEX(mad.token) as token
+	mad.declaration_uuid, mad.raw_json, HEX(mad.token) as token, hmad.variables_updated_at
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
@@ -6119,7 +6119,7 @@ func setVariablesUpdatedAtForDeclarations(ctx context.Context, tx sqlx.ExtContex
 // MDMAppleStoreDDMStatusReport updates the status of the host's declarations.
 func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
 	getHostDeclarationsStmt := `
-    SELECT host_uuid, status, operation_type, HEX(token) as token, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name
+    SELECT host_uuid, status, operation_type, HEX(token) as token, secrets_updated_at, variables_updated_at, declaration_uuid, declaration_identifier, declaration_name
     FROM host_mdm_apple_declarations
     WHERE host_uuid = ?
   `
@@ -6155,7 +6155,7 @@ ON DUPLICATE KEY UPDATE
 	for _, c := range current {
 		// Skip updates for 'remove' operations because it is possible that IT admin removed a profile and then re-added it.
 		// Pending removes are cleaned up after we update status of installs.
-		if u, ok := updatesByToken[c.Token]; ok && u.OperationType != fleet.MDMOperationTypeRemove {
+		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt)]; ok && u.OperationType != fleet.MDMOperationTypeRemove {
 			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
 			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
 				c.SecretsUpdatedAt)
