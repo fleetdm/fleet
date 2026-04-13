@@ -299,7 +299,6 @@ software:
       setup_experience: true
       categories:
         - Communication
-        - Productivity
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
       setup_experience: true
@@ -317,7 +316,7 @@ software:
     - slug: utm/darwin # UTM for macOS
       self_service: true
       categories:
-        - Productivity
+        - Developer tools
     - slug: imazing-profile-editor/darwin # iMazing Profile Editor for macOS
       self_service: true
       categories:
@@ -349,15 +348,15 @@ software:
     - slug: spotify/darwin # Spotify for macOS
       self_service: true
       categories:
-        - Productivity
+        - Utilities
     - slug: rectangle/darwin # Rectangle for macOS
       self_service: true
       categories:
-        - Productivity
+        - Utilities
     - slug: logi-options+/darwin # Logi Options+ for macOS
       self_service: true
       categories:
-        - Productivity
+        - Utilities
     - slug: suspicious-package/darwin # Suspicious Package for macOS
       self_service: true
       categories:
@@ -460,7 +459,7 @@ software:
     - slug: spotify/windows # Spotify for Windows (x86)
       self_service: true
       categories:
-        - Productivity
+        - Utilities
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: figma/windows # Figma for Windows (x86)
