@@ -11,8 +11,6 @@ import (
 type StorageType string
 
 const (
-	// StorageTypeBitmap stores one row per host/entity/day with a 24-bit hour bitmap.
-	StorageTypeBitmap StorageType = "bitmap"
 	// StorageTypeBlob stores one row per entity/date/hour with a host bitmap blob.
 	StorageTypeBlob StorageType = "blob"
 )
@@ -38,7 +36,9 @@ type Dataset interface {
 	// DefaultVisualization returns the default visualization type (e.g. "line", "heatmap").
 	DefaultVisualization() string
 
-	// HasEntityDimension returns true if the dataset uses entity_id (requiring COUNT(DISTINCT host_id)).
+	// HasEntityDimension returns true if the dataset partitions data by entity_id
+	// (e.g. per-CVE or per-policy). Used by query paths that need to aggregate across
+	// or filter by entities.
 	HasEntityDimension() bool
 }
 

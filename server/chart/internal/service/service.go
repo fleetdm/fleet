@@ -102,10 +102,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 	case chart.StorageTypeBlob:
 		data, totalHosts, err = s.getChartDataBlob(ctx, metric, startDate, endDate, hostFilter, entityIDs, opts.Downsample)
 	default:
-		data, err = s.store.GetChartData(ctx, metric, startDate, endDate, hostFilter, entityIDs, dataset.HasEntityDimension(), opts.Downsample)
-		if err == nil {
-			totalHosts, err = s.store.CountHostsForChartFilter(ctx, hostFilter)
-		}
+		return nil, ctxerr.Errorf(ctx, "unsupported storage type: %s", dataset.StorageType())
 	}
 	if err != nil {
 		return nil, err
@@ -218,9 +215,6 @@ func (s *Service) getChartDataBlob(
 }
 
 func (s *Service) CleanupData(ctx context.Context, days int) error {
-	if err := s.store.CleanupHostDailyBitmapData(ctx, days); err != nil {
-		return err
-	}
 	return s.store.CleanupBlobData(ctx, days)
 }
 

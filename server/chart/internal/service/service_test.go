@@ -20,20 +20,11 @@ func (m *mockAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzType
 
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
-	getChartDataFunc           func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []string, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
 	getBlobDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error)
 	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error)
 	countHostsForChartFilterFn func(ctx context.Context, hostFilter *chart.HostFilter) (int, error)
 	collectUptimeFn            func(ctx context.Context, now time.Time) error
 	collectUptimeInvoked       bool
-}
-
-func (m *mockDatastore) RecordHostHourlyData(_ context.Context, _ uint, _ string, _ string, _ time.Time) error {
-	return nil
-}
-
-func (m *mockDatastore) GetChartData(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []string, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
-	return m.getChartDataFunc(ctx, dataset, startDate, endDate, hostFilter, entityIDs, hasEntityDimension, downsample)
 }
 
 func (m *mockDatastore) CountHostsForChartFilter(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
@@ -60,10 +51,6 @@ func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *cha
 		return m.getHostIDsForFilterFunc(ctx, hostFilter)
 	}
 	return nil, nil
-}
-
-func (m *mockDatastore) CleanupHostDailyBitmapData(_ context.Context, _ int) error {
-	return nil
 }
 
 func (m *mockDatastore) CleanupBlobData(_ context.Context, _ int) error {
@@ -120,7 +107,7 @@ func TestGetChartDataBlobHourly(t *testing.T) {
 	resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 7})
 	require.NoError(t, err)
 	assert.Equal(t, "uptime", resp.Metric)
-	assert.Equal(t, "line", resp.Visualization)
+	assert.Equal(t, "checkerboard", resp.Visualization)
 	assert.Equal(t, "hourly", resp.Resolution)
 	assert.Equal(t, 200, resp.TotalHosts)
 	assert.Equal(t, 7, resp.Days)
@@ -329,7 +316,7 @@ func TestUptimeDatasetMetadata(t *testing.T) {
 	d := &chart.UptimeDataset{}
 	assert.Equal(t, "uptime", d.Name())
 	assert.Equal(t, chart.StorageTypeBlob, d.StorageType())
-	assert.Equal(t, "line", d.DefaultVisualization())
+	assert.Equal(t, "checkerboard", d.DefaultVisualization())
 	assert.False(t, d.HasEntityDimension())
 	assert.Nil(t, d.SupportedFilters())
 

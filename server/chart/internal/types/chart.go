@@ -10,14 +10,6 @@ import (
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
-	// RecordHostHourlyData sets a bit in the host_daily_data_bitmaps bitmap for the given host, dataset,
-	// and entity. The timestamp is converted to UTC to derive the date and hour.
-	RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID string, timestamp time.Time) error
-
-	// GetChartData queries the host_daily_data_bitmaps table for a given dataset and date range,
-	// filtered by host IDs and optional entity IDs, aggregating bitmap data into time-bucketed counts.
-	GetChartData(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []string, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
-
 	// GetBlobData fetches raw host bitmap blobs from host_hourly_data_blobs for a given
 	// dataset and date range.
 	GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error)
@@ -31,9 +23,6 @@ type Datastore interface {
 
 	// CollectUptimeChartData bulk-inserts uptime blob data for all recently seen hosts.
 	CollectUptimeChartData(ctx context.Context, now time.Time) error
-
-	// CleanupHostDailyBitmapData deletes bitmap rows older than the specified number of days.
-	CleanupHostDailyBitmapData(ctx context.Context, days int) error
 
 	// CleanupBlobData deletes blob rows older than the specified number of days.
 	CleanupBlobData(ctx context.Context, days int) error

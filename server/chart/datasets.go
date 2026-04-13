@@ -55,5 +55,5 @@ func (u *CVEDataset) DefaultVisualization() string {
 }
 
 func (u *CVEDataset) HasEntityDimension() bool {
-	return false
+	return true
 }
