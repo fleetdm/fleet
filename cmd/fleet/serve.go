@@ -1225,6 +1225,22 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "failed to register batch activities schedule")
 	}
 
+	skipNonEssentialCrons := os.Getenv("FLEET_SKIP_NON_ESSENTIAL_CRONS") != ""
+	if skipNonEssentialCrons {
+		logger.InfoContext(ctx, "skipping non-essential cron schedules (FLEET_SKIP_NON_ESSENTIAL_CRONS is set)")
+	}
+	// startNonEssential registers a cron schedule unless FLEET_SKIP_NON_ESSENTIAL_CRONS is set.
+	// Used to gate crons with external side effects (webhooks, integrations, MDM pushes,
+	// external API calls) for demo/staging environments cloned from production data.
+	startNonEssential := func(name string, scheduleFn func() (fleet.CronSchedule, error)) {
+		if skipNonEssentialCrons {
+			return
+		}
+		if err := cronSchedules.StartCronSchedule(scheduleFn); err != nil {
+			initFatal(err, fmt.Sprintf("failed to register %s schedule", name))
+		}
+	}
+
 	vulnerabilityScheduleDisabled := false
 	if config.Vulnerabilities.DisableSchedule {
 		vulnerabilityScheduleDisabled = true
@@ -1234,6 +1250,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.current_instance_checks")
 		vulnerabilityScheduleDisabled = true
 	}
+	if skipNonEssentialCrons {
+		vulnerabilityScheduleDisabled = true
+	}
 	if !vulnerabilityScheduleDisabled {
 		// vuln processing by default is run by internal cron mechanism
 		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -1241,7 +1260,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}); err != nil {
 			initFatal(err, "failed to register vulnerabilities schedule")
 		}
-	} else {
+	} else if !skipNonEssentialCrons {
 		// Register a remote trigger proxy so triggering still works
 		// when the vulnerability schedule runs on a separate server.
 		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -1251,40 +1270,30 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("automations", func() (fleet.CronSchedule, error) {
 		return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
-	}); err != nil {
-		initFatal(err, "failed to register automations schedule")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("worker integrations", func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register worker integrations schedule")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("apple_mdm_worker", func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller, svc.NewActivity)
-	}); err != nil {
-		initFatal(err, "failed to register apple_mdm_worker schedule")
-	}
+		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller)
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("apple_mdm_dep_profile_assigner", func() (fleet.CronSchedule, error) {
 		return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
-	}); err != nil {
-		initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("mdm_apple_service_discovery", func() (fleet.CronSchedule, error) {
 		return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger, config.Server.URLPrefix)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_apple_service_discovery schedule")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("mdm_apple_profile_manager", func() (fleet.CronSchedule, error) {
 		return newAppleMDMProfileManagerSchedule(
 			ctx,
 			instanceID,
@@ -1294,22 +1303,18 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			config.MDM.CertificateProfilesLimit,
 		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_apple_profile_manager schedule")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("mdm_windows_profile_manager", func() (fleet.CronSchedule, error) {
 		return newWindowsMDMProfileManagerSchedule(
 			ctx,
 			instanceID,
 			ds,
 			logger,
 		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_windows_profile_manager schedule")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("mdm_android_profile_manager", func() (fleet.CronSchedule, error) {
 		return newAndroidMDMProfileManagerSchedule(
 			ctx,
 			instanceID,
@@ -1318,12 +1323,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
 			config.MDM.AndroidAgent,
 		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_android_profile_manager schedule")
-	}
+	})
 
 	// Register Android MDM Device Reconciler schedule (same interval as Android profile manager)
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("mdm_android_device_reconciler", func() (fleet.CronSchedule, error) {
 		return newAndroidMDMDeviceReconcilerSchedule(
 			ctx,
 			instanceID,
@@ -1332,23 +1335,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			config.License.Key,
 			svc.NewActivity,
 		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_android_device_reconciler schedule")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("enable_android_app_reports_on_default_policy", func() (fleet.CronSchedule, error) {
 		return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("migrate_to_per_host_policy", func() (fleet.CronSchedule, error) {
 		return cronMigrateToPerHostPolicy(ctx, instanceID, ds, logger, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register migrate_to_per_host_policy cron")
-	}
+	})
 
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+	startNonEssential("APNs pusher", func() (fleet.CronSchedule, error) {
 		return newMDMAPNsPusher(
 			ctx,
 			instanceID,
@@ -1356,66 +1353,48 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 			logger,
 		)
-	}); err != nil {
-		initFatal(err, "failed to register APNs pusher schedule")
-	}
+	})
 
 	if license.IsPremium() {
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		startNonEssential("apple_mdm_iphone_ipad_refetcher", func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
-		}
+		})
 
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		startNonEssential("apple_mdm_iphone_ipad_reviver", func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			return newIPhoneIPadReviver(ctx, instanceID, ds, commander, logger)
-		}); err != nil {
-			initFatal(err, "failed to register apple_mdm_iphone_ipad_reviver schedule")
-		}
+		})
 
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		startNonEssential("maintained apps", func() (fleet.CronSchedule, error) {
 			return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
-		}); err != nil {
-			initFatal(err, "failed to register maintained apps schedule")
-		}
+		})
 
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		startNonEssential("refresh vpp app versions", func() (fleet.CronSchedule, error) {
 			return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger, apple_apps.Configure(ctx, ds, config.License.Key, config.MDM.AppleConnectJWT))
-		}); err != nil {
-			initFatal(err, "failed to register refresh vpp app versions schedule")
-		}
+		})
 
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		startNonEssential("recovery lock password", func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register recovery lock password schedule")
-		}
+		})
 	}
 
 	if license.IsPremium() && config.Activity.EnableAuditLog {
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		startNonEssential("activities streaming", func() (fleet.CronSchedule, error) {
 			return newActivitiesStreamingSchedule(ctx, instanceID, activitySvc, ds, logger, auditLogger)
-		}); err != nil {
-			initFatal(err, "failed to register activities streaming schedule")
-		}
+		})
 	}
 
 	if license.IsPremium() {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				if config.Calendar.Periodicity > 0 {
-					config.Calendar.SetAlwaysReloadEvent(true)
-				} else {
-					config.Calendar.Periodicity = 5 * time.Minute
-				}
-				return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register calendar schedule")
-		}
+		startNonEssential("calendar", func() (fleet.CronSchedule, error) {
+			if config.Calendar.Periodicity > 0 {
+				config.Calendar.SetAlwaysReloadEvent(true)
+			} else {
+				config.Calendar.Periodicity = 5 * time.Minute
+			}
+			return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
+		})
 	}
 
 	// Start the service that calculates and updates host vitals label membership.
