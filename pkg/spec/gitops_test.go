@@ -2000,11 +2000,12 @@ func TestResolveScriptPaths(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.py"), []byte("#!/usr/bin/env python3"), 0o644))
 
-		items := []fleet.BaseItem{{Paths: ptr.String("*.sh")}} //nolint:modernize
+		items := []fleet.BaseItem{{Paths: ptr.String("*")}} //nolint:modernize
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
-		require.Len(t, result, 2)
+		require.Len(t, result, 3)
 	})
 
 	t.Run("inline_not_allowed", func(t *testing.T) {
