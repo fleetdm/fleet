@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
 // ESP item installation states as defined by the EnrollmentStatusTracking CSP.
@@ -22,7 +23,8 @@ const (
 const ESPTimeoutSeconds = 10800
 
 // providerID is the MDM provider ID used in DMClient CSP paths.
-const providerID = "FleetDM"
+// This must match the ProviderID used in the provisioning document (see syncml.DocProvisioningAppProviderID).
+const providerID = syncml.DocProvisioningAppProviderID
 
 // ESPProfileTrackingInfo holds the information needed to track a profile on the ESP.
 type ESPProfileTrackingInfo struct {
@@ -62,8 +64,8 @@ func (spec ESPInitialCommandSpec) validate() error {
 // - DMClient FirstSyncStatus TimeoutUntilSyncFailure (3-hour timeout)
 // - DMClient FirstSyncStatus BlockInStatusPage (true to hold at ESP)
 // - EnrollmentStatusTracking DevicePreparation/PolicyProviders entries for each profile
-// - EnrollmentStatusTracking DevicePreparation/PolicyProviders SCEP entries for profiles with SCEP
-// - EnrollmentStatusTracking DeviceSetup/Apps/Tracking entries for each software item
+// - DMClient FirstSyncStatus ExpectedSCEPCerts entries for profiles with SCEP
+// - EnrollmentStatusTracking DevicePreparation/PolicyProviders/.../TrackingPolicies/Apps entries for each software item
 var espInitialCommandTmpl = template.Must(template.New("esp_init").Funcs(template.FuncMap{
 	"escapeXML": escapeXMLString,
 }).Parse(`<Atomic>

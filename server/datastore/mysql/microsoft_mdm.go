@@ -876,13 +876,17 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 	return aff > 0, nil
 }
 
-func (ds *Datastore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, status fleet.WindowsMDMAwaitingConfiguration) error {
-	stmt := `UPDATE mdm_windows_enrollments SET awaiting_configuration = ? WHERE mdm_device_id = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, status, mdmDeviceID)
+func (ds *Datastore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+	stmt := `UPDATE mdm_windows_enrollments SET awaiting_configuration = ? WHERE mdm_device_id = ? AND awaiting_configuration = ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, to, mdmDeviceID, expectFrom)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "set windows awaiting configuration")
+		return false, ctxerr.Wrap(ctx, err, "set windows awaiting configuration")
 	}
-	return nil
+	aff, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected for set windows awaiting configuration")
+	}
+	return aff > 0, nil
 }
 
 // whereBitLockerStatus returns a string suitable for inclusion within a SQL WHERE clause to filter by

@@ -1905,9 +1905,12 @@ type Datastore interface {
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
-	// SetMDMWindowsAwaitingConfiguration updates the awaiting_configuration status
-	// for a Windows MDM enrollment identified by device ID.
-	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, status WindowsMDMAwaitingConfiguration) error
+	// SetMDMWindowsAwaitingConfiguration performs a compare-and-swap update on the
+	// awaiting_configuration status for a Windows MDM enrollment identified by
+	// device ID. The update only applies if the current status matches expectFrom,
+	// preventing races between concurrent management checkins. Returns true if the
+	// transition occurred.
+	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.
