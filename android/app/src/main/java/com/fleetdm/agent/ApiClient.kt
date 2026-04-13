@@ -65,8 +65,9 @@ object ApiClient : CertificateApiClient {
 
     // Retry DNS resolution failures that occur when Android wakes from Doze mode.
     // The active network may be reported as connected before its DNS servers are fully operational.
-    private const val DNS_MAX_RETRIES = 3
-    private const val DNS_RETRY_DELAY_MS = 2000L
+    // Uses exponential backoff: 1s, 2s, 4s, 8s, 16s between attempts (31s total retry window, 6 attempts).
+    private const val DNS_MAX_RETRIES = 5
+    private const val DNS_INITIAL_RETRY_DELAY_MS = 1000L
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -151,8 +152,9 @@ object ApiClient : CertificateApiClient {
             var connection: HttpURLConnection? = null
             try {
                 if (dnsAttempt > 0) {
-                    Log.w(TAG, "retrying $method $endpoint after DNS failure (attempt ${dnsAttempt + 1})")
-                    delay(DNS_RETRY_DELAY_MS)
+                    val delayMs = DNS_INITIAL_RETRY_DELAY_MS shl (dnsAttempt - 1)
+                    Log.w(TAG, "retrying $method $endpoint after DNS failure (attempt ${dnsAttempt + 1}, delay ${delayMs}ms)")
+                    delay(delayMs)
                 }
 
                 connection = openConnectionOnActiveNetwork(url)
