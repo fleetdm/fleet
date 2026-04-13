@@ -448,7 +448,6 @@ Fleet uses the Claude Team plan with automatic overages enabled instead of indiv
 
 Engineering is on the $100/month tier, which includes a usage window that resets every 5 hours.  With automatic overages enabled, no one gets blocked when they hit the window limit — they can keep working without interruption, and overages are billed automatically.
 
-Even with overages, per-person costs remain well below the $200/month Max plan price.  For example, an engineer on the $100/month tier who spent $32.56 in overages during a billing period is still paying far less than a Max plan, and they never had to stop working or wait for a reset window.
 
 This approach gives engineers uninterrupted access to Claude while keeping costs predictable and low.  At 150 employees, Fleet will need to move to the Claude Enterprise plan.
 
