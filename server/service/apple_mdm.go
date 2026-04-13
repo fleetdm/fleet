@@ -1145,8 +1145,7 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 // markDeclarationFailed marks a DDM declaration as failed for a specific host.
 func (svc *MDMAppleDDMService) markDeclarationFailed(ctx context.Context, hostUUID string, d *fleet.MDMAppleDeclaration, detail string) error {
 	status := fleet.MDMDeliveryFailed
-	varsUpdatedAt := time.Now().UTC()
-	return svc.ds.SetHostMDMAppleDeclarationStatus(ctx, hostUUID, d.DeclarationUUID, &status, detail, &varsUpdatedAt)
+	return svc.ds.SetHostMDMAppleDeclarationStatus(ctx, hostUUID, d.DeclarationUUID, &status, detail, nil)
 }
 
 func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string, teamID uint) (map[string]fleet.ConfigurationProfileLabel, error) {
