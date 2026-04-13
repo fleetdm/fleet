@@ -48,7 +48,7 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		return createUserResponse{
 			Err: fleet.NewInvalidArgumentError(
 				"api_endpoints",
-				"API endpoints might only be specified when creating an API only user via the UI",
+				"This endpoint does not accept API endpoint values",
 			),
 		}, nil
 	}
@@ -67,33 +67,49 @@ var errMailerRequiredForMFA = badRequest("Email must be set up to enable Fleet M
 
 func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef, requireNonEmpty bool) error {
 	if refs == nil || len(*refs) == 0 {
-		if requireNonEmpty {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "At least one API endpoint must be specified for API only users"))
-		}
-		if refs != nil {
-			// Explicitly provided empty slice is never valid.
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "At least one API endpoint must be specified for API only users"))
+		if requireNonEmpty || refs != nil {
+			return ctxerr.Wrap(
+				ctx,
+				fleet.NewInvalidArgumentError(
+					"api_endpoints",
+					"At least one API endpoint must be specified for API only users",
+				),
+			)
 		}
 		return nil
 	}
 
 	entries := *refs
 
+	if len(entries) > 100 {
+		return ctxerr.Wrap(
+			ctx,
+			fleet.NewInvalidArgumentError("api_endpoints", "at most 100 API endpoints may be specified"),
+		)
+	}
+
 	// A single wildcard entry grants access to all endpoints — no catalog check needed.
 	wildcardIdx := slices.IndexFunc(entries, func(e fleet.APIEndpointRef) bool {
 		return e.Method == "*" && e.Path == "*"
 	})
 	if wildcardIdx >= 0 {
+		// Specifying the wildcard entry plus something else doesn't make sense
 		if len(entries) > 1 {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "wildcard endpoint (method: *, path: *) must be the only entry"))
+			return ctxerr.Wrap(
+				ctx,
+				fleet.NewInvalidArgumentError(
+					"api_endpoints",
+					"wildcard endpoint (method: *, path: *) must be the only entry",
+				),
+			)
 		}
 		return nil
 	}
 
 	allEndpoints := apiendpoints.GetAPIEndpoints()
-	fpMap := make(map[string]fleet.APIEndpoint, len(allEndpoints))
+	fpMap := make(map[string]struct{}, len(allEndpoints))
 	for _, ep := range allEndpoints {
-		fpMap[ep.Fingerprint()] = ep
+		fpMap[ep.Fingerprint()] = struct{}{}
 	}
 	seen := make(map[string]struct{}, len(entries))
 	hasDuplicates := false
@@ -203,7 +219,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	}
 	if p.APIOnly != nil && *p.APIOnly {
 		// API-Endpoints is a premium only feature,
-		// so we only require it if creating an API only
+		// so we only want to validate it if creating an API only
 		// user under premium
 		requireNonEmpty := license.IsPremium(ctx)
 		if err := validateAPIEndpointRefs(ctx, p.APIEndpoints, requireNonEmpty); err != nil {
@@ -257,8 +273,6 @@ func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 		}, nil
 	}
 
-	// This end-point is called only from the UI
-	// so we should have a logged-in user at this point.
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		setAuthCheckedOnPreAuthErr(ctx)
@@ -366,7 +380,7 @@ func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc 
 		return createUserResponse{
 			Err: fleet.NewInvalidArgumentError(
 				"api_endpoints",
-				"API endpoints might only be specified when creating an API only user",
+				"This endpoint does not accept API endpoint values",
 			),
 		}, nil
 	}

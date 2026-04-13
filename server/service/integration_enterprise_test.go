@@ -28412,6 +28412,21 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
+		{
+			name: "more than 100 api_endpoints",
+			body: func() map[string]any {
+				eps := make([]map[string]any, 101)
+				for i := range eps {
+					eps[i] = map[string]any{"method": "GET", "path": fmt.Sprintf("/api/v1/fleet/path/%d", i)}
+				}
+				return map[string]any{
+					"name":          "Premium User",
+					"global_role":   "observer",
+					"api_endpoints": eps,
+				}
+			}(),
+			wantStatus: http.StatusUnprocessableEntity,
+		},
 		// --- Premium features work under premium ---
 		{
 			name: "wildcard api_endpoint",
@@ -28584,6 +28599,18 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 					{"method": "GET", "path": "/api/v1/fleet/version"},
 				},
 			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "more than 100 api_endpoints",
+			url:  patchURL,
+			body: func() map[string]any {
+				eps := make([]map[string]any, 101)
+				for i := range eps {
+					eps[i] = map[string]any{"method": "GET", "path": fmt.Sprintf("/api/v1/fleet/path/%d", i)}
+				}
+				return map[string]any{"api_endpoints": eps}
+			}(),
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
