@@ -87,6 +87,14 @@ func getCVEMatchingRules() CVEMatchingRules {
 			CVEs:              []string{"CVE-2026-20841"},
 			ResolvedInVersion: "11.2510",
 		},
+		// April 2026 Google Chrome Skia integer overflow vulnerability
+		// https://chromereleases.googleblog.com/2026/04/stable-channel-update-for-desktop.html
+		{
+			NameLikeMatch:         "Google Chrome",
+			ExcludeIfNameContains: "helper",
+			CVEs:                  []string{"CVE-2026-5870"},
+			ResolvedInVersion:     "147.0.7727.55",
+		},
 	}
 }
 
