@@ -64,7 +64,7 @@ const ApiUserForm = ({
   );
   const [teams, setTeams] = useState<ITeam[]>(defaultTeams);
   const [isGlobalUser, setIsGlobalUser] = useState(defaultTeams.length === 0);
-  const [selectedEndpointKeys, setSelectedEndpointIds] = useState<string[]>(
+  const [selectedEndpointKeys, setSelectedEndpointKeys] = useState<string[]>(
     defaultSelectedEndpointKeys
   );
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
@@ -171,7 +171,7 @@ const ApiUserForm = ({
         {isPremiumTier && (
           <ApiAccessSection
             selectedEndpointKeys={selectedEndpointKeys}
-            onEndpointSelectionChange={setSelectedEndpointIds}
+            onEndpointSelectionChange={setSelectedEndpointKeys}
           />
         )}
       </form>
