@@ -2577,12 +2577,23 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("inserting %s profile label associations", platform))
 	}
 
-	// save fleet variables associated with Windows profiles (both new and updated)
+	// save fleet variables associated with profiles (both new and updated)
 	// Note: currentProfiles contains all incoming profiles (new AND updated), not just new ones
 	// Process ALL profiles to ensure stale variable associations are cleared for profiles that no longer have variables
+	var varPrefix string
+	switch platform {
+	case "darwin":
+		varPrefix = fleet.MDMAppleProfileUUIDPrefix
+	case "windows":
+		varPrefix = fleet.MDMWindowsProfileUUIDPrefix
+	case "android":
+		varPrefix = fleet.MDMAndroidProfileUUIDPrefix
+	}
 	profileVariablesByName := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
 	for _, pv := range profilesVariablesByIdentifier {
-		profileVariablesByName[pv.Identifier] = pv.FleetVariables
+		if name, ok := strings.CutPrefix(pv.Identifier, varPrefix); ok {
+			profileVariablesByName[name] = pv.FleetVariables
+		}
 	}
 
 	// collect ALL profile UUIDs, including those without variables (to clear stale associations)

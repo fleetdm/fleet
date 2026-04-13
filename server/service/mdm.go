@@ -2161,7 +2161,6 @@ func (svc *Service) BatchSetMDMProfiles(
 		return err
 	}
 
-	// TODO(mna): is there a risk of collision here, identifiers being the same in Apple profiles+declarations+Windows?
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
 		varNames := make([]fleet.FleetVarName, 0, len(variables))
@@ -2294,16 +2293,15 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
-		profileVarsByProfIdentifier[p.Identifier] = profileVars
+		profileVarsByProfIdentifier[fleet.MDMAppleProfileUUIDPrefix+p.Identifier] = profileVars
 	}
 	for _, p := range windowsProfiles {
 		windowsVars, err := validateWindowsProfileFleetVariables(string(p.SyncML), lic, groupedCAs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
 		}
-		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
 		if len(windowsVars) > 0 {
-			profileVarsByProfIdentifier[p.Name] = windowsVars
+			profileVarsByProfIdentifier[fleet.MDMWindowsProfileUUIDPrefix+p.Name] = windowsVars
 		}
 	}
 	for _, p := range appleDecls {
@@ -2317,7 +2315,7 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 			return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
 		}
 		if len(declVars) > 0 {
-			profileVarsByProfIdentifier[p.Identifier] = declVars
+			profileVarsByProfIdentifier[fleet.MDMAppleDeclarationUUIDPrefix+p.Identifier] = declVars
 		}
 	}
 	return profileVarsByProfIdentifier, nil

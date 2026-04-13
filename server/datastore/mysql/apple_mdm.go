@@ -5243,10 +5243,12 @@ func (ds *Datastore) updateDeclarationsVariableAssociations(ctx context.Context,
 		return false, ctxerr.Wrap(ctx, err, "load declarations for variable associations")
 	}
 
-	// Build a map from identifier to variables
+	// Build a map from identifier to variables, filtering for declaration entries only
 	varsByIdentifier := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
 	for _, pv := range profilesVariablesByIdentifier {
-		varsByIdentifier[pv.Identifier] = pv.FleetVariables
+		if name, ok := strings.CutPrefix(pv.Identifier, fleet.MDMAppleDeclarationUUIDPrefix); ok {
+			varsByIdentifier[name] = pv.FleetVariables
+		}
 	}
 
 	// Map declaration UUIDs to their variables, including declarations without
