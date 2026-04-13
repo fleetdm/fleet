@@ -1815,13 +1815,6 @@ WHERE name = ?`
 	// Declaration UUID stays the same (updated in place)
 	assert.Equal(t, dbDeclUUID.DeclarationUUID, dbDeclUUIDUpdated.DeclarationUUID)
 
-	declsByToken = map[string]fleet.MDMAppleDeclaration{
-		dbDeclUUIDUpdated.Token: {Identifier: "com.fleet.var.uuid"},
-		dbDeclSerial.Token:      {Identifier: "com.fleet.var.serial"},
-		dbDeclPlain.Token:       {Identifier: "com.fleet.plain"},
-		dbDeclIdpUsername.Token: {Identifier: "com.fleet.var.idpusername"},
-	}
-
 	s.awaitTriggerProfileSchedule(t)
 
 	// Both team hosts get DDM sync (declaration content changed)
