@@ -19,9 +19,9 @@ func TestEnrollSendsEUAToken(t *testing.T) {
 	const testNodeKey = "test-node-key-abc"
 
 	testCases := []struct {
-		name    string
-		token   string
-		assert  func(t *testing.T, receivedBody fleet.EnrollOrbitRequest, rawBody []byte)
+		name   string
+		token  string
+		assert func(t *testing.T, receivedBody fleet.EnrollOrbitRequest, rawBody []byte)
 	}{
 		{
 			name:  "eua_token included in enroll request when set",
@@ -78,4 +78,3 @@ func TestEnrollSendsEUAToken(t *testing.T) {
 		})
 	}
 }
-
