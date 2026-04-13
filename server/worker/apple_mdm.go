@@ -584,6 +584,7 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 
 			cmdUUID, err := a.installSoftwareFromVPP(ctx, host, vppApp, true, opts)
 
+			failedBeforeCommandSend := err != nil
 			if err != nil {
 				// if we get an error (e.g. no available licenses) while attempting to enqueue the
 				// install, then we should immediately go to an error state so setup experience
@@ -591,21 +592,6 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 				a.Log.ErrorContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
 				app.Status = fleet.SetupExperienceStatusFailure
 				app.Error = ptr.String(err.Error())
-				// Emit activity for the VPP app install failure
-				if a.NewActivityFn != nil {
-					failActivity := fleet.ActivityInstalledAppStoreApp{
-						HostID:              host.ID,
-						HostDisplayName:     host.DisplayName(),
-						SoftwareTitle:       app.Name,
-						AppStoreID:          ptr.ValOrZero(app.VPPAppAdamID),
-						Status:              string(fleet.SoftwareInstallFailed),
-						HostPlatform:        host.Platform,
-						FromSetupExperience: true,
-					}
-					if actErr := a.NewActivityFn(ctx, nil, failActivity); actErr != nil {
-						a.Log.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
-					}
-				}
 			} else {
 				app.NanoCommandUUID = &cmdUUID
 				app.Status = fleet.SetupExperienceStatusRunning
@@ -613,6 +599,21 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 			}
 			if err := a.Datastore.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+			}
+			// Emit activity for the VPP app install failure, if one occurred
+			if failedBeforeCommandSend && a.NewActivityFn != nil {
+				failActivity := fleet.ActivityInstalledAppStoreApp{
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       app.Name,
+					AppStoreID:          ptr.ValOrZero(app.VPPAppAdamID),
+					Status:              string(fleet.SoftwareInstallFailed),
+					HostPlatform:        host.Platform,
+					FromSetupExperience: true,
+				}
+				if actErr := a.NewActivityFn(ctx, nil, failActivity); actErr != nil {
+					a.Log.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
+				}
 			}
 		}
 	}
