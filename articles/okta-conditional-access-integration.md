@@ -73,6 +73,8 @@ Replace:
 3. Copy the profile to a new `.mobileconfig` file and save.
 4. Follow the instructions in the [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
 
+> If using GitOps, use the challenge in a [secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), instead of hardcoding into the profile.
+
 ## Step 3: Create IdP in Okta
 
 1. In the Okta Admin Console, go to **Security** > **Identity Providers**.
