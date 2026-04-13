@@ -24,7 +24,7 @@ func Up_20260410173222(tx *sql.Tx) error {
 	return nil
 }
 
-// Down_20260322120000 is a no-op. Fleet convention: down migrations return nil
+// Down_20260410173222 is a no-op. Fleet convention: down migrations return nil
 // because forward-only migrations are safer than attempting rollback DDL.
 func Down_20260410173222(tx *sql.Tx) error {
 	return nil
