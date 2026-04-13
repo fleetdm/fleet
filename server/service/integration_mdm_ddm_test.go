@@ -1312,6 +1312,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMFleetVariables() {
 	host1, mdmDevice1 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	_, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
+	// Set host1's serial to a value with characters that need JSON escaping,
+	// to verify that variable substitution produces valid JSON.
+	host1.HardwareSerial = `SER"IAL\123`
+	err := s.ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+
 	// Create a team and transfer host1 into it; host2 stays global (control)
 	team := &fleet.Team{Name: t.Name() + "team1"}
 	var createTeamResp teamResponse
@@ -1469,8 +1475,12 @@ WHERE name = ?`
 	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.serial")
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
-	assert.Contains(t, string(gotParsed.Payload), host1.HardwareSerial)
 	assert.NotContains(t, string(gotParsed.Payload), "$FLEET_VAR")
+	// Verify the serial (which contains " and \) is properly JSON-escaped:
+	// the payload must be valid JSON and unmarshal to the original value.
+	var serialPayload struct{ Echo string }
+	require.NoError(t, json.Unmarshal(gotParsed.Payload, &serialPayload))
+	assert.Equal(t, host1.HardwareSerial, serialPayload.Echo)
 
 	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.plain")
 	require.NoError(t, err)
