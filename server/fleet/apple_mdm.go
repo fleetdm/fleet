@@ -896,12 +896,15 @@ type MDMAppleDDMManifest struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
-	DeclarationUUID    string     `db:"declaration_uuid"`
-	Identifier         string     `db:"identifier"`
-	ServerToken        string     `db:"token"`
-	Status             *string    `db:"status"`
-	OperationType      *string    `db:"operation_type"`
-	UploadedAt         time.Time  `db:"uploaded_at"`
+	DeclarationUUID string    `db:"declaration_uuid"`
+	Identifier      string    `db:"identifier"`
+	ServerToken     string    `db:"token"`
+	Status          *string   `db:"status"`
+	OperationType   *string   `db:"operation_type"`
+	UploadedAt      time.Time `db:"uploaded_at"`
+	// VariablesUpdatedAt is not part of the DDM profile, but part of the host-ddm tuple, as the variables'
+	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
+	// ServerToken field is just for the static token of the DDM.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
 }
 
