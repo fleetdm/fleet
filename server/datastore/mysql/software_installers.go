@@ -3642,7 +3642,7 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.global_or_team_id = ? AND si.url = ?
+	si.global_or_team_id = ? AND si.url = ? AND si.is_active = 1
 ORDER BY si.id DESC
 LIMIT 1
 `
