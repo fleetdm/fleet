@@ -634,6 +634,16 @@ func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}, nil
 	}
 
+	if req.APIOnly != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return modifyUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_only",
+				"This endpoint does not accept API only values",
+			),
+		}, nil
+	}
+
 	user, err := svc.ModifyUser(ctx, req.ID, req.UserPayload)
 	if err != nil {
 		return modifyUserResponse{Err: err}, nil
@@ -668,7 +678,6 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if p.APIEndpoints != nil {
 			return nil, fleet.ErrMissingLicense
 		}
-		// Team-based API-only users are a premium feature.
 		if p.APIOnly != nil && *p.APIOnly && len(teamRoles) > 0 {
 			return nil, fleet.ErrMissingLicense
 		}
@@ -683,8 +692,8 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
 	}
 
-	if p.APIOnly != nil && *p.APIOnly && !user.APIOnly {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("id", "user is not an API-only user"))
+	if p.APIOnly != nil && *p.APIOnly != user.APIOnly {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_only", "cannot change api_only status of a user"))
 	}
 	if p.APIEndpoints != nil && !user.APIOnly {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "API endpoints can only be specified for API only users"))

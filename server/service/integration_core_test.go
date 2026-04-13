@@ -344,6 +344,51 @@ func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
 	}, http.StatusUnprocessableEntity, &resp)
 }
 
+func (s *integrationTestSuite) TestModifyUserAPIOnlyRejected() {
+	t := s.T()
+
+	// Create a regular user to use as target.
+	var createResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       ptr.String("regular-api-protect"),
+		Email:      ptr.String("regular-api-protect@example.com"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	regularID := createResp.User.ID
+
+	// Create an API-only user to use as target.
+	var createAPIResp struct {
+		User struct {
+			ID uint `json:"id"`
+		} `json:"user"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "api-only-protect",
+		"global_role": "observer",
+	}, http.StatusOK, &createAPIResp)
+	require.NotZero(t, createAPIResp.User.ID)
+	apiOnlyID := createAPIResp.User.ID
+
+	cases := []struct {
+		name   string
+		userID uint
+		body   fleet.UserPayload
+	}{
+		{"regular user api_only false", regularID, fleet.UserPayload{APIOnly: new(false)}},
+		{"regular user api_only true", regularID, fleet.UserPayload{APIOnly: new(true)}},
+		{"api-only user api_only false", apiOnlyID, fleet.UserPayload{APIOnly: new(false)}},
+		{"api-only user api_only true", apiOnlyID, fleet.UserPayload{APIOnly: new(true)}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var modResp modifyUserResponse
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", tc.userID), tc.body, http.StatusUnprocessableEntity, &modResp)
+		})
+	}
+}
+
 func (s *integrationTestSuite) TestCreateAPIOnlyUser() {
 	t := s.T()
 
