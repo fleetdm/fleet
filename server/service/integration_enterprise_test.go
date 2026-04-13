@@ -7968,7 +7968,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		"batch_execution_id": "%s",
 		"script_execution_id": "%s",
 		"script_name": "%s",
-		"host_display_name": "%s"
+		"host_display_name": "%s",
+		"from_setup_experience": false
 	}
 	`, host1.ID, batchRes.BatchExecutionID, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0], script.Name, host1.DisplayName())
 	require.Len(t, hostPastActivitiesResp.Activities, 1)
