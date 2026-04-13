@@ -2970,22 +2970,29 @@ func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInsta
 	payload.PackageIDs = existing.PackageIDs
 }
 
-// validETag checks if an ETag value looks like a valid quoted-string per
-// RFC 7232 section 2.3. It rejects control characters, DEL (0x7F), and values
-// exceeding 512 bytes.
+// validETag checks if an ETag value matches RFC 7232 section 2.3:
+// an optional weak validator prefix ("W/") followed by a quoted opaque-tag.
+// The opaque-tag body must consist of RFC 7232 etagc characters
+// (%x21 / %x23-7E), which excludes control chars, spaces, inner DQUOTEs,
+// and DEL. We reject obs-text (>0x7F) for defense-in-depth. Values over
+// 512 bytes are rejected.
 func validETag(etag string) bool {
 	if len(etag) > 512 {
 		return false
 	}
-	for _, c := range etag {
-		// Reject control chars (<0x20) and non-printable-ASCII (>0x7E) per
-		// RFC 7232 ABNF. We reject obs-text (>0x7F) for defense-in-depth.
-		if c < 0x20 || c > 0x7E {
+	e := strings.TrimPrefix(etag, "W/")
+	if len(e) < 2 || e[0] != '"' || e[len(e)-1] != '"' {
+		return false
+	}
+	for i := 1; i < len(e)-1; i++ {
+		c := e[i]
+		// RFC 7232 etagc = %x21 / %x23-7E / obs-text. Reject obs-text
+		// (>0x7F) for defense-in-depth.
+		if c != 0x21 && (c < 0x23 || c > 0x7E) {
 			return false
 		}
 	}
-	e := strings.TrimPrefix(etag, "W/")
-	return len(e) >= 2 && e[0] == '"' && e[len(e)-1] == '"'
+	return true
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {

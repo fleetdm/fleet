@@ -1173,6 +1173,8 @@ func TestValidETag(t *testing.T) {
 		{"control char (null)", "\"abc\x00\"", false},
 		{"DEL character", "\"abc\x7f\"", false},
 		{"tab rejected per RFC 7232", "\"abc\t123\"", false},
+		{"inner double-quote rejected", `"abc"def"`, false},
+		{"inner space rejected per RFC 7232", `"abc def"`, false},
 		{"weak prefix unquoted inner", `W/abc123`, false},
 		{"oversized (>512)", `"` + strings.Repeat("a", 512) + `"`, false},
 		{"exactly 511 bytes", `"` + strings.Repeat("a", 509) + `"`, true},
