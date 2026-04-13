@@ -13,6 +13,10 @@ type StorageType string
 const (
 	// StorageTypeBlob stores one row per entity/date/hour with a host bitmap blob.
 	StorageTypeBlob StorageType = "blob"
+	// StorageTypeSCD stores one row per (host, entity) interval as a Type-2 slowly
+	// changing dimension: (dataset, host_id, entity_id, valid_from, valid_to).
+	// Suited for state that changes infrequently (e.g. which CVEs a host has).
+	StorageTypeSCD StorageType = "scd"
 )
 
 // Dataset defines the interface for a chartable dataset.

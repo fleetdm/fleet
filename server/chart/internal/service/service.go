@@ -97,23 +97,31 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 
 	var data []chart.DataPoint
 	var totalHosts int
+	resolution := "hourly"
+	if opts.Downsample > 0 {
+		resolution = fmt.Sprintf("%d-hour", opts.Downsample)
+	}
 
 	switch dataset.StorageType() {
 	case chart.StorageTypeBlob:
 		data, totalHosts, err = s.getChartDataBlob(ctx, metric, startDate, endDate, hostFilter, entityIDs, opts.Downsample)
+		if err == nil {
+			data = fillZeroValues(data, startDate, endDate, opts.Downsample)
+		}
+	case chart.StorageTypeSCD:
+		// SCD datasets always bucket daily — the CTE fills zero buckets itself.
+		const bucketHours = 24
+		resolution = "daily"
+		data, err = s.store.GetSCDData(ctx, metric, startDate, endDate, bucketHours, hostFilter, entityIDs)
+		if err == nil {
+			totalHosts, err = s.store.CountHostsForChartFilter(ctx, hostFilter)
+		}
 	default:
 		return nil, ctxerr.Errorf(ctx, "unsupported storage type: %s", dataset.StorageType())
 	}
 	if err != nil {
 		return nil, err
 	}
-
-	resolution := "hourly"
-	if opts.Downsample > 0 {
-		resolution = fmt.Sprintf("%d-hour", opts.Downsample)
-	}
-
-	data = fillZeroValues(data, startDate, endDate, opts.Downsample)
 
 	return &chart.Response{
 		Metric:        metric,

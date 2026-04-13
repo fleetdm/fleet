@@ -57,6 +57,18 @@ func (m *mockDatastore) CleanupBlobData(_ context.Context, _ int) error {
 	return nil
 }
 
+func (m *mockDatastore) RecordSCDData(_ context.Context, _ string, _ uint, _ []string, _ time.Time) error {
+	return nil
+}
+
+func (m *mockDatastore) GetSCDData(_ context.Context, _ string, _, _ time.Time, _ int, _ *chart.HostFilter, _ []string) ([]chart.DataPoint, error) {
+	return nil, nil
+}
+
+func (m *mockDatastore) CleanupSCDData(_ context.Context, _ int) error {
+	return nil
+}
+
 func TestGetChartDataUnknownMetric(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, nil)
