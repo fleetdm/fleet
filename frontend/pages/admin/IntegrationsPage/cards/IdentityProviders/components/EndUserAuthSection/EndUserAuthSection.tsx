@@ -17,6 +17,7 @@ import Button from "components/buttons/Button/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import CustomLink from "components/CustomLink";
 
 import {
   IFormDataIdp,
@@ -136,12 +137,16 @@ const EndUserAuthSection = ({
     return (
       <form>
         <p>
-          If enabled in{" "}
+          After configuring, head to{" "}
           <strong>
             Controls &gt; Setup experience &gt; End user authentication
-          </strong>
-          , end users will be required to authenticate when they first set up
-          their host.
+          </strong>{" "}
+          to require end users to authenticate.{" "}
+          <CustomLink
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/end-user-authentication"
+            newTab
+          />
         </p>
         <div
           className={`form ${

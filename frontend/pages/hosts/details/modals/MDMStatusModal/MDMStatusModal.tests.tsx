@@ -80,7 +80,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier={false}
-        isMacOSHost
+        isAppleDevice
         onExit={jest.fn()}
       />
     );
@@ -93,14 +93,14 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isMacOSHost={false}
+        isAppleDevice={false}
         onExit={jest.fn()}
       />
     );
     expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
   });
 
-  it("renders profile assignment section when premium macOS host", async () => {
+  it("renders profile assignment section when premium apple device host", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
       mockDepAssignmentResponse
     );
@@ -111,7 +111,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isMacOSHost
+        isAppleDevice
         onExit={jest.fn()}
       />
     );
@@ -127,6 +127,35 @@ describe("MDMStatusModal - component", () => {
     expect(screen.getByText("Assigned")).toBeInTheDocument();
   });
 
+  it("does not render profile assignment section when non-Apple host", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
+      mockDepAssignmentResponse
+    );
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        onExit={jest.fn()}
+      />
+    );
+
+    expect(
+      await screen.queryByText("Profile assignment")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /Details about automatic enrollment profile from Apple/i
+      )
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Profile assigned")).not.toBeInTheDocument();
+    expect(screen.queryByText("Profile pushed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Profile status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Assigned")).not.toBeInTheDocument();
+  });
+
   it("shows spinner while DEP assignment is loading", () => {
     (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
       new Promise(() => {
@@ -140,7 +169,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isMacOSHost
+        isAppleDevice
         onExit={jest.fn()}
       />
     );
@@ -159,7 +188,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isMacOSHost
+        isAppleDevice
         onExit={jest.fn()}
       />
     );
@@ -186,7 +215,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isMacOSHost
+        isAppleDevice
         depProfileError
         onExit={jest.fn()}
       />
@@ -217,7 +246,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={router}
         isPremiumTier
-        isMacOSHost
+        isAppleDevice
         depProfileError
         onExit={jest.fn()}
       />
@@ -264,7 +293,35 @@ describe("MDMStatusModal - component", () => {
     });
   });
 
-  it("calls onExit when Done is clicked", async () => {
+  it("renders 'Never' for zero-value profile timestamps", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      ...mockDepAssignmentResponse,
+      dep_device: {
+        ...mockDepAssignmentResponse.dep_device,
+        profile_assign_time: "0001-01-01T00:00:00Z",
+        profile_push_time: "0001-01-01T00:00:00Z",
+      },
+    });
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        isAppleDevice
+        onExit={jest.fn()}
+      />
+    );
+
+    await screen.findByText("Profile assigned");
+
+    const neverTexts = screen.getAllByText("Never");
+    // Both profile_assign_time and profile_push_time should show "Never"
+    expect(neverTexts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("calls onExit when Close is clicked", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
       mockDepAssignmentResponse
     );
@@ -276,12 +333,12 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isMacOSHost
+        isAppleDevice
         onExit={onExit}
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
     expect(onExit).toHaveBeenCalled();
   });
 });

@@ -151,16 +151,14 @@ const SiteTopNav = ({
     if (iconName && iconName === "logo") {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <LinkWithContext
+          <Link
             className={`${navItemBaseClass}__logo-wrapper`}
-            currentQueryParams={currentQueryParams}
             to={navItem.location.pathname}
-            withParams={{ type: "query", names: ["fleet_id"] }}
           >
             <div className={`${navItemBaseClass}__logo`}>
               <OrgLogoIcon className="logo" src={orgLogoURL} />
             </div>
-          </LinkWithContext>
+          </Link>
         </li>
       );
     }

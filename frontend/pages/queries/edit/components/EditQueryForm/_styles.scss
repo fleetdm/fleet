@@ -52,6 +52,22 @@
       @include disabled;
     }
   }
+
+  &__edit-icon {
+    opacity: 1;
+    transition: opacity 0.2s;
+    margin-left: 0;
+    /** Designed to be aligned with first line of text, not center of multiple
+    lines of text, without this, the icon will vertically center on multiline */
+    align-self: initial;
+    height: 42px; // 24px font-size * 1.75 line height
+    align-items: center; // Centers the icon in the height area
+
+    &--hide {
+      opacity: 0;
+    }
+  }
+
   &__query-name-wrapper {
     .no-value {
       min-width: 168px;
@@ -62,14 +78,9 @@
     .no-value {
       min-width: 144px;
     }
-  }
 
-  .edit-icon {
-    align-self: initial;
-    opacity: 1;
-    transition: opacity 0.2s;
-    &.hide {
-      opacity: 0;
+    .edit-query-form__edit-icon {
+      height: 21px; // 14px font-size * 1.5 line height
     }
   }
 

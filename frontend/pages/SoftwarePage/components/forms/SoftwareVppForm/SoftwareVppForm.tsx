@@ -1,7 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
@@ -129,8 +129,7 @@ const SoftwareVppForm = ({
   onCancel,
   onClickPreviewEndUserExperience,
 }: ISoftwareVppFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
@@ -313,9 +312,8 @@ const SoftwareVppForm = ({
             onSelect={onSelectApp}
           />
           <div className={`${baseClass}__help-text`}>
-            These apps were added in Apple Business Manager (ABM). To add more
-            apps, head to{" "}
-            <CustomLink url="https://business.apple.com" text="ABM" newTab />
+            These apps were added in Apple Business (AB). To add more apps, head
+            to <CustomLink url="https://business.apple.com" text="AB" newTab />
           </div>
           {showDeploySoftwareSlider && (
             <SoftwareDeploySlider
@@ -347,6 +345,7 @@ const SoftwareVppForm = ({
         </div>
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
+            entityType="software"
             position="bottom"
             tipOffset={8}
             renderChildren={(disableChildren) => (

@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 import { isEmpty, omit } from "lodash";
 
 import useDeepEffect from "hooks/useDeepEffect";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import PATHS from "router/paths";
 
@@ -136,7 +137,7 @@ const ManageAutomationsModal = ({
   const { config: globalConfigFromContext, isFreeTier } = useContext(
     AppContext
   );
-  const gitOpsModeEnabled = globalConfigFromContext?.gitops.gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const maxAgeInNanoseconds = isGlobalSWConfig(softwareConfig)
     ? softwareConfig.vulnerabilities.recent_vulnerability_max_age
@@ -533,6 +534,7 @@ const ManageAutomationsModal = ({
     );
     return (
       <GitOpsModeTooltipWrapper
+        entityType="software"
         renderChildren={renderRawButton}
         tipOffset={6}
       />

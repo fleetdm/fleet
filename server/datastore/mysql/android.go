@@ -393,6 +393,14 @@ UPDATE host_mdm
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled hosts in bulk")
 	}
+	// Delete all certificate template records for Android hosts so they get re-created on re-enrollment.
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		DELETE hct FROM host_certificate_templates hct
+		INNER JOIN hosts h ON h.uuid = hct.host_uuid
+		WHERE h.platform = 'android'`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete certificate templates for unenrolled android hosts in bulk")
+	}
 	return nil
 }
 
@@ -413,13 +421,21 @@ UPDATE host_mdm
 			return ctxerr.Wrap(ctx, err, "get rows affected for set host_mdm unenrolled for android host")
 		}
 		if rows > 0 {
-			var uuid string
-			err = sqlx.GetContext(ctx, tx, &uuid, `SELECT uuid FROM hosts WHERE id = ?`, hostID)
+			var hostUUID string
+			err = sqlx.GetContext(ctx, tx, &hostUUID, `SELECT uuid FROM hosts WHERE id = ?`, hostID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get host uuid")
 			}
-			err = ds.deleteMDMOSCustomSettingsForHost(ctx, tx, uuid, "android")
-			return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled host")
+			err = ds.deleteMDMOSCustomSettingsForHost(ctx, tx, hostUUID, "android")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete Android custom OS settings for unenrolled host")
+			}
+			// Delete certificate template records so they get re-created fresh on re-enrollment.
+			// The device no longer has these certificates after unenrolling.
+			_, err = tx.ExecContext(ctx, `DELETE FROM host_certificate_templates WHERE host_uuid = ?`, hostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete certificate templates for unenrolled android host")
+			}
 		}
 		return nil
 	})

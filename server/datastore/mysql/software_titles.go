@@ -513,7 +513,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 		}
 		if len(fmaTitleIDs) > 0 {
-			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID)
+			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID, false)
 			if err != nil {
 				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 			}
@@ -964,8 +964,8 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
 // for the given title and team.
-func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
-	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID))
+func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID), byVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -974,17 +974,23 @@ func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, te
 
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
 // for the given title IDs and team, keyed by title ID.
-func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint, byVersion bool) (map[uint][]fleet.FleetMaintainedVersion, error) {
 	if len(titleIDs) == 0 {
 		return nil, nil
 	}
 
-	query, args, err := sqlx.In(`
+	query := `
 		SELECT si.id, si.version, si.title_id
 			FROM software_installers si
 		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
-		ORDER BY si.title_id, si.uploaded_at DESC
-	`, titleIDs, teamID)
+	`
+	if byVersion {
+		query += ` ORDER BY si.version DESC`
+	} else {
+		query += ` ORDER BY si.title_id, si.uploaded_at DESC`
+	}
+
+	query, args, err := sqlx.In(query, titleIDs, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build fleet maintained versions query")
 	}

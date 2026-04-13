@@ -162,8 +162,8 @@ export interface IHostMdmData {
   server_url: string | null;
   profiles: IHostMdmProfile[] | null;
   os_settings?: IOSSettings;
-  macos_settings?: IMdmMacOsSettings;
-  macos_setup?: IMdmMacOsSetup;
+  apple_settings?: IMdmMacOsSettings;
+  setup_experience?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
@@ -351,6 +351,7 @@ export interface IHost {
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
   conditional_access_bypassed: boolean;
+  mdm_enrollment_hardware_attested?: boolean;
 }
 
 /*

@@ -1,0 +1,46 @@
+{
+  //   ╦  ╔═╗╔═╗╔═╗╦ ╦╦╔╗╔╔╦╗┬─┐┌─┐
+  //   ║  ║╣ ╚═╗╚═╗╠═╣║║║║ ║ ├┬┘│
+  //  o╩═╝╚═╝╚═╝╚═╝╩ ╩╩╝╚╝ ╩ ┴└─└─┘
+  // Configuration designed for the lesshint linter.  Describes a loose set of LESS
+  // conventions that help avoid typos, unexpected failed builds, and hard-to-debug
+  // selector and CSS rule issues.
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // For more information about any of the rules below, check out the reference page
+  // of all rules at https://github.com/lesshint/lesshint/blob/v6.3.6/lib/linters/README.md
+  // If you're unsure or could use some advice, come by https://sailsjs.com/support.
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  "singleLinePerSelector": false,
+  "singleLinePerProperty": false,
+  "zeroUnit": false,
+  "idSelector": false,
+  "propertyOrdering": false,
+  "spaceAroundBang": false,
+  "fileExtensions": [".less", ".css"],
+  "excludedFiles": ["vendor.less"],
+  "importPath": false,
+  "borderZero": false,
+  "hexLength": false,
+  "hexNotation": false,
+  "newlineAfterBlock": false,
+  "spaceBeforeBrace": {
+    "style": "one_space"
+  },
+  "spaceAfterPropertyName": false,
+  "spaceAfterPropertyColon": {
+    "enabled": true,
+    "style": "one_space"
+  },
+  "maxCharPerLine": false,
+  "emptyRule": false,
+  "importantRule": true,
+  "qualifyingElement": false
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // ^^ This last one is only disabled because the lesshint parser seems to have
+  // a hard time distinguishing between things like `div.bar` and `&.bar`.
+  // In this case, the ampersand has a distinct meaning, and it does not refer
+  // to an element.  (It's referring to the case where that class is matched at
+  // the parent level, rather than talking about a descendant.)
+  // https://github.com/lesshint/lesshint/blob/v6.3.6/lib/linters/README.md#qualifyingelement
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+}

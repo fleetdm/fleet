@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -105,18 +106,35 @@ func (svc *Service) AddFleetMaintainedApp(
 		uninstallScript = app.UninstallScript
 	}
 
+	// Validate script contents (size, UTF-8, shebang for non-Windows platforms).
+	for _, sv := range []struct {
+		name    string
+		content string
+	}{
+		{"install script", installScript},
+		{"post-install script", postInstallScript},
+		{"uninstall script", uninstallScript},
+	} {
+		if err := fleet.ValidateSoftwareInstallerScript(sv.content, app.Platform); err != nil {
+			return 0, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", sv.name, err.Error()),
+			}
+		}
+	}
+
 	maintainedAppID := &app.ID
 	if strings.TrimSpace(installScript) != strings.TrimSpace(app.InstallScript) ||
 		strings.TrimSpace(uninstallScript) != strings.TrimSpace(app.UninstallScript) {
 		maintainedAppID = nil // don't set app as maintained if scripts have been modified
 	}
 
-	// For platforms other than macOS, installer name has to match what we see in software inventory,
-	// so we have the UniqueIdentifier field to indicate what that should be (independent of the name we
-	// display when listing the FMA). For macOS, unique identifier is bundle name, and we use bundle
-	// identifier to link installers with inventory, so we set the name to the FMA's display name instead.
+	// For Windows, installer name has to match what we see in software inventory, so we have the
+	// UniqueIdentifier field to indicate what that should be (independent of the FMA's display name).
+	// If we have an upgrade code to match inventory with, we can set the installer name to the FMA's
+	// display name instead. For macOS, unique identifier is bundle name, and we use bundle identifier
+	// to link installers with inventory, so we set the name to the FMA's display name instead.
 	appName := app.UniqueIdentifier
-	if app.Platform == "darwin" || appName == "" {
+	if app.Platform == "darwin" || appName == "" || app.UpgradeCode != "" {
 		appName = app.Name
 	}
 
