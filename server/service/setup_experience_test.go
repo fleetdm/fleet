@@ -582,7 +582,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 	})
 
 	t.Run("late arriving result for canceled item does not trigger duplicate activity", func(t *testing.T) {
-		// This test reproduces the exact scenario from the bug report:
+		// See https://github.com/fleetdm/fleet/pull/43437#discussion_r3074297752
 		// 1. Software install A fails → triggers cancel of pending VPP install B + emits activity
 		// 2. Later, B's MDM command result (Error) arrives. The datastore guard returns
 		//    updated=false because B is already in "canceled" state, so the cancel/activity
@@ -699,91 +699,5 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "cancel should NOT be called again")
 		require.False(t, ds.CancelHostUpcomingActivityFuncInvoked, "cancel upcoming activity should NOT be called again")
 		require.Equal(t, 1, activityCallCount, "activity should still have been emitted only once (no duplicate)")
-	})
-
-	t.Run("late arriving result for canceled VPP item without guard should not trigger duplicate", func(t *testing.T) {
-		// See https://github.com/fleetdm/fleet/pull/43437#discussion_r3074297752
-
-		teamID := uint(1)
-		failedSoftwareTitleID := uint(42)
-		failedSoftwareName := "FailedApp"
-		installerID := uint(10)
-
-		// Simulate: VPP result arrives and datastore says it WAS updated (no guard).
-		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(ctx context.Context, hUUID string, cmdUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-			require.Equal(t, hostUUID, hUUID)
-			require.Equal(t, vppUUID, cmdUUID)
-			require.Equal(t, fleet.SetupExperienceStatusFailure, status)
-			return true, nil // no guard: update goes through
-		}
-		ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
-
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-			return &fleet.Host{
-				ID:       1,
-				UUID:     hostUUID,
-				Platform: "darwin",
-				TeamID:   &teamID,
-			}, nil
-		}
-		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
-			return &fleet.TeamLite{
-				ID: teamID,
-				Config: fleet.TeamConfigLite{
-					MDM: fleet.TeamMDM{
-						MacOSSetup: fleet.MacOSSetup{
-							RequireAllSoftware: true,
-						},
-					},
-				},
-			}, nil
-		}
-		// Both items are now terminal (A=failure from before, B=failure from the late result).
-		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, tID uint) ([]*fleet.SetupExperienceStatusResult, error) {
-			return []*fleet.SetupExperienceStatusResult{
-				{
-					ID:                              1,
-					HostUUID:                        hostUUID,
-					Name:                            failedSoftwareName,
-					Status:                          fleet.SetupExperienceStatusFailure,
-					SoftwareInstallerID:             &installerID,
-					HostSoftwareInstallsExecutionID: &softwareUUID,
-					SoftwareTitleID:                 &failedSoftwareTitleID,
-				},
-				{
-					ID:           2,
-					HostUUID:     hostUUID,
-					Name:         "FailedVPPApp",
-					Status:       fleet.SetupExperienceStatusFailure,
-					VPPAppTeamID: ptr.Uint(teamID),
-				},
-			}, nil
-		}
-		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hID uint, executionID string) (fleet.ActivityDetails, error) {
-			return nil, nil
-		}
-		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
-			require.Equal(t, hostUUID, hUUID)
-			return nil
-		}
-		ds.CancelPendingSetupExperienceStepsFuncInvoked = false
-		ds.CancelHostUpcomingActivityFuncInvoked = false
-
-		activityCallCount := 0
-		activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-			activityCallCount++
-			return nil
-		}
-
-		vppResult := fleet.SetupExperienceVPPInstallResult{
-			HostUUID:      hostUUID,
-			CommandUUID:   vppUUID,
-			CommandStatus: fleet.MDMAppleStatusError,
-		}
-		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, vppResult, activityFn)
-		require.NoError(t, err)
-		require.True(t, updated, "without the guard the update goes through")
-		require.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "cancel IS invoked (this is the duplicate bug)")
-		require.Equal(t, 1, activityCallCount, "activity IS emitted (this is the duplicate activity)")
 	})
 }
