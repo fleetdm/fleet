@@ -862,7 +862,7 @@ WHERE host_uuid = ?
 
 func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, nanoCommandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND nano_command_uuid = ?"
-	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ? AND status NOT IN (?, ?, ?)"
 
 	var id uint
 	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, nanoCommandUUID); err != nil {
@@ -873,7 +873,7 @@ func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, ho
 		}
 		return false, err
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)
 	if err != nil {
 		return false, err
 	}
@@ -884,7 +884,7 @@ func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, ho
 
 func (ds *Datastore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND host_software_installs_execution_id = ?"
-	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ? AND status NOT IN (?, ?, ?)"
 
 	var id uint
 	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, executionID); err != nil {
@@ -895,7 +895,7 @@ func (ds *Datastore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context
 		}
 		return false, err
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)
 	if err != nil {
 		return false, err
 	}
@@ -906,7 +906,7 @@ func (ds *Datastore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context
 
 func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND script_execution_id = ?"
-	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ? AND status NOT IN (?, ?, ?)"
 
 	var id uint
 	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, executionID); err != nil {
@@ -917,7 +917,7 @@ func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context,
 		}
 		return false, err
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)
 	if err != nil {
 		return false, err
 	}
