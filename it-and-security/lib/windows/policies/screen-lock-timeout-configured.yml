@@ -1,0 +1,15 @@
+- name: Windows - Interactive logon screen lock timeout configured
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'InactivityTimeoutSecs'
+      AND CAST(data AS INTEGER) > 0
+      AND CAST(data AS INTEGER) <= 900;
+  critical: false
+  description: |-
+    Verifies an interactive logon inactivity timeout (screen lock) is set to 900 seconds (15 minutes) or less via policy.
+    Primary mapping: Vanta **PES-78** / ISO 27001 **A.7.7** (clear screen). Also supports **END-40** / **A.8.1** (endpoint data protection).
+  resolution: |-
+    IT should set `InactivityTimeoutSecs` under Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options
+    (“Interactive logon: Machine inactivity limit”), or the equivalent Intune/MDM policy. Values are in seconds (e.g. 900 for 15 minutes).
+  platform: windows

@@ -1,0 +1,13 @@
+- name: Windows - Remote Desktop disabled
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server'
+      AND name = 'fDenyTSConnections'
+      AND data = '1';
+  critical: false
+  description: |-
+    Workstations should deny inbound Remote Desktop connections unless explicitly exempted.
+    Supports ISO 27001 A.8.2 (privileged access / remote access surface) and SOC 2 CC 6.6 (network access).
+  resolution: |-
+    Disable Remote Desktop in Settings > System > Remote Desktop, or enforce via MDM. Contact IT if you need an exception.
+  platform: windows

@@ -1,0 +1,39 @@
+- name: macOS - Screen lock after inactivity (15 minutes or less)
+  query: |-
+    SELECT 1 WHERE EXISTS (
+      SELECT 1
+      FROM managed_policies
+      WHERE domain = 'com.apple.screensaver'
+        AND name = 'askForPasswordDelay'
+        AND CAST(value AS INTEGER) <= 60
+      LIMIT 1
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM managed_policies
+      WHERE domain = 'com.apple.screensaver'
+        AND name = 'idleTime'
+        AND CAST(value AS INTEGER) >= 1
+        AND CAST(value AS INTEGER) <= 900
+      LIMIT 1
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM managed_policies
+      WHERE domain = 'com.apple.screensaver'
+        AND name = 'askForPassword'
+        AND (value = 1 OR value = '1')
+      LIMIT 1
+    );
+  critical: false
+  description: |-
+    Checks MDM sets the screen saver to require a password after at most 60 seconds once the screen saver starts,
+    and starts the screen saver after 1–900 seconds (15 minutes) of inactivity. This aligns with the DDM passcode
+    payload `MaximumInactivityInMinutes` of 15 in Passcode settings.
+    Primary mapping: Vanta **PES-78** / ISO 27001 **A.7.7** (clear desk and clear screen). Also supports **END-40** / **A.8.1**
+    (protection of information on user endpoint devices).
+  resolution: |-
+    IT should deploy a `com.apple.screensaver` payload with askForPassword true, askForPasswordDelay <= 60, and idleTime <= 900 (seconds).
+    See Fleet standard query library “Lock screen after inactivity” for an example profile. If you rely only on DDM passcode without
+    screensaver keys, add this profile or adjust the policy.
+  platform: darwin

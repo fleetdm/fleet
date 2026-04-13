@@ -1,0 +1,16 @@
+- name: macOS - Local admin accounts within limit
+  query: |-
+    SELECT 1 WHERE (
+      SELECT COUNT(DISTINCT u.uid)
+      FROM users u
+      INNER JOIN user_groups ug ON u.uid = ug.uid
+      INNER JOIN groups g ON ug.gid = g.gid
+      WHERE g.groupname = 'admin'
+    ) <= 5;
+  critical: false
+  description: |-
+    Flags Macs with more than five distinct users in the local `admin` group (review for over-privileged accounts).
+    Supports ISO 27001 A.8.2 (privileged access rights) and A.5.18 (access rights lifecycle); complements SOC 2 CC 6.1 / CC 6.2.
+  resolution: |-
+    Review local administrators in Users & Groups (or Directory Utility). Remove unnecessary admin rights and use a standard user account day-to-day.
+  platform: darwin

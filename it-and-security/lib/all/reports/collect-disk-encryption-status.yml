@@ -1,0 +1,20 @@
+- name: Collect disk encryption status (macOS and Linux)
+  description: |-
+    Volume-level encryption status from osquery `disk_encryption`.
+    Maps to **CRY-3** / SOC2 **CC 6.7**, **CRY-4** / **CC 6.1**, and **AST-70** / **A.7.10**.
+  query: SELECT * FROM disk_encryption;
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+  platform: darwin,linux
+- name: Collect BitLocker status (Windows)
+  description: |-
+    BitLocker protection status for Windows volumes (complements macOS/Linux `disk_encryption`).
+    Maps to **CRY-3** / SOC2 **CC 6.7** and **AST-70** / **A.7.10**.
+  query: SELECT * FROM bitlocker_info;
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+  platform: windows

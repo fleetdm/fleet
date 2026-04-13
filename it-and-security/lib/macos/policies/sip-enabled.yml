@@ -1,0 +1,9 @@
+- name: macOS - System Integrity Protection enabled
+  query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  critical: true
+  description: |-
+    Verifies System Integrity Protection (SIP) is enabled.
+    Supports SOC 2 CC 6.6 / CC 8.1 (hardening) and ISO 27001 A.8.18 (privileged utilities) and A.8.9 (configuration management).
+  resolution: |-
+    SIP must not be disabled on corporate Macs. If this fails, contact IT immediately.
+  platform: darwin
