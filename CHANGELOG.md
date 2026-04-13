@@ -1,3 +1,9 @@
+## Fleet 4.83.2 (Apr 13, 2026)
+
+### Bug fixes
+
+- Fixed 500 on my device page on Fleet Free.
+
 ## Fleet 4.83.1 (Apr 10, 2026)
 
 ### Bug fixes
