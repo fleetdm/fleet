@@ -5,7 +5,7 @@
 * Stopped polling certificates when the server reported them as permanently failed.
 * Marked non-retryable SCEP failures (e.g. server rejection) as failed immediately instead of retrying 3 times.
 * Fixed duplicate FAILED status reports.
-* Treat HTTP 404 on certificate status updates as a signal that the template has been deleted server-side.
+* Made the agent treat HTTP 404 responses on certificate status updates as a signal that the template had been deleted server-side.
 * Include SCEP `failInfo` details in enrollment failure messages instead of a generic error.
 * Wait for CERT_INSTALL delegation to be available before attempting certificate enrollment, preventing permanent failures after fresh MDM enrollment.
 * Improved certificate installation failure messages to include delegation status and certificate alias.
