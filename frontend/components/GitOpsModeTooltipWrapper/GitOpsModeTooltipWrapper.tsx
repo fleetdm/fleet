@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import TooltipWrapper, {
   ITooltipWrapper,
 } from "components/TooltipWrapper/TooltipWrapper";
@@ -15,6 +16,9 @@ interface IGitOpsModeTooltipWrapper {
   // When specified, the wrapper checks the exception for this entity type.
   // If the entity is excepted, children remain enabled even in GitOps mode.
   entityType?: keyof IGitOpsExceptions;
+  /** Set to true when wrapping an input field or other block-level form element
+   *  so the tooltip wrapper stretches to full width. */
+  isInputField?: boolean;
 }
 
 const baseClass = "gitops-mode-tooltip-wrapper";
@@ -25,6 +29,7 @@ const GitOpsModeTooltipWrapper = ({
   renderChildren,
   fixedPositionStrategy,
   entityType,
+  isInputField = false,
 }: IGitOpsModeTooltipWrapper) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode(entityType);
 
@@ -38,9 +43,13 @@ const GitOpsModeTooltipWrapper = ({
     </div>
   );
 
+  const wrapperClass = classnames(baseClass, {
+    [`${baseClass}--inputfield`]: isInputField,
+  });
+
   return (
     <TooltipWrapper
-      className={baseClass}
+      className={wrapperClass}
       position={position}
       tipOffset={tipOffset}
       tipContent={tipContent}

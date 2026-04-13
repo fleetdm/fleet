@@ -5,13 +5,9 @@
     align-items: center;
   }
 
-  // Override TooltipWrapper's inline-flex so wrapped block-level form elements
-  // (e.g. InputField) still stretch to full width.
-  &.component__tooltip-wrapper {
-    display: flex;
-
+  &--inputfield {
     .component__tooltip-wrapper__element {
-      white-space: normal;
+      width: 100%;
     }
   }
 
