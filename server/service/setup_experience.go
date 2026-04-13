@@ -348,7 +348,7 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 // supported type, it returns false and an error indicated that the type is not supported.
 // If the skipPending parameter is true, the datastore will only be updated if the given result
 // status is not pending.
-func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result interface{}, requireTerminalStatus bool, newActivityFn fleet.NewActivityFunc) (bool, error) {
+func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result any, requireTerminalStatus bool, newActivityFn fleet.NewActivityFunc) (bool, error) {
 	var updated bool
 	var err error
 	var status fleet.SetupExperienceStatusResultStatus
