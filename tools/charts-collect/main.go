@@ -10,7 +10,13 @@
 //	go run ./tools/charts-collect --fleet-url https://dogfood.fleetdm.com --fleet-token <token>
 //	go run ./tools/charts-collect --fleet-url https://dogfood.fleetdm.com --fleet-token <token> --mysql-dsn "fleet:fleet@tcp(localhost:3306)/fleet"
 //
-// Environment variables FLEET_URL and FLEET_TOKEN can be used instead of flags.
+// Env vars:
+//   - FLEET_URL / FLEET_TOKEN: API target (same as --fleet-url / --fleet-token).
+//   - MYSQL_DSN: full DSN (same as --mysql-dsn).
+//   - FLEET_MYSQL_ADDRESS, FLEET_MYSQL_DATABASE, FLEET_MYSQL_USERNAME,
+//     FLEET_MYSQL_PASSWORD: used to assemble a DSN when MYSQL_DSN/--mysql-dsn
+//     is not set. Matches the fleet server's env var names so the same values
+//     can be reused (e.g. via Render fromService).
 package main
 
 import (
@@ -20,6 +26,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -36,11 +43,19 @@ const (
 func main() {
 	fleetURL := flag.String("fleet-url", os.Getenv("FLEET_URL"), "Fleet server URL (or FLEET_URL env var)")
 	fleetToken := flag.String("fleet-token", os.Getenv("FLEET_TOKEN"), "Fleet API token (or FLEET_TOKEN env var)")
-	dsn := flag.String("mysql-dsn", "fleet:fleet@tcp(localhost:3306)/fleet?parseTime=true", "MySQL connection string")
+	dsn := flag.String("mysql-dsn", os.Getenv("MYSQL_DSN"), "MySQL connection string (or MYSQL_DSN env var; falls back to FLEET_MYSQL_* env vars)")
 	flag.Parse()
 
 	if *fleetURL == "" || *fleetToken == "" {
 		log.Fatal("--fleet-url and --fleet-token are required (or set FLEET_URL and FLEET_TOKEN)")
+	}
+
+	if *dsn == "" {
+		built, err := dsnFromEnv()
+		if err != nil {
+			log.Fatalf("build mysql dsn: %v", err)
+		}
+		*dsn = built
 	}
 
 	db, err := sql.Open("mysql", *dsn)
@@ -65,6 +80,32 @@ func main() {
 	if err := collectCVE(api, db); err != nil {
 		log.Printf("ERROR cve collection: %v", err)
 	}
+}
+
+// dsnFromEnv builds a MySQL DSN from the standard FLEET_MYSQL_* env vars used
+// by the fleet server. Returns an error if any required piece is missing so we
+// don't silently fall back to localhost defaults in a production cron.
+func dsnFromEnv() (string, error) {
+	addr := os.Getenv("FLEET_MYSQL_ADDRESS")
+	user := os.Getenv("FLEET_MYSQL_USERNAME")
+	pass := os.Getenv("FLEET_MYSQL_PASSWORD")
+	db := os.Getenv("FLEET_MYSQL_DATABASE")
+
+	var missing []string
+	if addr == "" {
+		missing = append(missing, "FLEET_MYSQL_ADDRESS")
+	}
+	if user == "" {
+		missing = append(missing, "FLEET_MYSQL_USERNAME")
+	}
+	if db == "" {
+		missing = append(missing, "FLEET_MYSQL_DATABASE")
+	}
+	if len(missing) > 0 {
+		return "", fmt.Errorf("missing env vars: %s (or set --mysql-dsn / MYSQL_DSN)", strings.Join(missing, ", "))
+	}
+
+	return fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true", user, url.QueryEscape(pass), addr, db), nil
 }
 
 // apiClient wraps HTTP calls to the Fleet API.
@@ -217,7 +258,8 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 		if len(placeholders) == 0 {
 			return nil
 		}
-		stmt := `INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap) VALUES ` +
+		// Concatenating hardcoded "(...)" placeholder strings, not user input.
+		stmt := `INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap) VALUES ` + //nolint:gosec // G202
 			strings.Join(placeholders, ",")
 		if _, err := db.Exec(stmt, args...); err != nil {
 			return fmt.Errorf("batch insert: %w", err)
