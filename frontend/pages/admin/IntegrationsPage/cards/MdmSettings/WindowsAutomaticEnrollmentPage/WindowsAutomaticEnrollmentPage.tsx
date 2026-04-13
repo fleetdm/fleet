@@ -3,7 +3,6 @@ import React, { useContext, useState, useRef } from "react";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";

@@ -37,6 +37,12 @@
     gap: $pad-xsmall;
   }
 
+  &__card-icon {
+    body.dark-mode & {
+      opacity: 0.75;
+    }
+  }
+
   &__count {
     font-size: $large;
     white-space: nowrap;

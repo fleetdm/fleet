@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1483,8 +1484,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
 
-		if err := service.ValidateAPIEndpoints(apiHandler); err != nil {
-			panic(fmt.Sprintf("invalid api_endpoints.yml: %v", err))
+		if err := apiendpoints.Init(apiHandler); err != nil {
+			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 
 		if serveCSP {
