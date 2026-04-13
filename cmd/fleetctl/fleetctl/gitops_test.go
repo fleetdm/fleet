@@ -298,51 +298,6 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{names[0]: 1}, nil
 	}
-	// ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-	// 	return &fleet.MDMAppleDeclaration{}, nil
-	// }
-	// ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-	// 	return &fleet.Job{}, nil
-	// }
-	// ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-	// 	return nil
-	// }
-	// ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-	// 	return nil
-	// }
-	// ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
-	// 	return nil, nil
-	// }
-	//
-	// ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
-	// 	return nil
-	// }
-	//
-	// ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-	// 	return []*fleet.VPPTokenDB{}, nil
-	// }
-	//
-	// ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-	// 	return []*fleet.ABMToken{}, nil
-	// }
-	//
-	// ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
-	// 	return nil
-	// }
-	// ds.ListTeamPoliciesFunc = func(
-	// 	ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
-	// ) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
-	// 	return nil, nil, nil
-	// }
-	// ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
-	// 	return false, nil
-	// }
-	// ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
-	// 	return []fleet.SoftwareAutoUpdateSchedule{}, nil
-	// }
-	// ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
-	// 	return &fleet.TeamLite{}, nil
-	// }
 
 	// we'll use to mock datastore persistence
 	var storedCAs fleet.GroupedCertificateAuthorities
