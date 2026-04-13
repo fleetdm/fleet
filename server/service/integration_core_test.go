@@ -333,6 +333,17 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	assertBodyContains(t, resp, `fleet with id 9999 does not exist`)
 }
 
+func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
+	var resp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:         ptr.String("user1"),
+		Email:        ptr.String("apireject@example.com"),
+		Password:     &test.GoodPassword,
+		GlobalRole:   ptr.String(fleet.RoleObserver),
+		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
+	}, http.StatusUnprocessableEntity, &resp)
+}
+
 func (s *integrationTestSuite) TestCreateAPIOnlyUser() {
 	t := s.T()
 
@@ -2813,6 +2824,17 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Password:    ptr.String("password"), // no number or symbol
 				Email:       ptr.String("a@b.c"),
 				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"api_endpoints not accepted",
+			fleet.UserPayload{
+				Name:         ptr.String("Name"),
+				Password:     &test.GoodPassword,
+				Email:        ptr.String("a@b.c"),
+				InviteToken:  ptr.String(invite.Token),
+				APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 			},
 			http.StatusUnprocessableEntity,
 		},
@@ -10015,6 +10037,11 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&loginResp))
 	resp.Body.Close()
 	require.Equal(t, u.ID, loginResp.User.ID)
+
+	// as an admin, api_endpoints must be rejected on this endpoint
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
+		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
+	}, http.StatusUnprocessableEntity, &modResp)
 
 	// as an admin, create a new user with SSO authentication enabled
 	params = fleet.UserPayload{

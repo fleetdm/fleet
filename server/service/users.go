@@ -45,6 +45,7 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	req := request.(*createUserRequest)
 
 	if req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return createUserResponse{
 			Err: fleet.NewInvalidArgumentError(
 				"api_endpoints",
@@ -377,6 +378,7 @@ func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc 
 	req := request.(*createUserRequest)
 
 	if req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return createUserResponse{
 			Err: fleet.NewInvalidArgumentError(
 				"api_endpoints",
@@ -621,6 +623,17 @@ func (r modifyUserResponse) Error() error { return r.Err }
 
 func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyUserRequest)
+
+	if req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return modifyUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"This endpoint does not accept API endpoint values",
+			),
+		}, nil
+	}
+
 	user, err := svc.ModifyUser(ctx, req.ID, req.UserPayload)
 	if err != nil {
 		return modifyUserResponse{Err: err}, nil
