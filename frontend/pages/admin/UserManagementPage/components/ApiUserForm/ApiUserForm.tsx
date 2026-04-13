@@ -175,7 +175,7 @@ const ApiUserForm = ({
           />
         )}
       </form>
-      <div className={`${baseClass}__button-wrap`}>
+      <div className="user-management-form__footer">
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>

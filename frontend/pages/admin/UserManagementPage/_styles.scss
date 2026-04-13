@@ -107,6 +107,30 @@
   }
 }
 
+.create-user-page,
+.create-api-user-page,
+.edit-user-page {
+  @include vertical-page-layout;
+
+  h1 {
+    margin: 0;
+  }
+
+  .back-button {
+    align-self: flex-start;
+  }
+
+  // Left-align form footers on page-based flows (both UserForm's
+  // ModalFooter and ApiUserForm's shared footer class)
+  .modal-footer__content-wrapper,
+  .user-management-form__footer {
+    display: flex;
+    gap: $pad-medium;
+    padding-top: $pad-medium;
+    align-self: flex-start;
+  }
+}
+
 // Override react-select container positioning so the brand-button
 // dropdown menu anchors to the wrapper instead of the collapsed control.
 // The .add-user-dropdown className is applied to the react-select container

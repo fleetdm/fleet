@@ -123,7 +123,7 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
     <MainContent className={baseClass}>
       <>
         <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
-        <h1>Add user</h1>
+        <h1>New user</h1>
         <UserForm
           isNewUser
           isModifiedByGlobalAdmin
