@@ -1,0 +1,1 @@
+- Fixed Android agent to retry DNS resolution failures when waking from Doze mode.
