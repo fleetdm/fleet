@@ -18,8 +18,8 @@ const CanceledSetupExperienceActivityItem = ({
       hideShowDetails
     >
       <>
-        <b>{activity.actor_full_name ?? "Fleet"}</b> canceled setup experience on this host
-        because{" "}
+        <b>{activity.actor_full_name ?? "Fleet"}</b> canceled setup experience
+        on this host because{" "}
         <b>
           {getDisplayedSoftwareName(
             activity.details.software_title,
