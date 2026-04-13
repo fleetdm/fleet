@@ -6169,18 +6169,20 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	// Calculate token based on count and concatenated tokens for install items
 	var count int
 	type tokenSorting struct {
-		token           string
-		uploadedAt      time.Time
-		declarationUUID string
+		token              string
+		variablesUpdatedAt *time.Time
+		uploadedAt         time.Time
+		declarationUUID    string
 	}
 	var tokens []tokenSorting
 	for _, d := range di {
 		if d.OperationType != nil && *d.OperationType == string(fleet.MDMOperationTypeInstall) {
 			// Extract d.ServerToken and order by d.UploadedAt descending and then by d.DeclarationUUID ascending
 			sorting := tokenSorting{
-				token:           d.ServerToken,
-				uploadedAt:      d.UploadedAt,
-				declarationUUID: d.DeclarationUUID,
+				token:              d.ServerToken,
+				variablesUpdatedAt: d.VariablesUpdatedAt,
+				uploadedAt:         d.UploadedAt,
+				declarationUUID:    d.DeclarationUUID,
 			}
 			tokens = append(tokens, sorting)
 			count++
@@ -6196,6 +6198,11 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	var tokenBuilder strings.Builder
 	for _, t := range tokens {
 		tokenBuilder.WriteString(t.token)
+		if t.variablesUpdatedAt != nil {
+			// Must match MySQL's DATETIME(6) string representation used in
+			// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
+			tokenBuilder.WriteString(t.variablesUpdatedAt.Format("2006-01-02 15:04:05.000000"))
+		}
 	}
 
 	var token string

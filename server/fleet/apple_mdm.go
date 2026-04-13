@@ -896,12 +896,13 @@ type MDMAppleDDMManifest struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
-	DeclarationUUID string    `db:"declaration_uuid"`
-	Identifier      string    `db:"identifier"`
-	ServerToken     string    `db:"token"`
-	Status          *string   `db:"status"`
-	OperationType   *string   `db:"operation_type"`
-	UploadedAt      time.Time `db:"uploaded_at"`
+	DeclarationUUID    string     `db:"declaration_uuid"`
+	Identifier         string     `db:"identifier"`
+	ServerToken        string     `db:"token"`
+	Status             *string    `db:"status"`
+	OperationType      *string    `db:"operation_type"`
+	UploadedAt         time.Time  `db:"uploaded_at"`
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM

@@ -5360,6 +5360,7 @@ func (ds *Datastore) getExistingDeclarations(ctx context.Context, tx sqlx.ExtCon
 	const loadExistingDecls = `
 SELECT
   name,
+  identifier,
   declaration_uuid,
   raw_json
 FROM
@@ -5699,7 +5700,8 @@ func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID s
 	const stmt = `
 SELECT
 	HEX(mad.token) as token,
-	mad.identifier, mad.declaration_uuid, status, operation_type, mad.uploaded_at
+	mad.identifier, mad.declaration_uuid, status, operation_type, mad.uploaded_at,
+	hmad.variables_updated_at
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
