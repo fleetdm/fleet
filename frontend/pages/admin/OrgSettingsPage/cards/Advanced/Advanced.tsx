@@ -211,25 +211,28 @@ const Advanced = ({
         content="Most users do not need to modify these options."
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
-        <GitOpsModeTooltipWrapper
-          position="left"
-          renderChildren={(disableChildren) => (
-            <InputField
-              disabled={disableChildren}
-              label="SSO user URL"
-              onChange={onInputChange}
-              onBlur={onInputBlur}
-              name="ssoUserURL"
-              value={ssoUserURL}
-              parseTarget
-              error={formErrors.ssoUserURL}
-              tooltip={
-                !disableChildren &&
-                "Update this URL if you want your Fleet users (admins, maintainers, observers) to login via SSO using a URL that's different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance."
-              }
-            />
-          )}
-        />
+        {/* Wrapper used to ensure input field has 100% width without adverse effects to gitops tooltips elsewhere */}
+        <div className={`${baseClass}__gitops-inputfield-wrapper`}>
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <InputField
+                disabled={disableChildren}
+                label="SSO user URL"
+                onChange={onInputChange}
+                onBlur={onInputBlur}
+                name="ssoUserURL"
+                value={ssoUserURL}
+                parseTarget
+                error={formErrors.ssoUserURL}
+                tooltip={
+                  !disableChildren &&
+                  "Update this URL if you want your Fleet users (admins, maintainers, observers) to login via SSO using a URL that's different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance."
+                }
+              />
+            )}
+          />
+        </div>
         {appConfig.mdm.enabled_and_configured && (
           <GitOpsModeTooltipWrapper
             position="left"

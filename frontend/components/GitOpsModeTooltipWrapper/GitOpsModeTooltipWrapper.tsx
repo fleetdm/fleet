@@ -8,7 +8,7 @@ import { getGitOpsModeTipContent } from "utilities/helpers";
 
 interface IGitOpsModeTooltipWrapper {
   renderChildren: (disableChildren?: boolean) => React.ReactNode;
-  /** Positioned left in forms partially disabled by gitops mode (e.g. settings/organization/advanced) */
+  /** Position left is used for forms partially disabled by gitops mode (e.g. settings/organization/advanced) */
   position?: ITooltipWrapper["position"];
   tipOffset?: ITooltipWrapper["tipOffset"];
   fixedPositionStrategy?: ITooltipWrapper["fixedPositionStrategy"];

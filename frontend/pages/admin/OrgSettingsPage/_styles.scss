@@ -79,6 +79,13 @@
           font-style: normal;
         }
       }
+
+      // Local fix for tooltipwrapped input field to be full width when in gitops mode
+      &__gitops-inputfield-wrapper {
+        .component__tooltip-wrapper__element {
+          width: 100%;
+        }
+      }
     }
 
     .smtp-server-inputs {
