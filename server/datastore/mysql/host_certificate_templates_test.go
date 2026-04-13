@@ -1031,9 +1031,13 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 		require.NoError(t, err)
 		require.Equal(t, int64(1), rowsAffected)
 
-		// Simulate certs being delivered and verified (the normal lifecycle)
+		// Simulate certs being delivered and verified with stale metadata from the previous lifecycle
 		_, err = ds.writer(ctx).ExecContext(ctx,
-			`UPDATE host_certificate_templates SET status = ?, operation_type = ? WHERE host_uuid = ?`,
+			`UPDATE host_certificate_templates
+			SET status = ?, operation_type = ?, fleet_challenge = 'old-challenge',
+				detail = 'old detail', not_valid_before = '2025-01-01', not_valid_after = '2026-01-01',
+				serial = 'ABC123', retry_count = 2
+			WHERE host_uuid = ?`,
 			fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, hostUUID,
 		)
 		require.NoError(t, err)
@@ -1042,20 +1046,41 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
 		require.NoError(t, err)
 		require.Len(t, records, 1)
-		require.EqualValues(t, fleet.CertificateTemplateVerified, *records[0].Status)
+		require.NotNil(t, records[0].Status)
+		require.Equal(t, fleet.CertificateTemplateVerified, *records[0].Status)
 
 		// Simulate re-enrollment (work profile removed and re-installed, no DELETED notification received)
 		rowsAffected, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, setup.team.ID)
 		require.NoError(t, err)
-		require.Greater(t, rowsAffected, int64(0))
+		require.Positive(t, rowsAffected)
 
-		// The record must be reset to "pending" so the cert gets re-delivered
+		// The record must be reset to "pending" with stale metadata cleared
 		records, err = ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
 		require.NoError(t, err)
 		require.Len(t, records, 1)
-		require.EqualValues(t, fleet.CertificateTemplatePending, *records[0].Status)
+		require.NotNil(t, records[0].Status)
+		require.Equal(t, fleet.CertificateTemplatePending, *records[0].Status)
 		require.NotNil(t, records[0].OperationType)
-		require.EqualValues(t, fleet.MDMOperationTypeInstall, *records[0].OperationType)
+		require.Equal(t, fleet.MDMOperationTypeInstall, *records[0].OperationType)
+		require.Nil(t, records[0].FleetChallenge)
+
+		// Verify stale certificate metadata was cleared
+		var staleFields struct {
+			Detail         *string    `db:"detail"`
+			NotValidBefore *time.Time `db:"not_valid_before"`
+			NotValidAfter  *time.Time `db:"not_valid_after"`
+			Serial         *string    `db:"serial"`
+			RetryCount     int        `db:"retry_count"`
+		}
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &staleFields,
+			`SELECT detail, not_valid_before, not_valid_after, serial, retry_count
+			FROM host_certificate_templates WHERE host_uuid = ?`, hostUUID)
+		require.NoError(t, err)
+		require.Nil(t, staleFields.Detail)
+		require.Nil(t, staleFields.NotValidBefore)
+		require.Nil(t, staleFields.NotValidAfter)
+		require.Nil(t, staleFields.Serial)
+		require.Zero(t, staleFields.RetryCount)
 	})
 }
 

@@ -389,11 +389,17 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 		ON DUPLICATE KEY UPDATE
 		    -- Unconditionally reset to pending install with a new UUID so the certificate is
 		    -- re-delivered. This handles re-enrollment after work profile removal, where the device
-		    -- lost all certs but the old records may still exist.
+		    -- lost all certs but the old records may still exist. Clear stale certificate metadata
+		    -- from the previous lifecycle to match ResendHostCertificateTemplate behavior.
 			uuid = UUID_TO_BIN(UUID(), true),
 			status = '%s',
 			operation_type = '%s',
-			retry_count = 0
+			retry_count = 0,
+			fleet_challenge = NULL,
+			not_valid_before = NULL,
+			not_valid_after = NULL,
+			serial = NULL,
+			detail = NULL
 	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,
 		fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
