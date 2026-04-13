@@ -2309,6 +2309,11 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 	for _, p := range appleDecls {
 		declVars, err := validateDeclarationFleetVariables(string(p.RawJSON), lic)
 		if err != nil {
+			var badReqErr *fleet.BadRequestError
+			if errors.As(err, &badReqErr) {
+				badReqErr.Message = "Couldn't set profile. " + badReqErr.Message
+				err = badReqErr
+			}
 			return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
 		}
 		if len(declVars) > 0 {

@@ -906,6 +906,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 
 	declVars, err := validateDeclarationFleetVariables(dataWithSecrets, lic)
 	if err != nil {
+		var badReqErr *fleet.BadRequestError
+		if errors.As(err, &badReqErr) {
+			badReqErr.Message = "Couldn't upload profile. " + badReqErr.Message
+			err = badReqErr
+		}
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
 	}
 
