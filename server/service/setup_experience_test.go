@@ -701,11 +701,8 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.Equal(t, 1, activityCallCount, "activity should still have been emitted only once (no duplicate)")
 	})
 
-	t.Run("late arriving result for canceled VPP item without guard would have triggered duplicate", func(t *testing.T) {
-		// This test demonstrates the bug path: if the datastore did NOT have the
-		// guard (i.e. it returns updated=true for a late-arriving result on an
-		// already-canceled item), the cancel/activity code would fire again,
-		// producing a duplicate activity entry.
+	t.Run("late arriving result for canceled VPP item without guard should not trigger duplicate", func(t *testing.T) {
+		// See https://github.com/fleetdm/fleet/pull/43437#discussion_r3074297752
 
 		teamID := uint(1)
 		failedSoftwareTitleID := uint(42)
