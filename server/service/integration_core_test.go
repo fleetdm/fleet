@@ -334,6 +334,9 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 }
 
 func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
+	t := s.T()
+
+	// api_endpoints cannot be specified directly on this endpoint.
 	var resp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
 		Name:         ptr.String("user1"),
@@ -343,14 +346,27 @@ func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
 		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 	}, http.StatusUnprocessableEntity, &resp)
 
-	// api_only must also be rejected on this endpoint.
+	// api_only:true is accepted and automatically receives a wildcard api_endpoint.
+	var apiOnlyResp struct {
+		User struct {
+			APIOnly      bool `json:"api_only"`
+			APIEndpoints []struct {
+				Method string `json:"method"`
+				Path   string `json:"path"`
+			} `json:"api_endpoints"`
+		} `json:"user"`
+	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:       ptr.String("user1"),
-		Email:      ptr.String("apionlyreject@example.com"),
+		Name:       ptr.String("api-only-legacy"),
+		Email:      ptr.String("api-only-legacy@example.com"),
 		Password:   &test.GoodPassword,
 		GlobalRole: ptr.String(fleet.RoleObserver),
 		APIOnly:    new(true),
-	}, http.StatusUnprocessableEntity, &resp)
+	}, http.StatusOK, &apiOnlyResp)
+	require.True(t, apiOnlyResp.User.APIOnly)
+	require.Len(t, apiOnlyResp.User.APIEndpoints, 1)
+	require.Equal(t, "*", apiOnlyResp.User.APIEndpoints[0].Method)
+	require.Equal(t, "*", apiOnlyResp.User.APIEndpoints[0].Path)
 }
 
 func (s *integrationTestSuite) TestModifyUserAPIOnlyRejected() {
@@ -2900,17 +2916,6 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Email:        ptr.String("a@b.c"),
 				InviteToken:  ptr.String(invite.Token),
 				APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
-			},
-			http.StatusUnprocessableEntity,
-		},
-		{
-			"api_only not accepted",
-			fleet.UserPayload{
-				Name:        ptr.String("Name"),
-				Password:    &test.GoodPassword,
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(invite.Token),
-				APIOnly:     new(true),
 			},
 			http.StatusUnprocessableEntity,
 		},

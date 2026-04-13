@@ -54,16 +54,6 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}, nil
 	}
 
-	if req.APIOnly != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return createUserResponse{
-			Err: fleet.NewInvalidArgumentError(
-				"api_only",
-				"This endpoint does not accept API-only user creation",
-			),
-		}, nil
-	}
-
 	user, sessionKey, err := svc.CreateUser(ctx, req.UserPayload)
 	if err != nil {
 		return createUserResponse{Err: err}, nil
@@ -228,6 +218,13 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	if p.APIEndpoints != nil && (p.APIOnly == nil || !*p.APIOnly) {
 		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "API endpoints can only be specified for API only users"))
 	}
+	if p.APIOnly != nil && *p.APIOnly && p.APIEndpoints == nil {
+		// Preserve backward-compatible behavior: creating an API-only user without
+		// explicit endpoints grants access to all endpoints via a wildcard. On
+		// premium, callers can provide granular endpoints; on free, the wildcard is
+		// always used since granular endpoints require premium.
+		p.APIEndpoints = &[]fleet.APIEndpointRef{{Method: "*", Path: "*"}}
+	}
 	if p.APIOnly != nil && *p.APIOnly {
 		// API-Endpoints is a premium only feature,
 		// so we only want to validate it if creating an API only
@@ -387,22 +384,12 @@ func (svc *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.
 func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createUserRequest)
 
-	if req.APIEndpoints != nil {
+	if req.APIOnly != nil || req.APIEndpoints != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return createUserResponse{
 			Err: fleet.NewInvalidArgumentError(
 				"api_endpoints",
 				"This endpoint does not accept API endpoint values",
-			),
-		}, nil
-	}
-
-	if req.APIOnly != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return createUserResponse{
-			Err: fleet.NewInvalidArgumentError(
-				"api_only",
-				"This endpoint does not accept API-only user creation",
 			),
 		}, nil
 	}
@@ -644,22 +631,12 @@ func (r modifyUserResponse) Error() error { return r.Err }
 func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyUserRequest)
 
-	if req.APIEndpoints != nil {
+	if req.APIOnly != nil || req.APIEndpoints != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return modifyUserResponse{
 			Err: fleet.NewInvalidArgumentError(
 				"api_endpoints",
 				"This endpoint does not accept API endpoint values",
-			),
-		}, nil
-	}
-
-	if req.APIOnly != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return modifyUserResponse{
-			Err: fleet.NewInvalidArgumentError(
-				"api_only",
-				"This endpoint does not accept API only values",
 			),
 		}, nil
 	}
