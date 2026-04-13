@@ -84,6 +84,7 @@ const Modal = ({
         document.removeEventListener("keydown", closeOrSaveWithEnterKey);
       };
     }
+    return undefined;
   }, [onEnter]);
 
   const backgroundClasses = classnames(`${baseClass}__background`, {

@@ -248,6 +248,12 @@ software:
         - Productivity
   fleet_maintained_apps:
     # macOS apps
+    - slug: aws-vpn-client/darwin # AWS VPN Client for macOS
+      self_service: true
+      labels_include_any:
+        - "IdP group: SAML-aws-vpn"
+      categories:
+        - Utilities
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       setup_experience: true
@@ -304,6 +310,86 @@ software:
       setup_experience: true
       categories:
         - Productivity
+    - slug: github/darwin # GitHub Desktop for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: utm/darwin # UTM for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: imazing-profile-editor/darwin # iMazing Profile Editor for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: postman/darwin # Postman for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: grammarly-desktop/darwin # Grammarly Desktop for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: iterm2/darwin # iTerm2 for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: sublime-text/darwin # Sublime Text for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: parallels/darwin # Parallels Desktop for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: loom/darwin # Loom for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: spotify/darwin # Spotify for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: rectangle/darwin # Rectangle for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: logi-options+/darwin # Logi Options+ for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: suspicious-package/darwin # Suspicious Package for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: figma/darwin # Figma for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: whatsapp/darwin # WhatsApp for macOS
+      self_service: true
+      categories:
+        - Communication
+    - slug: android-studio/darwin # Android Studio for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: zed/darwin # Zed for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: obsidian/darwin # Obsidian for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: google-drive/darwin # Google Drive for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: cursor/darwin # Cursor for macOS
+      self_service: true
+      categories:
+        - Developer tools
     # Windows apps
     - slug: slack/windows # Slack for Windows
       self_service: true
@@ -347,3 +433,51 @@ software:
       self_service: true
       categories:
         - Developer tools
+    - slug: docker/windows # Docker Desktop for Windows (x86)
+      self_service: true
+      categories:
+        - Developer tools
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: github-desktop/windows # GitHub Desktop for Windows (x86)
+      self_service: true
+      categories:
+        - Developer tools
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: postman/windows # Postman for Windows (x86)
+      self_service: true
+      categories:
+        - Developer tools
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: sublime-text/windows # Sublime Text for Windows (x86)
+      self_service: true
+      categories:
+        - Developer tools
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: spotify/windows # Spotify for Windows (x86)
+      self_service: true
+      categories:
+        - Productivity
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: figma/windows # Figma for Windows (x86)
+      self_service: true
+      categories:
+        - Productivity
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: google-drive/windows # Google Drive for Windows (x86)
+      self_service: true
+      categories:
+        - Productivity
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: cursor/windows # Cursor for Windows (x86)
+      self_service: true
+      categories:
+        - Developer tools
+      labels_include_any:
+        - "x86-based Windows hosts"

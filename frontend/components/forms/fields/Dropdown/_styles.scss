@@ -206,13 +206,14 @@
 
     &.is-disabled {
       > .Select-control .Select-value .Select-value-label {
-        color: $ui-fleet-black-5;
+        color: $ui-fleet-black-50;
       }
     }
   }
 
   .Select-menu-outer {
-    box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
+    background-color: $core-fleet-white;
+    box-shadow: 0 0 0 1px $ui-fleet-black-10;
     z-index: 6;
     overflow: hidden;
     max-height: 198px; // Fits 4 options without scrolling
@@ -233,6 +234,7 @@
 
   .Select-option {
     color: $core-fleet-black;
+    background-color: transparent;
     font-size: $x-small;
     margin: 0;
     padding: 10px;

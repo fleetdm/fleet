@@ -285,7 +285,7 @@ const SelectTargets = ({
   useEffect(() => {
     const selected = [...targetedHosts, ...targetedLabels, ...targetedTeams];
     setSelectedTargets(selected);
-  }, [targetedHosts, targetedLabels, targetedTeams]);
+  }, [targetedHosts, targetedLabels, targetedTeams, setSelectedTargets]);
 
   useEffect(() => {
     labelsSummary && setLabels(parseLabels(labelsSummary));
@@ -294,7 +294,7 @@ const SelectTargets = ({
   useEffect(() => {
     setIsDebouncing(true);
     debounceSearch(searchTextHosts);
-  }, [searchTextHosts]);
+  }, [searchTextHosts, debounceSearch]);
 
   const handleClickCancel = () => {
     goToQueryEditor();

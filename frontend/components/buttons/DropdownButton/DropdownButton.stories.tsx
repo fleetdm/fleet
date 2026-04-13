@@ -55,7 +55,7 @@ const meta: Meta<typeof DropdownButton> = {
       values: [
         {
           name: "header",
-          value: "linear-gradient(270deg, #201e43 0%, #353d62 100%)",
+          value: "linear-gradient(270deg, #202226 0%, #353840 100%)",
         },
       ],
     },

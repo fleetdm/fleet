@@ -162,8 +162,8 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/scripts': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
-    // 🫧 Bulk operations dashboard
-    'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
+    // 🫧 Fleet agent downloader app
+    'ee/fleet-agent-downloader': 'eashaw',// (catch-all)
 
     // Handbook
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
@@ -183,7 +183,7 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil',
     'handbook/company/README.md': 'mikermcneil',
     'handbook/company/why-this-way.md': 'mikermcneil',
-    'handbook/company/communications.md': 'mikermcneil',
+    'handbook/company/communications.md': 'ireedy',
     'handbook/company/leadership.md': 'mikermcneil',
     'handbook/it/security.md': 'allenhouchins',
     'handbook/company/go-to-market-operations.md': 'sampfluger88',
@@ -263,8 +263,8 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
-    // 🫧 Bulk operations dashboard
-    'ee/bulk-operations-dashboard': 'eashaw',
+    // 🫧 Fleet agent downloader app
+    'ee/fleet-agent-downloader': 'eashaw',
 
     // FMA and icons
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
@@ -299,7 +299,7 @@ module.exports.custom = {
     'handbook/ceo': 'mikermcneil',
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/company/communications.md': ['mikermcneil', 'sampfluger88'],
+    'handbook/company/communications.md': ['mikermcneil', 'ireedy', 'sampfluger88'],
     'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],
     'handbook/company/go-to-market-operations.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],

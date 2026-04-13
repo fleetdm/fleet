@@ -1,4 +1,4 @@
-// Command applebmapi takes an Apple Business Manager server token in decrypted
+// Command applebmapi takes an Apple Business server token in decrypted
 // JSON format and calls the Apple BM API to retrieve and print the account
 // information or the specified enrollment profile.
 //

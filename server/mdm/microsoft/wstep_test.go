@@ -99,6 +99,44 @@ func TestSTSTokenSigningAndVerification(t *testing.T) {
 	require.ErrorContains(t, err, "invalid upn field")
 }
 
+func TestSTSTokenWithDeviceID(t *testing.T) {
+	var store CertStore
+	cm, err := NewCertManager(store, testCert, testKey)
+	require.NoError(t, err)
+
+	upn := "user@example.com"
+	deviceID := "test-device-id-123"
+
+	// Generate token with device ID
+	token, err := cm.NewEUAToken(upn, deviceID)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	// Validate and extract both claims
+	claims, err := cm.GetEUATokenClaims(token)
+	require.NoError(t, err)
+	require.Equal(t, upn, claims.UPN)
+	require.Equal(t, deviceID, claims.DeviceID)
+
+	// Empty UPN is rejected
+	_, err = cm.NewEUAToken("", deviceID)
+	require.ErrorContains(t, err, "invalid upn field")
+
+	// Empty device ID is rejected
+	_, err = cm.NewEUAToken(upn, "")
+	require.ErrorContains(t, err, "invalid device_id field")
+
+	// Token signed by NewSTSAuthToken (no device_id) is rejected — device_id is required
+	oldToken, err := cm.NewSTSAuthToken(upn)
+	require.NoError(t, err)
+	_, err = cm.GetEUATokenClaims(oldToken)
+	require.ErrorContains(t, err, "issue with device_id token claim")
+
+	// Tampered token is rejected
+	_, err = cm.GetEUATokenClaims(token + "tampered")
+	require.Error(t, err)
+}
+
 func TestCertFingerprintHexStr(t *testing.T) {
 	cases := []struct {
 		name string

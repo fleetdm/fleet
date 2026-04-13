@@ -77,7 +77,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     return false;
   };
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: Partial<IUser>) => {
     if (!currentUser) {
       return false;
     }
@@ -117,7 +117,10 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     }
   };
 
-  const handleSubmitPasswordForm = async (formData: any) => {
+  const handleSubmitPasswordForm = async (formData: {
+    old_password: string;
+    new_password: string;
+  }) => {
     try {
       await usersAPI.changePassword(formData);
       renderFlash("success", "Password changed successfully");
@@ -128,7 +131,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   };
 
   const renderEmailModal = () => {
-    const emailSubmit = (formData: any) => {
+    const emailSubmit = (formData: Partial<IUser>) => {
       handleSubmit(formData).then((r?: boolean) => {
         return r ? onToggleEmailModal() : false;
       });

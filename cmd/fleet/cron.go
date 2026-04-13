@@ -1562,7 +1562,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 }
 
 // newAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
-// The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
+// The DEP syncer+assigner fetches devices from Apple Business (aka AB) and applies
 // the current configured DEP profile to them.
 func newAppleMDMDEPProfileAssigner(
 	ctx context.Context,
@@ -2005,7 +2005,7 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger)
+			return maintained_apps.SyncAppsList(ctx, ds)
 		}),
 	)
 
