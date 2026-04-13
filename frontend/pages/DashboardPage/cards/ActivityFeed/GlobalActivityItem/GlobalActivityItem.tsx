@@ -16,7 +16,6 @@ import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
