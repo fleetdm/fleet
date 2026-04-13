@@ -1037,8 +1037,8 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 			SET status = ?, operation_type = ?, fleet_challenge = 'old-challenge',
 				detail = 'old detail', not_valid_before = '2025-01-01', not_valid_after = '2026-01-01',
 				serial = 'ABC123', retry_count = 2
-			WHERE host_uuid = ?`,
-			fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, hostUUID,
+			WHERE host_uuid = ? AND certificate_template_id = ?`,
+			fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, hostUUID, setup.template.ID,
 		)
 		require.NoError(t, err)
 
@@ -1058,7 +1058,8 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 		// must query the raw table directly to confirm the delete worked.
 		var countAfterDelete int
 		err = sqlx.GetContext(ctx, ds.writer(ctx), &countAfterDelete,
-			`SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?`, hostUUID)
+			`SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			hostUUID, setup.template.ID)
 		require.NoError(t, err)
 		require.Zero(t, countAfterDelete)
 
@@ -1086,7 +1087,8 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 		}
 		err = sqlx.GetContext(ctx, ds.writer(ctx), &staleFields,
 			`SELECT detail, not_valid_before, not_valid_after, serial, retry_count
-			FROM host_certificate_templates WHERE host_uuid = ?`, hostUUID)
+			FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			hostUUID, setup.template.ID)
 		require.NoError(t, err)
 		require.Nil(t, staleFields.Detail)
 		require.Nil(t, staleFields.NotValidBefore)
