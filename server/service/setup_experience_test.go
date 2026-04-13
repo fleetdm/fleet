@@ -305,7 +305,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 	vppUUID := "vpp-uuid"
 
 	t.Run("unsupported result type", func(t *testing.T) {
-		_, err := maybeUpdateSetupExperienceStatus(ctx, ds, map[string]any{"key": "value"}, true, nil)
+		_, err := maybeUpdateSetupExperienceStatus(ctx, ds, map[string]any{"key": "value"}, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported result type")
 	})
@@ -351,7 +351,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					ExecutionID: scriptUUID,
 					ExitCode:    tt.exitCode,
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, true, nil)
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, nil)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceScriptStatusFuncInvoked)
@@ -388,8 +388,6 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				requireTerminalStatus := true // when this flag is true, we don't expect pending status to update
-
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 					require.Equal(t, hostUUID, hostUUID)
 					require.Equal(t, executionID, softwareUUID)
@@ -414,36 +412,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					activityFnCalled = true
 					return nil
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus, activityFn)
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked)
-				require.False(t, activityFnCalled)
-
-				requireTerminalStatus = false // when this flag is false, we do expect pending status to update
-
-				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-					require.Equal(t, hostUUID, hostUUID)
-					require.Equal(t, executionID, softwareUUID)
-					require.Equal(t, tt.expectStatus, status)
-					require.True(t, status.IsValid())
-					if status.IsTerminalStatus() {
-						require.True(t, status == fleet.SetupExperienceStatusSuccess || status == fleet.SetupExperienceStatusFailure)
-					} else {
-						require.True(t, status == fleet.SetupExperienceStatusPending || status == fleet.SetupExperienceStatusRunning)
-					}
-					return true, nil
-				}
-				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
-				activityFnCalled = false
-				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus, activityFn)
-				require.NoError(t, err)
-				shouldUpdate := tt.alwaysUpdated
-				if tt.expectStatus == fleet.SetupExperienceStatusPending || tt.expectStatus == fleet.SetupExperienceStatusRunning {
-					shouldUpdate = true
-				}
-				require.Equal(t, shouldUpdate, updated)
-				require.Equal(t, shouldUpdate, ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked)
 				require.False(t, activityFnCalled)
 			})
 		}
@@ -484,8 +456,6 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				requireTerminalStatus := true // when this flag is true, we don't expect pending status to update
-
 				ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(ctx context.Context, hostUUID string, cmdUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 					require.Equal(t, hostUUID, hostUUID)
 					require.Equal(t, cmdUUID, vppUUID)
@@ -509,37 +479,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					activityFnCalled = true
 					return nil
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus, activityFn)
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked)
-				require.False(t, activityFnCalled)
-
-				requireTerminalStatus = false // when this flag is false, we do expect pending status to update
-
-				ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(ctx context.Context, hostUUID string, cmdUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-					require.Equal(t, hostUUID, hostUUID)
-					require.Equal(t, cmdUUID, vppUUID)
-					require.Equal(t, tt.expected, status)
-					require.True(t, status.IsValid())
-					if status.IsTerminalStatus() {
-						require.True(t, status == fleet.SetupExperienceStatusSuccess || status == fleet.SetupExperienceStatusFailure)
-					} else {
-						require.True(t, status == fleet.SetupExperienceStatusPending || status == fleet.SetupExperienceStatusRunning)
-					}
-					return true, nil
-				}
-				ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
-				activityFnCalled = false
-
-				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus, activityFn)
-				require.NoError(t, err)
-				shouldUpdate := tt.alwaysUpdated
-				if tt.expected == fleet.SetupExperienceStatusPending || tt.expected == fleet.SetupExperienceStatusRunning {
-					shouldUpdate = true
-				}
-				require.Equal(t, shouldUpdate, updated)
-				require.Equal(t, shouldUpdate, ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked)
 				require.False(t, activityFnCalled)
 			})
 		}
@@ -624,7 +567,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 			ExecutionID:     softwareUUID,
 			InstallerStatus: fleet.SoftwareInstallFailed,
 		}
-		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, true, activityFn)
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 		require.NoError(t, err)
 		require.True(t, updated)
 		require.True(t, activityFnCalled)
@@ -724,7 +667,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 			ExecutionID:     softwareUUID,
 			InstallerStatus: fleet.SoftwareInstallFailed,
 		}
-		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, true, activityFn)
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 		require.NoError(t, err)
 		require.True(t, updated)
 		require.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked)
@@ -750,7 +693,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 			CommandUUID:   vppUUID,
 			CommandStatus: fleet.MDMAppleStatusError,
 		}
-		updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, vppResult, true, activityFn)
+		updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, vppResult, activityFn)
 		require.NoError(t, err)
 		require.False(t, updated, "update should be blocked by datastore guard")
 		require.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "cancel should NOT be called again")
@@ -840,7 +783,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 			CommandUUID:   vppUUID,
 			CommandStatus: fleet.MDMAppleStatusError,
 		}
-		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, vppResult, true, activityFn)
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, vppResult, activityFn)
 		require.NoError(t, err)
 		require.True(t, updated, "without the guard the update goes through")
 		require.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "cancel IS invoked (this is the duplicate bug)")

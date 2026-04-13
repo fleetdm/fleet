@@ -346,9 +346,8 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 // SetupExperienceSoftwareInstallResult, and SetupExperienceVPPInstallResult), it returns a boolean
 // indicating whether the datastore was updated and an error if one occurred. If the result is not of a
 // supported type, it returns false and an error indicated that the type is not supported.
-// If the skipPending parameter is true, the datastore will only be updated if the given result
-// status is not pending.
-func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result any, requireTerminalStatus bool, newActivityFn fleet.NewActivityFunc) (bool, error) {
+// The datastore will only be updated if the given result status is a terminal status.
+func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result any, newActivityFn fleet.NewActivityFunc) (bool, error) {
 	var updated bool
 	var err error
 	var status fleet.SetupExperienceStatusResultStatus
@@ -358,7 +357,7 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		status = v.SetupExperienceStatus()
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
-		} else if requireTerminalStatus && !status.IsTerminalStatus() {
+		} else if !status.IsTerminalStatus() {
 			return false, nil
 		}
 		return ds.MaybeUpdateSetupExperienceScriptStatus(ctx, v.HostUUID, v.ExecutionID, status)
@@ -368,7 +367,7 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		hostUUID = v.HostUUID
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
-		} else if requireTerminalStatus && !status.IsTerminalStatus() {
+		} else if !status.IsTerminalStatus() {
 			return false, nil
 		}
 		updated, err = ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, v.HostUUID, v.ExecutionID, status)
@@ -380,7 +379,7 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		hostUUID = v.HostUUID
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
-		} else if requireTerminalStatus && !status.IsTerminalStatus() {
+		} else if !status.IsTerminalStatus() {
 			return false, nil
 		}
 		updated, err = ds.MaybeUpdateSetupExperienceVPPStatus(ctx, v.HostUUID, v.CommandUUID, status)
