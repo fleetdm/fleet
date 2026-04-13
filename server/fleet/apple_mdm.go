@@ -30,8 +30,8 @@ var (
 )
 
 type MDMAppleCommandIssuer interface {
-	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
-	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, name string) error
+	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string, name string) error
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
 	EnableLostMode(ctx context.Context, host *Host, commandUUID string, orgName string) error
 	DisableLostMode(ctx context.Context, host *Host, commandUUID string) error
@@ -159,7 +159,7 @@ func (m MDMAppleDevice) AuthzType() string {
 	return "mdm_apple_device"
 }
 
-// MDMAppleDEPDevice represents an Apple device in Apple Business Manager (ABM).
+// MDMAppleDEPDevice represents an Apple device in Apple Business (AB).
 type MDMAppleDEPDevice struct {
 	godep.Device
 }
@@ -541,10 +541,10 @@ type HostDEPAssignment struct {
 	// HostID is the id of the host in Fleet.
 	HostID uint `db:"host_id" json:"-"`
 	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
-	// server in Apple Busines Manager (ABM).
+	// server in Apple Busines Manager (AB).
 	AddedAt time.Time `db:"added_at" json:"added_at"`
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
-	// MDM server in Apple Busines Manager (ABM).
+	// MDM server in Apple Busines Manager (AB).
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
 	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id"`
@@ -631,6 +631,8 @@ type MDMAppleCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// Name is the optional human-readable name of the command, used for indicating the profile added/removed, if any.
+	Name *string `json:"name" db:"name"`
 }
 
 // MDMAppleSetupAssistant represents the setup assistant set for a given team

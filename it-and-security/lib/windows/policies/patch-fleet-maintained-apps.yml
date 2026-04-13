@@ -1,6 +1,6 @@
 - name: Windows - Slack up to date
   description: The host may have an outdated version of Slack, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality. You can also uninstall Slack if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: slack/windows
   install_software: false
@@ -24,7 +24,7 @@
     - x86 Windows hosts with Firefox installed
 - name: Windows - Google Chrome up to date
   description: The host may have an outdated version of Google Chrome, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Google Chrome's built-in update functionality. You can also uninstall Google Chrome if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Google Chrome's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: google-chrome/windows
   install_software: false
@@ -32,7 +32,7 @@
     - x86 Windows hosts with Google Chrome installed
 - name: Windows - Zoom up to date
   description: The host may have an outdated version of Zoom, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality. You can also uninstall Zoom if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: zoom/windows
   install_software: false

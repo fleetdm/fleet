@@ -325,6 +325,9 @@ This view displays the website's efficiency by tracking the rate at which users 
   - **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
 - **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
 
+## Fleet writing style, tone, and voice instructions for AI
+When using an AI to create written content for Fleet, give your AI [these instructions first](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing. These instructions are aggregated and token-optimized from the handbook, in addition to fine tuned from usage results, which we should all continue to contribute to.
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
