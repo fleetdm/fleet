@@ -14458,6 +14458,123 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/%s/results", installUUID), nil, http.StatusNotFound, &installDetailsResp)
 }
 
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersConditionalDownload() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	const etag = `"ruby-deb-v1"`
+
+	var (
+		mu             sync.Mutex
+		requestCount   int
+		ifNoneMatchSet = []string{}
+	)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requestCount++
+		ifNoneMatchSet = append(ifNoneMatchSet, r.Header.Get("If-None-Match"))
+		mu.Unlock()
+
+		// Honor the conditional request: if the client sends our ETag,
+		// return 304 with no body.
+		if r.Header.Get("If-None-Match") == etag {
+			w.Header().Set("ETag", etag)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		if !assert.NoError(t, err) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+		w.Header().Set("ETag", etag)
+		_, err = io.Copy(w, file)
+		assert.NoError(t, err)
+	})
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// First run: full download, Fleet should capture the ETag and storage_id.
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{{URL: srv.URL}}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	firstHash := packages[0].HashSHA256
+	require.NotEmpty(t, firstHash)
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp,
+		"available_for_install", "true", "team_id", fmt.Sprint(tm.ID))
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+	titleID := titlesResp.SoftwareTitles[0].ID
+
+	titleResp := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	firstUploadedAt := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
+
+	mu.Lock()
+	require.Equal(t, 1, requestCount, "expected exactly one HTTP request on first run")
+	require.Empty(t, ifNoneMatchSet[0], "first run must not send If-None-Match")
+	mu.Unlock()
+
+	// Second run: same URL, no changes. The server will return 304 and Fleet
+	// should reuse the cached installer (uploaded_at must not change).
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.Equal(t, firstHash, packages[0].HashSHA256, "hash must match on cache hit")
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	require.Equal(t, firstUploadedAt, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
+		"uploaded_at must not change on 304 cache hit")
+
+	mu.Lock()
+	require.Equal(t, 2, requestCount, "expected one additional HTTP request on second run")
+	require.Equal(t, etag, ifNoneMatchSet[1], "second run must send If-None-Match with stored ETag")
+	mu.Unlock()
+
+	// Third run: server will again respond 304, but the user has supplied an
+	// install_script that fails validation (exceeds SavedScriptMaxRuneLen).
+	// The 304 fast-path must still run script validation and reject the batch.
+	oversizeScript := strings.Repeat("a", fleet.SavedScriptMaxRuneLen+1)
+	withBadScript := []*fleet.SoftwareInstallerPayload{{URL: srv.URL, InstallScript: oversizeScript}}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: withBadScript},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	msg := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Contains(t, msg, "install script")
+
+	// Fourth run: always_download bypasses conditional download, so the server
+	// should receive a request with no If-None-Match header and return the full
+	// body.
+	withAlwaysDownload := []*fleet.SoftwareInstallerPayload{{URL: srv.URL, AlwaysDownload: true}}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: withAlwaysDownload},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	_ = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+
+	mu.Lock()
+	require.GreaterOrEqual(t, requestCount, 4, "always_download must issue an HTTP request")
+	require.Empty(t, ifNoneMatchSet[len(ifNoneMatchSet)-1], "always_download must not send If-None-Match")
+	mu.Unlock()
+}
+
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPoliciesAssociated() {
 	ctx := context.Background()
 	t := s.T()
