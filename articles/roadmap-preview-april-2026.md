@@ -7,7 +7,7 @@
 The Fleet roadmap is set for spring 2026. Watch the video above for a walkthrough, or continue reading for the highlights.
 
 In the next 3 months, Fleet will ship...
-- 🔑 [Managed Device Attestation](https://support.apple.com/guide/deployment/managed-device-attestation-dep28afbde6a/web) for Apple devices (macOS, iOS, iPadOS)
+- 🔑 [Managed Device Attestation](https://support.apple.com/guide/deployment/managed-device-attestation-dep28afbde6a/web) for Apple devices via ACME
 - 🦾 Create and manage local admin accounts on macOS
 - 🍎 macOS setup: Create a local user account with IdP credentials (Platform SSO)
 - ⏰ OS updates for macOS: Update to latest after a deadline (relative to OS release date)
