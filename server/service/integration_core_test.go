@@ -485,14 +485,17 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 		User struct {
 			ID uint `json:"id"`
 		} `json:"user"`
-		Err string `json:"error,omitempty"`
+		Token string `json:"token"`
+		Err   string `json:"error,omitempty"`
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
 		"name":        "API User",
 		"global_role": "observer",
 	}, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
+	require.NotEmpty(t, createResp.Token)
 	apiUserID := createResp.User.ID
+	apiUserToken := createResp.Token
 
 	s.DoRawNoAuth("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), []byte(`{}`), http.StatusUnauthorized)
 
@@ -504,6 +507,14 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", admin.ID), map[string]any{
 		"name": "New Name",
 	}, http.StatusUnprocessableEntity)
+
+	// An API-only user cannot modify their own record via this endpoint.
+	s.token = apiUserToken
+	defer func() { s.token = s.getTestAdminToken() }()
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
+		"name": "Self Update",
+	}, http.StatusUnprocessableEntity)
+	s.token = s.getTestAdminToken()
 
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
 		"api_endpoints": []map[string]any{
