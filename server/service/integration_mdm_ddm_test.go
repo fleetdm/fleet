@@ -1661,6 +1661,12 @@ WHERE name = ?`
 	checkNoCommands(mdmDevice1)
 	checkNoCommands(mdmDevice2)
 
+	// Record host3's variables_updated_at after initial sync
+	host3InitVarsUpdatedUUID := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclUUID.DeclarationUUID)
+	require.NotNil(t, host3InitVarsUpdatedUUID)
+	host3InitVarsUpdatedSerial := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, host3InitVarsUpdatedSerial)
+
 	// Verify stable state: no-op batch upload triggers no commands for anyone
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
 		"team_id", teamIDStr)
@@ -1689,8 +1695,10 @@ WHERE name = ?`
 	// Verify host3's variables_updated_at was not changed by host1's resend
 	varsUpdatedUUIDHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclUUID.DeclarationUUID)
 	require.NotNil(t, varsUpdatedUUIDHost3)
+	assert.Equal(t, *host3InitVarsUpdatedUUID, *varsUpdatedUUIDHost3)
 	varsUpdatedSerialHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclSerial.DeclarationUUID)
 	require.NotNil(t, varsUpdatedSerialHost3)
+	assert.Equal(t, *host3InitVarsUpdatedSerial, *varsUpdatedSerialHost3)
 
 	// host3 fetches its own declarations — variables are correctly substituted
 	// with host3's own values
