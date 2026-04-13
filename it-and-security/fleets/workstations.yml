@@ -255,6 +255,7 @@ software:
       categories:
         - Utilities
     - slug: google-chrome/darwin # Google Chrome for macOS
+      version: "147.0.7727.56"
       self_service: true
       setup_experience: true
       categories:
@@ -332,6 +333,7 @@ software:
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: google-chrome/windows # Google Chrome for Windows
+      version: "147.0.7727.55"
       self_service: true
       setup_experience: true
       categories:
