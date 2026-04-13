@@ -2000,12 +2000,30 @@ func TestResolveScriptPaths(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []fleet.BaseItem{{Paths: ptr.String("*.sh")}} //nolint:modernize
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+	})
+
+	t.Run("glob_filters_non_script_extensions", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ps1"), []byte("Write-Host"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.py"), []byte("#!/usr/bin/env python3"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "d.txt"), []byte("not a script"), 0o644))
 
 		items := []fleet.BaseItem{{Paths: ptr.String("*")}} //nolint:modernize
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
+		got := make([]string, 0, len(result))
+		for _, r := range result {
+			got = append(got, filepath.Base(*r.Path))
+		}
+		assert.Equal(t, []string{"a.sh", "b.ps1", "c.py"}, got)
 	})
 
 	t.Run("inline_not_allowed", func(t *testing.T) {
