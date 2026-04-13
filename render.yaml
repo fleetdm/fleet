@@ -4,7 +4,7 @@ services:
     type: web
     runtime: image
     image:
-      url: 'fleetdm/fleet:latest'
+      url: 'fleetdm/fleet:dashboard-charts-data-collection'
     preDeployCommand: "fleet prepare --no-prompt=true db"
     healthCheckPath: /healthz
     disk:
@@ -45,6 +45,40 @@ services:
         value: 'false'
       - key: PORT
         value: 8080
+
+  - name: charts-collect
+    type: cron
+    runtime: go
+    repo: https://github.com/fleetdm/fleet
+    branch: sgress454/dashboard-charts-data-collection
+    schedule: '0 * * * *'
+    buildCommand: 'go build -o charts-collect ./tools/charts-collect'
+    startCommand: 'FLEET_TOKEN="$DOGFOOD_API_TOKEN" ./charts-collect'
+    envVars:
+      - key: FLEET_URL
+        value: 'https://dogfood.fleetdm.com'
+      - key: DOGFOOD_API_TOKEN
+        sync: false
+      - key: FLEET_MYSQL_ADDRESS
+        fromService:
+          name: fleet-mysql
+          type: pserv
+          property: hostport
+      - key: FLEET_MYSQL_DATABASE
+        fromService:
+          name: fleet-mysql
+          type: pserv
+          envVarKey: MYSQL_DATABASE
+      - key: FLEET_MYSQL_PASSWORD
+        fromService:
+          name: fleet-mysql
+          type: pserv
+          envVarKey: MYSQL_PASSWORD
+      - key: FLEET_MYSQL_USERNAME
+        fromService:
+          name: fleet-mysql
+          type: pserv
+          envVarKey: MYSQL_USER
 
   - name: fleet-mysql
     plan: standard
