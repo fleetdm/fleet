@@ -1905,6 +1905,10 @@ type Datastore interface {
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
+	// SetMDMWindowsAwaitingConfiguration updates the awaiting_configuration status
+	// for a Windows MDM enrollment identified by device ID.
+	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, status WindowsMDMAwaitingConfiguration) error
+
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
@@ -1981,6 +1985,10 @@ type Datastore interface {
 	// be installed based on diffing the ideal state vs the state we have
 	// registered in `host_mdm_windows_profiles`
 	ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
+
+	// ListMDMWindowsProfilesToInstallForHost returns the profiles that should
+	// be installed for a specific host.
+	ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*MDMWindowsProfilePayload, error)
 
 	// ListMDMWindowsProfilesToRemove returns all the profiles that should
 	// be removed based on diffing the ideal state vs the state we have

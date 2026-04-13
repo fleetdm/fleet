@@ -876,6 +876,15 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 	return aff > 0, nil
 }
 
+func (ds *Datastore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, status fleet.WindowsMDMAwaitingConfiguration) error {
+	stmt := `UPDATE mdm_windows_enrollments SET awaiting_configuration = ? WHERE mdm_device_id = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, status, mdmDeviceID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set windows awaiting configuration")
+	}
+	return nil
+}
+
 // whereBitLockerStatus returns a string suitable for inclusion within a SQL WHERE clause to filter by
 // the given status. The caller is responsible for ensuring the status is valid. In the case of an invalid
 // status, the function will return the string "FALSE". The caller should also ensure that the query in
@@ -2256,6 +2265,16 @@ func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 	}
 
 	return profiles, nil
+}
+
+func (ds *Datastore) ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	var result []*fleet.MDMWindowsProfilePayload
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		result, err = ds.listMDMWindowsProfilesToInstallDB(ctx, tx, []string{hostUUID}, nil)
+		return err
+	})
+	return result, err
 }
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {

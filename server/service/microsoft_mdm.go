@@ -1951,13 +1951,211 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		resPendingCmds = pendingCmds
 	}
 
+	// Check if we need to send ESP (Enrollment Status Page) commands for this device.
+	// This handles Windows Autopilot setup experience tracking.
+	espCmds, err := svc.getESPCommands(ctx, deviceID)
+	if err != nil {
+		// Log the error but don't fail the entire response -- the device should
+		// still receive its normal management commands.
+		svc.logger.WarnContext(ctx, "failed to get ESP commands", "device_id", deviceID, "err", err)
+	}
+
+	allCmds := append(resIncomingCmds, resPendingCmds...)
+	allCmds = append(allCmds, espCmds...)
+
 	// Create the response SyncML message
-	msg, err := svc.createResponseSyncML(ctx, reqMsg, append(resIncomingCmds, resPendingCmds...))
+	msg, err := svc.createResponseSyncML(ctx, reqMsg, allCmds)
 	if err != nil {
 		return nil, fmt.Errorf("message syncML creation error %w", err)
 	}
 
 	return msg, nil
+}
+
+// espGracePeriod is the time to wait after enrollment for orbit to enqueue
+// setup experience items before proceeding with ESP setup.
+const espGracePeriod = 10 * time.Minute
+
+// getESPCommands checks if a Windows device is in the Autopilot setup experience
+// and returns appropriate ESP SyncML commands.
+//
+// For awaiting_configuration=1 (initial): builds and enqueues ESP initialization
+// commands (profile tracking, software tracking, timeout), then transitions to status=2.
+//
+// For awaiting_configuration=2 (active): builds inline ESP status update commands
+// reflecting the current installation state of software items.
+func (svc *Service) getESPCommands(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get enrolled device for ESP")
+	}
+
+	switch enrolledDevice.AwaitingConfiguration {
+	case fleet.WindowsMDMAwaitingConfigurationPending:
+		return svc.handleESPInitial(ctx, enrolledDevice)
+	case fleet.WindowsMDMAwaitingConfigurationActive:
+		return svc.handleESPStatusUpdate(ctx, enrolledDevice)
+	default:
+		return nil, nil
+	}
+}
+
+// handleESPInitial handles the first ESP setup when awaiting_configuration=1.
+// It queries profiles and setup experience items, builds the initial ESP command,
+// enqueues it, and transitions the device to awaiting_configuration=2.
+func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
+	if device.HostUUID == "" {
+		// Host UUID not yet set (orbit hasn't enrolled yet). Wait.
+		return nil, nil
+	}
+
+	// Check if setup experience items have been enqueued by orbit.
+	host, err := svc.ds.HostByIdentifier(ctx, device.HostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host for ESP")
+	}
+
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+
+	setupResults, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, device.HostUUID, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP")
+	}
+
+	// If no setup experience items yet and we're within the grace period,
+	// wait for orbit to enqueue them.
+	if len(setupResults) == 0 && device.AwaitingConfigurationAt != nil {
+		if time.Since(*device.AwaitingConfigurationAt) < espGracePeriod {
+			return nil, nil
+		}
+		// Grace period expired with no items. Transition to active and let
+		// phase 3 finalize (which will release the device since there's nothing to track).
+	}
+
+	// Query profiles that need to be installed for this host.
+	profiles, err := svc.ds.ListMDMWindowsProfilesToInstallForHost(ctx, device.HostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list profiles to install for ESP")
+	}
+
+	// Build profile tracking info by fetching profile contents to get LocURIs.
+	var profileUUIDs []string
+	for _, p := range profiles {
+		profileUUIDs = append(profileUUIDs, p.ProfileUUID)
+	}
+
+	var profileTrackingInfos []microsoft_mdm.ESPProfileTrackingInfo
+	if len(profileUUIDs) > 0 {
+		contents, err := svc.ds.GetMDMWindowsProfilesContents(ctx, profileUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get profile contents for ESP")
+		}
+
+		for _, p := range profiles {
+			content, ok := contents[p.ProfileUUID]
+			if !ok || len(content.SyncML) == 0 {
+				continue
+			}
+			locURIs := fleet.ExtractLocURIsFromProfileBytes(content.SyncML)
+			if len(locURIs) == 0 {
+				continue
+			}
+			hasSCEP := strings.Contains(string(content.SyncML), fleet.WINDOWS_SCEP_LOC_URI_PART)
+			profileTrackingInfos = append(profileTrackingInfos, microsoft_mdm.ESPProfileTrackingInfo{
+				ProfileUUID: p.ProfileUUID,
+				TopLocURI:   locURIs[0],
+				HasSCEP:     hasSCEP,
+			})
+		}
+	}
+
+	// Build software tracking info from setup experience results.
+	var softwareTrackingInfos []microsoft_mdm.ESPSoftwareTrackingInfo
+	for _, result := range setupResults {
+		softwareTrackingInfos = append(softwareTrackingInfos, microsoft_mdm.ESPSoftwareTrackingInfo{
+			Name:   result.Name,
+			Status: microsoft_mdm.SetupExperienceStatusToESP(result.Status),
+		})
+	}
+
+	// Build and enqueue the initial ESP command.
+	espCmd, err := microsoft_mdm.ESPInitialCommand(microsoft_mdm.ESPInitialCommandSpec{
+		CmdUUID:  uuid.New().String(),
+		Profiles: profileTrackingInfos,
+		Software: softwareTrackingInfos,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build ESP initial command")
+	}
+
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.HostUUID}, espCmd); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "enqueue ESP initial command")
+	}
+
+	// Transition to active state.
+	if err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID, fleet.WindowsMDMAwaitingConfigurationActive); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
+	}
+
+	return nil, nil
+}
+
+// handleESPStatusUpdate handles subsequent checkins when awaiting_configuration=2.
+// It builds inline SyncML commands reflecting the current setup experience status.
+func (svc *Service) handleESPStatusUpdate(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
+	if device.HostUUID == "" {
+		return nil, nil
+	}
+
+	host, err := svc.ds.HostByIdentifier(ctx, device.HostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host for ESP status update")
+	}
+
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+
+	setupResults, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, device.HostUUID, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP status update")
+	}
+
+	if len(setupResults) == 0 {
+		return nil, nil
+	}
+
+	var softwareTrackingInfos []microsoft_mdm.ESPSoftwareTrackingInfo
+	for _, result := range setupResults {
+		softwareTrackingInfos = append(softwareTrackingInfos, microsoft_mdm.ESPSoftwareTrackingInfo{
+			Name:   result.Name,
+			Status: microsoft_mdm.SetupExperienceStatusToESP(result.Status),
+		})
+	}
+
+	espCmd, err := microsoft_mdm.ESPStatusUpdateCommand(microsoft_mdm.ESPStatusUpdateSpec{
+		CmdUUID:  uuid.New().String(),
+		Software: softwareTrackingInfos,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build ESP status update command")
+	}
+
+	// Parse the ESP command into SyncML commands for inline response.
+	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(espCmd.RawCommand)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parse ESP status update command")
+	}
+
+	var result []*mdm_types.SyncMLCmd
+	for i := range parsedCmds {
+		result = append(result, &parsedCmds[i])
+	}
+	return result, nil
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
