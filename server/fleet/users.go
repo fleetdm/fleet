@@ -376,6 +376,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.APIOnly != nil {
 		user.APIOnly = *p.APIOnly
+		if p.APIEndpoints != nil {
+			user.APIEndpoints = *p.APIEndpoints
+		}
 	}
 	if p.Teams != nil {
 		user.Teams = *p.Teams
@@ -385,9 +388,6 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.InviteID != nil {
 		user.InviteID = p.InviteID
-	}
-	if p.APIEndpoints != nil {
-		user.APIEndpoints = *p.APIEndpoints
 	}
 
 	return user, nil

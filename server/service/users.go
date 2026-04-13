@@ -148,7 +148,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
 			return nil, nil, fleet.ErrMissingLicense
 		}
-		if p.APIEndpoints != nil {
+		if p.APIOnly != nil && *p.APIOnly && p.APIEndpoints != nil && *p.APIEndpoints != nil {
 			return nil, nil, fleet.ErrMissingLicense
 		}
 		if p.APIOnly != nil && *p.APIOnly && len(teamRoles) > 0 {
@@ -322,8 +322,8 @@ func modifyAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 	if req.APIEndpoints.Present {
 		if req.APIEndpoints.Value == nil {
 			// null → clear all entries; signal via non-nil pointer to nil slice.
-			var clear []fleet.APIEndpointRef
-			payload.APIEndpoints = &clear
+			var emptyEndpoints []fleet.APIEndpointRef
+			payload.APIEndpoints = &emptyEndpoints
 		} else {
 			payload.APIEndpoints = &req.APIEndpoints.Value
 		}
@@ -658,7 +658,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
 			return nil, fleet.ErrMissingLicense
 		}
-		if p.APIEndpoints != nil {
+		if user.APIOnly && p.APIEndpoints != nil && *p.APIEndpoints != nil {
 			return nil, fleet.ErrMissingLicense
 		}
 		if p.APIOnly != nil && *p.APIOnly && len(teamRoles) > 0 {
