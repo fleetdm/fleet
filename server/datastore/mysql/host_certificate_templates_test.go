@@ -1049,7 +1049,19 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 		require.NotNil(t, records[0].Status)
 		require.Equal(t, fleet.CertificateTemplateVerified, *records[0].Status)
 
-		// Simulate re-enrollment (work profile removed and re-installed, no DELETED notification received)
+		// Simulate re-enrollment (work profile removed and re-installed, no DELETED notification received).
+		// The delete is what clears stale rows from a previous team, if any.
+		err = ds.DeleteAllHostCertificateTemplates(ctx, hostUUID)
+		require.NoError(t, err)
+		// ListCertificateTemplatesForHosts joins from certificate_templates and synthesizes a row
+		// for the host's team even when host_certificate_templates has no matching row, so we
+		// must query the raw table directly to confirm the delete worked.
+		var countAfterDelete int
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &countAfterDelete,
+			`SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?`, hostUUID)
+		require.NoError(t, err)
+		require.Zero(t, countAfterDelete)
+
 		rowsAffected, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, setup.team.ID)
 		require.NoError(t, err)
 		require.Positive(t, rowsAffected)

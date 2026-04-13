@@ -330,6 +330,17 @@ func (ds *Datastore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID
 	return nil
 }
 
+// DeleteAllHostCertificateTemplates deletes all host_certificate_templates records for a host.
+// Used during re-enrollment to clear stale cert records (including those from previous teams)
+// before creating fresh pending records for the host's current team.
+func (ds *Datastore) DeleteAllHostCertificateTemplates(ctx context.Context, hostUUID string) error {
+	const stmt = `DELETE FROM host_certificate_templates WHERE host_uuid = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete all host_certificate_templates for host")
+	}
+	return nil
+}
+
 func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {
 	// Validate the status.
 	if !update.Status.IsValid() {
