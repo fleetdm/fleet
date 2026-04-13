@@ -1907,14 +1907,13 @@ func (c *Client) DoGitOps(
 		exceptions = appConfig.GitOpsConfig.Exceptions
 		serverUrl := appConfig.ServerSettings.ServerURL
 		if exceptions.Labels && incoming.LabelsPresent {
-			return nil, fmt.Errorf(`Starting in 4.84, labels management in GitOps is turned off by default.  Either remove labels: from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management`, serverUrl)
+			return nil, fmt.Errorf("Starting in 4.84, labels management in GitOps is turned off by default.  Either remove `labels:` from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management", serverUrl)
 		}
 		if exceptions.Secrets && incoming.SecretsPresent {
-			return nil, fmt.Errorf(`Starting in 4.84, secrets management in GitOps is turned off by default.  Either remove secrets: from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management`, serverUrl)
+			return nil, fmt.Errorf("Starting in 4.84, secrets management in GitOps is turned off by default.  Either remove `secrets:` from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management", serverUrl)
 		}
 		if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
-			return nil, errors.New(
-				`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+			return nil, fmt.Errorf(`"software" is excepted from GitOps management. Either remove the "software:" key from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management`, serverUrl)
 		}
 	}
 
