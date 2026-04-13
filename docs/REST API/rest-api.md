@@ -13834,7 +13834,7 @@ Creates an API-only user that does not have access to the UI.
 
 | Name                    | Type    | In    | Description |
 | :---------------------- | :------ | :---- | :---------- |
-| password    | string  | body | The user's password (required for non-SSO users).                                        
+| name    | string  | body | The display name for the API-only user. |                                         
 | global_role | string | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
 | fleets      | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
 | api_endpoints | array   | body | _Available in Fleet Premium_. A list of `id`s of API endpoints this user will have access to. For available endpoints, see [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). |
