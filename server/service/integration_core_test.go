@@ -342,6 +342,15 @@ func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
 		GlobalRole:   ptr.String(fleet.RoleObserver),
 		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 	}, http.StatusUnprocessableEntity, &resp)
+
+	// api_only must also be rejected on this endpoint.
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       ptr.String("user1"),
+		Email:      ptr.String("apionlyreject@example.com"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		APIOnly:    new(true),
+	}, http.StatusUnprocessableEntity, &resp)
 }
 
 func (s *integrationTestSuite) TestModifyUserAPIOnlyRejected() {
@@ -2891,6 +2900,17 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Email:        ptr.String("a@b.c"),
 				InviteToken:  ptr.String(invite.Token),
 				APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"api_only not accepted",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    &test.GoodPassword,
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(invite.Token),
+				APIOnly:     new(true),
 			},
 			http.StatusUnprocessableEntity,
 		},

@@ -28774,6 +28774,19 @@ func (s *integrationEnterpriseTestSuite) TestGetUserReturnsAPIEndpoints() {
 	require.False(t, getAdminResp.User.APIOnly)
 	require.Empty(t, getAdminResp.User.APIEndpoints)
 
+	var getUsersResp listUsersResp
+	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &getUsersResp)
+	var foundRegular *userJSON
+	for i := range getUsersResp.Users {
+		if getUsersResp.Users[i].ID == regularUserResp.User.ID {
+			foundRegular = &getUsersResp.Users[i]
+			break
+		}
+	}
+	require.NotNil(t, foundRegular, "regular user should appear in list")
+	require.False(t, foundRegular.APIOnly)
+	require.Empty(t, foundRegular.APIEndpoints)
+
 	// Patch the API-only user to use a wildcard; GET should reflect the change.
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
 		"api_endpoints": []map[string]any{

@@ -54,6 +54,16 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}, nil
 	}
 
+	if req.APIOnly != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_only",
+				"This endpoint does not accept API-only user creation",
+			),
+		}, nil
+	}
+
 	user, sessionKey, err := svc.CreateUser(ctx, req.UserPayload)
 	if err != nil {
 		return createUserResponse{Err: err}, nil
@@ -383,6 +393,16 @@ func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc 
 			Err: fleet.NewInvalidArgumentError(
 				"api_endpoints",
 				"This endpoint does not accept API endpoint values",
+			),
+		}, nil
+	}
+
+	if req.APIOnly != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_only",
+				"This endpoint does not accept API-only user creation",
 			),
 		}, nil
 	}
