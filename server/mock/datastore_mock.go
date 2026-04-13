@@ -1251,7 +1251,7 @@ type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID strin
 
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
-type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
+type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
@@ -8925,7 +8925,7 @@ func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hos
 	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
 }
 
-func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 	s.mu.Lock()
 	s.SetMDMWindowsAwaitingConfigurationFuncInvoked = true
 	s.mu.Unlock()
