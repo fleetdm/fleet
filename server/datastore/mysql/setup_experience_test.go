@@ -1805,7 +1805,7 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 	user, err := ds.NewUser(ctx, &fleet.User{
 		Name:       "GuardTest",
 		Email:      "guard@example.com",
-		GlobalRole: ptr.String("admin"),
+		GlobalRole: new("admin"),
 		Password:   []byte("12characterslong!"),
 	})
 	require.NoError(t, err)
@@ -1901,8 +1901,8 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 			HostUUID:                        hostUUID,
 			Name:                            "sw-" + string(termStatus),
 			Status:                          termStatus,
-			SoftwareInstallerID:             ptr.Uint(installerID),
-			HostSoftwareInstallsExecutionID: ptr.String(execID),
+			SoftwareInstallerID:             new(installerID),
+			HostSoftwareInstallsExecutionID: new(execID),
 		}
 		insertRow(row)
 		updated, err := ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, hostUUID, execID, fleet.SetupExperienceStatusFailure)
@@ -1916,8 +1916,8 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 			HostUUID:        hostUUID,
 			Name:            "vpp-" + string(termStatus),
 			Status:          termStatus,
-			VPPAppTeamID:    ptr.Uint(vppAppsTeamsID),
-			NanoCommandUUID: ptr.String(nanoUUID),
+			VPPAppTeamID:    new(vppAppsTeamsID),
+			NanoCommandUUID: new(nanoUUID),
 		}
 		insertRow(row)
 		updated, err = ds.MaybeUpdateSetupExperienceVPPStatus(ctx, hostUUID, nanoUUID, fleet.SetupExperienceStatusFailure)
@@ -1931,8 +1931,8 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 			HostUUID:                hostUUID,
 			Name:                    "script-" + string(termStatus),
 			Status:                  termStatus,
-			SetupExperienceScriptID: ptr.Uint(scriptID),
-			ScriptExecutionID:       ptr.String(scriptExecID),
+			SetupExperienceScriptID: new(scriptID),
+			ScriptExecutionID:       new(scriptExecID),
 		}
 		insertRow(row)
 		updated, err = ds.MaybeUpdateSetupExperienceScriptStatus(ctx, hostUUID, scriptExecID, fleet.SetupExperienceStatusFailure)
@@ -1948,8 +1948,8 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 		HostUUID:                        hostUUID,
 		Name:                            "sw-pending-positive",
 		Status:                          fleet.SetupExperienceStatusPending,
-		SoftwareInstallerID:             ptr.Uint(installerID),
-		HostSoftwareInstallsExecutionID: ptr.String(pendingExecID),
+		SoftwareInstallerID:             new(installerID),
+		HostSoftwareInstallsExecutionID: new(pendingExecID),
 	}
 	insertRow(pendingRow)
 	updated, err := ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, hostUUID, pendingExecID, fleet.SetupExperienceStatusFailure)
@@ -1964,8 +1964,8 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 		HostUUID:        hostUUID,
 		Name:            "vpp-canceled-bug",
 		Status:          fleet.SetupExperienceStatusCancelled,
-		VPPAppTeamID:    ptr.Uint(vppAppsTeamsID),
-		NanoCommandUUID: ptr.String(cancelledNanoUUID),
+		VPPAppTeamID:    new(vppAppsTeamsID),
+		NanoCommandUUID: new(cancelledNanoUUID),
 	}
 	insertRow(cancelledVPPRow)
 	updated, err = ds.MaybeUpdateSetupExperienceVPPStatus(ctx, hostUUID, cancelledNanoUUID, fleet.SetupExperienceStatusFailure)
