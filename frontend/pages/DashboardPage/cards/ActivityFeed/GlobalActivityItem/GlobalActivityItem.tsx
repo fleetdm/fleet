@@ -1514,16 +1514,13 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledSetupExperience: (activity: IActivity) => {
-    const {
-      software_title: title,
-      software_display_name: displayName,
-      host_display_name: hostName,
-    } = activity.details || {};
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
     return (
       <>
         {" "}
-        canceled setup experience on <b>{hostName}</b> because{" "}
-        <b>{getDisplayedSoftwareName(title, displayName)}</b> failed to install.
+        canceled setup experience on <b>{hostName}</b> because <b>{title}</b>{" "}
+        failed to install.
       </>
     );
   },

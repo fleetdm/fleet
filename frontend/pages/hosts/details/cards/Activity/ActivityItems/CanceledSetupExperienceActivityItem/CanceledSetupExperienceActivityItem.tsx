@@ -1,7 +1,6 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
@@ -19,14 +18,8 @@ const CanceledSetupExperienceActivityItem = ({
     >
       <>
         <b>{activity.actor_full_name ?? "Fleet"}</b> canceled setup experience
-        on this host because{" "}
-        <b>
-          {getDisplayedSoftwareName(
-            activity.details.software_title,
-            activity.details.software_display_name
-          )}
-        </b>{" "}
-        failed to install.
+        on this host because <b>{activity.details.software_title}</b> failed to
+        install.
       </>
     </ActivityItem>
   );
