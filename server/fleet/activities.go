@@ -1877,10 +1877,6 @@ func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-func (a ActivityTypeClearedPasscode) HostOnly() bool {
-	return true
-}
-
 type ActivityTypeCanceledSetupExperience struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
