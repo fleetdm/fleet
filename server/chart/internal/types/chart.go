@@ -26,4 +26,17 @@ type Datastore interface {
 
 	// CleanupBlobData deletes blob rows older than the specified number of days.
 	CleanupBlobData(ctx context.Context, days int) error
+
+	// RecordSCDData upserts the current active set of entity IDs for a single host
+	// as a slowly-changing-dimension. Rows not in the set are closed (valid_to set to now);
+	// new entity IDs are inserted with valid_from = now; still-active rows are left untouched.
+	RecordSCDData(ctx context.Context, dataset string, hostID uint, entityIDs []string, now time.Time) error
+
+	// GetSCDData returns time-bucketed distinct-host counts for an SCD dataset over
+	// the given range. bucketInterval is the bucket width in hours (e.g. 24 for daily).
+	GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketIntervalHours int, hostFilter *chart.HostFilter, entityIDs []string) ([]chart.DataPoint, error)
+
+	// CleanupSCDData deletes SCD rows whose valid_to is older than the retention cutoff.
+	// Open rows (valid_to = sentinel) are never deleted.
+	CleanupSCDData(ctx context.Context, days int) error
 }

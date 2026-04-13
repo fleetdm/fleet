@@ -1,9 +1,10 @@
 // charts-collect fetches live data from a Fleet instance via API and writes
-// chart blob data into a local database. Designed to run hourly via cron.
+// chart data into a local database. Designed to run hourly via cron.
 //
 // Uptime: fetches currently online hosts, ORs into the current hour's blob.
-// CVE: fetches per-host vulnerability data, writes a daily snapshot (hour=-1)
-// for each CVE.
+// CVE: fetches per-host vulnerability data, upserts the current state as SCD
+// rows (dataset='cve') with two statements per host: close stale open rows,
+// then INSERT ... ON DUPLICATE KEY UPDATE to add/keep active rows.
 //
 // Usage:
 //
@@ -35,8 +36,10 @@ import (
 )
 
 const (
-	perPage        = 500
-	cveInsertBatch = 200
+	perPage = 500
+	// scdOpenSentinel matches the value used in the chart MySQL datastore —
+	// see server/chart/internal/mysql/scd.go.
+	scdOpenSentinel = "9999-12-31 23:59:59"
 )
 
 func main() {
@@ -211,84 +214,84 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 	}
 	log.Printf("  %d total hosts", len(hostIDs))
 
-	// Build CVE -> host IDs mapping.
+	// Fetch per-host CVE lists.
 	fetchStart := time.Now()
-	cveHosts := make(map[string][]uint)
+	hostCVEs := make(map[uint][]string, len(hostIDs))
 	for i, hostID := range hostIDs {
 		cves, err := fetchHostCVEs(api, hostID)
 		if err != nil {
 			log.Printf("  warning: host %d: %v", hostID, err)
 			continue
 		}
-		for _, cve := range cves {
-			cveHosts[cve] = append(cveHosts[cve], hostID)
-		}
+		hostCVEs[hostID] = cves
 		if (i+1)%50 == 0 {
-			log.Printf("  fetched %d/%d hosts, %d unique CVEs so far (%.1fs)",
-				i+1, len(hostIDs), len(cveHosts), time.Since(fetchStart).Seconds())
+			log.Printf("  fetched %d/%d hosts (%.1fs)",
+				i+1, len(hostIDs), time.Since(fetchStart).Seconds())
 		}
 	}
-	log.Printf("  %d unique CVEs found in %.1fs", len(cveHosts), time.Since(fetchStart).Seconds())
+	log.Printf("  fetched CVEs for %d hosts in %.1fs", len(hostCVEs), time.Since(fetchStart).Seconds())
 
-	if len(cveHosts) == 0 {
-		return nil
-	}
-
-	dateStr := time.Now().UTC().Format("2006-01-02")
-
-	// Replace today's CVE blobs with the current snapshot.
-	log.Printf("  deleting stale CVE blobs for %s...", dateStr)
-	delStart := time.Now()
-	if _, err := db.Exec(
-		`DELETE FROM host_hourly_data_blobs WHERE dataset = 'cve' AND chart_date = ? AND hour = ?`,
-		dateStr, chart.HourWholeDay,
-	); err != nil {
-		return fmt.Errorf("delete stale CVE blobs: %w", err)
-	}
-	log.Printf("  delete took %.1fs", time.Since(delStart).Seconds())
-
-	// Batch inserts: ~200 per statement is a big win over individual round trips.
-	log.Printf("  inserting %d CVE blobs in batches of %d...", len(cveHosts), cveInsertBatch)
-	insertStart := time.Now()
-
-	var (
-		placeholders []string
-		args         []any
-		inserted     int
-	)
-	flush := func() error {
-		if len(placeholders) == 0 {
-			return nil
-		}
-		// Concatenating hardcoded "(...)" placeholder strings, not user input.
-		stmt := `INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap) VALUES ` + //nolint:gosec // G202
-			strings.Join(placeholders, ",")
-		if _, err := db.Exec(stmt, args...); err != nil {
-			return fmt.Errorf("batch insert: %w", err)
-		}
-		inserted += len(placeholders)
-		placeholders = placeholders[:0]
-		args = args[:0]
-		return nil
-	}
-
-	for cve, hosts := range cveHosts {
-		blob := chart.HostIDsToBlob(hosts)
-		placeholders = append(placeholders, "('cve', ?, ?, ?, ?)")
-		args = append(args, cve, dateStr, chart.HourWholeDay, blob)
-
-		if len(placeholders) >= cveInsertBatch {
-			if err := flush(); err != nil {
-				return err
-			}
-			log.Printf("  inserted %d/%d CVE blobs (%.1fs)", inserted, len(cveHosts), time.Since(insertStart).Seconds())
+	// Record SCD state per host: close entries no longer present, upsert currently-active.
+	nowStr := time.Now().UTC().Format("2006-01-02 15:04:05")
+	writeStart := time.Now()
+	var failed int
+	for hostID, cves := range hostCVEs {
+		if err := recordSCD(db, "cve", hostID, cves, nowStr); err != nil {
+			log.Printf("  warning: record SCD for host %d: %v", hostID, err)
+			failed++
 		}
 	}
-	if err := flush(); err != nil {
+	log.Printf("  recorded SCD for %d hosts (%d failed) in %.1fs",
+		len(hostCVEs)-failed, failed, time.Since(writeStart).Seconds())
+	return nil
+}
+
+// recordSCD applies the two-statement SCD upsert for a single host.
+// Mirrors Datastore.RecordSCDData in server/chart/internal/mysql/scd.go.
+func recordSCD(db *sql.DB, dataset string, hostID uint, entityIDs []string, nowStr string) error {
+	// Step 1: close any open rows whose entity isn't in the current set (or all
+	// open rows when the set is empty).
+	if len(entityIDs) == 0 {
+		_, err := db.Exec(
+			`UPDATE host_scd_data SET valid_to = ?
+			 WHERE dataset = ? AND host_id = ? AND valid_to = ?`,
+			nowStr, dataset, hostID, scdOpenSentinel)
 		return err
 	}
 
-	log.Printf("  wrote %d CVE blobs for %s in %.1fs", inserted, dateStr, time.Since(insertStart).Seconds())
+	placeholders := make([]string, len(entityIDs))
+	for i := range entityIDs {
+		placeholders[i] = "?"
+	}
+	closeArgs := []any{nowStr, dataset, hostID, scdOpenSentinel}
+	for _, e := range entityIDs {
+		closeArgs = append(closeArgs, e)
+	}
+	// Concatenating hardcoded "?" placeholder strings, not user input.
+	closeQuery := fmt.Sprintf( //nolint:gosec // G202
+		`UPDATE host_scd_data SET valid_to = ?
+		 WHERE dataset = ? AND host_id = ? AND valid_to = ?
+		   AND entity_id NOT IN (%s)`,
+		strings.Join(placeholders, ","))
+	if _, err := db.Exec(closeQuery, closeArgs...); err != nil {
+		return fmt.Errorf("close stale rows: %w", err)
+	}
+
+	// Step 2: upsert currently-active rows; ODKU with valid_from=valid_from is a
+	// no-op that preserves the original valid_from when the row is already open.
+	insertPlaceholders := make([]string, len(entityIDs))
+	insertArgs := make([]any, 0, len(entityIDs)*4)
+	for i, e := range entityIDs {
+		insertPlaceholders[i] = "(?, ?, ?, ?)"
+		insertArgs = append(insertArgs, dataset, hostID, e, nowStr)
+	}
+	// Concatenating hardcoded "(?, ?, ?, ?)" placeholder strings, not user input.
+	insertQuery := `INSERT INTO host_scd_data (dataset, host_id, entity_id, valid_from) VALUES ` + //nolint:gosec // G202
+		strings.Join(insertPlaceholders, ",") +
+		` ON DUPLICATE KEY UPDATE valid_from = valid_from`
+	if _, err := db.Exec(insertQuery, insertArgs...); err != nil {
+		return fmt.Errorf("upsert rows: %w", err)
+	}
 	return nil
 }
 

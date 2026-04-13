@@ -2,7 +2,6 @@ package chart
 
 import (
 	"context"
-	"errors"
 	"time"
 )
 
@@ -36,10 +35,12 @@ func (u *UptimeDataset) HasEntityDimension() bool {
 type CVEDataset struct{}
 
 func (u *CVEDataset) Name() string             { return "cve" }
-func (u *CVEDataset) StorageType() StorageType { return StorageTypeBlob }
+func (u *CVEDataset) StorageType() StorageType { return StorageTypeSCD }
 
-func (u *CVEDataset) Collect(ctx context.Context, store DatasetStore, now time.Time) error {
-	return errors.New("CVE dataset collection not implemented yet")
+// Collect is a stub for now — CVE SCD data is recorded externally (by the
+// charts-collect script) via the SCD record path, not via this in-process collector.
+func (u *CVEDataset) Collect(_ context.Context, _ DatasetStore, _ time.Time) error {
+	return nil
 }
 
 func (u *CVEDataset) ResolveFilters(_ context.Context, _ DatasetStore, _ map[string]string) ([]string, error) {
