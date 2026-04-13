@@ -1642,7 +1642,7 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 	decryptedToken, err = assets.DecryptRawABMToken(encryptedToken, cert, pair[fleet.MDMAssetABMKey].Value)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
+			Message:     "Invalid token. Please provide a valid token from Apple Business.",
 			InternalErr: err,
 		}, "validating ABM token")
 	}
@@ -1680,13 +1680,13 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (*fleet.CommandEnqueueResult, error) {
 	if !appCfg.MDM.EnabledAndConfigured {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: "Apple MDM is not enabled and configured",
+			Message: "Apple MDM must be turned on to use Clear passcode.",
 		})
 	}
 
 	if !fleet.IsAppleMobilePlatform(host.Platform) {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: "Clearing passcode is only supported on Apple mobile platforms",
+			Message: "ClearPasscode command is only available for iOS and iPadOS. Unable to issue ClearPasscode command.",
 		})
 	}
 

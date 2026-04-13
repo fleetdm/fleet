@@ -85,6 +85,7 @@ import { strToBool } from "utilities/strings/stringUtils";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import CustomLink from "components/CustomLink";
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -1934,8 +1935,13 @@ const ManageHostsPage = ({
         >
           <div>
             <span>
-              You have no enroll secrets. Manage enroll secrets to enroll hosts
-              to <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
+              You have no enroll secrets.{" "}
+              <CustomLink
+                customClickHandler={() => setShowEnrollSecretModal(true)}
+                text="Manage enroll secrets"
+              />{" "}
+              to enroll hosts to{" "}
+              <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>
         </InfoBanner>

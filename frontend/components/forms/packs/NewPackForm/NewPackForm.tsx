@@ -7,7 +7,6 @@ import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { IEditPackFormData } from "interfaces/pack";
 import PATHS from "router/paths";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import BackButton from "components/BackButton";
 // @ts-ignore

@@ -1,5 +1,5 @@
 name: "${TEST_TEAM_NAME}"
-team_settings:
+settings:
   secrets:
     - secret: "SampleSecret123-team"
     - secret: "ABC-team"
@@ -35,11 +35,11 @@ agent_options:
       logger_tls_endpoint: /api/v1/osquery/log
       pack_delimiter: /
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./lib/macos-password.mobileconfig
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ./lib/windows-screenlock.xml
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
@@ -49,10 +49,13 @@ controls:
     enable: false
     mode: ""
     webhook_url: ""
-  macos_setup:
-    bootstrap_package: null
+  setup_experience:
+    macos_bootstrap_package: ${SOFTWARE_INSTALLER_URL}/signed.pkg
     enable_end_user_authentication: false
-    macos_setup_assistant: null
+    apple_setup_assistant: null
+    apple_enable_release_device_manually: false
+    macos_script: ./lib/setup_script.sh
+    macos_manual_agent_install: false
   macos_updates:
     deadline: null
     minimum_version: null
@@ -60,7 +63,7 @@ controls:
   windows_updates:
     deadline_days: null
     grace_period_days: null
-queries:
+reports:
   - name: Scheduled query stats
     description: Collect osquery performance stats directly from osquery
     query: SELECT *,
@@ -89,7 +92,7 @@ queries:
     automations_enabled: true
     logging: snapshot
 policies:
-  - name: 😊 Failing policy
+  - name: "\U0001F60A Failing policy"
     platform: linux
     description: This policy should always fail.
     resolution: There is no resolution for this policy.
@@ -110,12 +113,12 @@ policies:
       WHERE username = "root"
       AND time > (( SELECT unix_time FROM time ) - 3600 ))
     critical: true
-  - name: 🔥 Failing policy
+  - name: "\U0001F525 Failing policy"
     platform: linux
     description: This policy should always fail.
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
-  - name: 😊😊 Failing policy
+  - name: "\U0001F60A\U0001F60A Failing policy"
     platform: linux
     description: This policy should always fail.
     resolution: There is no resolution for this policy.

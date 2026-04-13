@@ -221,7 +221,7 @@ $max-width: 2560px;
   width: max-content;
   max-width: 360px;
   padding: 6px;
-  color: $core-fleet-white;
+  color: $static-white;
   background-color: $tooltip-bg;
   font-weight: $regular;
   font-size: $xx-small;
@@ -541,8 +541,8 @@ $max-width: 2560px;
 }
 
 @mixin gradient-background {
-  background: linear-gradient(180deg, #eff6fa 0%, #fff 100%);
+  background-image: linear-gradient(180deg, $gradient-background 0%, $core-fleet-white 100%);
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
-  background-color: #fff; // area below gradient will just be white
+  background-color: $core-fleet-white; // area below gradient — transitionable
 }

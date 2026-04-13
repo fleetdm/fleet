@@ -609,8 +609,8 @@ module.exports.routes = {
     }
   },
 
-  'GET /jamf-alternative': {
-    action: 'landing-pages/view-jamf-alternative',
+  'GET /replace-jamf': {
+    action: 'landing-pages/view-replace-jamf',
     locals: {
       currentSection: 'platform',
       pageTitleForMeta: 'Replace Jamf with confidence',
@@ -644,6 +644,7 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
+  'GET /jamf-alternative': '/replace-jamf',
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
@@ -919,16 +920,13 @@ module.exports.routes = {
   'GET /announcements/cannabis-technology-company': '/case-study/cannabis-technology-company',
   'GET /announcements/communications-services-sector-scaling-cross-platform-device-management-with-fleet': '/case-study/communications-platform',
   'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
-  'GET /announcements/financial-technology-company': '/case-study/financial-technology-company',
   'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
 
   'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
   'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
-  'GET /announcements/interactive-entertainment-company-adopts-fleet-for-mdm': '/case-study/interactive-entertainment-company',
   'GET /announcements/all-in-one-it-platform-provider': '/case-study/it-platform-provider',
   'GET /announcements/scaling-IT-as-a-service-with-GitOps-first-management': '/case-study/it-service-provider',
   'GET /announcements/independent-journalism-nonprofit': '/case-study/journalism-nonprofit',
-  'GET /announcements/open-source-software-organization': '/case-study/open-source-organization',
   'GET /announcements/robotics-company': '/case-study/robotics-company',
   'GET /announcements/modular-workspace-software-company': '/case-study/workspace-software-company',
   'GET /announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux': '/case-study/worldwide-security-and-authentication-platform',
