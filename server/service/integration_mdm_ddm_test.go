@@ -1658,16 +1658,7 @@ WHERE name = ?`
 	s.awaitTriggerProfileSchedule(t)
 
 	checkDDMSync(mdmDevice3)
-	// host1 also gets a sync because the profile schedule detected a new host
-	// in the team (the declaration set token changes); drain it.
-	cmd, err := mdmDevice1.Idle()
-	require.NoError(t, err)
-	if cmd != nil {
-		_, err = mdmDevice1.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-		_, err = mdmDevice1.DeclarativeManagement("tokens")
-		require.NoError(t, err)
-	}
+	checkNoCommands(mdmDevice1)
 	checkNoCommands(mdmDevice2)
 
 	// Verify stable state: no-op batch upload triggers no commands for anyone
