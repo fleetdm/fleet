@@ -14467,23 +14467,25 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	})
 	require.NoError(t, err)
 
-	const etag = `"ruby-deb-v1"`
-
 	var (
 		mu             sync.Mutex
 		requestCount   int
 		ifNoneMatchSet = []string{}
+		etag           = `"ruby-deb-v1"`
+		trailer        = "" // appended to the body to force a different content hash
 	)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		requestCount++
 		ifNoneMatchSet = append(ifNoneMatchSet, r.Header.Get("If-None-Match"))
+		currentETag := etag
+		currentTrailer := trailer
 		mu.Unlock()
 
-		// Honor the conditional request: if the client sends our ETag,
-		// return 304 with no body.
-		if r.Header.Get("If-None-Match") == etag {
-			w.Header().Set("ETag", etag)
+		// Honor the conditional request: if the client sends our current
+		// ETag, return 304 with no body.
+		if r.Header.Get("If-None-Match") == currentETag {
+			w.Header().Set("ETag", currentETag)
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
@@ -14495,8 +14497,10 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 		}
 		defer file.Close()
 		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
-		w.Header().Set("ETag", etag)
+		w.Header().Set("ETag", currentETag)
 		_, err = io.Copy(w, file)
+		assert.NoError(t, err)
+		_, err = w.Write([]byte(currentTrailer))
 		assert.NoError(t, err)
 	})
 	srv := httptest.NewServer(handler)
@@ -14572,6 +14576,62 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	mu.Lock()
 	require.GreaterOrEqual(t, requestCount, 4, "always_download must issue an HTTP request")
 	require.Empty(t, ifNoneMatchSet[len(ifNoneMatchSet)-1], "always_download must not send If-None-Match")
+	mu.Unlock()
+
+	// Fifth run: upstream content has changed — new ETag and modified body.
+	// Fleet still sends the stored ETag (v1) as If-None-Match; the server
+	// returns 200 with the new bytes and new ETag. Fleet must re-upload, bump
+	// uploaded_at, and persist the new ETag.
+	const newETag = `"ruby-deb-v2"`
+	mu.Lock()
+	etag = newETag
+	trailer = " " // changes the body hash
+	countBeforeRun5 := requestCount
+	mu.Unlock()
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	uploadedAtBeforeRun5 := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
+	hashBeforeRun5 := titleResp.SoftwareTitle.SoftwarePackage.StorageID
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotEqual(t, hashBeforeRun5, packages[0].HashSHA256, "hash must change when upstream content changes")
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	require.NotEqual(t, uploadedAtBeforeRun5, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
+		"uploaded_at must advance when bytes are re-downloaded")
+
+	mu.Lock()
+	require.Equal(t, countBeforeRun5+1, requestCount, "expected one HTTP request on fifth run")
+	// Fleet still held ETag v1 before this run; the prior always_download run
+	// did not persist v1 any differently. Assert the outgoing If-None-Match
+	// carried whatever Fleet had cached — it must be non-empty and must be
+	// from the v1 era so the server could decide not to return 304.
+	require.Equal(t, `"ruby-deb-v1"`, ifNoneMatchSet[countBeforeRun5], "fifth run must send the previously stored ETag")
+	mu.Unlock()
+
+	// Sixth run: no further content change. Fleet should now be sending the
+	// new ETag (v2) it captured from run 5, and the server should reply 304.
+	mu.Lock()
+	countBeforeRun6 := requestCount
+	mu.Unlock()
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+
+	mu.Lock()
+	require.Equal(t, countBeforeRun6+1, requestCount, "expected one HTTP request on sixth run")
+	require.Equal(t, newETag, ifNoneMatchSet[countBeforeRun6], "sixth run must send the new ETag captured from run 5")
 	mu.Unlock()
 }
 
