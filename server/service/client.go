@@ -1905,13 +1905,12 @@ func (c *Client) DoGitOps(
 	var exceptions fleet.GitOpsExceptions
 	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
+		serverUrl := appConfig.ServerSettings.ServerURL
 		if exceptions.Labels && incoming.LabelsPresent {
-			return nil, errors.New(
-				`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
+			return nil, fmt.Errorf(`Starting in 4.84, labels management in GitOps is turned off by default.  Either remove labels: from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management`, serverUrl)
 		}
 		if exceptions.Secrets && incoming.SecretsPresent {
-			return nil, errors.New(
-				`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
+			return nil, fmt.Errorf(`Starting in 4.84, secrets management in GitOps is turned off by default.  Either remove secrets: from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management`, serverUrl)
 		}
 		if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
 			return nil, errors.New(
