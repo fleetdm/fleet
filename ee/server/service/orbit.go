@@ -240,7 +240,7 @@ func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 			continue
 		}
 		r.Status = fleet.SetupExperienceStatusFailure
-		svc.logger.InfoContext(ctx, "marking setup experience software as canceled", "host_uuid", hostUUID, "software_name", r.Name)
+		svc.logger.InfoContext(ctx, "emitting activity for canceled setup experience software", "host_uuid", hostUUID, "software_name", r.Name)
 		err := svc.ds.UpdateSetupExperienceStatusResult(ctx, r)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking canceled setup experience software install as failed")
