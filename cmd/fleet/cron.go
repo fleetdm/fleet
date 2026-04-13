@@ -2101,7 +2101,7 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger)
+			return maintained_apps.SyncAppsList(ctx, ds)
 		}),
 	)
 

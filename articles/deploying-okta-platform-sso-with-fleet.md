@@ -98,13 +98,32 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 - **URL:** `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - **Challenge:** `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - **Subject:** `CN=managementAttestation %HardwareUUID%`
+- **Subject Alt Names:** Add an OU field with value `$FLEET_VAR_SCEP_RENEWAL_ID`
 - **Key Size:** 2048
 - **Key Usage:** Signing
 - **Key is Extractable:** Unchecked
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification:** Set to 14 days before expiration
 
-Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL` and `$FLEET_VAR_NDES_SCEP_CHALLENGE` with fresh values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
+**Important:** The Subject must include both the CN and an OU field with `$FLEET_VAR_SCEP_RENEWAL_ID`. In raw XML, the Subject array should look like this:
+
+```xml
+<key>Subject</key>
+<array>
+    <array>
+        <array>
+            <string>CN</string>
+            <string>managementAttestation %HardwareUUID%</string>
+        </array>
+        <array>
+            <string>OU</string>
+            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+        </array>
+    </array>
+</array>
+```
+
+Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL`, `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and `$FLEET_VAR_SCEP_RENEWAL_ID` with the appropriate values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
 
 **Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it. Use the osquery policy below to identify hosts with certificates expiring within 14 days.
 

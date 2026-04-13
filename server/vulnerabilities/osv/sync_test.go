@@ -119,6 +119,30 @@ func TestRemoveOldOSVArtifactsWithSkippedVersions(t *testing.T) {
 	require.True(t, os.IsNotExist(err), "old artifact from day before should be removed even when version was skipped")
 }
 
+func TestRemoveOldOSVArtifactsDateBoundaryRace(t *testing.T) {
+	tmpDir := t.TempDir()
+	// now is April 10 but the release only created April 9 artifacts.
+	today := time.Date(2026, 4, 10, 0, 5, 0, 0, time.UTC)
+
+	files := []string{
+		"osv-ubuntu-2404-2026-04-09.json.gz", // Yesterday's artifact (only one available)
+	}
+
+	for _, file := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644)
+		require.NoError(t, err)
+	}
+
+	// 2404 is in NotInRelease, not Skipped
+	// so removeOldOSVArtifacts should not touch it
+	err := removeOldOSVArtifacts(today, tmpDir, []string{})
+	require.NoError(t, err)
+
+	// Yesterday's artifact must still exist since the version wasn't in the successful set
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2404-2026-04-09.json.gz"))
+	require.NoError(t, err, "old artifact must be preserved when version is not in release")
+}
+
 func TestGetNeededUbuntuVersions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -378,10 +402,10 @@ func TestSyncOSVFaultTolerance(t *testing.T) {
 	}
 
 	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload, osvFilename)
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.NotNil(t, result)
 
-	require.Contains(t, result.Skipped, "2504", "2504 artifact not in release, should be skipped")
+	require.Contains(t, result.NotInRelease, "2504", "2504 artifact not in release")
 	require.Contains(t, result.Failed, "2204", "2204 download failed, should be in Failed")
 }
 

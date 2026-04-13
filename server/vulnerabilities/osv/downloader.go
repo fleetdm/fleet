@@ -175,9 +175,15 @@ func computeFileSHA256(path string) (string, error) {
 }
 
 type SyncResult struct {
+	// Downloaded versions were fetched from the release and saved to disk.
 	Downloaded []string
-	Skipped    []string
-	Failed     []string
+	// Skipped versions already had a local file with a matching checksum.
+	Skipped []string
+	// NotInRelease versions had no matching asset in the release (likely caused by a date-boundary).
+	NotInRelease []string
+	// Failed versions had an asset in the release but the download or
+	// checksum verification failed.
+	Failed []string
 }
 
 // downloadFunc is a function that downloads an asset to a destination path
@@ -193,9 +199,10 @@ type filenameFn func(version string, date time.Time) string
 // syncOSVWithDownloader is the internal implementation that accepts a custom download function for testing
 func syncOSVWithDownloader(ctx context.Context, dstDir string, versions []string, date time.Time, release *ReleaseInfo, download downloadFunc, nameFn filenameFn) (*SyncResult, error) {
 	result := &SyncResult{
-		Downloaded: make([]string, 0),
-		Skipped:    make([]string, 0),
-		Failed:     make([]string, 0),
+		Downloaded:   make([]string, 0),
+		Skipped:      make([]string, 0),
+		NotInRelease: make([]string, 0),
+		Failed:       make([]string, 0),
 	}
 
 	for _, version := range versions {
@@ -204,8 +211,7 @@ func syncOSVWithDownloader(ctx context.Context, dstDir string, versions []string
 
 		assetInfo, ok := release.Assets[filename]
 		if !ok {
-			// Artifact not available, skip
-			result.Skipped = append(result.Skipped, version)
+			result.NotInRelease = append(result.NotInRelease, version)
 			continue
 		}
 

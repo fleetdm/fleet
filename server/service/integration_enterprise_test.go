@@ -3872,7 +3872,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	require.Equal(t, fleet.MDMProfilesSummary{}, profileSummary.MDMProfilesSummary)
 
 	// set encrypted for host
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), noTeamHost.ID, true))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), noTeamHost.ID, true, nil))
 
 	// should still show zeroes
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profileSummary)
@@ -3971,7 +3971,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	require.Equal(t, fleet.MDMProfilesSummary{}, profileSummary.MDMProfilesSummary)
 
 	// set encrypted for host
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), teamHost.ID, true))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), teamHost.ID, true, nil))
 
 	// should still show zeroes
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &profileSummary)
@@ -27438,6 +27438,19 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, "dynamic", getPolicyResp.Policy.Type)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftware)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
+
+		// Should not be able to apply global patch policy
+		spec := &fleet.PolicySpec{
+			Name:                   "team patch policy",
+			Query:                  "SELECT 1",
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/windows",
+		}
+		applyResp := fleet.ApplyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			fleet.ApplyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusBadRequest, &applyResp,
+		)
 	})
 
 	t.Run("patch_policy_lifecycle", func(t *testing.T) {
@@ -28255,4 +28268,66 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	listPolResp = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 	require.Empty(t, listPolResp.Policies)
+}
+
+func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	// unauthenticated request is rejected
+	s.DoRawNoAuth("GET", "/api/latest/fleet/rest_api", nil, http.StatusUnauthorized)
+
+	// non-admin global roles are forbidden
+	for _, role := range []string{fleet.RoleObserver, fleet.RoleObserverPlus, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleTechnician} {
+		u := &fleet.User{
+			Name:       "test " + role,
+			Email:      role + "-api-endpoints@example.com",
+			GlobalRole: ptr.String(role),
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(context.Background(), u)
+		require.NoError(t, err)
+		s.token = s.getTestToken(u.Email, test.GoodPassword)
+		s.Do("GET", "/api/latest/fleet/rest_api", nil, http.StatusForbidden)
+	}
+
+	// non-admin team roles are forbidden
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "api-endpoints-test-team"})
+	require.NoError(t, err)
+	for _, role := range []string{fleet.RoleObserver, fleet.RoleObserverPlus, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleTechnician} {
+		u := &fleet.User{
+			Name:  "team " + role,
+			Email: "team-" + role + "-api-endpoints@example.com",
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team.ID}, Role: role}},
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(context.Background(), u)
+		require.NoError(t, err)
+		s.token = s.getTestToken(u.Email, test.GoodPassword)
+		s.Do("GET", "/api/latest/fleet/rest_api", nil, http.StatusForbidden)
+	}
+
+	// team admin is allowed
+	teamAdmin := &fleet.User{
+		Name:  "team admin",
+		Email: "team-admin-api-endpoints@example.com",
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), teamAdmin)
+	require.NoError(t, err)
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+	s.Do("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK)
+
+	// restore admin token
+	s.token = s.getTestAdminToken()
+
+	// global admin can list API endpoints
+	var resp listAPIEndpointsResponse
+	s.DoJSON("GET", "/api/latest/fleet/rest_api", nil, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.APIEndpoints)
+	require.NoError(t, resp.Err)
+	require.NotEmpty(t, resp.APIEndpoints[0].Method)
+	require.NotEmpty(t, resp.APIEndpoints[0].Path)
+	require.NotEmpty(t, resp.APIEndpoints[0].DisplayName)
 }

@@ -19,7 +19,6 @@ import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import FileUploader from "components/FileUploader";
 import TabNav from "components/TabNav";
