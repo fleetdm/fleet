@@ -82,7 +82,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 | Self-hosted deployment | Yes — On-prem, cloud, air-gapped | Partial — Functionality not as complete as cloud |
 | Managed cloud hosting (SaaS) | Yes | Yes — Jamf Cloud |
 | Open-source / source-available code | Yes — 100% on GitHub | No — Proprietary |
-| Role-based access control (RBAC) | Yes | Yes — Site-based + role-based |
+| Role-based access control (RBAC) | Yes | Yes |
 | Audit logging | Yes | Yes |
 
 ### Pricing and licensing

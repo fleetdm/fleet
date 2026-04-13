@@ -1,2 +1,0 @@
-- Wait for CERT_INSTALL delegation to be available before attempting certificate enrollment, preventing permanent failures after fresh MDM enrollment.
-- Improved certificate installation failure messages to include delegation status and certificate alias.

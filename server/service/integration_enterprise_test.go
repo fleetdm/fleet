@@ -27438,6 +27438,19 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, "dynamic", getPolicyResp.Policy.Type)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftware)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
+
+		// Should not be able to apply global patch policy
+		spec := &fleet.PolicySpec{
+			Name:                   "team patch policy",
+			Query:                  "SELECT 1",
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/windows",
+		}
+		applyResp := fleet.ApplyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			fleet.ApplyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusBadRequest, &applyResp,
+		)
 	})
 
 	t.Run("patch_policy_lifecycle", func(t *testing.T) {

@@ -23,7 +23,6 @@ interface IFleetDesktopFormErrors {
   transparencyURL?: string | null;
   alternativeBrowserHost?: string | null;
 }
-const baseClass = "app-config-form";
 
 const FleetDesktop = ({
   appConfig,
