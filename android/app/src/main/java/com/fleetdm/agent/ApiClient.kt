@@ -65,8 +65,8 @@ object ApiClient : CertificateApiClient {
 
     // Retry DNS resolution failures that occur when Android wakes from Doze mode.
     // The active network may be reported as connected before its DNS servers are fully operational.
-    // Uses exponential backoff: 1s, 2s, 4s, 8s, 16s between attempts (31s total retry window, 6 attempts).
-    private const val DNS_MAX_RETRIES = 5
+    // Uses exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s between attempts (127s total retry window, 8 attempts).
+    private const val DNS_MAX_RETRIES = 7
     private const val DNS_INITIAL_RETRY_DELAY_MS = 1000L
 
     private val json = Json { ignoreUnknownKeys = true }

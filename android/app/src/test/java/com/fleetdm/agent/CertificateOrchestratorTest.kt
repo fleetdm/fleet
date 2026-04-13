@@ -1403,4 +1403,54 @@ class CertificateOrchestratorTest {
         assertEquals(1, fakeApiClient.updateStatusCalls.size)
         assertEquals(UpdateCertificateStatusStatus.FAILED, fakeApiClient.updateStatusCalls[0].status)
     }
+
+    @Test
+    fun `enrollCertificates aborts batch on terminal DNS failure`() = runTest {
+        // Scenario: DNS fails for the first cert. Since DNS failures are network-level (not
+        // cert-specific), continuing to the next cert would just burn the same retry window
+        // on the same DNS outage. The batch should abort and defer remaining certs to the
+        // next worker run.
+
+        fakeApiClient.getCertificateTemplateHandler = { certId ->
+            when (certId) {
+                1 -> Result.failure(java.net.UnknownHostException("Unable to resolve host"))
+                else -> Result.success(
+                    CertificateTemplateResult(
+                        template = GetCertificateTemplateResponse(
+                            id = certId,
+                            name = "cert-$certId",
+                            certificateAuthorityId = 1,
+                            certificateAuthorityName = "TestCA",
+                            createdAt = "2025-01-01T00:00:00Z",
+                            subjectName = "CN=test",
+                            certificateAuthorityType = "custom_scep_proxy",
+                            status = "delivered",
+                        ),
+                        scepUrl = TestCertificateTemplateFactory.DEFAULT_SCEP_URL,
+                    ),
+                )
+            }
+        }
+
+        val hostCertificates = listOf(
+            HostCertificate(id = 1, status = "delivered", operation = "install", uuid = "uuid-1"),
+            HostCertificate(id = 2, status = "delivered", operation = "install", uuid = "uuid-2"),
+            HostCertificate(id = 3, status = "delivered", operation = "install", uuid = "uuid-3"),
+        )
+
+        val results = orchestrator.enrollCertificates(context, hostCertificates, mockInstaller)
+
+        // Only cert 1 is in results; certs 2 and 3 were skipped
+        assertEquals(1, results.size)
+        assertTrue(
+            "Expected Failure for cert 1 but got: ${results[1]}",
+            results[1] is CertificateEnrollmentHandler.EnrollmentResult.Failure,
+        )
+        val failure = results[1] as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertTrue(failure.isRetryable)
+        assertTrue(failure.exception is java.net.UnknownHostException)
+
+        // API was only called for cert 1 - certs 2 and 3 never attempted
+        assertEquals(listOf(1), fakeApiClient.getCertificateTemplateCalls)
+    }
 }
