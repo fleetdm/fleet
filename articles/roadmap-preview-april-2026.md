@@ -8,28 +8,29 @@ The Fleet roadmap is set for spring 2026. Watch the video above for a walkthroug
 
 In the next 3 months, Fleet will ship...
 - 🔑 [Managed Device Attestation](https://support.apple.com/guide/deployment/managed-device-attestation-dep28afbde6a/web) for Apple devices via ACME
-- 🦾 Create and manage local admin accounts on macOS
 - 🍎 macOS setup: Create a local user account with IdP credentials (Platform SSO)
-- ⏰ OS updates for macOS: Update to latest after a deadline (relative to OS release date)
-- 📱 iOS/iPadOS: Clear passcode remotely and managed mobile app configuration
+- 🦾 Create and manage local admin accounts on macOS
+- ⏰ Smart OS updates for macOS: Auto-update with a relative deadline
+- 📱 iOS/iPadOS: Clear passcode and configure apps (managed app configs)
+- ✨ Self-service software for iPhones that enroll via Managed Apple Account
 - 🤖 Android: Lock, wipe, and clear passcode
 - 🪟 Add default fleets for Windows Autopilot-enrolled hosts
 - 📌 Pin Fleet-maintained apps to a major version
 - 📂 Upload multiple versions of the same software to the same fleet
-- 🛒 Self-service: Custom software categories with "Install all in category" button
+- 🛒 Self-service: Custom categories
 - 🔁 Continuous retries for software and script policy automations
-- 📊 Policy status page
-- 📢 Higher end-user visibility for policy failures
+- 📊 Policy status page to view historical policy runs
+- 📢 Badge policy failures in Fleet Desktop
 - 🌐 IdP host vitals from Google Workspace
 - 👤 Create API-only users restricted to specific Fleet API endpoints
-- 📊 Dashboard: Host activity and hosts enrolled widgets
+- 📊 Dashboard: Vulnerability exposure, software usage, and uptime widgets (30 days)
 - 🌙 Dark mode
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
-- ⏰ Patch policies: Prompt end users before the patching deadline
-- 📱 iOS/iPadOS: Auto-install apps when a device enrolls
+- ⏰ Patch policies: Set a deadline with deferrals and prompt end users
+- 📱 iOS/iPadOS: Auto-install apps after enrollment
 - 🔔 Webhooks for host activities
-- 🍏 Enroll tvOS hosts
+- 🍏 Manage tvOS
 
 Any feedback or questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
