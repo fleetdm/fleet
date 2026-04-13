@@ -1460,14 +1460,14 @@ WHERE name = ?`
 	r, err := mdmDevice1.DeclarativeManagement("tokens")
 	require.NoError(t, err)
 	tokens := parseTokensResp(t, r)
-	initialDeclToken := tokens.SyncTokens.DeclarationsToken
-	require.NotEmpty(t, initialDeclToken)
+	lastSyncDeclToken := tokens.SyncTokens.DeclarationsToken
+	require.NotEmpty(t, lastSyncDeclToken)
 
 	// Host1 fetches declaration items
 	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
 	require.NoError(t, err)
 	itemsResp := parseDeclarationItemsResp(t, r)
-	checkDeclarationItemsResp(t, itemsResp, initialDeclToken, declsByToken)
+	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
 
 	// Fetch individual declarations and verify substitution
 	var gotParsed fleet.MDMAppleDDMDeclarationResponse
@@ -1513,11 +1513,32 @@ WHERE name = ?`
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqWithNew, http.StatusNoContent,
 		"team_id", teamIDStr)
 
+	dbNewDecl := getDeclaration(t, "NewDecl.json")
+	assert.Contains(t, string(dbNewDecl.RawJSON), "new-stuff")
+
+	declsByToken = map[string]fleet.MDMAppleDeclaration{
+		dbDeclUUID.Token:   {Identifier: "com.fleet.var.uuid"},
+		dbDeclSerial.Token: {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token:  {Identifier: "com.fleet.plain"},
+		dbNewDecl.Token:    {Identifier: "com.fleet.new"},
+	}
+
 	s.awaitTriggerProfileSchedule(t)
 
 	// Host1 gets DDM sync (declaration set changed), host2 nothing
 	checkDDMSync(mdmDevice1)
 	checkNoCommands(mdmDevice2)
+
+	r, err = mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	lastSyncDeclToken = tokens.SyncTokens.DeclarationsToken
+	require.NotEmpty(t, lastSyncDeclToken)
+
+	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	itemsResp = parseDeclarationItemsResp(t, r)
+	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
 
 	// variables_updated_at did NOT change for existing variable declarations
 	varsUpdatedUUIDAfterAdd := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
@@ -1529,6 +1550,7 @@ WHERE name = ?`
 
 	// === No resend when unrelated declaration deleted ===
 
+	// new decl is not in profilesReq, so it will be deleted
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
 		"team_id", teamIDStr)
 
@@ -1538,6 +1560,23 @@ WHERE name = ?`
 	checkDDMSync(mdmDevice1)
 	checkNoCommands(mdmDevice2)
 
+	declsByToken = map[string]fleet.MDMAppleDeclaration{
+		dbDeclUUID.Token:   {Identifier: "com.fleet.var.uuid"},
+		dbDeclSerial.Token: {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token:  {Identifier: "com.fleet.plain"},
+	}
+
+	r, err = mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	lastSyncDeclToken = tokens.SyncTokens.DeclarationsToken
+	require.NotEmpty(t, lastSyncDeclToken)
+
+	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	itemsResp = parseDeclarationItemsResp(t, r)
+	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
+
 	// variables_updated_at still unchanged
 	varsUpdatedUUIDAfterDel := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
 	require.NotNil(t, varsUpdatedUUIDAfterDel)
@@ -1545,12 +1584,6 @@ WHERE name = ?`
 	varsUpdatedSerialAfterDel := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
 	require.NotNil(t, varsUpdatedSerialAfterDel)
 	assert.Equal(t, *varsUpdatedSerial, *varsUpdatedSerialAfterDel)
-
-	// Save token for later comparison
-	r, err = mdmDevice1.DeclarativeManagement("tokens")
-	require.NoError(t, err)
-	tokens = parseTokensResp(t, r)
-	tokenAfterStable := tokens.SyncTokens.DeclarationsToken
 
 	// === No resend on no-op GitOps batch upload ===
 
@@ -1567,7 +1600,7 @@ WHERE name = ?`
 	r, err = mdmDevice1.DeclarativeManagement("tokens")
 	require.NoError(t, err)
 	tokens = parseTokensResp(t, r)
-	assert.Equal(t, tokenAfterStable, tokens.SyncTokens.DeclarationsToken)
+	assert.Equal(t, lastSyncDeclToken, tokens.SyncTokens.DeclarationsToken)
 
 	// === Resend when variable values change ===
 
@@ -1606,7 +1639,7 @@ WHERE name = ?`
 	r, err = mdmDevice1.DeclarativeManagement("tokens")
 	require.NoError(t, err)
 	tokens = parseTokensResp(t, r)
-	assert.NotEqual(t, tokenAfterStable, tokens.SyncTokens.DeclarationsToken)
+	assert.NotEqual(t, lastSyncDeclToken, tokens.SyncTokens.DeclarationsToken)
 
 	// Variables still substituted correctly
 	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.uuid")
@@ -1632,22 +1665,34 @@ WHERE name = ?`
 
 	dbDeclIdpUsername := getDeclaration(t, "VarIdpUsername.json")
 
+	declsByToken = map[string]fleet.MDMAppleDeclaration{
+		dbDeclUUID.Token:        {Identifier: "com.fleet.var.uuid"},
+		dbDeclSerial.Token:      {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token:       {Identifier: "com.fleet.plain"},
+		dbDeclIdpUsername.Token: {Identifier: "com.fleet.var.idpusername"},
+	}
+
 	s.awaitTriggerProfileSchedule(t)
 
 	// Host1 gets DDM sync (declaration set changed)
 	checkDDMSync(mdmDevice1)
 	checkNoCommands(mdmDevice2)
 
-	// Host1 fetches tokens and declaration-items
 	r, err = mdmDevice1.DeclarativeManagement("tokens")
 	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	lastSyncDeclToken = tokens.SyncTokens.DeclarationsToken
+	require.NotEmpty(t, lastSyncDeclToken)
+
 	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
 	require.NoError(t, err)
+	itemsResp = parseDeclarationItemsResp(t, r)
+	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
 
 	// Host1 fetches the IdP username declaration — variable resolution fails
 	// because no IdP user exists for the host. The server returns an empty 200
 	// and marks the declaration as failed.
-	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.idpusername")
+	_, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.idpusername")
 	require.NoError(t, err)
 
 	// Verify the declaration is marked as failed with the expected detail message
