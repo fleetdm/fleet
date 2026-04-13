@@ -2507,7 +2507,7 @@ This activity contains the following fields:
 
 ## cleared_passcode
 
-Generated when a user clears the passcode on an iOS or iPadOS host.
+Generated when a user clears the passcode on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
