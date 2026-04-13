@@ -2,7 +2,7 @@
 
 * Made the certificate list scrollable
 * Fixed background DNS resolution failures.
-* Stop polling certificates when the server reports them as permanently failed.
+* Stopped polling certificates when the server reported them as permanently failed.
 * Non-retryable SCEP failures (e.g. server rejection) now immediately mark the certificate as failed instead of retrying 3 times.
 * Fixed duplicate FAILED status reports.
 * Treat HTTP 404 on certificate status updates as a signal that the template has been deleted server-side.
