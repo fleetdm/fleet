@@ -32,6 +32,8 @@ spec:
         apple_enable_release_device_manually: false
         require_all_software_macos: false
         require_all_software_windows: false
+        enable_managed_local_account: false
+        end_user_local_account_type: ""
         macos_script: null
         software: null
       macos_updates:
@@ -85,6 +87,8 @@ spec:
         enable_release_device_manually: false
         require_all_software_macos: false
         require_all_software_windows: false
+        enable_managed_local_account: false
+        end_user_local_account_type: ""
         script: null
         software: null
       macos_updates:
