@@ -1773,6 +1773,79 @@ WHERE name = ?`
 	assert.Equal(t, fleet.MDMDeliveryFailed, *hostDecl.Status)
 	assert.Contains(t, hostDecl.Detail, "There is no IdP username for this host")
 	assert.Contains(t, hostDecl.Detail, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+
+	// === Updating variable declaration to non-variable clears variables_updated_at ===
+
+	// Drain host3's pending DDM sync from the IdP batch upload above
+	checkDDMSync(mdmDevice3)
+
+	// Capture current token for comparison
+	r, err = mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	lastSyncDeclToken = tokens.SyncTokens.DeclarationsToken
+	require.NotEmpty(t, lastSyncDeclToken)
+
+	// Verify variables_updated_at is non-nil for VarUUID on both team hosts
+	preVarsUpdatedUUIDHost1 := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
+	require.NotNil(t, preVarsUpdatedUUIDHost1)
+	preVarsUpdatedUUIDHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclUUID.DeclarationUUID)
+	require.NotNil(t, preVarsUpdatedUUIDHost3)
+
+	// Update VarUUID.json to remove the variable (same name/identifier, static content)
+	declUUIDNowStatic := []byte(`{
+	"Type": "com.apple.configuration.management.test",
+	"Payload": {"Echo": "static-uuid-replacement"},
+	"Identifier": "com.fleet.var.uuid"
+}`)
+	profilesReqVarRemoved := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "VarUUID.json", Contents: declUUIDNowStatic},
+		{Name: "VarSerial.json", Contents: declWithSerial},
+		{Name: "Plain.json", Contents: declPlain},
+		{Name: "VarIdpUsername.json", Contents: declWithIdpUsername},
+	}}
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqVarRemoved, http.StatusNoContent,
+		"team_id", teamIDStr)
+
+	// Re-read the declaration from DB — content and token should have changed
+	dbDeclUUIDUpdated := getDeclaration(t, "VarUUID.json")
+	assert.Contains(t, string(dbDeclUUIDUpdated.RawJSON), "static-uuid-replacement")
+	assert.NotContains(t, string(dbDeclUUIDUpdated.RawJSON), "$FLEET_VAR")
+	assert.NotEqual(t, dbDeclUUID.Token, dbDeclUUIDUpdated.Token)
+	// Declaration UUID stays the same (updated in place)
+	assert.Equal(t, dbDeclUUID.DeclarationUUID, dbDeclUUIDUpdated.DeclarationUUID)
+
+	declsByToken = map[string]fleet.MDMAppleDeclaration{
+		dbDeclUUIDUpdated.Token: {Identifier: "com.fleet.var.uuid"},
+		dbDeclSerial.Token:      {Identifier: "com.fleet.var.serial"},
+		dbDeclPlain.Token:       {Identifier: "com.fleet.plain"},
+		dbDeclIdpUsername.Token: {Identifier: "com.fleet.var.idpusername"},
+	}
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// Both team hosts get DDM sync (declaration content changed)
+	checkDDMSync(mdmDevice1)
+	checkDDMSync(mdmDevice3)
+	// Global host gets nothing
+	checkNoCommands(mdmDevice2)
+
+	// Token changed (declaration requires re-delivery)
+	r, err = mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	assert.NotEqual(t, lastSyncDeclToken, tokens.SyncTokens.DeclarationsToken)
+
+	// variables_updated_at for VarUUID.json is now NULL (no more variables)
+	varsUpdatedUUIDAfterRemoval := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUIDUpdated.DeclarationUUID)
+	assert.Nil(t, varsUpdatedUUIDAfterRemoval, "variables_updated_at should be NULL after removing variable from declaration (host1)")
+
+	varsUpdatedUUIDAfterRemovalHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclUUIDUpdated.DeclarationUUID)
+	assert.Nil(t, varsUpdatedUUIDAfterRemovalHost3, "variables_updated_at should be NULL after removing variable from declaration (host3)")
+
+	// VarSerial.json still has variables — variables_updated_at unchanged on host1
+	varsUpdatedSerialAfterRemoval := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, varsUpdatedSerialAfterRemoval)
 }
 
 func declarationForTest(identifier string) []byte {

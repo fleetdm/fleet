@@ -5849,7 +5849,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	    operation_type = VALUES(operation_type),
 	    token = VALUES(token),
 	    secrets_updated_at = VALUES(secrets_updated_at),
-	    variables_updated_at = COALESCE(VALUES(variables_updated_at), variables_updated_at)
+	    variables_updated_at = VALUES(variables_updated_at)
 	  `
 
 	profilesToInsert := make(map[string]*fleet.MDMAppleHostDeclaration)
