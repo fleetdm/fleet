@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
+func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
 	baseSvc := new(svcmock.Service)
