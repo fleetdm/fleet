@@ -879,7 +879,7 @@ type ActivityTypeRanScript struct {
 	Async               bool    `json:"async"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
-	FromSetupExperience bool    `json:"-"`
+	FromSetupExperience bool    `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
@@ -1088,7 +1088,7 @@ type ActivityTypeInstalledSoftware struct {
 	Source              *string `json:"source,omitempty"`
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
-	FromSetupExperience bool    `json:"-"`
+	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 }
 
@@ -1331,7 +1331,7 @@ type ActivityInstalledAppStoreApp struct {
 	PolicyID            *uint   `json:"policy_id"`
 	PolicyName          *string `json:"policy_name"`
 	HostPlatform        string  `json:"host_platform"`
-	FromSetupExperience bool    `json:"-"`
+	FromSetupExperience bool    `json:"from_setup_experience"`
 	FromAutoUpdate      bool    `json:"from_auto_update"`
 }
 
