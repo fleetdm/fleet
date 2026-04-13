@@ -1613,6 +1613,54 @@ WHERE name = ?`
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
 	assert.Contains(t, string(gotParsed.Payload), host1.UUID)
+
+	// === Failed variable resolution (no IdP user for host) ===
+
+	declWithIdpUsername := []byte(`{
+	"Type": "com.apple.configuration.management.test",
+	"Payload": {"Echo": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
+	"Identifier": "com.fleet.var.idpusername"
+}`)
+	profilesReqWithIdp := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "VarUUID.json", Contents: declWithUUID},
+		{Name: "VarSerial.json", Contents: declWithSerial},
+		{Name: "Plain.json", Contents: declPlain},
+		{Name: "VarIdpUsername.json", Contents: declWithIdpUsername},
+	}}
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqWithIdp, http.StatusNoContent,
+		"team_id", teamIDStr)
+
+	dbDeclIdpUsername := getDeclaration(t, "VarIdpUsername.json")
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// Host1 gets DDM sync (declaration set changed)
+	checkDDMSync(mdmDevice1)
+	checkNoCommands(mdmDevice2)
+
+	// Host1 fetches tokens and declaration-items
+	r, err = mdmDevice1.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+
+	// Host1 fetches the IdP username declaration — variable resolution fails
+	// because no IdP user exists for the host. The server returns an empty 200
+	// and marks the declaration as failed.
+	r, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.idpusername")
+	require.NoError(t, err)
+
+	// Verify the declaration is marked as failed with the expected detail message
+	var hostDecl fleet.MDMAppleHostDeclaration
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &hostDecl,
+			`SELECT status, detail FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ?`,
+			host1.UUID, dbDeclIdpUsername.DeclarationUUID)
+	})
+	require.NotNil(t, hostDecl.Status)
+	assert.Equal(t, fleet.MDMDeliveryFailed, *hostDecl.Status)
+	assert.Contains(t, hostDecl.Detail, "There is no IdP username for this host")
+	assert.Contains(t, hostDecl.Detail, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
 }
 
 func declarationForTest(identifier string) []byte {
