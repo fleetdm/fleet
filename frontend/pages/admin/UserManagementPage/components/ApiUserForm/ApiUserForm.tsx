@@ -23,7 +23,6 @@ export interface IApiUserFormData {
   global_role: UserRole | null;
   teams: ITeam[];
   api_only: true;
-  selectedEndpointKeys?: string[];
 }
 
 interface IApiUserFormProps {
@@ -34,7 +33,6 @@ interface IApiUserFormProps {
   defaultName?: string;
   defaultGlobalRole?: UserRole | null;
   defaultTeams?: ITeam[];
-  defaultSelectedEndpointKeys?: string[];
   formErrors?: IUserFormErrors;
   isSubmitting?: boolean;
 }
@@ -52,7 +50,6 @@ const ApiUserForm = ({
   defaultName = "",
   defaultGlobalRole = "gitops",
   defaultTeams = [],
-  defaultSelectedEndpointKeys = [],
   formErrors: ancestorErrors = {},
   isSubmitting = false,
 }: IApiUserFormProps) => {
@@ -65,7 +62,7 @@ const ApiUserForm = ({
   const [teams, setTeams] = useState<ITeam[]>(defaultTeams);
   const [isGlobalUser, setIsGlobalUser] = useState(defaultTeams.length === 0);
   const [selectedEndpointKeys, setSelectedEndpointKeys] = useState<string[]>(
-    defaultSelectedEndpointKeys
+    []
   );
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
 
@@ -89,8 +86,6 @@ const ApiUserForm = ({
       global_role: isGlobalUser ? globalRole : null,
       teams: isGlobalUser ? [] : teams,
       api_only: true,
-      selectedEndpointKeys:
-        selectedEndpointKeys.length > 0 ? selectedEndpointKeys : undefined,
     });
   };
 

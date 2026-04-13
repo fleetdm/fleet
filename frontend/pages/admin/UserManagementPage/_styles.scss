@@ -131,6 +131,26 @@
   }
 }
 
+.api-access-section {
+  @include vertical-page-layout;
+
+  &__endpoint-selector {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+}
+
+.endpoint-selector-table {
+  .table-container {
+    gap: 0;
+  }
+
+  .table-container__search-input.wide-search {
+    margin-bottom: 2px;
+  }
+}
+
 // Override react-select container positioning so the brand-button
 // dropdown menu anchors to the wrapper instead of the collapsed control.
 // The .add-user-dropdown className is applied to the react-select container

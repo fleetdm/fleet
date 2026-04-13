@@ -13,7 +13,7 @@ enum ApiAccessType {
 
 interface IApiAccessSectionProps {
   selectedEndpointKeys: string[];
-  onEndpointSelectionChange: (selectedIds: string[]) => void;
+  onEndpointSelectionChange: (selectedKeys: string[]) => void;
 }
 
 const ApiAccessSection = ({
