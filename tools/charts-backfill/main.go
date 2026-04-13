@@ -40,7 +40,7 @@ func main() {
 	dataset := flag.String("dataset", "uptime", "dataset name (e.g. uptime, policy, cve)")
 	days := flag.Int("days", 30, "number of days to backfill")
 	startDate := flag.String("start-date", "", "start date (YYYY-MM-DD), defaults to now - days")
-	entityIDsStr := flag.String("entity-ids", "", "comma-separated entity IDs (default: 0 for non-entity datasets)")
+	entityIDsStr := flag.String("entity-ids", "", "comma-separated entity IDs (default: '' for non-entity datasets)")
 	hostIDsStr := flag.String("host-ids", "", "comma-separated host IDs (default: all from hosts table)")
 	dsn := flag.String("mysql-dsn", "fleet:fleet@tcp(localhost:3306)/fleet?parseTime=true", "MySQL connection string")
 	flag.Parse()
@@ -79,9 +79,9 @@ func main() {
 	}
 
 	// Determine entity IDs.
-	entityIDs := parseUintList(*entityIDsStr)
+	entityIDs := parseStringList(*entityIDsStr)
 	if len(entityIDs) == 0 {
-		entityIDs = []uint{0}
+		entityIDs = []string{""}
 	}
 
 	_, isBlob := blobDatasets[*dataset]
@@ -100,7 +100,7 @@ func main() {
 	}
 }
 
-func backfillBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs, entityIDs []uint) int {
+func backfillBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
 	_, isDaily := dailyBlobDatasets[dataset]
 	if isDaily {
 		return backfillDailyBlob(db, dataset, days, start, hostIDs, entityIDs)
@@ -108,7 +108,7 @@ func backfillBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs
 	return backfillHourlyBlob(db, dataset, days, start, hostIDs, entityIDs)
 }
 
-func backfillHourlyBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs, entityIDs []uint) int {
+func backfillHourlyBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
 	totalRows := 0
 
 	for day := range days {
@@ -146,7 +146,7 @@ func backfillHourlyBlob(db *sql.DB, dataset string, days int, start time.Time, h
 	return totalRows
 }
 
-func backfillDailyBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs, entityIDs []uint) int {
+func backfillDailyBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
 	totalRows := 0
 	minDensity, maxDensity := densityRange(dataset)
 	n := len(hostIDs)
@@ -173,7 +173,7 @@ func backfillDailyBlob(db *sql.DB, dataset string, days int, start time.Time, ho
 				 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
 				dataset, entityID, dateStr, chart.HourWholeDay, blob)
 			if err != nil {
-				log.Fatalf("insert daily blob failed on day %s entity %d: %v", dateStr, entityID, err)
+				log.Fatalf("insert daily blob failed on day %s entity %q: %v", dateStr, entityID, err)
 			}
 			totalRows++
 		}
@@ -187,7 +187,7 @@ func backfillDailyBlob(db *sql.DB, dataset string, days int, start time.Time, ho
 	return totalRows
 }
 
-func backfillBitmap(db *sql.DB, dataset string, days int, start time.Time, hostIDs, entityIDs []uint) int {
+func backfillBitmap(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
 	totalRows := 0
 
 	for day := range days {
@@ -331,6 +331,22 @@ func parseUintList(s string) []uint {
 		if _, err := fmt.Sscanf(p, "%d", &v); err == nil {
 			result = append(result, v)
 		}
+	}
+	return result
+}
+
+func parseStringList(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		result = append(result, p)
 	}
 	return result
 }

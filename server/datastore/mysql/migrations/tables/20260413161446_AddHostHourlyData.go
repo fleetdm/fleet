@@ -14,7 +14,7 @@ func Up_20260413161446(tx *sql.Tx) error {
 		CREATE TABLE IF NOT EXISTS host_daily_data_bitmaps (
 			host_id      INT UNSIGNED NOT NULL,
 			dataset      VARCHAR(50) NOT NULL,
-			entity_id    INT UNSIGNED NOT NULL DEFAULT 0,
+			entity_id    VARCHAR(50) NOT NULL DEFAULT '',
 			chart_date   DATE NOT NULL,
 			hours_bitmap INT UNSIGNED NOT NULL DEFAULT 0,
 			created_at   TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
@@ -30,7 +30,7 @@ func Up_20260413161446(tx *sql.Tx) error {
 	_, err = tx.Exec(`
 		CREATE TABLE IF NOT EXISTS host_hourly_data_blobs (
 			dataset      VARCHAR(50) NOT NULL,
-			entity_id    INT UNSIGNED NOT NULL DEFAULT 0,
+			entity_id    VARCHAR(50) NOT NULL DEFAULT '',
 			chart_date   DATE NOT NULL,
 			hour         TINYINT NOT NULL,
 			host_bitmap  MEDIUMBLOB NOT NULL,

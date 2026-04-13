@@ -141,7 +141,7 @@ func (s *Service) getChartDataBlob(
 	dataset string,
 	startDate, endDate time.Time,
 	hostFilter *chart.HostFilter,
-	entityIDs []uint,
+	entityIDs []string,
 	downsample int,
 ) ([]chart.DataPoint, int, error) {
 	blobs, err := s.store.GetBlobData(ctx, dataset, startDate, endDate, entityIDs)

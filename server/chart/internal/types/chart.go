@@ -12,15 +12,15 @@ import (
 type Datastore interface {
 	// RecordHostHourlyData sets a bit in the host_daily_data_bitmaps bitmap for the given host, dataset,
 	// and entity. The timestamp is converted to UTC to derive the date and hour.
-	RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, timestamp time.Time) error
+	RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID string, timestamp time.Time) error
 
 	// GetChartData queries the host_daily_data_bitmaps table for a given dataset and date range,
 	// filtered by host IDs and optional entity IDs, aggregating bitmap data into time-bucketed counts.
-	GetChartData(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
+	GetChartData(ctx context.Context, dataset string, startDate time.Time, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []string, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
 
 	// GetBlobData fetches raw host bitmap blobs from host_hourly_data_blobs for a given
 	// dataset and date range.
-	GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error)
+	GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error)
 
 	// GetHostIDsForFilter returns the host IDs that match the given host filter.
 	// Used to build a filter bitmask for blob-based datasets.

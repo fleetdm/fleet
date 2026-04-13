@@ -20,19 +20,19 @@ func (m *mockAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzType
 
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
-	getChartDataFunc           func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
-	getBlobDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error)
+	getChartDataFunc           func(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []string, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error)
+	getBlobDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error)
 	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error)
 	countHostsForChartFilterFn func(ctx context.Context, hostFilter *chart.HostFilter) (int, error)
 	collectUptimeFn            func(ctx context.Context, now time.Time) error
 	collectUptimeInvoked       bool
 }
 
-func (m *mockDatastore) RecordHostHourlyData(_ context.Context, _ uint, _ string, _ uint, _ time.Time) error {
+func (m *mockDatastore) RecordHostHourlyData(_ context.Context, _ uint, _ string, _ string, _ time.Time) error {
 	return nil
 }
 
-func (m *mockDatastore) GetChartData(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []uint, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
+func (m *mockDatastore) GetChartData(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []string, hasEntityDimension bool, downsample int) ([]chart.DataPoint, error) {
 	return m.getChartDataFunc(ctx, dataset, startDate, endDate, hostFilter, entityIDs, hasEntityDimension, downsample)
 }
 
@@ -48,7 +48,7 @@ func (m *mockDatastore) CollectUptimeChartData(ctx context.Context, now time.Tim
 	return nil
 }
 
-func (m *mockDatastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+func (m *mockDatastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 	if m.getBlobDataFunc != nil {
 		return m.getBlobDataFunc(ctx, dataset, startDate, endDate, entityIDs)
 	}
@@ -104,7 +104,7 @@ func TestGetChartDataBlobHourly(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 		assert.Equal(t, "uptime", dataset)
 		assert.Nil(t, entityIDs)
 		// Return a blob for one hour: hosts 1, 2, 3 were online.
@@ -151,7 +151,7 @@ func TestGetChartDataBlobDownsample(t *testing.T) {
 	} {
 		t.Run(tc.resolution, func(t *testing.T) {
 			// Return blobs for hours 0 and 1 with different hosts — downsampling should OR them.
-			ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+			ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 				return []chart.BlobDataPoint{
 					{ChartDate: time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC), Hour: 0, HostBitmap: chart.HostIDsToBlob([]uint{1, 2})},
 					{ChartDate: time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC), Hour: 1, HostBitmap: chart.HostIDsToBlob([]uint{2, 3})},
@@ -184,7 +184,7 @@ func TestGetChartDataBlobWithHostFilters(t *testing.T) {
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	// Blob has hosts 1, 2, 3 online.
-	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 		return []chart.BlobDataPoint{
 			{ChartDate: time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC), Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
 		}, nil

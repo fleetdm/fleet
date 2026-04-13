@@ -47,7 +47,7 @@ func (ds *Datastore) rebind(query string) string {
 	return ds.primary.Rebind(query)
 }
 
-func (ds *Datastore) RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID uint, timestamp time.Time) error {
+func (ds *Datastore) RecordHostHourlyData(ctx context.Context, hostID uint, dataset string, entityID string, timestamp time.Time) error {
 	utc := timestamp.UTC()
 	dateOnly := utc.Format("2006-01-02")
 	hour := utc.Hour()
@@ -70,7 +70,7 @@ func (ds *Datastore) GetChartData(
 	startDate time.Time,
 	endDate time.Time,
 	hostFilter *chart.HostFilter,
-	entityIDs []uint,
+	entityIDs []string,
 	hasEntityDimension bool,
 	downsample int,
 ) ([]chart.DataPoint, error) {
@@ -236,7 +236,7 @@ func (ds *Datastore) CollectUptimeChartData(ctx context.Context, now time.Time) 
 	// Read the existing blob for this hour (if any) and OR it with the new data.
 	var existing []byte
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &existing,
-		`SELECT host_bitmap FROM host_hourly_data_blobs WHERE dataset = 'uptime' AND entity_id = 0 AND chart_date = ? AND hour = ?`,
+		`SELECT host_bitmap FROM host_hourly_data_blobs WHERE dataset = 'uptime' AND entity_id = '' AND chart_date = ? AND hour = ?`,
 		dateStr, hour)
 	if err == nil {
 		newBlob = chart.BlobOR(existing, newBlob)
@@ -245,7 +245,7 @@ func (ds *Datastore) CollectUptimeChartData(ctx context.Context, now time.Time) 
 
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
-		 VALUES ('uptime', 0, ?, ?, ?)
+		 VALUES ('uptime', '', ?, ?, ?)
 		 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
 		dateStr, hour, newBlob)
 	if err != nil {
@@ -254,7 +254,7 @@ func (ds *Datastore) CollectUptimeChartData(ctx context.Context, now time.Time) 
 	return nil
 }
 
-func (ds *Datastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []uint) ([]chart.BlobDataPoint, error) {
+func (ds *Datastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 	startStr := startDate.Format("2006-01-02")
 	endStr := endDate.Format("2006-01-02")
 
