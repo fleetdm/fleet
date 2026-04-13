@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -105,7 +104,10 @@ func dsnFromEnv() (string, error) {
 		return "", fmt.Errorf("missing env vars: %s (or set --mysql-dsn / MYSQL_DSN)", strings.Join(missing, ", "))
 	}
 
-	return fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true", user, url.QueryEscape(pass), addr, db), nil
+	// Raw password — matches how the fleet server formats its DSN
+	// (server/platform/mysql/common.go). go-sql-driver does not URL-decode
+	// the password field, so encoding it here would corrupt the value.
+	return fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true", user, pass, addr, db), nil
 }
 
 // apiClient wraps HTTP calls to the Fleet API.
