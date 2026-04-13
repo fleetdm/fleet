@@ -1,6 +1,6 @@
 ## Android agent 1.4.0 (Apr 07, 2026)
 
-* Make certificate list scrollable
+* Made the certificate list scrollable
 * Fixed background DNS resolution failures.
 * Stop polling certificates when the server reports them as permanently failed.
 * Non-retryable SCEP failures (e.g. server rejection) now immediately mark the certificate as failed instead of retrying 3 times.
