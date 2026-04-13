@@ -3,6 +3,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Apple-provided Software Updates Are Installed (Fleetd Required)
+  cis_id: "1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -29,6 +30,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Auto Update Is Enabled (MDM Required)
+  cis_id: "1.2"
   platforms: macOS
   platform: darwin
   description: Checks that the system is configured via MDM to automatically install updates.
@@ -56,6 +58,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Download New Updates When Available Is Enabled (MDM Required)
+  cis_id: "1.3"
   platforms: macOS
   platform: darwin
   description: Checks that the system is configured via MDM to automatically download updates.
@@ -83,6 +86,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Install of macOS Updates Is Enabled (MDM Required)
+  cis_id: "1.4"
   platforms: macOS
   platform: darwin
   description: Ensure that macOS updates are installed after they are available from Apple.
@@ -110,6 +114,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Install Application Updates from the App Store Is Enabled (MDM Required)
+  cis_id: "1.5"
   platforms: macOS
   platform: darwin
   description: Ensure that application updates are installed after they are available from Apple.
@@ -137,6 +142,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure XProtect Is Running and Updated
+  cis_id: "5.10"
   platforms: macOS
   platform: darwin
   description: |
@@ -164,6 +170,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Install Security Responses and System Files Is Enabled (MDM Required)
+  cis_id: "1.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -200,6 +207,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure iCloud Drive storage solution is disabled (MDM Required)
+  cis_id: "2.1.1.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -237,6 +245,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure iCloud Drive storage solution is enabled (MDM Required)
+  cis_id: "2.1.1.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -274,6 +283,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure iCloud Keychain is disabled (if your org policy is to disable it) (MDM Required)
+  cis_id: "2.1.1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -312,6 +322,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure iCloud Keychain is enabled (if your org policy is to enable it) (MDM Required)
+  cis_id: "2.1.1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -350,6 +361,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure iCloud Drive Document and Desktop Sync Is Disabled (MDM Required)
+  cis_id: "2.1.1.3"
   platforms: macOS
   platform: darwin
   description: Automated Document synchronization should be planned and controlled to approved storage.
@@ -382,6 +394,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Firewall Is Enabled
+  cis_id: "2.2.1"
   platforms: macOS
   platform: darwin
   description: A firewall minimizes the threat of unauthorized users gaining access to your system while connected to a network or the Internet.
@@ -395,6 +408,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Firewall Stealth Mode Is Enabled
+  cis_id: "2.2.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -416,6 +430,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure AirDrop Is Disabled When Not Actively Transferring Files (MDM Required)
+  cis_id: "2.3.1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -456,6 +471,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure AirPlay Receiver Is Disabled (MDM Required)
+  cis_id: "2.3.1.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -496,6 +512,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Set Time and Date Automatically Is Enabled (MDM Required)
+  cis_id: "2.3.2.1"
   platforms: macOS
   platform: darwin
   description: 
@@ -528,6 +545,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure the Time Service Is Enabled
+  cis_id: "2.3.2.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -544,37 +562,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure DVD or CD Sharing Is Disabled
-  platforms: macOS
-  platform: darwin
-  description: |
-    DVD or CD Sharing allows users to remotely access the system's optical drive.
-    Disabling DVD or CD Sharing minimizes the risk of an attacker using the optical drive as
-    a vector for attack and exposure of sensitive data.
-  resolution: |
-    Graphical Method:
-    1. Open System Settings
-    2. Select General
-    3. Select Sharing
-    4. Set CD/DVD Sharing to disabled
-  query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT * FROM plist WHERE
-        path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
-        key = 'com.apple.ODSAgent' AND
-        value = '0'
-    );
-  # We are not using the launchd table because it does not check if services
-  # are disabled via disabled.plist, which the preference pane uses whenever
-  # a service is disabled after it has been enabled in the past.
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: artemist-work
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure Screen Sharing Is Disabled 
+  cis_id: "2.3.3.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -608,6 +597,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure File Sharing Is Disabled
+  cis_id: "2.3.3.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -638,6 +628,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Printer Sharing is Disabled
+  cis_id: "2.3.3.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -666,6 +657,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Remote Login Is Disabled
+  cis_id: "2.3.3.4"
   platforms: macOS
   platform: darwin
   description: |
@@ -700,6 +692,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Remote Management is Disabled
+  cis_id: "2.3.3.5"
   platforms: macOS
   platform: darwin
   description: |
@@ -728,6 +721,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Remote Apple Events is Disabled
+  cis_id: "2.3.3.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -759,6 +753,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Internet Sharing Is Disabled
+  cis_id: "2.3.3.7"
   platforms: macOS
   platform: darwin
   description: |
@@ -787,6 +782,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Content Caching Is Disabled (MDM Required)
+  cis_id: "2.3.3.8"
   platforms: macOS
   platform: darwin
   description: |
@@ -826,6 +822,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Bluetooth Sharing Is Disabled
+  cis_id: "2.3.3.10"
   platforms: macOS
   platform: darwin
   description: |
@@ -863,6 +860,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Media Sharing Is Disabled (MDM Required)
+  cis_id: "2.3.3.9"
   platforms: macOS
   platform: darwin
   description: |
@@ -919,6 +917,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)
+  cis_id: "2.3.4.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -950,6 +949,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Time Machine Volumes Are Encrypted If Time Machine Is Enabled (FDA Required)
+  cis_id: "2.3.4.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -987,6 +987,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri is disabled (MDM required)
+  cis_id: "2.5.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1040,6 +1041,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri field TypeToSiriEnabled is true (Based on organization's policy)
+  cis_id: "2.5.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1069,6 +1071,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri field TypeToSiriEnabled is false (Based on organization's policy)
+  cis_id: "2.5.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1098,6 +1101,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri field StatusMenuVisible is true (Based on organization's policy)
+  cis_id: "2.5.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1127,6 +1131,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri field StatusMenuVisible is false (Based on organization's policy)
+  cis_id: "2.5.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1156,6 +1161,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri field VoiceTriggerUserEnabled is true (Based on organization's policy)
+  cis_id: "2.5.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -1185,6 +1191,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri field VoiceTriggerUserEnabled is false (Based on organization's policy)
+  cis_id: "2.5.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -1214,6 +1221,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri field LockscreenEnabled is true (Based on organization's policy)
+  cis_id: "2.5.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1243,6 +1251,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Siri field LockscreenEnabled is false (Based on organization's policy)
+  cis_id: "2.5.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1272,6 +1281,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Location Services Is Enabled
+  cis_id: "2.6.1.1"
   platforms: macOS
   platform: darwin
   description: Checks that Location Services option is enabled.
@@ -1293,6 +1303,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure 'Show Location Icon in Control Center when System Services Request Your Location' Is Enabled
+  cis_id: "2.6.1.2"
   platforms: macOS
   platform: darwin
   description: This setting provides the user an understanding of the current status of Location Services and which applications are using it.
@@ -1316,6 +1327,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Location Services Is Disabled to all applications (Based on organization's policy)
+  cis_id: "2.6.1.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -1341,6 +1353,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Location Services Is Enabled for a specific list of applications (Based on organization's policy)
+  cis_id: "2.6.1.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -1403,6 +1416,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Limit Ad Tracking Is Enabled (MDM Required)
+  cis_id: "2.6.4"
   platforms: macOS
   platform: darwin
   description: Checks that Ensure Limit Ad Tracking Is Enabled.
@@ -1437,6 +1451,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure an Administrator Password Is Required to Access System-Wide Preferences (Fleetd required)
+  cis_id: "2.6.8"
   platforms: macOS
   platform: darwin
   description: Checks that an Administrator Password Is Required to Access System-Wide Preferences
@@ -1456,6 +1471,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
+  cis_id: "2.7.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1492,6 +1508,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Universal Control is enabled (Based on organization's policy) (MDM Required)
+  cis_id: "2.8.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1529,6 +1546,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Universal Control is disabled (Based on organization's policy) (MDM Required)
+  cis_id: "2.8.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1566,6 +1584,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Power Nap Is Disabled for Intel Macs (Fleetd Required)
+  cis_id: "2.9.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -1598,6 +1617,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure sleep and display sleep is enabled on Apple Silicon devices (Fleetd required)
+  cis_id: "2.9.1.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -1651,6 +1671,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)
+  cis_id: "2.9.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -1682,6 +1703,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure the OS is not Activate When Resuming from Sleep (Fleetd, FDA Required)
+  cis_id: "2.9.1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -1758,6 +1780,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled (MDM Required)
+  cis_id: "2.10.2"
   platforms: macOS
   platform: darwin
   description: Checks that Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
@@ -1806,6 +1829,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Gatekeeper Is Enabled
+  cis_id: "2.6.5"
   platforms: macOS
   platform: darwin
   description: |
@@ -1827,6 +1851,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Sending Diagnostic and Usage Data to Apple Is Disabled (MDM Required)
+  cis_id: "2.6.3"
   platforms: macOS
   platform: darwin
   description: Checks that Sending Diagnostic and Usage Data to Apple Is Disabled.
@@ -1890,6 +1915,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
+  cis_id: "2.10.1"
   platforms: macOS
   platform: darwin
   description: A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. In macOS, the screen saver starts after a value is selected in the drop- down menu. 20 minutes or less is an acceptable value. Any value can be selected through the command line or script, but a number that is not reflected in the GUI can be problematic. 20 minutes is the default for new accounts.
@@ -1924,6 +1950,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure a Custom Message for the Login Screen Is Enabled
+  cis_id: "2.10.3"
   platforms: macOS
   platform: darwin
   description: An access warning informs the user that the system is reserved for authorized use only, and that the use of the system may be monitored
@@ -1944,6 +1971,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure FileVault Is Enabled (MDM Required)
+  cis_id: "2.6.6"
   platforms: macOS
   platform: darwin
   description: Checks that FileVault Is Enabled. FileVault secures a system's data by automatically encrypting its boot volume and requiring a password or recovery key to access it. This policy checks that filevault is enabled on the device and that the user is not allowed to disable it.
@@ -1986,6 +2014,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Login Window Displays as Name and Password Is Enabled (MDM Required)
+  cis_id: "2.10.4"
   platforms: macOS
   platform: darwin
   description: Checks Login Window Displays as Name and Password Is Enabled.
@@ -2020,6 +2049,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Show Password Hints Is Disabled (MDM Required)
+  cis_id: "2.10.5"
   platforms: macOS
   platform: darwin
   description: Checks Show Password Hints Is Disabled.
@@ -2054,6 +2084,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (Fleetd Required)
+  cis_id: "2.11.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -2076,6 +2107,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Guest Account Is Disabled
+  cis_id: "2.12.1"
   platforms: macOS
   platform: darwin
   description: Checks that Guest Account Is Disabled.
@@ -2098,6 +2130,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Guest Access to Shared Folders Is Disabled
+  cis_id: "2.12.2"
   platforms: macOS
   platform: darwin
   description: Allowing guests to connect to shared folders enables users to access selected shared folders and their contents from different computers on a network
@@ -2120,6 +2153,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Automatic Login Is Disabled (MDM Required)
+  cis_id: "2.12.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -2160,6 +2194,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure On-Device Dictation Is Enabled (MDM Required)
+  cis_id: "2.18.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -2189,6 +2224,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Security Auditing Is Enabled
+  cis_id: "3.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -2220,6 +2256,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Security Auditing Flags For User-Attributable Events Are Configured Per Local Organizational Requirements
+  cis_id: "3.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -2275,6 +2312,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure install.log Is Retained for 365 or More Days and No Maximum Size
+  cis_id: "3.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -2305,6 +2343,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Security Auditing Retention Is Enabled
+  cis_id: "3.4"
   platforms: macOS
   platform: darwin
   description: |
@@ -2334,6 +2373,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Access to Audit Records Is Controlled
+  cis_id: "3.5"
   platforms: macOS
   platform: darwin
   description: |
@@ -2381,6 +2421,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Firewall Logging Is Enabled and Configured (MDM Required)
+  cis_id: "3.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -2449,6 +2490,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Bonjour Advertising Services Is Disabled (MDM Required)
+  cis_id: "4.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -2485,6 +2527,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure HTTP Server Is Disabled
+  cis_id: "4.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -2504,6 +2547,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure NFS Server Is Disabled
+  cis_id: "4.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -2536,6 +2580,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Home Folders Are Secure
+  cis_id: "5.1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -2565,6 +2610,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure System Integrity Protection Status (SIP) Is Enabled
+  cis_id: "5.1.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -2586,6 +2632,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Apple Mobile File Integrity (AMFI) Is Enabled (fleetd required)
+  cis_id: "5.1.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -2604,6 +2651,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Sealed System Volume (SSV) Is Enabled (fleetd required)
+  cis_id: "5.1.4"
   platforms: macOS
   platform: darwin
   description: |
@@ -2622,6 +2670,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Appropriate Permissions Are Enabled for System Wide Applications
+  cis_id: "5.1.5"
   platforms: macOS
   platform: darwin
   description: |
@@ -2651,6 +2700,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure No World Writable Files Exist in the System Folder
+  cis_id: "5.1.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -2678,6 +2728,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure No World Writable Folders Exist in the Library Folder (Fleetd required)
+  cis_id: "5.1.7"
   platforms: macOS
   platform: darwin
   description: |
@@ -2707,11 +2758,17 @@ spec:
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM file f
-      WHERE 
+      WHERE
         f.path LIKE '/Library/%'
         AND f.type = 'directory'
+        -- World-writable: other-write bit (octal 2) in the last digit
         AND (CAST(SUBSTR(f.mode,-1) AS INTEGER) & 2) = 2
-        AND NOT ((CAST(f.mode AS INTEGER) & 01000) = 01000)
+        -- Exclude sticky-bit dirs. osquery reports mode as a 4-char
+        -- octal string like "1777" (sticky) or "0755". The first digit
+        -- encodes setuid(4)/setgid(2)/sticky(1). SQLite has no native
+        -- octal literals, so we compare the first char's integer value
+        -- to the possible sticky combinations (1, 3, 5, 7).
+        AND CAST(SUBSTR(f.mode, 1, 1) AS INTEGER) NOT IN (1, 3, 5, 7)
         AND NOT EXISTS (
           SELECT 1 FROM extended_attributes ea
           WHERE ea.path = f.path
@@ -2726,6 +2783,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
+  cis_id: "5.2.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -2747,6 +2805,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Password Minimum Length Is Configured
+  cis_id: "5.2.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -2776,6 +2835,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Complex Password Must Contain Alphabetic Characters AND Numeric Characters Is Configured (MDM Required)
+  cis_id: "5.2.3, 5.2.4"
   platforms: macOS
   platform: darwin
   description: |
@@ -2808,6 +2868,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Complex Password Must Contain Special Character Is Configured (MDM Required)
+  cis_id: "5.2.5"
   platforms: macOS
   platform: darwin
   description: |
@@ -2837,6 +2898,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Complex Password Must Contain Uppercase and Lowercase Characters Is Configured (Fleetd required)
+  cis_id: "5.2.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -2854,6 +2916,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Password Age Is Configured (Fleetd Required)
+  cis_id: "5.2.7"
   platforms: macOS
   platform: darwin
   description: |
@@ -2879,6 +2942,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure password history is set to at least 24 (MDM required)
+  cis_id: "5.2.8"
   platforms: macOS
   platform: darwin
   description: |
@@ -2912,6 +2976,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure all user storage APFS volumes are encrypted (Fleetd Required)
+  cis_id: "5.3.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -2946,6 +3011,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure all user storage CoreStorage volumes are encrypted (Fleetd Required)
+  cis_id: "5.3.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -2968,6 +3034,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)
+  cis_id: "5.4"
   platforms: macOS
   platform: darwin
   description: |
@@ -2996,6 +3063,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure a Separate Timestamp Is Enabled for Each User/tty (Fleetd Required)
+  cis_id: "5.5"
   platforms: macOS
   platform: darwin
   description: |
@@ -3023,6 +3091,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure the "root" Account Is Disabled (Fleetd Required)
+  cis_id: "5.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -3045,6 +3114,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure an Administrator Account Cannot Login to Another User's Active and Locked Session (Fleetd Required)
+  cis_id: "5.7"
   platforms: macOS
   platform: darwin
   description: |
@@ -3078,6 +3148,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure a Login Window Banner Exists
+  cis_id: "5.8"
   platforms: macOS
   platform: darwin
   description: |
@@ -3103,6 +3174,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure the Guest Home Folder Does Not Exist
+  cis_id: "5.9"
   platforms: macOS
   platform: darwin
   description: |
@@ -3121,6 +3193,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Automatic Opening of Safe Files in Safari Is Disabled (MDM Required)
+  cis_id: "6.3.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -3159,6 +3232,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Audit Safari Web Browser History and Remove History Items (organization decision needed)(MDM Required)
+  cis_id: "6.3.2"
   platforms: macOS
   platform: darwin
   description: |
@@ -3211,6 +3285,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled (MDM Required)
+  cis_id: "6.3.3"
   platforms: macOS
   platform: darwin
   description: |
@@ -3243,6 +3318,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)
+  cis_id: "6.3.4"
   platforms: macOS
   platform: darwin
   description: |
@@ -3307,6 +3383,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's policy)
+  cis_id: "6.3.5"
   platforms: macOS
   platform: darwin
   description: |
@@ -3338,6 +3415,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure the Hide IP Address in Safari is Disabled (Based on organization's policy)
+  cis_id: "6.3.5"
   platforms: macOS
   platform: darwin
   description: |
@@ -3371,6 +3449,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)
+  cis_id: "6.3.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -3405,6 +3484,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Show Full Website Address in Safari Is Enabled (MDM Required)
+  cis_id: "6.3.7"
   platforms: macOS
   platform: darwin
   description: |
@@ -3446,6 +3526,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Show Status Bar Is Enabled (MDM Required)
+  cis_id: "6.3.10"
   platforms: macOS
   platform: darwin
   description: |
@@ -3470,6 +3551,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
+  cis_id: "6.4.1"
   platforms: macOS
   platform: darwin
   description: |
