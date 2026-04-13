@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -393,4 +394,93 @@ func TestNewActivityWebhookDisabled(t *testing.T) {
 	err := svc.NewActivity(t.Context(), &api.User{ID: 1}, simpleActivity{Name: "no webhook"})
 	require.NoError(t, err)
 	require.True(t, ds.newActivityCalled)
+}
+
+// TestVPPInstallFailureEmptyCommandUUIDDoesNotActivateNext exercises the
+// scenario where a VPP install is attempted during setup experience for a
+// host that has other upcoming activities queued. If the VPP call fails
+// before an MDM command is sent (e.g. no available licenses), the
+// CommandUUID is empty. In that case the next upcoming activity must NOT
+// be activated, because the current activity was never truly started —
+// activating the next one would break the intended sequential ordering.
+//
+// See commit 159194acc9d92843bb2de933309f159c84a501aa for the fix.
+func TestVPPInstallFailureEmptyCommandUUIDDoesNotActivateNext(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		activity       fleet.ActivityInstalledAppStoreApp
+		expectActivate bool
+	}{
+		{
+			name: "failed VPP install with empty command UUID must not activate next upcoming activity",
+			activity: fleet.ActivityInstalledAppStoreApp{
+				HostID:              42,
+				HostDisplayName:     "ios-host",
+				SoftwareTitle:       "Licensed App",
+				AppStoreID:          "99999",
+				CommandUUID:         "", // no MDM command was sent
+				Status:              string(fleet.SoftwareInstallFailed),
+				FromSetupExperience: true,
+			},
+			expectActivate: false,
+		},
+		{
+			name: "failed VPP install with command UUID activates next upcoming activity",
+			activity: fleet.ActivityInstalledAppStoreApp{
+				HostID:              42,
+				HostDisplayName:     "ios-host",
+				SoftwareTitle:       "Licensed App",
+				AppStoreID:          "99999",
+				CommandUUID:         "cmd-uuid-abc",
+				Status:              string(fleet.SoftwareInstallFailed),
+				FromSetupExperience: true,
+			},
+			expectActivate: true,
+		},
+		{
+			name: "successful VPP install must not activate next (handled by install verification)",
+			activity: fleet.ActivityInstalledAppStoreApp{
+				HostID:              42,
+				HostDisplayName:     "ios-host",
+				SoftwareTitle:       "Licensed App",
+				AppStoreID:          "99999",
+				CommandUUID:         "cmd-uuid-abc",
+				Status:              string(fleet.SoftwareInstalled),
+				FromSetupExperience: true,
+			},
+			expectActivate: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ds := &newActivityMockDatastore{}
+			providers := &newActivityMockProviders{
+				mockDataProviders: mockDataProviders{
+					mockUserProvider: &mockUserProvider{},
+					mockHostProvider: &mockHostProvider{},
+				},
+			}
+			svc := newTestService(ds, providers)
+
+			err := svc.NewActivity(t.Context(), nil, tt.activity)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.expectActivate, providers.activateCalled,
+				"ActivateNextUpcomingActivity called = %v, want %v",
+				providers.activateCalled, tt.expectActivate)
+
+			if tt.expectActivate {
+				assert.Equal(t, tt.activity.HostID, providers.lastHostID)
+				assert.Equal(t, tt.activity.CommandUUID, providers.lastCmdUUID)
+			}
+
+			// The activity itself must always be stored regardless of
+			// whether the next upcoming activity was activated.
+			require.True(t, ds.newActivityCalled, "activity should still be stored")
+		})
+	}
 }
