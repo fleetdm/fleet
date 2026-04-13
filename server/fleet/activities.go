@@ -1348,11 +1348,10 @@ func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
 }
 
 func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
-	// for VPP apps, we only activate the next upcoming activity if the installation
-	// failed, because if it succeeded (and in this case, it only means the command to
-	// install succeeded), we only activate the next activity when we verify the
-	// app is actually installed.
-	return a.Status != string(SoftwareInstalled)
+	// For VPP apps, we only activate the next upcoming activity if the installation
+	// failed; successes are activated on install verification.
+	// More info on the blank command UUID skip at https://github.com/fleetdm/fleet/pull/43437#discussion_r3074297749
+	return a.CommandUUID != "" && a.Status != string(SoftwareInstalled)
 }
 
 func (a ActivityInstalledAppStoreApp) ActivateNextUpcomingActivityArgs() (uint, string) {
