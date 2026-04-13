@@ -578,7 +578,7 @@ agent_options:
 	require.NoError(t, err)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), "remove `labels:` from your GitOps file")
 
 	// Secrets excepted + present → error
 	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -598,7 +598,7 @@ agent_options:
 	require.NoError(t, err)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"secrets" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), "remove `secrets:` from your GitOps file")
 
 	// Secrets excepted + present → error
 	tmpFile3, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -613,7 +613,7 @@ software:
 	require.NoError(t, err)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"software" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), "remove `software:` from your GitOps file")
 
 	// Test: exceptions enforced even when GitOps mode is OFF (decoupled from UI mode)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -626,7 +626,7 @@ software:
 	}
 	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), "remove `labels:` from your GitOps file")
 }
 
 // TestGitOpsExceptionsPreserveOmittedKeys verifies that when exceptions are ON,
