@@ -1,38 +1,51 @@
 import React, { useMemo, useState, useCallback } from "react";
+import { useQuery } from "react-query";
 
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import Checkbox from "components/forms/fields/Checkbox";
 import PillBadge from "components/PillBadge";
+import Spinner from "components/Spinner";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-
-import FLEET_API_ENDPOINTS from "./endpointsMockData";
+import { IApiEndpoint } from "interfaces/api_endpoint";
+import apiEndpointsAPI from "services/entities/api_endpoints";
 
 const baseClass = "endpoint-selector-table";
 
+/** Unique key for an endpoint since there's no `id` field */
+const endpointKey = (ep: IApiEndpoint) => `${ep.method} ${ep.path}`;
+
 interface IEndpointSelectorTableProps {
-  selectedEndpointIds: string[];
-  onSelectionChange: (selectedIds: string[]) => void;
+  selectedEndpointKeys: string[];
+  onSelectionChange: (selectedKeys: string[]) => void;
 }
 
 const PAGE_SIZE = 10;
 
 const EndpointSelectorTable = ({
-  selectedEndpointIds,
+  selectedEndpointKeys,
   onSelectionChange,
 }: IEndpointSelectorTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
 
+  const { data: apiEndpoints, isLoading, error } = useQuery<
+    IApiEndpoint[],
+    Error
+  >(["api_endpoints"], () => apiEndpointsAPI.loadAll(), {
+    refetchOnWindowFocus: false,
+  });
+
   const filteredEndpoints = useMemo(() => {
-    if (!searchQuery) return FLEET_API_ENDPOINTS;
+    if (!apiEndpoints) return [];
+    if (!searchQuery) return apiEndpoints;
     const query = searchQuery.toLowerCase();
-    return FLEET_API_ENDPOINTS.filter(
+    return apiEndpoints.filter(
       (ep) =>
-        ep.name.toLowerCase().includes(query) ||
+        ep.display_name.toLowerCase().includes(query) ||
         ep.path.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [apiEndpoints, searchQuery]);
 
   const pageCount = Math.ceil(filteredEndpoints.length / PAGE_SIZE);
   const paginatedEndpoints = useMemo(() => {
@@ -46,17 +59,15 @@ const EndpointSelectorTable = ({
   }, []);
 
   const toggleEndpoint = useCallback(
-    (endpointId: string) => {
-      const isSelected = selectedEndpointIds.includes(endpointId);
+    (key: string) => {
+      const isSelected = selectedEndpointKeys.includes(key);
       if (isSelected) {
-        onSelectionChange(
-          selectedEndpointIds.filter((id) => id !== endpointId)
-        );
+        onSelectionChange(selectedEndpointKeys.filter((k) => k !== key));
       } else {
-        onSelectionChange([...selectedEndpointIds, endpointId]);
+        onSelectionChange([...selectedEndpointKeys, key]);
       }
     },
-    [selectedEndpointIds, onSelectionChange]
+    [selectedEndpointKeys, onSelectionChange]
   );
 
   const renderDeprecatedBadge = () => (
@@ -74,11 +85,22 @@ const EndpointSelectorTable = ({
         value={searchQuery}
         inputWrapperClass={`${baseClass}__search`}
       />
-      {filteredEndpoints.length === 0 ? (
+      {isLoading && (
+        <div className={`${baseClass}__loading`}>
+          <Spinner />
+        </div>
+      )}
+      {error && (
+        <div className={`${baseClass}__empty`}>
+          <p>Could not load API endpoints.</p>
+        </div>
+      )}
+      {!isLoading && !error && filteredEndpoints.length === 0 && (
         <div className={`${baseClass}__empty`}>
           <p>No matching API endpoints</p>
         </div>
-      ) : (
+      )}
+      {!isLoading && !error && filteredEndpoints.length > 0 && (
         <>
           <table className={`${baseClass}__table`}>
             <thead>
@@ -90,27 +112,30 @@ const EndpointSelectorTable = ({
               </tr>
             </thead>
             <tbody>
-              {paginatedEndpoints.map((endpoint) => (
-                <tr key={endpoint.id}>
-                  <td className={`${baseClass}__checkbox-col`}>
-                    <Checkbox
-                      value={selectedEndpointIds.includes(endpoint.id)}
-                      name={`endpoint-${endpoint.id}`}
-                      onChange={() => toggleEndpoint(endpoint.id)}
-                    />
-                  </td>
-                  <td>
-                    <TextCell value={endpoint.name} />
-                    {endpoint.deprecated && renderDeprecatedBadge()}
-                  </td>
-                  <td>
-                    <code>{endpoint.method}</code>
-                  </td>
-                  <td>
-                    <code>{endpoint.path}</code>
-                  </td>
-                </tr>
-              ))}
+              {paginatedEndpoints.map((endpoint) => {
+                const key = endpointKey(endpoint);
+                return (
+                  <tr key={key}>
+                    <td className={`${baseClass}__checkbox-col`}>
+                      <Checkbox
+                        value={selectedEndpointKeys.includes(key)}
+                        name={`endpoint-${key}`}
+                        onChange={() => toggleEndpoint(key)}
+                      />
+                    </td>
+                    <td>
+                      <TextCell value={endpoint.display_name} />
+                      {endpoint.deprecated && renderDeprecatedBadge()}
+                    </td>
+                    <td>
+                      <code>{endpoint.method}</code>
+                    </td>
+                    <td>
+                      <code>{endpoint.path}</code>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {pageCount > 1 && (

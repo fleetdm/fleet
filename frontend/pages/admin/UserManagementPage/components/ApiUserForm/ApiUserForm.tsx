@@ -23,7 +23,7 @@ export interface IApiUserFormData {
   global_role: UserRole | null;
   teams: ITeam[];
   api_only: true;
-  selectedEndpointIds?: string[];
+  selectedEndpointKeys?: string[];
 }
 
 interface IApiUserFormProps {
@@ -34,7 +34,7 @@ interface IApiUserFormProps {
   defaultName?: string;
   defaultGlobalRole?: UserRole | null;
   defaultTeams?: ITeam[];
-  defaultSelectedEndpointIds?: string[];
+  defaultSelectedEndpointKeys?: string[];
   formErrors?: IUserFormErrors;
   isSubmitting?: boolean;
 }
@@ -52,7 +52,7 @@ const ApiUserForm = ({
   defaultName = "",
   defaultGlobalRole = "gitops",
   defaultTeams = [],
-  defaultSelectedEndpointIds = [],
+  defaultSelectedEndpointKeys = [],
   formErrors: ancestorErrors = {},
   isSubmitting = false,
 }: IApiUserFormProps) => {
@@ -64,8 +64,8 @@ const ApiUserForm = ({
   );
   const [teams, setTeams] = useState<ITeam[]>(defaultTeams);
   const [isGlobalUser, setIsGlobalUser] = useState(defaultTeams.length === 0);
-  const [selectedEndpointIds, setSelectedEndpointIds] = useState<string[]>(
-    defaultSelectedEndpointIds
+  const [selectedEndpointKeys, setSelectedEndpointIds] = useState<string[]>(
+    defaultSelectedEndpointKeys
   );
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
 
@@ -89,8 +89,8 @@ const ApiUserForm = ({
       global_role: isGlobalUser ? globalRole : null,
       teams: isGlobalUser ? [] : teams,
       api_only: true,
-      selectedEndpointIds:
-        selectedEndpointIds.length > 0 ? selectedEndpointIds : undefined,
+      selectedEndpointKeys:
+        selectedEndpointKeys.length > 0 ? selectedEndpointKeys : undefined,
     });
   };
 
@@ -170,7 +170,7 @@ const ApiUserForm = ({
         {isPremiumTier ? renderPermissions() : renderGlobalRoleForm()}
         {isPremiumTier && (
           <ApiAccessSection
-            selectedEndpointIds={selectedEndpointIds}
+            selectedEndpointKeys={selectedEndpointKeys}
             onEndpointSelectionChange={setSelectedEndpointIds}
           />
         )}

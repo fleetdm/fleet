@@ -218,6 +218,7 @@ export default {
   QUERIES: `/${API_VERSION}/fleet/reports`,
   QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/reports/${id}/report`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
+  REST_API_ENDPOINTS: `/${API_VERSION}/fleet/rest_api`,
   LIVE_QUERY: `/${API_VERSION}/fleet/reports/run`,
   SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
   SCHEDULED_QUERIES: (packId: number): string => {

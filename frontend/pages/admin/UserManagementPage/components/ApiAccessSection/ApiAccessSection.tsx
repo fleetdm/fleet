@@ -12,16 +12,16 @@ enum ApiAccessType {
 }
 
 interface IApiAccessSectionProps {
-  selectedEndpointIds: string[];
+  selectedEndpointKeys: string[];
   onEndpointSelectionChange: (selectedIds: string[]) => void;
 }
 
 const ApiAccessSection = ({
-  selectedEndpointIds,
+  selectedEndpointKeys,
   onEndpointSelectionChange,
 }: IApiAccessSectionProps) => {
   const [accessType, setAccessType] = useState<ApiAccessType>(
-    selectedEndpointIds.length > 0
+    selectedEndpointKeys.length > 0
       ? ApiAccessType.SpecificEndpoints
       : ApiAccessType.AllEndpoints
   );
@@ -70,7 +70,7 @@ const ApiAccessSection = ({
             </div>
           </div>
           <EndpointSelectorTable
-            selectedEndpointIds={selectedEndpointIds}
+            selectedEndpointKeys={selectedEndpointKeys}
             onSelectionChange={onEndpointSelectionChange}
           />
         </div>
