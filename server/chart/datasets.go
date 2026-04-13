@@ -16,7 +16,7 @@ func (u *UptimeDataset) Collect(ctx context.Context, store DatasetStore, now tim
 	return store.CollectUptimeChartData(ctx, now)
 }
 
-func (u *UptimeDataset) ResolveFilters(_ context.Context, _ DatasetStore, _ map[string]string) ([]uint, error) {
+func (u *UptimeDataset) ResolveFilters(_ context.Context, _ DatasetStore, _ map[string]string) ([]string, error) {
 	return nil, nil
 }
 
@@ -42,7 +42,7 @@ func (u *CVEDataset) Collect(ctx context.Context, store DatasetStore, now time.T
 	return errors.New("CVE dataset collection not implemented yet")
 }
 
-func (u *CVEDataset) ResolveFilters(_ context.Context, _ DatasetStore, _ map[string]string) ([]uint, error) {
+func (u *CVEDataset) ResolveFilters(_ context.Context, _ DatasetStore, _ map[string]string) ([]string, error) {
 	return nil, nil
 }
 

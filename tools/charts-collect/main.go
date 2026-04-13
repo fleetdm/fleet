@@ -132,7 +132,7 @@ func collectUptime(api *apiClient, db *sql.DB) error {
 	// OR with existing blob for this hour.
 	var existing []byte
 	err = db.QueryRow(
-		`SELECT host_bitmap FROM host_hourly_data_blobs WHERE dataset = 'uptime' AND entity_id = 0 AND chart_date = ? AND hour = ?`,
+		`SELECT host_bitmap FROM host_hourly_data_blobs WHERE dataset = 'uptime' AND entity_id = '' AND chart_date = ? AND hour = ?`,
 		dateStr, hour,
 	).Scan(&existing)
 	if err == nil {
@@ -141,7 +141,7 @@ func collectUptime(api *apiClient, db *sql.DB) error {
 
 	_, err = db.Exec(
 		`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
-		 VALUES ('uptime', 0, ?, ?, ?)
+		 VALUES ('uptime', '', ?, ?, ?)
 		 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
 		dateStr, hour, newBlob,
 	)
@@ -185,21 +185,6 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 		return nil
 	}
 
-	// Ensure the entity mapping table exists.
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS chart_cve_entities (
-			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-			cve VARCHAR(30) NOT NULL UNIQUE
-		)
-	`); err != nil {
-		return fmt.Errorf("create chart_cve_entities: %w", err)
-	}
-
-	entityMap, err := ensureCVEEntities(db, cveHosts)
-	if err != nil {
-		return fmt.Errorf("map CVE entities: %w", err)
-	}
-
 	dateStr := time.Now().UTC().Format("2006-01-02")
 
 	// Replace today's CVE blobs with the current snapshot.
@@ -211,13 +196,12 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 	}
 
 	for cve, hosts := range cveHosts {
-		entityID := entityMap[cve]
 		blob := chart.HostIDsToBlob(hosts)
 
 		if _, err := db.Exec(
 			`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
 			 VALUES ('cve', ?, ?, ?, ?)`,
-			entityID, dateStr, chart.HourWholeDay, blob,
+			cve, dateStr, chart.HourWholeDay, blob,
 		); err != nil {
 			return fmt.Errorf("write CVE blob %s: %w", cve, err)
 		}
@@ -301,31 +285,3 @@ func fetchHostCVEs(api *apiClient, hostID uint) ([]string, error) {
 	return cves, nil
 }
 
-// --- DB helpers ---
-
-// ensureCVEEntities inserts any new CVE strings into the mapping table and
-// returns the full CVE -> entity_id map.
-func ensureCVEEntities(db *sql.DB, cveHosts map[string][]uint) (map[string]uint, error) {
-	for cve := range cveHosts {
-		if _, err := db.Exec(`INSERT IGNORE INTO chart_cve_entities (cve) VALUES (?)`, cve); err != nil {
-			return nil, fmt.Errorf("insert CVE %s: %w", cve, err)
-		}
-	}
-
-	rows, err := db.Query(`SELECT id, cve FROM chart_cve_entities`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := make(map[string]uint)
-	for rows.Next() {
-		var id uint
-		var cve string
-		if err := rows.Scan(&id, &cve); err != nil {
-			return nil, err
-		}
-		result[cve] = id
-	}
-	return result, rows.Err()
-}
