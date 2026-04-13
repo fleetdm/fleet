@@ -1865,7 +1865,3 @@ func (a ActivityTypeClearedPasscode) ActivityName() string {
 func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 	return []uint{a.HostID}
 }
-
-func (a ActivityTypeClearedPasscode) HostOnly() bool {
-	return true
-}
