@@ -369,12 +369,12 @@ const PlatformWrapper = ({
           <div>
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add
-              Chromebooks,&nbsp;
+              Chromebooks,{" "}
               <Button
-                variant="text-link-dark"
+                variant="link"
                 onClick={() => setSelectedTabIndex(3)}
               >
-                click here
+                visit the ChromeOS tab
               </Button>
               .
             </InfoBanner>
