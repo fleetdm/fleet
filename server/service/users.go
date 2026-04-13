@@ -73,7 +73,7 @@ func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef, 
 				ctx,
 				fleet.NewInvalidArgumentError(
 					"api_endpoints",
-					"At least one API endpoint must be specified for API only users",
+					"at least one API endpoint must be specified for API only users",
 				),
 			)
 		}
@@ -85,7 +85,7 @@ func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef, 
 	if len(entries) > 100 {
 		return ctxerr.Wrap(
 			ctx,
-			fleet.NewInvalidArgumentError("api_endpoints", "at most 100 API endpoints may be specified"),
+			fleet.NewInvalidArgumentError("api_endpoints", "maximum number of API endpoints reached"),
 		)
 	}
 
