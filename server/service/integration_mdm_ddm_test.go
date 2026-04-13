@@ -158,7 +158,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "N5", resp.Profiles[1].Name)
 	require.Equal(t, "darwin", resp.Profiles[1].Platform)
 
-	var createResp createLabelResponse
+	var createResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label_1", Query: "select 1"}, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.Label.ID)
 	require.Equal(t, "label_1", createResp.Label.Name)

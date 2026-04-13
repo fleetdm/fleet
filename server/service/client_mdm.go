@@ -32,7 +32,7 @@ func (c *Client) GetAppleMDM() (*fleet.AppleMDM, error) {
 	return responseBody.AppleMDM, err
 }
 
-// GetAppleBM retrieves the Apple Business Manager information.
+// GetAppleBM retrieves the Apple Business information.
 func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	verb, path := "GET", "/api/latest/fleet/mdm/apple_bm"
 	var responseBody getAppleBMResponse

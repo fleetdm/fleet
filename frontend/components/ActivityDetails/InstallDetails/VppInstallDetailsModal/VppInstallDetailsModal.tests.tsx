@@ -7,7 +7,6 @@ import {
   baseUrl,
 } from "test/test-utils";
 import mockServer from "test/mock-server";
-import { getDeviceVppCommandResultHandler } from "test/handlers/device-handler";
 import {
   createMockHostAppStoreApp,
   createMockHostSoftware,
