@@ -1410,7 +1410,7 @@ WHERE name = ?`
 	"Identifier": "com.fleet.plain"
 }`)
 
-	// === Phase 1: Failing upload (unsupported variable) ===
+	// === Failing upload (unsupported variable) ===
 
 	badDecl := []byte(`{
 	"Type": "com.apple.configuration.management.test",
@@ -1420,10 +1420,12 @@ WHERE name = ?`
 	badReq := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "BadDecl.json", Contents: badDecl},
 	}}
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", badReq, http.StatusBadRequest,
+	badRes := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", badReq, http.StatusBadRequest,
 		"team_id", teamIDStr)
+	errMsg := extractServerErrorText(badRes.Body)
+	require.Contains(t, errMsg, "$FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in DDM")
 
-	// === Phase 2: Upload declarations with and without variables ===
+	// === Upload declarations with and without variables ===
 
 	profilesReq := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "VarUUID.json", Contents: declWithUUID},
@@ -1447,7 +1449,7 @@ WHERE name = ?`
 		dbDeclPlain.Token:  {Identifier: "com.fleet.plain"},
 	}
 
-	// === Phase 3: First sync — verify variable substitution ===
+	// === First sync — verify variable substitution ===
 
 	s.awaitTriggerProfileSchedule(t)
 
@@ -1495,7 +1497,7 @@ WHERE name = ?`
 	varsUpdatedPlain := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclPlain.DeclarationUUID)
 	require.Nil(t, varsUpdatedPlain)
 
-	// === Phase 4: No resend when unrelated declaration added ===
+	// === No resend when unrelated declaration added ===
 
 	newDecl := []byte(`{
 	"Type": "com.apple.configuration.management.test",
@@ -1525,7 +1527,7 @@ WHERE name = ?`
 	require.NotNil(t, varsUpdatedSerialAfterAdd)
 	assert.Equal(t, *varsUpdatedSerial, *varsUpdatedSerialAfterAdd)
 
-	// === Phase 5: No resend when unrelated declaration deleted ===
+	// === No resend when unrelated declaration deleted ===
 
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
 		"team_id", teamIDStr)
@@ -1550,7 +1552,7 @@ WHERE name = ?`
 	tokens = parseTokensResp(t, r)
 	tokenAfterStable := tokens.SyncTokens.DeclarationsToken
 
-	// === Phase 6: No resend on no-op GitOps batch upload ===
+	// === No resend on no-op GitOps batch upload ===
 
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
 		"team_id", teamIDStr)
@@ -1567,7 +1569,7 @@ WHERE name = ?`
 	tokens = parseTokensResp(t, r)
 	assert.Equal(t, tokenAfterStable, tokens.SyncTokens.DeclarationsToken)
 
-	// === Phase 7: Resend when variable values change ===
+	// === Resend when variable values change ===
 
 	// Simulate variable value change: set status = NULL on variable declarations.
 	// This is the same operation triggerResendProfilesUsingVariables performs.
