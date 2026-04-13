@@ -1,4 +1,4 @@
-## Fleet 4.84.0 (Apr 06, 2026)
+## Fleet 4.84.0 (Apr 24, 2026)
 
 ### Bug fixes
 
@@ -95,6 +95,15 @@ Renamed "Custom settings" to "Configuration profiles" in Fleet UI.
 - Fleet UI: Added description to help users understand which fleet a policy belongs during add/edit
 - Updated Fleet-maintained apps to overwrite software title names on sync and when adding an FMA installer.
 - Support outputting VPP policy automations in `fleetctl generate-gitops`
+
+## Fleet 4.83.1 (Apr 10, 2026)
+
+### Bug fixes
+
+- Fixed policy creation failing when type was omitted.
+- Fixed auth token not persisting when logging in via SSO.
+- Fleet UI: Fixed infinite page loop pagination bug on software table page happening when viewing a subsequent page and then using the software filter dropdown to filter.
+- Fleet UI: Fixed software table page number to be bookmarkable
 
 ## Fleet 4.83.0 (Apr 1, 2026)
 
