@@ -106,3 +106,32 @@
     }
   }
 }
+
+// Override react-select container positioning so the brand-button
+// dropdown menu anchors to the wrapper instead of the collapsed control.
+// The .add-user-dropdown className is applied to the react-select container
+// element inside .actions-dropdown__wrapper.
+.actions-dropdown__wrapper:has(.add-user-dropdown) {
+  position: relative;
+
+  // Make react-select container static so the absolutely positioned
+  // menu anchors to the wrapper above
+  .add-user-dropdown {
+    position: static;
+  }
+}
+
+.add-user-dropdown {
+  .actions-dropdown-select__menu {
+    margin-top: 4px !important; // Override inline 20px from brand-button variant
+  }
+
+  .actions-dropdown__option {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .actions-dropdown__help-text {
+    @include help-text;
+  }
+}

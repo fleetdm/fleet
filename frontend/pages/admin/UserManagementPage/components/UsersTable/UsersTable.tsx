@@ -28,7 +28,7 @@ import DeleteUserModal from "../DeleteUserModal";
 import ResetPasswordModal from "../ResetPasswordModal";
 import ResetSessionsModal from "../ResetSessionsModal";
 
-const ADD_USER_DROPDOWN_OPTIONS: IDropdownOption[] = [
+const ADD_USER_OPTIONS: IDropdownOption[] = [
   {
     label: "Regular user",
     value: "human",
@@ -314,10 +314,13 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const renderAddUserControl = useCallback(
     () => (
       <ActionsDropdown
-        options={ADD_USER_DROPDOWN_OPTIONS}
+        options={ADD_USER_OPTIONS}
         onChange={onAddUserSelect}
         placeholder="Add user"
         variant="brand-button"
+        buttonLabel="Add user"
+        className="add-user-dropdown"
+        menuAlign="left"
       />
     ),
     [onAddUserSelect]
