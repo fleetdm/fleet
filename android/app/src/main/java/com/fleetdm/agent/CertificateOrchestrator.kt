@@ -844,9 +844,7 @@ class CertificateOrchestrator(
         for (cert in hostCertificates) {
             val result = enrollCertificate(context, cert.id, cert.uuid, certificateInstaller)
             results[cert.id] = result
-            if (result is CertificateEnrollmentHandler.EnrollmentResult.Failure &&
-                result.exception is UnknownHostException
-            ) {
+            if (result is CertificateEnrollmentHandler.EnrollmentResult.Failure && result.isDnsFailure()) {
                 Log.w(
                     TAG,
                     "DNS resolution failed for certificate ${cert.id}, aborting batch (${hostCertificates.size - results.size} certs deferred to next run)",
@@ -856,6 +854,13 @@ class CertificateOrchestrator(
         }
         return results
     }
+
+    /**
+     * Returns true if this failure was caused by a DNS resolution problem, either directly or wrapped in
+     * another exception (e.g. SCEP wraps UnknownHostException in ScepNetworkException).
+     */
+    private fun CertificateEnrollmentHandler.EnrollmentResult.Failure.isDnsFailure(): Boolean =
+        generateSequence(exception as Throwable?) { it.cause }.any { it is UnknownHostException }
 
     /**
      * Android-specific certificate installer using DevicePolicyManager.
