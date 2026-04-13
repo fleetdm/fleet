@@ -366,10 +366,7 @@ const Vitals = ({
 
     if (isAdeIDevice || geolocation) {
       const geoLocationButton = (
-        <Button
-          variant="link"
-          onClick={toggleLocationModal}
-        >
+        <Button variant="link" onClick={toggleLocationModal}>
           {isAdeIDevice ? "Show location" : getCityCountryLocation(geolocation)}
         </Button>
       );
@@ -417,12 +414,11 @@ const Vitals = ({
               value={
                 <>
                   {mdm.dep_profile_error && <Icon name="error" />}
-                  <Button
-                    variant="link"
-                    onClick={toggleMDMStatusModal}
-                  >
-                    {MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
-                      .displayName}
+                  <Button variant="link" onClick={toggleMDMStatusModal}>
+                    {
+                      MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
+                        .displayName
+                    }
                   </Button>
                 </>
               }

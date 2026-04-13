@@ -60,10 +60,7 @@ const AddHostsModal = ({
           <span className="info__data">
             You have no enroll secrets.{" "}
             {openEnrollSecretModal ? (
-              <Button
-                variant="link"
-                onClick={onManageEnrollSecretsClick}
-              >
+              <Button variant="link" onClick={onManageEnrollSecretsClick}>
                 Manage enroll secrets
               </Button>
             ) : (
