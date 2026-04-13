@@ -305,7 +305,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 	vppUUID := "vpp-uuid"
 
 	t.Run("unsupported result type", func(t *testing.T) {
-		_, err := maybeUpdateSetupExperienceStatus(ctx, ds, map[string]interface{}{"key": "value"}, true)
+		_, err := maybeUpdateSetupExperienceStatus(ctx, ds, map[string]interface{}{"key": "value"}, true, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported result type")
 	})
@@ -351,7 +351,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					ExecutionID: scriptUUID,
 					ExitCode:    tt.exitCode,
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, true)
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, true, nil)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceScriptStatusFuncInvoked)
@@ -409,7 +409,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					ExecutionID:     softwareUUID,
 					InstallerStatus: tt.status,
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus, nil)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked)
@@ -429,7 +429,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
-				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
+				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus, nil)
 				require.NoError(t, err)
 				shouldUpdate := tt.alwaysUpdated
 				if tt.expectStatus == fleet.SetupExperienceStatusPending || tt.expectStatus == fleet.SetupExperienceStatusRunning {
@@ -496,7 +496,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					CommandUUID:   vppUUID,
 					CommandStatus: tt.status,
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus, nil)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked)
@@ -517,7 +517,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 				}
 				ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
 
-				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
+				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus, nil)
 				require.NoError(t, err)
 				shouldUpdate := tt.alwaysUpdated
 				if tt.expected == fleet.SetupExperienceStatusPending || tt.expected == fleet.SetupExperienceStatusRunning {

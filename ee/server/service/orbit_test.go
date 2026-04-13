@@ -114,19 +114,12 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		// Update should have been called
 		assert.True(t, ds.UpdateSetupExperienceStatusResultFuncInvoked)
 
-		// Should have 2 activities: canceled setup experience + canceled install
-		require.Len(t, createdActivities, 2)
+		// Should have 1 activity: canceled install (canceled_setup_experience is now emitted by maybeCancelPendingSetupExperienceSteps)
+		require.Len(t, createdActivities, 1)
 
-		// First: canceled setup experience (emitted in first loop for the failed item)
-		cseAct, ok := createdActivities[0].(fleet.ActivityTypeCanceledSetupExperience)
-		require.True(t, ok, "expected ActivityTypeCanceledSetupExperience, got %T", createdActivities[0])
-		assert.Equal(t, hostID, cseAct.HostID)
-		assert.Equal(t, "FailedApp", cseAct.SoftwareTitle)
-		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
-
-		// Second: canceled install software
-		canceledAct, ok := createdActivities[1].(fleet.ActivityTypeCanceledInstallSoftware)
-		require.True(t, ok, "expected ActivityTypeCanceledInstallSoftware, got %T", createdActivities[1])
+		// Canceled install software
+		canceledAct, ok := createdActivities[0].(fleet.ActivityTypeCanceledInstallSoftware)
+		require.True(t, ok, "expected ActivityTypeCanceledInstallSoftware, got %T", createdActivities[0])
 		assert.Equal(t, hostID, canceledAct.HostID)
 		assert.Equal(t, hostDisplayName, canceledAct.HostDisplayName)
 		assert.Equal(t, "DummyApp", canceledAct.SoftwareTitle)
@@ -180,19 +173,12 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		// Status should have been changed to failure
 		assert.Equal(t, fleet.SetupExperienceStatusFailure, results[1].Status)
 
-		// Should have 2 activities: canceled setup experience + canceled VPP install
-		require.Len(t, createdActivities, 2)
+		// Should have 1 activity: canceled VPP install (canceled_setup_experience is now emitted by maybeCancelPendingSetupExperienceSteps)
+		require.Len(t, createdActivities, 1)
 
-		// First: canceled setup experience (emitted in first loop for the failed item)
-		cseAct, ok := createdActivities[0].(fleet.ActivityTypeCanceledSetupExperience)
-		require.True(t, ok, "expected ActivityTypeCanceledSetupExperience, got %T", createdActivities[0])
-		assert.Equal(t, hostID, cseAct.HostID)
-		assert.Equal(t, "FailedVPP", cseAct.SoftwareTitle)
-		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
-
-		// Second: canceled install app store app
-		canceledAct, ok := createdActivities[1].(fleet.ActivityTypeCanceledInstallAppStoreApp)
-		require.True(t, ok, "expected ActivityTypeCanceledInstallAppStoreApp, got %T", createdActivities[1])
+		// Canceled install app store app
+		canceledAct, ok := createdActivities[0].(fleet.ActivityTypeCanceledInstallAppStoreApp)
+		require.True(t, ok, "expected ActivityTypeCanceledInstallAppStoreApp, got %T", createdActivities[0])
 		assert.Equal(t, hostID, canceledAct.HostID)
 		assert.Equal(t, hostDisplayName, canceledAct.HostDisplayName)
 		assert.Equal(t, "VPPApp", canceledAct.SoftwareTitle)
@@ -269,20 +255,15 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		assert.Equal(t, fleet.SetupExperienceStatusPending, results[3].Status) // unchanged
 		assert.Equal(t, fleet.SetupExperienceStatusFailure, results[4].Status) // cancelled -> failed
 
-		// Three activities: canceled setup experience, canceled sw install, canceled vpp install
-		require.Len(t, activities, 3)
+		// Two activities: canceled sw install + canceled vpp install (canceled_setup_experience is now emitted by maybeCancelPendingSetupExperienceSteps)
+		require.Len(t, activities, 2)
 
-		cseAct, ok := activities[0].(fleet.ActivityTypeCanceledSetupExperience)
-		require.True(t, ok)
-		assert.Equal(t, "FailedApp", cseAct.SoftwareTitle)
-		assert.Equal(t, failedTitleID, cseAct.SoftwareTitleID)
-
-		swAct, ok := activities[1].(fleet.ActivityTypeCanceledInstallSoftware)
+		swAct, ok := activities[0].(fleet.ActivityTypeCanceledInstallSoftware)
 		require.True(t, ok)
 		assert.Equal(t, "CancelledSW", swAct.SoftwareTitle)
 		assert.True(t, swAct.FromSetupExperience)
 
-		vppAct, ok := activities[2].(fleet.ActivityTypeCanceledInstallAppStoreApp)
+		vppAct, ok := activities[1].(fleet.ActivityTypeCanceledInstallAppStoreApp)
 		require.True(t, ok)
 		assert.Equal(t, "CancelledVPP", vppAct.SoftwareTitle)
 		assert.True(t, vppAct.FromSetupExperience)
@@ -328,7 +309,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("no canceled_setup_experience activity when no failed software item", func(t *testing.T) {
+	t.Run("cancelled items without failed item still emit individual cancel activities", func(t *testing.T) {
 		ds.UpdateSetupExperienceStatusResultFuncInvoked = false
 
 		installerID := uint(10)
@@ -359,7 +340,7 @@ func TestFailCancelledSetupExperienceInstalls(t *testing.T) {
 		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
 		require.NoError(t, err)
 
-		// Should only have the canceled install, no canceled_setup_experience
+		// Should only have the canceled install activity
 		require.Len(t, createdActivities, 1)
 		_, ok := createdActivities[0].(fleet.ActivityTypeCanceledInstallSoftware)
 		require.True(t, ok)

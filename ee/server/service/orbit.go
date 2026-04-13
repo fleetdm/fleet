@@ -235,22 +235,6 @@ func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 	hostDisplayName string,
 	results []*fleet.SetupExperienceStatusResult,
 ) error {
-	// Find the software item that originally failed and triggered the cancellation.
-	// It already has SetupExperienceStatusFailure before we modify any canceled items.
-	for _, r := range results {
-		if r.Status == fleet.SetupExperienceStatusFailure && r.IsForSoftware() {
-			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
-				HostID:          hostID,
-				HostDisplayName: hostDisplayName,
-				SoftwareTitle:   r.Name,
-				SoftwareTitleID: ptr.ValOrZero(r.SoftwareTitleID),
-			}); err != nil {
-				return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")
-			}
-			break
-		}
-	}
-
 	for _, r := range results {
 		if r.Status != fleet.SetupExperienceStatusCancelled {
 			continue
