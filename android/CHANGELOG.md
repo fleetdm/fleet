@@ -3,7 +3,7 @@
 * Made the certificate list scrollable
 * Fixed background DNS resolution failures.
 * Stopped polling certificates when the server reported them as permanently failed.
-* Non-retryable SCEP failures (e.g. server rejection) now immediately mark the certificate as failed instead of retrying 3 times.
+* Marked non-retryable SCEP failures (e.g. server rejection) as failed immediately instead of retrying 3 times.
 * Fixed duplicate FAILED status reports.
 * Treat HTTP 404 on certificate status updates as a signal that the template has been deleted server-side.
 * Include SCEP `failInfo` details in enrollment failure messages instead of a generic error.
