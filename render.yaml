@@ -14,8 +14,10 @@ services:
     envVars:
       - key: FLEET_SOFTWARE_INSTALLER_STORE_DIR
         value: '/opt/fleet/installers'
-      - key: FLEET_SERVER_PRIVATE_KEY
-        generateValue: true
+      # - key: FLEET_SERVER_PRIVATE_KEY
+      #   generateValue: true
+      - key: DOGFOOD_API_TOKEN
+        sync: false
       - key: FLEET_MYSQL_ADDRESS
         fromService:
           name: fleet-mysql
@@ -58,7 +60,10 @@ services:
       - key: FLEET_URL
         value: 'https://dogfood.fleetdm.com'
       - key: DOGFOOD_API_TOKEN
-        sync: false
+        fromService:
+          name: fleet
+          type: web
+          envVarKey: DOGFOOD_API_TOKEN
       - key: FLEET_MYSQL_ADDRESS
         fromService:
           name: fleet-mysql
