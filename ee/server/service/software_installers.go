@@ -2645,7 +2645,7 @@ func (svc *Service) softwareBatchUpload(
 					installer.UninstallScript = ""
 					installer.PreInstallQuery = ""
 				} else {
-					// Layer 2: Conditional GET (default behavior, disabled by always_download: true).
+					// Conditional GET (default behavior, disabled by always_download: true).
 					// Look up existing installer by URL for its ETag, only when
 					// we're about to download (avoids wasted DB queries).
 					var existingForCache *fleet.ExistingSoftwareInstaller
