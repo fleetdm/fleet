@@ -1896,3 +1896,7 @@ func (a ActivityTypeCanceledSetupExperience) ActivityName() string {
 func (a ActivityTypeCanceledSetupExperience) HostIDs() []uint {
 	return []uint{a.HostID}
 }
+
+func (a ActivityTypeCanceledSetupExperience) WasFromAutomation() bool {
+	return true
+}
