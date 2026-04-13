@@ -1802,11 +1802,15 @@ WHERE name = ?`
 	lastSyncDeclToken = tokens.SyncTokens.DeclarationsToken
 	require.NotEmpty(t, lastSyncDeclToken)
 
-	// Verify variables_updated_at is non-nil for VarUUID on both team hosts
+	// Verify variables_updated_at is non-nil for VarUUID and VarSerial on both team hosts
 	preVarsUpdatedUUIDHost1 := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
 	require.NotNil(t, preVarsUpdatedUUIDHost1)
 	preVarsUpdatedUUIDHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclUUID.DeclarationUUID)
 	require.NotNil(t, preVarsUpdatedUUIDHost3)
+	preVarsUpdatedSerialHost1 := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, preVarsUpdatedSerialHost1)
+	preVarsUpdatedSerialHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, preVarsUpdatedSerialHost3)
 
 	// Update VarUUID.json to remove the variable (same name/identifier, static content)
 	declUUIDNowStatic := []byte(`{
@@ -1852,9 +1856,13 @@ WHERE name = ?`
 	varsUpdatedUUIDAfterRemovalHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclUUIDUpdated.DeclarationUUID)
 	assert.Nil(t, varsUpdatedUUIDAfterRemovalHost3, "variables_updated_at should be NULL after removing variable from declaration (host3)")
 
-	// VarSerial.json still has variables — variables_updated_at unchanged on host1
+	// VarSerial.json still has variables — variables_updated_at unchanged on both hosts
 	varsUpdatedSerialAfterRemoval := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
 	require.NotNil(t, varsUpdatedSerialAfterRemoval)
+	assert.Equal(t, *preVarsUpdatedSerialHost1, *varsUpdatedSerialAfterRemoval, "VarSerial variables_updated_at should be unchanged on host1")
+	varsUpdatedSerialAfterRemovalHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, varsUpdatedSerialAfterRemovalHost3)
+	assert.Equal(t, *preVarsUpdatedSerialHost3, *varsUpdatedSerialAfterRemovalHost3, "VarSerial variables_updated_at should be unchanged on host3")
 }
 
 func declarationForTest(identifier string) []byte {
