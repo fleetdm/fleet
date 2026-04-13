@@ -9173,14 +9173,21 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 
 		var installJob struct {
 			Product struct {
-				ContentURL string `xml:"Download>ContentURLList>ContentURL"`
-				FileHash   string `xml:"Validation>FileHash"`
+				ContentURL  string `xml:"Download>ContentURLList>ContentURL"`
+				FileHash    string `xml:"Validation>FileHash"`
+				CommandLine string `xml:"Enforcement>CommandLine"`
 			} `xml:"Product"`
 		}
 		err = xml.Unmarshal([]byte(fleetdExecCmd.Cmd.Items[0].Data.Content), &installJob)
 		require.NoError(t, err)
 		require.Equal(t, s.mockedDownloadFleetdmMeta.MSIURL, installJob.Product.ContentURL)
 		require.Equal(t, s.mockedDownloadFleetdmMeta.MSISha256, installJob.Product.FileHash)
+
+		// The device enrolled with a valid UPN (azureMail), so the command line
+		// should include an EUA_TOKEN argument.
+		require.Contains(t, installJob.Product.CommandLine, `EUA_TOKEN="`)
+		require.Contains(t, installJob.Product.CommandLine, `FLEET_URL="`)
+		require.Contains(t, installJob.Product.CommandLine, `FLEET_SECRET="`)
 
 		// reply with success for both commands
 		msgID, err := d.GetCurrentMsgID()
@@ -9700,11 +9707,11 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(false)
 
 	// host has disk encryption off, gets the notification
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false, nil))
 	checkNotification(true)
 
 	// host has disk encryption on, we don't have disk encryption info. Gets the notification
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true, nil))
 	checkNotification(true)
 
 	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
@@ -9748,11 +9755,11 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(true)
 
 	// host has disk encryption off, gets the notification
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false, nil))
 	checkNotification(true)
 
 	// host has disk encryption on, we don't have disk encryption info. Gets the notification
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true, nil))
 	checkNotification(true)
 
 	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
@@ -9904,7 +9911,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.Equal(t, "DEF", string(decrypted))
 
 	// report host disks as encrypted
-	err = s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true)
+	err = s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, nil)
 	require.NoError(t, err)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)

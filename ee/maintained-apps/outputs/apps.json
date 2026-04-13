@@ -131,7 +131,7 @@
       "name": "Amazon Chime",
       "slug": "amazon-chime/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.runningwithcrayons.Alfred",
+      "unique_identifier": "com.amazon.Amazon-Chime",
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
@@ -257,7 +257,7 @@
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.scootersoftware.BeyondCompare",
+      "unique_identifier": "com.ScooterSoftware.BeyondCompare",
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {

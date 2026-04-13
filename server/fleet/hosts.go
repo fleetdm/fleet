@@ -689,6 +689,25 @@ const (
 	DiskEncryptionRemovingEnforcement DiskEncryptionStatus = "removing_enforcement"
 )
 
+// BitLocker conversion status values from the Win32_EncryptableVolume WMI class.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
+//
+// Only FullyEncrypted (1) is used by the server ingestion logic; all other
+// values (0=decrypted, 2=encrypting, 3=decrypting, 4=encryption paused,
+// 5=decryption paused) are treated as "not yet encrypted."
+const (
+	BitLockerConversionStatusFullyDecrypted = 0
+	BitLockerConversionStatusFullyEncrypted = 1
+)
+
+// BitLocker protection status values from the Win32_EncryptableVolume WMI class.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
+const (
+	BitLockerProtectionStatusOff     = 0
+	BitLockerProtectionStatusOn      = 1
+	BitLockerProtectionStatusUnknown = 2
+)
+
 func (s DiskEncryptionStatus) addrOf() *DiskEncryptionStatus {
 	return &s
 }

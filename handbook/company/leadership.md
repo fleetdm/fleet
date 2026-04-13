@@ -159,7 +159,7 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 
 > Hiring restrictions
 >
-> Fleet maintains a list of **incompatible locations** and companies with whom Fleet has **do-not-solicit terms** that prevent us from making offers to employees that reside in certian locations or have partnered with certain companies.  These lists are in the ["🚫 Hiring restrictions" spreadsheet](https://docs.google.com/spreadsheets/d/1tIUzzwdro6rx9jMhLmThJ-0ZGZPgiSJXTJwbnAJkNrU/edit?gid=921044344#gid=921044344).
+> Fleet maintains a list of **incompatible locations** and companies with whom Fleet has **do-not-solicit terms** that prevent us from making offers to employees that reside in certain locations or have partnered with certain companies.  These lists are in the ["🚫 Hiring restrictions" spreadsheet](https://docs.google.com/spreadsheets/d/1tIUzzwdro6rx9jMhLmThJ-0ZGZPgiSJXTJwbnAJkNrU/edit?gid=921044344#gid=921044344).
 
 
 ### Recruiting
@@ -452,7 +452,7 @@ Once approved by 💸 Finance, finalize purchase of accommodations and can assis
 
 ## Executive bios
 
-Certain of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
+Certain members of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
 
 | Person               | Headshot     | Bio   |
 |:---------------------|:-------------|:------|
