@@ -346,16 +346,7 @@ func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
 		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 	}, http.StatusUnprocessableEntity, &resp)
 
-	// api_only:true is accepted and automatically receives a wildcard api_endpoint.
-	var apiOnlyResp struct {
-		User struct {
-			APIOnly      bool `json:"api_only"`
-			APIEndpoints []struct {
-				Method string `json:"method"`
-				Path   string `json:"path"`
-			} `json:"api_endpoints"`
-		} `json:"user"`
-	}
+	var apiOnlyResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
 		Name:       ptr.String("api-only-legacy"),
 		Email:      ptr.String("api-only-legacy@example.com"),
@@ -364,9 +355,7 @@ func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
 		APIOnly:    new(true),
 	}, http.StatusOK, &apiOnlyResp)
 	require.True(t, apiOnlyResp.User.APIOnly)
-	require.Len(t, apiOnlyResp.User.APIEndpoints, 1)
-	require.Equal(t, "*", apiOnlyResp.User.APIEndpoints[0].Method)
-	require.Equal(t, "*", apiOnlyResp.User.APIEndpoints[0].Path)
+	require.Empty(t, apiOnlyResp.User.APIEndpoints) // nil/empty = full access
 }
 
 func (s *integrationTestSuite) TestModifyUserAPIOnlyRejected() {

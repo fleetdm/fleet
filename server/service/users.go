@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -66,18 +65,24 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 var errMailerRequiredForMFA = badRequest("Email must be set up to enable Fleet MFA")
 
-func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef, requireNonEmpty bool) error {
-	if refs == nil || len(*refs) == 0 {
-		if requireNonEmpty || refs != nil {
-			return ctxerr.Wrap(
-				ctx,
-				fleet.NewInvalidArgumentError(
-					"api_endpoints",
-					"at least one API endpoint must be specified for API only users",
-				),
-			)
-		}
+func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef) error {
+	if refs == nil {
+		// Absent (nil pointer): no change.
 		return nil
+	}
+	if *refs == nil {
+		// Null (non-nil pointer to nil slice): clear all entries — full access.
+		return nil
+	}
+	if len(*refs) == 0 {
+		// Explicit empty array: not valid; send null to grant full access.
+		return ctxerr.Wrap(
+			ctx,
+			fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"at least one API endpoint must be specified",
+			),
+		)
 	}
 
 	entries := *refs
@@ -87,24 +92,6 @@ func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef, 
 			ctx,
 			fleet.NewInvalidArgumentError("api_endpoints", "maximum number of API endpoints reached"),
 		)
-	}
-
-	// A single wildcard entry grants access to all endpoints — no catalog check needed.
-	wildcardIdx := slices.IndexFunc(entries, func(e fleet.APIEndpointRef) bool {
-		return e.Method == "*" && e.Path == "*"
-	})
-	if wildcardIdx >= 0 {
-		// Specifying the wildcard entry plus something else doesn't make sense
-		if len(entries) > 1 {
-			return ctxerr.Wrap(
-				ctx,
-				fleet.NewInvalidArgumentError(
-					"api_endpoints",
-					"wildcard endpoint (method: *, path: *) must be the only entry",
-				),
-			)
-		}
-		return nil
 	}
 
 	allEndpoints := apiendpoints.GetAPIEndpoints()
@@ -218,19 +205,8 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	if p.APIEndpoints != nil && (p.APIOnly == nil || !*p.APIOnly) {
 		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "API endpoints can only be specified for API only users"))
 	}
-	if p.APIOnly != nil && *p.APIOnly && p.APIEndpoints == nil {
-		// Preserve backward-compatible behavior: creating an API-only user without
-		// explicit endpoints grants access to all endpoints via a wildcard. On
-		// premium, callers can provide granular endpoints; on free, the wildcard is
-		// always used since granular endpoints require premium.
-		p.APIEndpoints = &[]fleet.APIEndpointRef{{Method: "*", Path: "*"}}
-	}
 	if p.APIOnly != nil && *p.APIOnly {
-		// API-Endpoints is a premium only feature,
-		// so we only want to validate it if creating an API only
-		// user under premium
-		requireNonEmpty := license.IsPremium(ctx)
-		if err := validateAPIEndpointRefs(ctx, p.APIEndpoints, requireNonEmpty); err != nil {
+		if err := validateAPIEndpointRefs(ctx, p.APIEndpoints); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -321,11 +297,11 @@ func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyAPIOnlyUserRequest struct {
-	ID           uint                    `json:"-" url:"id"`
-	Name         *string                 `json:"name,omitempty"`
-	GlobalRole   *string                 `json:"global_role,omitempty"`
-	Teams        *[]fleet.UserTeam       `json:"teams,omitempty" renameto:"fleets"`
-	APIEndpoints *[]fleet.APIEndpointRef `json:"api_endpoints,omitempty"`
+	ID           uint                       `json:"-" url:"id"`
+	Name         *string                    `json:"name,omitempty"`
+	GlobalRole   *string                    `json:"global_role,omitempty"`
+	Teams        *[]fleet.UserTeam          `json:"teams,omitempty" renameto:"fleets"`
+	APIEndpoints fleet.OptionalAPIEndpoints `json:"api_endpoints"`
 }
 
 type modifyAPIOnlyUserResponse struct {
@@ -338,12 +314,22 @@ func (r modifyAPIOnlyUserResponse) Error() error { return r.Err }
 func modifyAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyAPIOnlyUserRequest)
 
-	user, err := svc.ModifyAPIOnlyUser(ctx, req.ID, fleet.UserPayload{
-		Name:         req.Name,
-		GlobalRole:   req.GlobalRole,
-		Teams:        req.Teams,
-		APIEndpoints: req.APIEndpoints,
-	})
+	payload := fleet.UserPayload{
+		Name:       req.Name,
+		GlobalRole: req.GlobalRole,
+		Teams:      req.Teams,
+	}
+	if req.APIEndpoints.Present {
+		if req.APIEndpoints.Value == nil {
+			// null → clear all entries; signal via non-nil pointer to nil slice.
+			var clear []fleet.APIEndpointRef
+			payload.APIEndpoints = &clear
+		} else {
+			payload.APIEndpoints = &req.APIEndpoints.Value
+		}
+	}
+
+	user, err := svc.ModifyAPIOnlyUser(ctx, req.ID, payload)
 	if err != nil {
 		return modifyAPIOnlyUserResponse{Err: err}, nil
 	}
@@ -702,7 +688,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 			return nil, err
 		}
 	}
-	if err := validateAPIEndpointRefs(ctx, p.APIEndpoints, false); err != nil {
+	if err := validateAPIEndpointRefs(ctx, p.APIEndpoints); err != nil {
 		return nil, err
 	}
 

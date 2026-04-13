@@ -28413,7 +28413,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
-			name: "more than 100 api_endpoints",
+			name: "allow only a limited number of api_endpoints",
 			body: func() map[string]any {
 				eps := make([]map[string]any, 101)
 				for i := range eps {
@@ -28427,28 +28427,18 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			}(),
 			wantStatus: http.StatusUnprocessableEntity,
 		},
-		// --- Premium features work under premium ---
 		{
-			name: "wildcard api_endpoint",
+			name: "nil api_endpoints grants full access",
 			body: map[string]any{
-				"name":        "Wildcard API User",
+				"name":        "Full Access API User",
 				"global_role": "observer",
-				"api_endpoints": []map[string]any{
-					{"method": "*", "path": "*"},
-				},
 			},
 			wantStatus: http.StatusOK,
 			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
 				require.NotEmpty(t, resp.Token)
 				require.NotZero(t, resp.User.ID)
-				require.Equal(t, "Wildcard API User", resp.User.Name)
-				require.NotEmpty(t, resp.User.Email)
 				require.True(t, resp.User.APIOnly)
-				require.NotNil(t, resp.User.GlobalRole)
-				require.Equal(t, "observer", *resp.User.GlobalRole)
-				require.Len(t, resp.User.APIEndpoints, 1)
-				require.Equal(t, "*", resp.User.APIEndpoints[0].Method)
-				require.Equal(t, "*", resp.User.APIEndpoints[0].Path)
+				require.Empty(t, resp.User.APIEndpoints)
 			},
 		},
 		{
@@ -28474,13 +28464,10 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			},
 		},
 		{
-			name: "fleet-scoped assignment with wildcard api_endpoint",
+			name: "fleet-scoped assignment without api_endpoints grants full access",
 			body: map[string]any{
 				"name":   "Team API User",
 				"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
-				"api_endpoints": []map[string]any{
-					{"method": "*", "path": "*"},
-				},
 			},
 			wantStatus: http.StatusOK,
 			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
@@ -28492,6 +28479,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 				require.Len(t, resp.User.Teams, 1)
 				require.Equal(t, team.ID, resp.User.Teams[0].ID)
 				require.Equal(t, "observer", resp.User.Teams[0].Role)
+				require.Empty(t, resp.User.APIEndpoints) // nil = full access
 			},
 		},
 	}
@@ -28678,19 +28666,19 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			},
 		},
 		{
-			name: "update api_endpoints to wildcard",
-			url:  patchURL,
-			body: map[string]any{
-				"api_endpoints": []map[string]any{
-					{"method": "*", "path": "*"},
-				},
-			},
+			name:       "null api_endpoints resets to full access",
+			url:        patchURL,
+			body:       map[string]any{"api_endpoints": nil},
 			wantStatus: http.StatusOK,
 			verify: func(t *testing.T, resp patchResp) {
-				require.Len(t, resp.User.APIEndpoints, 1)
-				require.Equal(t, "*", resp.User.APIEndpoints[0].Method)
-				require.Equal(t, "*", resp.User.APIEndpoints[0].Path)
+				require.Empty(t, resp.User.APIEndpoints)
 			},
+		},
+		{
+			name:       "empty array is invalid",
+			url:        patchURL,
+			body:       map[string]any{"api_endpoints": []map[string]any{}},
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 	}
 
@@ -28786,17 +28774,4 @@ func (s *integrationEnterpriseTestSuite) TestGetUserReturnsAPIEndpoints() {
 	require.NotNil(t, foundRegular, "regular user should appear in list")
 	require.False(t, foundRegular.APIOnly)
 	require.Empty(t, foundRegular.APIEndpoints)
-
-	// Patch the API-only user to use a wildcard; GET should reflect the change.
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
-		"api_endpoints": []map[string]any{
-			{"method": "*", "path": "*"},
-		},
-	}, http.StatusOK)
-
-	var getAfterPatch getUserResp
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", apiUserID), nil, http.StatusOK, &getAfterPatch)
-	require.Len(t, getAfterPatch.User.APIEndpoints, 1)
-	require.Equal(t, "*", getAfterPatch.User.APIEndpoints[0].Method)
-	require.Equal(t, "*", getAfterPatch.User.APIEndpoints[0].Path)
 }

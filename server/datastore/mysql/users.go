@@ -315,7 +315,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		return err
 	}
 
-	if user.APIEndpoints != nil {
+	if user.APIOnly {
 		if err := replaceUserAPIEndpoints(ctx, tx, user.ID, user.APIEndpoints); err != nil {
 			return err
 		}

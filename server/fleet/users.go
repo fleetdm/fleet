@@ -30,6 +30,26 @@ type APIEndpointRef struct {
 	Path   string `json:"path"`
 }
 
+// OptionalAPIEndpoints is a JSON-nullable field that distinguishes three states
+// when decoding a PATCH request body:
+//
+//   - Field absent → Present=false: no change to the user's current endpoints.
+//   - Field is null → Present=true, Value=nil: clear all entries (full access).
+//   - Field is an array → Present=true, Value=[...]: replace with specific entries.
+type OptionalAPIEndpoints struct {
+	Present bool
+	Value   []APIEndpointRef
+}
+
+func (o *OptionalAPIEndpoints) UnmarshalJSON(data []byte) error {
+	o.Present = true
+	if string(data) == "null" {
+		o.Value = nil
+		return nil
+	}
+	return json.Unmarshal(data, &o.Value)
+}
+
 // User is the model struct that represents a Fleet user.
 type User struct {
 	UpdateCreateTimestamps

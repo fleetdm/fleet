@@ -15,10 +15,6 @@ func (c *Client) CreateAPIOnlyUser(name string, globalRole *string, teams []flee
 		GlobalRole: globalRole,
 		Teams:      &teams,
 	}
-	if appCfg, err := c.GetAppConfig(); err == nil && appCfg.License != nil && appCfg.License.IsPremium() {
-		allEndpoints := []fleet.APIEndpointRef{{Path: "*", Method: "*"}}
-		payload.APIEndpoints = &allEndpoints
-	}
 	var responseBody createUserResponse
 	if err := c.authenticatedRequest(payload, verb, path, &responseBody); err != nil {
 		return nil, err
