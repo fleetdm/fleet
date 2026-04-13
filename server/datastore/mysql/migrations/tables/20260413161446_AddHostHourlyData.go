@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260406213703, Down_20260406213703)
+	MigrationClient.AddMigration(Up_20260413161446, Down_20260413161446)
 }
 
-func Up_20260406213703(tx *sql.Tx) error {
+func Up_20260413161446(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS host_daily_data_bitmaps (
 			host_id      INT UNSIGNED NOT NULL,
@@ -46,6 +46,6 @@ func Up_20260406213703(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260406213703(tx *sql.Tx) error {
+func Down_20260413161446(tx *sql.Tx) error {
 	return nil
 }
