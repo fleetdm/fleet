@@ -1,46 +1,6 @@
-- name: x86 Windows hosts with 010 Editor installed
-  description: x86 Windows hosts with 010 Editor installed
-  query: SELECT 1 FROM programs WHERE name LIKE '010 Editor%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with 8x8 Work installed
-  description: x86 Windows hosts with 8x8 Work installed
-  query: SELECT 1 FROM programs WHERE name = '8x8 Work' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Asana installed
-  description: x86 Windows hosts with Asana installed
-  query: SELECT 1 FROM programs WHERE name = 'Asana' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Blender installed
-  description: x86 Windows hosts with Blender installed
-  query: SELECT 1 FROM programs WHERE name = 'Blender' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Box Drive installed
-  description: x86 Windows hosts with Box Drive installed
-  query: SELECT 1 FROM programs WHERE name = 'Box' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Cloudflare WARP installed
-  description: x86 Windows hosts with Cloudflare WARP installed
-  query: SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
 - name: x86 Windows hosts with Cursor installed
   description: x86 Windows hosts with Cursor installed
   query: SELECT 1 FROM programs WHERE name = 'Cursor' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Cyberduck installed
-  description: x86 Windows hosts with Cyberduck installed
-  query: SELECT 1 FROM programs WHERE name = 'Cyberduck' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Discord installed
-  description: x86 Windows hosts with Discord installed
-  query: SELECT 1 FROM programs WHERE name = 'Discord' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
 - name: x86 Windows hosts with Docker Desktop installed
@@ -53,11 +13,6 @@
   query: SELECT 1 FROM programs WHERE name = 'Figma' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
-- name: x86 Windows hosts with GIMP installed
-  description: x86 Windows hosts with GIMP installed
-  query: SELECT 1 FROM programs WHERE name LIKE 'GIMP%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
 - name: x86 Windows hosts with GitHub Desktop installed
   description: x86 Windows hosts with GitHub Desktop installed
   query: SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
@@ -68,49 +23,9 @@
   query: SELECT 1 FROM programs WHERE name = 'Google Drive' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
-- name: x86 Windows hosts with Inkscape installed
-  description: x86 Windows hosts with Inkscape installed
-  query: SELECT 1 FROM programs WHERE name = 'Inkscape' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with KeePassXC installed
-  description: x86 Windows hosts with KeePassXC installed
-  query: SELECT 1 FROM programs WHERE name = 'KeePassXC' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Krita installed
-  description: x86 Windows hosts with Krita installed
-  query: SELECT 1 FROM programs WHERE name = 'Krita_x64' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Microsoft Edge installed
-  description: x86 Windows hosts with Microsoft Edge installed
-  query: SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Notion installed
-  description: x86 Windows hosts with Notion installed
-  query: SELECT 1 FROM programs WHERE name LIKE 'Notion%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with OBS installed
-  description: x86 Windows hosts with OBS installed
-  query: SELECT 1 FROM programs WHERE name = 'OBS Studio' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Ollama installed
-  description: x86 Windows hosts with Ollama installed
-  query: SELECT 1 FROM programs WHERE name = 'Ollama' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
 - name: x86 Windows hosts with Postman installed
   description: x86 Windows hosts with Postman installed
   query: SELECT 1 FROM programs WHERE name LIKE 'Postman%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Sourcetree installed
-  description: x86 Windows hosts with Sourcetree installed
-  query: SELECT 1 FROM programs WHERE name = 'Sourcetree Enterprise' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
 - name: x86 Windows hosts with Spotify installed
@@ -118,38 +33,8 @@
   query: SELECT 1 FROM programs WHERE name = 'Spotify' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
-- name: x86 Windows hosts with Steam installed
-  description: x86 Windows hosts with Steam installed
-  query: SELECT 1 FROM programs WHERE name = 'Steam' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
 - name: x86 Windows hosts with Sublime Text installed
   description: x86 Windows hosts with Sublime Text installed
   query: SELECT 1 FROM programs WHERE name = 'Sublime Text' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Tailscale installed
-  description: x86 Windows hosts with Tailscale installed
-  query: SELECT 1 FROM programs WHERE name = 'Tailscale' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Telegram installed
-  description: x86 Windows hosts with Telegram installed
-  query: SELECT 1 FROM programs WHERE name = 'Telegram Desktop' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Webex installed
-  description: x86 Windows hosts with Webex installed
-  query: SELECT 1 FROM programs WHERE name = 'Cisco Webex' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Wireshark installed
-  description: x86 Windows hosts with Wireshark installed
-  query: SELECT 1 FROM programs WHERE name = 'Wireshark' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Yubico Authenticator installed
-  description: x86 Windows hosts with Yubico Authenticator installed
-  query: SELECT 1 FROM programs WHERE name = 'Yubico Authenticator' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
