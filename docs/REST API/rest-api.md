@@ -13933,7 +13933,7 @@ or
     {
       "id": 123,
       "display_name": "Get host by identifier",
-      "protocol": "GET",
+      "method": "GET",
       "path": "/api/v1/fleet/hosts/identifier/:identifier",
       "deprecated": false
     }
