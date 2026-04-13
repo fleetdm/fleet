@@ -370,7 +370,7 @@ func TestClearPasscode(t *testing.T) {
 		require.Error(t, err)
 		var badReq *fleet.BadRequestError
 		require.ErrorAs(t, err, &badReq)
-		assert.Contains(t, badReq.Message, "only supported on Apple mobile platforms")
+		assert.Contains(t, badReq.Message, "ClearPasscode command is only available for iOS and iPadOS. Unable to issue ClearPasscode command.")
 	})
 
 	t.Run("MDM not enabled", func(t *testing.T) {
@@ -386,7 +386,7 @@ func TestClearPasscode(t *testing.T) {
 		require.Error(t, err)
 		var badReq *fleet.BadRequestError
 		require.ErrorAs(t, err, &badReq)
-		assert.Contains(t, badReq.Message, "Apple MDM is not enabled")
+		assert.Contains(t, badReq.Message, "Apple MDM must be turned on to use Clear passcode.")
 
 		// Restore for subsequent tests.
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
