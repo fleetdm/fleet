@@ -30,7 +30,7 @@ type Dataset interface {
 
 	// ResolveFilters translates dataset-specific query params into entity IDs.
 	// Returns nil if no entity filtering is needed.
-	ResolveFilters(ctx context.Context, store DatasetStore, params map[string]string) ([]uint, error)
+	ResolveFilters(ctx context.Context, store DatasetStore, params map[string]string) ([]string, error)
 
 	// SupportedFilters returns metadata about available filters for this dataset.
 	SupportedFilters() []FilterDef
