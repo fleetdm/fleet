@@ -15,7 +15,7 @@ set -euo pipefail
 # Configuration
 REPO_URL="https://github.com/canonical/ubuntu-security-notices.git"
 REPO_DIR="ubuntu-security-notices"
-DAYS_TO_KEEP=3 # how much git history to get for initial clone
+DAYS_TO_KEEP=7 # how much git history to get for initial clone
 
 echo "=== OSV Repository Sync ==="
 echo ""
@@ -57,7 +57,11 @@ else
     git config core.sparseCheckout true
     echo "osv/" > .git/info/sparse-checkout
 
-    git fetch --shallow-since="${DAYS_TO_KEEP} days ago" origin main
+    # --shallow-since fails with "error processing shallow info: 4" when the
+    # remote has no commits newer than the cutoff (e.g. a quiet weekend). Fall
+    # back to a depth-based fetch so the initial clone always succeeds.
+    git fetch --shallow-since="${DAYS_TO_KEEP} days ago" origin main \
+        || git fetch --depth=50 origin main
     git checkout -b main --track origin/main
 
     COMMIT_SHA=$(git rev-parse HEAD)
