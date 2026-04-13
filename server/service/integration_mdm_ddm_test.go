@@ -1647,6 +1647,74 @@ WHERE name = ?`
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
 	assert.Contains(t, string(gotParsed.Payload), host1.UUID)
 
+	// === Variable change on one host does not resend to teammate ===
+
+	// Create a third host on the same team as host1
+	host3, mdmDevice3 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host3.ID}}, http.StatusOK)
+
+	// Let host3 complete its initial DDM sync
+	s.awaitTriggerProfileSchedule(t)
+
+	checkDDMSync(mdmDevice3)
+	// host1 also gets a sync because the profile schedule detected a new host
+	// in the team (the declaration set token changes); drain it.
+	cmd, err := mdmDevice1.Idle()
+	require.NoError(t, err)
+	if cmd != nil {
+		_, err = mdmDevice1.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		_, err = mdmDevice1.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+	}
+	checkNoCommands(mdmDevice2)
+
+	// Verify stable state: no-op batch upload triggers no commands for anyone
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
+		"team_id", teamIDStr)
+	s.awaitTriggerProfileSchedule(t)
+	checkNoCommands(mdmDevice1)
+	checkNoCommands(mdmDevice2)
+	checkNoCommands(mdmDevice3)
+
+	// Simulate variable change for host1 only
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_mdm_apple_declarations SET status = NULL
+			 WHERE host_uuid = ? AND declaration_uuid IN (?, ?)`,
+			host1.UUID, dbDeclUUID.DeclarationUUID, dbDeclSerial.DeclarationUUID,
+		)
+		return err
+	})
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// Only host1 gets DDM sync; host3 (same team) and host2 (global) do not
+	checkDDMSync(mdmDevice1)
+	checkNoCommands(mdmDevice2)
+	checkNoCommands(mdmDevice3)
+
+	// Verify host3's variables_updated_at was not changed by host1's resend
+	varsUpdatedUUIDHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclUUID.DeclarationUUID)
+	require.NotNil(t, varsUpdatedUUIDHost3)
+	varsUpdatedSerialHost3 := getHostDeclVarsUpdatedAt(t, host3.UUID, dbDeclSerial.DeclarationUUID)
+	require.NotNil(t, varsUpdatedSerialHost3)
+
+	// host3 fetches its own declarations — variables are correctly substituted
+	// with host3's own values
+	r, err = mdmDevice3.DeclarativeManagement("declaration/configuration/com.fleet.var.uuid")
+	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
+	assert.Contains(t, string(gotParsed.Payload), host3.UUID)
+	assert.NotContains(t, string(gotParsed.Payload), host1.UUID)
+
+	r, err = mdmDevice3.DeclarativeManagement("declaration/configuration/com.fleet.var.serial")
+	require.NoError(t, err)
+	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
+	assert.Contains(t, string(gotParsed.Payload), host3.HardwareSerial)
+	assert.NotContains(t, string(gotParsed.Payload), host1.HardwareSerial)
+
 	// === Failed variable resolution (no IdP user for host) ===
 
 	declWithIdpUsername := []byte(`{
