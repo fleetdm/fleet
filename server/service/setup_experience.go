@@ -399,7 +399,7 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		}
 		cancelErr := maybeCancelPendingSetupExperienceSteps(ctx, ds, host, newActivityFn)
 		if cancelErr != nil {
-			return updated, fmt.Errorf("cancel setup experience after macos software install failure: %w", cancelErr)
+			return updated, fmt.Errorf("cancel setup experience after software install failure: %w", cancelErr)
 		}
 	}
 	return updated, err
