@@ -21,13 +21,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/chart"
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const perPage = 500
+const (
+	perPage        = 500
+	cveInsertBatch = 200
+)
 
 func main() {
 	fleetURL := flag.String("fleet-url", os.Getenv("FLEET_URL"), "Fleet server URL (or FLEET_URL env var)")
@@ -165,6 +169,7 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 	log.Printf("  %d total hosts", len(hostIDs))
 
 	// Build CVE -> host IDs mapping.
+	fetchStart := time.Now()
 	cveHosts := make(map[string][]uint)
 	for i, hostID := range hostIDs {
 		cves, err := fetchHostCVEs(api, hostID)
@@ -176,10 +181,11 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 			cveHosts[cve] = append(cveHosts[cve], hostID)
 		}
 		if (i+1)%50 == 0 {
-			log.Printf("  processed %d/%d hosts, %d unique CVEs so far", i+1, len(hostIDs), len(cveHosts))
+			log.Printf("  fetched %d/%d hosts, %d unique CVEs so far (%.1fs)",
+				i+1, len(hostIDs), len(cveHosts), time.Since(fetchStart).Seconds())
 		}
 	}
-	log.Printf("  %d unique CVEs found", len(cveHosts))
+	log.Printf("  %d unique CVEs found in %.1fs", len(cveHosts), time.Since(fetchStart).Seconds())
 
 	if len(cveHosts) == 0 {
 		return nil
@@ -188,26 +194,57 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 	dateStr := time.Now().UTC().Format("2006-01-02")
 
 	// Replace today's CVE blobs with the current snapshot.
+	log.Printf("  deleting stale CVE blobs for %s...", dateStr)
+	delStart := time.Now()
 	if _, err := db.Exec(
 		`DELETE FROM host_hourly_data_blobs WHERE dataset = 'cve' AND chart_date = ? AND hour = ?`,
 		dateStr, chart.HourWholeDay,
 	); err != nil {
 		return fmt.Errorf("delete stale CVE blobs: %w", err)
 	}
+	log.Printf("  delete took %.1fs", time.Since(delStart).Seconds())
+
+	// Batch inserts: ~200 per statement is a big win over individual round trips.
+	log.Printf("  inserting %d CVE blobs in batches of %d...", len(cveHosts), cveInsertBatch)
+	insertStart := time.Now()
+
+	var (
+		placeholders []string
+		args         []any
+		inserted     int
+	)
+	flush := func() error {
+		if len(placeholders) == 0 {
+			return nil
+		}
+		stmt := `INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap) VALUES ` +
+			strings.Join(placeholders, ",")
+		if _, err := db.Exec(stmt, args...); err != nil {
+			return fmt.Errorf("batch insert: %w", err)
+		}
+		inserted += len(placeholders)
+		placeholders = placeholders[:0]
+		args = args[:0]
+		return nil
+	}
 
 	for cve, hosts := range cveHosts {
 		blob := chart.HostIDsToBlob(hosts)
+		placeholders = append(placeholders, "('cve', ?, ?, ?, ?)")
+		args = append(args, cve, dateStr, chart.HourWholeDay, blob)
 
-		if _, err := db.Exec(
-			`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
-			 VALUES ('cve', ?, ?, ?, ?)`,
-			cve, dateStr, chart.HourWholeDay, blob,
-		); err != nil {
-			return fmt.Errorf("write CVE blob %s: %w", cve, err)
+		if len(placeholders) >= cveInsertBatch {
+			if err := flush(); err != nil {
+				return err
+			}
+			log.Printf("  inserted %d/%d CVE blobs (%.1fs)", inserted, len(cveHosts), time.Since(insertStart).Seconds())
 		}
 	}
+	if err := flush(); err != nil {
+		return err
+	}
 
-	log.Printf("  wrote %d CVE blobs for %s", len(cveHosts), dateStr)
+	log.Printf("  wrote %d CVE blobs for %s in %.1fs", inserted, dateStr, time.Since(insertStart).Seconds())
 	return nil
 }
 
