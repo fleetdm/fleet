@@ -33,14 +33,36 @@
 @inner-gap: 8px;
 
 // -------------------------------------------
+// Container max-widths for [purpose='page-content']
+// -------------------------------------------
+
+// Docs detail & library pages: vital-details, script-details,
+// query-detail, policy-details, osquery-table-details,
+// command-details, app-details, script-library, query-library,
+// policy-library, os-settings, mdm-commands, app-library,
+// basic-documentation
+@content-max-width-docs: 1104px;
+
+// Product & marketing pages: homepage, customers, software-management,
+// observability, device-management, meetups, case-study, app-details
+@content-max-width: 1072px;
+
+// Narrow form pages: okta-conditional-access-error,
+// microsoft-proxy/remediate, microsoft-proxy/turn-on-mdm, deals
+@content-max-width-narrow: 528px;
+
+// Admin pages: admin/query-generator
+@content-max-width-admin: 800px;
+
+// -------------------------------------------
 // Pages with non-standard spacing (won't use these variables as-is):
 //
 // /infrastructure-as-code — 160px (section gap)
 // /transparency — 60px, 30px (card padding)
 // /handbook/basic-handbook — 75px (quote card padding), 36px (list margins)
-// /pricing — 15px (card button padding)
+// /pricing — 15px (card button padding), 1120px page-content max-width
 // /fleet-premium-trial — 9px (copy button), 10px (form field gaps)
-// /entrance/signup — 20px (form padding)
+// /entrance/signup — 20px (form padding), 128px horizontal padding
 // /customers/dashboard — 30px (license card padding)
 // /articles/basic-article — 72px (quote block margin), 6px (form controls)
 // /articles/basic-whitepaper — 72px (quote block margin)
@@ -49,6 +71,8 @@
 // /customers — 6px (carousel links), 10px (quote attribution)
 // /landing-pages/deployment — 10px (icon padding)
 // /landing-pages/gitops-workshop — 10px (icon/text gaps)
+// /fast-track — 1080px page-content max-width (could normalize to 1072px)
+// /transparency — responsive max-widths (960px/840px/480px)
 // layout.less — 19px, 20px, 23px (nav items), 5px/6px (badges)
 // call-to-action.component — 60px, 90px, 45px (CTA padding)
 // docs-nav-and-search.component — 6px, 15px (search controls)
